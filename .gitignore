@@ -23,8 +23,14 @@ npm-debug.log
 cache
 artifacts
 
+# Typechain
+/typechain-types
+
 # macOS
 .DS_Store
 
 # IntelliJ IDE
 .idea
+
+# VS Code
+.vscode

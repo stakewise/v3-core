@@ -1,0 +1,77 @@
+{
+  "name": "@stakewise/eth-core",
+  "version": "0.1.0",
+  "description": "Liquid staking protocol for Ethereum",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat clean && hardhat compile",
+    "lint": "npm run lint:js && npm run lint:sol",
+    "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
+    "lint:js": "eslint --ignore-path .gitignore .",
+    "lint:js:fix": "eslint --ignore-path .gitignore . --fix",
+    "lint:sol": "prettier -c 'contracts/**/*.sol'",
+    "lint:sol:fix": "prettier --write 'contracts/**/*.sol'",
+    "spdx": "hardhat prepend-spdx-license",
+    "size": "npm run compile && hardhat size-contracts",
+    "slither": "hardhat clean && slither .",
+    "test": "hardhat test",
+    "test:gas": "npm run compile && TRACK_GAS=true hardhat test"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/stakewise/eth-core"
+  },
+  "bugs": {
+    "url": "https://github.com/stakewise/eth-core/issues"
+  },
+  "homepage": "https://github.com/stakewise/eth-core#readme",
+  "devDependencies": {
+    "@nomiclabs/hardhat-ethers": "2.1.0",
+    "@nomiclabs/hardhat-etherscan": "3.1.0",
+    "@typechain/ethers-v5": "10.1.0",
+    "@typechain/hardhat": "6.1.2",
+    "@types/mocha": "9.1.1",
+    "@types/node": "18.6.5",
+    "@typescript-eslint/eslint-plugin": "5.33.0",
+    "@typescript-eslint/parser": "5.33.0",
+    "chai": "4.3.6",
+    "dotenv": "16.0.1",
+    "eslint": "8.21.0",
+    "eslint-config-prettier": "8.5.0",
+    "eslint-plugin-prettier": "4.2.1",
+    "ethereum-waffle": "3.4.4",
+    "ethers": "5.6.9",
+    "hardhat": "2.10.1",
+    "hardhat-contract-sizer": "2.6.1",
+    "hardhat-gas-reporter": "1.0.8",
+    "hardhat-log-remover": "2.0.2",
+    "hardhat-spdx-license-identifier": "2.0.3",
+    "husky": "8.0.1",
+    "prettier": "2.7.1",
+    "prettier-plugin-solidity": "1.0.0-beta.24",
+    "solidity-coverage": "0.7.21",
+    "ts-node": "10.9.1",
+    "typechain": "8.1.0",
+    "typescript": "4.7.4"
+  },
+  "husky": {
+    "hooks": {
+      "pre-commit": "pretty-quick --staged --pattern 'contracts/**/*.sol' --pattern 'test/**/*.ts'"
+    }
+  },
+  "author": "StakeWise Labs <info@stakewise.io>",
+  "license": "AGPL-3.0",
+  "keywords": [
+    "stakewise",
+    "liquid staking",
+    "ethereum",
+    "protocol",
+    "solidity",
+    "evm",
+    "contracts",
+    "core"
+  ],
+  "dependencies": {
+    "@openzeppelin/contracts": "4.7.2"
+  }
+}
