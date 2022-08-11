@@ -25,7 +25,7 @@ export async function domainSeparator(name, version, chainId, verifyingContract)
   )
 }
 
-export async function latestTimestamp() {
+export async function latestTimestamp(): Promise<BigNumber> {
   const block = await ethers.provider.getBlock('latest')
   return BigNumber.from(block.timestamp)
 }
