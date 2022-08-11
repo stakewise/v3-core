@@ -16,8 +16,8 @@ Object {
 
 exports[`ERC20Permit deployment gas 1`] = `
 Object {
-  "calldataByteLength": 4056,
-  "gasUsed": 715232,
+  "calldataByteLength": 4051,
+  "gasUsed": 714152,
 }
 `;
 

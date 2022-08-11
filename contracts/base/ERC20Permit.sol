@@ -1,5 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-only
-
+// SPDX-License-Identifier: BUSL-1.1
 pragma solidity 0.8.15;
 
 import {IERC20} from '../interfaces/IERC20.sol';
@@ -7,11 +6,11 @@ import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
 
 /**
  * @title ERC20 Permit Token
- * @author Solmate (https://github.com/transmissions11/solmate/blob/34d20fc027fe8d50da71428687024a29dc01748b/src/tokens/ERC20.sol)
+ * @author StakeWise
  * @notice Modern and gas efficient ERC20 + EIP-2612 implementation
  * @dev StakeWise added interfaces and docstrings
  */
-contract ERC20Permit is IERC20Permit {
+abstract contract ERC20Permit is IERC20Permit {
   /// @inheritdoc IERC20
   string public override name;
 
@@ -20,9 +19,6 @@ contract ERC20Permit is IERC20Permit {
 
   /// @inheritdoc IERC20
   uint8 public constant override decimals = 18;
-
-  /// @inheritdoc IERC20
-  uint256 public override totalSupply;
 
   /// @inheritdoc IERC20
   mapping(address => uint256) public override balanceOf;
@@ -168,39 +164,5 @@ contract ERC20Permit is IERC20Permit {
           address(this)
         )
       );
-  }
-
-  /**
-   * @notice Mint tokens
-   * @param to The destination address
-   * @param amount The amount to mint
-   **/
-  function _mint(address to, uint256 amount) internal {
-    totalSupply += amount;
-
-    // Cannot overflow because the sum of all user
-    // balances can't exceed the max uint256 value
-    unchecked {
-      balanceOf[to] += amount;
-    }
-
-    emit Transfer(address(0), to, amount);
-  }
-
-  /**
-   * @notice Burn tokens
-   * @param from The address from which the tokens will be burned
-   * @param amount The amount to burn
-   **/
-  function _burn(address from, uint256 amount) internal {
-    balanceOf[from] -= amount;
-
-    // Cannot underflow because a user's balance
-    // will never be larger than the total supply
-    unchecked {
-      totalSupply -= amount;
-    }
-
-    emit Transfer(from, address(0), amount);
   }
 }
