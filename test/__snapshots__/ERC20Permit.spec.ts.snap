@@ -1,0 +1,57 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`ERC20Permit approve when the sender has enough balance when the spender had an approved amount approves the requested amount and replaces the previous one 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 29006,
+}
+`;
+
+exports[`ERC20Permit approve when the sender has enough balance when there was no approved amount before approves the requested amount 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 46106,
+}
+`;
+
+exports[`ERC20Permit deployment gas 1`] = `
+Object {
+  "calldataByteLength": 4056,
+  "gasUsed": 715232,
+}
+`;
+
+exports[`ERC20Permit permit accepts owner signature 1`] = `
+Object {
+  "calldataByteLength": 228,
+  "gasUsed": 74532,
+}
+`;
+
+exports[`ERC20Permit transfer from when the spender has enough allowance when the token owner has enough balance transfers the requested amount 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 47564,
+}
+`;
+
+exports[`ERC20Permit transfer from when the spender has unlimited allowance does not decrease the spender allowance 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 54024,
+}
+`;
+
+exports[`ERC20Permit transfer when the sender transfers all balance transfers the requested amount 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 46415,
+}
+`;
+
+exports[`ERC20Permit transfer when the sender transfers zero tokens transfers the requested amount 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 28491,
+}
+`;

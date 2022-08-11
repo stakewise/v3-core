@@ -14,8 +14,9 @@
     "spdx": "hardhat prepend-spdx-license",
     "size": "npm run compile && hardhat size-contracts",
     "slither": "hardhat clean && slither .",
-    "test": "hardhat test",
-    "test:gas": "npm run compile && TRACK_GAS=true hardhat test"
+    "test": "npm run compile && hardhat test",
+    "test:gas": "npm run compile && TRACK_GAS=true hardhat test",
+    "coverage": "npm run compile && COVERAGE=true hardhat coverage"
   },
   "repository": {
     "type": "git",
@@ -28,6 +29,7 @@
   "devDependencies": {
     "@nomiclabs/hardhat-ethers": "2.1.0",
     "@nomiclabs/hardhat-etherscan": "3.1.0",
+    "@nomiclabs/hardhat-waffle": "2.0.3",
     "@typechain/ethers-v5": "10.1.0",
     "@typechain/hardhat": "6.1.2",
     "@types/mocha": "9.1.1",
@@ -39,7 +41,9 @@
     "eslint": "8.21.0",
     "eslint-config-prettier": "8.5.0",
     "eslint-plugin-prettier": "4.2.1",
+    "eth-sig-util": "3.0.1",
     "ethereum-waffle": "3.4.4",
+    "ethereumjs-wallet": "1.0.2",
     "ethers": "5.6.9",
     "hardhat": "2.10.1",
     "hardhat-contract-sizer": "2.6.1",
@@ -47,6 +51,7 @@
     "hardhat-log-remover": "2.0.2",
     "hardhat-spdx-license-identifier": "2.0.3",
     "husky": "8.0.1",
+    "mocha-chai-jest-snapshot": "1.1.4",
     "prettier": "2.7.1",
     "prettier-plugin-solidity": "1.0.0-beta.24",
     "solidity-coverage": "0.7.21",
