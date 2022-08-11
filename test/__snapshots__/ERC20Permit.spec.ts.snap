@@ -21,6 +21,13 @@ Object {
 }
 `;
 
+exports[`ERC20Permit mint gas 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 51075,
+}
+`;
+
 exports[`ERC20Permit permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,

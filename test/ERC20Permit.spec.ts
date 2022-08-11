@@ -39,6 +39,10 @@ describe('ERC20Permit', () => {
     await snapshotGasCost(tkn.deployTransaction)
   })
 
+  it('mint gas', async () => {
+    await snapshotGasCost(token.mint(other.address, initialSupply))
+  })
+
   it('has a name', async () => {
     expect(await token.name()).to.eq(name)
   })
