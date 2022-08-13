@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthVault deployment gas 1`] = `
+Object {
+  "calldataByteLength": 5678,
+  "gasUsed": 1067129,
+}
+`;
+
+exports[`EthVault empty vault: no assets & no shares deposit 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 71459,
+}
+`;
+
+exports[`EthVault full vault: assets & shares deposit 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 57350,
+}
+`;
+
+exports[`EthVault partially empty vault: assets & no shares deposit 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 71459,
+}
+`;
