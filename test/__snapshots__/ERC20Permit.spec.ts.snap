@@ -3,28 +3,28 @@
 exports[`ERC20Permit approve when the sender has enough balance when the spender had an approved amount approves the requested amount and replaces the previous one 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 29006,
+  "gasUsed": 29007,
 }
 `;
 
 exports[`ERC20Permit approve when the sender has enough balance when there was no approved amount before approves the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 46106,
+  "gasUsed": 46107,
 }
 `;
 
 exports[`ERC20Permit deployment gas 1`] = `
 Object {
-  "calldataByteLength": 4051,
-  "gasUsed": 714152,
+  "calldataByteLength": 3968,
+  "gasUsed": 697824,
 }
 `;
 
 exports[`ERC20Permit mint gas 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 51075,
+  "gasUsed": 51080,
 }
 `;
 
@@ -38,27 +38,27 @@ Object {
 exports[`ERC20Permit transfer from when the spender has enough allowance when the token owner has enough balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 47564,
+  "gasUsed": 47674,
 }
 `;
 
 exports[`ERC20Permit transfer from when the spender has unlimited allowance does not decrease the spender allowance 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 54024,
+  "gasUsed": 54119,
 }
 `;
 
 exports[`ERC20Permit transfer when the sender transfers all balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 46415,
+  "gasUsed": 46490,
 }
 `;
 
 exports[`ERC20Permit transfer when the sender transfers zero tokens transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 28491,
+  "gasUsed": 28566,
 }
 `;
