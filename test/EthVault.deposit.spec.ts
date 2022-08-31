@@ -11,10 +11,7 @@ const parseEther = ethers.utils.parseEther
 
 type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 
-describe('EthVault', () => {
-  const name = 'ETH Vault'
-  const symbol = 'VLT'
-
+describe('EthVault - deposit', () => {
   let sender: Wallet, receiver: Wallet, other: Wallet
   let vault: EthVault
 
@@ -29,11 +26,7 @@ describe('EthVault', () => {
 
   beforeEach('deploy fixture', async () => {
     ;({ createEthVault, createEthVaultMock } = await loadFixture(vaultFixture))
-    vault = await createEthVault(name, symbol)
-  })
-
-  it('deployment gas', async () => {
-    await snapshotGasCost(vault.deployTransaction)
+    vault = await createEthVault()
   })
 
   describe('empty vault: no assets & no shares', () => {
@@ -90,7 +83,7 @@ describe('EthVault', () => {
     let ethVaultMock: EthVaultMock
 
     beforeEach(async () => {
-      ethVaultMock = await createEthVaultMock(name, symbol)
+      ethVaultMock = await createEthVaultMock()
       await ethVaultMock.mockMint(receiver.address, parseEther('1'))
     })
 

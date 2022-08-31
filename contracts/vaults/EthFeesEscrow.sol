@@ -1,17 +1,15 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity 0.8.16;
+pragma solidity =0.8.16;
 
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 
 /**
- * @title FeesEscrow
+ * @title EthFeesEscrow
  * @author StakeWise
- * @notice Accumulates rewards received from priority fees and MEV. The escrow is owned by the Vault.
+ * @notice Accumulates rewards received from priority fees and MEV on Ethereum. The escrow is owned by the Vault.
  */
-contract FeesEscrow is IFeesEscrow {
-  error WithdrawalFailed();
-
+contract EthFeesEscrow is IFeesEscrow {
   address payable private immutable VAULT;
 
   /**
@@ -24,7 +22,10 @@ contract FeesEscrow is IFeesEscrow {
   /// @inheritdoc IFeesEscrow
   function withdraw() external override returns (uint256 assets) {
     if (msg.sender != VAULT) revert WithdrawalFailed();
+
     assets = address(this).balance;
+    if (assets == 0) return 0;
+
     (bool success, ) = VAULT.call{value: assets}('');
     if (!success) revert WithdrawalFailed();
   }

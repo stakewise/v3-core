@@ -1,22 +1,32 @@
 import { ethers } from 'hardhat'
 import { Fixture } from 'ethereum-waffle'
-import { EthVault, EthVaultMock } from '../../typechain-types'
+import { EthVault, EthVaultFactory, EthVaultMock } from '../../typechain-types'
 
 interface VaultFixture {
-  createEthVault(name: string, symbol: string): Promise<EthVault>
+  createEthVault(): Promise<EthVault>
 
-  createEthVaultMock(name: string, symbol: string): Promise<EthVaultMock>
+  createEthVaultMock(): Promise<EthVaultMock>
 }
 
 export const vaultFixture: Fixture<VaultFixture> = async function (): Promise<VaultFixture> {
-  const ethVaultFactory = await ethers.getContractFactory('EthVault')
+  const ethVaultFactory = await ethers.getContractFactory('EthVaultFactory')
+  const ethVault = await ethers.getContractFactory('EthVault')
+  const ethVaultFactoryMock = await ethers.getContractFactory('EthVaultFactoryMock')
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
   return {
-    createEthVault: async (name, symbol) => {
-      return (await ethVaultFactory.deploy(name, symbol)) as EthVault
+    createEthVault: async () => {
+      const factory = (await ethVaultFactory.deploy()) as EthVaultFactory
+      const tx = await factory.createVault()
+      const receipt = await tx.wait()
+      const vaultAddress = receipt.events?.[0].args?.vault as string
+      return ethVault.attach(vaultAddress) as EthVault
     },
-    createEthVaultMock: async (name, symbol) => {
-      return (await ethVaultMock.deploy(name, symbol)) as EthVaultMock
+    createEthVaultMock: async () => {
+      const factory = (await ethVaultFactoryMock.deploy()) as EthVaultFactory
+      const tx = await factory.createVault()
+      const receipt = await tx.wait()
+      const vaultAddress = receipt.events?.[0].args?.vault as string
+      return ethVaultMock.attach(vaultAddress) as EthVaultMock
     },
   }
 }
