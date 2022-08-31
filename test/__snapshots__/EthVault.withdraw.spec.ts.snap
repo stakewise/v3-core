@@ -35,20 +35,6 @@ Object {
 }
 `;
 
-exports[`EthVault - withdraw queue for withdrawal locks tokens for the withdrawal 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 74308,
-}
-`;
-
-exports[`EthVault - withdraw queue for withdrawal reduces allowance for sender other than owner 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 74984,
-}
-`;
-
 exports[`EthVault - withdraw redeem claims fees with not enough vault assets 1`] = `
 Object {
   "calldataByteLength": 100,
@@ -73,83 +59,20 @@ Object {
 exports[`EthVault - withdraw update exit queue adds checkpoint 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 102385,
+  "gasUsed": 102258,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue claims fees with required assets larger than vault's balance 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 110805,
+  "gasUsed": 110678,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue for not all the queued shares 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 108608,
-}
-`;
-
-exports[`EthVault - withdraw update withdrawals adds checkpoint 1`] = `
-Object {
-  "calldataByteLength": 4,
-  "gasUsed": 102428,
-}
-`;
-
-exports[`EthVault - withdraw update withdrawals claims fees with required assets larger than vault's balance 1`] = `
-Object {
-  "calldataByteLength": 4,
-  "gasUsed": 110848,
-}
-`;
-
-exports[`EthVault - withdraw update withdrawals for not all the queued shares 1`] = `
-Object {
-  "calldataByteLength": 4,
-  "gasUsed": 108651,
-}
-`;
-
-exports[`EthVault - withdraw withdraw claims fees with not enough vault assets 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 61780,
-}
-`;
-
-exports[`EthVault - withdraw withdraw from queue for single user in multiple checkpoints in multiple transactions 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 68192,
-}
-`;
-
-exports[`EthVault - withdraw withdraw from queue for single user in multiple checkpoints in single transaction 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 43717,
-}
-`;
-
-exports[`EthVault - withdraw withdraw from queue for single user in single checkpoint 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 40932,
-}
-`;
-
-exports[`EthVault - withdraw withdraw reduces allowance for sender other than owner 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 47144,
-}
-`;
-
-exports[`EthVault - withdraw withdraw transfers assets to receiver 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 43854,
+  "gasUsed": 108481,
 }
 `;

@@ -182,8 +182,9 @@ abstract contract Vault is ERC20Permit, IVault {
 
   /// @inheritdoc IVault
   function canUpdateExitQueue() public view override returns (bool) {
-    // TODO: check whether cheaper with unchecked
-    return block.timestamp >= exitQueueLastUpdate + exitQueueUpdateDelay;
+    unchecked {
+      return block.timestamp >= exitQueueLastUpdate + exitQueueUpdateDelay;
+    }
   }
 
   /// @inheritdoc IVault
