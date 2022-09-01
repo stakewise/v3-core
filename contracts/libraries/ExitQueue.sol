@@ -33,7 +33,7 @@ library ExitQueue {
    * @notice Event emitted on checkpoint creation
    * @param sharesCounter The cumulative number of burned shares
    * @param exitedAssets The amount of exited assets
-   **/
+   */
   event CheckpointCreated(uint160 sharesCounter, uint96 exitedAssets);
 
   error InvalidCheckpointIndex();
@@ -47,7 +47,7 @@ library ExitQueue {
     uint256 pos = self.checkpoints.length;
     unchecked {
       // cannot underflow as subtraction happens in case pos > 0
-      return pos == 0 ? 0 : self.checkpoints[pos - 1].sharesCounter;
+      return pos == 0 ? 0 : _unsafeAccess(self.checkpoints, pos - 1).sharesCounter;
     }
   }
 
@@ -55,30 +55,28 @@ library ExitQueue {
    * @notice Get checkpoint index for the burned shares counter
    * @param self An array containing checkpoints
    * @param sharesCounter The shares counter to search the closest checkpoint for
-   * @return high The checkpoint index or the length of checkpoints array in case there is no such
+   * @return The checkpoint index or the length of checkpoints array in case there is no such
    */
   function getCheckpointIndex(History storage self, uint256 sharesCounter)
     internal
     view
-    returns (uint256 high)
+    returns (uint256)
   {
-    high = self.checkpoints.length;
+    uint256 high = self.checkpoints.length;
     uint256 low;
     while (low < high) {
       uint256 mid = Math.average(low, high);
-      if (self.checkpoints[mid].sharesCounter > sharesCounter) {
+      if (_unsafeAccess(self.checkpoints, mid).sharesCounter > sharesCounter) {
         high = mid;
       } else {
-        unchecked {
-          // cannot overflow as it is capped with checkpoints array length
-          low = mid + 1;
-        }
+        low = mid + 1;
       }
     }
+    return high;
   }
 
   /**
-   * @notice Calculates the burned shares and exited assets
+   * @notice Calculates burned shares and exited assets
    * @param self An array containing checkpoints
    * @param checkpointIdx The index of the checkpoint to start calculating from
    * @param sharesCounter The shares counter to start calculating exited assets from
@@ -100,11 +98,13 @@ library ExitQueue {
     uint256 prevCounter;
     unchecked {
       // cannot underflow as subtraction happens in case checkpointIdx > 0
-      prevCounter = checkpointIdx == 0 ? 0 : self.checkpoints[checkpointIdx - 1].sharesCounter;
+      prevCounter = checkpointIdx == 0
+        ? 0
+        : _unsafeAccess(self.checkpoints, checkpointIdx - 1).sharesCounter;
     }
 
     // current shares counter for calculating assets per burned share
-    Checkpoint storage checkpoint = self.checkpoints[checkpointIdx];
+    Checkpoint storage checkpoint = _unsafeAccess(self.checkpoints, checkpointIdx);
     uint256 currCounter = checkpoint.sharesCounter;
     uint256 checkpointAssets = checkpoint.exitedAssets;
     if (sharesCounter < prevCounter || currCounter <= sharesCounter) {
@@ -142,7 +142,7 @@ library ExitQueue {
 
       // take next checkpoint
       prevCounter = currCounter;
-      checkpoint = self.checkpoints[checkpointIdx];
+      checkpoint = _unsafeAccess(self.checkpoints, checkpointIdx);
       currCounter = checkpoint.sharesCounter;
       checkpointAssets = checkpoint.exitedAssets;
 
@@ -170,5 +170,16 @@ library ExitQueue {
     });
     self.checkpoints.push(checkpoint);
     emit CheckpointCreated(checkpoint.sharesCounter, checkpoint.exitedAssets);
+  }
+
+  function _unsafeAccess(Checkpoint[] storage self, uint256 pos)
+    private
+    pure
+    returns (Checkpoint storage result)
+  {
+    assembly {
+      mstore(0, self.slot)
+      result.slot := add(keccak256(0, 0x20), pos)
+    }
   }
 }

@@ -8,7 +8,7 @@ import {IERC20} from './IERC20.sol';
  * @title IERC20Permit
  * @author StakeWise
  * @notice Defines the interface for the ERC20Permit.
- **/
+ */
 interface IERC20Permit is IERC20 {
   /**
    * @notice Get the domain separator for the token
@@ -42,6 +42,6 @@ interface IERC20Permit is IERC20 {
    * @notice Returns the nonce for owner
    * @param owner The address of the owner
    * @return The nonce of the owner
-   **/
+   */
   function nonces(address owner) external view returns (uint256);
 }

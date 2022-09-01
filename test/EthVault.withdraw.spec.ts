@@ -86,7 +86,7 @@ describe('EthVault - withdraw', () => {
     })
 
     it('does not overflow', async () => {
-      const vault: EthVaultMock = await createEthVaultMock()
+      const vault: EthVaultMock = await createEthVaultMock(1)
       await vault.connect(holder).deposit(holder.address, { value: holderAssets })
 
       const feesEscrow = await vault.feesEscrow()
@@ -182,7 +182,7 @@ describe('EthVault - withdraw', () => {
         .enterExitQueue(holderShares, receiver.address, holder.address)
       await snapshotGasCost(receipt)
       expect(receipt)
-        .to.emit(vault, 'ExitQueueEntered')
+        .to.emit(vault, 'ExitQueueEnter')
         .withArgs(holder.address, receiver.address, holder.address, 0, holderShares)
       expect(receipt)
         .to.emit(vault, 'Transfer')
@@ -332,7 +332,7 @@ describe('EthVault - withdraw', () => {
         .claimExitedAssets(receiver.address, exitQueueId, checkpointIndex)
       await snapshotGasCost(receipt)
       expect(receipt)
-        .to.emit(vault, 'ExitedAssetsClaimed')
+        .to.emit(vault, 'ExitedAssetsClaim')
         .withArgs(holder.address, receiver.address, exitQueueId, 0, holderAssets)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
         receiverBalanceBefore.add(holderAssets)
@@ -363,7 +363,7 @@ describe('EthVault - withdraw', () => {
       await snapshotGasCost(receipt)
 
       expect(receipt)
-        .to.emit(vault, 'ExitedAssetsClaimed')
+        .to.emit(vault, 'ExitedAssetsClaim')
         .withArgs(holder.address, receiver.address, exitQueueId, 0, holderAssets)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
         receiverBalanceBefore.add(holderAssets)
@@ -388,7 +388,7 @@ describe('EthVault - withdraw', () => {
 
       const newExitQueueId = halfHolderShares
       expect(receipt)
-        .to.emit(vault, 'ExitedAssetsClaimed')
+        .to.emit(vault, 'ExitedAssetsClaim')
         .withArgs(holder.address, receiver.address, exitQueueId, newExitQueueId, halfHolderAssets)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
         receiverBalanceBefore.add(halfHolderAssets)
@@ -407,7 +407,7 @@ describe('EthVault - withdraw', () => {
           .connect(holder)
           .claimExitedAssets(receiver.address, newExitQueueId, newCheckpointIndex)
       )
-        .to.emit(vault, 'ExitedAssetsClaimed')
+        .to.emit(vault, 'ExitedAssetsClaim')
         .withArgs(holder.address, receiver.address, newExitQueueId, 0, halfHolderAssets)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
         receiverBalanceBefore.add(holderAssets)
@@ -429,7 +429,7 @@ describe('EthVault - withdraw', () => {
         .connect(holder)
         .claimExitedAssets(receiver.address, exitQueueId, checkpointIndex)
       expect(receipt)
-        .to.emit(vault, 'ExitedAssetsClaimed')
+        .to.emit(vault, 'ExitedAssetsClaim')
         .withArgs(holder.address, receiver.address, exitQueueId, 0, holderAssets)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
         receiverBalanceBefore.add(holderAssets)
@@ -440,7 +440,7 @@ describe('EthVault - withdraw', () => {
         .connect(holder)
         .claimExitedAssets(other.address, otherExitQueueId, checkpointIndex)
       expect(receipt)
-        .to.emit(vault, 'ExitedAssetsClaimed')
+        .to.emit(vault, 'ExitedAssetsClaim')
         .withArgs(holder.address, other.address, otherExitQueueId, 0, holderAssets)
       expect(await waffle.provider.getBalance(other.address)).to.be.eq(
         otherBalanceBefore.add(holderAssets)
@@ -453,7 +453,7 @@ describe('EthVault - withdraw', () => {
   /// Scenario inspired by solmate ERC4626 tests:
   /// https://github.com/transmissions11/solmate/blob/main/src/test/ERC4626.t.sol
   it('multiple deposits and withdrawals', async () => {
-    const vault = await createEthVaultMock()
+    const vault = await createEthVaultMock(1)
     const feesEscrow = await vault.feesEscrow()
     const exitQueueFactory = await ethers.getContractFactory('ExitQueue')
     const exitQueue = exitQueueFactory.attach(vault.address)
@@ -597,7 +597,7 @@ describe('EthVault - withdraw', () => {
       .connect(alice)
       .callStatic.enterExitQueue(1000, alice.address, alice.address)
     await expect(vault.connect(alice).enterExitQueue(1000, alice.address, alice.address))
-      .to.emit(vault, 'ExitQueueEntered')
+      .to.emit(vault, 'ExitQueueEnter')
       .withArgs(alice.address, alice.address, alice.address, aliceExitQueueId, 1000)
 
     aliceShares -= 1000
@@ -612,7 +612,7 @@ describe('EthVault - withdraw', () => {
       .connect(bob)
       .callStatic.enterExitQueue(4391, bob.address, bob.address)
     await expect(vault.connect(bob).enterExitQueue(4391, bob.address, bob.address))
-      .to.emit(vault, 'ExitQueueEntered')
+      .to.emit(vault, 'ExitQueueEnter')
       .withArgs(bob.address, bob.address, bob.address, bobExitQueueId, 4391)
 
     bobShares -= 4391
@@ -648,7 +648,7 @@ describe('EthVault - withdraw', () => {
     await expect(
       vault.connect(bob).claimExitedAssets(bob.address, bobExitQueueId, bobCheckpointIdx)
     )
-      .to.emit(vault, 'ExitedAssetsClaimed')
+      .to.emit(vault, 'ExitedAssetsClaim')
       .withArgs(bob.address, bob.address, bobExitQueueId, 1427, 777)
 
     bobExitQueueId = BigNumber.from(1427)
@@ -662,7 +662,7 @@ describe('EthVault - withdraw', () => {
     await expect(
       vault.connect(alice).claimExitedAssets(alice.address, aliceExitQueueId, aliceCheckpointIdx)
     )
-      .to.emit(vault, 'ExitedAssetsClaimed')
+      .to.emit(vault, 'ExitedAssetsClaim')
       .withArgs(alice.address, alice.address, aliceExitQueueId, 0, 1822)
 
     aliceExitQueueId = BigNumber.from(0)
@@ -689,7 +689,7 @@ describe('EthVault - withdraw', () => {
       .connect(alice)
       .callStatic.enterExitQueue(1000, alice.address, alice.address)
     await expect(vault.connect(alice).enterExitQueue(1000, alice.address, alice.address))
-      .to.emit(vault, 'ExitQueueEntered')
+      .to.emit(vault, 'ExitQueueEnter')
       .withArgs(alice.address, alice.address, alice.address, aliceExitQueueId, 1000)
 
     expect(aliceExitQueueId).to.be.eq(latestExitQueueId)
@@ -719,7 +719,7 @@ describe('EthVault - withdraw', () => {
     await expect(
       vault.connect(bob).claimExitedAssets(bob.address, bobExitQueueId, bobCheckpointIdx)
     )
-      .to.emit(vault, 'ExitedAssetsClaimed')
+      .to.emit(vault, 'ExitedAssetsClaim')
       .withArgs(bob.address, bob.address, bobExitQueueId, 0, 11214)
 
     unclaimedAssets -= 11214
@@ -732,7 +732,7 @@ describe('EthVault - withdraw', () => {
     await expect(
       vault.connect(alice).claimExitedAssets(alice.address, aliceExitQueueId, aliceCheckpointIdx)
     )
-      .to.emit(vault, 'ExitedAssetsClaimed')
+      .to.emit(vault, 'ExitedAssetsClaim')
       .withArgs(alice.address, alice.address, aliceExitQueueId, 0, 2828)
 
     unclaimedAssets -= 2828

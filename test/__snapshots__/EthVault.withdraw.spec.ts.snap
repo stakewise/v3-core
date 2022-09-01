@@ -3,21 +3,21 @@
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in multiple transactions 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 67859,
+  "gasUsed": 67445,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in single transaction 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 43393,
+  "gasUsed": 42839,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in single checkpoint 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 40608,
+  "gasUsed": 40194,
 }
 `;
 
@@ -59,20 +59,20 @@ Object {
 exports[`EthVault - withdraw update exit queue adds checkpoint 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 102258,
+  "gasUsed": 102265,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue claims fees with required assets larger than vault's balance 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 110678,
+  "gasUsed": 110679,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue for not all the queued shares 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 108481,
+  "gasUsed": 108482,
 }
 `;

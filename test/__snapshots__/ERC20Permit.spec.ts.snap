@@ -17,7 +17,7 @@ Object {
 exports[`ERC20Permit deployment gas 1`] = `
 Object {
   "calldataByteLength": 3968,
-  "gasUsed": 697812,
+  "gasUsed": 697824,
 }
 `;
 
@@ -31,7 +31,7 @@ Object {
 exports[`ERC20Permit permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 74520,
+  "gasUsed": 74508,
 }
 `;
 

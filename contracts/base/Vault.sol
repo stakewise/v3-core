@@ -40,6 +40,7 @@ abstract contract Vault is ERC20Permit, IVault {
   error NoExitRequestingShares();
   error InsufficientAvailableAssets();
   error EarlyExitQueueUpdate();
+  error ExitQueueUpdateFailed();
 
   /**
    * @dev Constructor
@@ -57,7 +58,6 @@ abstract contract Vault is ERC20Permit, IVault {
   function totalAssets() public view override returns (uint256 totalManagedAssets) {
     unchecked {
       // cannot overflow as it is capped with staked asset total supply
-      // TODO: get into account owners share in feesEscrow
       return _totalStakedAssets + _feesEscrowAssets();
     }
   }
@@ -65,6 +65,7 @@ abstract contract Vault is ERC20Permit, IVault {
   /// @inheritdoc IVault
   function availableAssets() public view override returns (uint256) {
     unchecked {
+      // cannot overflow as it is capped with staked asset total supply
       uint256 available = _vaultAssets() + _feesEscrowAssets();
       uint256 reserved = convertToAssets(queuedShares) + unclaimedAssets;
       return available > reserved ? available - reserved : 0;
@@ -138,7 +139,7 @@ abstract contract Vault is ERC20Permit, IVault {
     balanceOf[owner] -= shares;
 
     emit Transfer(owner, address(this), shares);
-    emit ExitQueueEntered(msg.sender, receiver, owner, exitQueueId, shares);
+    emit ExitQueueEnter(msg.sender, receiver, owner, exitQueueId, shares);
   }
 
   /// @inheritdoc IVault
@@ -175,9 +176,13 @@ abstract contract Vault is ERC20Permit, IVault {
       }
     }
 
-    unclaimedAssets -= SafeCast.toUint128(claimedAssets);
+    unchecked {
+      // cannot underflow as unclaimedAssets >= claimedAssets
+      unclaimedAssets -= SafeCast.toUint128(claimedAssets);
+    }
+
     _transferAssets(receiver, claimedAssets);
-    emit ExitedAssetsClaimed(msg.sender, receiver, exitQueueId, newExitQueueId, claimedAssets);
+    emit ExitedAssetsClaim(msg.sender, receiver, exitQueueId, newExitQueueId, claimedAssets);
   }
 
   /// @inheritdoc IVault
@@ -201,15 +206,15 @@ abstract contract Vault is ERC20Permit, IVault {
     uint256 exitedAssets = convertToAssets(_queuedShares);
     unchecked {
       // cannot underflow as vaultAssets >= unclaimedAssets
-      if (exitedAssets > vaultAssets - _unclaimedAssets) {
-        exitedAssets = Math.min(_claimFees() + vaultAssets - _unclaimedAssets, exitedAssets);
+      uint256 availableVaultAssets = vaultAssets - _unclaimedAssets;
+      if (exitedAssets > availableVaultAssets) {
+        exitedAssets = Math.min(_claimFees() + availableVaultAssets, exitedAssets);
       }
     }
-    if (exitedAssets == 0) return;
 
     // calculate the amount of shares that can be burned
     uint256 burnedShares = convertToShares(exitedAssets);
-    if (burnedShares == 0) return;
+    if (burnedShares == 0 || exitedAssets == 0) revert ExitQueueUpdateFailed();
 
     unchecked {
       // cannot underflow as queuedShares >= burnedShares

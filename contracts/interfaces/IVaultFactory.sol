@@ -13,7 +13,7 @@ interface IVaultFactory {
    * @param caller The address that called the create function
    * @param vaultId The ID assigned to the Vault
    * @param vault The address of the created Vault
-   **/
+   */
   event VaultCreated(address indexed caller, uint256 indexed vaultId, address vault);
 
   /**

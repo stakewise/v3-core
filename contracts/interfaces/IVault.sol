@@ -16,7 +16,7 @@ interface IVault is IERC20Permit {
    * @param owner The address that receives the shares
    * @param assets The number of assets deposited by the caller
    * @param shares The number of created shares
-   **/
+   */
   event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
 
   /**
@@ -26,7 +26,7 @@ interface IVault is IERC20Permit {
    * @param owner The address that owns the shares
    * @param assets The total number of withdrawn assets
    * @param shares The total number of withdrawn shares
-   **/
+   */
   event Withdraw(
     address indexed caller,
     address indexed receiver,
@@ -42,8 +42,8 @@ interface IVault is IERC20Permit {
    * @param owner The address that owns the shares
    * @param exitQueueId The exit queue ID that was assigned to the position
    * @param shares The number of shares that queued for the exit
-   **/
-  event ExitQueueEntered(
+   */
+  event ExitQueueEnter(
     address indexed caller,
     address indexed receiver,
     address indexed owner,
@@ -58,8 +58,8 @@ interface IVault is IERC20Permit {
    * @param prevExitQueueId The exit queue ID received after the `enterExitQueue` call
    * @param newExitQueueId The new exit queue ID in case not all the shares were withdrawn. Otherwise 0.
    * @param withdrawnAssets The total number of assets withdrawn
-   **/
-  event ExitedAssetsClaimed(
+   */
+  event ExitedAssetsClaim(
     address indexed caller,
     address indexed receiver,
     uint256 indexed prevExitQueueId,
@@ -110,7 +110,7 @@ interface IVault is IERC20Permit {
   function availableAssets() external view returns (uint256);
 
   /**
-   * @notice Get the checkpoint index to withdraw from the queue
+   * @notice Get the checkpoint index to claim exited assets from
    * @param exitQueueId The exit queue ID to get the checkpoint index for
    * @return The checkpoint index that should be used to claim exited assets.
    *         Returns -1 in case such index does not exist.
@@ -136,7 +136,7 @@ interface IVault is IERC20Permit {
    * @param shares The number of shares to lock
    * @param receiver The address that will receive assets upon withdrawal
    * @param owner The address that owns the shares
-   * @return exitQueueId The exit queue ID that represents the share starting position in the queue
+   * @return exitQueueId The exit queue ID that represents the shares position in the queue
    */
   function enterExitQueue(
     uint256 shares,
@@ -150,7 +150,7 @@ interface IVault is IERC20Permit {
    * @param exitQueueId The exit queue ID received after the `enterExitQueue` call
    * @param checkpointIndex The checkpoint index at which the shares were burned. It can be looked up by calling `getCheckpointIndex`.
    * @return newExitQueueId The new exit queue ID in case not all the shares were burned. Otherwise 0.
-   * @return claimedAssets The number of assets that were claimed
+   * @return claimedAssets The number of assets claimed
    */
   function claimExitedAssets(
     address receiver,
@@ -179,7 +179,7 @@ interface IVault is IERC20Permit {
 
   /**
    * @notice Updates exit queue by creating a checkpoint. Can be called only once per day.
-   * The users whose turn is in the exit queue will be able withdraw their assets.
+   * The users whose turn is in the exit queue will be able to withdraw their assets.
    */
   function updateExitQueue() external;
 }

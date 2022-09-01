@@ -83,7 +83,7 @@ describe('EthVault - deposit', () => {
     let ethVaultMock: EthVaultMock
 
     beforeEach(async () => {
-      ethVaultMock = await createEthVaultMock()
+      ethVaultMock = await createEthVaultMock(1)
       await ethVaultMock.mockMint(receiver.address, parseEther('1'))
     })
 
