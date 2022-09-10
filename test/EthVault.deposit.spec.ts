@@ -8,6 +8,7 @@ import { PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const parseEther = ethers.utils.parseEther
+const ether = parseEther('1')
 
 type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 
@@ -36,7 +37,7 @@ describe('EthVault - deposit', () => {
     })
 
     it('deposit', async () => {
-      const amount = parseEther('1')
+      const amount = ether
       expect(await vault.convertToShares(amount)).to.eq(amount)
       const receipt = await vault.connect(sender).deposit(receiver.address, { value: amount })
       expect(await vault.balanceOf(receiver.address)).to.eq(amount)
@@ -55,16 +56,16 @@ describe('EthVault - deposit', () => {
     beforeEach(async () => {
       await other.sendTransaction({
         to: await vault.feesEscrow(),
-        value: parseEther('1'),
+        value: ether,
       })
     })
 
     it('status', async () => {
-      expect(await vault.totalAssets()).to.eq(parseEther('1'))
+      expect(await vault.totalAssets()).to.eq(ether)
     })
 
     it('deposit', async () => {
-      const amount = parseEther('1')
+      const amount = ether
       expect(await vault.convertToShares(amount)).to.eq(amount)
       const receipt = await vault.connect(sender).deposit(receiver.address, { value: amount })
       expect(await vault.balanceOf(receiver.address)).to.eq(amount)
@@ -84,7 +85,7 @@ describe('EthVault - deposit', () => {
 
     beforeEach(async () => {
       ethVaultMock = await createEthVaultMock(1)
-      await ethVaultMock.mockMint(receiver.address, parseEther('1'))
+      await ethVaultMock.mockMint(receiver.address, ether)
     })
 
     it('status', async () => {
@@ -92,9 +93,8 @@ describe('EthVault - deposit', () => {
     })
 
     it('deposit', async () => {
-      const amount = parseEther('1')
       await expect(
-        ethVaultMock.connect(sender).deposit(receiver.address, { value: amount })
+        ethVaultMock.connect(sender).deposit(receiver.address, { value: ether })
       ).to.be.revertedWith(PANIC_CODES.DIVISION_BY_ZERO)
     })
   })
@@ -104,7 +104,7 @@ describe('EthVault - deposit', () => {
       await vault.connect(other).deposit(other.address, { value: parseEther('99') })
       await other.sendTransaction({
         to: await vault.feesEscrow(),
-        value: parseEther('1'),
+        value: ether,
       })
     })
 

@@ -86,7 +86,7 @@ describe('ERC20Permit', () => {
     })
 
     describe('when the sender transfers all balance', () => {
-      const amount = balance
+      const amount = initialSupply
 
       it('transfers the requested amount', async () => {
         const receipt = await token.connect(initialHolder).transfer(recipient.address, amount)
@@ -104,6 +104,7 @@ describe('ERC20Permit', () => {
 
     describe('when the sender transfers zero tokens', () => {
       const amount = 0
+      const balance = initialSupply
 
       it('transfers the requested amount', async () => {
         const receipt = await token.connect(initialHolder).transfer(recipient.address, amount)
