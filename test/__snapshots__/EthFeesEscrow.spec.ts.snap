@@ -1,0 +1,8 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthFeesEscrow vault deployment gas 1`] = `
+Object {
+  "calldataByteLength": 436,
+  "gasUsed": 135636,
+}
+`;
