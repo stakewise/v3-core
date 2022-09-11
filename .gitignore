@@ -34,3 +34,7 @@ artifacts
 
 # VS Code
 .vscode
+
+# Coverage
+coverage
+coverage.json

@@ -16,5 +16,11 @@
     "prettier",
     "plugin:prettier/recommended"
   ],
-  "rules": {}
+  "rules": {
+    "semi": [
+      "error",
+      "never"
+    ],
+    "@typescript-eslint/no-explicit-any": "off"
+  }
 }
