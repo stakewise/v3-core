@@ -293,7 +293,7 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   // @inheritdoc IVault
-  function initMaxTotalAssets(uint128 newMaxTotalAssets) external onlyOperator {
+  function initMaxTotalAssets(uint128 newMaxTotalAssets) external override onlyOperator {
     _maxTotalAssetsLastUpdate = newMaxTotalAssets == maxTotalAssets
       ? 0
       : SafeCast.toUint64(block.timestamp);
@@ -302,7 +302,7 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   // @inheritdoc IVault
-  function applyMaxTotalAssets() external onlyOperator {
+  function applyMaxTotalAssets() external override onlyOperator {
     _checkSettingUpdateTimestamp(_maxTotalAssetsLastUpdate);
 
     // SLOAD to memory
@@ -313,7 +313,7 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   // @inheritdoc IVault
-  function initFeePercent(uint16 newFeePercent) external onlyOperator {
+  function initFeePercent(uint16 newFeePercent) external override onlyOperator {
     if (newFeePercent > 10_000) revert InvalidSetting();
     _feePercentLastUpdate = newFeePercent == feePercent ? 0 : SafeCast.toUint64(block.timestamp);
     nextFeePercent = newFeePercent;
@@ -321,7 +321,7 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   // @inheritdoc IVault
-  function applyFeePercent() external onlyOperator {
+  function applyFeePercent() external override onlyOperator {
     _checkSettingUpdateTimestamp(_feePercentLastUpdate);
 
     // SLOAD to memory
@@ -332,7 +332,7 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   // @inheritdoc IVault
-  function setOperator(address newOperator) external onlyOperator {
+  function setOperator(address newOperator) external override onlyOperator {
     if (operator == newOperator) revert InvalidSetting();
     operator = newOperator;
     emit OperatorUpdated(msg.sender, newOperator);
@@ -341,6 +341,7 @@ abstract contract Vault is ERC20Permit, IVault {
   // @inheritdoc IVault
   function setValidatorsRoot(bytes32 newValidatorsRoot, string memory newValidatorsIpfsHash)
     external
+    override
     onlyOperator
   {
     if (validatorsRoot == newValidatorsRoot) revert InvalidSetting();
@@ -391,8 +392,8 @@ abstract contract Vault is ERC20Permit, IVault {
    * @dev Internal function for checking whether the new setting value can be applied
    */
   function _checkSettingUpdateTimestamp(uint256 settingTimestamp) internal view {
+    uint256 currentTimestamp = block.timestamp;
     unchecked {
-      uint256 currentTimestamp = block.timestamp;
       if (
         currentTimestamp < settingTimestamp + settingUpdateDelay ||
         currentTimestamp >= settingTimestamp + settingsUpdateTimeout

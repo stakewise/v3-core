@@ -273,4 +273,44 @@ interface IVault is IERC20Permit {
    * The users whose turn is in the exit queue will be able to withdraw their assets.
    */
   function updateExitQueue() external;
+
+  /**
+   * @notice Function for initializing new max total assets. The new value can be applied in 10 days.
+   *         To cancel the update, the operator must call it with the current `maxTotalAssets` value.
+   * @param newMaxTotalAssets The new max total assets value
+   */
+  function initMaxTotalAssets(uint128 newMaxTotalAssets) external;
+
+  /**
+   * @notice Function for applying new max total assets.
+   *         Can only be called after ten days from initializing the update, and there are five days for applying before the update will timeout.
+   */
+  function applyMaxTotalAssets() external;
+
+  /**
+   * @notice Function for initializing new fee percent. The new value can be applied in 10 days.
+   *         To cancel the update, the operator must call it with the current `feePercent` value. Cannot be larger than 10000 (100.00%).
+   * @param newFeePercent The new fee percent value
+   */
+  function initFeePercent(uint16 newFeePercent) external;
+
+  /**
+   * @notice Function for applying new fee percent.
+   *         Can only be called after ten days from initializing the update, and there are five days for applying before the update will timeout.
+   */
+  function applyFeePercent() external;
+
+  /**
+   * @notice Function for updating the operator address. The operator can update Vault's settings and is the one who receives the Vault's fee percent.
+   * @param newOperator The new operator address
+   */
+  function setOperator(address newOperator) external;
+
+  /**
+   * @notice Function for updating the validators Merkle Tree root
+   * @param newValidatorsRoot The new validators merkle tree root
+   * @param newValidatorsIpfsHash The new IPFS hash with all the validators deposit data for the new root
+   */
+  function setValidatorsRoot(bytes32 newValidatorsRoot, string memory newValidatorsIpfsHash)
+    external;
 }
