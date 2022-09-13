@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.16;
+pragma solidity =0.8.17;
 
 import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
 import {IVault} from '../interfaces/IVault.sol';
