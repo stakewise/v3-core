@@ -66,7 +66,6 @@ abstract contract Vault is ERC20Permit, IVault {
   error MaxTotalAssetsExceeded();
   error NoExitRequestingShares();
   error InsufficientAvailableAssets();
-  error ExitQueueUpdateFailed();
   error NotOperator();
   error InvalidSetting();
   error SettingUpdateFailed();
@@ -235,7 +234,7 @@ abstract contract Vault is ERC20Permit, IVault {
 
   /// @inheritdoc IVault
   function updateExitQueue() public override {
-    if (!canUpdateExitQueue()) revert ExitQueueUpdateFailed();
+    if (!canUpdateExitQueue()) return;
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
@@ -255,7 +254,7 @@ abstract contract Vault is ERC20Permit, IVault {
 
     // calculate the amount of shares that can be burned
     uint256 burnedShares = convertToShares(exitedAssets);
-    if (burnedShares == 0 || exitedAssets == 0) revert ExitQueueUpdateFailed();
+    if (burnedShares == 0 || exitedAssets == 0) return;
 
     unchecked {
       // cannot underflow as queuedShares >= burnedShares

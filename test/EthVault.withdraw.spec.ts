@@ -208,15 +208,19 @@ describe('EthVault - withdraw', () => {
       await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
     })
 
-    it('fails if it is too early', async () => {
+    it('skips if it is too early', async () => {
       await vault.connect(other).updateExitQueue()
-      await expect(vault.connect(other).updateExitQueue()).to.be.revertedWith(
-        'ExitQueueUpdateFailed()'
+      await vault.connect(holder).deposit(holder.address, { value: holderAssets })
+      await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
+      await expect(vault.connect(other).updateExitQueue()).to.not.emit(
+        exitQueue,
+        'CheckpointCreated'
       )
     })
 
     it('skips with 0 queued shares', async () => {
       await expect(vault.connect(other).updateExitQueue()).to.emit(exitQueue, 'CheckpointCreated')
+      expect(await vault.queuedShares()).to.be.eq(0)
       await increaseTime(ONE_DAY)
       await expect(vault.connect(other).updateExitQueue()).to.not.emit(
         exitQueue,
@@ -264,6 +268,29 @@ describe('EthVault - withdraw', () => {
       expect(await vault.totalAssets()).to.be.eq(0)
       expect(await vault.queuedShares()).to.be.eq(0)
     })
+  })
+
+  it('get checkpoint index works with many checkpoints', async () => {
+    const vault: EthVaultMock = await createEthVaultMock(
+      operator.address,
+      maxTotalAssets,
+      feePercent
+    )
+    await vault.connect(holder).deposit(holder.address, { value: holderAssets })
+    const exitQueueId = await vault
+      .connect(holder)
+      .callStatic.enterExitQueue(holderShares, receiver.address, holder.address)
+    await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
+    const exitQueueFactory = await ethers.getContractFactory('ExitQueue')
+    const exitQueue = exitQueueFactory.attach(vault.address) as ExitQueue
+
+    // create checkpoints every day for 10 years
+    for (let i = 1; i <= 3650; i++) {
+      await setBalance(vault.address, BigNumber.from(i))
+      await increaseTime(ONE_DAY)
+      await expect(vault.connect(other).updateExitQueue()).to.emit(exitQueue, 'CheckpointCreated')
+    }
+    await snapshotGasCost(await vault.getGasCostOfGetCheckpointIndex(exitQueueId))
   })
 
   describe('claim exited assets', () => {

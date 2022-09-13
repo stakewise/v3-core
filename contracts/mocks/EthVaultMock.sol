@@ -4,6 +4,7 @@ pragma solidity =0.8.17;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {EthVault} from '../vaults/EthVault.sol';
+import {ExitQueue} from '../libraries/ExitQueue.sol';
 
 /**
  * @title EthVaultMock
@@ -12,6 +13,7 @@ import {EthVault} from '../vaults/EthVault.sol';
  */
 contract EthVaultMock is EthVault {
   using SafeCast for uint256;
+  using ExitQueue for ExitQueue.History;
 
   /**
    * @dev Constructor
@@ -34,6 +36,12 @@ contract EthVaultMock is EthVault {
 
     emit Transfer(address(0), receiver, shares);
     emit Deposit(msg.sender, receiver, assets, shares);
+  }
+
+  function getGasCostOfGetCheckpointIndex(uint256 exitQueueId) external view returns (uint256) {
+    uint256 gasBefore = gasleft();
+    _exitQueue.getCheckpointIndex(exitQueueId);
+    return gasBefore - gasleft();
   }
 
   function _setTotalStakedAssets(uint128 value) external {

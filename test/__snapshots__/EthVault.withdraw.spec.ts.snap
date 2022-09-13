@@ -42,6 +42,8 @@ Object {
 }
 `;
 
+exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`] = `31772`;
+
 exports[`EthVault - withdraw redeem claims fees with not enough vault assets 1`] = `
 Object {
   "calldataByteLength": 100,
