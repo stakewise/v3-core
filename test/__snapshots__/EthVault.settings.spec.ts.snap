@@ -1,0 +1,57 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthVault - settings fee percent new value can be applied 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 30521,
+}
+`;
+
+exports[`EthVault - settings fee percent new value can be applied 2`] = `
+Object {
+  "calldataByteLength": 4,
+  "gasUsed": 30202,
+}
+`;
+
+exports[`EthVault - settings max total assets can be set to unlimited 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 35680,
+}
+`;
+
+exports[`EthVault - settings max total assets can be set to unlimited 2`] = `
+Object {
+  "calldataByteLength": 4,
+  "gasUsed": 35242,
+}
+`;
+
+exports[`EthVault - settings max total assets new value can be applied 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 35584,
+}
+`;
+
+exports[`EthVault - settings max total assets new value can be applied 2`] = `
+Object {
+  "calldataByteLength": 4,
+  "gasUsed": 35242,
+}
+`;
+
+exports[`EthVault - settings operator can update 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 28649,
+}
+`;
+
+exports[`EthVault - settings validators root can update 1`] = `
+Object {
+  "calldataByteLength": 164,
+  "gasUsed": 50480,
+}
+`;

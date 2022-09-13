@@ -7,6 +7,7 @@ import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IVault} from '../interfaces/IVault.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
+import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
 import {ERC20Permit} from './ERC20Permit.sol';
 
@@ -19,7 +20,13 @@ abstract contract Vault is ERC20Permit, IVault {
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IVault
-  uint24 public constant override exitQueueUpdateDelay = 1 days;
+  uint256 public constant override exitQueueUpdateDelay = 1 days;
+
+  /// @inheritdoc IVault
+  uint256 public constant override settingUpdateDelay = 10 days;
+
+  /// @inheritdoc IVault
+  uint256 public constant override settingsUpdateTimeout = 15 days;
 
   /// @inheritdoc IVault
   uint128 public override queuedShares;
@@ -27,27 +34,61 @@ abstract contract Vault is ERC20Permit, IVault {
   /// @inheritdoc IVault
   uint128 public override unclaimedAssets;
 
+  /// @inheritdoc IVault
+  uint128 public override maxTotalAssets;
+
+  /// @inheritdoc IVault
+  uint128 public override nextMaxTotalAssets;
+
   uint128 internal _totalShares;
   uint128 internal _totalStakedAssets;
 
+  uint64 internal _exitQueueLastUpdate;
+  uint64 internal _maxTotalAssetsLastUpdate;
+  uint64 internal _feePercentLastUpdate;
+
   /// @inheritdoc IVault
-  uint64 public override exitQueueLastUpdate;
+  uint16 public override feePercent;
+
+  /// @inheritdoc IVault
+  uint16 public override nextFeePercent;
+
+  /// @inheritdoc IVault
+  bytes32 public override validatorsRoot;
+
+  /// @inheritdoc IVault
+  address public override operator;
 
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
 
   error InvalidSharesAmount();
+  error MaxTotalAssetsExceeded();
   error NoExitRequestingShares();
   error InsufficientAvailableAssets();
-  error EarlyExitQueueUpdate();
   error ExitQueueUpdateFailed();
+  error NotOperator();
+  error InvalidSetting();
+  error SettingUpdateFailed();
+
+  /// @dev Prevents calling a function from anyone except Vault's operator
+  modifier onlyOperator() {
+    if (msg.sender != operator) revert NotOperator();
+    _;
+  }
 
   /**
    * @dev Constructor
    * @param _name The name of the ERC20 token
    * @param _symbol The symbol of the ERC20 token
    */
-  constructor(string memory _name, string memory _symbol) ERC20Permit(_name, _symbol) {}
+  constructor(string memory _name, string memory _symbol) ERC20Permit(_name, _symbol) {
+    (address _operator, uint128 _maxTotalAssets, uint16 _feePercent) = IVaultFactory(msg.sender)
+      .parameters();
+    operator = _operator;
+    feePercent = nextFeePercent = _feePercent;
+    maxTotalAssets = nextMaxTotalAssets = _maxTotalAssets;
+  }
 
   /// @inheritdoc IERC20
   function totalSupply() external view returns (uint256) {
@@ -96,7 +137,7 @@ abstract contract Vault is ERC20Permit, IVault {
       // cannot underflow because user's balance
       // will never be larger than total shares
       _totalShares -= SafeCast.toUint128(shares);
-      // cannot underflow as it's capped with totalAssets()
+      // cannot underflow as it is capped with totalAssets()
       _totalStakedAssets -= SafeCast.toUint128(assets);
     }
 
@@ -139,7 +180,7 @@ abstract contract Vault is ERC20Permit, IVault {
     balanceOf[owner] -= shares;
 
     emit Transfer(owner, address(this), shares);
-    emit ExitQueueEnter(msg.sender, receiver, owner, exitQueueId, shares);
+    emit ExitQueueEntered(msg.sender, receiver, owner, exitQueueId, shares);
   }
 
   /// @inheritdoc IVault
@@ -182,19 +223,19 @@ abstract contract Vault is ERC20Permit, IVault {
     }
 
     _transferAssets(receiver, claimedAssets);
-    emit ExitedAssetsClaim(msg.sender, receiver, exitQueueId, newExitQueueId, claimedAssets);
+    emit ExitedAssetsClaimed(msg.sender, receiver, exitQueueId, newExitQueueId, claimedAssets);
   }
 
   /// @inheritdoc IVault
   function canUpdateExitQueue() public view override returns (bool) {
     unchecked {
-      return block.timestamp >= exitQueueLastUpdate + exitQueueUpdateDelay;
+      return block.timestamp >= _exitQueueLastUpdate + exitQueueUpdateDelay;
     }
   }
 
   /// @inheritdoc IVault
   function updateExitQueue() public override {
-    if (!canUpdateExitQueue()) revert EarlyExitQueueUpdate();
+    if (!canUpdateExitQueue()) revert ExitQueueUpdateFailed();
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
@@ -230,7 +271,7 @@ abstract contract Vault is ERC20Permit, IVault {
     unclaimedAssets = SafeCast.toUint128(_unclaimedAssets + exitedAssets);
 
     // update exit queue last update timestamp
-    exitQueueLastUpdate = SafeCast.toUint64(block.timestamp);
+    _exitQueueLastUpdate = SafeCast.toUint64(block.timestamp);
 
     emit Transfer(address(this), address(0), burnedShares);
 
@@ -251,6 +292,62 @@ abstract contract Vault is ERC20Permit, IVault {
     return (totalShares == 0) ? shares : Math.mulDiv(shares, totalAssets(), totalShares);
   }
 
+  // @inheritdoc IVault
+  function initMaxTotalAssets(uint128 newMaxTotalAssets) external onlyOperator {
+    _maxTotalAssetsLastUpdate = newMaxTotalAssets == maxTotalAssets
+      ? 0
+      : SafeCast.toUint64(block.timestamp);
+    nextMaxTotalAssets = newMaxTotalAssets;
+    emit MaxTotalAssetsInitiated(msg.sender, newMaxTotalAssets);
+  }
+
+  // @inheritdoc IVault
+  function applyMaxTotalAssets() external onlyOperator {
+    _checkSettingUpdateTimestamp(_maxTotalAssetsLastUpdate);
+
+    // SLOAD to memory
+    uint128 _nextMaxTotalAssets = nextMaxTotalAssets;
+    delete _maxTotalAssetsLastUpdate;
+    maxTotalAssets = _nextMaxTotalAssets;
+    emit MaxTotalAssetsUpdated(msg.sender, _nextMaxTotalAssets);
+  }
+
+  // @inheritdoc IVault
+  function initFeePercent(uint16 newFeePercent) external onlyOperator {
+    if (newFeePercent > 10_000) revert InvalidSetting();
+    _feePercentLastUpdate = newFeePercent == feePercent ? 0 : SafeCast.toUint64(block.timestamp);
+    nextFeePercent = newFeePercent;
+    emit FeePercentInitiated(msg.sender, newFeePercent);
+  }
+
+  // @inheritdoc IVault
+  function applyFeePercent() external onlyOperator {
+    _checkSettingUpdateTimestamp(_feePercentLastUpdate);
+
+    // SLOAD to memory
+    uint16 _nextFeePercent = nextFeePercent;
+    delete _feePercentLastUpdate;
+    feePercent = _nextFeePercent;
+    emit FeePercentUpdated(msg.sender, _nextFeePercent);
+  }
+
+  // @inheritdoc IVault
+  function setOperator(address newOperator) external onlyOperator {
+    if (operator == newOperator) revert InvalidSetting();
+    operator = newOperator;
+    emit OperatorUpdated(msg.sender, newOperator);
+  }
+
+  // @inheritdoc IVault
+  function setValidatorsRoot(bytes32 newValidatorsRoot, string memory newValidatorsIpfsHash)
+    external
+    onlyOperator
+  {
+    if (validatorsRoot == newValidatorsRoot) revert InvalidSetting();
+    validatorsRoot = newValidatorsRoot;
+    emit ValidatorsRootUpdated(msg.sender, newValidatorsRoot, newValidatorsIpfsHash);
+  }
+
   /**
    * @dev Internal function that must be used to process user deposits
    * @param to The address to mint shares to
@@ -258,7 +355,10 @@ abstract contract Vault is ERC20Permit, IVault {
    * @return shares The total amount of shares minted
    */
   function _deposit(address to, uint256 assets) internal returns (uint256 shares) {
-    // TODO: add check whether max validators count has not exceeded
+    unchecked {
+      // cannot underflow as it is capped with staked asset total supply
+      if (totalAssets() + assets > maxTotalAssets) revert MaxTotalAssetsExceeded();
+    }
 
     // calculate amount of shares to mint
     shares = convertToShares(assets);
@@ -283,8 +383,21 @@ abstract contract Vault is ERC20Permit, IVault {
    */
   function _claimFees() internal returns (uint256 assets) {
     assets = _withdrawFeesEscrowAssets();
-    // TODO: charge fee to the owner from the withdrawn assets
+    // TODO: charge fee to the operator from the withdrawn assets
     _totalStakedAssets += SafeCast.toUint128(assets);
+  }
+
+  /**
+   * @dev Internal function for checking whether the new setting value can be applied
+   */
+  function _checkSettingUpdateTimestamp(uint256 settingTimestamp) internal view {
+    unchecked {
+      uint256 currentTimestamp = block.timestamp;
+      if (
+        currentTimestamp < settingTimestamp + settingUpdateDelay ||
+        currentTimestamp >= settingTimestamp + settingsUpdateTimeout
+      ) revert SettingUpdateFailed();
+    }
   }
 
   /**
