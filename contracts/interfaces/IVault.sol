@@ -68,41 +68,6 @@ interface IVault is IERC20Permit {
   );
 
   /**
-   * @notice Event emitted on max total assets change request
-   * @param caller The address of the caller
-   * @param newMaxTotalAssets The new max total assets that could be applied in 10 days
-   */
-  event MaxTotalAssetsInitiated(address indexed caller, uint128 newMaxTotalAssets);
-
-  /**
-   * @notice Event emitted on max total assets update
-   * @param caller The address of the caller
-   * @param newMaxTotalAssets The new max total assets applied
-   */
-  event MaxTotalAssetsUpdated(address indexed caller, uint128 newMaxTotalAssets);
-
-  /**
-   * @notice Event emitted on fee percent change request
-   * @param caller The address of the caller
-   * @param newFeePercent The new fee percent
-   */
-  event FeePercentInitiated(address indexed caller, uint128 newFeePercent);
-
-  /**
-   * @notice Event emitted on fee percent update
-   * @param caller The address of the caller
-   * @param newFeePercent The new fee percent
-   */
-  event FeePercentUpdated(address indexed caller, uint128 newFeePercent);
-
-  /**
-   * @notice Event emitted on operator update
-   * @param caller The address of the caller
-   * @param newOperator The new operator address
-   */
-  event OperatorUpdated(address indexed caller, address newOperator);
-
-  /**
    * @notice Event emitted on validators merkle tree root update
    * @param caller The address of the caller
    * @param newValidatorsRoot The new validators merkle tree root
@@ -139,18 +104,6 @@ interface IVault is IERC20Permit {
   function exitQueueUpdateDelay() external view returns (uint256);
 
   /**
-   * @notice The setting update delay
-   * @return The number of seconds that must pass between setting updates
-   */
-  function settingUpdateDelay() external view returns (uint256);
-
-  /**
-   * @notice The setting update timeout
-   * @return The number of seconds that needs to pass for the setting update to timeout
-   */
-  function settingsUpdateTimeout() external view returns (uint256);
-
-  /**
    * @notice Total assets in the Vault
    * @return totalManagedAssets The total amount of the underlying asset that is “managed” by Vault
    */
@@ -163,24 +116,10 @@ interface IVault is IERC20Permit {
   function maxTotalAssets() external view returns (uint128);
 
   /**
-   * @notice The next max total assets in the Vault
-   * @return The next total number of assets in the Vault, after which new deposits are not accepted anymore.
-   *         The Vault operator can apply the value ten days after initialization and not later than 15 days after initialization.
-   */
-  function nextMaxTotalAssets() external view returns (uint128);
-
-  /**
    * @notice The Vault's operator fee percent
    * @return The fee percent applied by the Vault operator on the rewards
    */
-  function feePercent() external view returns (uint16);
-
-  /**
-   * @notice The Vault's operator next fee percent
-   * @return The next Vault's operator fee percent. The Vault operator can apply the value ten days after
-   *         initialization and not later than 15 days after initialization.
-   */
-  function nextFeePercent() external view returns (uint16);
+  function feePercent() external view returns (uint256);
 
   /**
    * @notice The Vault operator
@@ -273,38 +212,6 @@ interface IVault is IERC20Permit {
    * The users whose turn is in the exit queue will be able to withdraw their assets.
    */
   function updateExitQueue() external;
-
-  /**
-   * @notice Function for initializing new max total assets. The new value can be applied in 10 days.
-   *         To cancel the update, the operator must call it with the current `maxTotalAssets` value.
-   * @param newMaxTotalAssets The new max total assets value
-   */
-  function initMaxTotalAssets(uint128 newMaxTotalAssets) external;
-
-  /**
-   * @notice Function for applying new max total assets.
-   *         Can only be called after ten days from initializing the update, and there are five days for applying before the update will timeout.
-   */
-  function applyMaxTotalAssets() external;
-
-  /**
-   * @notice Function for initializing new fee percent. The new value can be applied in 10 days.
-   *         To cancel the update, the operator must call it with the current `feePercent` value. Cannot be larger than 10000 (100.00%).
-   * @param newFeePercent The new fee percent value
-   */
-  function initFeePercent(uint16 newFeePercent) external;
-
-  /**
-   * @notice Function for applying new fee percent.
-   *         Can only be called after ten days from initializing the update, and there are five days for applying before the update will timeout.
-   */
-  function applyFeePercent() external;
-
-  /**
-   * @notice Function for updating the operator address. The operator can update Vault's settings and is the one who receives the Vault's fee percent.
-   * @param newOperator The new operator address
-   */
-  function setOperator(address newOperator) external;
 
   /**
    * @notice Function for updating the validators Merkle Tree root

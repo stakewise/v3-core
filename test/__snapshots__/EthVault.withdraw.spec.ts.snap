@@ -3,42 +3,42 @@
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in multiple transactions 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 67512,
+  "gasUsed": 67423,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in multiple transactions 2`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 42539,
+  "gasUsed": 42450,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in single transaction 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 42906,
+  "gasUsed": 42817,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in single checkpoint 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 40261,
+  "gasUsed": 40172,
 }
 `;
 
 exports[`EthVault - withdraw enter exit queue locks tokens for the time of exit 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 74285,
+  "gasUsed": 74307,
 }
 `;
 
 exports[`EthVault - withdraw enter exit queue reduces allowance for sender other than owner 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 74961,
+  "gasUsed": 74983,
 }
 `;
 
@@ -47,21 +47,21 @@ exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`
 exports[`EthVault - withdraw redeem claims fees with not enough vault assets 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 61780,
+  "gasUsed": 61846,
 }
 `;
 
 exports[`EthVault - withdraw redeem reduces allowance for sender other than owner 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 47144,
+  "gasUsed": 47197,
 }
 `;
 
 exports[`EthVault - withdraw redeem transfers assets to receiver 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 43854,
+  "gasUsed": 43920,
 }
 `;
 

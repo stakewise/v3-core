@@ -5,7 +5,6 @@ import snapshotGasCost from './shared/snapshotGasCost'
 import { vaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
-import { increaseTime } from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const parseEther = ethers.utils.parseEther
@@ -116,11 +115,8 @@ describe('EthVault - deposit', () => {
     })
 
     it('fails with exceeded max total assets', async () => {
-      await vault.connect(operator).initMaxTotalAssets(parseEther('100'))
-      await increaseTime((await vault.settingUpdateDelay()).toNumber())
-      await vault.connect(operator).applyMaxTotalAssets()
       await expect(
-        vault.connect(sender).deposit(receiver.address, { value: parseEther('2') })
+        vault.connect(sender).deposit(receiver.address, { value: parseEther('999') })
       ).to.be.revertedWith('MaxTotalAssetsExceeded()')
     })
 

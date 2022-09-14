@@ -23,10 +23,13 @@ abstract contract Vault is ERC20Permit, IVault {
   uint256 public constant override exitQueueUpdateDelay = 1 days;
 
   /// @inheritdoc IVault
-  uint256 public constant override settingUpdateDelay = 10 days;
+  uint256 public immutable override feePercent;
 
   /// @inheritdoc IVault
-  uint256 public constant override settingsUpdateTimeout = 15 days;
+  address public immutable override operator;
+
+  /// @inheritdoc IVault
+  uint128 public immutable override maxTotalAssets;
 
   /// @inheritdoc IVault
   uint128 public override queuedShares;
@@ -34,30 +37,13 @@ abstract contract Vault is ERC20Permit, IVault {
   /// @inheritdoc IVault
   uint128 public override unclaimedAssets;
 
-  /// @inheritdoc IVault
-  uint128 public override maxTotalAssets;
-
-  /// @inheritdoc IVault
-  uint128 public override nextMaxTotalAssets;
-
   uint128 internal _totalShares;
   uint128 internal _totalStakedAssets;
-
-  uint64 internal _exitQueueLastUpdate;
-  uint64 internal _maxTotalAssetsLastUpdate;
-  uint64 internal _feePercentLastUpdate;
-
-  /// @inheritdoc IVault
-  uint16 public override feePercent;
-
-  /// @inheritdoc IVault
-  uint16 public override nextFeePercent;
 
   /// @inheritdoc IVault
   bytes32 public override validatorsRoot;
 
-  /// @inheritdoc IVault
-  address public override operator;
+  uint64 internal _exitQueueLastUpdate;
 
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
@@ -67,8 +53,7 @@ abstract contract Vault is ERC20Permit, IVault {
   error NoExitRequestingShares();
   error InsufficientAvailableAssets();
   error NotOperator();
-  error InvalidSetting();
-  error SettingUpdateFailed();
+  error InvalidFeePercent();
 
   /// @dev Prevents calling a function from anyone except Vault's operator
   modifier onlyOperator() {
@@ -84,9 +69,14 @@ abstract contract Vault is ERC20Permit, IVault {
   constructor(string memory _name, string memory _symbol) ERC20Permit(_name, _symbol) {
     (address _operator, uint128 _maxTotalAssets, uint16 _feePercent) = IVaultFactory(msg.sender)
       .parameters();
+    if (_feePercent > 10_000) revert InvalidFeePercent();
+
+    feePercent = _feePercent;
     operator = _operator;
-    feePercent = nextFeePercent = _feePercent;
-    maxTotalAssets = nextMaxTotalAssets = _maxTotalAssets;
+    maxTotalAssets = _maxTotalAssets;
+
+    // initialize storage to reduce gas cost for the first queue update
+    _exitQueueLastUpdate = 1;
   }
 
   /// @inheritdoc IERC20
@@ -291,59 +281,12 @@ abstract contract Vault is ERC20Permit, IVault {
     return (totalShares == 0) ? shares : Math.mulDiv(shares, totalAssets(), totalShares);
   }
 
-  // @inheritdoc IVault
-  function initMaxTotalAssets(uint128 newMaxTotalAssets) external override onlyOperator {
-    _maxTotalAssetsLastUpdate = newMaxTotalAssets == maxTotalAssets
-      ? 0
-      : SafeCast.toUint64(block.timestamp);
-    nextMaxTotalAssets = newMaxTotalAssets;
-    emit MaxTotalAssetsInitiated(msg.sender, newMaxTotalAssets);
-  }
-
-  // @inheritdoc IVault
-  function applyMaxTotalAssets() external override onlyOperator {
-    _checkSettingUpdateTimestamp(_maxTotalAssetsLastUpdate);
-
-    // SLOAD to memory
-    uint128 _nextMaxTotalAssets = nextMaxTotalAssets;
-    delete _maxTotalAssetsLastUpdate;
-    maxTotalAssets = _nextMaxTotalAssets;
-    emit MaxTotalAssetsUpdated(msg.sender, _nextMaxTotalAssets);
-  }
-
-  // @inheritdoc IVault
-  function initFeePercent(uint16 newFeePercent) external override onlyOperator {
-    if (newFeePercent > 10_000) revert InvalidSetting();
-    _feePercentLastUpdate = newFeePercent == feePercent ? 0 : SafeCast.toUint64(block.timestamp);
-    nextFeePercent = newFeePercent;
-    emit FeePercentInitiated(msg.sender, newFeePercent);
-  }
-
-  // @inheritdoc IVault
-  function applyFeePercent() external override onlyOperator {
-    _checkSettingUpdateTimestamp(_feePercentLastUpdate);
-
-    // SLOAD to memory
-    uint16 _nextFeePercent = nextFeePercent;
-    delete _feePercentLastUpdate;
-    feePercent = _nextFeePercent;
-    emit FeePercentUpdated(msg.sender, _nextFeePercent);
-  }
-
-  // @inheritdoc IVault
-  function setOperator(address newOperator) external override onlyOperator {
-    if (operator == newOperator) revert InvalidSetting();
-    operator = newOperator;
-    emit OperatorUpdated(msg.sender, newOperator);
-  }
-
-  // @inheritdoc IVault
+  /// @inheritdoc IVault
   function setValidatorsRoot(bytes32 newValidatorsRoot, string memory newValidatorsIpfsHash)
     external
     override
     onlyOperator
   {
-    if (validatorsRoot == newValidatorsRoot) revert InvalidSetting();
     validatorsRoot = newValidatorsRoot;
     emit ValidatorsRootUpdated(msg.sender, newValidatorsRoot, newValidatorsIpfsHash);
   }
@@ -385,19 +328,6 @@ abstract contract Vault is ERC20Permit, IVault {
     assets = _withdrawFeesEscrowAssets();
     // TODO: charge fee to the operator from the withdrawn assets
     _totalStakedAssets += SafeCast.toUint128(assets);
-  }
-
-  /**
-   * @dev Internal function for checking whether the new setting value can be applied
-   */
-  function _checkSettingUpdateTimestamp(uint256 settingTimestamp) internal view {
-    uint256 currentTimestamp = block.timestamp;
-    unchecked {
-      if (
-        currentTimestamp < settingTimestamp + settingUpdateDelay ||
-        currentTimestamp >= settingTimestamp + settingsUpdateTimeout
-      ) revert SettingUpdateFailed();
-    }
   }
 
   /**
