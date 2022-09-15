@@ -4,7 +4,7 @@
   "description": "Liquid staking protocol for Ethereum",
   "main": "index.js",
   "scripts": {
-    "compile": "hardhat clean && hardhat compile",
+    "compile": "SKIP_LOAD=true hardhat clean && SKIP_LOAD=true hardhat compile",
     "lint": "npm run lint:js && npm run lint:sol",
     "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
     "lint:js": "eslint --ignore-path .gitignore .",
@@ -14,10 +14,12 @@
     "spdx": "hardhat prepend-spdx-license",
     "size": "npm run compile && hardhat size-contracts",
     "slither": "hardhat clean && slither .",
+    "quick-test": "hardhat test",
     "test": "npm run compile && hardhat test",
     "test:gas": "npm run compile && TRACK_GAS=true hardhat test",
     "coverage": "npm run compile && COVERAGE=true hardhat coverage",
-    "precommit": "lint-staged"
+    "precommit": "lint-staged",
+    "full-deploy:goerli": "hardhat eth-full-deploy --network goerli"
   },
   "repository": {
     "type": "git",

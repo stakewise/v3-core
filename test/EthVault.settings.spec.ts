@@ -4,7 +4,6 @@ import { EthVault } from '../typechain-types'
 import { vaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { ZERO_BYTES32 } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 

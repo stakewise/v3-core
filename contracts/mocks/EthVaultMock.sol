@@ -17,9 +17,8 @@ contract EthVaultMock is EthVault {
 
   /**
    * @dev Constructor
-   * @param vaultId The ID of the Vault
    */
-  constructor(uint256 vaultId) EthVault(vaultId) {}
+  constructor() EthVault() {}
 
   function mockMint(address receiver, uint256 assets) external returns (uint256 shares) {
     // calculate amount of shares to mint

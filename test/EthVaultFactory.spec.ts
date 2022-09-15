@@ -22,6 +22,7 @@ describe('EthVaultFactory', () => {
 
   it('predicts vault address', async () => {
     const expectedAddress = await factory.getVaultAddress(1)
+    expect(await factory.lastVaultId()).to.be.eq(0)
     const tx = await factory
       .connect(operator)
       .createVault(operator.address, maxTotalAssets, feePercent)
@@ -38,5 +39,6 @@ describe('EthVaultFactory', () => {
         maxTotalAssets,
         feePercent
       )
+    expect(await factory.lastVaultId()).to.be.eq(1)
   })
 })

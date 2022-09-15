@@ -21,7 +21,7 @@ contract EthVaultFactory is IVaultFactory {
   /// @inheritdoc IVaultFactory
   Parameters public override parameters;
 
-  uint256 private _lastVaultId;
+  uint256 public override lastVaultId;
 
   /// @inheritdoc IVaultFactory
   function createVault(
@@ -37,10 +37,10 @@ contract EthVaultFactory is IVaultFactory {
     uint256 vaultId;
     unchecked {
       // cannot realistically overflow
-      _lastVaultId = vaultId = _lastVaultId + 1;
+      lastVaultId = vaultId = lastVaultId + 1;
     }
 
-    vault = address(new EthVault{salt: bytes32(vaultId)}(vaultId));
+    vault = address(new EthVault{salt: bytes32(vaultId)}());
     feesEscrow = IVault(vault).feesEscrow();
     delete parameters;
     emit VaultCreated(msg.sender, vault, feesEscrow, operator, maxTotalAssets, feePercent);
@@ -57,8 +57,8 @@ contract EthVaultFactory is IVaultFactory {
                 bytes1(0xFF), // prefix
                 address(this), // creator
                 bytes32(vaultId), // salt
-                // vault bytecode and constructor
-                keccak256(abi.encodePacked(type(EthVault).creationCode, abi.encode(vaultId)))
+                // vault bytecode
+                keccak256(abi.encodePacked(type(EthVault).creationCode))
               )
             )
           )

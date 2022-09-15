@@ -26,6 +26,12 @@ interface IVaultFactory {
   );
 
   /**
+   * @notice Last Vault ID
+   * @return The ID of the last created Vault
+   */
+  function lastVaultId() external view returns (uint256);
+
+  /**
    * @notice Get the parameters to be used in constructing the Vault, set transiently during pool creation
    * @dev Called by the pool constructor to fetch the parameters of the Vault
    * @return operator The address of the Vault operator
