@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.16;
+pragma solidity =0.8.17;
 
 /**
  * @title IVaultFactory
@@ -11,17 +11,55 @@ interface IVaultFactory {
   /**
    * @notice Event emitted on a Vault creation
    * @param caller The address that called the create function
-   * @param vaultId The ID assigned to the Vault
    * @param vault The address of the created Vault
+   * @param operator The address of the Vault operator
+   * @param maxTotalAssets The max total assets that can be staked into the Vault
+   * @param feePercent The fee percent that is charged by the Vault operator
    */
-  event VaultCreated(address indexed caller, uint256 indexed vaultId, address vault);
+  event VaultCreated(
+    address indexed caller,
+    address indexed vault,
+    address indexed feesEscrow,
+    address operator,
+    uint128 maxTotalAssets,
+    uint16 feePercent
+  );
+
+  /**
+   * @notice Last Vault ID
+   * @return The ID of the last created Vault
+   */
+  function lastVaultId() external view returns (uint256);
+
+  /**
+   * @notice Get the parameters to be used in constructing the Vault, set transiently during pool creation
+   * @dev Called by the pool constructor to fetch the parameters of the Vault
+   * @return operator The address of the Vault operator
+   * @return maxTotalAssets The max total assets that can be staked into the Vault
+   * @return feePercent The fee percent that is charged by the Vault operator
+   */
+  function parameters()
+    external
+    view
+    returns (
+      address operator,
+      uint128 maxTotalAssets,
+      uint16 feePercent
+    );
 
   /**
    * @notice Create new Vault
-   * @return vaultId The ID of the new Vault
-   * @return vault The address of the new Vault
+   * @param operator The address of the Vault operator
+   * @param maxTotalAssets The max total assets that can be staked into the Vault
+   * @param feePercent The fee percent that is charged by the Vault operator
+   * @return vault The address of the created Vault
+   * @return feesEscrow The address of the created Vault's fees escrow
    */
-  function createVault() external returns (uint256 vaultId, address vault);
+  function createVault(
+    address operator,
+    uint128 maxTotalAssets,
+    uint16 feePercent
+  ) external returns (address vault, address feesEscrow);
 
   /**
    * @notice Retrieve Vault address

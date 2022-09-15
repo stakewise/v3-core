@@ -13,7 +13,9 @@ const ether = parseEther('1')
 type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 
 describe('EthVault - deposit', () => {
-  let sender: Wallet, receiver: Wallet, other: Wallet
+  const maxTotalAssets = parseEther('1000')
+  const feePercent = 1000
+  let sender: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
   let vault: EthVault
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -21,13 +23,13 @@ describe('EthVault - deposit', () => {
   let createEthVaultMock: ThenArg<ReturnType<typeof vaultFixture>>['createEthVaultMock']
 
   before('create fixture loader', async () => {
-    ;[sender, receiver, other] = await (ethers as any).getSigners()
+    ;[sender, receiver, operator, other] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([sender, receiver, other])
   })
 
   beforeEach('deploy fixture', async () => {
     ;({ createEthVault, createEthVaultMock } = await loadFixture(vaultFixture))
-    vault = await createEthVault()
+    vault = await createEthVault(operator.address, maxTotalAssets, feePercent)
   })
 
   describe('empty vault: no assets & no shares', () => {
@@ -84,7 +86,7 @@ describe('EthVault - deposit', () => {
     let ethVaultMock: EthVaultMock
 
     beforeEach(async () => {
-      ethVaultMock = await createEthVaultMock(1)
+      ethVaultMock = await createEthVaultMock(operator.address, maxTotalAssets, feePercent)
       await ethVaultMock.mockMint(receiver.address, ether)
     })
 
@@ -110,6 +112,12 @@ describe('EthVault - deposit', () => {
 
     it('status', async () => {
       expect(await vault.totalAssets()).to.eq(parseEther('100'))
+    })
+
+    it('fails with exceeded max total assets', async () => {
+      await expect(
+        vault.connect(sender).deposit(receiver.address, { value: parseEther('999') })
+      ).to.be.revertedWith('MaxTotalAssetsExceeded()')
     })
 
     it('deposit', async () => {

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.16;
+pragma solidity =0.8.17;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IVault} from '../interfaces/IVault.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
+import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
 import {ERC20Permit} from './ERC20Permit.sol';
 
@@ -19,7 +20,16 @@ abstract contract Vault is ERC20Permit, IVault {
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IVault
-  uint24 public constant override exitQueueUpdateDelay = 1 days;
+  uint256 public constant override exitQueueUpdateDelay = 1 days;
+
+  /// @inheritdoc IVault
+  uint256 public immutable override feePercent;
+
+  /// @inheritdoc IVault
+  address public immutable override operator;
+
+  /// @inheritdoc IVault
+  uint128 public immutable override maxTotalAssets;
 
   /// @inheritdoc IVault
   uint128 public override queuedShares;
@@ -31,23 +41,43 @@ abstract contract Vault is ERC20Permit, IVault {
   uint128 internal _totalStakedAssets;
 
   /// @inheritdoc IVault
-  uint64 public override exitQueueLastUpdate;
+  bytes32 public override validatorsRoot;
+
+  uint64 internal _exitQueueLastUpdate;
 
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
 
   error InvalidSharesAmount();
+  error MaxTotalAssetsExceeded();
   error NoExitRequestingShares();
   error InsufficientAvailableAssets();
-  error EarlyExitQueueUpdate();
-  error ExitQueueUpdateFailed();
+  error NotOperator();
+  error InvalidFeePercent();
+
+  /// @dev Prevents calling a function from anyone except Vault's operator
+  modifier onlyOperator() {
+    if (msg.sender != operator) revert NotOperator();
+    _;
+  }
 
   /**
    * @dev Constructor
    * @param _name The name of the ERC20 token
    * @param _symbol The symbol of the ERC20 token
    */
-  constructor(string memory _name, string memory _symbol) ERC20Permit(_name, _symbol) {}
+  constructor(string memory _name, string memory _symbol) ERC20Permit(_name, _symbol) {
+    (address _operator, uint128 _maxTotalAssets, uint16 _feePercent) = IVaultFactory(msg.sender)
+      .parameters();
+    if (_feePercent > 10_000) revert InvalidFeePercent();
+
+    feePercent = _feePercent;
+    operator = _operator;
+    maxTotalAssets = _maxTotalAssets;
+
+    // initialize storage to reduce gas cost for the first queue update
+    _exitQueueLastUpdate = 1;
+  }
 
   /// @inheritdoc IERC20
   function totalSupply() external view returns (uint256) {
@@ -96,7 +126,7 @@ abstract contract Vault is ERC20Permit, IVault {
       // cannot underflow because user's balance
       // will never be larger than total shares
       _totalShares -= SafeCast.toUint128(shares);
-      // cannot underflow as it's capped with totalAssets()
+      // cannot underflow as it is capped with totalAssets()
       _totalStakedAssets -= SafeCast.toUint128(assets);
     }
 
@@ -139,7 +169,7 @@ abstract contract Vault is ERC20Permit, IVault {
     balanceOf[owner] -= shares;
 
     emit Transfer(owner, address(this), shares);
-    emit ExitQueueEnter(msg.sender, receiver, owner, exitQueueId, shares);
+    emit ExitQueueEntered(msg.sender, receiver, owner, exitQueueId, shares);
   }
 
   /// @inheritdoc IVault
@@ -182,19 +212,19 @@ abstract contract Vault is ERC20Permit, IVault {
     }
 
     _transferAssets(receiver, claimedAssets);
-    emit ExitedAssetsClaim(msg.sender, receiver, exitQueueId, newExitQueueId, claimedAssets);
+    emit ExitedAssetsClaimed(msg.sender, receiver, exitQueueId, newExitQueueId, claimedAssets);
   }
 
   /// @inheritdoc IVault
   function canUpdateExitQueue() public view override returns (bool) {
     unchecked {
-      return block.timestamp >= exitQueueLastUpdate + exitQueueUpdateDelay;
+      return block.timestamp >= _exitQueueLastUpdate + exitQueueUpdateDelay;
     }
   }
 
   /// @inheritdoc IVault
   function updateExitQueue() public override {
-    if (!canUpdateExitQueue()) revert EarlyExitQueueUpdate();
+    if (!canUpdateExitQueue()) return;
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
@@ -214,7 +244,7 @@ abstract contract Vault is ERC20Permit, IVault {
 
     // calculate the amount of shares that can be burned
     uint256 burnedShares = convertToShares(exitedAssets);
-    if (burnedShares == 0 || exitedAssets == 0) revert ExitQueueUpdateFailed();
+    if (burnedShares == 0 || exitedAssets == 0) return;
 
     unchecked {
       // cannot underflow as queuedShares >= burnedShares
@@ -230,7 +260,7 @@ abstract contract Vault is ERC20Permit, IVault {
     unclaimedAssets = SafeCast.toUint128(_unclaimedAssets + exitedAssets);
 
     // update exit queue last update timestamp
-    exitQueueLastUpdate = SafeCast.toUint64(block.timestamp);
+    _exitQueueLastUpdate = SafeCast.toUint64(block.timestamp);
 
     emit Transfer(address(this), address(0), burnedShares);
 
@@ -251,6 +281,16 @@ abstract contract Vault is ERC20Permit, IVault {
     return (totalShares == 0) ? shares : Math.mulDiv(shares, totalAssets(), totalShares);
   }
 
+  /// @inheritdoc IVault
+  function setValidatorsRoot(bytes32 newValidatorsRoot, string memory newValidatorsIpfsHash)
+    external
+    override
+    onlyOperator
+  {
+    validatorsRoot = newValidatorsRoot;
+    emit ValidatorsRootUpdated(msg.sender, newValidatorsRoot, newValidatorsIpfsHash);
+  }
+
   /**
    * @dev Internal function that must be used to process user deposits
    * @param to The address to mint shares to
@@ -258,7 +298,10 @@ abstract contract Vault is ERC20Permit, IVault {
    * @return shares The total amount of shares minted
    */
   function _deposit(address to, uint256 assets) internal returns (uint256 shares) {
-    // TODO: add check whether max validators count has not exceeded
+    unchecked {
+      // cannot underflow as it is capped with staked asset total supply
+      if (totalAssets() + assets > maxTotalAssets) revert MaxTotalAssetsExceeded();
+    }
 
     // calculate amount of shares to mint
     shares = convertToShares(assets);
@@ -283,7 +326,7 @@ abstract contract Vault is ERC20Permit, IVault {
    */
   function _claimFees() internal returns (uint256 assets) {
     assets = _withdrawFeesEscrowAssets();
-    // TODO: charge fee to the owner from the withdrawn assets
+    // TODO: charge fee to the operator from the withdrawn assets
     _totalStakedAssets += SafeCast.toUint128(assets);
   }
 

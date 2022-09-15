@@ -38,3 +38,5 @@ artifacts
 # Coverage
 coverage
 coverage.json
+
+addresses.json

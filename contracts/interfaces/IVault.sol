@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.16;
+pragma solidity =0.8.17;
 
 import {IERC20Permit} from './IERC20Permit.sol';
 
@@ -15,7 +15,7 @@ interface IVault is IERC20Permit {
    * @param caller The address that called the deposit function
    * @param owner The address that receives the shares
    * @param assets The number of assets deposited by the caller
-   * @param shares The number of created shares
+   * @param shares The number of Vault tokens the owner receives
    */
   event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
 
@@ -43,7 +43,7 @@ interface IVault is IERC20Permit {
    * @param exitQueueId The exit queue ID that was assigned to the position
    * @param shares The number of shares that queued for the exit
    */
-  event ExitQueueEnter(
+  event ExitQueueEntered(
     address indexed caller,
     address indexed receiver,
     address indexed owner,
@@ -59,12 +59,24 @@ interface IVault is IERC20Permit {
    * @param newExitQueueId The new exit queue ID in case not all the shares were withdrawn. Otherwise 0.
    * @param withdrawnAssets The total number of assets withdrawn
    */
-  event ExitedAssetsClaim(
+  event ExitedAssetsClaimed(
     address indexed caller,
     address indexed receiver,
     uint256 indexed prevExitQueueId,
     uint256 newExitQueueId,
     uint256 withdrawnAssets
+  );
+
+  /**
+   * @notice Event emitted on validators merkle tree root update
+   * @param caller The address of the caller
+   * @param newValidatorsRoot The new validators merkle tree root
+   * @param newValidatorsIpfsHash The new IPFS hash with all the validators deposit data
+   */
+  event ValidatorsRootUpdated(
+    address indexed caller,
+    bytes32 newValidatorsRoot,
+    string newValidatorsIpfsHash
   );
 
   /**
@@ -89,19 +101,37 @@ interface IVault is IERC20Permit {
    * @notice The exit queue update delay
    * @return The number of seconds that must pass between exit queue updates
    */
-  function exitQueueUpdateDelay() external view returns (uint24);
-
-  /**
-   * @notice The last update of the exit queue
-   * @return The timestamp of the exit queue last update
-   */
-  function exitQueueLastUpdate() external view returns (uint64);
+  function exitQueueUpdateDelay() external view returns (uint256);
 
   /**
    * @notice Total assets in the Vault
    * @return totalManagedAssets The total amount of the underlying asset that is “managed” by Vault
    */
   function totalAssets() external view returns (uint256 totalManagedAssets);
+
+  /**
+   * @notice Max total assets in the Vault
+   * @return The total number of assets in the Vault after which new deposits are not accepted anymore
+   */
+  function maxTotalAssets() external view returns (uint128);
+
+  /**
+   * @notice The Vault's operator fee percent
+   * @return The fee percent applied by the Vault operator on the rewards
+   */
+  function feePercent() external view returns (uint256);
+
+  /**
+   * @notice The Vault operator
+   * @return The Vault operator address
+   */
+  function operator() external view returns (address);
+
+  /**
+   * @notice The Vault validators root
+   * @return The Merkle Tree root to use for verifying validators deposit data
+   */
+  function validatorsRoot() external view returns (bytes32);
 
   /**
    * @notice Total assets available in the Vault. They can be staked or withdrawn.
@@ -182,4 +212,12 @@ interface IVault is IERC20Permit {
    * The users whose turn is in the exit queue will be able to withdraw their assets.
    */
   function updateExitQueue() external;
+
+  /**
+   * @notice Function for updating the validators Merkle Tree root
+   * @param newValidatorsRoot The new validators merkle tree root
+   * @param newValidatorsIpfsHash The new IPFS hash with all the validators deposit data for the new root
+   */
+  function setValidatorsRoot(bytes32 newValidatorsRoot, string memory newValidatorsIpfsHash)
+    external;
 }

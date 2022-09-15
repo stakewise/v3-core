@@ -4,14 +4,14 @@ pragma solidity =0.8.17;
 
 import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
 import {IVault} from '../interfaces/IVault.sol';
-import {EthVault} from './EthVault.sol';
+import {EthVaultMock} from './EthVaultMock.sol';
 
 /**
- * @title EthVaultFactory
+ * @title EthVaultFactoryMock
  * @author StakeWise
- * @notice Factory for deploying vaults for staking on Ethereum
+ * @notice Factory for deploying mocked vaults for staking on Ethereum
  */
-contract EthVaultFactory is IVaultFactory {
+contract EthVaultFactoryMock is IVaultFactory {
   struct Parameters {
     address operator;
     uint128 maxTotalAssets;
@@ -40,7 +40,7 @@ contract EthVaultFactory is IVaultFactory {
       lastVaultId = vaultId = lastVaultId + 1;
     }
 
-    vault = address(new EthVault{salt: bytes32(vaultId)}());
+    vault = address(new EthVaultMock{salt: bytes32(vaultId)}());
     feesEscrow = IVault(vault).feesEscrow();
     delete parameters;
     emit VaultCreated(msg.sender, vault, feesEscrow, operator, maxTotalAssets, feePercent);
@@ -58,7 +58,7 @@ contract EthVaultFactory is IVaultFactory {
                 address(this), // creator
                 bytes32(vaultId), // salt
                 // vault bytecode
-                keccak256(abi.encodePacked(type(EthVault).creationCode))
+                keccak256(abi.encodePacked(type(EthVaultMock).creationCode))
               )
             )
           )
