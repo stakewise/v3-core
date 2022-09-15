@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.16;
+pragma solidity =0.8.17;
 
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {IVault} from '../interfaces/IVault.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
+import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
 import {Vault} from '../base/Vault.sol';
 import {EthFeesEscrow} from './EthFeesEscrow.sol';
 
@@ -19,12 +20,11 @@ contract EthVault is Vault, IEthVault {
 
   /**
    * @dev Constructor
-   * @param vaultId The ID of the vault
    */
-  constructor(uint256 vaultId)
+  constructor()
     Vault(
-      string(abi.encodePacked('SW ETH Vault ', vaultId)),
-      string(abi.encodePacked('SW-ETH-', vaultId))
+      string(abi.encodePacked('SW ETH Vault ', IVaultFactory(msg.sender).lastVaultId())),
+      string(abi.encodePacked('SW-ETH-', IVaultFactory(msg.sender).lastVaultId()))
     )
   {
     _feesEscrow = address(new EthFeesEscrow());

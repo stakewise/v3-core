@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.16;
+pragma solidity =0.8.17;
 
 import {ERC20Permit} from '../base/ERC20Permit.sol';
 import {IERC20} from '../interfaces/IERC20.sol';

@@ -1,0 +1,8 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthVault - settings validators root can update 1`] = `
+Object {
+  "calldataByteLength": 164,
+  "gasUsed": 48424,
+}
+`;
