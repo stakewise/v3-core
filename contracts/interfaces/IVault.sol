@@ -89,13 +89,13 @@ interface IVault is IERC20Permit {
    * @notice Queued Shares
    * @return The total number of shares queued for exit
    */
-  function queuedShares() external view returns (uint128);
+  function queuedShares() external view returns (uint96);
 
   /**
    * @notice Unclaimed Assets
    * @return The total number of assets that were withdrawn, but not claimed yet
    */
-  function unclaimedAssets() external view returns (uint128);
+  function unclaimedAssets() external view returns (uint96);
 
   /**
    * @notice The exit queue update delay
@@ -113,7 +113,7 @@ interface IVault is IERC20Permit {
    * @notice Max total assets in the Vault
    * @return The total number of assets in the Vault after which new deposits are not accepted anymore
    */
-  function maxTotalAssets() external view returns (uint128);
+  function maxTotalAssets() external view returns (uint256);
 
   /**
    * @notice The Vault's operator fee percent
@@ -200,12 +200,6 @@ interface IVault is IERC20Permit {
     address receiver,
     address owner
   ) external returns (uint256 assets);
-
-  /**
-   * @notice Checks whether exit queue update can be called
-   * @return `true` when `updateExitQueue` can be called, `false` otherwise
-   */
-  function canUpdateExitQueue() external view returns (bool);
 
   /**
    * @notice Updates exit queue by creating a checkpoint. Can be called only once per day.

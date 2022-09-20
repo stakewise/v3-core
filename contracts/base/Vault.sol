@@ -22,6 +22,8 @@ abstract contract Vault is ERC20Permit, IVault {
   /// @inheritdoc IVault
   uint256 public constant override exitQueueUpdateDelay = 1 days;
 
+  uint256 internal constant _maxFeePercent = 10_000;
+
   /// @inheritdoc IVault
   uint256 public immutable override feePercent;
 
@@ -29,21 +31,20 @@ abstract contract Vault is ERC20Permit, IVault {
   address public immutable override operator;
 
   /// @inheritdoc IVault
-  uint128 public immutable override maxTotalAssets;
-
-  /// @inheritdoc IVault
-  uint128 public override queuedShares;
-
-  /// @inheritdoc IVault
-  uint128 public override unclaimedAssets;
-
-  uint128 internal _totalShares;
-  uint128 internal _totalStakedAssets;
+  uint256 public immutable override maxTotalAssets;
 
   /// @inheritdoc IVault
   bytes32 public override validatorsRoot;
 
-  uint64 internal _exitQueueLastUpdate;
+  /// @inheritdoc IVault
+  uint96 public override queuedShares;
+
+  /// @inheritdoc IVault
+  uint96 public override unclaimedAssets;
+
+  uint64 internal _exitQueueNextUpdate;
+  uint128 internal _totalShares;
+  uint128 internal _totalStakedAssets;
 
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
@@ -69,14 +70,11 @@ abstract contract Vault is ERC20Permit, IVault {
   constructor(string memory _name, string memory _symbol) ERC20Permit(_name, _symbol) {
     (address _operator, uint128 _maxTotalAssets, uint16 _feePercent) = IVaultFactory(msg.sender)
       .parameters();
-    if (_feePercent > 10_000) revert InvalidFeePercent();
+    if (_feePercent > _maxFeePercent) revert InvalidFeePercent();
 
     feePercent = _feePercent;
     operator = _operator;
     maxTotalAssets = _maxTotalAssets;
-
-    // initialize storage to reduce gas cost for the first queue update
-    _exitQueueLastUpdate = 1;
   }
 
   /// @inheritdoc IERC20
@@ -153,12 +151,13 @@ abstract contract Vault is ERC20Permit, IVault {
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
-    exitQueueId = _exitQueue.getSharesCounter();
+
+    // calculate new exit queue ID
+    exitQueueId = _exitQueue.getSharesCounter() + _queuedShares;
 
     unchecked {
       // cannot overflow as it is capped with staked asset total supply
-      exitQueueId += _queuedShares;
-      queuedShares = SafeCast.toUint128(_queuedShares + shares);
+      queuedShares = SafeCast.toUint96(_queuedShares + shares);
     }
 
     // add to the exit requests
@@ -208,7 +207,7 @@ abstract contract Vault is ERC20Permit, IVault {
 
     unchecked {
       // cannot underflow as unclaimedAssets >= claimedAssets
-      unclaimedAssets -= SafeCast.toUint128(claimedAssets);
+      unclaimedAssets -= SafeCast.toUint96(claimedAssets);
     }
 
     _transferAssets(receiver, claimedAssets);
@@ -216,15 +215,8 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   /// @inheritdoc IVault
-  function canUpdateExitQueue() public view override returns (bool) {
-    unchecked {
-      return block.timestamp >= _exitQueueLastUpdate + exitQueueUpdateDelay;
-    }
-  }
-
-  /// @inheritdoc IVault
   function updateExitQueue() public override {
-    if (!canUpdateExitQueue()) return;
+    if (block.timestamp < _exitQueueNextUpdate) return;
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
@@ -248,7 +240,13 @@ abstract contract Vault is ERC20Permit, IVault {
 
     unchecked {
       // cannot underflow as queuedShares >= burnedShares
-      queuedShares = SafeCast.toUint128(_queuedShares - burnedShares);
+      queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
+
+      // cannot overflow as it is capped with staked asset total supply
+      unclaimedAssets = SafeCast.toUint96(_unclaimedAssets + exitedAssets);
+
+      // cannot overflow on human timescales
+      _exitQueueNextUpdate = uint64(block.timestamp + exitQueueUpdateDelay);
 
       // cannot underflow because burned shares
       // will never be larger than the total shares
@@ -257,10 +255,6 @@ abstract contract Vault is ERC20Permit, IVault {
       // cannot underflow as exitedAssets is capped with totalAssets()
       _totalStakedAssets -= SafeCast.toUint128(exitedAssets);
     }
-    unclaimedAssets = SafeCast.toUint128(_unclaimedAssets + exitedAssets);
-
-    // update exit queue last update timestamp
-    _exitQueueLastUpdate = SafeCast.toUint64(block.timestamp);
 
     emit Transfer(address(this), address(0), burnedShares);
 
