@@ -3,20 +3,20 @@
 exports[`EthVault - deposit empty vault: no assets & no shares deposit 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 74297,
+  "gasUsed": 71303,
 }
 `;
 
 exports[`EthVault - deposit full vault: assets & shares deposit 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 57682,
+  "gasUsed": 54543,
 }
 `;
 
 exports[`EthVault - deposit partially empty vault: assets & no shares deposit 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 74297,
+  "gasUsed": 54225,
 }
 `;

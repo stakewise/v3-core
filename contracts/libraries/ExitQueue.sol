@@ -91,8 +91,8 @@ library ExitQueue {
     uint256 requiredShares
   ) internal view returns (uint256 burnedShares, uint256 exitedAssets) {
     uint256 length = self.checkpoints.length;
-    // there are no exited assets for such checkpoint index
-    if (checkpointIdx >= length) return (0, 0);
+    // there are no exited assets for such checkpoint index or no shares to burn
+    if (checkpointIdx >= length || requiredShares == 0) return (0, 0);
 
     // previous shares counter for calculating how much shares were burned for the period
     uint256 prevCounter;
@@ -114,7 +114,7 @@ library ExitQueue {
     // calculate amount of available shares that will be updated while iterating over checkpoints
     uint256 availableShares;
     unchecked {
-      // cannot underflow as currCounter > sharesCounter
+      // cannot underflow as every next checkpoint counter is larger than previous
       availableShares = currCounter - sharesCounter;
     }
 

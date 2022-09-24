@@ -80,10 +80,22 @@ interface IVault is IERC20Permit {
   );
 
   /**
+   * @notice Event emitted on harvest
+   * @param assetsDelta The number of assets added or deducted from/to the total staked assets
+   */
+  event Harvested(int256 assetsDelta);
+
+  /**
    * @notice The contract that accumulates rewards received from priority fees and MEV
    * @return The contract address
    */
   function feesEscrow() external view returns (address);
+
+  /**
+   * @notice The keeper address that can harvest rewards
+   * @return The address of the Vault keeper
+   */
+  function keeper() external view returns (address);
 
   /**
    * @notice Queued Shares
@@ -105,9 +117,9 @@ interface IVault is IERC20Permit {
 
   /**
    * @notice Total assets in the Vault
-   * @return totalManagedAssets The total amount of the underlying asset that is “managed” by Vault
+   * @return The total amount of the underlying asset that is “managed” by Vault
    */
-  function totalAssets() external view returns (uint256 totalManagedAssets);
+  function totalAssets() external view returns (uint256);
 
   /**
    * @notice Max total assets in the Vault
@@ -132,12 +144,6 @@ interface IVault is IERC20Permit {
    * @return The Merkle Tree root to use for verifying validators deposit data
    */
   function validatorsRoot() external view returns (bytes32);
-
-  /**
-   * @notice Total assets available in the Vault. They can be staked or withdrawn.
-   * @return The total amount of the underlying assets that are liquid in the Vault
-   */
-  function availableAssets() external view returns (uint256);
 
   /**
    * @notice Get the checkpoint index to claim exited assets from
@@ -200,6 +206,13 @@ interface IVault is IERC20Permit {
     address receiver,
     address owner
   ) external returns (uint256 assets);
+
+  /**
+   * @notice Updates total amount of assets in the Vault
+   * @param validatorAssets The number of assets accumulated since the previous harvest
+   * @return assetsDelta The number of assets added or deducted from/to the total staked assets
+   */
+  function harvest(int256 validatorAssets) external returns (int256 assetsDelta);
 
   /**
    * @notice Updates exit queue by creating a checkpoint. Can be called only once per day.

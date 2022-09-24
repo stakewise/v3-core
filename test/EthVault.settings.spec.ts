@@ -12,14 +12,14 @@ type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 describe('EthVault - settings', () => {
   const maxTotalAssets = ethers.utils.parseEther('1000')
   const feePercent = 1000
-  let operator: Wallet, other: Wallet
+  let keeper: Wallet, operator: Wallet, other: Wallet
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createEthVault: ThenArg<ReturnType<typeof vaultFixture>>['createEthVault']
 
   before('create fixture loader', async () => {
-    ;[operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([operator, other])
+    ;[keeper, operator, other] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([keeper, operator, other])
   })
 
   beforeEach('deploy fixture', async () => {
@@ -28,9 +28,9 @@ describe('EthVault - settings', () => {
 
   describe('fee percent', () => {
     it('cannot be set to invalid value', async () => {
-      await expect(createEthVault(operator.address, maxTotalAssets, 10001)).to.be.revertedWith(
-        'InvalidFeePercent()'
-      )
+      await expect(
+        createEthVault(keeper.address, operator.address, maxTotalAssets, 10001)
+      ).to.be.revertedWith('InvalidFeePercent()')
     })
   })
 
@@ -40,7 +40,7 @@ describe('EthVault - settings', () => {
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
-      vault = await createEthVault(operator.address, maxTotalAssets, feePercent)
+      vault = await createEthVault(keeper.address, operator.address, maxTotalAssets, feePercent)
     })
 
     it('only operator can update', async () => {

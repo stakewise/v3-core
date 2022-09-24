@@ -1,26 +1,26 @@
 import { ethers } from 'hardhat'
 import { Wallet } from 'ethers'
-import { EthVaultFactory } from '../typechain-types'
+import { EthVault, EthVaultFactory } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 
 describe('EthVaultFactory', () => {
   const maxTotalAssets = ethers.utils.parseEther('1000')
   const feePercent = 1000
-  let operator: Wallet
+  let operator: Wallet, keeper: Wallet
   let factory: EthVaultFactory
 
   beforeEach(async () => {
-    ;[operator] = await (ethers as any).getSigners()
+    ;[operator, keeper] = await (ethers as any).getSigners()
     const ethVaultFactory = await ethers.getContractFactory('EthVaultFactory')
-    factory = (await ethVaultFactory.deploy()) as EthVaultFactory
+    factory = (await ethVaultFactory.deploy(keeper.address)) as EthVaultFactory
   })
 
   it('vault deployment gas', async () => {
     await snapshotGasCost(factory.createVault(operator.address, maxTotalAssets, feePercent))
   })
 
-  it('predicts vault address', async () => {
+  it('creates vault correctly', async () => {
     const expectedAddress = await factory.getVaultAddress(1)
     expect(await factory.lastVaultId()).to.be.eq(0)
     const tx = await factory
@@ -40,5 +40,9 @@ describe('EthVaultFactory', () => {
         feePercent
       )
     expect(await factory.lastVaultId()).to.be.eq(1)
+
+    const ethVault = await ethers.getContractFactory('EthVault')
+    const vault = ethVault.attach(expectedAddress) as EthVault
+    expect(await vault.keeper()).to.be.eq(keeper.address)
   })
 })

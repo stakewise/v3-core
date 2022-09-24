@@ -5,12 +5,14 @@ import { EthVault, EthVaultFactory, EthVaultMock, EthVaultFactoryMock } from '..
 
 interface VaultFixture {
   createEthVault(
+    keeper: string,
     operator: string,
     maxTotalAssets: BigNumberish,
     feePercent: BigNumberish
   ): Promise<EthVault>
 
   createEthVaultMock(
+    keeper: string,
     operator: string,
     maxTotalAssets: BigNumberish,
     feePercent: BigNumberish
@@ -24,22 +26,24 @@ export const vaultFixture: Fixture<VaultFixture> = async function (): Promise<Va
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
   return {
     createEthVault: async (
+      keeper: string,
       operator: string,
       maxTotalAssets: BigNumberish,
       feePercent: BigNumberish
     ) => {
-      const factory = (await ethVaultFactory.deploy()) as EthVaultFactory
+      const factory = (await ethVaultFactory.deploy(keeper)) as EthVaultFactory
       const tx = await factory.createVault(operator, maxTotalAssets, feePercent)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[0].args?.vault as string
       return ethVault.attach(vaultAddress) as EthVault
     },
     createEthVaultMock: async (
+      keeper: string,
       operator: string,
       maxTotalAssets: BigNumberish,
       feePercent: BigNumberish
     ) => {
-      const factory = (await ethVaultFactoryMock.deploy()) as EthVaultFactoryMock
+      const factory = (await ethVaultFactoryMock.deploy(keeper)) as EthVaultFactoryMock
       const tx = await factory.createVault(operator, maxTotalAssets, feePercent)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[0].args?.vault as string

@@ -15,7 +15,7 @@ type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 describe('EthVault - deposit', () => {
   const maxTotalAssets = parseEther('1000')
   const feePercent = 1000
-  let sender: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
+  let keeper: Wallet, sender: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
   let vault: EthVault
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -23,13 +23,13 @@ describe('EthVault - deposit', () => {
   let createEthVaultMock: ThenArg<ReturnType<typeof vaultFixture>>['createEthVaultMock']
 
   before('create fixture loader', async () => {
-    ;[sender, receiver, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([sender, receiver, other])
+    ;[keeper, sender, receiver, operator, other] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([keeper, sender, receiver, other])
   })
 
   beforeEach('deploy fixture', async () => {
     ;({ createEthVault, createEthVaultMock } = await loadFixture(vaultFixture))
-    vault = await createEthVault(operator.address, maxTotalAssets, feePercent)
+    vault = await createEthVault(keeper.address, operator.address, maxTotalAssets, feePercent)
   })
 
   describe('empty vault: no assets & no shares', () => {
@@ -55,11 +55,10 @@ describe('EthVault - deposit', () => {
   })
 
   describe('partially empty vault: assets & no shares', () => {
+    let vault: EthVaultMock
     beforeEach(async () => {
-      await other.sendTransaction({
-        to: await vault.feesEscrow(),
-        value: ether,
-      })
+      vault = await createEthVaultMock(keeper.address, operator.address, maxTotalAssets, feePercent)
+      await vault._setTotalStakedAssets(ether)
     })
 
     it('status', async () => {
@@ -86,7 +85,12 @@ describe('EthVault - deposit', () => {
     let ethVaultMock: EthVaultMock
 
     beforeEach(async () => {
-      ethVaultMock = await createEthVaultMock(operator.address, maxTotalAssets, feePercent)
+      ethVaultMock = await createEthVaultMock(
+        keeper.address,
+        operator.address,
+        maxTotalAssets,
+        feePercent
+      )
       await ethVaultMock.mockMint(receiver.address, ether)
     })
 
@@ -103,11 +107,7 @@ describe('EthVault - deposit', () => {
 
   describe('full vault: assets & shares', () => {
     beforeEach(async () => {
-      await vault.connect(other).deposit(other.address, { value: parseEther('99') })
-      await other.sendTransaction({
-        to: await vault.feesEscrow(),
-        value: ether,
-      })
+      await vault.connect(other).deposit(other.address, { value: parseEther('100') })
     })
 
     it('status', async () => {
@@ -122,7 +122,7 @@ describe('EthVault - deposit', () => {
 
     it('deposit', async () => {
       const amount = parseEther('100')
-      const expectedShares = parseEther('99')
+      const expectedShares = parseEther('100')
       expect(await vault.convertToShares(amount)).to.eq(expectedShares)
 
       const receipt = await vault.connect(sender).deposit(receiver.address, { value: amount })

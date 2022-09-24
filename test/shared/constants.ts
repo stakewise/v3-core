@@ -6,6 +6,7 @@ export const PANIC_CODES = {
 }
 
 export const MAX_UINT256 = BigNumber.from(2).pow(256).sub(1)
+export const MAX_INT256 = MAX_UINT256.div(2)
 export const MAX_UINT128 = BigNumber.from(2).pow(128).sub(1)
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 export const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000'

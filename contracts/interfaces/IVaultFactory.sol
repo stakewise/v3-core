@@ -32,6 +32,12 @@ interface IVaultFactory {
   function lastVaultId() external view returns (uint256);
 
   /**
+   * @notice The keeper address that can harvest Vault's rewards
+   * @return The address of the Vault keeper
+   */
+  function keeper() external view returns (address);
+
+  /**
    * @notice Get the parameters to be used in constructing the Vault, set transiently during pool creation
    * @dev Called by the pool constructor to fetch the parameters of the Vault
    * @return operator The address of the Vault operator

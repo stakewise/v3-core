@@ -41,11 +41,6 @@ contract EthVault is Vault, IEthVault {
   }
 
   /// @inheritdoc Vault
-  function _feesEscrowAssets() internal view override returns (uint256) {
-    return _feesEscrow.balance;
-  }
-
-  /// @inheritdoc Vault
   function _withdrawFeesEscrowAssets() internal override returns (uint256) {
     return IFeesEscrow(_feesEscrow).withdraw();
   }

@@ -31,6 +31,9 @@ abstract contract Vault is ERC20Permit, IVault {
   address public immutable override operator;
 
   /// @inheritdoc IVault
+  address public immutable override keeper;
+
+  /// @inheritdoc IVault
   uint256 public immutable override maxTotalAssets;
 
   /// @inheritdoc IVault
@@ -51,14 +54,22 @@ abstract contract Vault is ERC20Permit, IVault {
 
   error InvalidSharesAmount();
   error MaxTotalAssetsExceeded();
-  error NoExitRequestingShares();
-  error InsufficientAvailableAssets();
+  error InsufficientVaultAssets();
   error NotOperator();
+  error NotKeeper();
   error InvalidFeePercent();
 
   /// @dev Prevents calling a function from anyone except Vault's operator
   modifier onlyOperator() {
+    // TODO: test whether including into the function or using as a private function saves gas
     if (msg.sender != operator) revert NotOperator();
+    _;
+  }
+
+  /// @dev Prevents calling a function from anyone except Vault's keeper
+  modifier onlyKeeper() {
+    // TODO: test whether including into the function saves gas
+    if (msg.sender != keeper) revert NotKeeper();
     _;
   }
 
@@ -74,6 +85,7 @@ abstract contract Vault is ERC20Permit, IVault {
 
     feePercent = _feePercent;
     operator = _operator;
+    keeper = IVaultFactory(msg.sender).keeper();
     maxTotalAssets = _maxTotalAssets;
   }
 
@@ -83,21 +95,8 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   /// @inheritdoc IVault
-  function totalAssets() public view override returns (uint256 totalManagedAssets) {
-    unchecked {
-      // cannot overflow as it is capped with staked asset total supply
-      return _totalStakedAssets + _feesEscrowAssets();
-    }
-  }
-
-  /// @inheritdoc IVault
-  function availableAssets() public view override returns (uint256) {
-    unchecked {
-      // cannot overflow as it is capped with staked asset total supply
-      uint256 available = _vaultAssets() + _feesEscrowAssets();
-      uint256 reserved = convertToAssets(queuedShares) + unclaimedAssets;
-      return available > reserved ? available - reserved : 0;
-    }
+  function totalAssets() external view override returns (uint256) {
+    return _totalStakedAssets;
   }
 
   /// @inheritdoc IVault
@@ -108,7 +107,17 @@ abstract contract Vault is ERC20Permit, IVault {
   ) public override returns (uint256 assets) {
     // calculate amount of assets to burn
     assets = convertToAssets(shares);
-    if (assets > availableAssets()) revert InsufficientAvailableAssets();
+
+    // calculate assets that are reserved by users who queued for exit
+    uint256 reservedAssets;
+    unchecked {
+      // cannot overflow as it is capped with staked asset total supply
+      reservedAssets = convertToAssets(queuedShares) + unclaimedAssets;
+    }
+
+    // reverts in case vault's assets is not enough to cover the reserved assets
+    uint256 vaultAssets = _vaultAssets() - reservedAssets;
+    if (assets > vaultAssets) revert InsufficientVaultAssets();
 
     // reduce allowance
     if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
@@ -116,15 +125,12 @@ abstract contract Vault is ERC20Permit, IVault {
     // burn shares
     balanceOf[owner] -= shares;
 
-    // claim fees if not enough liquid assets
-    if (_vaultAssets() < assets) _claimFees();
-
     // update counters
     unchecked {
       // cannot underflow because user's balance
       // will never be larger than total shares
       _totalShares -= SafeCast.toUint128(shares);
-      // cannot underflow as it is capped with totalAssets()
+      // cannot underflow because the sum of all assets can't exceed the _totalStakedAssets
       _totalStakedAssets -= SafeCast.toUint128(assets);
     }
 
@@ -179,7 +185,6 @@ abstract contract Vault is ERC20Permit, IVault {
   ) external override returns (uint256 newExitQueueId, uint256 claimedAssets) {
     bytes32 queueId = keccak256(abi.encode(receiver, exitQueueId));
     uint256 requestedShares = _exitRequests[queueId];
-    if (requestedShares == 0) revert NoExitRequestingShares();
 
     // calculate exited shares and assets
     uint256 burnedShares;
@@ -215,6 +220,57 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   /// @inheritdoc IVault
+  function harvest(int256 validatorAssets)
+    external
+    override
+    onlyKeeper
+    returns (int256 assetsDelta)
+  {
+    // can be negative in case of the loss
+    assetsDelta = validatorAssets + int256(_withdrawFeesEscrowAssets());
+    if (assetsDelta == 0) return 0;
+
+    // SLOAD to memory
+    uint256 totalStakedAssets = _totalStakedAssets;
+    uint256 totalShares = _totalShares;
+
+    if (assetsDelta > 0) {
+      // compute fees as the fee percent multiplied by the profit
+      uint256 profitAccrued = uint256(assetsDelta);
+      uint256 operatorAssets = Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
+
+      // increase total staked amount
+      totalStakedAssets += profitAccrued;
+
+      // calculate operator's shares
+      uint256 operatorShares;
+      unchecked {
+        // cannot underflow as totalStakedAssets >= operatorAssets
+        operatorShares = (totalShares == 0 || operatorAssets == 0)
+          ? operatorAssets
+          : Math.mulDiv(operatorAssets, totalShares, totalStakedAssets - operatorAssets);
+
+        // cannot overflow because the sum of all user
+        // balances can't exceed the max uint256 value
+        if (operatorShares > 0) balanceOf[operator] += operatorShares;
+      }
+
+      // increase total shares
+      totalShares += operatorShares;
+
+      emit Transfer(address(0), operator, operatorShares);
+    } else {
+      // apply penalty
+      totalStakedAssets -= uint256(-assetsDelta);
+    }
+
+    // store counters
+    _totalShares = SafeCast.toUint128(totalShares);
+    _totalStakedAssets = SafeCast.toUint128(totalStakedAssets);
+    emit Harvested(assetsDelta);
+  }
+
+  /// @inheritdoc IVault
   function updateExitQueue() public override {
     if (block.timestamp < _exitQueueNextUpdate) return;
 
@@ -224,15 +280,12 @@ abstract contract Vault is ERC20Permit, IVault {
 
     // calculate the amount of assets that can be exited
     uint256 _unclaimedAssets = unclaimedAssets;
-    uint256 vaultAssets = _vaultAssets();
-    uint256 exitedAssets = convertToAssets(_queuedShares);
+    uint256 availableAssets;
     unchecked {
-      // cannot underflow as vaultAssets >= unclaimedAssets
-      uint256 availableVaultAssets = vaultAssets - _unclaimedAssets;
-      if (exitedAssets > availableVaultAssets) {
-        exitedAssets = Math.min(_claimFees() + availableVaultAssets, exitedAssets);
-      }
+      // cannot underflow as _vaultAssets() >= unclaimedAssets
+      availableAssets = _vaultAssets() - _unclaimedAssets;
     }
+    uint256 exitedAssets = Math.min(availableAssets, convertToAssets(_queuedShares));
 
     // calculate the amount of shares that can be burned
     uint256 burnedShares = convertToShares(exitedAssets);
@@ -252,27 +305,29 @@ abstract contract Vault is ERC20Permit, IVault {
       // will never be larger than the total shares
       _totalShares -= SafeCast.toUint128(burnedShares);
 
-      // cannot underflow as exitedAssets is capped with totalAssets()
+      // cannot underflow because the sum of all assets can't exceed the _totalStakedAssets
       _totalStakedAssets -= SafeCast.toUint128(exitedAssets);
     }
 
     emit Transfer(address(this), address(0), burnedShares);
 
     // push checkpoint so that exited assets could be claimed
-    return _exitQueue.push(burnedShares, exitedAssets);
+    _exitQueue.push(burnedShares, exitedAssets);
   }
 
   /// @inheritdoc IVault
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
     uint256 totalShares = _totalShares;
     return
-      (assets == 0 || totalShares == 0) ? assets : Math.mulDiv(assets, totalShares, totalAssets());
+      (assets == 0 || totalShares == 0)
+        ? assets
+        : Math.mulDiv(assets, totalShares, _totalStakedAssets);
   }
 
   /// @inheritdoc IVault
   function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
     uint256 totalShares = _totalShares;
-    return (totalShares == 0) ? shares : Math.mulDiv(shares, totalAssets(), totalShares);
+    return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalStakedAssets, totalShares);
   }
 
   /// @inheritdoc IVault
@@ -292,17 +347,19 @@ abstract contract Vault is ERC20Permit, IVault {
    * @return shares The total amount of shares minted
    */
   function _deposit(address to, uint256 assets) internal returns (uint256 shares) {
+    uint256 totalStakedAssets;
     unchecked {
-      // cannot underflow as it is capped with staked asset total supply
-      if (totalAssets() + assets > maxTotalAssets) revert MaxTotalAssetsExceeded();
+      // cannot overflow as it is capped with staked asset total supply
+      totalStakedAssets = _totalStakedAssets + assets;
     }
+    if (totalStakedAssets > maxTotalAssets) revert MaxTotalAssetsExceeded();
 
     // calculate amount of shares to mint
     shares = convertToShares(assets);
 
     // update counters
     _totalShares += SafeCast.toUint128(shares);
-    _totalStakedAssets += SafeCast.toUint128(assets);
+    _totalStakedAssets = SafeCast.toUint128(totalStakedAssets);
 
     unchecked {
       // cannot overflow because the sum of all user
@@ -315,26 +372,10 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   /**
-   * @dev Internal function that claims fees from the escrow
-   * @return assets The total amount of assets claimed
-   */
-  function _claimFees() internal returns (uint256 assets) {
-    assets = _withdrawFeesEscrowAssets();
-    // TODO: charge fee to the operator from the withdrawn assets
-    _totalStakedAssets += SafeCast.toUint128(assets);
-  }
-
-  /**
    * @dev Internal function for retrieving the total assets stored in the Vault
    * @return The total amount of assets stored in the Vault
    */
   function _vaultAssets() internal view virtual returns (uint256) {}
-
-  /**
-   * @dev Internal function for retrieving the total FeesEscrow assets
-   * @return The total amount of assets stored in the FeesEscrow
-   */
-  function _feesEscrowAssets() internal view virtual returns (uint256) {}
 
   /**
    * @dev Internal function for retrieving the total FeesEscrow assets

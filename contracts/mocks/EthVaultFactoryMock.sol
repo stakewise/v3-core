@@ -19,9 +19,20 @@ contract EthVaultFactoryMock is IVaultFactory {
   }
 
   /// @inheritdoc IVaultFactory
+  address public immutable override keeper;
+
+  /// @inheritdoc IVaultFactory
   Parameters public override parameters;
 
   uint256 public override lastVaultId;
+
+  /**
+   * @dev Constructor
+   * @param _keeper The address of the vaults' keeper
+   */
+  constructor(address _keeper) {
+    keeper = _keeper;
+  }
 
   /// @inheritdoc IVaultFactory
   function createVault(
