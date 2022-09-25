@@ -80,7 +80,7 @@ describe('EthVault - withdraw', () => {
       const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
 
       await setBalance(await vault.address, MAX_UINT128)
-      await vault._setTotalStakedAssets(MAX_UINT128)
+      await vault._setTotalAssets(MAX_UINT128)
 
       await vault.connect(holder).redeem(holderShares, receiver.address, holder.address)
       expect(await vault.totalAssets()).to.be.eq(0)

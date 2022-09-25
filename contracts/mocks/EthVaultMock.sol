@@ -43,7 +43,7 @@ contract EthVaultMock is EthVault {
     return gasBefore - gasleft();
   }
 
-  function _setTotalStakedAssets(uint128 value) external {
-    _totalStakedAssets = value;
+  function _setTotalAssets(uint128 value) external {
+    _totalAssets = value;
   }
 }

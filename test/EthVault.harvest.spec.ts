@@ -1,6 +1,6 @@
 import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
-import { EthVault } from '../typechain-types'
+import { EthVault, ExitQueue } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { vaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -17,6 +17,7 @@ describe('EthVault - harvest', () => {
   let keeper: Wallet, holder: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
   let vault: EthVault
   const holderAssets = ethers.utils.parseEther('1')
+  const holderShares = ethers.utils.parseEther('1')
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createEthVault: ThenArg<ReturnType<typeof vaultFixture>>['createEthVault']
@@ -32,10 +33,10 @@ describe('EthVault - harvest', () => {
     await vault.connect(holder).deposit(holder.address, { value: holderAssets })
   })
 
-  it('returns zero with no validator and fees escrow assets', async () => {
+  it('does not fail with zero assets delta', async () => {
     const assetsDelta = await vault.connect(keeper).callStatic.harvest(0)
     expect(assetsDelta).to.be.eq(0)
-    await expect(vault.connect(keeper).harvest(0)).to.not.emit(vault, 'Harvested')
+    await expect(vault.connect(keeper).harvest(0)).to.emit(vault, 'Harvested')
   })
 
   it('reverts when overflow', async () => {
@@ -56,16 +57,23 @@ describe('EthVault - harvest', () => {
 
   it('applies penalty when delta is below zero', async () => {
     const penalty = ethers.utils.parseEther('-0.5')
+    const rewardFeesEscrow = ethers.utils.parseEther('0.3')
+    const reward = penalty.add(rewardFeesEscrow)
+    await setBalance(await vault.feesEscrow(), rewardFeesEscrow)
+
     const assetsDelta = await vault.connect(keeper).callStatic.harvest(penalty)
-    expect(assetsDelta).to.be.eq(penalty)
+    expect(assetsDelta).to.be.eq(reward)
 
     const totalSupplyBefore = await vault.totalSupply()
     const totalAssetsBefore = await vault.totalAssets()
     const receipt = await vault.connect(keeper).harvest(penalty)
 
-    expect(receipt).emit(vault, 'Harvested').withArgs(penalty)
+    await expect(receipt).emit(vault, 'Harvested').withArgs(reward)
+    expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
+      rewardFeesEscrow.add(holderAssets)
+    )
     expect(await vault.totalSupply()).to.be.eq(totalSupplyBefore)
-    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore.add(penalty))
+    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore.add(reward))
     await snapshotGasCost(receipt)
   })
 
@@ -90,10 +98,47 @@ describe('EthVault - harvest', () => {
     expect(await vault.convertToShares(operatorReward)).to.be.eq(operatorShares)
     expect(await waffle.provider.getBalance(feesEscrow)).to.be.eq(0)
 
-    expect(receipt).emit(vault, 'Harvested').withArgs(reward)
-    expect(receipt).emit(vault, 'Transfer').withArgs(ZERO_ADDRESS, operator.address, operatorShares)
+    await expect(receipt).emit(vault, 'Harvested').withArgs(reward)
+    await expect(receipt)
+      .emit(vault, 'Transfer')
+      .withArgs(ZERO_ADDRESS, operator.address, operatorShares)
+    expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
+      rewardFeesEscrow.add(holderAssets)
+    )
     expect(await vault.totalSupply()).to.be.eq(totalSupplyBefore.add(operatorShares))
     expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore.add(reward))
+    await snapshotGasCost(receipt)
+  })
+
+  it('updates exit queue', async () => {
+    const exitQueueFactory = await ethers.getContractFactory('ExitQueue')
+    const exitQueue = exitQueueFactory.attach(vault.address) as ExitQueue
+    await vault.connect(holder).enterExitQueue(holderShares, holder.address, holder.address)
+
+    const totalSupplyBefore = await vault.totalSupply()
+    const totalAssetsBefore = await vault.totalAssets()
+
+    const rewardValidators = ethers.utils.parseEther('0.5')
+    const rewardFeesEscrow = ethers.utils.parseEther('0.5')
+    const reward = rewardValidators.add(rewardFeesEscrow)
+    const feesEscrow = await vault.feesEscrow()
+    await setBalance(feesEscrow, rewardFeesEscrow)
+
+    const receipt = await vault.connect(keeper).harvest(rewardValidators)
+
+    const operatorShares = await vault.balanceOf(operator.address)
+    expect(await waffle.provider.getBalance(feesEscrow)).to.be.eq(0)
+    expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
+      rewardFeesEscrow.add(holderAssets)
+    )
+
+    await expect(receipt).emit(vault, 'Harvested').withArgs(reward)
+
+    await expect(receipt).emit(exitQueue, 'CheckpointCreated')
+    expect(await vault.totalSupply()).to.be.eq(
+      totalSupplyBefore.add(operatorShares).sub(holderShares)
+    )
+    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore.add(reward).sub(holderAssets))
     await snapshotGasCost(receipt)
   })
 })

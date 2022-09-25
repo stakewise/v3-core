@@ -58,7 +58,7 @@ describe('EthVault - deposit', () => {
     let vault: EthVaultMock
     beforeEach(async () => {
       vault = await createEthVaultMock(keeper.address, operator.address, maxTotalAssets, feePercent)
-      await vault._setTotalStakedAssets(ether)
+      await vault._setTotalAssets(ether)
     })
 
     it('status', async () => {

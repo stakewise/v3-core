@@ -47,7 +47,7 @@ abstract contract Vault is ERC20Permit, IVault {
 
   uint64 internal _exitQueueNextUpdate;
   uint128 internal _totalShares;
-  uint128 internal _totalStakedAssets;
+  uint128 internal _totalAssets;
 
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
@@ -61,7 +61,6 @@ abstract contract Vault is ERC20Permit, IVault {
 
   /// @dev Prevents calling a function from anyone except Vault's operator
   modifier onlyOperator() {
-    // TODO: test whether including into the function or using as a private function saves gas
     if (msg.sender != operator) revert NotOperator();
     _;
   }
@@ -96,7 +95,7 @@ abstract contract Vault is ERC20Permit, IVault {
 
   /// @inheritdoc IVault
   function totalAssets() external view override returns (uint256) {
-    return _totalStakedAssets;
+    return _totalAssets;
   }
 
   /// @inheritdoc IVault
@@ -105,6 +104,8 @@ abstract contract Vault is ERC20Permit, IVault {
     address receiver,
     address owner
   ) public override returns (uint256 assets) {
+    // TODO: add check to keeper whether harvested
+
     // calculate amount of assets to burn
     assets = convertToAssets(shares);
 
@@ -130,8 +131,8 @@ abstract contract Vault is ERC20Permit, IVault {
       // cannot underflow because user's balance
       // will never be larger than total shares
       _totalShares -= SafeCast.toUint128(shares);
-      // cannot underflow because the sum of all assets can't exceed the _totalStakedAssets
-      _totalStakedAssets -= SafeCast.toUint128(assets);
+      // cannot underflow because the sum of all assets can't exceed the _totalAssets
+      _totalAssets -= SafeCast.toUint128(assets);
     }
 
     // transfer assets to the receiver
@@ -220,19 +221,13 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   /// @inheritdoc IVault
-  function harvest(int256 validatorAssets)
-    external
-    override
-    onlyKeeper
-    returns (int256 assetsDelta)
-  {
+  function harvest(int256 validatorAssets) public override onlyKeeper returns (int256 assetsDelta) {
     // can be negative in case of the loss
     assetsDelta = validatorAssets + int256(_withdrawFeesEscrowAssets());
-    if (assetsDelta == 0) return 0;
 
     // SLOAD to memory
-    uint256 totalStakedAssets = _totalStakedAssets;
-    uint256 totalShares = _totalShares;
+    uint256 totalAssetsAfter = _totalAssets;
+    uint256 totalSharesAfter = _totalShares;
 
     if (assetsDelta > 0) {
       // compute fees as the fee percent multiplied by the profit
@@ -240,15 +235,15 @@ abstract contract Vault is ERC20Permit, IVault {
       uint256 operatorAssets = Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
 
       // increase total staked amount
-      totalStakedAssets += profitAccrued;
+      totalAssetsAfter += profitAccrued;
 
       // calculate operator's shares
       uint256 operatorShares;
       unchecked {
-        // cannot underflow as totalStakedAssets >= operatorAssets
-        operatorShares = (totalShares == 0 || operatorAssets == 0)
+        // cannot underflow as totalAssetsAfter >= operatorAssets
+        operatorShares = (totalSharesAfter == 0 || operatorAssets == 0)
           ? operatorAssets
-          : Math.mulDiv(operatorAssets, totalShares, totalStakedAssets - operatorAssets);
+          : Math.mulDiv(operatorAssets, totalSharesAfter, totalAssetsAfter - operatorAssets);
 
         // cannot overflow because the sum of all user
         // balances can't exceed the max uint256 value
@@ -256,78 +251,53 @@ abstract contract Vault is ERC20Permit, IVault {
       }
 
       // increase total shares
-      totalShares += operatorShares;
+      totalSharesAfter += operatorShares;
 
       emit Transfer(address(0), operator, operatorShares);
-    } else {
+    } else if (assetsDelta < 0) {
       // apply penalty
-      totalStakedAssets -= uint256(-assetsDelta);
+      totalAssetsAfter -= uint256(-assetsDelta);
     }
 
-    // store counters
-    _totalShares = SafeCast.toUint128(totalShares);
-    _totalStakedAssets = SafeCast.toUint128(totalStakedAssets);
+    // update exit queue
+    (uint256 burnedShares, uint256 exitedAssets) = _updateExitQueue();
+    if (burnedShares != 0) {
+      totalSharesAfter -= burnedShares;
+      totalAssetsAfter -= exitedAssets;
+    }
+
+    // update storage values
+    _totalShares = SafeCast.toUint128(totalSharesAfter);
+    _totalAssets = SafeCast.toUint128(totalAssetsAfter);
     emit Harvested(assetsDelta);
   }
 
   /// @inheritdoc IVault
-  function updateExitQueue() public override {
-    if (block.timestamp < _exitQueueNextUpdate) return;
+  function updateExitQueue() external override {
+    (uint256 burnedShares, uint256 exitedAssets) = _updateExitQueue();
+    if (burnedShares != 0) {
+      unchecked {
+        // cannot underflow because burned shares
+        // will never be larger than the total shares
+        _totalShares -= SafeCast.toUint128(burnedShares);
 
-    // SLOAD to memory
-    uint256 _queuedShares = queuedShares;
-    if (_queuedShares == 0) return;
-
-    // calculate the amount of assets that can be exited
-    uint256 _unclaimedAssets = unclaimedAssets;
-    uint256 availableAssets;
-    unchecked {
-      // cannot underflow as _vaultAssets() >= unclaimedAssets
-      availableAssets = _vaultAssets() - _unclaimedAssets;
+        // cannot underflow because the sum of all assets can't exceed the _totalAssets
+        _totalAssets -= SafeCast.toUint128(exitedAssets);
+      }
     }
-    uint256 exitedAssets = Math.min(availableAssets, convertToAssets(_queuedShares));
-
-    // calculate the amount of shares that can be burned
-    uint256 burnedShares = convertToShares(exitedAssets);
-    if (burnedShares == 0 || exitedAssets == 0) return;
-
-    unchecked {
-      // cannot underflow as queuedShares >= burnedShares
-      queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
-
-      // cannot overflow as it is capped with staked asset total supply
-      unclaimedAssets = SafeCast.toUint96(_unclaimedAssets + exitedAssets);
-
-      // cannot overflow on human timescales
-      _exitQueueNextUpdate = uint64(block.timestamp + exitQueueUpdateDelay);
-
-      // cannot underflow because burned shares
-      // will never be larger than the total shares
-      _totalShares -= SafeCast.toUint128(burnedShares);
-
-      // cannot underflow because the sum of all assets can't exceed the _totalStakedAssets
-      _totalStakedAssets -= SafeCast.toUint128(exitedAssets);
-    }
-
-    emit Transfer(address(this), address(0), burnedShares);
-
-    // push checkpoint so that exited assets could be claimed
-    _exitQueue.push(burnedShares, exitedAssets);
   }
 
   /// @inheritdoc IVault
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
     uint256 totalShares = _totalShares;
     return
-      (assets == 0 || totalShares == 0)
-        ? assets
-        : Math.mulDiv(assets, totalShares, _totalStakedAssets);
+      (assets == 0 || totalShares == 0) ? assets : Math.mulDiv(assets, totalShares, _totalAssets);
   }
 
   /// @inheritdoc IVault
   function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
     uint256 totalShares = _totalShares;
-    return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalStakedAssets, totalShares);
+    return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares);
   }
 
   /// @inheritdoc IVault
@@ -347,19 +317,21 @@ abstract contract Vault is ERC20Permit, IVault {
    * @return shares The total amount of shares minted
    */
   function _deposit(address to, uint256 assets) internal returns (uint256 shares) {
-    uint256 totalStakedAssets;
+    // TODO: add check to keeper whether harvested
+
+    uint256 totalAssetsAfter;
     unchecked {
       // cannot overflow as it is capped with staked asset total supply
-      totalStakedAssets = _totalStakedAssets + assets;
+      totalAssetsAfter = _totalAssets + assets;
     }
-    if (totalStakedAssets > maxTotalAssets) revert MaxTotalAssetsExceeded();
+    if (totalAssetsAfter > maxTotalAssets) revert MaxTotalAssetsExceeded();
 
     // calculate amount of shares to mint
     shares = convertToShares(assets);
 
     // update counters
     _totalShares += SafeCast.toUint128(shares);
-    _totalStakedAssets = SafeCast.toUint128(totalStakedAssets);
+    _totalAssets = SafeCast.toUint128(totalAssetsAfter);
 
     unchecked {
       // cannot overflow because the sum of all user
@@ -369,6 +341,49 @@ abstract contract Vault is ERC20Permit, IVault {
 
     emit Transfer(address(0), to, shares);
     emit Deposit(msg.sender, to, assets, shares);
+  }
+
+  /**
+   * @dev Internal function that must be used to process exit queue
+   * @return burnedShares The amount of shares that must be deducted from total shares
+   * @return exitedAssets The amount of assets that must be deducted from total assets
+   */
+  function _updateExitQueue() internal returns (uint256 burnedShares, uint256 exitedAssets) {
+    if (block.timestamp < _exitQueueNextUpdate) return (0, 0);
+
+    // SLOAD to memory
+    uint256 _queuedShares = queuedShares;
+    if (_queuedShares == 0) return (0, 0);
+
+    // calculate the amount of assets that can be exited
+    uint256 _unclaimedAssets = unclaimedAssets;
+    uint256 availableAssets;
+    unchecked {
+      // cannot underflow as _vaultAssets() >= unclaimedAssets
+      availableAssets = _vaultAssets() - _unclaimedAssets;
+    }
+    exitedAssets = Math.min(availableAssets, convertToAssets(_queuedShares));
+
+    // calculate the amount of shares that can be burned
+    burnedShares = convertToShares(exitedAssets);
+    if (burnedShares == 0 || exitedAssets == 0) return (0, 0);
+
+    unchecked {
+      // cannot underflow as queuedShares >= burnedShares
+      queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
+
+      // cannot overflow as it is capped with staked asset total supply
+      unclaimedAssets = SafeCast.toUint96(_unclaimedAssets + exitedAssets);
+
+      // cannot overflow on human timescales
+      _exitQueueNextUpdate = uint64(block.timestamp + exitQueueUpdateDelay);
+    }
+
+    // emit burn event
+    emit Transfer(address(this), address(0), burnedShares);
+
+    // push checkpoint so that exited assets could be claimed
+    _exitQueue.push(burnedShares, exitedAssets);
   }
 
   /**
