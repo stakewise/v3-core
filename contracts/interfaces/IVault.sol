@@ -3,6 +3,7 @@
 pragma solidity =0.8.17;
 
 import {IERC20Permit} from './IERC20Permit.sol';
+import {IFeesEscrow} from './IFeesEscrow.sol';
 
 /**
  * @title IVault
@@ -89,7 +90,7 @@ interface IVault is IERC20Permit {
    * @notice The contract that accumulates rewards received from priority fees and MEV
    * @return The contract address
    */
-  function feesEscrow() external view returns (address);
+  function feesEscrow() external view returns (IFeesEscrow);
 
   /**
    * @notice The keeper address that can harvest rewards
@@ -213,12 +214,6 @@ interface IVault is IERC20Permit {
    * @return assetsDelta The number of assets added or deducted from/to the total staked assets
    */
   function harvest(int256 validatorAssets) external returns (int256 assetsDelta);
-
-  /**
-   * @notice Updates exit queue by creating a checkpoint. Can be called only once per day.
-   * The users whose turn is in the exit queue will be able to withdraw their assets.
-   */
-  function updateExitQueue() external;
 
   /**
    * @notice Function for updating the validators Merkle Tree root

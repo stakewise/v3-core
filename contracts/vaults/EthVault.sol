@@ -6,8 +6,7 @@ import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {IVault} from '../interfaces/IVault.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
-import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
-import {Vault} from '../base/Vault.sol';
+import {Vault} from '../abstract/Vault.sol';
 import {EthFeesEscrow} from './EthFeesEscrow.sol';
 
 /**
@@ -16,33 +15,23 @@ import {EthFeesEscrow} from './EthFeesEscrow.sol';
  * @notice Defines Vault functionality for staking on Ethereum
  */
 contract EthVault is Vault, IEthVault {
-  address private immutable _feesEscrow;
+  IFeesEscrow private immutable _feesEscrow;
 
   /**
    * @dev Constructor
    */
-  constructor()
-    Vault(
-      string(abi.encodePacked('SW ETH Vault ', IVaultFactory(msg.sender).lastVaultId())),
-      string(abi.encodePacked('SW-ETH-', IVaultFactory(msg.sender).lastVaultId()))
-    )
-  {
-    _feesEscrow = address(new EthFeesEscrow());
+  constructor() Vault() {
+    _feesEscrow = IFeesEscrow(new EthFeesEscrow());
   }
 
   /// @inheritdoc IVault
-  function feesEscrow() external view override returns (address) {
+  function feesEscrow() public view override(IVault, Vault) returns (IFeesEscrow) {
     return _feesEscrow;
   }
 
   /// @inheritdoc Vault
   function _vaultAssets() internal view override returns (uint256) {
     return address(this).balance;
-  }
-
-  /// @inheritdoc Vault
-  function _withdrawFeesEscrowAssets() internal override returns (uint256) {
-    return IFeesEscrow(_feesEscrow).withdraw();
   }
 
   /// @inheritdoc Vault
@@ -56,7 +45,7 @@ contract EthVault is Vault, IEthVault {
   }
 
   /**
-   * @dev Function for receiving validator withdrawals, priority fees and MEV
+   * @dev Function for receiving validator withdrawals
    */
   receive() external payable {}
 }

@@ -1,21 +1,14 @@
 import { ethers } from 'hardhat'
 import { Fixture } from 'ethereum-waffle'
-import { BigNumberish } from '@ethersproject/bignumber'
 import { EthVault, EthVaultFactory, EthVaultMock, EthVaultFactoryMock } from '../../typechain-types'
+import { IVaultFactory } from '../../typechain-types'
 
 interface VaultFixture {
-  createEthVault(
-    keeper: string,
-    operator: string,
-    maxTotalAssets: BigNumberish,
-    feePercent: BigNumberish
-  ): Promise<EthVault>
+  createEthVault(keeper: string, vaultParams: IVaultFactory.ParametersStruct): Promise<EthVault>
 
   createEthVaultMock(
     keeper: string,
-    operator: string,
-    maxTotalAssets: BigNumberish,
-    feePercent: BigNumberish
+    vaultParams: IVaultFactory.ParametersStruct
   ): Promise<EthVaultMock>
 }
 
@@ -25,26 +18,16 @@ export const vaultFixture: Fixture<VaultFixture> = async function (): Promise<Va
   const ethVault = await ethers.getContractFactory('EthVault')
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
   return {
-    createEthVault: async (
-      keeper: string,
-      operator: string,
-      maxTotalAssets: BigNumberish,
-      feePercent: BigNumberish
-    ) => {
+    createEthVault: async (keeper: string, vaultParams: IVaultFactory.ParametersStruct) => {
       const factory = (await ethVaultFactory.deploy(keeper)) as EthVaultFactory
-      const tx = await factory.createVault(operator, maxTotalAssets, feePercent)
+      const tx = await factory.createVault(vaultParams)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[0].args?.vault as string
       return ethVault.attach(vaultAddress) as EthVault
     },
-    createEthVaultMock: async (
-      keeper: string,
-      operator: string,
-      maxTotalAssets: BigNumberish,
-      feePercent: BigNumberish
-    ) => {
+    createEthVaultMock: async (keeper: string, vaultParams: IVaultFactory.ParametersStruct) => {
       const factory = (await ethVaultFactoryMock.deploy(keeper)) as EthVaultFactoryMock
-      const tx = await factory.createVault(operator, maxTotalAssets, feePercent)
+      const tx = await factory.createVault(vaultParams)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[0].args?.vault as string
       return ethVaultMock.attach(vaultAddress) as EthVaultMock

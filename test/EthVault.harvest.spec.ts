@@ -14,6 +14,8 @@ type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 describe('EthVault - harvest', () => {
   const maxTotalAssets = ethers.utils.parseEther('1000')
   const feePercent = 1000
+  const vaultName = 'SW ETH Vault'
+  const vaultSymbol = 'SW-ETH-1'
   let keeper: Wallet, holder: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
   let vault: EthVault
   const holderAssets = ethers.utils.parseEther('1')
@@ -29,7 +31,13 @@ describe('EthVault - harvest', () => {
 
   beforeEach('deploy fixture', async () => {
     ;({ createEthVault } = await loadFixture(vaultFixture))
-    vault = await createEthVault(keeper.address, operator.address, maxTotalAssets, feePercent)
+    vault = await createEthVault(keeper.address, {
+      name: vaultName,
+      symbol: vaultSymbol,
+      operator: operator.address,
+      maxTotalAssets,
+      feePercent,
+    })
     await vault.connect(holder).deposit(holder.address, { value: holderAssets })
   })
 
@@ -131,14 +139,21 @@ describe('EthVault - harvest', () => {
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
       rewardFeesEscrow.add(holderAssets)
     )
-
     await expect(receipt).emit(vault, 'Harvested').withArgs(reward)
-
     await expect(receipt).emit(exitQueue, 'CheckpointCreated')
-    expect(await vault.totalSupply()).to.be.eq(
-      totalSupplyBefore.add(operatorShares).sub(holderShares)
-    )
-    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore.add(reward).sub(holderAssets))
+
+    let totalSupplyAfter = totalSupplyBefore.add(operatorShares)
+    let totalAssetsAfter = totalAssetsBefore.add(reward)
+
+    const unclaimedAssets = holderAssets.add(rewardFeesEscrow)
+    const burnedShares = unclaimedAssets.mul(totalSupplyAfter).div(totalAssetsAfter)
+
+    totalSupplyAfter = totalSupplyAfter.sub(burnedShares)
+    totalAssetsAfter = totalAssetsAfter.sub(unclaimedAssets)
+
+    expect(await vault.totalSupply()).to.be.eq(totalSupplyAfter)
+    expect(await vault.totalAssets()).to.be.eq(totalAssetsAfter)
+    expect(await vault.unclaimedAssets()).to.be.eq(unclaimedAssets)
     await snapshotGasCost(receipt)
   })
 })

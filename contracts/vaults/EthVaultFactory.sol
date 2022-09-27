@@ -12,19 +12,10 @@ import {EthVault} from './EthVault.sol';
  * @notice Factory for deploying vaults for staking on Ethereum
  */
 contract EthVaultFactory is IVaultFactory {
-  struct Parameters {
-    address operator;
-    uint128 maxTotalAssets;
-    uint16 feePercent;
-  }
-
   /// @inheritdoc IVaultFactory
   address public immutable override keeper;
 
-  /// @inheritdoc IVaultFactory
-  Parameters public override parameters;
-
-  uint256 public override lastVaultId;
+  Parameters internal _parameters;
 
   /**
    * @dev Constructor
@@ -35,45 +26,31 @@ contract EthVaultFactory is IVaultFactory {
   }
 
   /// @inheritdoc IVaultFactory
-  function createVault(
-    address operator,
-    uint128 maxTotalAssets,
-    uint16 feePercent
-  ) external override returns (address vault, address feesEscrow) {
-    parameters = Parameters({
-      operator: operator,
-      maxTotalAssets: maxTotalAssets,
-      feePercent: feePercent
-    });
-    uint256 vaultId;
-    unchecked {
-      // cannot realistically overflow
-      lastVaultId = vaultId = lastVaultId + 1;
-    }
-
-    vault = address(new EthVault{salt: bytes32(vaultId)}());
-    feesEscrow = IVault(vault).feesEscrow();
-    delete parameters;
-    emit VaultCreated(msg.sender, vault, feesEscrow, operator, maxTotalAssets, feePercent);
+  function parameters() public view returns (Parameters memory params) {
+    params = _parameters;
   }
 
   /// @inheritdoc IVaultFactory
-  function getVaultAddress(uint256 vaultId) external view override returns (address) {
-    return
-      address(
-        uint160(
-          uint256(
-            keccak256(
-              abi.encodePacked(
-                bytes1(0xFF), // prefix
-                address(this), // creator
-                bytes32(vaultId), // salt
-                // vault bytecode
-                keccak256(abi.encodePacked(type(EthVault).creationCode))
-              )
-            )
-          )
-        )
-      );
+  function createVault(Parameters calldata params)
+    external
+    override
+    returns (address vault, address feesEscrow)
+  {
+    // deploy vault
+    _parameters = params;
+    vault = address(new EthVault());
+    delete _parameters;
+
+    feesEscrow = address(IVault(vault).feesEscrow());
+    emit VaultCreated(
+      msg.sender,
+      vault,
+      feesEscrow,
+      params.name,
+      params.symbol,
+      params.operator,
+      params.maxTotalAssets,
+      params.feePercent
+    );
   }
 }

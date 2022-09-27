@@ -11,6 +11,14 @@ import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
 import {ERC20Permit} from './ERC20Permit.sol';
 
+/// Custom errors
+error InvalidSharesAmount();
+error MaxTotalAssetsExceeded();
+error InsufficientVaultAssets();
+error NotOperator();
+error NotKeeper();
+error InvalidFeePercent();
+
 /**
  * @title Vault
  * @author StakeWise
@@ -52,13 +60,6 @@ abstract contract Vault is ERC20Permit, IVault {
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
 
-  error InvalidSharesAmount();
-  error MaxTotalAssetsExceeded();
-  error InsufficientVaultAssets();
-  error NotOperator();
-  error NotKeeper();
-  error InvalidFeePercent();
-
   /// @dev Prevents calling a function from anyone except Vault's operator
   modifier onlyOperator() {
     if (msg.sender != operator) revert NotOperator();
@@ -74,18 +75,21 @@ abstract contract Vault is ERC20Permit, IVault {
 
   /**
    * @dev Constructor
-   * @param _name The name of the ERC20 token
-   * @param _symbol The symbol of the ERC20 token
    */
-  constructor(string memory _name, string memory _symbol) ERC20Permit(_name, _symbol) {
-    (address _operator, uint128 _maxTotalAssets, uint16 _feePercent) = IVaultFactory(msg.sender)
-      .parameters();
-    if (_feePercent > _maxFeePercent) revert InvalidFeePercent();
+  constructor()
+    ERC20Permit(
+      IVaultFactory(msg.sender).parameters().name,
+      IVaultFactory(msg.sender).parameters().symbol
+    )
+  {
+    IVaultFactory.Parameters memory params = IVaultFactory(msg.sender).parameters();
+    if (params.feePercent > _maxFeePercent) revert InvalidFeePercent();
 
-    feePercent = _feePercent;
-    operator = _operator;
+    // initialize Vault
+    operator = params.operator;
+    feePercent = params.feePercent;
     keeper = IVaultFactory(msg.sender).keeper();
-    maxTotalAssets = _maxTotalAssets;
+    maxTotalAssets = params.maxTotalAssets;
   }
 
   /// @inheritdoc IERC20
@@ -103,7 +107,7 @@ abstract contract Vault is ERC20Permit, IVault {
     uint256 shares,
     address receiver,
     address owner
-  ) public override returns (uint256 assets) {
+  ) external override returns (uint256 assets) {
     // TODO: add check to keeper whether harvested
 
     // calculate amount of assets to burn
@@ -221,9 +225,14 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   /// @inheritdoc IVault
-  function harvest(int256 validatorAssets) public override onlyKeeper returns (int256 assetsDelta) {
+  function harvest(int256 validatorAssets)
+    external
+    override
+    onlyKeeper
+    returns (int256 assetsDelta)
+  {
     // can be negative in case of the loss
-    assetsDelta = validatorAssets + int256(_withdrawFeesEscrowAssets());
+    assetsDelta = validatorAssets + int256(feesEscrow().withdraw());
 
     // SLOAD to memory
     uint256 totalAssetsAfter = _totalAssets;
@@ -232,12 +241,12 @@ abstract contract Vault is ERC20Permit, IVault {
     if (assetsDelta > 0) {
       // compute fees as the fee percent multiplied by the profit
       uint256 profitAccrued = uint256(assetsDelta);
-      uint256 operatorAssets = Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
 
       // increase total staked amount
       totalAssetsAfter += profitAccrued;
 
       // calculate operator's shares
+      uint256 operatorAssets = Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
       uint256 operatorShares;
       unchecked {
         // cannot underflow as totalAssetsAfter >= operatorAssets
@@ -259,32 +268,18 @@ abstract contract Vault is ERC20Permit, IVault {
       totalAssetsAfter -= uint256(-assetsDelta);
     }
 
-    // update exit queue
-    (uint256 burnedShares, uint256 exitedAssets) = _updateExitQueue();
-    if (burnedShares != 0) {
-      totalSharesAfter -= burnedShares;
-      totalAssetsAfter -= exitedAssets;
-    }
-
     // update storage values
     _totalShares = SafeCast.toUint128(totalSharesAfter);
     _totalAssets = SafeCast.toUint128(totalAssetsAfter);
-    emit Harvested(assetsDelta);
-  }
 
-  /// @inheritdoc IVault
-  function updateExitQueue() external override {
+    // update exit queue
     (uint256 burnedShares, uint256 exitedAssets) = _updateExitQueue();
     if (burnedShares != 0) {
-      unchecked {
-        // cannot underflow because burned shares
-        // will never be larger than the total shares
-        _totalShares -= SafeCast.toUint128(burnedShares);
-
-        // cannot underflow because the sum of all assets can't exceed the _totalAssets
-        _totalAssets -= SafeCast.toUint128(exitedAssets);
-      }
+      _totalShares -= SafeCast.toUint128(burnedShares);
+      _totalAssets -= SafeCast.toUint128(exitedAssets);
     }
+
+    emit Harvested(assetsDelta);
   }
 
   /// @inheritdoc IVault
@@ -309,6 +304,9 @@ abstract contract Vault is ERC20Permit, IVault {
     validatorsRoot = newValidatorsRoot;
     emit ValidatorsRootUpdated(msg.sender, newValidatorsRoot, newValidatorsIpfsHash);
   }
+
+  /// @inheritdoc IVault
+  function feesEscrow() public view virtual override returns (IFeesEscrow) {}
 
   /**
    * @dev Internal function that must be used to process user deposits
@@ -391,12 +389,6 @@ abstract contract Vault is ERC20Permit, IVault {
    * @return The total amount of assets stored in the Vault
    */
   function _vaultAssets() internal view virtual returns (uint256) {}
-
-  /**
-   * @dev Internal function for retrieving the total FeesEscrow assets
-   * @return The total amount of assets withdrawn
-   */
-  function _withdrawFeesEscrowAssets() internal virtual returns (uint256) {}
 
   /**
    * @dev Internal function for transferring assets from the Vault to the receiver

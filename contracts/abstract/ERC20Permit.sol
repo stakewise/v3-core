@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
+
 pragma solidity =0.8.17;
 
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
+
+/// Custom errors
+error PermitDeadlineExpired();
+error PermitInvalidSigner();
 
 /**
  * @title ERC20 Permit Token
@@ -32,9 +37,6 @@ abstract contract ERC20Permit is IERC20Permit {
   uint256 private immutable INITIAL_CHAIN_ID;
 
   bytes32 private immutable INITIAL_DOMAIN_SEPARATOR;
-
-  error PermitDeadlineExpired();
-  error PermitInvalidSigner();
 
   /**
    * @dev Constructor

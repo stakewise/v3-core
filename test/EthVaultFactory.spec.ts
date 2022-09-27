@@ -1,48 +1,54 @@
 import { ethers } from 'hardhat'
 import { Wallet } from 'ethers'
-import { EthVault, EthVaultFactory } from '../typechain-types'
+import { EthVault, EthVaultFactory, IVaultFactory } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 
 describe('EthVaultFactory', () => {
   const maxTotalAssets = ethers.utils.parseEther('1000')
   const feePercent = 1000
+  const vaultName = 'SW ETH Vault'
+  const vaultSymbol = 'SW-ETH-1'
   let operator: Wallet, keeper: Wallet
   let factory: EthVaultFactory
+  let vaultParams: IVaultFactory.ParametersStruct
 
   beforeEach(async () => {
     ;[operator, keeper] = await (ethers as any).getSigners()
     const ethVaultFactory = await ethers.getContractFactory('EthVaultFactory')
     factory = (await ethVaultFactory.deploy(keeper.address)) as EthVaultFactory
+    vaultParams = {
+      name: vaultName,
+      symbol: vaultSymbol,
+      operator: operator.address,
+      maxTotalAssets,
+      feePercent,
+    }
   })
 
   it('vault deployment gas', async () => {
-    await snapshotGasCost(factory.createVault(operator.address, maxTotalAssets, feePercent))
+    await snapshotGasCost(factory.createVault(vaultParams))
   })
 
   it('creates vault correctly', async () => {
-    const expectedAddress = await factory.getVaultAddress(1)
-    expect(await factory.lastVaultId()).to.be.eq(0)
-    const tx = await factory
-      .connect(operator)
-      .createVault(operator.address, maxTotalAssets, feePercent)
+    const tx = await factory.connect(operator).createVault(vaultParams)
     const receipt = await tx.wait()
-    const actualAddress = receipt.events?.[0].args?.vault
-    expect(actualAddress).to.be.eq(expectedAddress)
+    const vaultAddress = receipt.events?.[0].args?.vault
     expect(tx)
       .to.emit(factory, 'VaultCreated')
       .withArgs(
         operator.address,
-        expectedAddress,
+        vaultAddress,
         receipt.events?.[0].args?.feesEscrow,
+        vaultName,
+        vaultSymbol,
         operator.address,
         maxTotalAssets,
         feePercent
       )
-    expect(await factory.lastVaultId()).to.be.eq(1)
 
     const ethVault = await ethers.getContractFactory('EthVault')
-    const vault = ethVault.attach(expectedAddress) as EthVault
+    const vault = ethVault.attach(vaultAddress) as EthVault
     expect(await vault.keeper()).to.be.eq(keeper.address)
   })
 })

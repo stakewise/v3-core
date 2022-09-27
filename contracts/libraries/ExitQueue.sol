@@ -5,6 +5,9 @@ pragma solidity =0.8.17;
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 
+/// Custom errors
+error InvalidCheckpointIndex();
+
 /**
  * @title ExitQueue
  * @author StakeWise
@@ -35,8 +38,6 @@ library ExitQueue {
    * @param exitedAssets The amount of exited assets
    */
   event CheckpointCreated(uint160 sharesCounter, uint96 exitedAssets);
-
-  error InvalidCheckpointIndex();
 
   /**
    * @notice Get the current burned shares counter
