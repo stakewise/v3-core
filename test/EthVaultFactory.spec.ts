@@ -1,8 +1,12 @@
-import { ethers } from 'hardhat'
+import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
 import { EthVault, EthVaultFactory, IVaultFactory } from '../typechain-types'
+import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
+import { ethValidatorsRegistryFixture, vaultFixture } from './shared/fixtures'
+
+const createFixtureLoader = waffle.createFixtureLoader
 
 describe('EthVaultFactory', () => {
   const maxTotalAssets = ethers.utils.parseEther('1000')
@@ -13,10 +17,11 @@ describe('EthVaultFactory', () => {
   let factory: EthVaultFactory
   let vaultParams: IVaultFactory.ParametersStruct
 
-  beforeEach(async () => {
+  let loadFixture: ReturnType<typeof createFixtureLoader>
+
+  before('create fixture loader', async () => {
     ;[operator, keeper] = await (ethers as any).getSigners()
-    const ethVaultFactory = await ethers.getContractFactory('EthVaultFactory')
-    factory = (await ethVaultFactory.deploy(keeper.address)) as EthVaultFactory
+    loadFixture = createFixtureLoader([operator, keeper])
     vaultParams = {
       name: vaultName,
       symbol: vaultSymbol,
@@ -24,6 +29,12 @@ describe('EthVaultFactory', () => {
       maxTotalAssets,
       feePercent,
     }
+  })
+
+  beforeEach(async () => {
+    const registry = await loadFixture(ethValidatorsRegistryFixture)
+    const ethVaultFactory = await ethers.getContractFactory('EthVaultFactory')
+    factory = (await ethVaultFactory.deploy(keeper.address, registry.address)) as EthVaultFactory
   })
 
   it('vault deployment gas', async () => {
@@ -50,5 +61,10 @@ describe('EthVaultFactory', () => {
     const ethVault = await ethers.getContractFactory('EthVault')
     const vault = ethVault.attach(vaultAddress) as EthVault
     expect(await vault.keeper()).to.be.eq(keeper.address)
+    expect(await vault.name()).to.be.eq(vaultName)
+    expect(await vault.symbol()).to.be.eq(vaultSymbol)
+    expect(await vault.maxTotalAssets()).to.be.eq(maxTotalAssets)
+    expect(await vault.feePercent()).to.be.eq(feePercent)
+    expect(await vault.operator()).to.be.eq(operator.address)
   })
 })

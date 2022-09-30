@@ -3,7 +3,6 @@
 pragma solidity =0.8.17;
 
 import {IERC20Permit} from './IERC20Permit.sol';
-import {IFeesEscrow} from './IFeesEscrow.sol';
 
 /**
  * @title IVault
@@ -11,12 +10,19 @@ import {IFeesEscrow} from './IFeesEscrow.sol';
  * @notice Defines the interface for the Vault contract
  */
 interface IVault is IERC20Permit {
+  error MaxTotalAssetsExceeded();
+  error InvalidSharesAmount();
+  error InsufficientAvailableAssets();
+  error NotOperator();
+  error NotKeeper();
+  error InvalidFeePercent();
+
   /**
    * @notice Event emitted on deposit
    * @param caller The address that called the deposit function
-   * @param owner The address that receives the shares
+   * @param owner The address that received the shares
    * @param assets The number of assets deposited by the caller
-   * @param shares The number of Vault tokens the owner receives
+   * @param shares The number of Vault tokens the owner received
    */
   event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
 
@@ -87,12 +93,6 @@ interface IVault is IERC20Permit {
   event Harvested(int256 assetsDelta);
 
   /**
-   * @notice The contract that accumulates rewards received from priority fees and MEV
-   * @return The contract address
-   */
-  function feesEscrow() external view returns (IFeesEscrow);
-
-  /**
    * @notice The keeper address that can harvest rewards
    * @return The address of the Vault keeper
    */
@@ -145,6 +145,12 @@ interface IVault is IERC20Permit {
    * @return The Merkle Tree root to use for verifying validators deposit data
    */
   function validatorsRoot() external view returns (bytes32);
+
+  /**
+   * @notice Total assets available in the Vault. They can be staked or withdrawn.
+   * @return The total amount of available assets
+   */
+  function availableAssets() external view returns (uint256);
 
   /**
    * @notice Get the checkpoint index to claim exited assets from

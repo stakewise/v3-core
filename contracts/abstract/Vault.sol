@@ -6,18 +6,9 @@ import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IVault} from '../interfaces/IVault.sol';
-import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
 import {ERC20Permit} from './ERC20Permit.sol';
-
-/// Custom errors
-error InvalidSharesAmount();
-error MaxTotalAssetsExceeded();
-error InsufficientVaultAssets();
-error NotOperator();
-error NotKeeper();
-error InvalidFeePercent();
 
 /**
  * @title Vault
@@ -73,9 +64,7 @@ abstract contract Vault is ERC20Permit, IVault {
     _;
   }
 
-  /**
-   * @dev Constructor
-   */
+  /// @dev Constructor
   constructor()
     ERC20Permit(
       IVaultFactory(msg.sender).parameters().name,
@@ -103,6 +92,17 @@ abstract contract Vault is ERC20Permit, IVault {
   }
 
   /// @inheritdoc IVault
+  function availableAssets() public view override returns (uint256) {
+    uint256 vaultAssets = _vaultAssets();
+    unchecked {
+      // calculate assets that are reserved by users who queued for exit
+      // cannot overflow as it is capped with staked asset total supply
+      uint256 reservedAssets = convertToAssets(queuedShares) + unclaimedAssets;
+      return vaultAssets > reservedAssets ? vaultAssets - reservedAssets : 0;
+    }
+  }
+
+  /// @inheritdoc IVault
   function redeem(
     uint256 shares,
     address receiver,
@@ -113,16 +113,8 @@ abstract contract Vault is ERC20Permit, IVault {
     // calculate amount of assets to burn
     assets = convertToAssets(shares);
 
-    // calculate assets that are reserved by users who queued for exit
-    uint256 reservedAssets;
-    unchecked {
-      // cannot overflow as it is capped with staked asset total supply
-      reservedAssets = convertToAssets(queuedShares) + unclaimedAssets;
-    }
-
-    // reverts in case vault's assets is not enough to cover the reserved assets
-    uint256 vaultAssets = _vaultAssets() - reservedAssets;
-    if (assets > vaultAssets) revert InsufficientVaultAssets();
+    // reverts in case there are not enough available assets
+    if (assets > availableAssets()) revert InsufficientAvailableAssets();
 
     // reduce allowance
     if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
@@ -132,8 +124,7 @@ abstract contract Vault is ERC20Permit, IVault {
 
     // update counters
     unchecked {
-      // cannot underflow because user's balance
-      // will never be larger than total shares
+      // cannot underflow because the sum of all shares can't exceed the _totalShares
       _totalShares -= SafeCast.toUint128(shares);
       // cannot underflow because the sum of all assets can't exceed the _totalAssets
       _totalAssets -= SafeCast.toUint128(assets);
@@ -149,7 +140,7 @@ abstract contract Vault is ERC20Permit, IVault {
   /// @inheritdoc IVault
   function getCheckpointIndex(uint256 exitQueueId) external view override returns (int256) {
     uint256 checkpointIdx = _exitQueue.getCheckpointIndex(exitQueueId);
-    return checkpointIdx >= _exitQueue.checkpoints.length ? -1 : int256(checkpointIdx);
+    return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
   }
 
   /// @inheritdoc IVault
@@ -167,7 +158,7 @@ abstract contract Vault is ERC20Permit, IVault {
     exitQueueId = _exitQueue.getSharesCounter() + _queuedShares;
 
     unchecked {
-      // cannot overflow as it is capped with staked asset total supply
+      // cannot overflow as it is capped with _totalShares
       queuedShares = SafeCast.toUint96(_queuedShares + shares);
     }
 
@@ -232,7 +223,7 @@ abstract contract Vault is ERC20Permit, IVault {
     returns (int256 assetsDelta)
   {
     // can be negative in case of the loss
-    assetsDelta = validatorAssets + int256(feesEscrow().withdraw());
+    assetsDelta = validatorAssets + int256(_claimVaultRewards());
 
     // SLOAD to memory
     uint256 totalAssetsAfter = _totalAssets;
@@ -254,8 +245,7 @@ abstract contract Vault is ERC20Permit, IVault {
           ? operatorAssets
           : Math.mulDiv(operatorAssets, totalSharesAfter, totalAssetsAfter - operatorAssets);
 
-        // cannot overflow because the sum of all user
-        // balances can't exceed the max uint256 value
+        // cannot underflow because the sum of all shares can't exceed the _totalShares
         if (operatorShares > 0) balanceOf[operator] += operatorShares;
       }
 
@@ -305,9 +295,6 @@ abstract contract Vault is ERC20Permit, IVault {
     emit ValidatorsRootUpdated(msg.sender, newValidatorsRoot, newValidatorsIpfsHash);
   }
 
-  /// @inheritdoc IVault
-  function feesEscrow() public view virtual override returns (IFeesEscrow) {}
-
   /**
    * @dev Internal function that must be used to process user deposits
    * @param to The address to mint shares to
@@ -355,12 +342,10 @@ abstract contract Vault is ERC20Permit, IVault {
 
     // calculate the amount of assets that can be exited
     uint256 _unclaimedAssets = unclaimedAssets;
-    uint256 availableAssets;
     unchecked {
-      // cannot underflow as _vaultAssets() >= unclaimedAssets
-      availableAssets = _vaultAssets() - _unclaimedAssets;
+      // cannot underflow as _vaultAssets() >= _unclaimedAssets
+      exitedAssets = Math.min(_vaultAssets() - _unclaimedAssets, convertToAssets(_queuedShares));
     }
-    exitedAssets = Math.min(availableAssets, convertToAssets(_queuedShares));
 
     // calculate the amount of shares that can be burned
     burnedShares = convertToShares(exitedAssets);
@@ -389,6 +374,12 @@ abstract contract Vault is ERC20Permit, IVault {
    * @return The total amount of assets stored in the Vault
    */
   function _vaultAssets() internal view virtual returns (uint256) {}
+
+  /**
+   * @dev Internal function for claiming Vault's extra rewards (e.g. priority fees, MEV)
+   * @return The total amount of assets claimed
+   */
+  function _claimVaultRewards() internal virtual returns (uint256) {}
 
   /**
    * @dev Internal function for transferring assets from the Vault to the receiver

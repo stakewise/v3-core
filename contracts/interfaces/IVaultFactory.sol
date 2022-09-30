@@ -28,6 +28,9 @@ interface IVaultFactory {
    * @notice Event emitted on a Vault creation
    * @param caller The address that called the create function
    * @param vault The address of the created Vault
+   * @param feesEscrow The address of the Fees Escrow
+   * @param name The name of the ERC20 token
+   * @param symbol The symbol of the ERC20 symbol
    * @param operator The address of the Vault operator
    * @param maxTotalAssets The max total assets that can be staked into the Vault
    * @param feePercent The fee percent that is charged by the Vault operator
@@ -48,6 +51,12 @@ interface IVaultFactory {
    * @return The address of the Vault keeper
    */
   function keeper() external view returns (address);
+
+  /**
+   * @notice The address used for registering Vault's validators
+   * @return The address of the validators registry
+   */
+  function validatorsRegistry() external view returns (address);
 
   /**
    * @notice Get the parameters to be used in constructing the Vault, set transiently during Vault creation

@@ -2,7 +2,7 @@ import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
 import { EthVault, ExitQueue } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { vaultFixture } from './shared/fixtures'
+import { ethValidatorsRegistryFixture, vaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { MAX_INT256, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 import { setBalance } from './shared/utils'
@@ -31,7 +31,8 @@ describe('EthVault - harvest', () => {
 
   beforeEach('deploy fixture', async () => {
     ;({ createEthVault } = await loadFixture(vaultFixture))
-    vault = await createEthVault(keeper.address, {
+    const validatorsRegistry = await loadFixture(ethValidatorsRegistryFixture)
+    vault = await createEthVault(keeper.address, validatorsRegistry.address, {
       name: vaultName,
       symbol: vaultSymbol,
       operator: operator.address,

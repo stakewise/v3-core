@@ -1,13 +1,12 @@
 import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
 import { EthVault, IVaultFactory } from '../typechain-types'
-import { vaultFixture } from './shared/fixtures'
+import { ThenArg } from '../helpers/types'
+import { vaultFixture, ethValidatorsRegistryFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
 
 const createFixtureLoader = waffle.createFixtureLoader
-
-type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 
 describe('EthVault - settings', () => {
   const maxTotalAssets = ethers.utils.parseEther('1000')
@@ -16,6 +15,7 @@ describe('EthVault - settings', () => {
   const vaultSymbol = 'SW-ETH-1'
   let keeper: Wallet, operator: Wallet, other: Wallet
   let vaultParams: IVaultFactory.ParametersStruct
+  let validatorsRegistry: string
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createEthVault: ThenArg<ReturnType<typeof vaultFixture>>['createEthVault']
@@ -34,12 +34,14 @@ describe('EthVault - settings', () => {
 
   beforeEach('deploy fixture', async () => {
     ;({ createEthVault } = await loadFixture(vaultFixture))
+    const registry = await loadFixture(ethValidatorsRegistryFixture)
+    validatorsRegistry = registry.address
   })
 
   describe('fee percent', () => {
     it('cannot be set to invalid value', async () => {
       await expect(
-        createEthVault(keeper.address, { ...vaultParams, feePercent: 10001 })
+        createEthVault(keeper.address, validatorsRegistry, { ...vaultParams, feePercent: 10001 })
       ).to.be.revertedWith('InvalidFeePercent()')
     })
   })
@@ -50,7 +52,7 @@ describe('EthVault - settings', () => {
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
-      vault = await createEthVault(keeper.address, vaultParams)
+      vault = await createEthVault(keeper.address, validatorsRegistry, vaultParams)
     })
 
     it('only operator can update', async () => {

@@ -1,0 +1,138 @@
+import { ByteVectorType, ContainerType, Type, UintNumberType } from '@chainsafe/ssz'
+import { Buffer } from 'buffer'
+import { BigNumber } from 'ethers'
+import { arrayify } from 'ethers/lib/utils'
+import bls from 'bls-eth-wasm'
+import { Validator } from '../../helpers/types'
+
+export const secretKeys = [
+  '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
+  '0x2c414222bc55f3a3627e20f2eb879b4019ffc44498ffbfb277725186954b714d',
+  '0x51017d92e2691f20907a62a2ec91764be253b317d2f7fba42a8ac7f0290880de',
+  '0x62ff87f6e66e9f2d8b382bd91fce8f31e46cceb32a84fb2d1ee1859b46399df7',
+  '0x161830b452d394152b53a2b04cea5ff3312e0165628081404542c127220deea7',
+  '0x64821642c5654f620bdbe72c641a3c3607aadaeb0af14311ff3588228135cc6e',
+  '0x3ee3c3001ff2a6eb2830dc44031dad1a1af8906fd8e1c4a6073cbb42deadeebd',
+  '0x4bbeb944e4abb46d929e6c2b7c6fea0adbdb72f942f8fa825bfb375e175e2762',
+  '0x047a48f9d1790ebe3f9cde4e93f1e135beef0406f68d6c8dae42b0adef2ad8d2',
+  '0x0d5b3814d2242c03bef667daf6823c866e9f458617667043a30fe5f5f3996f4b',
+]
+
+const DOMAIN_DEPOSIT = Uint8Array.from([3, 0, 0, 0])
+const ETH1_ADDRESS_WITHDRAWAL_PREFIX = Uint8Array.from([1])
+const GENESIS_FORK_VERSION = arrayify('0x00000000')
+const ZERO_HASH = Buffer.alloc(32, 0)
+
+// SSZ types
+const Bytes4 = new ByteVectorType(4)
+const Bytes32 = new ByteVectorType(32)
+const Bytes48 = new ByteVectorType(48)
+const Bytes96 = new ByteVectorType(96)
+const UintNum64 = new UintNumberType(8)
+
+const SigningData = new ContainerType(
+  {
+    objectRoot: Bytes32,
+    domain: Bytes32,
+  },
+  { typeName: 'SigningData', jsonCase: 'eth2' }
+)
+const ForkData = new ContainerType(
+  {
+    currentVersion: Bytes4,
+    genesisValidatorsRoot: Bytes32,
+  },
+  { typeName: 'ForkData', jsonCase: 'eth2' }
+)
+
+const DepositMessage = new ContainerType(
+  {
+    pubkey: Bytes48,
+    withdrawalCredentials: Bytes32,
+    amount: UintNum64,
+  },
+  { typeName: 'DepositMessage', jsonCase: 'eth2' }
+)
+const DepositData = new ContainerType(
+  {
+    pubkey: Bytes48,
+    withdrawalCredentials: Bytes32,
+    amount: UintNum64,
+    signature: Bytes96,
+  },
+  { typeName: 'DepositData', jsonCase: 'eth2' }
+)
+
+// Only used by processDeposit +  lightclient
+/**
+ * Return the domain for the [[domainType]] and [[forkVersion]].
+ */
+function computeDomain(domainType, forkVersion, genesisValidatorRoot): Uint8Array {
+  const forkDataRoot = computeForkDataRoot(forkVersion, genesisValidatorRoot)
+  const domain = new Uint8Array(32)
+  domain.set(domainType, 0)
+  domain.set(forkDataRoot.slice(0, 28), 4)
+  return domain
+}
+
+/**
+ * Used primarily in signature domains to avoid collisions across forks/chains.
+ */
+function computeForkDataRoot(currentVersion, genesisValidatorsRoot): Uint8Array {
+  const forkData = {
+    currentVersion,
+    genesisValidatorsRoot,
+  }
+  return ForkData.hashTreeRoot(forkData)
+}
+
+/**
+ * Return the signing root of an object by calculating the root of the object-domain tree.
+ */
+function computeSigningRoot<T>(type: Type<T>, sszObject: T, domain): Uint8Array {
+  const domainWrappedObject = {
+    objectRoot: type.hashTreeRoot(sszObject),
+    domain,
+  }
+  return SigningData.hashTreeRoot(domainWrappedObject)
+}
+
+export function getWithdrawalCredentials(vaultAddress: string): Buffer {
+  return Buffer.concat([ETH1_ADDRESS_WITHDRAWAL_PREFIX, Buffer.alloc(11), arrayify(vaultAddress)])
+}
+
+export async function createValidators(
+  depositAmount: BigNumber,
+  vaultAddress: string
+): Promise<Validator[]> {
+  await bls.init(bls.BLS12_381)
+
+  const withdrawalCredentials = getWithdrawalCredentials(vaultAddress)
+  const validators: Validator[] = []
+  for (let i = 0; i < secretKeys.length; i++) {
+    const secretKey = new bls.SecretKey()
+    secretKey.deserialize(arrayify(secretKeys[i]))
+    const publicKey = secretKey.getPublicKey().serialize()
+
+    // create DepositData
+    const depositData = {
+      pubkey: publicKey,
+      withdrawalCredentials,
+      amount: depositAmount.div(1000000000).toNumber(), // convert to gwei
+      signature: Buffer.alloc(0),
+    }
+    const domain = computeDomain(DOMAIN_DEPOSIT, GENESIS_FORK_VERSION, ZERO_HASH)
+    const signingRoot = computeSigningRoot(DepositMessage, depositData, domain)
+    const signature = secretKey.sign(signingRoot).serialize()
+    // @ts-ignore
+    depositData.signature = signature
+
+    const validator: Validator = {
+      publicKey,
+      signature,
+      root: DepositData.hashTreeRoot(depositData),
+    }
+    validators.push(validator)
+  }
+  return validators
+}

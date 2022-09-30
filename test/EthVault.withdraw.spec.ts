@@ -1,8 +1,8 @@
 import { ethers, waffle } from 'hardhat'
-import { BigNumber, Wallet } from 'ethers'
+import { BigNumber, Contract, Wallet } from 'ethers'
 import { EthVault, EthVaultMock, IVaultFactory, ExitQueue } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { vaultFixture } from './shared/fixtures'
+import { vaultFixture, ethValidatorsRegistryFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { ONE_DAY, MAX_UINT128, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 import { increaseTime, setBalance } from './shared/utils'
@@ -20,6 +20,7 @@ describe('EthVault - withdraw', () => {
   const holderAssets = ethers.utils.parseEther('1')
   let keeper: Wallet, holder: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
   let vault: EthVault
+  let validatorsRegistry: Contract
   let vaultParams: IVaultFactory.ParametersStruct
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -40,7 +41,8 @@ describe('EthVault - withdraw', () => {
 
   beforeEach('deploy fixture', async () => {
     ;({ createEthVault, createEthVaultMock } = await loadFixture(vaultFixture))
-    vault = await createEthVault(keeper.address, vaultParams)
+    validatorsRegistry = await loadFixture(ethValidatorsRegistryFixture)
+    vault = await createEthVault(keeper.address, validatorsRegistry.address, vaultParams)
     await vault.connect(holder).deposit(holder.address, { value: holderAssets })
   })
 
@@ -49,7 +51,7 @@ describe('EthVault - withdraw', () => {
       await setBalance(vault.address, BigNumber.from(0))
       await expect(
         vault.connect(holder).redeem(holderShares, receiver.address, holder.address)
-      ).to.be.revertedWith('InsufficientVaultAssets()')
+      ).to.be.revertedWith('InsufficientAvailableAssets()')
     })
 
     it('fails for sender other than owner without approval', async () => {
@@ -78,7 +80,11 @@ describe('EthVault - withdraw', () => {
     })
 
     it('does not overflow', async () => {
-      const vault: EthVaultMock = await createEthVaultMock(keeper.address, vaultParams)
+      const vault: EthVaultMock = await createEthVaultMock(
+        keeper.address,
+        validatorsRegistry.address,
+        vaultParams
+      )
       await vault.connect(holder).deposit(holder.address, { value: holderAssets })
 
       const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
@@ -234,7 +240,11 @@ describe('EthVault - withdraw', () => {
   })
 
   it('get checkpoint index works with many checkpoints', async () => {
-    const vault: EthVaultMock = await createEthVaultMock(keeper.address, vaultParams)
+    const vault: EthVaultMock = await createEthVaultMock(
+      keeper.address,
+      validatorsRegistry.address,
+      vaultParams
+    )
     await vault.connect(holder).deposit(holder.address, { value: holderAssets })
     const exitQueueId = await vault
       .connect(holder)
@@ -457,7 +467,10 @@ describe('EthVault - withdraw', () => {
   /// Scenario inspired by solmate ERC4626 tests:
   /// https://github.com/transmissions11/solmate/blob/main/src/test/ERC4626.t.sol
   it('multiple deposits and withdrawals', async () => {
-    const vault = await createEthVaultMock(keeper.address, { ...vaultParams, feePercent: 0 })
+    const vault = await createEthVaultMock(keeper.address, validatorsRegistry.address, {
+      ...vaultParams,
+      feePercent: 0,
+    })
     const feesEscrow = await vault.feesEscrow()
     const exitQueueFactory = await ethers.getContractFactory('ExitQueue')
     const exitQueue = exitQueueFactory.attach(vault.address)

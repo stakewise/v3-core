@@ -3,7 +3,7 @@
 pragma solidity =0.8.17;
 
 import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
-import {IVault} from '../interfaces/IVault.sol';
+import {IEthVault} from '../interfaces/IEthVault.sol';
 import {EthVault} from './EthVault.sol';
 
 /**
@@ -15,14 +15,15 @@ contract EthVaultFactory is IVaultFactory {
   /// @inheritdoc IVaultFactory
   address public immutable override keeper;
 
+  /// @inheritdoc IVaultFactory
+  address public immutable override validatorsRegistry;
+
   Parameters internal _parameters;
 
-  /**
-   * @dev Constructor
-   * @param _keeper The address of the vaults' keeper
-   */
-  constructor(address _keeper) {
+  /// @dev Constructor
+  constructor(address _keeper, address _validatorsRegistry) {
     keeper = _keeper;
+    validatorsRegistry = _validatorsRegistry;
   }
 
   /// @inheritdoc IVaultFactory
@@ -36,12 +37,12 @@ contract EthVaultFactory is IVaultFactory {
     override
     returns (address vault, address feesEscrow)
   {
-    // deploy vault
+    // set parameters to state variable, so that Vault could read them
     _parameters = params;
     vault = address(new EthVault());
     delete _parameters;
 
-    feesEscrow = address(IVault(vault).feesEscrow());
+    feesEscrow = address(IEthVault(vault).feesEscrow());
     emit VaultCreated(
       msg.sender,
       vault,

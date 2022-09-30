@@ -3,7 +3,7 @@
 pragma solidity =0.8.17;
 
 import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
-import {IVault} from '../interfaces/IVault.sol';
+import {IEthVault} from '../interfaces/IEthVault.sol';
 import {EthVaultMock} from './EthVaultMock.sol';
 
 /**
@@ -15,14 +15,19 @@ contract EthVaultFactoryMock is IVaultFactory {
   /// @inheritdoc IVaultFactory
   address public immutable override keeper;
 
+  /// @inheritdoc IVaultFactory
+  address public immutable override validatorsRegistry;
+
   Parameters internal _parameters;
 
   /**
    * @dev Constructor
    * @param _keeper The address of the vaults' keeper
+   * @param _validatorsRegistry The address of the validators registry
    */
-  constructor(address _keeper) {
+  constructor(address _keeper, address _validatorsRegistry) {
     keeper = _keeper;
+    validatorsRegistry = _validatorsRegistry;
   }
 
   /// @inheritdoc IVaultFactory
@@ -36,14 +41,12 @@ contract EthVaultFactoryMock is IVaultFactory {
     override
     returns (address vault, address feesEscrow)
   {
-    // TODO: check symbol between 2 and 8 signs
-    // TODO: check name between 3 and 20 signs
     // deploy vault
     _parameters = params;
     vault = address(new EthVaultMock());
     delete _parameters;
 
-    feesEscrow = address(IVault(vault).feesEscrow());
+    feesEscrow = address(IEthVault(vault).feesEscrow());
     emit VaultCreated(
       msg.sender,
       vault,
