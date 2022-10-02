@@ -5,15 +5,15 @@ pragma solidity =0.8.17;
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
+import {IVault} from '../interfaces/IVault.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
 import {Vault} from '../abstract/Vault.sol';
 import {EthFeesEscrow} from './EthFeesEscrow.sol';
 
-/// Custom errors
-// TODO: check gas when under interface
-error InvalidValidator();
+// TODO: implement registering multiple validators
+// after resolving https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3743
 
 /**
  * @title EthVault
@@ -23,7 +23,7 @@ error InvalidValidator();
 contract EthVault is Vault, IEthVault {
   uint256 internal constant _validatorDeposit = 32 ether;
 
-  /// @inheritdoc IEthVault
+  /// @inheritdoc IVault
   IFeesEscrow public immutable override feesEscrow;
 
   IEthValidatorsRegistry internal immutable _validatorsRegistry;
@@ -42,34 +42,27 @@ contract EthVault is Vault, IEthVault {
     return _deposit(receiver, msg.value);
   }
 
-  function registerValidators(bytes[] calldata validators, bytes32[] calldata proof)
+  /// @inheritdoc IVault
+  function registerValidator(bytes calldata validator, bytes32[] calldata proof)
     external
+    override
     onlyKeeper
   {
-    // TODO: check gas without extra variable
-    uint256 validatorsCount = validators.length;
-    if (validatorsCount * _validatorDeposit > availableAssets()) {
-      revert InsufficientAvailableAssets();
+    if (availableAssets() < _validatorDeposit) revert InsufficientAvailableAssets();
+    if (
+      validator.length != 176 ||
+      validatorsRoot != MerkleProof.processProofCalldata(proof, keccak256(validator[:144]))
+    ) {
+      revert InvalidValidator();
     }
-
-    for (uint256 i = 0; i < validatorsCount; ) {
-      bytes calldata validator = validators[i];
-      if (
-        validator.length != 176 ||
-        validatorsRoot != MerkleProof.processProofCalldata(proof, keccak256(validator[:144]))
-      ) {
-        revert InvalidValidator();
-      }
-      _validatorsRegistry.deposit{value: _validatorDeposit}(
-        validator[:48],
-        abi.encode(_withdrawalCredentials),
-        validator[48:144],
-        bytes32(validator[144:176])
-      );
-      unchecked {
-        ++i;
-      }
-    }
+    bytes calldata publicKey = validator[:48];
+    _validatorsRegistry.deposit{value: _validatorDeposit}(
+      publicKey,
+      abi.encode(_withdrawalCredentials),
+      validator[48:144],
+      bytes32(validator[144:176])
+    );
+    emit ValidatorRegistered(publicKey);
   }
 
   /**

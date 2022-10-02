@@ -1,9 +1,9 @@
 import { ethers, waffle } from 'hardhat'
-import { Contract, Wallet } from 'ethers'
+import { Wallet } from 'ethers'
 import { EthVault, EthVaultMock, IVaultFactory } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { vaultFixture, ethValidatorsRegistryFixture } from './shared/fixtures'
+import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 
@@ -18,16 +18,15 @@ describe('EthVault - deposit', () => {
   const vaultSymbol = 'SW-ETH-1'
   let keeper: Wallet, sender: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
   let vault: EthVault
-  let validatorRegistry: Contract
   let vaultParams: IVaultFactory.ParametersStruct
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createEthVault: ThenArg<ReturnType<typeof vaultFixture>>['createEthVault']
-  let createEthVaultMock: ThenArg<ReturnType<typeof vaultFixture>>['createEthVaultMock']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
+  let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createVaultMock']
 
   before('create fixture loader', async () => {
     ;[keeper, sender, receiver, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper, sender, receiver, other])
+    loadFixture = createFixtureLoader([keeper])
     vaultParams = {
       name: vaultName,
       symbol: vaultSymbol,
@@ -37,10 +36,9 @@ describe('EthVault - deposit', () => {
     }
   })
 
-  beforeEach('deploy fixture', async () => {
-    ;({ createEthVault, createEthVaultMock } = await loadFixture(vaultFixture))
-    validatorRegistry = await loadFixture(ethValidatorsRegistryFixture)
-    vault = await createEthVault(keeper.address, validatorRegistry.address, vaultParams)
+  beforeEach('deploy fixtures', async () => {
+    ;({ createVault, createVaultMock } = await loadFixture(ethVaultFixture))
+    vault = await createVault(vaultParams)
   })
 
   describe('empty vault: no assets & no shares', () => {
@@ -68,7 +66,7 @@ describe('EthVault - deposit', () => {
   describe('partially empty vault: assets & no shares', () => {
     let vault: EthVaultMock
     beforeEach(async () => {
-      vault = await createEthVaultMock(keeper.address, validatorRegistry.address, vaultParams)
+      vault = await createVaultMock(vaultParams)
       await vault._setTotalAssets(ether)
     })
 
@@ -96,11 +94,7 @@ describe('EthVault - deposit', () => {
     let ethVaultMock: EthVaultMock
 
     beforeEach(async () => {
-      ethVaultMock = await createEthVaultMock(
-        keeper.address,
-        validatorRegistry.address,
-        vaultParams
-      )
+      ethVaultMock = await createVaultMock(vaultParams)
       await ethVaultMock.mockMint(receiver.address, ether)
     })
 

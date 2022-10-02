@@ -3,7 +3,6 @@ import { Buffer } from 'buffer'
 import { BigNumber } from 'ethers'
 import { arrayify } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
-import { Validator } from '../../helpers/types'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -104,11 +103,11 @@ export function getWithdrawalCredentials(vaultAddress: string): Buffer {
 export async function createValidators(
   depositAmount: BigNumber,
   vaultAddress: string
-): Promise<Validator[]> {
+): Promise<Buffer[]> {
   await bls.init(bls.BLS12_381)
 
   const withdrawalCredentials = getWithdrawalCredentials(vaultAddress)
-  const validators: Validator[] = []
+  const validators: Buffer[] = []
   for (let i = 0; i < secretKeys.length; i++) {
     const secretKey = new bls.SecretKey()
     secretKey.deserialize(arrayify(secretKeys[i]))
@@ -124,15 +123,24 @@ export async function createValidators(
     const domain = computeDomain(DOMAIN_DEPOSIT, GENESIS_FORK_VERSION, ZERO_HASH)
     const signingRoot = computeSigningRoot(DepositMessage, depositData, domain)
     const signature = secretKey.sign(signingRoot).serialize()
-    // @ts-ignore
-    depositData.signature = signature
-
-    const validator: Validator = {
-      publicKey,
-      signature,
-      root: DepositData.hashTreeRoot(depositData),
-    }
-    validators.push(validator)
+    validators.push(Buffer.concat([publicKey, signature]))
   }
   return validators
+}
+
+export function appendDepositData(
+  validator: Buffer,
+  depositAmount: BigNumber,
+  vaultAddress: string
+): Buffer {
+  const withdrawalCredentials = getWithdrawalCredentials(vaultAddress)
+
+  // create DepositData
+  const depositData = {
+    pubkey: validator.subarray(0, 48),
+    withdrawalCredentials,
+    amount: depositAmount.div(1000000000).toNumber(), // convert to gwei
+    signature: validator.subarray(48, 144),
+  }
+  return Buffer.concat([validator, DepositData.hashTreeRoot(depositData)])
 }

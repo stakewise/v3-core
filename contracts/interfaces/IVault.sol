@@ -3,6 +3,7 @@
 pragma solidity =0.8.17;
 
 import {IERC20Permit} from './IERC20Permit.sol';
+import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 
 /**
  * @title IVault
@@ -16,6 +17,7 @@ interface IVault is IERC20Permit {
   error NotOperator();
   error NotKeeper();
   error InvalidFeePercent();
+  error InvalidValidator();
 
   /**
    * @notice Event emitted on deposit
@@ -76,21 +78,22 @@ interface IVault is IERC20Permit {
 
   /**
    * @notice Event emitted on validators merkle tree root update
-   * @param caller The address of the caller
    * @param newValidatorsRoot The new validators merkle tree root
    * @param newValidatorsIpfsHash The new IPFS hash with all the validators deposit data
    */
-  event ValidatorsRootUpdated(
-    address indexed caller,
-    bytes32 newValidatorsRoot,
-    string newValidatorsIpfsHash
-  );
+  event ValidatorsRootUpdated(bytes32 indexed newValidatorsRoot, string newValidatorsIpfsHash);
 
   /**
    * @notice Event emitted on harvest
    * @param assetsDelta The number of assets added or deducted from/to the total staked assets
    */
   event Harvested(int256 assetsDelta);
+
+  /**
+   * @notice Event emitted on validator registration
+   * @param publicKey The public key of the validator that was registered
+   */
+  event ValidatorRegistered(bytes publicKey);
 
   /**
    * @notice The keeper address that can harvest rewards
@@ -151,6 +154,12 @@ interface IVault is IERC20Permit {
    * @return The total amount of available assets
    */
   function availableAssets() external view returns (uint256);
+
+  /**
+   * @notice The contract that accumulates rewards received from priority fees and MEV
+   * @return The fees escrow contract address
+   */
+  function feesEscrow() external view returns (IFeesEscrow);
 
   /**
    * @notice Get the checkpoint index to claim exited assets from
@@ -215,17 +224,24 @@ interface IVault is IERC20Permit {
   ) external returns (uint256 assets);
 
   /**
-   * @notice Updates total amount of assets in the Vault
+   * @notice Updates total amount of assets in the Vault. Can only be called by the keeper.
    * @param validatorAssets The number of assets accumulated since the previous harvest
    * @return assetsDelta The number of assets added or deducted from/to the total staked assets
    */
   function harvest(int256 validatorAssets) external returns (int256 assetsDelta);
 
   /**
-   * @notice Function for updating the validators Merkle Tree root
+   * @notice Function for updating the validators Merkle Tree root. Can only be called by the operator.
    * @param newValidatorsRoot The new validators merkle tree root
    * @param newValidatorsIpfsHash The new IPFS hash with all the validators deposit data for the new root
    */
   function setValidatorsRoot(bytes32 newValidatorsRoot, string memory newValidatorsIpfsHash)
     external;
+
+  /**
+   * @notice Function for registering validator. Can only be called by the keeper.
+   * @param validator The concatenation of the validator public key, signature and deposit data root
+   * @param proof The proof used to verify that the validator is part of the validators Merkle Tree
+   */
+  function registerValidator(bytes calldata validator, bytes32[] calldata proof) external;
 }

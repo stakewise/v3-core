@@ -292,7 +292,7 @@ abstract contract Vault is ERC20Permit, IVault {
     onlyOperator
   {
     validatorsRoot = newValidatorsRoot;
-    emit ValidatorsRootUpdated(msg.sender, newValidatorsRoot, newValidatorsIpfsHash);
+    emit ValidatorsRootUpdated(newValidatorsRoot, newValidatorsIpfsHash);
   }
 
   /**

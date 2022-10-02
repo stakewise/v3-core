@@ -1,10 +1,9 @@
 import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
 import { EthVault, EthVaultFactory, IVaultFactory } from '../typechain-types'
-import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
-import { ethValidatorsRegistryFixture, vaultFixture } from './shared/fixtures'
+import { ethVaultFixture } from './shared/fixtures'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -21,7 +20,7 @@ describe('EthVaultFactory', () => {
 
   before('create fixture loader', async () => {
     ;[operator, keeper] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([operator, keeper])
+    loadFixture = createFixtureLoader([keeper])
     vaultParams = {
       name: vaultName,
       symbol: vaultSymbol,
@@ -32,9 +31,7 @@ describe('EthVaultFactory', () => {
   })
 
   beforeEach(async () => {
-    const registry = await loadFixture(ethValidatorsRegistryFixture)
-    const ethVaultFactory = await ethers.getContractFactory('EthVaultFactory')
-    factory = (await ethVaultFactory.deploy(keeper.address, registry.address)) as EthVaultFactory
+    ;({ vaultFactory: factory } = await loadFixture(ethVaultFixture))
   })
 
   it('vault deployment gas', async () => {

@@ -1,15 +1,14 @@
 import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
 import { EthVault, ExitQueue } from '../typechain-types'
+import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { ethValidatorsRegistryFixture, vaultFixture } from './shared/fixtures'
+import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { MAX_INT256, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 import { setBalance } from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
-
-type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 
 describe('EthVault - harvest', () => {
   const maxTotalAssets = ethers.utils.parseEther('1000')
@@ -22,17 +21,16 @@ describe('EthVault - harvest', () => {
   const holderShares = ethers.utils.parseEther('1')
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createEthVault: ThenArg<ReturnType<typeof vaultFixture>>['createEthVault']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
 
   before('create fixture loader', async () => {
     ;[keeper, holder, receiver, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper, holder, receiver, other])
+    loadFixture = createFixtureLoader([keeper])
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createEthVault } = await loadFixture(vaultFixture))
-    const validatorsRegistry = await loadFixture(ethValidatorsRegistryFixture)
-    vault = await createEthVault(keeper.address, validatorsRegistry.address, {
+    ;({ createVault } = await loadFixture(ethVaultFixture))
+    vault = await createVault({
       name: vaultName,
       symbol: vaultSymbol,
       operator: operator.address,

@@ -1,15 +1,14 @@
 import { ethers, waffle } from 'hardhat'
-import { BigNumber, Contract, Wallet } from 'ethers'
+import { BigNumber, Wallet } from 'ethers'
 import { EthVault, EthVaultMock, IVaultFactory, ExitQueue } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { vaultFixture, ethValidatorsRegistryFixture } from './shared/fixtures'
+import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { ONE_DAY, MAX_UINT128, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 import { increaseTime, setBalance } from './shared/utils'
+import { ThenArg } from '../helpers/types'
 
 const createFixtureLoader = waffle.createFixtureLoader
-
-type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 
 describe('EthVault - withdraw', () => {
   const maxTotalAssets = ethers.utils.parseEther('1000')
@@ -20,16 +19,15 @@ describe('EthVault - withdraw', () => {
   const holderAssets = ethers.utils.parseEther('1')
   let keeper: Wallet, holder: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
   let vault: EthVault
-  let validatorsRegistry: Contract
   let vaultParams: IVaultFactory.ParametersStruct
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createEthVault: ThenArg<ReturnType<typeof vaultFixture>>['createEthVault']
-  let createEthVaultMock: ThenArg<ReturnType<typeof vaultFixture>>['createEthVaultMock']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
+  let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createVaultMock']
 
   before('create fixture loader', async () => {
     ;[keeper, holder, receiver, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper, holder, receiver, other])
+    loadFixture = createFixtureLoader([keeper])
     vaultParams = {
       name: vaultName,
       symbol: vaultSymbol,
@@ -40,9 +38,8 @@ describe('EthVault - withdraw', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createEthVault, createEthVaultMock } = await loadFixture(vaultFixture))
-    validatorsRegistry = await loadFixture(ethValidatorsRegistryFixture)
-    vault = await createEthVault(keeper.address, validatorsRegistry.address, vaultParams)
+    ;({ createVault, createVaultMock } = await loadFixture(ethVaultFixture))
+    vault = await createVault(vaultParams)
     await vault.connect(holder).deposit(holder.address, { value: holderAssets })
   })
 
@@ -80,11 +77,7 @@ describe('EthVault - withdraw', () => {
     })
 
     it('does not overflow', async () => {
-      const vault: EthVaultMock = await createEthVaultMock(
-        keeper.address,
-        validatorsRegistry.address,
-        vaultParams
-      )
+      const vault: EthVaultMock = await createVaultMock(vaultParams)
       await vault.connect(holder).deposit(holder.address, { value: holderAssets })
 
       const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
@@ -240,11 +233,7 @@ describe('EthVault - withdraw', () => {
   })
 
   it('get checkpoint index works with many checkpoints', async () => {
-    const vault: EthVaultMock = await createEthVaultMock(
-      keeper.address,
-      validatorsRegistry.address,
-      vaultParams
-    )
+    const vault: EthVaultMock = await createVaultMock(vaultParams)
     await vault.connect(holder).deposit(holder.address, { value: holderAssets })
     const exitQueueId = await vault
       .connect(holder)
@@ -467,7 +456,7 @@ describe('EthVault - withdraw', () => {
   /// Scenario inspired by solmate ERC4626 tests:
   /// https://github.com/transmissions11/solmate/blob/main/src/test/ERC4626.t.sol
   it('multiple deposits and withdrawals', async () => {
-    const vault = await createEthVaultMock(keeper.address, validatorsRegistry.address, {
+    const vault = await createVaultMock({
       ...vaultParams,
       feePercent: 0,
     })

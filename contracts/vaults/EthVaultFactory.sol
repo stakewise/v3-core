@@ -20,7 +20,11 @@ contract EthVaultFactory is IVaultFactory {
 
   Parameters internal _parameters;
 
-  /// @dev Constructor
+  /**
+   * @dev Constructor
+   * @param _keeper The address of the vaults' keeper
+   * @param _validatorsRegistry The address of the validators registry
+   */
   constructor(address _keeper, address _validatorsRegistry) {
     keeper = _keeper;
     validatorsRegistry = _validatorsRegistry;

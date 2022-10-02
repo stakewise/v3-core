@@ -41,7 +41,7 @@ contract EthVaultFactoryMock is IVaultFactory {
     override
     returns (address vault, address feesEscrow)
   {
-    // deploy vault
+    // set parameters to state variable, so that Vault could read them
     _parameters = params;
     vault = address(new EthVaultMock());
     delete _parameters;

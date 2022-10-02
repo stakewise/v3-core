@@ -78,6 +78,9 @@ const config: HardhatUserConfig = {
       },
     },
   },
+  mocha: {
+    timeout: 100000000,
+  },
   gasReporter: {
     enabled: TRACK_GAS,
   },
