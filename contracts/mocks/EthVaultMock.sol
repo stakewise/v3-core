@@ -15,9 +15,7 @@ contract EthVaultMock is EthVault {
   using SafeCast for uint256;
   using ExitQueue for ExitQueue.History;
 
-  /**
-   * @dev Constructor
-   */
+  /// @dev Constructor
   constructor() EthVault() {}
 
   function mockMint(address receiver, uint256 assets) external returns (uint256 shares) {
@@ -43,7 +41,7 @@ contract EthVaultMock is EthVault {
     return gasBefore - gasleft();
   }
 
-  function _setTotalStakedAssets(uint128 value) external {
-    _totalStakedAssets = value;
+  function _setTotalAssets(uint128 value) external {
+    _totalAssets = value;
   }
 }

@@ -11,6 +11,7 @@ import 'hardhat-gas-reporter'
 import 'hardhat-contract-sizer'
 import 'hardhat-log-remover'
 import 'hardhat-spdx-license-identifier'
+import 'hardhat-abi-exporter'
 import { EthereumNetwork } from './helpers/types'
 
 dotenv.config({ path: '.env' })
@@ -78,12 +79,22 @@ const config: HardhatUserConfig = {
       },
     },
   },
+  mocha: {
+    timeout: 100000000,
+  },
   gasReporter: {
     enabled: TRACK_GAS,
   },
   spdxLicenseIdentifier: {
     overwrite: false,
     runOnCompile: false,
+  },
+  abiExporter: {
+    path: './abi',
+    clear: true,
+    flat: true,
+    only: ['interfaces/'],
+    spacing: 2,
   },
   etherscan: {
     apiKey: BLOCK_EXPLORER_KEY,
