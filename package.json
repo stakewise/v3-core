@@ -90,6 +90,6 @@
     "core"
   ],
   "dependencies": {
-    "@openzeppelin/contracts": "4.7.3"
+    "@openzeppelin/contracts": "4.8.0-rc.1"
   }
 }

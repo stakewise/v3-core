@@ -34,9 +34,9 @@ abstract contract ERC20Permit is IERC20Permit {
   /// @inheritdoc IERC20Permit
   mapping(address => uint256) public override nonces;
 
-  uint256 private immutable INITIAL_CHAIN_ID;
+  uint256 private immutable initialChainId;
 
-  bytes32 private immutable INITIAL_DOMAIN_SEPARATOR;
+  bytes32 private immutable initialDomainSeparator;
 
   /**
    * @dev Constructor
@@ -51,8 +51,8 @@ abstract contract ERC20Permit is IERC20Permit {
     symbol = _symbol;
 
     // initialize EIP-2612
-    INITIAL_CHAIN_ID = block.chainid;
-    INITIAL_DOMAIN_SEPARATOR = _computeDomainSeparator();
+    initialChainId = block.chainid;
+    initialDomainSeparator = _computeDomainSeparator();
   }
 
   /// @inheritdoc IERC20
@@ -131,7 +131,7 @@ abstract contract ERC20Permit is IERC20Permit {
 
   /// @inheritdoc IERC20Permit
   function DOMAIN_SEPARATOR() public view override returns (bytes32) {
-    return block.chainid == INITIAL_CHAIN_ID ? INITIAL_DOMAIN_SEPARATOR : _computeDomainSeparator();
+    return block.chainid == initialChainId ? initialDomainSeparator : _computeDomainSeparator();
   }
 
   function _computeDomainSeparator() private view returns (bytes32) {
