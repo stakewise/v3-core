@@ -12,9 +12,6 @@ import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
 import {Vault} from '../abstract/Vault.sol';
 import {EthFeesEscrow} from './EthFeesEscrow.sol';
 
-// TODO: implement registering multiple validators
-// after resolving https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3743
-
 /**
  * @title EthVault
  * @author StakeWise
@@ -55,6 +52,7 @@ contract EthVault is Vault, IEthVault {
     ) {
       revert InvalidValidator();
     }
+
     bytes calldata publicKey = validator[:48];
     _validatorsRegistry.deposit{value: _validatorDeposit}(
       publicKey,
@@ -62,7 +60,44 @@ contract EthVault is Vault, IEthVault {
       validator[48:144],
       bytes32(validator[144:176])
     );
+
     emit ValidatorRegistered(publicKey);
+  }
+
+  /// @inheritdoc IVault
+  function registerValidators(bytes[] calldata validators, bytes32[][] calldata proofs)
+    external
+    override
+    onlyKeeper
+  {
+    if (availableAssets() < _validatorDeposit * validators.length) {
+      revert InsufficientAvailableAssets();
+    }
+    if (validators.length != proofs.length) revert InvalidProofsLength();
+
+    bytes calldata validator;
+    bytes calldata publicKey;
+    for (uint256 i = 0; i < validators.length; ) {
+      validator = validators[i];
+      // TODO: update after https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3743
+      if (
+        validator.length != 176 ||
+        validatorsRoot != MerkleProof.processProofCalldata(proofs[i], keccak256(validator[:144]))
+      ) {
+        revert InvalidValidator();
+      }
+      publicKey = validator[:48];
+      _validatorsRegistry.deposit{value: _validatorDeposit}(
+        publicKey,
+        abi.encode(_withdrawalCredentials),
+        validator[48:144],
+        bytes32(validator[144:176])
+      );
+      unchecked {
+        ++i;
+      }
+      emit ValidatorRegistered(publicKey);
+    }
   }
 
   /**

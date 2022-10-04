@@ -5,6 +5,7 @@ import { UintNumberType } from '@chainsafe/ssz'
 import { MerkleTree } from 'merkletreejs'
 import keccak256 from 'keccak256'
 import { EthVault, IVaultFactory } from '../typechain-types'
+import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -16,8 +17,6 @@ const parseEther = ethers.utils.parseEther
 const gwei = 1000000000
 const uintSerializer = new UintNumberType(8)
 
-type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
-
 describe('EthVault - register', () => {
   const validatorDeposit = parseEther('32')
 
@@ -27,8 +26,6 @@ describe('EthVault - register', () => {
   let vaultParams: IVaultFactory.ParametersStruct
   let validators: Buffer[]
   let validatorsTree: MerkleTree
-  let validator: Buffer
-  let proof: string[]
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -54,90 +51,77 @@ describe('EthVault - register', () => {
       sortPairs: true,
     })
 
-    const val = validators[0]
-    validator = appendDepositData(val, validatorDeposit, vault.address)
-    proof = validatorsTree.getHexProof(keccak256(val))
-
     await vault.connect(other).deposit(other.address, { value: validatorDeposit })
     await vault.connect(operator).setValidatorsRoot(validatorsTree.getRoot(), 'new ipfs hash')
   })
 
-  it('fails with not enough available assets', async () => {
-    await setBalance(vault.address, parseEther('31.9'))
-    await expect(vault.connect(keeper).registerValidator(validator, proof)).to.be.revertedWith(
-      'InsufficientAvailableAssets()'
-    )
-  })
+  describe('single validator', () => {
+    let validator: Buffer
+    let proof: string[]
 
-  it('fails with sender other than keeper', async () => {
-    await expect(vault.connect(other).registerValidator(validator, proof)).to.be.revertedWith(
-      'NotKeeper()'
-    )
-  })
+    beforeEach(async () => {
+      const val = validators[0]
+      validator = appendDepositData(val, validatorDeposit, vault.address)
+      proof = validatorsTree.getHexProof(keccak256(val))
+    })
 
-  it('fails with invalid deposit data root', async () => {
-    const invalidRoot = appendDepositData(validators[1], validatorDeposit, vault.address).subarray(
-      144,
-      176
-    )
-    await expect(
-      vault.connect(keeper).registerValidator(Buffer.concat([validators[0], invalidRoot]), proof)
-    ).to.be.revertedWith(
-      'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
-    )
-  })
-
-  it('fails with invalid deposit amount', async () => {
-    await expect(
-      vault
-        .connect(keeper)
-        .registerValidator(appendDepositData(validators[0], parseEther('1'), vault.address), proof)
-    ).to.be.revertedWith(
-      'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
-    )
-  })
-
-  it('fails with invalid proof', async () => {
-    const invalidProof = validatorsTree.getHexProof(validators[1])
-    await expect(
-      vault.connect(keeper).registerValidator(validator, invalidProof)
-    ).to.be.revertedWith('InvalidValidator()')
-  })
-
-  it('fails with invalid validator length', async () => {
-    await expect(
-      vault
-        .connect(keeper)
-        .registerValidator(appendDepositData(validator, validatorDeposit, vault.address), proof)
-    ).to.be.revertedWith('InvalidValidator()')
-  })
-
-  it('single validator', async () => {
-    const receipt = await vault.connect(keeper).registerValidator(validator, proof)
-    const publicKey = hexlify(validator.subarray(0, 48))
-    await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
-    await expect(receipt)
-      .to.emit(validatorsRegistry, 'DepositEvent')
-      .withArgs(
-        publicKey,
-        hexlify(getWithdrawalCredentials(vault.address)),
-        hexlify(uintSerializer.serialize(validatorDeposit.div(gwei).toNumber())),
-        hexlify(validator.subarray(48, 144)),
-        hexlify(uintSerializer.serialize(0))
+    it('fails with not enough available assets', async () => {
+      await setBalance(vault.address, parseEther('31.9'))
+      await expect(vault.connect(keeper).registerValidator(validator, proof)).to.be.revertedWith(
+        'InsufficientAvailableAssets()'
       )
-    await snapshotGasCost(receipt)
-  })
+    })
 
-  it('multiple validators', async () => {
-    await setBalance(vault.address, validatorDeposit.mul(validators.length))
+    it('fails with sender other than keeper', async () => {
+      await expect(vault.connect(other).registerValidator(validator, proof)).to.be.revertedWith(
+        'NotKeeper()'
+      )
+    })
 
-    for (let i = 0; i < validators.length; i++) {
-      let val = validators[i]
-      const proof = validatorsTree.getHexProof(keccak256(val))
-      val = appendDepositData(val, validatorDeposit, vault.address)
+    it('fails with invalid deposit data root', async () => {
+      const invalidRoot = appendDepositData(
+        validators[1],
+        validatorDeposit,
+        vault.address
+      ).subarray(144, 176)
+      await expect(
+        vault.connect(keeper).registerValidator(Buffer.concat([validators[0], invalidRoot]), proof)
+      ).to.be.revertedWith(
+        'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
+      )
+    })
 
-      const receipt = await vault.connect(keeper).registerValidator(val, proof)
-      const publicKey = hexlify(val.subarray(0, 48))
+    it('fails with invalid deposit amount', async () => {
+      await expect(
+        vault
+          .connect(keeper)
+          .registerValidator(
+            appendDepositData(validators[0], parseEther('1'), vault.address),
+            proof
+          )
+      ).to.be.revertedWith(
+        'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
+      )
+    })
+
+    it('fails with invalid proof', async () => {
+      const invalidProof = validatorsTree.getHexProof(validators[1])
+      await expect(
+        vault.connect(keeper).registerValidator(validator, invalidProof)
+      ).to.be.revertedWith('InvalidValidator()')
+    })
+
+    it('fails with invalid validator length', async () => {
+      await expect(
+        vault
+          .connect(keeper)
+          .registerValidator(appendDepositData(validator, validatorDeposit, vault.address), proof)
+      ).to.be.revertedWith('InvalidValidator()')
+    })
+
+    it('succeeds', async () => {
+      const receipt = await vault.connect(keeper).registerValidator(validator, proof)
+      const publicKey = hexlify(validator.subarray(0, 48))
       await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
       await expect(receipt)
         .to.emit(validatorsRegistry, 'DepositEvent')
@@ -145,9 +129,126 @@ describe('EthVault - register', () => {
           publicKey,
           hexlify(getWithdrawalCredentials(vault.address)),
           hexlify(uintSerializer.serialize(validatorDeposit.div(gwei).toNumber())),
-          hexlify(val.subarray(48, 144)),
-          hexlify(uintSerializer.serialize(i))
+          hexlify(validator.subarray(48, 144)),
+          hexlify(uintSerializer.serialize(0))
         )
-    }
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('multiple validators', () => {
+    let validatorsWithDepositData: Buffer[]
+    let proofs: string[][]
+
+    beforeEach(async () => {
+      validatorsWithDepositData = []
+      proofs = []
+      for (let i = 0; i < validators.length; i++) {
+        proofs.push(validatorsTree.getHexProof(keccak256(validators[i])))
+        validatorsWithDepositData.push(
+          appendDepositData(validators[i], validatorDeposit, vault.address)
+        )
+      }
+      await setBalance(vault.address, validatorDeposit.mul(validators.length))
+    })
+
+    it('fails with not enough available assets', async () => {
+      await setBalance(vault.address, parseEther('32').mul(validators.length - 1))
+      await expect(
+        vault.connect(keeper).registerValidators(validatorsWithDepositData, proofs)
+      ).to.be.revertedWith('InsufficientAvailableAssets()')
+    })
+
+    it('fails with sender other than keeper', async () => {
+      await expect(
+        vault.connect(other).registerValidators(validatorsWithDepositData, proofs)
+      ).to.be.revertedWith('NotKeeper()')
+    })
+
+    it('fails with invalid deposit data root', async () => {
+      const invalidRoot = appendDepositData(
+        validators[1],
+        validatorDeposit,
+        vault.address
+      ).subarray(144, 176)
+      validatorsWithDepositData[0] = Buffer.concat([validators[0], invalidRoot])
+      await expect(
+        vault.connect(keeper).registerValidators(validatorsWithDepositData, proofs)
+      ).to.be.revertedWith(
+        'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
+      )
+    })
+
+    it('fails with invalid deposit amount', async () => {
+      validatorsWithDepositData[0] = appendDepositData(
+        validators[0],
+        parseEther('1'),
+        vault.address
+      )
+      await expect(
+        vault.connect(keeper).registerValidators(validatorsWithDepositData, proofs)
+      ).to.be.revertedWith(
+        'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
+      )
+    })
+
+    it('fails with invalid withdrawal credentials', async () => {
+      validatorsWithDepositData[0] = appendDepositData(
+        validators[0],
+        validatorDeposit,
+        keeper.address
+      )
+      await expect(
+        vault.connect(keeper).registerValidators(validatorsWithDepositData, proofs)
+      ).to.be.revertedWith(
+        'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
+      )
+    })
+
+    it('fails with invalid proof', async () => {
+      proofs[0] = validatorsTree.getHexProof(validators[1])
+      await expect(
+        vault.connect(keeper).registerValidators(validatorsWithDepositData, proofs)
+      ).to.be.revertedWith('InvalidValidator()')
+    })
+
+    it('fails with invalid validator length', async () => {
+      validatorsWithDepositData[0] = appendDepositData(
+        validatorsWithDepositData[0],
+        validatorDeposit,
+        vault.address
+      )
+      await expect(
+        vault.connect(keeper).registerValidators(validatorsWithDepositData, proofs)
+      ).to.be.revertedWith('InvalidValidator()')
+    })
+
+    it('fails with invalid proofs length', async () => {
+      proofs.push(validatorsTree.getHexProof(keccak256(validators[0])))
+      await expect(
+        vault.connect(keeper).registerValidators(validatorsWithDepositData, proofs)
+      ).to.be.revertedWith('InvalidProofsLength()')
+    })
+
+    it('succeeds', async () => {
+      const receipt = await vault
+        .connect(keeper)
+        .registerValidators(validatorsWithDepositData, proofs)
+      for (let i = 0; i < validators.length; i++) {
+        const validator = validators[i]
+        const publicKey = hexlify(validator.subarray(0, 48))
+        await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
+        await expect(receipt)
+          .to.emit(validatorsRegistry, 'DepositEvent')
+          .withArgs(
+            publicKey,
+            hexlify(getWithdrawalCredentials(vault.address)),
+            hexlify(uintSerializer.serialize(validatorDeposit.div(gwei).toNumber())),
+            hexlify(validator.subarray(48, 144)),
+            hexlify(uintSerializer.serialize(i))
+          )
+      }
+      await snapshotGasCost(receipt)
+    })
   })
 })

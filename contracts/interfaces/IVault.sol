@@ -18,6 +18,7 @@ interface IVault is IERC20Permit {
   error NotKeeper();
   error InvalidFeePercent();
   error InvalidValidator();
+  error InvalidProofsLength();
 
   /**
    * @notice Event emitted on deposit
@@ -244,4 +245,11 @@ interface IVault is IERC20Permit {
    * @param proof The proof used to verify that the validator is part of the validators Merkle Tree
    */
   function registerValidator(bytes calldata validator, bytes32[] calldata proof) external;
+
+  /**
+   * @notice Function for registering validators. Can only be called by the keeper.
+   * @param validators The list of concatenations of the validators public keys, signatures and deposit data roots
+   * @param proofs The list of proofs used to verify that the validators are part of the Merkle Tree
+   */
+  function registerValidators(bytes[] calldata validators, bytes32[][] calldata proofs) external;
 }
