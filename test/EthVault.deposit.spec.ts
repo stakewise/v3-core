@@ -1,8 +1,9 @@
 import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
-import { EthVault, EthVaultMock } from '../typechain-types'
+import { EthVault, EthVaultMock, IVaultFactory } from '../typechain-types'
+import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { vaultFixture } from './shared/fixtures'
+import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 
@@ -10,26 +11,34 @@ const createFixtureLoader = waffle.createFixtureLoader
 const parseEther = ethers.utils.parseEther
 const ether = parseEther('1')
 
-type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
-
 describe('EthVault - deposit', () => {
   const maxTotalAssets = parseEther('1000')
   const feePercent = 1000
-  let sender: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
+  const vaultName = 'SW ETH Vault'
+  const vaultSymbol = 'SW-ETH-1'
+  let keeper: Wallet, sender: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
   let vault: EthVault
+  let vaultParams: IVaultFactory.ParametersStruct
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createEthVault: ThenArg<ReturnType<typeof vaultFixture>>['createEthVault']
-  let createEthVaultMock: ThenArg<ReturnType<typeof vaultFixture>>['createEthVaultMock']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
+  let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createVaultMock']
 
   before('create fixture loader', async () => {
-    ;[sender, receiver, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([sender, receiver, other])
+    ;[keeper, sender, receiver, operator, other] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([keeper])
+    vaultParams = {
+      name: vaultName,
+      symbol: vaultSymbol,
+      operator: operator.address,
+      maxTotalAssets,
+      feePercent,
+    }
   })
 
-  beforeEach('deploy fixture', async () => {
-    ;({ createEthVault, createEthVaultMock } = await loadFixture(vaultFixture))
-    vault = await createEthVault(operator.address, maxTotalAssets, feePercent)
+  beforeEach('deploy fixtures', async () => {
+    ;({ createVault, createVaultMock } = await loadFixture(ethVaultFixture))
+    vault = await createVault(vaultParams)
   })
 
   describe('empty vault: no assets & no shares', () => {
@@ -55,11 +64,10 @@ describe('EthVault - deposit', () => {
   })
 
   describe('partially empty vault: assets & no shares', () => {
+    let vault: EthVaultMock
     beforeEach(async () => {
-      await other.sendTransaction({
-        to: await vault.feesEscrow(),
-        value: ether,
-      })
+      vault = await createVaultMock(vaultParams)
+      await vault._setTotalAssets(ether)
     })
 
     it('status', async () => {
@@ -86,7 +94,7 @@ describe('EthVault - deposit', () => {
     let ethVaultMock: EthVaultMock
 
     beforeEach(async () => {
-      ethVaultMock = await createEthVaultMock(operator.address, maxTotalAssets, feePercent)
+      ethVaultMock = await createVaultMock(vaultParams)
       await ethVaultMock.mockMint(receiver.address, ether)
     })
 
@@ -103,11 +111,7 @@ describe('EthVault - deposit', () => {
 
   describe('full vault: assets & shares', () => {
     beforeEach(async () => {
-      await vault.connect(other).deposit(other.address, { value: parseEther('99') })
-      await other.sendTransaction({
-        to: await vault.feesEscrow(),
-        value: ether,
-      })
+      await vault.connect(other).deposit(other.address, { value: parseEther('100') })
     })
 
     it('status', async () => {
@@ -122,7 +126,7 @@ describe('EthVault - deposit', () => {
 
     it('deposit', async () => {
       const amount = parseEther('100')
-      const expectedShares = parseEther('99')
+      const expectedShares = parseEther('100')
       expect(await vault.convertToShares(amount)).to.eq(expectedShares)
 
       const receipt = await vault.connect(sender).deposit(receiver.address, { value: amount })

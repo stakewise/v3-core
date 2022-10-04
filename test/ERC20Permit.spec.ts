@@ -1,5 +1,5 @@
 import { ethers, network, waffle } from 'hardhat'
-import { Wallet } from 'ethers'
+import { ContractFactory, Wallet } from 'ethers'
 import EthereumWallet from 'ethereumjs-wallet'
 import { ERC20PermitMock } from '../typechain-types'
 import { expect } from './shared/expect'
@@ -12,6 +12,7 @@ describe('ERC20Permit', () => {
   const symbol = 'VLT'
   const decimals = 18
   const initialSupply = 1000
+  let tokenFactory: ContractFactory
 
   let token: ERC20PermitMock
   let initialHolder: Wallet, spender: Wallet, recipient: Wallet, other: Wallet
@@ -23,18 +24,17 @@ describe('ERC20Permit', () => {
   })
 
   const fixture = async () => {
-    const tokenFactory = await ethers.getContractFactory('ERC20PermitMock')
     const tkn = (await tokenFactory.deploy(name, symbol)) as ERC20PermitMock
     await tkn.mint(initialHolder.address, initialSupply)
     return tkn
   }
 
   beforeEach('deploy ERC20PermitMock', async () => {
+    tokenFactory = await ethers.getContractFactory('ERC20PermitMock')
     token = await loadFixture(fixture)
   })
 
   it('deployment gas', async () => {
-    const tokenFactory = await ethers.getContractFactory('ERC20PermitMock')
     const tkn = (await tokenFactory.deploy(name, symbol)) as ERC20PermitMock
     await snapshotGasCost(tkn.deployTransaction)
   })
@@ -53,6 +53,16 @@ describe('ERC20Permit', () => {
 
   it('has 18 decimals', async () => {
     expect(await token.decimals()).to.eq(decimals)
+  })
+
+  it('fails to deploy with invalid name length', async () => {
+    await expect(tokenFactory.deploy('a'.repeat(21), symbol)).to.be.revertedWith(
+      'InvalidInitArgs()'
+    )
+  })
+
+  it('fails to deploy with invalid symbol length', async () => {
+    await expect(tokenFactory.deploy(name, 'a'.repeat(21))).to.be.revertedWith('InvalidInitArgs()')
   })
 
   describe('total supply', () => {

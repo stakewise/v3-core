@@ -1,14 +1,19 @@
 // SPDX-License-Identifier: BUSL-1.1
+
 pragma solidity =0.8.17;
 
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
 
+/// Custom errors
+error PermitDeadlineExpired();
+error PermitInvalidSigner();
+error InvalidInitArgs();
+
 /**
  * @title ERC20 Permit Token
  * @author StakeWise
  * @notice Modern and gas efficient ERC20 + EIP-2612 implementation
- * @dev StakeWise added interfaces and docstrings
  */
 abstract contract ERC20Permit is IERC20Permit {
   /// @inheritdoc IERC20
@@ -33,15 +38,14 @@ abstract contract ERC20Permit is IERC20Permit {
 
   bytes32 private immutable INITIAL_DOMAIN_SEPARATOR;
 
-  error PermitDeadlineExpired();
-  error PermitInvalidSigner();
-
   /**
    * @dev Constructor
    * @param _name The name of the ERC20 token
    * @param _symbol The symbol of the ERC20 token
    */
   constructor(string memory _name, string memory _symbol) {
+    if (bytes(_name).length > 20 || bytes(_symbol).length > 20) revert InvalidInitArgs();
+
     // initialize ERC20
     name = _name;
     symbol = _symbol;

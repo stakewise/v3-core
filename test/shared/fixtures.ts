@@ -1,46 +1,53 @@
 import { ethers } from 'hardhat'
 import { Fixture } from 'ethereum-waffle'
-import { BigNumberish } from '@ethersproject/bignumber'
-import { EthVault, EthVaultFactory, EthVaultMock, EthVaultFactoryMock } from '../../typechain-types'
+import { Contract } from 'ethers'
+import {
+  EthVault,
+  EthVaultFactory,
+  EthVaultFactoryMock,
+  EthVaultMock,
+  IVaultFactory,
+} from '../../typechain-types'
+import { getEthRegistryFactory } from './contracts'
 
-interface VaultFixture {
-  createEthVault(
-    operator: string,
-    maxTotalAssets: BigNumberish,
-    feePercent: BigNumberish
-  ): Promise<EthVault>
-
-  createEthVaultMock(
-    operator: string,
-    maxTotalAssets: BigNumberish,
-    feePercent: BigNumberish
-  ): Promise<EthVaultMock>
+interface EthVaultFixture {
+  validatorsRegistry: Contract
+  vaultFactory: EthVaultFactory
+  vaultFactoryMock: EthVaultFactoryMock
+  createVault(vaultParams: IVaultFactory.ParametersStruct): Promise<EthVault>
+  createVaultMock(vaultParams: IVaultFactory.ParametersStruct): Promise<EthVaultMock>
 }
 
-export const vaultFixture: Fixture<VaultFixture> = async function (): Promise<VaultFixture> {
+export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
+  keeper,
+]): Promise<EthVaultFixture> {
   const ethVaultFactory = await ethers.getContractFactory('EthVaultFactory')
-  const ethVaultFactoryMock = await ethers.getContractFactory('EthVaultFactoryMock')
   const ethVault = await ethers.getContractFactory('EthVault')
+  const ethVaultFactoryMock = await ethers.getContractFactory('EthVaultFactoryMock')
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
+  const ethRegistryFactory = await getEthRegistryFactory()
+  const registry = await ethRegistryFactory.deploy()
+  const factory = (await ethVaultFactory.deploy(
+    keeper.address,
+    registry.address
+  )) as EthVaultFactory
+  const factoryMock = (await ethVaultFactoryMock.deploy(
+    keeper.address,
+    registry.address
+  )) as EthVaultFactoryMock
+
   return {
-    createEthVault: async (
-      operator: string,
-      maxTotalAssets: BigNumberish,
-      feePercent: BigNumberish
-    ) => {
-      const factory = (await ethVaultFactory.deploy()) as EthVaultFactory
-      const tx = await factory.createVault(operator, maxTotalAssets, feePercent)
+    validatorsRegistry: registry,
+    vaultFactory: factory,
+    vaultFactoryMock: factoryMock,
+    createVault: async (vaultParams: IVaultFactory.ParametersStruct): Promise<EthVault> => {
+      const tx = await factory.createVault(vaultParams)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[0].args?.vault as string
       return ethVault.attach(vaultAddress) as EthVault
     },
-    createEthVaultMock: async (
-      operator: string,
-      maxTotalAssets: BigNumberish,
-      feePercent: BigNumberish
-    ) => {
-      const factory = (await ethVaultFactoryMock.deploy()) as EthVaultFactoryMock
-      const tx = await factory.createVault(operator, maxTotalAssets, feePercent)
+    createVaultMock: async (vaultParams: IVaultFactory.ParametersStruct): Promise<EthVaultMock> => {
+      const tx = await factoryMock.createVault(vaultParams)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[0].args?.vault as string
       return ethVaultMock.attach(vaultAddress) as EthVaultMock

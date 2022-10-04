@@ -12,9 +12,7 @@ import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 contract EthFeesEscrow is IFeesEscrow {
   address payable private immutable VAULT;
 
-  /**
-   * @dev Constructor
-   */
+  /// @dev Constructor
   constructor() {
     VAULT = payable(msg.sender);
   }

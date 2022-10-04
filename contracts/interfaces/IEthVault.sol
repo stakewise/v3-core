@@ -10,7 +10,10 @@ import {IVault} from './IVault.sol';
  * @notice Defines the interface for the EthVault contract
  */
 interface IEthVault is IVault {
-  error AssetsTransferFailed();
-
+  /**
+   * @notice Deposit assets to the Vault. Must transfer Ether together with the call.
+   * @param receiver The address that will receive Vault's shares
+   * @return shares The number of shares minted
+   */
   function deposit(address receiver) external payable returns (uint256 shares);
 }
