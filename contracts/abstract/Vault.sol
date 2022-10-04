@@ -59,7 +59,6 @@ abstract contract Vault is ERC20Permit, IVault {
 
   /// @dev Prevents calling a function from anyone except Vault's keeper
   modifier onlyKeeper() {
-    // TODO: test whether including into the function saves gas
     if (msg.sender != keeper) revert NotKeeper();
     _;
   }
