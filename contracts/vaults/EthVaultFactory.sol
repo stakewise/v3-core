@@ -2,60 +2,51 @@
 
 pragma solidity =0.8.17;
 
-import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
+import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
+import {IEthVaultFactory} from '../interfaces/IEthVaultFactory.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 import {EthVault} from './EthVault.sol';
 
 /**
  * @title EthVaultFactory
  * @author StakeWise
- * @notice Factory for deploying vaults for staking on Ethereum
+ * @notice Factory for deploying Ethereum staking Vaults
  */
-contract EthVaultFactory is IVaultFactory {
-  /// @inheritdoc IVaultFactory
-  address public immutable override keeper;
-
-  /// @inheritdoc IVaultFactory
-  address public immutable override validatorsRegistry;
-
-  Parameters internal _parameters;
+contract EthVaultFactory is IEthVaultFactory {
+  /// @inheritdoc IEthVaultFactory
+  address public immutable override vaultImplementation;
 
   /**
    * @dev Constructor
-   * @param _keeper The address of the vaults' keeper
-   * @param _validatorsRegistry The address of the validators registry
+   * @param _vaultImplementation The address of the Vault implementation used for the proxy deployment
    */
-  constructor(address _keeper, address _validatorsRegistry) {
-    keeper = _keeper;
-    validatorsRegistry = _validatorsRegistry;
+  constructor(address _vaultImplementation) {
+    vaultImplementation = _vaultImplementation;
   }
 
-  /// @inheritdoc IVaultFactory
-  function parameters() public view returns (Parameters memory params) {
-    params = _parameters;
-  }
-
-  /// @inheritdoc IVaultFactory
-  function createVault(Parameters calldata params)
-    external
-    override
-    returns (address vault, address feesEscrow)
-  {
-    // set parameters to state variable, so that Vault could read them
-    _parameters = params;
-    vault = address(new EthVault());
-    delete _parameters;
+  /// @inheritdoc IEthVaultFactory
+  function createVault(
+    string memory _name,
+    string memory _symbol,
+    uint256 _maxTotalAssets,
+    uint16 _feePercent
+  ) external override returns (address vault, address feesEscrow) {
+    // deploy vault proxy
+    vault = address(
+      new ERC1967Proxy(
+        vaultImplementation,
+        abi.encodeWithSelector(
+          EthVault.initialize.selector,
+          _name,
+          _symbol,
+          _maxTotalAssets,
+          msg.sender,
+          _feePercent
+        )
+      )
+    );
 
     feesEscrow = address(IEthVault(vault).feesEscrow());
-    emit VaultCreated(
-      msg.sender,
-      vault,
-      feesEscrow,
-      params.name,
-      params.symbol,
-      params.operator,
-      params.maxTotalAssets,
-      params.feePercent
-    );
+    emit VaultCreated(msg.sender, vault, feesEscrow, _name, _symbol, _maxTotalAssets, _feePercent);
   }
 }

@@ -136,7 +136,7 @@ interface IVault is IERC20Permit {
    * @notice The Vault's operator fee percent
    * @return The fee percent applied by the Vault operator on the rewards
    */
-  function feePercent() external view returns (uint256);
+  function feePercent() external view returns (uint16);
 
   /**
    * @notice The Vault operator
@@ -169,6 +169,18 @@ interface IVault is IERC20Permit {
    *         Returns -1 in case such index does not exist.
    */
   function getCheckpointIndex(uint256 exitQueueId) external view returns (int256);
+
+  /**
+   * @notice Vault Version
+   * @return The version of the Vault's implementation contract
+   */
+  function version() external view returns (uint8);
+
+  /**
+   * @notice Withdrawal Credentials
+   * @return The credentials used for the validators withdrawals
+   */
+  function withdrawalCredentials() external view returns (bytes memory);
 
   /**
    * @notice Converts shares to assets

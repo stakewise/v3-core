@@ -2,11 +2,11 @@
 
 pragma solidity =0.8.17;
 
+import {UUPSUpgradeable} from '@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IVault} from '../interfaces/IVault.sol';
-import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
 import {ERC20Permit} from './ERC20Permit.sol';
 
@@ -15,7 +15,7 @@ import {ERC20Permit} from './ERC20Permit.sol';
  * @author StakeWise
  * @notice Defines the common Vault functionality
  */
-abstract contract Vault is ERC20Permit, IVault {
+abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IVault
@@ -23,17 +23,14 @@ abstract contract Vault is ERC20Permit, IVault {
 
   uint256 internal constant _maxFeePercent = 10_000;
 
-  /// @inheritdoc IVault
-  uint256 public immutable override feePercent;
+  bytes4 private constant _initializeSelector = bytes4(keccak256('initialize(bytes)'));
 
   /// @inheritdoc IVault
-  address public immutable override operator;
-
-  /// @inheritdoc IVault
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address public immutable override keeper;
 
   /// @inheritdoc IVault
-  uint256 public immutable override maxTotalAssets;
+  uint256 public override maxTotalAssets;
 
   /// @inheritdoc IVault
   bytes32 public override validatorsRoot;
@@ -51,6 +48,12 @@ abstract contract Vault is ERC20Permit, IVault {
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
 
+  /// @inheritdoc IVault
+  address public override operator;
+
+  /// @inheritdoc IVault
+  uint16 public override feePercent;
+
   /// @dev Prevents calling a function from anyone except Vault's operator
   modifier onlyOperator() {
     if (msg.sender != operator) revert NotOperator();
@@ -63,21 +66,16 @@ abstract contract Vault is ERC20Permit, IVault {
     _;
   }
 
-  /// @dev Constructor
-  constructor()
-    ERC20Permit(
-      IVaultFactory(msg.sender).parameters().name,
-      IVaultFactory(msg.sender).parameters().symbol
-    )
-  {
-    IVaultFactory.Parameters memory params = IVaultFactory(msg.sender).parameters();
-    if (params.feePercent > _maxFeePercent) revert InvalidFeePercent();
-
-    // initialize Vault
-    operator = params.operator;
-    feePercent = params.feePercent;
-    keeper = IVaultFactory(msg.sender).keeper();
-    maxTotalAssets = params.maxTotalAssets;
+  /**
+   * @dev Constructor
+   * @dev Since the immutable variable value is stored in the bytecode,
+   *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
+   * @param _keeper The keeper address that can harvest Vault's rewards
+   */
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor(address _keeper) ERC20Permit() {
+    // initialize keeper
+    keeper = _keeper;
   }
 
   /// @inheritdoc IERC20
@@ -236,6 +234,7 @@ abstract contract Vault is ERC20Permit, IVault {
       totalAssetsAfter += profitAccrued;
 
       // calculate operator's shares
+      address _operator = operator;
       uint256 operatorAssets = Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
       uint256 operatorShares;
       unchecked {
@@ -245,13 +244,13 @@ abstract contract Vault is ERC20Permit, IVault {
           : Math.mulDiv(operatorAssets, totalSharesAfter, totalAssetsAfter - operatorAssets);
 
         // cannot underflow because the sum of all shares can't exceed the _totalShares
-        if (operatorShares > 0) balanceOf[operator] += operatorShares;
+        if (operatorShares > 0) balanceOf[_operator] += operatorShares;
       }
 
       // increase total shares
       totalSharesAfter += operatorShares;
 
-      emit Transfer(address(0), operator, operatorShares);
+      emit Transfer(address(0), _operator, operatorShares);
     } else if (assetsDelta < 0) {
       // apply penalty
       totalAssetsAfter -= uint256(-assetsDelta);
@@ -292,6 +291,11 @@ abstract contract Vault is ERC20Permit, IVault {
   {
     validatorsRoot = newValidatorsRoot;
     emit ValidatorsRootUpdated(newValidatorsRoot, newValidatorsIpfsHash);
+  }
+
+  /// @inheritdoc IVault
+  function version() external view override returns (uint8) {
+    return _getInitializedVersion();
   }
 
   /**
@@ -366,6 +370,61 @@ abstract contract Vault is ERC20Permit, IVault {
 
     // push checkpoint so that exited assets could be claimed
     _exitQueue.push(burnedShares, exitedAssets);
+  }
+
+  /// @inheritdoc UUPSUpgradeable
+  function _authorizeUpgrade(address newImplementation) internal override onlyOperator {
+    // TODO: uncomment once vault registry is created
+    //    if (
+    //      vaultsRegistry.getVaultImplementation(vaultVersion()) != newImplementation ||
+    //      _getImplementation() == newImplementation ||
+    //      newImplementation == address(0)
+    //    ) {
+    //      revert UpgradeFailed();
+    //    }
+  }
+
+  /// @inheritdoc UUPSUpgradeable
+  function upgradeTo(address newImplementation) external override onlyProxy {
+    // disable upgrades without the call
+  }
+
+  /// @inheritdoc UUPSUpgradeable
+  function upgradeToAndCall(address newImplementation, bytes memory data)
+    external
+    payable
+    override
+    onlyProxy
+  {
+    bytes memory callData = abi.encodeWithSelector(_initializeSelector, data);
+    _authorizeUpgrade(newImplementation);
+    _upgradeToAndCallUUPS(newImplementation, callData, true);
+  }
+
+  /**
+   * @dev Initializes the Vault contract
+   * @param _name The name of the ERC20 token
+   * @param _symbol The symbol of the ERC20 token
+   * @param _maxTotalAssets The max total assets that can be staked into the Vault
+   * @param _operator The address of the Vault operator
+   * @param _feePercent The fee percent that is charged by the Vault operator
+   */
+  function __Vault_init(
+    string memory _name,
+    string memory _symbol,
+    uint256 _maxTotalAssets,
+    address _operator,
+    uint16 _feePercent
+  ) internal onlyInitializing {
+    if (_feePercent > _maxFeePercent) revert InvalidFeePercent();
+
+    // initialize ERC20Permit
+    __ERC20Permit_init(_name, _symbol);
+
+    // initialize Vault
+    maxTotalAssets = _maxTotalAssets;
+    operator = _operator;
+    feePercent = _feePercent;
   }
 
   /**

@@ -1,6 +1,6 @@
 import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
-import { EthVault, EthVaultMock, IVaultFactory } from '../typechain-types'
+import { EthVault, EthVaultMock } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -18,7 +18,6 @@ describe('EthVault - deposit', () => {
   const vaultSymbol = 'SW-ETH-1'
   let keeper: Wallet, sender: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
   let vault: EthVault
-  let vaultParams: IVaultFactory.ParametersStruct
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -26,19 +25,12 @@ describe('EthVault - deposit', () => {
 
   before('create fixture loader', async () => {
     ;[keeper, sender, receiver, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper])
-    vaultParams = {
-      name: vaultName,
-      symbol: vaultSymbol,
-      operator: operator.address,
-      maxTotalAssets,
-      feePercent,
-    }
+    loadFixture = createFixtureLoader([keeper, operator])
   })
 
   beforeEach('deploy fixtures', async () => {
     ;({ createVault, createVaultMock } = await loadFixture(ethVaultFixture))
-    vault = await createVault(vaultParams)
+    vault = await createVault(vaultName, vaultSymbol, feePercent, maxTotalAssets)
   })
 
   describe('empty vault: no assets & no shares', () => {
@@ -64,27 +56,29 @@ describe('EthVault - deposit', () => {
   })
 
   describe('partially empty vault: assets & no shares', () => {
-    let vault: EthVaultMock
+    let ethVaultMock: EthVaultMock
     beforeEach(async () => {
-      vault = await createVaultMock(vaultParams)
-      await vault._setTotalAssets(ether)
+      ethVaultMock = await createVaultMock(vaultName, vaultSymbol, feePercent, maxTotalAssets)
+      await ethVaultMock._setTotalAssets(ether)
     })
 
     it('status', async () => {
-      expect(await vault.totalAssets()).to.eq(ether)
+      expect(await ethVaultMock.totalAssets()).to.eq(ether)
     })
 
     it('deposit', async () => {
       const amount = ether
-      expect(await vault.convertToShares(amount)).to.eq(amount)
-      const receipt = await vault.connect(sender).deposit(receiver.address, { value: amount })
-      expect(await vault.balanceOf(receiver.address)).to.eq(amount)
+      expect(await ethVaultMock.convertToShares(amount)).to.eq(amount)
+      const receipt = await ethVaultMock
+        .connect(sender)
+        .deposit(receiver.address, { value: amount })
+      expect(await ethVaultMock.balanceOf(receiver.address)).to.eq(amount)
 
       await expect(receipt)
-        .to.emit(vault, 'Transfer')
+        .to.emit(ethVaultMock, 'Transfer')
         .withArgs(ZERO_ADDRESS, receiver.address, amount)
       await expect(receipt)
-        .to.emit(vault, 'Deposit')
+        .to.emit(ethVaultMock, 'Deposit')
         .withArgs(sender.address, receiver.address, amount, amount)
       await snapshotGasCost(receipt)
     })
@@ -94,7 +88,7 @@ describe('EthVault - deposit', () => {
     let ethVaultMock: EthVaultMock
 
     beforeEach(async () => {
-      ethVaultMock = await createVaultMock(vaultParams)
+      ethVaultMock = await createVaultMock(vaultName, vaultSymbol, feePercent, maxTotalAssets)
       await ethVaultMock.mockMint(receiver.address, ether)
     })
 

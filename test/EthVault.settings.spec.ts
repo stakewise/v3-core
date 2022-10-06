@@ -1,6 +1,6 @@
 import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
-import { EthVault, IVaultFactory } from '../typechain-types'
+import { EthVault } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -14,21 +14,13 @@ describe('EthVault - settings', () => {
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
   let keeper: Wallet, operator: Wallet, other: Wallet
-  let vaultParams: IVaultFactory.ParametersStruct
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
 
   before('create fixture loader', async () => {
     ;[keeper, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper])
-    vaultParams = {
-      name: vaultName,
-      symbol: vaultSymbol,
-      operator: operator.address,
-      maxTotalAssets,
-      feePercent,
-    }
+    loadFixture = createFixtureLoader([keeper, operator])
   })
 
   beforeEach('deploy fixture', async () => {
@@ -37,7 +29,7 @@ describe('EthVault - settings', () => {
 
   describe('fee percent', () => {
     it('cannot be set to invalid value', async () => {
-      await expect(createVault({ ...vaultParams, feePercent: 10001 })).to.be.revertedWith(
+      await expect(createVault(vaultName, vaultSymbol, 10001, maxTotalAssets)).to.be.revertedWith(
         'InvalidFeePercent()'
       )
     })
@@ -49,7 +41,7 @@ describe('EthVault - settings', () => {
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
-      vault = await createVault(vaultParams)
+      vault = await createVault(vaultName, vaultSymbol, feePercent, maxTotalAssets)
     })
 
     it('only operator can update', async () => {

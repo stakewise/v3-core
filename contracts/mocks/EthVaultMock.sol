@@ -5,6 +5,9 @@ pragma solidity =0.8.17;
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {EthVault} from '../vaults/EthVault.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
+import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
+import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
+import {EthFeesEscrow} from '../vaults/EthFeesEscrow.sol';
 
 /**
  * @title EthVaultMock
@@ -15,8 +18,10 @@ contract EthVaultMock is EthVault {
   using SafeCast for uint256;
   using ExitQueue for ExitQueue.History;
 
-  /// @dev Constructor
-  constructor() EthVault() {}
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor(address _keeper, IEthValidatorsRegistry validatorsRegistry)
+    EthVault(_keeper, validatorsRegistry)
+  {}
 
   function mockMint(address receiver, uint256 assets) external returns (uint256 shares) {
     // calculate amount of shares to mint

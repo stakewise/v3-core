@@ -2,6 +2,7 @@
 
 pragma solidity =0.8.17;
 
+import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
 
@@ -15,7 +16,7 @@ error InvalidInitArgs();
  * @author StakeWise
  * @notice Modern and gas efficient ERC20 + EIP-2612 implementation
  */
-abstract contract ERC20Permit is IERC20Permit {
+abstract contract ERC20Permit is Initializable, IERC20Permit {
   /// @inheritdoc IERC20
   string public override name;
 
@@ -34,25 +35,21 @@ abstract contract ERC20Permit is IERC20Permit {
   /// @inheritdoc IERC20Permit
   mapping(address => uint256) public override nonces;
 
-  uint256 private immutable initialChainId;
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  uint256 private immutable _initialChainId;
 
-  bytes32 private immutable initialDomainSeparator;
+  bytes32 private _initialDomainSeparator;
 
   /**
    * @dev Constructor
-   * @param _name The name of the ERC20 token
-   * @param _symbol The symbol of the ERC20 token
+   * @dev Since the immutable variable value is stored in the bytecode,
+   *    its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    */
-  constructor(string memory _name, string memory _symbol) {
-    if (bytes(_name).length > 20 || bytes(_symbol).length > 20) revert InvalidInitArgs();
-
-    // initialize ERC20
-    name = _name;
-    symbol = _symbol;
-
-    // initialize EIP-2612
-    initialChainId = block.chainid;
-    initialDomainSeparator = _computeDomainSeparator();
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor() {
+    // disable initializers for the implementation contract
+    _disableInitializers();
+    _initialChainId = block.chainid;
   }
 
   /// @inheritdoc IERC20
@@ -131,7 +128,7 @@ abstract contract ERC20Permit is IERC20Permit {
 
   /// @inheritdoc IERC20Permit
   function DOMAIN_SEPARATOR() public view override returns (bytes32) {
-    return block.chainid == initialChainId ? initialDomainSeparator : _computeDomainSeparator();
+    return block.chainid == _initialChainId ? _initialDomainSeparator : _computeDomainSeparator();
   }
 
   function _computeDomainSeparator() private view returns (bytes32) {
@@ -183,5 +180,24 @@ abstract contract ERC20Permit is IERC20Permit {
     uint256 allowed = allowance[owner][spender];
 
     if (allowed != type(uint256).max) allowance[owner][spender] = allowed - amount;
+  }
+
+  /**
+   * @dev Initializes the ERC20Permit contract
+   * @param _name The name of the ERC20 token
+   * @param _symbol The symbol of the ERC20 token
+   */
+  function __ERC20Permit_init(string memory _name, string memory _symbol)
+    internal
+    onlyInitializing
+  {
+    if (bytes(_name).length > 30 || bytes(_symbol).length > 20) revert InvalidInitArgs();
+
+    // initialize ERC20
+    name = _name;
+    symbol = _symbol;
+
+    // initialize EIP-2612
+    _initialDomainSeparator = _computeDomainSeparator();
   }
 }

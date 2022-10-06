@@ -25,18 +25,12 @@ describe('EthVault - harvest', () => {
 
   before('create fixture loader', async () => {
     ;[keeper, holder, receiver, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper])
+    loadFixture = createFixtureLoader([keeper, operator])
   })
 
   beforeEach('deploy fixture', async () => {
     ;({ createVault } = await loadFixture(ethVaultFixture))
-    vault = await createVault({
-      name: vaultName,
-      symbol: vaultSymbol,
-      operator: operator.address,
-      maxTotalAssets,
-      feePercent,
-    })
+    vault = await createVault(vaultName, vaultSymbol, feePercent, maxTotalAssets)
     await vault.connect(holder).deposit(holder.address, { value: holderAssets })
   })
 
