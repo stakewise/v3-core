@@ -1,86 +1,87 @@
 import { ethers, network, waffle } from 'hardhat'
-import { ContractFactory, Wallet } from 'ethers'
+import { Wallet } from 'ethers'
 import EthereumWallet from 'ethereumjs-wallet'
-import { ERC20PermitMock } from '../typechain-types'
+import { EthVault } from '../typechain-types'
+import { ThenArg } from '../helpers/types'
 import { expect } from './shared/expect'
 import { EIP712Domain, MAX_UINT256, PANIC_CODES, Permit } from './shared/constants'
 import { domainSeparator, getSignatureFromTypedData, latestTimestamp } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
+import { ethVaultFixture } from './shared/fixtures'
 
-describe('ERC20Permit', () => {
-  const name = 'Vault Token'
-  const symbol = 'VLT'
-  const decimals = 18
+const createFixtureLoader = waffle.createFixtureLoader
+
+describe('EthVault - token', () => {
+  const maxTotalAssets = ethers.utils.parseEther('1000')
+  const feePercent = 1000
+  const vaultName = 'SW ETH Vault'
+  const vaultSymbol = 'SW-ETH-1'
   const initialSupply = 1000
-  let tokenFactory: ContractFactory
 
-  let token: ERC20PermitMock
-  let initialHolder: Wallet, spender: Wallet, recipient: Wallet, other: Wallet
+  let vault: EthVault
+  let keeper: Wallet,
+    operator: Wallet,
+    initialHolder: Wallet,
+    spender: Wallet,
+    recipient: Wallet,
+    other: Wallet
 
-  let loadFixture: ReturnType<typeof waffle.createFixtureLoader>
+  let loadFixture: ReturnType<typeof createFixtureLoader>
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
+
   before('create fixture loader', async () => {
-    ;[initialHolder, spender, recipient, other] = await (ethers as any).getSigners()
-    loadFixture = waffle.createFixtureLoader([initialHolder, spender, recipient, other])
+    ;[keeper, operator, initialHolder, spender, recipient, other] = await (
+      ethers as any
+    ).getSigners()
+    loadFixture = createFixtureLoader([keeper, operator])
   })
 
-  const fixture = async () => {
-    const tkn = (await tokenFactory.deploy(name, symbol)) as ERC20PermitMock
-    await tkn.mint(initialHolder.address, initialSupply)
-    return tkn
-  }
-
-  beforeEach('deploy ERC20PermitMock', async () => {
-    tokenFactory = await ethers.getContractFactory('ERC20PermitMock')
-    token = await loadFixture(fixture)
-  })
-
-  it('deployment gas', async () => {
-    const tkn = (await tokenFactory.deploy(name, symbol)) as ERC20PermitMock
-    await snapshotGasCost(tkn.deployTransaction)
-  })
-
-  it('mint gas', async () => {
-    await snapshotGasCost(token.mint(other.address, initialSupply))
+  beforeEach('deploy fixture', async () => {
+    ;({ createVault } = await loadFixture(ethVaultFixture))
+    vault = await createVault(vaultName, vaultSymbol, feePercent, maxTotalAssets)
+    await vault.connect(initialHolder).deposit(initialHolder.address, { value: initialSupply })
   })
 
   it('has a name', async () => {
-    expect(await token.name()).to.eq(name)
+    expect(await vault.name()).to.eq(vaultName)
   })
 
   it('has a symbol', async () => {
-    expect(await token.symbol()).to.eq(symbol)
+    expect(await vault.symbol()).to.eq(vaultSymbol)
   })
 
   it('has 18 decimals', async () => {
-    expect(await token.decimals()).to.eq(decimals)
+    expect(await vault.decimals()).to.eq(18)
   })
 
   it('fails to deploy with invalid name length', async () => {
-    await expect(tokenFactory.deploy('a'.repeat(21), symbol)).to.be.revertedWith(
-      'InvalidInitArgs()'
-    )
+    await expect(
+      createVault('a'.repeat(31), vaultSymbol, feePercent, maxTotalAssets)
+    ).to.be.revertedWith('InvalidInitArgs()')
   })
 
   it('fails to deploy with invalid symbol length', async () => {
-    await expect(tokenFactory.deploy(name, 'a'.repeat(21))).to.be.revertedWith('InvalidInitArgs()')
+    await expect(
+      createVault(vaultName, 'a'.repeat(21), feePercent, maxTotalAssets)
+    ).to.be.revertedWith('InvalidInitArgs()')
   })
 
   describe('total supply', () => {
     it('returns the total amount of tokens', async () => {
-      expect(await token.totalSupply()).to.eq(initialSupply)
+      expect(await vault.totalSupply()).to.eq(initialSupply)
     })
   })
 
   describe('balanceOf', () => {
     describe('when the requested account has no tokens', () => {
       it('returns zero', async () => {
-        expect(await token.balanceOf(spender.address)).to.eq(0)
+        expect(await vault.balanceOf(spender.address)).to.eq(0)
       })
     })
 
     describe('when the requested account has some tokens', () => {
       it('returns the total amount of tokens', async () => {
-        expect(await token.balanceOf(initialHolder.address)).to.eq(initialSupply)
+        expect(await vault.balanceOf(initialHolder.address)).to.eq(initialSupply)
       })
     })
   })
@@ -91,7 +92,7 @@ describe('ERC20Permit', () => {
     it('reverts when the sender does not have enough balance', async () => {
       const amount = balance + 1
       await expect(
-        token.connect(initialHolder).transfer(recipient.address, amount)
+        vault.connect(initialHolder).transfer(recipient.address, amount)
       ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
     })
 
@@ -99,15 +100,15 @@ describe('ERC20Permit', () => {
       const amount = initialSupply
 
       it('transfers the requested amount', async () => {
-        const receipt = await token.connect(initialHolder).transfer(recipient.address, amount)
-        expect(await token.balanceOf(initialHolder.address)).to.eq(0)
-        expect(await token.balanceOf(recipient.address)).to.eq(amount)
+        const receipt = await vault.connect(initialHolder).transfer(recipient.address, amount)
+        expect(await vault.balanceOf(initialHolder.address)).to.eq(0)
+        expect(await vault.balanceOf(recipient.address)).to.eq(amount)
         await snapshotGasCost(receipt)
       })
 
       it('emits a transfer event', async () => {
-        await expect(token.connect(initialHolder).transfer(recipient.address, amount))
-          .to.emit(token, 'Transfer')
+        await expect(vault.connect(initialHolder).transfer(recipient.address, amount))
+          .to.emit(vault, 'Transfer')
           .withArgs(initialHolder.address, recipient.address, amount)
       })
     })
@@ -117,15 +118,15 @@ describe('ERC20Permit', () => {
       const balance = initialSupply
 
       it('transfers the requested amount', async () => {
-        const receipt = await token.connect(initialHolder).transfer(recipient.address, amount)
-        expect(await token.balanceOf(initialHolder.address)).to.eq(balance)
-        expect(await token.balanceOf(recipient.address)).to.eq(0)
+        const receipt = await vault.connect(initialHolder).transfer(recipient.address, amount)
+        expect(await vault.balanceOf(initialHolder.address)).to.eq(balance)
+        expect(await vault.balanceOf(recipient.address)).to.eq(0)
         await snapshotGasCost(receipt)
       })
 
       it('emits a transfer event', async () => {
-        await expect(token.connect(initialHolder).transfer(recipient.address, amount))
-          .to.emit(token, 'Transfer')
+        await expect(vault.connect(initialHolder).transfer(recipient.address, amount))
+          .to.emit(vault, 'Transfer')
           .withArgs(initialHolder.address, recipient.address, amount)
       })
     })
@@ -134,31 +135,31 @@ describe('ERC20Permit', () => {
   describe('transfer from', () => {
     describe('when the spender has enough allowance', () => {
       beforeEach(async () => {
-        await token.connect(initialHolder).approve(spender.address, initialSupply)
+        await vault.connect(initialHolder).approve(spender.address, initialSupply)
       })
 
       describe('when the token owner has enough balance', () => {
         const amount = initialSupply
 
         it('transfers the requested amount', async () => {
-          const receipt = await token
+          const receipt = await vault
             .connect(spender)
             .transferFrom(initialHolder.address, spender.address, amount)
-          expect(await token.balanceOf(initialHolder.address)).to.eq(0)
-          expect(await token.balanceOf(spender.address)).to.eq(amount)
+          expect(await vault.balanceOf(initialHolder.address)).to.eq(0)
+          expect(await vault.balanceOf(spender.address)).to.eq(amount)
           await snapshotGasCost(receipt)
         })
 
         it('decreases the spender allowance', async () => {
-          await token.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
-          expect(await token.allowance(initialHolder.address, spender.address)).to.eq(0)
+          await vault.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
+          expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(0)
         })
 
         it('emits a transfer event', async () => {
           await expect(
-            token.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
+            vault.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
           )
-            .emit(token, 'Transfer')
+            .emit(vault, 'Transfer')
             .withArgs(initialHolder.address, spender.address, amount)
         })
       })
@@ -167,12 +168,12 @@ describe('ERC20Permit', () => {
         const amount = initialSupply
 
         beforeEach('reducing balance', async () => {
-          await token.transfer(spender.address, 1, { from: initialHolder.address })
+          await vault.connect(initialHolder).transfer(spender.address, 1)
         })
 
         it('reverts', async () => {
           await expect(
-            token.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
+            vault.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
           ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
         })
       })
@@ -182,7 +183,7 @@ describe('ERC20Permit', () => {
       const allowance = initialSupply - 1
 
       beforeEach(async () => {
-        await token.connect(initialHolder).approve(spender.address, allowance)
+        await vault.connect(initialHolder).approve(spender.address, allowance)
       })
 
       describe('when the token owner has enough balance', () => {
@@ -190,7 +191,7 @@ describe('ERC20Permit', () => {
 
         it('reverts', async () => {
           await expect(
-            token.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
+            vault.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
           ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
         })
       })
@@ -199,12 +200,12 @@ describe('ERC20Permit', () => {
         const amount = allowance
 
         beforeEach('reducing balance', async () => {
-          await token.connect(initialHolder).transfer(spender.address, 2)
+          await vault.connect(initialHolder).transfer(spender.address, 2)
         })
 
         it('reverts', async () => {
           await expect(
-            token.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
+            vault.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
           ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
         })
       })
@@ -212,14 +213,14 @@ describe('ERC20Permit', () => {
 
     describe('when the spender has unlimited allowance', () => {
       beforeEach(async () => {
-        await token.connect(initialHolder).approve(spender.address, MAX_UINT256)
+        await vault.connect(initialHolder).approve(spender.address, MAX_UINT256)
       })
 
       it('does not decrease the spender allowance', async () => {
-        const receipt = await token
+        const receipt = await vault
           .connect(spender)
           .transferFrom(initialHolder.address, spender.address, 1)
-        expect(await token.allowance(initialHolder.address, spender.address)).to.eq(MAX_UINT256)
+        expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(MAX_UINT256)
         await snapshotGasCost(receipt)
       })
     })
@@ -230,27 +231,27 @@ describe('ERC20Permit', () => {
       const amount = initialSupply
 
       it('emits an approval event', async () => {
-        await expect(token.connect(initialHolder).approve(spender.address, amount))
-          .emit(token, 'Approval')
+        await expect(vault.connect(initialHolder).approve(spender.address, amount))
+          .emit(vault, 'Approval')
           .withArgs(initialHolder.address, spender.address, amount)
       })
 
       describe('when there was no approved amount before', () => {
         it('approves the requested amount', async () => {
-          const receipt = await token.connect(initialHolder).approve(spender.address, amount)
-          expect(await token.allowance(initialHolder.address, spender.address)).to.eq(amount)
+          const receipt = await vault.connect(initialHolder).approve(spender.address, amount)
+          expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(amount)
           await snapshotGasCost(receipt)
         })
       })
 
       describe('when the spender had an approved amount', () => {
         beforeEach(async () => {
-          await token.connect(initialHolder).approve(spender.address, 1)
+          await vault.connect(initialHolder).approve(spender.address, 1)
         })
 
         it('approves the requested amount and replaces the previous one', async () => {
-          const receipt = await token.connect(initialHolder).approve(spender.address, amount)
-          expect(await token.allowance(initialHolder.address, spender.address)).to.eq(amount)
+          const receipt = await vault.connect(initialHolder).approve(spender.address, amount)
+          expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(amount)
           await snapshotGasCost(receipt)
         })
       })
@@ -260,27 +261,27 @@ describe('ERC20Permit', () => {
       const amount = initialSupply + 1
 
       it('emits an approval event', async () => {
-        await expect(token.connect(initialHolder).approve(spender.address, amount))
-          .emit(token, 'Approval')
+        await expect(vault.connect(initialHolder).approve(spender.address, amount))
+          .emit(vault, 'Approval')
           .withArgs(initialHolder.address, spender.address, amount)
       })
 
       describe('when there was no approved amount before', () => {
         it('approves the requested amount', async () => {
-          await token.connect(initialHolder).approve(spender.address, amount)
-          expect(await token.allowance(initialHolder.address, spender.address)).to.eq(amount)
+          await vault.connect(initialHolder).approve(spender.address, amount)
+          expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(amount)
         })
       })
 
       describe('when the spender had an approved amount', () => {
         beforeEach(async () => {
-          await token.connect(initialHolder).approve(spender.address, 1)
+          await vault.connect(initialHolder).approve(spender.address, 1)
         })
 
         it('approves the requested amount and replaces the previous one', async () => {
-          await token.connect(initialHolder).approve(spender.address, amount)
+          await vault.connect(initialHolder).approve(spender.address, amount)
 
-          expect(await token.allowance(initialHolder.address, spender.address)).to.eq(amount)
+          expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(amount)
         })
       })
     })
@@ -300,45 +301,45 @@ describe('ERC20Permit', () => {
       primaryType: 'Permit',
       types: { EIP712Domain, Permit },
       domain: {
-        name,
+        name: vaultName,
         version: '1',
         chainId,
-        verifyingContract: token.address,
+        verifyingContract: vault.address,
       },
       message: { owner: ownerAddress, spender: spender.address, value, nonce, deadline },
     })
 
     it('initial nonce is 0', async () => {
-      expect(await token.nonces(ownerAddress)).to.eq(0)
+      expect(await vault.nonces(ownerAddress)).to.eq(0)
     })
 
     it('domain separator', async () => {
-      expect(await token.DOMAIN_SEPARATOR()).to.equal(
-        await domainSeparator(name, '1', chainId, token.address)
+      expect(await vault.DOMAIN_SEPARATOR()).to.equal(
+        await domainSeparator(vaultName, '1', chainId, vault.address)
       )
     })
 
     it('accepts owner signature', async () => {
       const { v, r, s } = getSignatureFromTypedData(ownerPrivateKey, buildData())
 
-      const receipt = await token.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
+      const receipt = await vault.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
       await snapshotGasCost(receipt)
 
       await expect(receipt)
-        .to.emit(token, 'Approval')
+        .to.emit(vault, 'Approval')
         .withArgs(ownerAddress, spender.address, value)
 
-      expect(await token.nonces(ownerAddress)).to.eq('1')
-      expect(await token.allowance(ownerAddress, spender.address)).to.eq(value)
+      expect(await vault.nonces(ownerAddress)).to.eq('1')
+      expect(await vault.allowance(ownerAddress, spender.address)).to.eq(value)
     })
 
     it('rejects reused signature', async () => {
       const { v, r, s } = getSignatureFromTypedData(ownerPrivateKey, buildData())
 
-      await token.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
+      await vault.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
 
       await expect(
-        token.permit(initialHolder.address, spender.address, value, maxDeadline, v, r, s)
+        vault.permit(initialHolder.address, spender.address, value, maxDeadline, v, r, s)
       ).to.be.revertedWith('PermitInvalidSigner()')
     })
 
@@ -348,7 +349,7 @@ describe('ERC20Permit', () => {
       const { v, r, s } = getSignatureFromTypedData(otherWallet.getPrivateKey(), data)
 
       await expect(
-        token.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
+        vault.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
       ).to.be.revertedWith('PermitInvalidSigner()')
     })
 
@@ -357,7 +358,7 @@ describe('ERC20Permit', () => {
       const { v, r, s } = getSignatureFromTypedData(ownerPrivateKey, buildData(deadline))
 
       await expect(
-        token.permit(ownerAddress, spender.address, value, deadline, v, r, s)
+        vault.permit(ownerAddress, spender.address, value, deadline, v, r, s)
       ).to.be.revertedWith('PermitDeadlineExpired()')
     })
   })

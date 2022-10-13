@@ -4,7 +4,7 @@ import { hexlify } from 'ethers/lib/utils'
 import { UintNumberType } from '@chainsafe/ssz'
 import { MerkleTree } from 'merkletreejs'
 import keccak256 from 'keccak256'
-import { EthVault, IVaultFactory } from '../typechain-types'
+import { EthVault } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -19,11 +19,13 @@ const uintSerializer = new UintNumberType(8)
 
 describe('EthVault - register', () => {
   const validatorDeposit = parseEther('32')
-
+  const maxTotalAssets = ethers.utils.parseEther('1000')
+  const feePercent = 1000
+  const vaultName = 'SW ETH Vault'
+  const vaultSymbol = 'SW-ETH-1'
   let keeper: Wallet, operator: Wallet, other: Wallet
   let vault: EthVault
   let validatorsRegistry: Contract
-  let vaultParams: IVaultFactory.ParametersStruct
   let validators: Buffer[]
   let validatorsTree: MerkleTree
 
@@ -32,19 +34,12 @@ describe('EthVault - register', () => {
 
   before('create fixture loader', async () => {
     ;[keeper, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper])
-    vaultParams = {
-      name: 'SW ETH Vault',
-      symbol: 'SW-ETH-1',
-      operator: operator.address,
-      maxTotalAssets: parseEther('1000'),
-      feePercent: 1000,
-    }
+    loadFixture = createFixtureLoader([keeper, operator])
   })
 
   beforeEach('deploy fixture', async () => {
     ;({ validatorsRegistry, createVault } = await loadFixture(ethVaultFixture))
-    vault = await createVault(vaultParams)
+    vault = await createVault(vaultName, vaultSymbol, feePercent, maxTotalAssets)
     validators = await createValidators(validatorDeposit, vault.address)
     validatorsTree = new MerkleTree(validators, keccak256, {
       hashLeaves: true,
