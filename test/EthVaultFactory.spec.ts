@@ -1,6 +1,6 @@
 import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
-import { EthVault, EthVaultFactory, IVaultFactory } from '../typechain-types'
+import { EthVault, EthVaultFactory } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 import { ethVaultFixture } from './shared/fixtures'
@@ -14,20 +14,12 @@ describe('EthVaultFactory', () => {
   const vaultSymbol = 'SW-ETH-1'
   let operator: Wallet, keeper: Wallet
   let factory: EthVaultFactory
-  let vaultParams: IVaultFactory.ParametersStruct
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
 
   before('create fixture loader', async () => {
     ;[operator, keeper] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([keeper])
-    vaultParams = {
-      name: vaultName,
-      symbol: vaultSymbol,
-      operator: operator.address,
-      maxTotalAssets,
-      feePercent,
-    }
   })
 
   beforeEach(async () => {
@@ -35,22 +27,23 @@ describe('EthVaultFactory', () => {
   })
 
   it('vault deployment gas', async () => {
-    await snapshotGasCost(factory.createVault(vaultParams))
+    await snapshotGasCost(factory.createVault(vaultName, vaultSymbol, maxTotalAssets, feePercent))
   })
 
   it('creates vault correctly', async () => {
-    const tx = await factory.connect(operator).createVault(vaultParams)
+    const tx = await factory
+      .connect(operator)
+      .createVault(vaultName, vaultSymbol, maxTotalAssets, feePercent)
     const receipt = await tx.wait()
-    const vaultAddress = receipt.events?.[0].args?.vault
-    expect(tx)
+    const vaultAddress = receipt.events?.[2].args?.vault
+    await expect(tx)
       .to.emit(factory, 'VaultCreated')
       .withArgs(
         operator.address,
         vaultAddress,
-        receipt.events?.[0].args?.feesEscrow,
+        receipt.events?.[2].args?.feesEscrow,
         vaultName,
         vaultSymbol,
-        operator.address,
         maxTotalAssets,
         feePercent
       )

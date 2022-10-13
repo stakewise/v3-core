@@ -1,0 +1,50 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthVault - token approve when the sender has enough balance when the spender had an approved amount approves the requested amount and replaces the previous one 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 33998,
+}
+`;
+
+exports[`EthVault - token approve when the sender has enough balance when there was no approved amount before approves the requested amount 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 51098,
+}
+`;
+
+exports[`EthVault - token permit accepts owner signature 1`] = `
+Object {
+  "calldataByteLength": 228,
+  "gasUsed": 81605,
+}
+`;
+
+exports[`EthVault - token transfer from when the spender has enough allowance when the token owner has enough balance transfers the requested amount 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 52647,
+}
+`;
+
+exports[`EthVault - token transfer from when the spender has unlimited allowance does not decrease the spender allowance 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 59092,
+}
+`;
+
+exports[`EthVault - token transfer when the sender transfers all balance transfers the requested amount 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 51503,
+}
+`;
+
+exports[`EthVault - token transfer when the sender transfers zero tokens transfers the requested amount 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 33579,
+}
+`;

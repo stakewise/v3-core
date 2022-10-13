@@ -12,6 +12,7 @@ import 'hardhat-contract-sizer'
 import 'hardhat-log-remover'
 import 'hardhat-spdx-license-identifier'
 import 'hardhat-abi-exporter'
+import '@openzeppelin/hardhat-upgrades'
 import { EthereumNetwork } from './helpers/types'
 
 dotenv.config({ path: '.env' })

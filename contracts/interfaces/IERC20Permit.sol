@@ -7,7 +7,7 @@ import {IERC20} from './IERC20.sol';
 /**
  * @title IERC20Permit
  * @author StakeWise
- * @notice Defines the interface for the ERC20Permit.
+ * @notice Defines the interface for the ERC20Permit
  */
 interface IERC20Permit is IERC20 {
   /**
