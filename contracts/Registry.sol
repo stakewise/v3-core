@@ -8,7 +8,9 @@ import {IVaultFactory} from './interfaces/IVaultFactory.sol';
 
 /// Custom errors
 error AccessDenied();
-error UpgradeExists();
+error AlreadyAdded();
+error AlreadyRemoved();
+error InvalidUpgrade();
 
 /**
  * @title Registry
@@ -41,22 +43,23 @@ contract Registry is Ownable, IRegistry {
   }
 
   /// @inheritdoc IRegistry
-  function upgrade(address prevImpl, address newImpl) external override onlyOwner {
-    if (upgrades[prevImpl] != address(0)) revert UpgradeExists();
+  function addUpgrade(address prevImpl, address newImpl) external override onlyOwner {
+    if (upgrades[prevImpl] != address(0)) revert AlreadyAdded();
+    if (prevImpl == newImpl) revert InvalidUpgrade();
     upgrades[prevImpl] = newImpl;
     emit UpgradeAdded(prevImpl, newImpl);
   }
 
   /// @inheritdoc IRegistry
   function addFactory(address factory) external override onlyOwner {
-    if (factories[factory]) return;
+    if (factories[factory]) revert AlreadyAdded();
     factories[factory] = true;
     emit FactoryAdded(factory);
   }
 
   /// @inheritdoc IRegistry
   function removeFactory(address factory) external override onlyOwner {
-    if (!factories[factory]) return;
+    if (!factories[factory]) revert AlreadyRemoved();
     factories[factory] = false;
     emit FactoryRemoved(factory);
   }

@@ -80,6 +80,24 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "prevImpl",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "newImpl",
+        "type": "address"
+      }
+    ],
+    "name": "addUpgrade",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "vault",
         "type": "address"
       }
@@ -117,24 +135,6 @@
       }
     ],
     "name": "removeFactory",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "fromImpl",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "toImpl",
-        "type": "address"
-      }
-    ],
-    "name": "upgrade",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

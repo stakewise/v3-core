@@ -35,24 +35,30 @@ describe('Registry', () => {
   })
 
   it('not owner cannot register implementation contract', async () => {
-    await expect(registry.connect(other).upgrade(keeper.address, other.address)).revertedWith(
+    await expect(registry.connect(other).addUpgrade(keeper.address, other.address)).revertedWith(
       'Ownable: caller is not the owner'
     )
   })
 
   it('owner can register implementation contract', async () => {
-    const receipt = await registry.connect(owner).upgrade(keeper.address, other.address)
+    const receipt = await registry.connect(owner).addUpgrade(keeper.address, other.address)
     await expect(receipt).to.emit(registry, 'UpgradeAdded').withArgs(keeper.address, other.address)
     expect(await registry.upgrades(keeper.address)).to.be.eq(other.address)
     await snapshotGasCost(receipt)
   })
 
   it('cannot register implementation contract twice', async () => {
-    await registry.connect(owner).upgrade(keeper.address, other.address)
-    await expect(registry.connect(owner).upgrade(keeper.address, factory.address)).revertedWith(
-      'UpgradeExists()'
+    await registry.connect(owner).addUpgrade(keeper.address, other.address)
+    await expect(registry.connect(owner).addUpgrade(keeper.address, factory.address)).revertedWith(
+      'AlreadyAdded()'
     )
     expect(await registry.upgrades(keeper.address)).to.be.eq(other.address)
+  })
+
+  it('cannot add upgrade to the same implementation contract', async () => {
+    await expect(registry.connect(owner).addUpgrade(factory.address, factory.address)).revertedWith(
+      'InvalidUpgrade()'
+    )
   })
 
   it('not owner cannot add factory', async () => {
@@ -68,12 +74,9 @@ describe('Registry', () => {
     await snapshotGasCost(receipt)
   })
 
-  it('skips adding already whitelisted factory', async () => {
+  it('cannot add already whitelisted factory', async () => {
     await registry.connect(owner).addFactory(factory.address)
-    await expect(registry.connect(owner).addFactory(factory.address)).to.not.emit(
-      registry,
-      'FactoryAdded'
-    )
+    await expect(registry.connect(owner).addFactory(factory.address)).revertedWith('AlreadyAdded()')
     expect(await registry.factories(factory.address)).to.be.eq(true)
   })
 
@@ -92,10 +95,9 @@ describe('Registry', () => {
     await snapshotGasCost(receipt)
   })
 
-  it('skips removing already whitelisted factory', async () => {
-    await expect(registry.connect(owner).removeFactory(factory.address)).to.not.emit(
-      registry,
-      'FactoryRemoved'
+  it('cannot remove already removed factory', async () => {
+    await expect(registry.connect(owner).removeFactory(factory.address)).revertedWith(
+      'AlreadyRemoved()'
     )
     expect(await registry.factories(factory.address)).to.be.eq(false)
   })

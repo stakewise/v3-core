@@ -35,7 +35,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   const registry = (await registryFactory.deploy(registryOwner.address)) as Registry
 
   const ethVault = await ethers.getContractFactory('EthVault')
-  let ethVaultImpl = await upgrades.deployImplementation(ethVault, {
+  const ethVaultImpl = await upgrades.deployImplementation(ethVault, {
     unsafeAllow: ['delegatecall'],
     constructorArgs: [keeper.address, registry.address, validatorsRegistry.address],
   })
@@ -45,7 +45,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   await registry.connect(registryOwner).addFactory(factory.address)
 
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
-  let ethVaultMockImpl = await upgrades.deployImplementation(ethVaultMock, {
+  const ethVaultMockImpl = await upgrades.deployImplementation(ethVaultMock, {
     unsafeAllow: ['delegatecall'],
     constructorArgs: [keeper.address, registry.address, validatorsRegistry.address],
   })

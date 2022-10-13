@@ -29,7 +29,7 @@ describe('EthVault - upgrade', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    let { createVault, registry, validatorsRegistry } = await loadFixture(ethVaultFixture)
+    const { createVault, registry, validatorsRegistry } = await loadFixture(ethVaultFixture)
     vault = await createVault(vaultName, vaultSymbol, feePercent, maxTotalAssets)
     const ethVaultMock = await ethers.getContractFactory('EthVaultV2Mock')
     newImpl = (await upgrades.deployImplementation(ethVaultMock, {
@@ -38,7 +38,7 @@ describe('EthVault - upgrade', () => {
     })) as string
     currImpl = await vault.implementation()
     callData = defaultAbiCoder.encode(['uint128'], [100])
-    await registry.connect(registryOwner).upgrade(await vault.implementation(), newImpl)
+    await registry.connect(registryOwner).addUpgrade(currImpl, newImpl)
     updatedVault = (await ethVaultMock.attach(vault.address)) as EthVaultV2Mock
   })
 
@@ -64,9 +64,9 @@ describe('EthVault - upgrade', () => {
   })
 
   it('fails for the same implementation', async () => {
-    await expect(
-      vault.connect(operator).upgradeToAndCall(await vault.implementation(), callData)
-    ).to.revertedWith('UpgradeFailed()')
+    await expect(vault.connect(operator).upgradeToAndCall(currImpl, callData)).to.revertedWith(
+      'UpgradeFailed()'
+    )
     expect(await vault.version()).to.be.eq(1)
   })
 

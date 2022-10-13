@@ -72,7 +72,8 @@
   },
   "lint-staged": {
     "test/**/*.ts": [
-      "prettier --write"
+      "prettier --write",
+      "eslint --ignore-path .gitignore . --fix"
     ],
     "contracts/**/*.sol": [
       "prettier --write"

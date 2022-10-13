@@ -62,11 +62,11 @@ interface IRegistry {
   function addVault(address vault) external;
 
   /**
-   * @notice Function for upgrading the implementation contract
-   * @param fromImpl The address of the implementation contract to upgrade from
-   * @param toImpl The address of the implementation contract to upgrade to
+   * @notice Function for adding upgrade from one implementation contract to another
+   * @param prevImpl The address of the implementation contract to upgrade from
+   * @param newImpl The address of the implementation contract to upgrade to
    */
-  function upgrade(address fromImpl, address toImpl) external;
+  function addUpgrade(address prevImpl, address newImpl) external;
 
   /**
    * @notice Function for adding the factory to the whitelist

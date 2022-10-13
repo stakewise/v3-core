@@ -15,12 +15,7 @@ describe('EthVault - harvest', () => {
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
-  let keeper: Wallet,
-    holder: Wallet,
-    receiver: Wallet,
-    operator: Wallet,
-    registryOwner: Wallet,
-    other: Wallet
+  let keeper: Wallet, holder: Wallet, operator: Wallet, registryOwner: Wallet
   let vault: EthVault
   const holderAssets = ethers.utils.parseEther('1')
   const holderShares = ethers.utils.parseEther('1')
@@ -29,7 +24,7 @@ describe('EthVault - harvest', () => {
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
 
   before('create fixture loader', async () => {
-    ;[keeper, holder, receiver, operator, registryOwner, other] = await (ethers as any).getSigners()
+    ;[keeper, holder, operator, registryOwner] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([keeper, operator, registryOwner])
   })
 

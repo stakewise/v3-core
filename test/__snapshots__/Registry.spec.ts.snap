@@ -10,20 +10,20 @@ Object {
 exports[`Registry owner can add factory 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 47484,
+  "gasUsed": 47487,
 }
 `;
 
 exports[`Registry owner can register implementation contract 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 48338,
+  "gasUsed": 48397,
 }
 `;
 
 exports[`Registry owner can remove factory 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 25602,
+  "gasUsed": 25600,
 }
 `;
