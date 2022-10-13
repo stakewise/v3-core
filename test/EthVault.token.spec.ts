@@ -21,6 +21,7 @@ describe('EthVault - token', () => {
   let vault: EthVault
   let keeper: Wallet,
     operator: Wallet,
+    registryOwner: Wallet,
     initialHolder: Wallet,
     spender: Wallet,
     recipient: Wallet,
@@ -30,10 +31,10 @@ describe('EthVault - token', () => {
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
 
   before('create fixture loader', async () => {
-    ;[keeper, operator, initialHolder, spender, recipient, other] = await (
+    ;[keeper, operator, registryOwner, initialHolder, spender, recipient, other] = await (
       ethers as any
     ).getSigners()
-    loadFixture = createFixtureLoader([keeper, operator])
+    loadFixture = createFixtureLoader([keeper, operator, registryOwner])
   })
 
   beforeEach('deploy fixture', async () => {

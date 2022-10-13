@@ -4,6 +4,8 @@ pragma solidity =0.8.17;
 
 import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 import {IEthVaultFactory} from '../interfaces/IEthVaultFactory.sol';
+import {IVaultFactory} from '../interfaces/IVaultFactory.sol';
+import {IRegistry} from '../interfaces/IRegistry.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 import {EthVault} from './EthVault.sol';
 
@@ -13,15 +15,20 @@ import {EthVault} from './EthVault.sol';
  * @notice Factory for deploying Ethereum staking Vaults
  */
 contract EthVaultFactory is IEthVaultFactory {
-  /// @inheritdoc IEthVaultFactory
+  /// @inheritdoc IVaultFactory
   address public immutable override vaultImplementation;
+
+  /// @inheritdoc IVaultFactory
+  IRegistry public immutable override registry;
 
   /**
    * @dev Constructor
    * @param _vaultImplementation The address of the Vault implementation used for the proxy deployment
+   * @param _registry The address of the Registry
    */
-  constructor(address _vaultImplementation) {
+  constructor(address _vaultImplementation, IRegistry _registry) {
     vaultImplementation = _vaultImplementation;
+    registry = _registry;
   }
 
   /// @inheritdoc IEthVaultFactory
@@ -30,23 +37,18 @@ contract EthVaultFactory is IEthVaultFactory {
     string memory _symbol,
     uint256 _maxTotalAssets,
     uint16 _feePercent
-  ) external override returns (address vault, address feesEscrow) {
+  ) external override returns (address vault) {
     // deploy vault proxy
     vault = address(
       new ERC1967Proxy(
         vaultImplementation,
-        abi.encodeWithSelector(
-          EthVault.initialize.selector,
-          _name,
-          _symbol,
-          _maxTotalAssets,
-          msg.sender,
-          _feePercent
+        abi.encodeCall(
+          EthVault.initialize,
+          (_name, _symbol, _maxTotalAssets, msg.sender, _feePercent)
         )
       )
     );
-
-    feesEscrow = address(IEthVault(vault).feesEscrow());
-    emit VaultCreated(msg.sender, vault, feesEscrow, _name, _symbol, _maxTotalAssets, _feePercent);
+    registry.addVault(vault);
+    emit VaultCreated(msg.sender, vault, _name, _symbol, _maxTotalAssets, _feePercent);
   }
 }

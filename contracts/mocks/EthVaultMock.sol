@@ -7,6 +7,7 @@ import {EthVault} from '../vaults/EthVault.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
+import {IRegistry} from '../interfaces/IRegistry.sol';
 import {EthFeesEscrow} from '../vaults/EthFeesEscrow.sol';
 
 /**
@@ -19,9 +20,11 @@ contract EthVaultMock is EthVault {
   using ExitQueue for ExitQueue.History;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address _keeper, IEthValidatorsRegistry validatorsRegistry)
-    EthVault(_keeper, validatorsRegistry)
-  {}
+  constructor(
+    address _keeper,
+    IRegistry _registry,
+    IEthValidatorsRegistry _validatorsRegistry
+  ) EthVault(_keeper, _registry, _validatorsRegistry) {}
 
   function mockMint(address receiver, uint256 assets) external returns (uint256 shares) {
     // calculate amount of shares to mint

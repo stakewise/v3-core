@@ -23,7 +23,7 @@ describe('EthVault - register', () => {
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
-  let keeper: Wallet, operator: Wallet, other: Wallet
+  let keeper: Wallet, operator: Wallet, registryOwner: Wallet, other: Wallet
   let vault: EthVault
   let validatorsRegistry: Contract
   let validators: Buffer[]
@@ -33,8 +33,8 @@ describe('EthVault - register', () => {
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
 
   before('create fixture loader', async () => {
-    ;[keeper, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper, operator])
+    ;[keeper, operator, registryOwner, other] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([keeper, operator, registryOwner])
   })
 
   beforeEach('deploy fixture', async () => {
@@ -69,7 +69,7 @@ describe('EthVault - register', () => {
 
     it('fails with sender other than keeper', async () => {
       await expect(vault.connect(other).registerValidator(validator, proof)).to.be.revertedWith(
-        'NotKeeper()'
+        'AccessDenied()'
       )
     })
 
@@ -157,7 +157,7 @@ describe('EthVault - register', () => {
     it('fails with sender other than keeper', async () => {
       await expect(
         vault.connect(other).registerValidators(validatorsWithDepositData, proofs)
-      ).to.be.revertedWith('NotKeeper()')
+      ).to.be.revertedWith('AccessDenied()')
     })
 
     it('fails with invalid deposit data root', async () => {
