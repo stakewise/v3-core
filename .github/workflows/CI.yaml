@@ -35,4 +35,4 @@ jobs:
       - uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
-      # - run: pip3 install slither-analyzer && npm run slither
+      - run: pip3 install slither-analyzer && npm run slither
