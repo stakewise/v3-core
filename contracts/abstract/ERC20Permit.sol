@@ -43,7 +43,7 @@ abstract contract ERC20Permit is Initializable, IERC20Permit {
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
-   *    its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
+   *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
