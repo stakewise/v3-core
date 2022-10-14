@@ -16,7 +16,6 @@ import {EthFeesEscrow} from '../vaults/EthFeesEscrow.sol';
  * @notice Adds mocked functions to the EthVault contract
  */
 contract EthVaultMock is EthVault {
-  using SafeCast for uint256;
   using ExitQueue for ExitQueue.History;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
