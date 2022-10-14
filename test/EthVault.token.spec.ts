@@ -1,5 +1,6 @@
 import { ethers, network, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
+import { arrayify } from 'ethers/lib/utils'
 import EthereumWallet from 'ethereumjs-wallet'
 import { EthVault } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
@@ -293,7 +294,9 @@ describe('EthVault - token', () => {
     const maxDeadline = MAX_UINT256.toString()
     const chainId = network.config.chainId
 
-    const owner = EthereumWallet.generate()
+    const owner = new EthereumWallet(
+      Buffer.from(arrayify('0x35a1c4d02b06d93778758410e5c09e010760268cf98b1af33c2d0646f27a8b70'))
+    )
     const ownerAddress = owner.getChecksumAddressString()
     const ownerPrivateKey = owner.getPrivateKey()
 
