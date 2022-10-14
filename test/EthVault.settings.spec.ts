@@ -13,14 +13,14 @@ describe('EthVault - settings', () => {
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
-  let keeper: Wallet, operator: Wallet, other: Wallet
+  let keeper: Wallet, operator: Wallet, registryOwner: Wallet, other: Wallet
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
 
   before('create fixture loader', async () => {
-    ;[keeper, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper, operator])
+    ;[keeper, operator, registryOwner, other] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([keeper, operator, registryOwner])
   })
 
   beforeEach('deploy fixture', async () => {
@@ -47,7 +47,7 @@ describe('EthVault - settings', () => {
     it('only operator can update', async () => {
       await expect(
         vault.connect(other).setValidatorsRoot(newValidatorsRoot, newValidatorsIpfsHash)
-      ).to.be.revertedWith('NotOperator()')
+      ).to.be.revertedWith('AccessDenied()')
     })
 
     it('can update', async () => {

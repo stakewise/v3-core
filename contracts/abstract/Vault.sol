@@ -7,6 +7,9 @@ import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IVault} from '../interfaces/IVault.sol';
+import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
+import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
+import {IRegistry} from '../interfaces/IRegistry.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
 import {ERC20Permit} from './ERC20Permit.sol';
 
@@ -21,18 +24,22 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
   /// @inheritdoc IVault
   uint256 public constant override exitQueueUpdateDelay = 1 days;
 
-  uint256 internal constant _maxFeePercent = 10_000;
+  uint256 internal constant _maxFeePercent = 10_000; // @dev 100.00 %
 
-  bytes4 private constant _initializeSelector = bytes4(keccak256('initialize(bytes)'));
+  bytes4 private constant _upgradeSelector = bytes4(keccak256('upgrade(bytes)'));
 
   /// @inheritdoc IVault
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address public immutable override keeper;
 
   /// @inheritdoc IVault
-  uint256 public override maxTotalAssets;
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  IRegistry public immutable override registry;
 
   /// @inheritdoc IVault
+  uint256 public override maxTotalAssets;
+
+  /// @inheritdoc IVaultValidators
   bytes32 public override validatorsRoot;
 
   /// @inheritdoc IVault
@@ -56,13 +63,13 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
 
   /// @dev Prevents calling a function from anyone except Vault's operator
   modifier onlyOperator() {
-    if (msg.sender != operator) revert NotOperator();
+    if (msg.sender != operator) revert AccessDenied();
     _;
   }
 
   /// @dev Prevents calling a function from anyone except Vault's keeper
   modifier onlyKeeper() {
-    if (msg.sender != keeper) revert NotKeeper();
+    if (msg.sender != keeper) revert AccessDenied();
     _;
   }
 
@@ -71,11 +78,12 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param _keeper The keeper address that can harvest Vault's rewards
+   * @param _registry The address of the registry
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address _keeper) ERC20Permit() {
-    // initialize keeper
+  constructor(address _keeper, IRegistry _registry) ERC20Permit() {
     keeper = _keeper;
+    registry = _registry;
   }
 
   /// @inheritdoc IERC20
@@ -283,7 +291,7 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
     return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares);
   }
 
-  /// @inheritdoc IVault
+  /// @inheritdoc IVaultValidators
   function setValidatorsRoot(bytes32 newValidatorsRoot, string memory newValidatorsIpfsHash)
     external
     override
@@ -293,9 +301,14 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
     emit ValidatorsRootUpdated(newValidatorsRoot, newValidatorsIpfsHash);
   }
 
-  /// @inheritdoc IVault
+  /// @inheritdoc IVaultVersion
   function version() external view override returns (uint8) {
     return _getInitializedVersion();
+  }
+
+  /// @inheritdoc IVaultVersion
+  function implementation() external view override returns (address) {
+    return _getImplementation();
   }
 
   /**
@@ -373,20 +386,21 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
   }
 
   /// @inheritdoc UUPSUpgradeable
-  function _authorizeUpgrade(address newImplementation) internal override onlyOperator {
-    // TODO: uncomment once vault registry is created
-    //    if (
-    //      vaultsRegistry.getVaultImplementation(vaultVersion()) != newImplementation ||
-    //      _getImplementation() == newImplementation ||
-    //      newImplementation == address(0)
-    //    ) {
-    //      revert UpgradeFailed();
-    //    }
+  function _authorizeUpgrade(address newImplementation) internal view override onlyOperator {
+    address currImplementation = _getImplementation();
+    if (
+      newImplementation == address(0) ||
+      currImplementation == newImplementation ||
+      registry.upgrades(currImplementation) != newImplementation
+    ) {
+      revert UpgradeFailed();
+    }
   }
 
   /// @inheritdoc UUPSUpgradeable
-  function upgradeTo(address newImplementation) external override onlyProxy {
+  function upgradeTo(address) external view override onlyProxy {
     // disable upgrades without the call
+    revert NotImplementedError();
   }
 
   /// @inheritdoc UUPSUpgradeable
@@ -396,9 +410,9 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
     override
     onlyProxy
   {
-    bytes memory callData = abi.encodeWithSelector(_initializeSelector, data);
     _authorizeUpgrade(newImplementation);
-    _upgradeToAndCallUUPS(newImplementation, callData, true);
+    bytes memory params = abi.encodeWithSelector(_upgradeSelector, data);
+    _upgradeToAndCallUUPS(newImplementation, params, true);
   }
 
   /**
@@ -445,4 +459,11 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
    * @param assets The number of assets to transfer
    */
   function _transferAssets(address receiver, uint256 assets) internal virtual {}
+
+  /**
+   * @dev This empty reserved space is put in place to allow future versions to add new
+   * variables without shifting down storage in the inheritance chain.
+   * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+   */
+  uint256[50] private __gap;
 }

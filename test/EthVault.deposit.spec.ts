@@ -16,7 +16,12 @@ describe('EthVault - deposit', () => {
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
-  let keeper: Wallet, sender: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
+  let keeper: Wallet,
+    sender: Wallet,
+    receiver: Wallet,
+    operator: Wallet,
+    registryOwner: Wallet,
+    other: Wallet
   let vault: EthVault
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -24,8 +29,8 @@ describe('EthVault - deposit', () => {
   let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createVaultMock']
 
   before('create fixture loader', async () => {
-    ;[keeper, sender, receiver, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper, operator])
+    ;[keeper, sender, receiver, operator, other, registryOwner] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([keeper, operator, registryOwner])
   })
 
   beforeEach('deploy fixtures', async () => {

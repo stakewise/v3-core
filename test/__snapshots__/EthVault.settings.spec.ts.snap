@@ -3,6 +3,6 @@
 exports[`EthVault - settings validators root can update 1`] = `
 Object {
   "calldataByteLength": 164,
-  "gasUsed": 55269,
+  "gasUsed": 55180,
 }
 `;
