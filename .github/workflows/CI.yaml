@@ -30,7 +30,7 @@ jobs:
 
       # - run: npm run compile
       # - run: npm run test
-      # - run: npm run coverage
+      - run: npm run coverage
       - uses: codecov/codecov-action@v3
       # - run: pip3 install slither-analyzer && npm run slither
       # - run: npm run lint
