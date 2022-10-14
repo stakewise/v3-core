@@ -17,7 +17,12 @@ describe('EthVault - withdraw', () => {
   const vaultSymbol = 'SW-ETH-1'
   const holderShares = ethers.utils.parseEther('1')
   const holderAssets = ethers.utils.parseEther('1')
-  let keeper: Wallet, holder: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
+  let keeper: Wallet,
+    holder: Wallet,
+    receiver: Wallet,
+    operator: Wallet,
+    registryOwner: Wallet,
+    other: Wallet
   let vault: EthVault
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -25,8 +30,8 @@ describe('EthVault - withdraw', () => {
   let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createVaultMock']
 
   before('create fixture loader', async () => {
-    ;[keeper, holder, receiver, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper, operator])
+    ;[keeper, holder, receiver, registryOwner, operator, other] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([keeper, operator, registryOwner])
   })
 
   beforeEach('deploy fixture', async () => {

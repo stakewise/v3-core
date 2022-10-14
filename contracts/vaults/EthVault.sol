@@ -5,9 +5,11 @@ pragma solidity =0.8.17;
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IVault} from '../interfaces/IVault.sol';
+import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
+import {IRegistry} from '../interfaces/IRegistry.sol';
 import {Vault} from '../abstract/Vault.sol';
 import {EthFeesEscrow} from './EthFeesEscrow.sol';
 
@@ -19,10 +21,11 @@ import {EthFeesEscrow} from './EthFeesEscrow.sol';
 contract EthVault is Vault, IEthVault {
   uint256 internal constant _validatorDeposit = 32 ether;
 
+  /// @inheritdoc IEthVault
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IEthValidatorsRegistry internal immutable _validatorsRegistry;
+  IEthValidatorsRegistry public immutable override validatorsRegistry;
 
-  /// @inheritdoc IVault
+  /// @inheritdoc IVaultValidators
   IFeesEscrow public override feesEscrow;
 
   /**
@@ -30,11 +33,16 @@ contract EthVault is Vault, IEthVault {
    * @dev Since the immutable variable value is stored in the bytecode,
    *    its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param _keeper The keeper address that can harvest Vault's rewards
-   * @param validatorsRegistry The address used for registering Vault's validators
+   * @param _registry The address of the Registry
+   * @param _validatorsRegistry The address used for registering Vault's validators
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address _keeper, IEthValidatorsRegistry validatorsRegistry) Vault(_keeper) {
-    _validatorsRegistry = validatorsRegistry;
+  constructor(
+    address _keeper,
+    IRegistry _registry,
+    IEthValidatorsRegistry _validatorsRegistry
+  ) Vault(_keeper, _registry) {
+    validatorsRegistry = _validatorsRegistry;
   }
 
   /**
@@ -52,10 +60,7 @@ contract EthVault is Vault, IEthVault {
     address _operator,
     uint16 _feePercent
   ) external virtual initializer {
-    __Vault_init(_name, _symbol, _maxTotalAssets, _operator, _feePercent);
-
-    // create fees escrow contract
-    feesEscrow = IFeesEscrow(new EthFeesEscrow());
+    __EthVault_init(_name, _symbol, _maxTotalAssets, _operator, _feePercent);
   }
 
   /// @inheritdoc IEthVault
@@ -63,7 +68,7 @@ contract EthVault is Vault, IEthVault {
     return _deposit(receiver, msg.value);
   }
 
-  /// @inheritdoc IVault
+  /// @inheritdoc IVaultValidators
   function registerValidator(bytes calldata validator, bytes32[] calldata proof)
     external
     override
@@ -78,7 +83,7 @@ contract EthVault is Vault, IEthVault {
     }
 
     bytes calldata publicKey = validator[:48];
-    _validatorsRegistry.deposit{value: _validatorDeposit}(
+    validatorsRegistry.deposit{value: _validatorDeposit}(
       publicKey,
       withdrawalCredentials(),
       validator[48:144],
@@ -88,7 +93,7 @@ contract EthVault is Vault, IEthVault {
     emit ValidatorRegistered(publicKey);
   }
 
-  /// @inheritdoc IVault
+  /// @inheritdoc IVaultValidators
   function registerValidators(bytes[] calldata validators, bytes32[][] calldata proofs)
     external
     override
@@ -111,7 +116,7 @@ contract EthVault is Vault, IEthVault {
         revert InvalidValidator();
       }
       publicKey = validator[:48];
-      _validatorsRegistry.deposit{value: _validatorDeposit}(
+      validatorsRegistry.deposit{value: _validatorDeposit}(
         publicKey,
         withdrawalCredentials(),
         validator[48:144],
@@ -124,7 +129,7 @@ contract EthVault is Vault, IEthVault {
     }
   }
 
-  /// @inheritdoc IVault
+  /// @inheritdoc IVaultValidators
   function withdrawalCredentials() public view override returns (bytes memory) {
     return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
   }
@@ -133,6 +138,27 @@ contract EthVault is Vault, IEthVault {
    * @dev Function for receiving validator withdrawals
    */
   receive() external payable {}
+
+  /**
+   * @dev Initializes the EthVault contract
+   * @param _name The name of the ERC20 token
+   * @param _symbol The symbol of the ERC20 token
+   * @param _maxTotalAssets The max total assets that can be staked into the Vault
+   * @param _operator The address of the Vault operator
+   * @param _feePercent The fee percent that is charged by the Vault operator
+   */
+  function __EthVault_init(
+    string memory _name,
+    string memory _symbol,
+    uint256 _maxTotalAssets,
+    address _operator,
+    uint16 _feePercent
+  ) internal onlyInitializing {
+    __Vault_init(_name, _symbol, _maxTotalAssets, _operator, _feePercent);
+
+    // create fees escrow contract
+    feesEscrow = IFeesEscrow(new EthFeesEscrow());
+  }
 
   /// @inheritdoc Vault
   function _vaultAssets() internal view override returns (uint256) {
@@ -148,4 +174,11 @@ contract EthVault is Vault, IEthVault {
   function _claimVaultRewards() internal override returns (uint256) {
     return feesEscrow.withdraw();
   }
+
+  /**
+   * @dev This empty reserved space is put in place to allow future versions to add new
+   * variables without shifting down storage in the inheritance chain.
+   * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+   */
+  uint256[50] private __gap;
 }

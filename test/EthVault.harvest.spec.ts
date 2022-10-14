@@ -15,7 +15,7 @@ describe('EthVault - harvest', () => {
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
-  let keeper: Wallet, holder: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
+  let keeper: Wallet, holder: Wallet, operator: Wallet, registryOwner: Wallet
   let vault: EthVault
   const holderAssets = ethers.utils.parseEther('1')
   const holderShares = ethers.utils.parseEther('1')
@@ -24,8 +24,8 @@ describe('EthVault - harvest', () => {
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
 
   before('create fixture loader', async () => {
-    ;[keeper, holder, receiver, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper, operator])
+    ;[keeper, holder, operator, registryOwner] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([keeper, operator, registryOwner])
   })
 
   beforeEach('deploy fixture', async () => {
@@ -53,7 +53,7 @@ describe('EthVault - harvest', () => {
   })
 
   it('only keeper can update', async () => {
-    await expect(vault.connect(operator).harvest(1)).revertedWith('NotKeeper()')
+    await expect(vault.connect(operator).harvest(1)).revertedWith('AccessDenied()')
   })
 
   it('applies penalty when delta is below zero', async () => {

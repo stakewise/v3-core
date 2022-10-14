@@ -1,6 +1,11 @@
 [
   {
     "inputs": [],
+    "name": "AccessDenied",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InsufficientAvailableAssets",
     "type": "error"
   },
@@ -31,12 +36,12 @@
   },
   {
     "inputs": [],
-    "name": "NotKeeper",
+    "name": "NotImplementedError",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "NotOperator",
+    "name": "UpgradeFailed",
     "type": "error"
   },
   {
@@ -581,6 +586,19 @@
   },
   {
     "inputs": [],
+    "name": "implementation",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "keeper",
     "outputs": [
       {
@@ -772,6 +790,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "registry",
+    "outputs": [
+      {
+        "internalType": "contract IRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "bytes32",
@@ -889,6 +920,19 @@
         "internalType": "uint96",
         "name": "",
         "type": "uint96"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "validatorsRegistry",
+    "outputs": [
+      {
+        "internalType": "contract IEthValidatorsRegistry",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
