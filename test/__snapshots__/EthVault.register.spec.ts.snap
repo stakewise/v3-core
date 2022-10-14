@@ -10,6 +10,6 @@ Object {
 exports[`EthVault - register single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 452,
-  "gasUsed": 113435,
+  "gasUsed": 113503,
 }
 `;

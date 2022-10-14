@@ -8,7 +8,7 @@
     "lint": "npm run lint:js && npm run lint:sol",
     "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
     "lint:js": "eslint --ignore-path .gitignore .",
-    "lint:js:fix": "eslint --ignore-path .gitignore . --fix",
+    "lint:js:fix": "eslint --ignore-path .gitignore --fix './**/*.ts'",
     "lint:sol": "prettier -c 'contracts/**/*.sol'",
     "lint:sol:fix": "prettier --write 'contracts/**/*.sol'",
     "spdx": "hardhat prepend-spdx-license",
@@ -73,7 +73,7 @@
   "lint-staged": {
     "test/**/*.ts": [
       "prettier --write",
-      "eslint --ignore-path .gitignore . --fix"
+      "eslint --ignore-path .gitignore --fix './**/*.ts'"
     ],
     "contracts/**/*.sol": [
       "prettier --write"
