@@ -31,7 +31,7 @@ contract EthVault is Vault, IEthVault {
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
-   *    its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
+   *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param _keeper The keeper address that can harvest Vault's rewards
    * @param _registry The address of the Registry
    * @param _validatorsRegistry The address used for registering Vault's validators
@@ -77,7 +77,7 @@ contract EthVault is Vault, IEthVault {
     if (availableAssets() < _validatorDeposit) revert InsufficientAvailableAssets();
     if (
       validator.length != 176 ||
-      validatorsRoot != MerkleProof.processProofCalldata(proof, keccak256(validator[:144]))
+      !MerkleProof.verifyCalldata(proof, validatorsRoot, keccak256(validator[:144]))
     ) {
       revert InvalidValidator();
     }
