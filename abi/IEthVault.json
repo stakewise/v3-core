@@ -16,7 +16,7 @@
   },
   {
     "inputs": [],
-    "name": "InvalidProofsLength",
+    "name": "InvalidProof",
     "type": "error"
   },
   {
@@ -32,6 +32,11 @@
   {
     "inputs": [],
     "name": "MaxTotalAssetsExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotHarvested",
     "type": "error"
   },
   {
@@ -598,11 +603,44 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "_name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "_symbol",
+        "type": "string"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_maxTotalAssets",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_operator",
+        "type": "address"
+      },
+      {
+        "internalType": "uint16",
+        "name": "_feePercent",
+        "type": "uint16"
+      }
+    ],
+    "name": "initialize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "keeper",
     "outputs": [
       {
-        "internalType": "address",
+        "internalType": "contract IVaultsKeeper",
         "name": "",
         "type": "address"
       }
@@ -779,9 +817,14 @@
         "type": "bytes[]"
       },
       {
-        "internalType": "bytes32[][]",
-        "name": "proofs",
-        "type": "bytes32[][]"
+        "internalType": "bool[]",
+        "name": "proofFlags",
+        "type": "bool[]"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "proof",
+        "type": "bytes32[]"
       }
     ],
     "name": "registerValidators",

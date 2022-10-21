@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Signers add signer succeeds 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 52522,
+}
+`;
+
+exports[`Signers remove signer decreases required signers 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 35631,
+}
+`;
+
+exports[`Signers remove signer succeeds 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 32722,
+}
+`;
+
+exports[`Signers set required signers succeeds 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 31808,
+}
+`;
+
+exports[`Signers verify signers succeeds with all signatures 1`] = `46690`;
+
+exports[`Signers verify signers succeeds with required signatures 1`] = `46629`;

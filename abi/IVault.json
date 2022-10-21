@@ -16,7 +16,7 @@
   },
   {
     "inputs": [],
-    "name": "InvalidProofsLength",
+    "name": "InvalidProof",
     "type": "error"
   },
   {
@@ -32,6 +32,11 @@
   {
     "inputs": [],
     "name": "MaxTotalAssetsExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotHarvested",
     "type": "error"
   },
   {
@@ -515,19 +520,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "feesEscrow",
-    "outputs": [
-      {
-        "internalType": "contract IFeesEscrow",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -583,7 +575,7 @@
     "name": "keeper",
     "outputs": [
       {
-        "internalType": "address",
+        "internalType": "contract IVaultsKeeper",
         "name": "",
         "type": "address"
       }
@@ -731,42 +723,6 @@
         "type": "uint256"
       }
     ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes",
-        "name": "validator",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
-      }
-    ],
-    "name": "registerValidator",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes[]",
-        "name": "validators",
-        "type": "bytes[]"
-      },
-      {
-        "internalType": "bytes32[][]",
-        "name": "proofs",
-        "type": "bytes32[][]"
-      }
-    ],
-    "name": "registerValidators",
-    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
