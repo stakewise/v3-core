@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthOracle register single validator succeeds 1`] = `
+Object {
+  "calldataByteLength": 996,
+  "gasUsed": 311478,
+}
+`;
+
+exports[`EthOracle register single validator succeeds 2`] = `
+Object {
+  "calldataByteLength": 996,
+  "gasUsed": 272917,
+}
+`;

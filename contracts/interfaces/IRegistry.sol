@@ -8,10 +8,16 @@ pragma solidity =0.8.17;
  * @notice Defines the interface for the Registry
  */
 interface IRegistry {
+  /// Custom errors
+  error AccessDenied();
+  error AlreadyAdded();
+  error AlreadyRemoved();
+  error InvalidUpgrade();
+
   /**
    * @notice Event emitted on a Vault addition
-   * @param factory The address of the Vault Factory
-   * @param vault The address of the Vault to add
+   * @param factory The address of the factory that has added the Vault
+   * @param vault The address of the added Vault
    */
   event VaultAdded(address indexed factory, address indexed vault);
 
@@ -43,8 +49,8 @@ interface IRegistry {
 
   /**
    * @notice Registered Factories
-   * @param factory The address of the factory to check whether it is registered
-   * @return `true` for the registered Factory, `false` otherwise
+   * @param factory The address of the factory to check whether it is whitelisted
+   * @return `true` for the whitelisted Factory, `false` otherwise
    */
   function factories(address factory) external view returns (bool);
 
@@ -56,7 +62,7 @@ interface IRegistry {
   function upgrades(address fromImpl) external view returns (address toImpl);
 
   /**
-   * @notice Function for adding Vault to the registry. Can only be called by the whitelisted factory.
+   * @notice Function for adding Vault to the registry. Can only be called by the whitelisted Factory.
    * @param vault The address of the Vault to add
    */
   function addVault(address vault) external;

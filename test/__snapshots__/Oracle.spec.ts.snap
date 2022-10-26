@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Oracle harvest calculates delta since last update 1`] = `
+Object {
+  "calldataByteLength": 132,
+  "gasUsed": 67957,
+}
+`;
+
+exports[`Oracle harvest succeeds for already harvested vault 1`] = `
+Object {
+  "calldataByteLength": 260,
+  "gasUsed": 59508,
+}
+`;
+
+exports[`Oracle harvest succeeds for not harvested vault 1`] = `
+Object {
+  "calldataByteLength": 260,
+  "gasUsed": 131953,
+}
+`;
+
+exports[`Oracle set rewards root succeeds 1`] = `
+Object {
+  "calldataByteLength": 676,
+  "gasUsed": 132402,
+}
+`;

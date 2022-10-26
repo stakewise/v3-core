@@ -7,13 +7,6 @@ import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 import {ISigners} from './interfaces/ISigners.sol';
 
-// Custom errors
-error NotEnoughSignatures();
-error InvalidSigner();
-error AlreadyAdded();
-error AlreadyRemoved();
-error InvalidRequiredSigners();
-
 /**
  * @title Signers
  * @author StakeWise

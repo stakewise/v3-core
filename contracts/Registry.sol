@@ -5,12 +5,6 @@ pragma solidity =0.8.17;
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IRegistry} from './interfaces/IRegistry.sol';
 
-/// Custom errors
-error AccessDenied();
-error AlreadyAdded();
-error AlreadyRemoved();
-error InvalidUpgrade();
-
 /**
  * @title Registry
  * @author StakeWise

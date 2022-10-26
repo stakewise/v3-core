@@ -8,6 +8,13 @@ pragma solidity =0.8.17;
  * @notice Defines the interface for the Signers contract
  */
 interface ISigners {
+  // Custom errors
+  error NotEnoughSignatures();
+  error InvalidSigner();
+  error AlreadyAdded();
+  error AlreadyRemoved();
+  error InvalidRequiredSigners();
+
   /**
    * @notice Event emitted on the signer addition
    * @param signer The address of the added signer

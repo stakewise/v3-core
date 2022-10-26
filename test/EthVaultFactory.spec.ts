@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthVault, EthVaultFactory, EthVaultsKeeper, Registry } from '../typechain-types'
+import { EthVault, EthVaultFactory, EthOracle, Registry } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
@@ -18,7 +18,7 @@ describe('EthVaultFactory', () => {
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
 
   let operator: Wallet, owner: Wallet
-  let factory: EthVaultFactory, registry: Registry, keeper: EthVaultsKeeper
+  let factory: EthVaultFactory, registry: Registry, oracle: EthOracle
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -32,7 +32,7 @@ describe('EthVaultFactory', () => {
     ;({
       ethVaultFactory: factory,
       registry,
-      keeper,
+      oracle,
       createVault,
     } = await loadFixture(ethVaultFixture))
   })
@@ -132,7 +132,7 @@ describe('EthVaultFactory', () => {
       })
     ).to.revertedWith('Initializable: contract is already initialized')
     expect(await registry.vaults(vaultAddress)).to.be.eq(true)
-    expect(await vault.keeper()).to.be.eq(keeper.address)
+    expect(await vault.oracle()).to.be.eq(oracle.address)
     expect(await vault.registry()).to.be.eq(registry.address)
     expect(await vault.validatorsRoot()).to.be.eq(validatorsRoot)
     expect(await vault.name()).to.be.eq(vaultName)

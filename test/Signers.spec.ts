@@ -9,7 +9,7 @@ import { ThenArg } from '../helpers/types'
 import { createSigners, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { EIP712Domain, REQUIRED_SIGNERS, SIGNERS, VaultsKeeperSig } from './shared/constants'
+import { EIP712Domain, REQUIRED_SIGNERS, SIGNERS, OracleSig } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -157,8 +157,8 @@ describe('Signers', () => {
 
     beforeEach(async () => {
       signData = {
-        primaryType: 'VaultsKeeper',
-        types: { EIP712Domain, VaultsKeeper: VaultsKeeperSig },
+        primaryType: 'Oracle',
+        types: { EIP712Domain, Oracle: OracleSig },
         domain: {
           name: 'Signers',
           version: '1',
@@ -168,7 +168,7 @@ describe('Signers', () => {
         message: { rewardsRoot, rewardsIpfsHash, nonce },
       }
       verifyData = TypedDataUtils.hashStruct(
-        'VaultsKeeper',
+        'Oracle',
         signData.message,
         signData.types,
         SignTypedDataVersion.V4
