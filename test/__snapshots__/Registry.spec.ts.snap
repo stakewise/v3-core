@@ -17,7 +17,7 @@ Object {
 exports[`Registry owner can register implementation contract 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 48397,
+  "gasUsed": 48172,
 }
 `;
 
