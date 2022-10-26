@@ -13,7 +13,6 @@ error InvalidSigner();
 error AlreadyAdded();
 error AlreadyRemoved();
 error InvalidRequiredSigners();
-error LastSignerRemoval();
 
 /**
  * @title Signers
@@ -73,11 +72,10 @@ contract Signers is Ownable, EIP712, ISigners {
       // cannot underflow
       _totalSigners = totalSigners - 1;
     }
-    if (_totalSigners == 0) revert LastSignerRemoval();
 
     isSigner[signer] = false;
     totalSigners = _totalSigners;
-    if (_totalSigners < requiredSigners) requiredSigners = _totalSigners;
+    if (_totalSigners < requiredSigners) setRequiredSigners(_totalSigners);
 
     emit SignerRemoved(signer);
   }
@@ -103,6 +101,7 @@ contract Signers is Ownable, EIP712, ISigners {
     uint256 startIndex;
     for (uint256 i = 0; i < _requiredSigners; ) {
       unchecked {
+        // cannot overflow as signatures.length is checked above
         currentSigner = ECDSA.recover(data, signatures[startIndex:startIndex + 65]);
       }
       if (currentSigner <= lastSigner || !isSigner[currentSigner]) revert InvalidSigner();

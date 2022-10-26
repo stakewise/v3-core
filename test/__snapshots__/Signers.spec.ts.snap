@@ -10,14 +10,14 @@ Object {
 exports[`Signers remove signer decreases required signers 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 35631,
+  "gasUsed": 37009,
 }
 `;
 
 exports[`Signers remove signer succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 32722,
+  "gasUsed": 32700,
 }
 `;
 

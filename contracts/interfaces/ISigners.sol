@@ -59,7 +59,7 @@ interface ISigners {
 
   /**
    * @notice Function for updating the required number of signatures to pass the verification
-   * @param _requiredSigners The new number of required signatures. Cannot be larger than the number total signers.
+   * @param _requiredSigners The new number of required signatures. Cannot be zero or larger than total signers.
    */
   function setRequiredSigners(uint256 _requiredSigners) external;
 

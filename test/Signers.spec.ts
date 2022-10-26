@@ -1,15 +1,15 @@
 import { ethers, network, waffle } from 'hardhat'
-import { Wallet } from 'ethers'
 import keccak256 from 'keccak256'
+import { Wallet } from 'ethers'
+import { toUtf8Bytes } from 'ethers/lib/utils'
 import { SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util'
 import EthereumWallet from 'ethereumjs-wallet'
-import { toUtf8Bytes } from 'ethers/lib/utils'
 import { Signers } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { createSigners, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { EIP712Domain, REQUIRED_SIGNERS, SIGNERS, VaultsKeeperSigType } from './shared/constants'
+import { EIP712Domain, REQUIRED_SIGNERS, SIGNERS, VaultsKeeperSig } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -96,7 +96,7 @@ describe('Signers', () => {
         await signers.connect(owner).removeSigner(new EthereumWallet(SIGNERS[i]).getAddressString())
       }
       await expect(signers.connect(owner).removeSigner(signer.address)).revertedWith(
-        'LastSignerRemoval()'
+        'InvalidRequiredSigners()'
       )
     })
 
@@ -106,6 +106,9 @@ describe('Signers', () => {
 
       const receipt = await signers.connect(owner).removeSigner(signer.address)
       await expect(receipt).to.emit(signers, 'SignerRemoved').withArgs(signer.address)
+      await expect(receipt)
+        .to.emit(signers, 'RequiredSignersUpdated')
+        .withArgs(totalSigners - 1)
 
       expect(await signers.isSigner(signer.address)).to.be.eq(false)
       expect(await signers.totalSigners()).to.be.eq(totalSigners - 1)
@@ -155,7 +158,7 @@ describe('Signers', () => {
     beforeEach(async () => {
       signData = {
         primaryType: 'VaultsKeeper',
-        types: { EIP712Domain, VaultsKeeper: VaultsKeeperSigType },
+        types: { EIP712Domain, VaultsKeeper: VaultsKeeperSig },
         domain: {
           name: 'Signers',
           version: '1',
