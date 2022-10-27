@@ -1,5 +1,25 @@
 [
   {
+    "inputs": [],
+    "name": "AccessDenied",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "AlreadyAdded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "AlreadyRemoved",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidUpgrade",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {

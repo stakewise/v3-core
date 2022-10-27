@@ -5,11 +5,11 @@ pragma solidity =0.8.17;
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IVault} from '../interfaces/IVault.sol';
-import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
+import {IOracle} from '../interfaces/IOracle.sol';
 import {Vault} from '../abstract/Vault.sol';
 import {EthFeesEscrow} from './EthFeesEscrow.sol';
 
@@ -25,42 +25,26 @@ contract EthVault is Vault, IEthVault {
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IEthValidatorsRegistry public immutable override validatorsRegistry;
 
-  /// @inheritdoc IVaultValidators
-  IFeesEscrow public override feesEscrow;
-
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _keeper The keeper address that can harvest Vault's rewards
-   * @param _registry The address of the Registry
+   * @param _oracle The address of the Oracle that can harvest Vault's rewards
+   * @param _registry The address of the Registry contract
    * @param _validatorsRegistry The address used for registering Vault's validators
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    address _keeper,
+    IOracle _oracle,
     IRegistry _registry,
     IEthValidatorsRegistry _validatorsRegistry
-  ) Vault(_keeper, _registry) {
+  ) Vault(_oracle, _registry) {
     validatorsRegistry = _validatorsRegistry;
   }
 
-  /**
-   * @dev Initializes the EthVault contract
-   * @param _name The name of the ERC20 token
-   * @param _symbol The symbol of the ERC20 token
-   * @param _maxTotalAssets The max total assets that can be staked into the Vault
-   * @param _operator The address of the Vault operator
-   * @param _feePercent The fee percent that is charged by the Vault operator
-   */
-  function initialize(
-    string memory _name,
-    string memory _symbol,
-    uint256 _maxTotalAssets,
-    address _operator,
-    uint16 _feePercent
-  ) external virtual initializer {
-    __EthVault_init(_name, _symbol, _maxTotalAssets, _operator, _feePercent);
+  /// @inheritdoc IEthVault
+  function initialize(IVault.InitParams memory params) external override initializer {
+    __EthVault_init(params);
   }
 
   /// @inheritdoc IEthVault
@@ -68,11 +52,11 @@ contract EthVault is Vault, IEthVault {
     return _deposit(receiver, msg.value);
   }
 
-  /// @inheritdoc IVaultValidators
+  /// @inheritdoc IEthVault
   function registerValidator(bytes calldata validator, bytes32[] calldata proof)
     external
     override
-    onlyKeeper
+    onlyOracle
   {
     if (availableAssets() < _validatorDeposit) revert InsufficientAvailableAssets();
     if (
@@ -93,32 +77,29 @@ contract EthVault is Vault, IEthVault {
     emit ValidatorRegistered(publicKey);
   }
 
-  /// @inheritdoc IVaultValidators
-  function registerValidators(bytes[] calldata validators, bytes32[][] calldata proofs)
-    external
-    override
-    onlyKeeper
-  {
+  /// @inheritdoc IEthVault
+  function registerValidators(
+    bytes[] calldata validators,
+    bool[] calldata proofFlags,
+    bytes32[] calldata proof
+  ) external override onlyOracle {
     if (availableAssets() < _validatorDeposit * validators.length) {
       revert InsufficientAvailableAssets();
     }
-    if (validators.length != proofs.length) revert InvalidProofsLength();
 
     bytes calldata validator;
     bytes calldata publicKey;
+    bytes32[] memory leaves = new bytes32[](validators.length);
+    bytes memory withdrawalCreds = withdrawalCredentials();
     for (uint256 i = 0; i < validators.length; ) {
       validator = validators[i];
-      // TODO: update after https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3743
-      if (
-        validator.length != 176 ||
-        validatorsRoot != MerkleProof.processProofCalldata(proofs[i], keccak256(validator[:144]))
-      ) {
-        revert InvalidValidator();
-      }
+      if (validator.length != 176) revert InvalidValidator();
+      leaves[i] = keccak256(validator[:144]);
+
       publicKey = validator[:48];
       validatorsRegistry.deposit{value: _validatorDeposit}(
         publicKey,
-        withdrawalCredentials(),
+        withdrawalCreds,
         validator[48:144],
         bytes32(validator[144:176])
       );
@@ -127,9 +108,13 @@ contract EthVault is Vault, IEthVault {
       }
       emit ValidatorRegistered(publicKey);
     }
+
+    if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, validatorsRoot, leaves)) {
+      revert InvalidProof();
+    }
   }
 
-  /// @inheritdoc IVaultValidators
+  /// @inheritdoc IVault
   function withdrawalCredentials() public view override returns (bytes memory) {
     return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
   }
@@ -138,27 +123,6 @@ contract EthVault is Vault, IEthVault {
    * @dev Function for receiving validator withdrawals
    */
   receive() external payable {}
-
-  /**
-   * @dev Initializes the EthVault contract
-   * @param _name The name of the ERC20 token
-   * @param _symbol The symbol of the ERC20 token
-   * @param _maxTotalAssets The max total assets that can be staked into the Vault
-   * @param _operator The address of the Vault operator
-   * @param _feePercent The fee percent that is charged by the Vault operator
-   */
-  function __EthVault_init(
-    string memory _name,
-    string memory _symbol,
-    uint256 _maxTotalAssets,
-    address _operator,
-    uint16 _feePercent
-  ) internal onlyInitializing {
-    __Vault_init(_name, _symbol, _maxTotalAssets, _operator, _feePercent);
-
-    // create fees escrow contract
-    feesEscrow = IFeesEscrow(new EthFeesEscrow());
-  }
 
   /// @inheritdoc Vault
   function _vaultAssets() internal view override returns (uint256) {
@@ -170,9 +134,12 @@ contract EthVault is Vault, IEthVault {
     return Address.sendValue(payable(receiver), assets);
   }
 
-  /// @inheritdoc Vault
-  function _claimVaultRewards() internal override returns (uint256) {
-    return feesEscrow.withdraw();
+  /**
+   * @dev Initializes the EthVault contract
+   * @param initParams The Vault's initialization parameters
+   */
+  function __EthVault_init(IVault.InitParams memory initParams) internal onlyInitializing {
+    __Vault_init(initParams);
   }
 
   /**

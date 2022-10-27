@@ -104,21 +104,14 @@ abstract contract Oracle is OwnableUpgradeable, Upgradeable, IOracle {
   ) external override returns (int256) {
     if (!registry.vaults(vault)) revert InvalidVault();
 
-    // SLOAD to memory
-    uint96 nonce = rewardsNonce;
-    RewardSync memory lastRewardSync = rewards[vault];
-    if (lastRewardSync.nonce >= nonce) {
-      // new reward hasn't arrived yet
-      return IVault(vault).updateState(0);
-    }
-
     // verify the proof
     if (!MerkleProof.verifyCalldata(proof, rewardsRoot, keccak256(abi.encode(vault, reward)))) {
       revert InvalidProof();
     }
 
     // update state
-    rewards[vault] = RewardSync({nonce: nonce, reward: reward});
+    RewardSync memory lastRewardSync = rewards[vault];
+    rewards[vault] = RewardSync({nonce: rewardsNonce, reward: reward});
 
     // emit event
     emit Harvested(msg.sender, vault, reward);

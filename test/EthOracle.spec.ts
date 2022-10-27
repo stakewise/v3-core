@@ -60,11 +60,17 @@ describe('EthOracle', () => {
     await vault.connect(operator).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
   })
 
+  it('fails to initialize', async () => {
+    await expect(oracle.initialize(owner.address)).revertedWith(
+      'Initializable: contract is already initialized'
+    )
+  })
+
   describe('register single validator', () => {
     let validator: Buffer
     let signatures: Buffer
     let proof: string[]
-    let signingData: Object
+    let signingData: any
 
     beforeEach(async () => {
       validator = validatorsData.validators[0]
@@ -157,11 +163,12 @@ describe('EthOracle', () => {
         .to.emit(oracle, 'ValidatorRegistered')
         .withArgs(vault.address, validatorsRegistryRoot, hexlify(validator), hexlify(signatures))
 
+      // collateralize vault
       rewardsSync = await oracle.rewards(vault.address)
       expect(rewardsSync.nonce).to.eq(1)
       expect(rewardsSync.reward).to.eq(0)
 
-      await snapshotGasCost(receipt)
+      // await snapshotGasCost(receipt)
 
       const newValidatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
 
@@ -208,7 +215,7 @@ describe('EthOracle', () => {
     let validators: Buffer[]
     let signatures: Buffer
     let proof: ValidatorsMultiProof
-    let signingData: Object
+    let signingData: any
 
     beforeEach(async () => {
       validators = validatorsData.validators

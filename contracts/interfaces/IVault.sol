@@ -3,23 +3,49 @@
 pragma solidity =0.8.17;
 
 import {IERC20Permit} from './IERC20Permit.sol';
-import {IVaultValidators} from './IVaultValidators.sol';
-import {IVaultVersion} from './IVaultVersion.sol';
 import {IRegistry} from './IRegistry.sol';
+import {IOracle} from './IOracle.sol';
+import {IUpgradeable} from './IUpgradeable.sol';
+import {IFeesEscrow} from './IFeesEscrow.sol';
 
 /**
  * @title IVault
  * @author StakeWise
  * @notice Defines the interface for the Vault contract
  */
-interface IVault is IERC20Permit, IVaultValidators, IVaultVersion {
+interface IVault is IUpgradeable, IERC20Permit {
+  // Custom errors
   error MaxTotalAssetsExceeded();
   error InvalidSharesAmount();
-  error InsufficientAvailableAssets();
   error AccessDenied();
+  error NotHarvested();
   error InvalidFeePercent();
   error UpgradeFailed();
-  error NotImplementedError();
+  error InsufficientAvailableAssets();
+  error InvalidValidator();
+  error InvalidProof();
+
+  /**
+   * @dev Struct for initializing the Vault contract
+   * @param maxTotalAssets The max total assets that can be staked into the Vault
+   * @param validatorsRoot The validators Merkle tree root
+   * @param operator The address of the Vault operator
+   * @param feesEscrow The address of the fees escrow contract
+   * @param feePercent The fee percent that is charged by the Vault operator
+   * @param name The name of the ERC20 token
+   * @param symbol The symbol of the ERC20 token
+   * @param validatorsIpfsHash The IPFS hash with all the validators deposit data
+   */
+  struct InitParams {
+    uint256 maxTotalAssets;
+    bytes32 validatorsRoot;
+    address operator;
+    address feesEscrow;
+    uint16 feePercent;
+    string name;
+    string symbol;
+    string validatorsIpfsHash;
+  }
 
   /**
    * @notice Event emitted on deposit
@@ -45,6 +71,19 @@ interface IVault is IERC20Permit, IVaultValidators, IVaultVersion {
     uint256 assets,
     uint256 shares
   );
+
+  /**
+   * @notice Event emitted on validators merkle tree root update
+   * @param validatorsRoot The new validators merkle tree root
+   * @param validatorsIpfsHash The new IPFS hash with all the validators deposit data
+   */
+  event ValidatorsRootUpdated(bytes32 indexed validatorsRoot, string validatorsIpfsHash);
+
+  /**
+   * @notice Event emitted on validator registration
+   * @param publicKey The public key of the validator that was registered
+   */
+  event ValidatorRegistered(bytes publicKey);
 
   /**
    * @notice Event emitted on shares added to the exit queue
@@ -79,16 +118,16 @@ interface IVault is IERC20Permit, IVaultValidators, IVaultVersion {
   );
 
   /**
-   * @notice Event emitted on harvest
+   * @notice Event emitted on Vault's state update
    * @param assetsDelta The number of assets added or deducted from/to the total staked assets
    */
-  event Harvested(int256 assetsDelta);
+  event StateUpdated(int256 assetsDelta);
 
   /**
-   * @notice The keeper address that can harvest rewards
-   * @return The address of the Vault keeper
+   * @notice The Oracle address that can update Vault's state
+   * @return The address of the Vault's oracle
    */
-  function keeper() external view returns (address);
+  function oracle() external view returns (IOracle);
 
   /**
    * @notice The Registry
@@ -139,10 +178,35 @@ interface IVault is IERC20Permit, IVaultValidators, IVaultVersion {
   function operator() external view returns (address);
 
   /**
+   * @notice The contract that accumulates rewards received from priority fees and MEV
+   * @return The fees escrow contract address
+   */
+  function feesEscrow() external view returns (IFeesEscrow);
+
+  /**
    * @notice Total assets available in the Vault. They can be staked or withdrawn.
    * @return The total amount of available assets
    */
   function availableAssets() external view returns (uint256);
+
+  /**
+   * @notice The Vault validators root
+   * @return The Merkle Tree root to use for verifying validators deposit data
+   */
+  function validatorsRoot() external view returns (bytes32);
+
+  /**
+   * @notice Withdrawal Credentials
+   * @return The credentials used for the validators withdrawals
+   */
+  function withdrawalCredentials() external view returns (bytes memory);
+
+  /**
+   * @notice Function for updating the validators Merkle Tree root. Can only be called by the operator.
+   * @param _validatorsRoot The new validators Merkle tree root
+   * @param _validatorsIpfsHash The new IPFS hash with all the validators deposit data for the new root
+   */
+  function setValidatorsRoot(bytes32 _validatorsRoot, string memory _validatorsIpfsHash) external;
 
   /**
    * @notice Get the checkpoint index to claim exited assets from
@@ -207,9 +271,15 @@ interface IVault is IERC20Permit, IVaultValidators, IVaultVersion {
   ) external returns (uint256 assets);
 
   /**
-   * @notice Updates total amount of assets in the Vault. Can only be called by the keeper.
-   * @param validatorAssets The number of assets accumulated since the previous harvest
-   * @return assetsDelta The number of assets added or deducted from/to the total staked assets
+   * @notice Updates the total amount of assets in the Vault and its exit queue. Can only be called by the Oracle.
+   * @param validatorAssets The number of assets accumulated in the validators since the previous update
+   * @return assetsDelta The number of assets added or deducted from/to the total assets
    */
-  function harvest(int256 validatorAssets) external returns (int256 assetsDelta);
+  function updateState(int256 validatorAssets) external returns (int256 assetsDelta);
+
+  /**
+   * @notice Updates the total amount of assets in the Vault and its exit queue when harvesting is not required
+   * @return assetsDelta The number of assets added or deducted from/to the total assets
+   */
+  function updateHarvestedState() external returns (int256 assetsDelta);
 }

@@ -234,7 +234,9 @@ describe('Oracle', () => {
       const receipt = await oracle
         .connect(sender)
         .harvest(vaultReward.vault, vaultReward.reward, proof)
-      await expect(receipt).to.not.emit(oracle, 'Harvested')
+      await expect(receipt)
+        .to.emit(oracle, 'Harvested')
+        .withArgs(sender.address, vaultReward.vault, vaultReward.reward)
       await expect(receipt).to.emit(vault, 'StateUpdated').withArgs(0)
       await snapshotGasCost(receipt)
     })

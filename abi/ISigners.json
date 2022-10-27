@@ -1,5 +1,30 @@
 [
   {
+    "inputs": [],
+    "name": "AlreadyAdded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "AlreadyRemoved",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRequiredSigners",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidSigner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotEnoughSignatures",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {

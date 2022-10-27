@@ -189,7 +189,7 @@
         "type": "int256"
       }
     ],
-    "name": "Harvested",
+    "name": "StateUpdated",
     "type": "event"
   },
   {
@@ -236,13 +236,13 @@
       {
         "indexed": true,
         "internalType": "bytes32",
-        "name": "newValidatorsRoot",
+        "name": "validatorsRoot",
         "type": "bytes32"
       },
       {
         "indexed": false,
         "internalType": "string",
-        "name": "newValidatorsIpfsHash",
+        "name": "validatorsIpfsHash",
         "type": "string"
       }
     ],
@@ -571,25 +571,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "int256",
-        "name": "validatorAssets",
-        "type": "int256"
-      }
-    ],
-    "name": "harvest",
-    "outputs": [
-      {
-        "internalType": "int256",
-        "name": "assetsDelta",
-        "type": "int256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "implementation",
     "outputs": [
@@ -605,47 +586,56 @@
   {
     "inputs": [
       {
-        "internalType": "string",
-        "name": "_name",
-        "type": "string"
-      },
-      {
-        "internalType": "string",
-        "name": "_symbol",
-        "type": "string"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_maxTotalAssets",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "_operator",
-        "type": "address"
-      },
-      {
-        "internalType": "uint16",
-        "name": "_feePercent",
-        "type": "uint16"
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "maxTotalAssets",
+            "type": "uint256"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "validatorsRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "address",
+            "name": "operator",
+            "type": "address"
+          },
+          {
+            "internalType": "address",
+            "name": "feesEscrow",
+            "type": "address"
+          },
+          {
+            "internalType": "uint16",
+            "name": "feePercent",
+            "type": "uint16"
+          },
+          {
+            "internalType": "string",
+            "name": "name",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "symbol",
+            "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "validatorsIpfsHash",
+            "type": "string"
+          }
+        ],
+        "internalType": "struct IVault.InitParams",
+        "name": "initParams",
+        "type": "tuple"
       }
     ],
     "name": "initialize",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "keeper",
-    "outputs": [
-      {
-        "internalType": "contract IVaultsKeeper",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -699,6 +689,19 @@
     "outputs": [
       {
         "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "oracle",
+    "outputs": [
+      {
+        "internalType": "contract IOracle",
         "name": "",
         "type": "address"
       }
@@ -849,12 +852,12 @@
     "inputs": [
       {
         "internalType": "bytes32",
-        "name": "newValidatorsRoot",
+        "name": "_validatorsRoot",
         "type": "bytes32"
       },
       {
         "internalType": "string",
-        "name": "newValidatorsIpfsHash",
+        "name": "_validatorsIpfsHash",
         "type": "string"
       }
     ],
@@ -966,6 +969,38 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "updateHarvestedState",
+    "outputs": [
+      {
+        "internalType": "int256",
+        "name": "assetsDelta",
+        "type": "int256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "int256",
+        "name": "validatorAssets",
+        "type": "int256"
+      }
+    ],
+    "name": "updateState",
+    "outputs": [
+      {
+        "internalType": "int256",
+        "name": "assetsDelta",
+        "type": "int256"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

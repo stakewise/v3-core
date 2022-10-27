@@ -1,11 +1,11 @@
 import { ethers, network, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
-import { arrayify } from 'ethers/lib/utils'
+import { arrayify, parseEther } from 'ethers/lib/utils'
 import EthereumWallet from 'ethereumjs-wallet'
 import { EthVault } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { expect } from './shared/expect'
-import { EIP712Domain, MAX_UINT256, PANIC_CODES, Permit } from './shared/constants'
+import { EIP712Domain, MAX_UINT256, PANIC_CODES, PermitSig } from './shared/constants'
 import { domainSeparator, getSignatureFromTypedData, latestTimestamp } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -13,33 +13,36 @@ import { ethVaultFixture } from './shared/fixtures'
 const createFixtureLoader = waffle.createFixtureLoader
 
 describe('EthVault - token', () => {
-  const maxTotalAssets = ethers.utils.parseEther('1000')
+  const maxTotalAssets = parseEther('1000')
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
+  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
+  const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
   const initialSupply = 1000
 
   let vault: EthVault
-  let keeper: Wallet,
-    operator: Wallet,
-    registryOwner: Wallet,
-    initialHolder: Wallet,
-    spender: Wallet,
-    recipient: Wallet
+  let operator: Wallet, dao: Wallet, initialHolder: Wallet, spender: Wallet, recipient: Wallet
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
 
   before('create fixture loader', async () => {
-    ;[keeper, operator, registryOwner, initialHolder, spender, recipient] = await (
-      ethers as any
-    ).getSigners()
-    loadFixture = createFixtureLoader([keeper, operator, registryOwner])
+    ;[operator, dao, initialHolder, spender, recipient] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([dao])
   })
 
   beforeEach('deploy fixture', async () => {
     ;({ createVault } = await loadFixture(ethVaultFixture))
-    vault = await createVault(vaultName, vaultSymbol, feePercent, maxTotalAssets)
+    vault = await createVault(
+      operator,
+      maxTotalAssets,
+      validatorsRoot,
+      feePercent,
+      vaultName,
+      vaultSymbol,
+      validatorsIpfsHash
+    )
     await vault.connect(initialHolder).deposit(initialHolder.address, { value: initialSupply })
   })
 
@@ -57,13 +60,29 @@ describe('EthVault - token', () => {
 
   it('fails to deploy with invalid name length', async () => {
     await expect(
-      createVault('a'.repeat(31), vaultSymbol, feePercent, maxTotalAssets)
+      createVault(
+        operator,
+        maxTotalAssets,
+        validatorsRoot,
+        feePercent,
+        'a'.repeat(31),
+        vaultSymbol,
+        validatorsIpfsHash
+      )
     ).to.be.revertedWith('InvalidInitArgs()')
   })
 
   it('fails to deploy with invalid symbol length', async () => {
     await expect(
-      createVault(vaultName, 'a'.repeat(21), feePercent, maxTotalAssets)
+      createVault(
+        operator,
+        maxTotalAssets,
+        validatorsRoot,
+        feePercent,
+        vaultName,
+        'a'.repeat(21),
+        validatorsIpfsHash
+      )
     ).to.be.revertedWith('InvalidInitArgs()')
   })
 
@@ -302,7 +321,7 @@ describe('EthVault - token', () => {
 
     const buildData = (deadline = maxDeadline) => ({
       primaryType: 'Permit',
-      types: { EIP712Domain, Permit },
+      types: { EIP712Domain, Permit: PermitSig },
       domain: {
         name: vaultName,
         version: '1',

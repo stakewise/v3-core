@@ -89,9 +89,9 @@ describe('EthVaultFactory', () => {
   })
 
   it('creates vault correctly', async () => {
-    let addresses = await factory.computeAddresses(operator.address)
-    let vaultAddress = addresses.vault
-    let feesEscrowAddress = addresses.feesEscrow
+    const addresses = await factory.computeAddresses(operator.address)
+    const vaultAddress = addresses.vault
+    const feesEscrowAddress = addresses.feesEscrow
     const tx = await factory
       .connect(operator)
       .createVault(

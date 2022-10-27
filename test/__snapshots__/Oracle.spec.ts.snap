@@ -3,21 +3,21 @@
 exports[`Oracle harvest calculates delta since last update 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 67957,
+  "gasUsed": 67915,
 }
 `;
 
 exports[`Oracle harvest succeeds for already harvested vault 1`] = `
 Object {
   "calldataByteLength": 260,
-  "gasUsed": 59508,
+  "gasUsed": 65461,
 }
 `;
 
 exports[`Oracle harvest succeeds for not harvested vault 1`] = `
 Object {
   "calldataByteLength": 260,
-  "gasUsed": 131953,
+  "gasUsed": 131631,
 }
 `;
 
