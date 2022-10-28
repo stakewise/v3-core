@@ -9,7 +9,6 @@ import {IVault} from '../interfaces/IVault.sol';
 import {IKeeper} from '../interfaces/IKeeper.sol';
 import {ISigners} from '../interfaces/ISigners.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
-import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {Upgradeable} from './Upgradeable.sol';
 
 /**
@@ -30,10 +29,6 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
   IRegistry public immutable override registry;
 
   /// @inheritdoc IKeeper
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IValidatorsRegistry public immutable override validatorsRegistry;
-
-  /// @inheritdoc IKeeper
   bytes32 public override rewardsRoot;
 
   /// @inheritdoc IKeeper
@@ -48,19 +43,13 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param _signers The address of the Signers contract
    * @param _registry The address of the Registry contract
-   * @param _validatorsRegistry The address of the Validators Registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(
-    ISigners _signers,
-    IRegistry _registry,
-    IValidatorsRegistry _validatorsRegistry
-  ) {
+  constructor(ISigners _signers, IRegistry _registry) {
     // disable initializers for the implementation contract
     _disableInitializers();
     signers = _signers;
     registry = _registry;
-    validatorsRegistry = _validatorsRegistry;
   }
 
   /// @inheritdoc IKeeper
@@ -129,6 +118,16 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
    */
   function __Keeper_init(address _owner) internal onlyInitializing {
     _transferOwnership(_owner);
+  }
+
+  /**
+   * @dev Collateralize Vault so that it must be harvested in future reward updates
+   * @param vault The address of the Vault
+   */
+  function _collateralize(address vault) internal {
+    if (rewards[vault].nonce == 0) {
+      rewards[vault] = RewardSync({nonce: rewardsNonce + 1, reward: 0});
+    }
   }
 
   /**

@@ -3,6 +3,6 @@
 exports[`EthKeeper register single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 996,
-  "gasUsed": 272918,
+  "gasUsed": 272947,
 }
 `;

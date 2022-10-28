@@ -20,6 +20,10 @@ contract EthKeeper is Keeper, IEthKeeper {
   bytes32 internal constant _registerValidatorsTypeHash =
     keccak256('EthKeeper(bytes32 validatorsRegistryRoot,address vault,bytes32 validators)');
 
+  /// @inheritdoc IEthKeeper
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  IValidatorsRegistry public immutable override validatorsRegistry;
+
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -33,7 +37,9 @@ contract EthKeeper is Keeper, IEthKeeper {
     ISigners _signers,
     IRegistry _registry,
     IValidatorsRegistry _validatorsRegistry
-  ) Keeper(_signers, _registry, _validatorsRegistry) {}
+  ) Keeper(_signers, _registry) {
+    validatorsRegistry = _validatorsRegistry;
+  }
 
   /// @inheritdoc IEthKeeper
   function initialize(address _owner) external override initializer {
@@ -61,10 +67,7 @@ contract EthKeeper is Keeper, IEthKeeper {
       signatures
     );
 
-    // collateralize vault
-    if (rewards[vault].nonce == 0) {
-      rewards[vault] = RewardSync({nonce: rewardsNonce + 1, reward: 0});
-    }
+    _collateralize(vault);
 
     emit ValidatorRegistered(vault, validatorsRegistryRoot, validator, signatures);
 
@@ -99,10 +102,7 @@ contract EthKeeper is Keeper, IEthKeeper {
       signatures
     );
 
-    // collateralize vault
-    if (rewards[vault].nonce == 0) {
-      rewards[vault] = RewardSync({nonce: rewardsNonce + 1, reward: 0});
-    }
+    _collateralize(vault);
 
     emit ValidatorsRegistered(vault, validatorsRegistryRoot, validators, signatures);
 

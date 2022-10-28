@@ -3,7 +3,6 @@
 pragma solidity =0.8.17;
 
 import {ISigners} from './ISigners.sol';
-import {IValidatorsRegistry} from './IValidatorsRegistry.sol';
 import {IRegistry} from './IRegistry.sol';
 
 /**
@@ -63,12 +62,6 @@ interface IKeeper {
    * @return The address of the Registry contract
    */
   function registry() external view returns (IRegistry);
-
-  /**
-   * @notice Validators Registry Address
-   * @return The address of the Validators Registry contract
-   */
-  function validatorsRegistry() external view returns (IValidatorsRegistry);
 
   /**
    * @notice Rewards Root
