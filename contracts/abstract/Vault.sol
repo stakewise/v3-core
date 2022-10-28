@@ -8,7 +8,7 @@ import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IVault} from '../interfaces/IVault.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
-import {IOracle} from '../interfaces/IOracle.sol';
+import {IKeeper} from '../interfaces/IKeeper.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
 import {ERC20Permit} from './ERC20Permit.sol';
@@ -31,7 +31,7 @@ abstract contract Vault is Upgradeable, ERC20Permit, IVault {
 
   /// @inheritdoc IVault
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IOracle public immutable override oracle;
+  IKeeper public immutable override keeper;
 
   /// @inheritdoc IVault
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -71,9 +71,9 @@ abstract contract Vault is Upgradeable, ERC20Permit, IVault {
     _;
   }
 
-  /// @dev Prevents calling a function from anyone except Vault's oracle
-  modifier onlyOracle() {
-    if (msg.sender != address(oracle)) revert AccessDenied();
+  /// @dev Prevents calling a function from anyone except Vault's keeper
+  modifier onlyKeeper() {
+    if (msg.sender != address(keeper)) revert AccessDenied();
     _;
   }
 
@@ -81,12 +81,12 @@ abstract contract Vault is Upgradeable, ERC20Permit, IVault {
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _oracle The address of the Oracle that can update Vault's state
+   * @param _keeper The address of the Keeper that can update Vault's state
    * @param _registry The address of the Registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(IOracle _oracle, IRegistry _registry) ERC20Permit() {
-    oracle = _oracle;
+  constructor(IKeeper _keeper, IRegistry _registry) ERC20Permit() {
+    keeper = _keeper;
     registry = _registry;
   }
 
@@ -229,7 +229,7 @@ abstract contract Vault is Upgradeable, ERC20Permit, IVault {
   function updateState(int256 validatorAssets)
     external
     override
-    onlyOracle
+    onlyKeeper
     returns (int256 assetsDelta)
   {
     return _updateState(validatorAssets);
@@ -237,13 +237,15 @@ abstract contract Vault is Upgradeable, ERC20Permit, IVault {
 
   /// @inheritdoc IVault
   function updateHarvestedState() public override returns (int256 assetsDelta) {
-    if (!oracle.isHarvested(address(this))) revert NotHarvested();
+    if (!keeper.isHarvested(address(this))) revert NotHarvested();
     return _updateState(0);
   }
 
   /// @inheritdoc IVault
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
     uint256 totalShares = _totalShares;
+    // Will revert if assets > 0, totalSupply > 0 and _totalAssets = 0.
+    // That corresponds to a case where any asset would represent an infinite amount of shares.
     return
       (assets == 0 || totalShares == 0) ? assets : Math.mulDiv(assets, totalShares, _totalAssets);
   }
@@ -365,6 +367,8 @@ abstract contract Vault is Upgradeable, ERC20Permit, IVault {
         operatorShares = profitAccrued;
       } else {
         uint256 operatorAssets = Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
+        // Will revert if assets > 0, totalSupply > 0 and _totalAssets = 0.
+        // That corresponds to a case where any asset would represent an infinite amount of shares.
         unchecked {
           // cannot underflow as totalAssetsAfter >= operatorAssets
           operatorShares = Math.mulDiv(

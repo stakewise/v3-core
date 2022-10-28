@@ -3,14 +3,14 @@
 pragma solidity =0.8.17;
 
 import {ISigners} from './ISigners.sol';
-import {IOracle} from './IOracle.sol';
+import {IKeeper} from './IKeeper.sol';
 
 /**
- * @title IEthOracle
+ * @title IEthKeeper
  * @author StakeWise
- * @notice Defines the interface for the EthOracle contract
+ * @notice Defines the interface for the EthKeeper contract
  */
-interface IEthOracle is IOracle {
+interface IEthKeeper is IKeeper {
   /**
    * @notice Event emitted on single validator registration
    * @param vault The address of the Vault
@@ -40,8 +40,8 @@ interface IEthOracle is IOracle {
   );
 
   /**
-   * @dev Initializes the EthOracle contract
-   * @param _owner The address of the EthOracle owner
+   * @dev Initializes the EthKeeper contract
+   * @param _owner The address of the EthKeeper owner
    */
   function initialize(address _owner) external;
 

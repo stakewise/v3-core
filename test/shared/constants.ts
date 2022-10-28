@@ -41,7 +41,7 @@ export const PermitSig = [
   { name: 'deadline', type: 'uint256' },
 ]
 
-export const OracleSig = [
+export const KeeperSig = [
   { name: 'rewardsRoot', type: 'bytes32' },
   { name: 'rewardsIpfsHash', type: 'bytes32' },
   { name: 'nonce', type: 'uint96' },

@@ -9,7 +9,7 @@ import {IEthVault} from '../interfaces/IEthVault.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
-import {IOracle} from '../interfaces/IOracle.sol';
+import {IKeeper} from '../interfaces/IKeeper.sol';
 import {Vault} from '../abstract/Vault.sol';
 import {EthFeesEscrow} from './EthFeesEscrow.sol';
 
@@ -29,16 +29,16 @@ contract EthVault is Vault, IEthVault {
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _oracle The address of the Oracle that can harvest Vault's rewards
+   * @param _keeper The address of the Keeper that can harvest Vault's rewards
    * @param _registry The address of the Registry contract
    * @param _validatorsRegistry The address used for registering Vault's validators
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    IOracle _oracle,
+    IKeeper _keeper,
     IRegistry _registry,
     IEthValidatorsRegistry _validatorsRegistry
-  ) Vault(_oracle, _registry) {
+  ) Vault(_keeper, _registry) {
     validatorsRegistry = _validatorsRegistry;
   }
 
@@ -56,7 +56,7 @@ contract EthVault is Vault, IEthVault {
   function registerValidator(bytes calldata validator, bytes32[] calldata proof)
     external
     override
-    onlyOracle
+    onlyKeeper
   {
     if (availableAssets() < _validatorDeposit) revert InsufficientAvailableAssets();
     if (
@@ -82,7 +82,7 @@ contract EthVault is Vault, IEthVault {
     bytes[] calldata validators,
     bool[] calldata proofFlags,
     bytes32[] calldata proof
-  ) external override onlyOracle {
+  ) external override onlyKeeper {
     if (availableAssets() < _validatorDeposit * validators.length) {
       revert InsufficientAvailableAssets();
     }

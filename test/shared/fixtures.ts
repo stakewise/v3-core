@@ -8,7 +8,7 @@ import {
   EthVault,
   EthVaultFactory,
   EthVaultMock,
-  EthOracle,
+  EthKeeper,
   Registry,
   Signers,
 } from '../../typechain-types'
@@ -34,29 +34,29 @@ export const createSigners = async function (
   return (await factory.deploy(owner.address, initialSigners, initialRequiredSigners)) as Signers
 }
 
-export const createEthOracle = async function (
+export const createEthKeeper = async function (
   owner: Wallet,
   signers: Signers,
   registry: Registry,
   validatorsRegistry: Contract
-): Promise<EthOracle> {
-  const factory = await ethers.getContractFactory('EthOracle')
+): Promise<EthKeeper> {
+  const factory = await ethers.getContractFactory('EthKeeper')
   const instance = await upgrades.deployProxy(factory, [owner.address], {
     unsafeAllow: ['delegatecall'],
     constructorArgs: [signers.address, registry.address, validatorsRegistry.address],
   })
-  return (await instance.deployed()) as EthOracle
+  return (await instance.deployed()) as EthKeeper
 }
 
 export const createEthVaultFactory = async function (
-  oracle: EthOracle,
+  keeper: EthKeeper,
   registry: Registry,
   validatorsRegistry: Contract
 ): Promise<EthVaultFactory> {
   const ethVault = await ethers.getContractFactory('EthVault')
   const ethVaultImpl = await upgrades.deployImplementation(ethVault, {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [oracle.address, registry.address, validatorsRegistry.address],
+    constructorArgs: [keeper.address, registry.address, validatorsRegistry.address],
   })
 
   const factory = await ethers.getContractFactory('EthVaultFactory')
@@ -64,14 +64,14 @@ export const createEthVaultFactory = async function (
 }
 
 export const createEthVaultMockFactory = async function (
-  oracle: EthOracle,
+  keeper: EthKeeper,
   registry: Registry,
   validatorsRegistry: Contract
 ): Promise<EthVaultFactory> {
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
   const ethVaultMockImpl = await upgrades.deployImplementation(ethVaultMock, {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [oracle.address, registry.address, validatorsRegistry.address],
+    constructorArgs: [keeper.address, registry.address, validatorsRegistry.address],
   })
 
   const factory = await ethers.getContractFactory('EthVaultFactory')
@@ -81,7 +81,7 @@ export const createEthVaultMockFactory = async function (
 interface EthVaultFixture {
   registry: Registry
   signers: Signers
-  oracle: EthOracle
+  keeper: EthKeeper
   validatorsRegistry: Contract
   ethVaultFactory: EthVaultFactory
 
@@ -124,11 +124,11 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     sortedSigners.map((s) => new EthereumWallet(s).getAddressString()),
     REQUIRED_SIGNERS
   )
-  const oracle = await createEthOracle(dao, signers, registry, validatorsRegistry)
-  const ethVaultFactory = await createEthVaultFactory(oracle, registry, validatorsRegistry)
+  const keeper = await createEthKeeper(dao, signers, registry, validatorsRegistry)
+  const ethVaultFactory = await createEthVaultFactory(keeper, registry, validatorsRegistry)
   await registry.connect(dao).addFactory(ethVaultFactory.address)
 
-  const ethVaultMockFactory = await createEthVaultMockFactory(oracle, registry, validatorsRegistry)
+  const ethVaultMockFactory = await createEthVaultMockFactory(keeper, registry, validatorsRegistry)
   await registry.connect(dao).addFactory(ethVaultMockFactory.address)
 
   const ethVault = await ethers.getContractFactory('EthVault')
@@ -136,7 +136,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   return {
     registry,
     signers,
-    oracle,
+    keeper,
     validatorsRegistry,
     ethVaultFactory,
     createVault: async (

@@ -6,40 +6,40 @@ import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {IVault} from '../interfaces/IVault.sol';
-import {IOracle} from '../interfaces/IOracle.sol';
+import {IKeeper} from '../interfaces/IKeeper.sol';
 import {ISigners} from '../interfaces/ISigners.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {Upgradeable} from './Upgradeable.sol';
 
 /**
- * @title Oracle
+ * @title Keeper
  * @author StakeWise
  * @notice Defines the functionality for updating Vaults' rewards
  */
-abstract contract Oracle is OwnableUpgradeable, Upgradeable, IOracle {
+abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
   bytes32 internal constant _rewardsRootTypeHash =
-    keccak256('Oracle(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint96 nonce)');
+    keccak256('Keeper(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint96 nonce)');
 
-  /// @inheritdoc IOracle
+  /// @inheritdoc IKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   ISigners public immutable override signers;
 
-  /// @inheritdoc IOracle
+  /// @inheritdoc IKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IRegistry public immutable override registry;
 
-  /// @inheritdoc IOracle
+  /// @inheritdoc IKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IValidatorsRegistry public immutable override validatorsRegistry;
 
-  /// @inheritdoc IOracle
+  /// @inheritdoc IKeeper
   bytes32 public override rewardsRoot;
 
-  /// @inheritdoc IOracle
+  /// @inheritdoc IKeeper
   mapping(address => RewardSync) public override rewards;
 
-  /// @inheritdoc IOracle
+  /// @inheritdoc IKeeper
   uint96 public override rewardsNonce;
 
   /**
@@ -63,7 +63,7 @@ abstract contract Oracle is OwnableUpgradeable, Upgradeable, IOracle {
     validatorsRegistry = _validatorsRegistry;
   }
 
-  /// @inheritdoc IOracle
+  /// @inheritdoc IKeeper
   function setRewardsRoot(
     bytes32 _rewardsRoot,
     string calldata rewardsIpfsHash,
@@ -88,7 +88,7 @@ abstract contract Oracle is OwnableUpgradeable, Upgradeable, IOracle {
     emit RewardsRootUpdated(msg.sender, _rewardsRoot, nonce, rewardsIpfsHash, signatures);
   }
 
-  /// @inheritdoc IOracle
+  /// @inheritdoc IKeeper
   function isHarvested(address vault) external view override returns (bool) {
     // vault is considered harvested in case it does not have any validators
     // or it has the latest nonce
@@ -96,7 +96,7 @@ abstract contract Oracle is OwnableUpgradeable, Upgradeable, IOracle {
     return nonce == 0 || nonce >= rewardsNonce;
   }
 
-  /// @inheritdoc IOracle
+  /// @inheritdoc IKeeper
   function harvest(
     address vault,
     int160 reward,
@@ -124,10 +124,10 @@ abstract contract Oracle is OwnableUpgradeable, Upgradeable, IOracle {
   function _authorizeUpgrade(address) internal override onlyOwner {}
 
   /**
-   * @dev Initializes the Oracle contract
+   * @dev Initializes the Keeper contract
    * @param _owner The address of the contract owner
    */
-  function __Oracle_init(address _owner) internal onlyInitializing {
+  function __Keeper_init(address _owner) internal onlyInitializing {
     _transferOwnership(_owner);
   }
 

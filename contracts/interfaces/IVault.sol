@@ -4,7 +4,7 @@ pragma solidity =0.8.17;
 
 import {IERC20Permit} from './IERC20Permit.sol';
 import {IRegistry} from './IRegistry.sol';
-import {IOracle} from './IOracle.sol';
+import {IKeeper} from './IKeeper.sol';
 import {IUpgradeable} from './IUpgradeable.sol';
 import {IFeesEscrow} from './IFeesEscrow.sol';
 
@@ -124,10 +124,10 @@ interface IVault is IUpgradeable, IERC20Permit {
   event StateUpdated(int256 assetsDelta);
 
   /**
-   * @notice The Oracle address that can update Vault's state
-   * @return The address of the Vault's oracle
+   * @notice The Keeper address that can update Vault's state
+   * @return The address of the Vault's keeper
    */
-  function oracle() external view returns (IOracle);
+  function keeper() external view returns (IKeeper);
 
   /**
    * @notice The Registry
@@ -271,7 +271,7 @@ interface IVault is IUpgradeable, IERC20Permit {
   ) external returns (uint256 assets);
 
   /**
-   * @notice Updates the total amount of assets in the Vault and its exit queue. Can only be called by the Oracle.
+   * @notice Updates the total amount of assets in the Vault and its exit queue. Can only be called by the Keeper.
    * @param validatorAssets The number of assets accumulated in the validators since the previous update
    * @return assetsDelta The number of assets added or deducted from/to the total assets
    */

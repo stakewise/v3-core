@@ -2,23 +2,23 @@
 
 pragma solidity =0.8.17;
 
-import {Oracle} from '../abstract/Oracle.sol';
-import {IEthOracle} from '../interfaces/IEthOracle.sol';
+import {Keeper} from '../abstract/Keeper.sol';
+import {IEthKeeper} from '../interfaces/IEthKeeper.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
 import {ISigners} from '../interfaces/ISigners.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 
 /**
- * @title EthOracle
+ * @title EthKeeper
  * @author StakeWise
  * @notice Defines the functionality for registering validators for the Ethereum Vaults
  */
-contract EthOracle is Oracle, IEthOracle {
+contract EthKeeper is Keeper, IEthKeeper {
   bytes32 internal constant _registerValidatorTypeHash =
-    keccak256('EthOracle(bytes32 validatorsRegistryRoot,address vault,bytes32 validator)');
+    keccak256('EthKeeper(bytes32 validatorsRegistryRoot,address vault,bytes32 validator)');
   bytes32 internal constant _registerValidatorsTypeHash =
-    keccak256('EthOracle(bytes32 validatorsRegistryRoot,address vault,bytes32 validators)');
+    keccak256('EthKeeper(bytes32 validatorsRegistryRoot,address vault,bytes32 validators)');
 
   /**
    * @dev Constructor
@@ -33,14 +33,14 @@ contract EthOracle is Oracle, IEthOracle {
     ISigners _signers,
     IRegistry _registry,
     IValidatorsRegistry _validatorsRegistry
-  ) Oracle(_signers, _registry, _validatorsRegistry) {}
+  ) Keeper(_signers, _registry, _validatorsRegistry) {}
 
-  /// @inheritdoc IEthOracle
+  /// @inheritdoc IEthKeeper
   function initialize(address _owner) external override initializer {
-    __Oracle_init(_owner);
+    __Keeper_init(_owner);
   }
 
-  /// @inheritdoc IEthOracle
+  /// @inheritdoc IEthKeeper
   function registerValidator(
     address vault,
     bytes32 validatorsRegistryRoot,
@@ -72,7 +72,7 @@ contract EthOracle is Oracle, IEthOracle {
     IEthVault(vault).registerValidator(validator, proof);
   }
 
-  /// @inheritdoc IEthOracle
+  /// @inheritdoc IEthKeeper
   function registerValidators(
     address vault,
     bytes32 validatorsRegistryRoot,

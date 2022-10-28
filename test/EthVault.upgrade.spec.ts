@@ -31,7 +31,7 @@ describe('EthVault - upgrade', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    const { createVault, registry, validatorsRegistry, oracle } = await loadFixture(ethVaultFixture)
+    const { createVault, registry, validatorsRegistry, keeper } = await loadFixture(ethVaultFixture)
     vault = await createVault(
       operator,
       maxTotalAssets,
@@ -44,7 +44,7 @@ describe('EthVault - upgrade', () => {
     const ethVaultMock = await ethers.getContractFactory('EthVaultV2Mock')
     newImpl = (await upgrades.deployImplementation(ethVaultMock, {
       unsafeAllow: ['delegatecall'],
-      constructorArgs: [oracle.address, registry.address, validatorsRegistry.address],
+      constructorArgs: [keeper.address, registry.address, validatorsRegistry.address],
     })) as string
     currImpl = await vault.implementation()
     callData = defaultAbiCoder.encode(['uint128'], [100])

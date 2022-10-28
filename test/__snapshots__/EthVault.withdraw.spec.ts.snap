@@ -61,13 +61,13 @@ Object {
 exports[`EthVault - withdraw update exit queue adds checkpoint 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 100754,
+  "gasUsed": 100843,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue for not all the queued shares 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 105544,
+  "gasUsed": 105633,
 }
 `;

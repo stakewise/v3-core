@@ -6,7 +6,7 @@ import { arrayify, defaultAbiCoder, parseEther } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
 import { MerkleTree } from 'merkletreejs'
 import keccak256 from 'keccak256'
-import { Signers, EthVault, EthOracle } from '../../typechain-types'
+import { Signers, EthVault, EthKeeper } from '../../typechain-types'
 import { EIP712Domain, RegisterValidatorSig, RegisterValidatorsSig } from './constants'
 
 export const secretKeys = [
@@ -188,8 +188,8 @@ export function getEthValidatorSigningData(
   validatorsRegistryRoot: BytesLike
 ) {
   return {
-    primaryType: 'EthOracle',
-    types: { EIP712Domain, EthOracle: RegisterValidatorSig },
+    primaryType: 'EthKeeper',
+    types: { EIP712Domain, EthKeeper: RegisterValidatorSig },
     domain: {
       name: 'Signers',
       version: '1',
@@ -211,8 +211,8 @@ export function getEthValidatorsSigningData(
   validatorsRegistryRoot: BytesLike
 ) {
   return {
-    primaryType: 'EthOracle',
-    types: { EIP712Domain, EthOracle: RegisterValidatorsSig },
+    primaryType: 'EthKeeper',
+    types: { EIP712Domain, EthKeeper: RegisterValidatorsSig },
     domain: {
       name: 'Signers',
       version: '1',
@@ -244,7 +244,7 @@ export function getValidatorsMultiProof(
 export async function registerEthValidator(
   vault: EthVault,
   signers: Signers,
-  oracle: EthOracle,
+  keeper: EthKeeper,
   validatorsRegistry: Contract,
   operator: Wallet,
   getSignatures: (typedData: any, count?: number) => Buffer
@@ -256,7 +256,7 @@ export async function registerEthValidator(
   const signingData = getEthValidatorSigningData(validator, signers, vault, validatorsRegistryRoot)
   const signatures = getSignatures(signingData)
   const proof = getValidatorProof(validatorsData.tree, validator)
-  await oracle.registerValidator(
+  await keeper.registerValidator(
     vault.address,
     validatorsRegistryRoot,
     validator,

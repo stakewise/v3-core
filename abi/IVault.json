@@ -566,6 +566,19 @@
   },
   {
     "inputs": [],
+    "name": "keeper",
+    "outputs": [
+      {
+        "internalType": "contract IKeeper",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "maxTotalAssets",
     "outputs": [
       {
@@ -615,19 +628,6 @@
     "outputs": [
       {
         "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "oracle",
-    "outputs": [
-      {
-        "internalType": "contract IOracle",
         "name": "",
         "type": "address"
       }

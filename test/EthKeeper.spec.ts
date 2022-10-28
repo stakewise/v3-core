@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
-import { EthOracle, EthVault, Signers } from '../typechain-types'
+import { EthKeeper, EthVault, Signers } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -20,7 +20,7 @@ import snapshotGasCost from './shared/snapshotGasCost'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
-describe('EthOracle', () => {
+describe('EthKeeper', () => {
   const maxTotalAssets = parseEther('1000')
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
@@ -33,7 +33,7 @@ describe('EthOracle', () => {
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
   let sender: Wallet, owner: Wallet, operator: Wallet
-  let oracle: EthOracle, signers: Signers, vault: EthVault, validatorsRegistry: Contract
+  let keeper: EthKeeper, signers: Signers, vault: EthVault, validatorsRegistry: Contract
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
 
@@ -43,7 +43,7 @@ describe('EthOracle', () => {
   })
 
   beforeEach(async () => {
-    ;({ signers, oracle, validatorsRegistry, createVault, getSignatures } = await loadFixture(
+    ;({ signers, keeper, validatorsRegistry, createVault, getSignatures } = await loadFixture(
       ethVaultFixture
     ))
     vault = await createVault(
@@ -61,7 +61,7 @@ describe('EthOracle', () => {
   })
 
   it('fails to initialize', async () => {
-    await expect(oracle.initialize(owner.address)).revertedWith(
+    await expect(keeper.initialize(owner.address)).revertedWith(
       'Initializable: contract is already initialized'
     )
   })
@@ -82,8 +82,8 @@ describe('EthOracle', () => {
 
     it('fails for invalid vault', async () => {
       await expect(
-        oracle.registerValidator(
-          oracle.address,
+        keeper.registerValidator(
+          keeper.address,
           validatorsRegistryRoot,
           validator,
           signatures,
@@ -101,7 +101,7 @@ describe('EthOracle', () => {
         { value: parseEther('32') }
       )
       await expect(
-        oracle.registerValidator(
+        keeper.registerValidator(
           vault.address,
           validatorsRegistryRoot,
           validator,
@@ -113,7 +113,7 @@ describe('EthOracle', () => {
 
     it('fails for invalid signatures', async () => {
       await expect(
-        oracle.registerValidator(
+        keeper.registerValidator(
           vault.address,
           validatorsRegistryRoot,
           validator,
@@ -125,7 +125,7 @@ describe('EthOracle', () => {
 
     it('fails for invalid validator', async () => {
       await expect(
-        oracle.registerValidator(
+        keeper.registerValidator(
           vault.address,
           validatorsRegistryRoot,
           validatorsData.validators[1],
@@ -137,7 +137,7 @@ describe('EthOracle', () => {
 
     it('fails for invalid proof', async () => {
       await expect(
-        oracle.registerValidator(
+        keeper.registerValidator(
           vault.address,
           validatorsRegistryRoot,
           validator,
@@ -148,11 +148,11 @@ describe('EthOracle', () => {
     })
 
     it('succeeds', async () => {
-      let rewardsSync = await oracle.rewards(vault.address)
+      let rewardsSync = await keeper.rewards(vault.address)
       expect(rewardsSync.nonce).to.eq(0)
       expect(rewardsSync.reward).to.eq(0)
 
-      let receipt = await oracle.registerValidator(
+      let receipt = await keeper.registerValidator(
         vault.address,
         validatorsRegistryRoot,
         validator,
@@ -160,11 +160,11 @@ describe('EthOracle', () => {
         proof
       )
       await expect(receipt)
-        .to.emit(oracle, 'ValidatorRegistered')
+        .to.emit(keeper, 'ValidatorRegistered')
         .withArgs(vault.address, validatorsRegistryRoot, hexlify(validator), hexlify(signatures))
 
       // collateralize vault
-      rewardsSync = await oracle.rewards(vault.address)
+      rewardsSync = await keeper.rewards(vault.address)
       expect(rewardsSync.nonce).to.eq(1)
       expect(rewardsSync.reward).to.eq(0)
 
@@ -174,7 +174,7 @@ describe('EthOracle', () => {
 
       // fails to register twice
       await expect(
-        oracle.registerValidator(
+        keeper.registerValidator(
           vault.address,
           newValidatorsRegistryRoot,
           validator,
@@ -194,7 +194,7 @@ describe('EthOracle', () => {
         newValidatorsRegistryRoot
       )
       const newSignatures = getSignatures(newSigningData)
-      receipt = await oracle.registerValidator(
+      receipt = await keeper.registerValidator(
         vault.address,
         newValidatorsRegistryRoot,
         newValidator,
@@ -203,7 +203,7 @@ describe('EthOracle', () => {
       )
 
       // doesn't collateralize twice
-      rewardsSync = await oracle.rewards(vault.address)
+      rewardsSync = await keeper.rewards(vault.address)
       expect(rewardsSync.nonce).to.eq(1)
       expect(rewardsSync.reward).to.eq(0)
 
@@ -229,8 +229,8 @@ describe('EthOracle', () => {
 
     it('fails for invalid vault', async () => {
       await expect(
-        oracle.registerValidators(
-          oracle.address,
+        keeper.registerValidators(
+          keeper.address,
           validatorsRegistryRoot,
           validators,
           signatures,
@@ -250,7 +250,7 @@ describe('EthOracle', () => {
         { value: parseEther('32') }
       )
       await expect(
-        oracle.registerValidators(
+        keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
           validators,
@@ -263,7 +263,7 @@ describe('EthOracle', () => {
 
     it('fails for invalid signatures', async () => {
       await expect(
-        oracle.registerValidators(
+        keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
           validators,
@@ -276,7 +276,7 @@ describe('EthOracle', () => {
 
     it('fails for invalid validators', async () => {
       await expect(
-        oracle.registerValidators(
+        keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
           [validators[0]],
@@ -290,7 +290,7 @@ describe('EthOracle', () => {
     it('fails for invalid proof', async () => {
       const invalidProof = getValidatorsMultiProof(validatorsData.tree, [validators[0]])
       await expect(
-        oracle.registerValidators(
+        keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
           validators,
@@ -303,11 +303,11 @@ describe('EthOracle', () => {
 
     // TODO: enable once https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3743 is resolved
     it.skip('succeeds', async () => {
-      let rewardsSync = await oracle.rewards(vault.address)
+      let rewardsSync = await keeper.rewards(vault.address)
       expect(rewardsSync.nonce).to.eq(0)
       expect(rewardsSync.reward).to.eq(0)
 
-      let receipt = await oracle.registerValidators(
+      let receipt = await keeper.registerValidators(
         vault.address,
         validatorsRegistryRoot,
         validators,
@@ -316,7 +316,7 @@ describe('EthOracle', () => {
         proof.proof
       )
       await expect(receipt)
-        .to.emit(oracle, 'ValidatorsRegistered')
+        .to.emit(keeper, 'ValidatorsRegistered')
         .withArgs(
           vault.address,
           validatorsRegistryRoot,
@@ -324,7 +324,7 @@ describe('EthOracle', () => {
           hexlify(signatures)
         )
 
-      rewardsSync = await oracle.rewards(vault.address)
+      rewardsSync = await keeper.rewards(vault.address)
       expect(rewardsSync.nonce).to.eq(1)
       expect(rewardsSync.reward).to.eq(0)
 
@@ -334,7 +334,7 @@ describe('EthOracle', () => {
 
       // fails to register twice
       await expect(
-        oracle.registerValidators(
+        keeper.registerValidators(
           vault.address,
           newValidatorsRegistryRoot,
           validators,
@@ -355,7 +355,7 @@ describe('EthOracle', () => {
         newValidatorsRegistryRoot
       )
       const newSignatures = getSignatures(newSigningData)
-      receipt = await oracle.registerValidators(
+      receipt = await keeper.registerValidators(
         vault.address,
         newValidatorsRegistryRoot,
         validators,
@@ -365,7 +365,7 @@ describe('EthOracle', () => {
       )
 
       // doesn't collateralize twice
-      rewardsSync = await oracle.rewards(vault.address)
+      rewardsSync = await keeper.rewards(vault.address)
       expect(rewardsSync.nonce).to.eq(1)
       expect(rewardsSync.reward).to.eq(0)
 

@@ -31,14 +31,14 @@ interface IEthVault is IVault {
   function deposit(address receiver) external payable returns (uint256 shares);
 
   /**
-   * @notice Function for registering single validator. Can only be called by the Oracle.
+   * @notice Function for registering single validator. Can only be called by the Keeper.
    * @param validator The concatenation of the validator public key, signature and deposit data root
    * @param proof The proof used to verify that the validator is part of the validators Merkle Tree
    */
   function registerValidator(bytes calldata validator, bytes32[] calldata proof) external;
 
   /**
-   * @notice Function for registering multiple validators. Can only be called by the Oracle.
+   * @notice Function for registering multiple validators. Can only be called by the Keeper.
    * @param validators The list of concatenations of the validators' public key, signature and deposit data root
    * @param proofFlags The multi proof flags for the Merkle Tree verification
    * @param proof The multi proof used for the Merkle Tree verification

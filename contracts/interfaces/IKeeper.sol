@@ -7,11 +7,11 @@ import {IValidatorsRegistry} from './IValidatorsRegistry.sol';
 import {IRegistry} from './IRegistry.sol';
 
 /**
- * @title IOracle
+ * @title IKeeper
  * @author StakeWise
- * @notice Defines the interface for the Oracle contract
+ * @notice Defines the interface for the Keeper contract
  */
-interface IOracle {
+interface IKeeper {
   // Custom errors
   error InvalidRewardsRoot();
   error InvalidProof();

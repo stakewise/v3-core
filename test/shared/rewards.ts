@@ -3,8 +3,8 @@ import { network } from 'hardhat'
 import { BigNumberish } from 'ethers'
 import { defaultAbiCoder, toUtf8Bytes } from 'ethers/lib/utils'
 import keccak256 from 'keccak256'
-import { Signers, Oracle } from '../../typechain-types'
-import { EIP712Domain, OracleSig } from './constants'
+import { Signers, Keeper } from '../../typechain-types'
+import { EIP712Domain, KeeperSig } from './constants'
 
 export type RewardsRoot = {
   root: string
@@ -36,8 +36,8 @@ export function createVaultRewardsRoot(
     ipfsHash,
     tree,
     signingData: {
-      primaryType: 'Oracle',
-      types: { EIP712Domain, Oracle: OracleSig },
+      primaryType: 'Keeper',
+      types: { EIP712Domain, Keeper: KeeperSig },
       domain: {
         name: 'Signers',
         version: '1',
@@ -54,14 +54,14 @@ export function createVaultRewardsRoot(
 }
 
 export async function updateRewardsRoot(
-  oracle: Oracle,
+  keeper: Keeper,
   signers: Signers,
   getSignatures: (typedData: any, count?: number) => Buffer,
   rewards: VaultReward[]
 ): Promise<MerkleTree> {
-  const rewardsNonce = await oracle.rewardsNonce()
+  const rewardsNonce = await keeper.rewardsNonce()
   const rewardsRoot = createVaultRewardsRoot(rewards, signers, rewardsNonce.toNumber())
-  await oracle.setRewardsRoot(
+  await keeper.setRewardsRoot(
     rewardsRoot.root,
     rewardsRoot.ipfsHash,
     getSignatures(rewardsRoot.signingData)
