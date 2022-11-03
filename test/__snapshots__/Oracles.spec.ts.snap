@@ -1,0 +1,33 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`Oracles add oracle succeeds 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 52478,
+}
+`;
+
+exports[`Oracles remove oracle decreases required oracles 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 37096,
+}
+`;
+
+exports[`Oracles remove oracle succeeds 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 32787,
+}
+`;
+
+exports[`Oracles set required oracles succeeds 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 31875,
+}
+`;
+
+exports[`Oracles verify oracles succeeds with all signatures 1`] = `46668`;
+
+exports[`Oracles verify oracles succeeds with required signatures 1`] = `46607`;

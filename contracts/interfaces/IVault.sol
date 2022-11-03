@@ -82,8 +82,9 @@ interface IVault is IUpgradeable, IERC20Permit {
   /**
    * @notice Event emitted on validator registration
    * @param publicKey The public key of the validator that was registered
+   * @param timestamp The validator registration timestamp
    */
-  event ValidatorRegistered(bytes publicKey);
+  event ValidatorRegistered(bytes publicKey, uint256 timestamp);
 
   /**
    * @notice Event emitted on shares added to the exit queue

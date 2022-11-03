@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthKeeper, EthVault, EthVaultMock, ExitQueue, Signers } from '../typechain-types'
+import { EthKeeper, EthVault, EthVaultMock, ExitQueue, Oracles } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -23,7 +23,7 @@ describe('EthVault - withdraw', () => {
   const holderAssets = parseEther('1')
 
   let holder: Wallet, receiver: Wallet, operator: Wallet, dao: Wallet, other: Wallet
-  let vault: EthVault, keeper: EthKeeper, signers: Signers
+  let vault: EthVault, keeper: EthKeeper, oracles: Oracles
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -36,7 +36,7 @@ describe('EthVault - withdraw', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createVault, createVaultMock, getSignatures, keeper, signers } = await loadFixture(
+    ;({ createVault, createVaultMock, getSignatures, keeper, oracles } = await loadFixture(
       ethVaultFixture
     ))
     vault = await createVault(
@@ -222,7 +222,7 @@ describe('EthVault - withdraw', () => {
     it('skips with 0 burned assets', async () => {
       const totalAssets = await vault.totalAssets()
       const penalty = totalAssets.sub(totalAssets.mul(2))
-      const tree = await updateRewardsRoot(keeper, signers, getSignatures, [
+      const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
         { vault: vault.address, reward: penalty },
       ])
       await expect(
@@ -590,7 +590,7 @@ describe('EthVault - withdraw', () => {
     vaultAssets += 1800
     totalStakedAssets += 3000
     validatorsReward += 1200
-    let tree = await updateRewardsRoot(keeper, signers, getSignatures, [
+    let tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
       { vault: vault.address, reward: validatorsReward },
     ])
     await setBalance(feesEscrow, BigNumber.from(1800))
@@ -635,7 +635,7 @@ describe('EthVault - withdraw', () => {
     totalStakedAssets += 3000
     validatorsReward += 1200
     await setBalance(feesEscrow, BigNumber.from(1800))
-    tree = await updateRewardsRoot(keeper, signers, getSignatures, [
+    tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
       { vault: vault.address, reward: validatorsReward },
     ])
     await keeper.harvest(
@@ -729,7 +729,7 @@ describe('EthVault - withdraw', () => {
     totalStakedAssets += 5000
     validatorsReward += 2000
     aliceAssets += 1007
-    tree = await updateRewardsRoot(keeper, signers, getSignatures, [
+    tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
       { vault: vault.address, reward: validatorsReward },
     ])
     await setBalance(feesEscrow, BigNumber.from(3000))

@@ -205,6 +205,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "oracles",
+    "outputs": [
+      {
+        "internalType": "contract IOracles",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -359,19 +372,6 @@
     "name": "setRewardsRoot",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "signers",
-    "outputs": [
-      {
-        "internalType": "contract ISigners",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {

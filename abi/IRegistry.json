@@ -78,6 +78,12 @@
         "internalType": "address",
         "name": "vault",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
       }
     ],
     "name": "VaultAdded",

@@ -3,6 +3,6 @@
 exports[`EthVaultFactory vault deployment gas 1`] = `
 Object {
   "calldataByteLength": 420,
-  "gasUsed": 580400,
+  "gasUsed": 580697,
 }
 `;

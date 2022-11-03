@@ -79,8 +79,7 @@ interface IEthVaultFactory {
    * @return vault The address of the next created Vault
    * @return feesEscrow The address of the next created FeesEscrow
    */
-  function computeAddresses(address operator)
-    external
-    view
-    returns (address vault, address feesEscrow);
+  function computeAddresses(
+    address operator
+  ) external view returns (address vault, address feesEscrow);
 }

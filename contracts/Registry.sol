@@ -32,7 +32,7 @@ contract Registry is Ownable, IRegistry {
   function addVault(address vault) external override {
     if (!factories[msg.sender]) revert AccessDenied();
     vaults[vault] = true;
-    emit VaultAdded(msg.sender, vault);
+    emit VaultAdded(msg.sender, vault, block.timestamp);
   }
 
   /// @inheritdoc IRegistry

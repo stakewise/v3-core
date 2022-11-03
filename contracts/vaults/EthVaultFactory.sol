@@ -92,12 +92,9 @@ contract EthVaultFactory is IEthVaultFactory {
   }
 
   /// @inheritdoc IEthVaultFactory
-  function computeAddresses(address operator)
-    external
-    view
-    override
-    returns (address vault, address feesEscrow)
-  {
+  function computeAddresses(
+    address operator
+  ) external view override returns (address vault, address feesEscrow) {
     bytes32 operatorNonce = keccak256(abi.encode(operator, nonces[operator]));
     vault = address(
       uint160(

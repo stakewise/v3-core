@@ -226,12 +226,9 @@ abstract contract Vault is Upgradeable, ERC20Permit, IVault {
   }
 
   /// @inheritdoc IVault
-  function updateState(int256 validatorAssets)
-    external
-    override
-    onlyKeeper
-    returns (int256 assetsDelta)
-  {
+  function updateState(
+    int256 validatorAssets
+  ) external override onlyKeeper returns (int256 assetsDelta) {
     return _updateState(validatorAssets);
   }
 
@@ -257,11 +254,10 @@ abstract contract Vault is Upgradeable, ERC20Permit, IVault {
   }
 
   /// @inheritdoc IVault
-  function setValidatorsRoot(bytes32 _validatorsRoot, string memory _validatorsIpfsHash)
-    external
-    override
-    onlyOperator
-  {
+  function setValidatorsRoot(
+    bytes32 _validatorsRoot,
+    string memory _validatorsIpfsHash
+  ) external override onlyOperator {
     validatorsRoot = _validatorsRoot;
     emit ValidatorsRootUpdated(_validatorsRoot, _validatorsIpfsHash);
   }
@@ -427,12 +423,10 @@ abstract contract Vault is Upgradeable, ERC20Permit, IVault {
   }
 
   /// @inheritdoc UUPSUpgradeable
-  function upgradeToAndCall(address newImplementation, bytes memory data)
-    external
-    payable
-    override
-    onlyProxy
-  {
+  function upgradeToAndCall(
+    address newImplementation,
+    bytes memory data
+  ) external payable override onlyProxy {
     _authorizeUpgrade(newImplementation);
     bytes memory params = abi.encodeWithSelector(_upgradeSelector, data);
     _upgradeToAndCallUUPS(newImplementation, params, true);

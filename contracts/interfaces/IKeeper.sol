@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.17;
 
-import {ISigners} from './ISigners.sol';
+import {IOracles} from './IOracles.sol';
 import {IRegistry} from './IRegistry.sol';
 
 /**
@@ -23,7 +23,7 @@ interface IKeeper {
    * @param rewardsRoot The new rewards Merkle Tree root
    * @param nonce The nonce used for verifying signatures
    * @param rewardsIpfsHash The new rewards IPFS hash
-   * @param signatures The concatenation of Signers' signatures
+   * @param signatures The concatenation of Oracles' signatures
    */
   event RewardsRootUpdated(
     address indexed caller,
@@ -52,10 +52,10 @@ interface IKeeper {
   }
 
   /**
-   * @notice Signers Address
-   * @return The address of the Signers contract
+   * @notice Oracles Address
+   * @return The address of the Oracles contract
    */
-  function signers() external view returns (ISigners);
+  function oracles() external view returns (IOracles);
 
   /**
    * @notice Registry Address
@@ -94,7 +94,7 @@ interface IKeeper {
    * @notice Update Merkle Tree Rewards Root
    * @param _rewardsRoot The new rewards Merkle root
    * @param rewardsIpfsHash The new IPFS hash with all the Vaults' rewards for the new root
-   * @param signatures The concatenation of the Signers' signatures
+   * @param signatures The concatenation of the Oracles' signatures
    */
   function setRewardsRoot(
     bytes32 _rewardsRoot,

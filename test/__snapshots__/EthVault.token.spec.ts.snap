@@ -17,7 +17,7 @@ Object {
 exports[`EthVault - token permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 81603,
+  "gasUsed": 81591,
 }
 `;
 

@@ -6,7 +6,7 @@ import {Keeper} from '../abstract/Keeper.sol';
 import {IEthKeeper} from '../interfaces/IEthKeeper.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
-import {ISigners} from '../interfaces/ISigners.sol';
+import {IOracles} from '../interfaces/IOracles.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 
 /**
@@ -28,16 +28,16 @@ contract EthKeeper is Keeper, IEthKeeper {
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _signers The address of the Signers contract
+   * @param _oracles The address of the Oracles contract
    * @param _registry The address of the Registry contract
    * @param _validatorsRegistry The address of the Validators Registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    ISigners _signers,
+    IOracles _oracles,
     IRegistry _registry,
     IValidatorsRegistry _validatorsRegistry
-  ) Keeper(_signers, _registry) {
+  ) Keeper(_oracles, _registry) {
     validatorsRegistry = _validatorsRegistry;
   }
 
@@ -59,8 +59,8 @@ contract EthKeeper is Keeper, IEthKeeper {
     }
     if (!registry.vaults(vault)) revert InvalidVault();
 
-    // verify signers approved registration
-    signers.verifySignatures(
+    // verify oracles approved registration
+    oracles.verifySignatures(
       keccak256(
         abi.encode(_registerValidatorTypeHash, validatorsRegistryRoot, vault, keccak256(validator))
       ),
@@ -89,8 +89,8 @@ contract EthKeeper is Keeper, IEthKeeper {
     }
     if (!registry.vaults(vault)) revert InvalidVault();
 
-    // verify signers approved registration
-    signers.verifySignatures(
+    // verify oracles approved registration
+    oracles.verifySignatures(
       keccak256(
         abi.encode(
           _registerValidatorsTypeHash,

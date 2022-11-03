@@ -2,27 +2,26 @@
 
 pragma solidity =0.8.17;
 
-import {ISigners} from '../interfaces/ISigners.sol';
+import {IOracles} from '../interfaces/IOracles.sol';
 
 /**
- * @title SignersMock
+ * @title OraclesMock
  * @author StakeWise
- * @notice Adds mocked functions to check Signers signatures verification gas consumption
+ * @notice Adds mocked functions to check Oracles signatures verification gas consumption
  */
-contract SignersMock {
-  ISigners public signers;
+contract OraclesMock {
+  IOracles public oracles;
 
-  constructor(ISigners _signers) {
-    signers = _signers;
+  constructor(IOracles _oracles) {
+    oracles = _oracles;
   }
 
-  function getGasCostOfVerifySignatures(bytes32 message, bytes calldata signatures)
-    external
-    view
-    returns (uint256)
-  {
+  function getGasCostOfVerifySignatures(
+    bytes32 message,
+    bytes calldata signatures
+  ) external view returns (uint256) {
     uint256 gasBefore = gasleft();
-    signers.verifySignatures(message, signatures);
+    oracles.verifySignatures(message, signatures);
     return gasBefore - gasleft();
   }
 }

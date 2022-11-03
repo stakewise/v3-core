@@ -29,7 +29,10 @@ describe('Registry', () => {
   it('factory can add vault', async () => {
     await registry.connect(owner).addFactory(factory.address)
     const receipt = await registry.connect(factory).addVault(vault.address)
-    await expect(receipt).to.emit(registry, 'VaultAdded').withArgs(factory.address, vault.address)
+    const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
+    await expect(receipt)
+      .to.emit(registry, 'VaultAdded')
+      .withArgs(factory.address, vault.address, timestamp)
     expect(await registry.vaults(vault.address)).to.be.eq(true)
     await snapshotGasCost(receipt)
   })

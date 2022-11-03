@@ -53,15 +53,18 @@ contract EthVault is Vault, IEthVault {
   }
 
   /// @inheritdoc IEthVault
-  function registerValidator(bytes calldata validator, bytes32[] calldata proof)
-    external
-    override
-    onlyKeeper
-  {
+  function registerValidator(
+    bytes calldata validator,
+    bytes32[] calldata proof
+  ) external override onlyKeeper {
     if (availableAssets() < _validatorDeposit) revert InsufficientAvailableAssets();
     if (
       validator.length != 176 ||
-      !MerkleProof.verifyCalldata(proof, validatorsRoot, keccak256(validator[:144]))
+      !MerkleProof.verifyCalldata(
+        proof,
+        validatorsRoot,
+        keccak256(bytes.concat(keccak256(abi.encode(validator))))
+      )
     ) {
       revert InvalidValidator();
     }
@@ -74,7 +77,7 @@ contract EthVault is Vault, IEthVault {
       bytes32(validator[144:176])
     );
 
-    emit ValidatorRegistered(publicKey);
+    emit ValidatorRegistered(publicKey, block.timestamp);
   }
 
   /// @inheritdoc IEthVault
@@ -94,8 +97,7 @@ contract EthVault is Vault, IEthVault {
     for (uint256 i = 0; i < validators.length; ) {
       validator = validators[i];
       if (validator.length != 176) revert InvalidValidator();
-      leaves[i] = keccak256(validator[:144]);
-
+      leaves[i] = keccak256(bytes.concat(keccak256(abi.encode(validator))));
       publicKey = validator[:48];
       validatorsRegistry.deposit{value: _validatorDeposit}(
         publicKey,
@@ -106,7 +108,7 @@ contract EthVault is Vault, IEthVault {
       unchecked {
         ++i;
       }
-      emit ValidatorRegistered(publicKey);
+      emit ValidatorRegistered(publicKey, block.timestamp);
     }
 
     if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, validatorsRoot, leaves)) {

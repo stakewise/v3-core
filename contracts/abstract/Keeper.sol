@@ -7,7 +7,7 @@ import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/Own
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {IVault} from '../interfaces/IVault.sol';
 import {IKeeper} from '../interfaces/IKeeper.sol';
-import {ISigners} from '../interfaces/ISigners.sol';
+import {IOracles} from '../interfaces/IOracles.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
 import {Upgradeable} from './Upgradeable.sol';
 
@@ -22,7 +22,7 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
 
   /// @inheritdoc IKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  ISigners public immutable override signers;
+  IOracles public immutable override oracles;
 
   /// @inheritdoc IKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -41,14 +41,14 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _signers The address of the Signers contract
+   * @param _oracles The address of the Oracles contract
    * @param _registry The address of the Registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(ISigners _signers, IRegistry _registry) {
+  constructor(IOracles _oracles, IRegistry _registry) {
     // disable initializers for the implementation contract
     _disableInitializers();
-    signers = _signers;
+    oracles = _oracles;
     registry = _registry;
   }
 
@@ -63,8 +63,8 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
 
     if (rewardsRoot == _rewardsRoot) revert InvalidRewardsRoot();
 
-    // verify signers approved the new merkle root
-    signers.verifySignatures(
+    // verify oracles approved the new merkle root
+    oracles.verifySignatures(
       keccak256(
         abi.encode(_rewardsRootTypeHash, _rewardsRoot, keccak256(bytes(rewardsIpfsHash)), nonce)
       ),
@@ -94,7 +94,13 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
     if (!registry.vaults(vault)) revert InvalidVault();
 
     // verify the proof
-    if (!MerkleProof.verifyCalldata(proof, rewardsRoot, keccak256(abi.encode(vault, reward)))) {
+    if (
+      !MerkleProof.verifyCalldata(
+        proof,
+        rewardsRoot,
+        keccak256(bytes.concat(keccak256(abi.encode(vault, reward))))
+      )
+    ) {
       revert InvalidProof();
     }
 
