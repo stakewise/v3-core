@@ -10,21 +10,21 @@ import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
  * @notice Accumulates rewards received from priority fees and MEV on Ethereum. The escrow is owned by the Vault.
  */
 contract EthFeesEscrow is IFeesEscrow {
-  address payable private immutable VAULT;
+  address payable private immutable vault;
 
   /// @dev Constructor
-  constructor() {
-    VAULT = payable(msg.sender);
+  constructor(address _vault) {
+    vault = payable(_vault);
   }
 
   /// @inheritdoc IFeesEscrow
   function withdraw() external override returns (uint256 assets) {
-    if (msg.sender != VAULT) revert WithdrawalFailed();
+    if (msg.sender != vault) revert WithdrawalFailed();
 
     assets = address(this).balance;
     if (assets == 0) return 0;
 
-    (bool success, ) = VAULT.call{value: assets}('');
+    (bool success, ) = vault.call{value: assets}('');
     if (!success) revert WithdrawalFailed();
   }
 

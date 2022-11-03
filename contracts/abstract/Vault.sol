@@ -2,23 +2,24 @@
 
 pragma solidity =0.8.17;
 
-import {UUPSUpgradeable} from '@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IVault} from '../interfaces/IVault.sol';
-import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
-import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
+import {IKeeper} from '../interfaces/IKeeper.sol';
+import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
 import {ERC20Permit} from './ERC20Permit.sol';
+import {Upgradeable} from './Upgradeable.sol';
 
 /**
  * @title Vault
  * @author StakeWise
  * @notice Defines the common Vault functionality
  */
-abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
+abstract contract Vault is Upgradeable, ERC20Permit, IVault {
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IVault
@@ -30,7 +31,7 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
 
   /// @inheritdoc IVault
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  address public immutable override keeper;
+  IKeeper public immutable override keeper;
 
   /// @inheritdoc IVault
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -39,7 +40,7 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
   /// @inheritdoc IVault
   uint256 public override maxTotalAssets;
 
-  /// @inheritdoc IVaultValidators
+  /// @inheritdoc IVault
   bytes32 public override validatorsRoot;
 
   /// @inheritdoc IVault
@@ -56,6 +57,9 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
   mapping(bytes32 => uint256) internal _exitRequests;
 
   /// @inheritdoc IVault
+  IFeesEscrow public override feesEscrow;
+
+  /// @inheritdoc IVault
   address public override operator;
 
   /// @inheritdoc IVault
@@ -69,7 +73,7 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
 
   /// @dev Prevents calling a function from anyone except Vault's keeper
   modifier onlyKeeper() {
-    if (msg.sender != keeper) revert AccessDenied();
+    if (msg.sender != address(keeper)) revert AccessDenied();
     _;
   }
 
@@ -77,11 +81,11 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _keeper The keeper address that can harvest Vault's rewards
-   * @param _registry The address of the registry
+   * @param _keeper The address of the Keeper that can update Vault's state
+   * @param _registry The address of the Registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address _keeper, IRegistry _registry) ERC20Permit() {
+  constructor(IKeeper _keeper, IRegistry _registry) ERC20Permit() {
     keeper = _keeper;
     registry = _registry;
   }
@@ -113,7 +117,8 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
     address receiver,
     address owner
   ) external override returns (uint256 assets) {
-    // TODO: add check to keeper whether harvested
+    // update Vault's state
+    updateHarvestedState();
 
     // calculate amount of assets to burn
     assets = convertToAssets(shares);
@@ -221,66 +226,26 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
   }
 
   /// @inheritdoc IVault
-  function harvest(int256 validatorAssets)
+  function updateState(int256 validatorAssets)
     external
     override
     onlyKeeper
     returns (int256 assetsDelta)
   {
-    // can be negative in case of the loss
-    assetsDelta = validatorAssets + int256(_claimVaultRewards());
+    return _updateState(validatorAssets);
+  }
 
-    // SLOAD to memory
-    uint256 totalAssetsAfter = _totalAssets;
-    uint256 totalSharesAfter = _totalShares;
-
-    if (assetsDelta > 0) {
-      // compute fees as the fee percent multiplied by the profit
-      uint256 profitAccrued = uint256(assetsDelta);
-
-      // increase total staked amount
-      totalAssetsAfter += profitAccrued;
-
-      // calculate operator's shares
-      address _operator = operator;
-      uint256 operatorAssets = Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
-      uint256 operatorShares;
-      unchecked {
-        // cannot underflow as totalAssetsAfter >= operatorAssets
-        operatorShares = (totalSharesAfter == 0 || operatorAssets == 0)
-          ? operatorAssets
-          : Math.mulDiv(operatorAssets, totalSharesAfter, totalAssetsAfter - operatorAssets);
-
-        // cannot underflow because the sum of all shares can't exceed the _totalShares
-        if (operatorShares > 0) balanceOf[_operator] += operatorShares;
-      }
-
-      // increase total shares
-      totalSharesAfter += operatorShares;
-
-      emit Transfer(address(0), _operator, operatorShares);
-    } else if (assetsDelta < 0) {
-      // apply penalty
-      totalAssetsAfter -= uint256(-assetsDelta);
-    }
-
-    // update storage values
-    _totalShares = SafeCast.toUint128(totalSharesAfter);
-    _totalAssets = SafeCast.toUint128(totalAssetsAfter);
-
-    // update exit queue
-    (uint256 burnedShares, uint256 exitedAssets) = _updateExitQueue();
-    if (burnedShares != 0) {
-      _totalShares -= SafeCast.toUint128(burnedShares);
-      _totalAssets -= SafeCast.toUint128(exitedAssets);
-    }
-
-    emit Harvested(assetsDelta);
+  /// @inheritdoc IVault
+  function updateHarvestedState() public override returns (int256 assetsDelta) {
+    if (!keeper.isHarvested(address(this))) revert NotHarvested();
+    return _updateState(0);
   }
 
   /// @inheritdoc IVault
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
     uint256 totalShares = _totalShares;
+    // Will revert if assets > 0, totalSupply > 0 and _totalAssets = 0.
+    // That corresponds to a case where any asset would represent an infinite amount of shares.
     return
       (assets == 0 || totalShares == 0) ? assets : Math.mulDiv(assets, totalShares, _totalAssets);
   }
@@ -291,24 +256,14 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
     return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares);
   }
 
-  /// @inheritdoc IVaultValidators
-  function setValidatorsRoot(bytes32 newValidatorsRoot, string memory newValidatorsIpfsHash)
+  /// @inheritdoc IVault
+  function setValidatorsRoot(bytes32 _validatorsRoot, string memory _validatorsIpfsHash)
     external
     override
     onlyOperator
   {
-    validatorsRoot = newValidatorsRoot;
-    emit ValidatorsRootUpdated(newValidatorsRoot, newValidatorsIpfsHash);
-  }
-
-  /// @inheritdoc IVaultVersion
-  function version() external view override returns (uint8) {
-    return _getInitializedVersion();
-  }
-
-  /// @inheritdoc IVaultVersion
-  function implementation() external view override returns (address) {
-    return _getImplementation();
+    validatorsRoot = _validatorsRoot;
+    emit ValidatorsRootUpdated(_validatorsRoot, _validatorsIpfsHash);
   }
 
   /**
@@ -318,7 +273,8 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
    * @return shares The total amount of shares minted
    */
   function _deposit(address to, uint256 assets) internal returns (uint256 shares) {
-    // TODO: add check to keeper whether harvested
+    // update Vault's state
+    updateHarvestedState();
 
     uint256 totalAssetsAfter;
     unchecked {
@@ -385,6 +341,73 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
     _exitQueue.push(burnedShares, exitedAssets);
   }
 
+  /**
+   * @dev Internal function that must be used to update Vault's state
+   * @param validatorAssets The delta of assets earned or lost inside the validators
+   * @return assetsDelta The amount of assets that the Vault has earned or lost
+   */
+  function _updateState(int256 validatorAssets) internal returns (int256 assetsDelta) {
+    // can be negative in case of the loss
+    assetsDelta = validatorAssets + int256(feesEscrow.withdraw());
+
+    // SLOAD to memory
+    uint256 totalAssetsAfter = _totalAssets;
+    uint256 totalSharesAfter = _totalShares;
+
+    if (assetsDelta > 0) {
+      // compute fees as the fee percent multiplied by the profit
+      uint256 profitAccrued = uint256(assetsDelta);
+
+      // increase total staked amount
+      totalAssetsAfter += profitAccrued;
+
+      // calculate operator's shares
+      uint256 operatorShares;
+      if (totalSharesAfter == 0) {
+        operatorShares = profitAccrued;
+      } else {
+        uint256 operatorAssets = Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
+        // Will revert if assets > 0, totalSupply > 0 and _totalAssets = 0.
+        // That corresponds to a case where any asset would represent an infinite amount of shares.
+        unchecked {
+          // cannot underflow as totalAssetsAfter >= operatorAssets
+          operatorShares = Math.mulDiv(
+            operatorAssets,
+            totalSharesAfter,
+            totalAssetsAfter - operatorAssets
+          );
+        }
+      }
+
+      if (operatorShares > 0) {
+        // mint shares to the operator
+        totalSharesAfter += operatorShares;
+        address _operator = operator;
+        unchecked {
+          // cannot underflow because the sum of all shares can't exceed the _totalShares
+          balanceOf[_operator] += operatorShares;
+        }
+        emit Transfer(address(0), _operator, operatorShares);
+      }
+    } else if (assetsDelta < 0) {
+      // apply penalty
+      totalAssetsAfter -= uint256(-assetsDelta);
+    }
+
+    // update storage values
+    _totalShares = SafeCast.toUint128(totalSharesAfter);
+    _totalAssets = SafeCast.toUint128(totalAssetsAfter);
+
+    // update exit queue
+    (uint256 burnedShares, uint256 exitedAssets) = _updateExitQueue();
+    if (burnedShares > 0) {
+      _totalShares -= SafeCast.toUint128(burnedShares);
+      _totalAssets -= SafeCast.toUint128(exitedAssets);
+    }
+
+    emit StateUpdated(assetsDelta);
+  }
+
   /// @inheritdoc UUPSUpgradeable
   function _authorizeUpgrade(address newImplementation) internal view override onlyOperator {
     address currImplementation = _getImplementation();
@@ -417,28 +440,21 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
 
   /**
    * @dev Initializes the Vault contract
-   * @param _name The name of the ERC20 token
-   * @param _symbol The symbol of the ERC20 token
-   * @param _maxTotalAssets The max total assets that can be staked into the Vault
-   * @param _operator The address of the Vault operator
-   * @param _feePercent The fee percent that is charged by the Vault operator
+   * @param initParams The Vault's initialization parameters
    */
-  function __Vault_init(
-    string memory _name,
-    string memory _symbol,
-    uint256 _maxTotalAssets,
-    address _operator,
-    uint16 _feePercent
-  ) internal onlyInitializing {
-    if (_feePercent > _maxFeePercent) revert InvalidFeePercent();
+  function __Vault_init(InitParams memory initParams) internal onlyInitializing {
+    if (initParams.feePercent > _maxFeePercent) revert InvalidFeePercent();
 
     // initialize ERC20Permit
-    __ERC20Permit_init(_name, _symbol);
+    __ERC20Permit_init(initParams.name, initParams.symbol);
 
     // initialize Vault
-    maxTotalAssets = _maxTotalAssets;
-    operator = _operator;
-    feePercent = _feePercent;
+    maxTotalAssets = initParams.maxTotalAssets;
+    feesEscrow = IFeesEscrow(initParams.feesEscrow);
+    operator = initParams.operator;
+    feePercent = initParams.feePercent;
+    validatorsRoot = initParams.validatorsRoot;
+    emit ValidatorsRootUpdated(initParams.validatorsRoot, initParams.validatorsIpfsHash);
   }
 
   /**
@@ -446,12 +462,6 @@ abstract contract Vault is UUPSUpgradeable, ERC20Permit, IVault {
    * @return The total amount of assets stored in the Vault
    */
   function _vaultAssets() internal view virtual returns (uint256) {}
-
-  /**
-   * @dev Internal function for claiming Vault's extra rewards (e.g. priority fees, MEV)
-   * @return The total amount of assets claimed
-   */
-  function _claimVaultRewards() internal virtual returns (uint256) {}
 
   /**
    * @dev Internal function for transferring assets from the Vault to the receiver

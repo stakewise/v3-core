@@ -15,6 +15,30 @@
         "type": "address"
       },
       {
+        "indexed": true,
+        "internalType": "address",
+        "name": "feesEscrow",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "maxTotalAssets",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "validatorsRoot",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "feePercent",
+        "type": "uint16"
+      },
+      {
         "indexed": false,
         "internalType": "string",
         "name": "name",
@@ -28,15 +52,9 @@
       },
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "maxTotalAssets",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint16",
-        "name": "feePercent",
-        "type": "uint16"
+        "internalType": "string",
+        "name": "validatorsIpfsHash",
+        "type": "string"
       }
     ],
     "name": "VaultCreated",
@@ -45,24 +63,58 @@
   {
     "inputs": [
       {
-        "internalType": "string",
-        "name": "_name",
-        "type": "string"
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      }
+    ],
+    "name": "computeAddresses",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
       },
       {
-        "internalType": "string",
-        "name": "_symbol",
-        "type": "string"
-      },
+        "internalType": "address",
+        "name": "feesEscrow",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
       {
         "internalType": "uint256",
-        "name": "_maxTotalAssets",
+        "name": "maxTotalAssets",
         "type": "uint256"
       },
       {
+        "internalType": "bytes32",
+        "name": "validatorsRoot",
+        "type": "bytes32"
+      },
+      {
         "internalType": "uint16",
-        "name": "_feePercent",
+        "name": "feePercent",
         "type": "uint16"
+      },
+      {
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "symbol",
+        "type": "string"
+      },
+      {
+        "internalType": "string",
+        "name": "validatorsIpfsHash",
+        "type": "string"
       }
     ],
     "name": "createVault",
@@ -71,9 +123,33 @@
         "internalType": "address",
         "name": "vault",
         "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "feesEscrow",
+        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "operator",
+        "type": "address"
+      }
+    ],
+    "name": "nonces",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

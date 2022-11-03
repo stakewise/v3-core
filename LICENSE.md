@@ -9,7 +9,7 @@ Parameters
 
 Licensor: StakeWise Labs
 
-Licensed Work: StakeWise Labs ETH Core. The Licensed Work is (c) 2022 StakeWise Labs
+Licensed Work: StakeWise Labs V3 Core. The Licensed Work is (c) 2022 StakeWise Labs
 
 Additional Use Grant: Any uses listed and defined at this [LICENSE](./LICENSE.md)
 
