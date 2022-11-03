@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.17;
 
-import {Initializable} from '@openzeppelin/contracts/proxy/utils/Initializable.sol';
+import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
 

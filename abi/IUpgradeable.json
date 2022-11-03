@@ -1,6 +1,11 @@
 [
   {
     "inputs": [],
+    "name": "NotImplementedError",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "implementation",
     "outputs": [
       {

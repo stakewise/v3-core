@@ -1,5 +1,6 @@
 import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
+import { parseEther } from 'ethers/lib/utils'
 import { EthVault } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
@@ -9,18 +10,20 @@ import snapshotGasCost from './shared/snapshotGasCost'
 const createFixtureLoader = waffle.createFixtureLoader
 
 describe('EthVault - settings', () => {
-  const maxTotalAssets = ethers.utils.parseEther('1000')
+  const maxTotalAssets = parseEther('1000')
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
-  let keeper: Wallet, operator: Wallet, registryOwner: Wallet, other: Wallet
+  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
+  const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+  let operator: Wallet, owner: Wallet, other: Wallet
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
 
   before('create fixture loader', async () => {
-    ;[keeper, operator, registryOwner, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper, operator, registryOwner])
+    ;[operator, owner, other] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([owner])
   })
 
   beforeEach('deploy fixture', async () => {
@@ -29,9 +32,17 @@ describe('EthVault - settings', () => {
 
   describe('fee percent', () => {
     it('cannot be set to invalid value', async () => {
-      await expect(createVault(vaultName, vaultSymbol, 10001, maxTotalAssets)).to.be.revertedWith(
-        'InvalidFeePercent()'
-      )
+      await expect(
+        createVault(
+          operator,
+          maxTotalAssets,
+          validatorsRoot,
+          10001,
+          vaultName,
+          vaultSymbol,
+          validatorsIpfsHash
+        )
+      ).to.be.revertedWith('InvalidFeePercent()')
     })
   })
 
@@ -41,7 +52,15 @@ describe('EthVault - settings', () => {
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
-      vault = await createVault(vaultName, vaultSymbol, feePercent, maxTotalAssets)
+      vault = await createVault(
+        operator,
+        maxTotalAssets,
+        validatorsRoot,
+        feePercent,
+        vaultName,
+        vaultSymbol,
+        validatorsIpfsHash
+      )
     })
 
     it('only operator can update', async () => {

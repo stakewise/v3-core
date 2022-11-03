@@ -4,18 +4,11 @@ pragma solidity =0.8.17;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IRegistry} from './interfaces/IRegistry.sol';
-import {IVaultFactory} from './interfaces/IVaultFactory.sol';
-
-/// Custom errors
-error AccessDenied();
-error AlreadyAdded();
-error AlreadyRemoved();
-error InvalidUpgrade();
 
 /**
  * @title Registry
  * @author StakeWise
- * @notice Defines the registry functionality that keeps track of vaults, factories and upgrades
+ * @notice Defines the registry functionality that keeps track of vaults, factories and their upgrades
  */
 contract Registry is Ownable, IRegistry {
   /// @inheritdoc IRegistry
@@ -44,7 +37,6 @@ contract Registry is Ownable, IRegistry {
 
   /// @inheritdoc IRegistry
   function addUpgrade(address prevImpl, address newImpl) external override onlyOwner {
-    if (upgrades[prevImpl] != address(0)) revert AlreadyAdded();
     if (prevImpl == newImpl) revert InvalidUpgrade();
     upgrades[prevImpl] = newImpl;
     emit UpgradeAdded(prevImpl, newImpl);

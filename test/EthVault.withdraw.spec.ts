@@ -1,42 +1,53 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Wallet } from 'ethers'
-import { EthVault, EthVaultMock, ExitQueue } from '../typechain-types'
+import { parseEther } from 'ethers/lib/utils'
+import { EthKeeper, EthVault, EthVaultMock, ExitQueue, Signers } from '../typechain-types'
+import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ONE_DAY, MAX_UINT128, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
+import { MAX_UINT128, ONE_DAY, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 import { increaseTime, setBalance } from './shared/utils'
-import { ThenArg } from '../helpers/types'
+import { getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
 describe('EthVault - withdraw', () => {
-  const maxTotalAssets = ethers.utils.parseEther('1000')
+  const maxTotalAssets = parseEther('1000')
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
-  const holderShares = ethers.utils.parseEther('1')
-  const holderAssets = ethers.utils.parseEther('1')
-  let keeper: Wallet,
-    holder: Wallet,
-    receiver: Wallet,
-    operator: Wallet,
-    registryOwner: Wallet,
-    other: Wallet
-  let vault: EthVault
+  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
+  const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+  const holderShares = parseEther('1')
+  const holderAssets = parseEther('1')
+
+  let holder: Wallet, receiver: Wallet, operator: Wallet, dao: Wallet, other: Wallet
+  let vault: EthVault, keeper: EthKeeper, signers: Signers
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
+  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
   let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createVaultMock']
 
   before('create fixture loader', async () => {
-    ;[keeper, holder, receiver, registryOwner, operator, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper, operator, registryOwner])
+    ;[holder, receiver, dao, operator, other] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([dao])
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createVault, createVaultMock } = await loadFixture(ethVaultFixture))
-    vault = await createVault(vaultName, vaultSymbol, feePercent, maxTotalAssets)
+    ;({ createVault, createVaultMock, getSignatures, keeper, signers } = await loadFixture(
+      ethVaultFixture
+    ))
+    vault = await createVault(
+      operator,
+      maxTotalAssets,
+      validatorsRoot,
+      feePercent,
+      vaultName,
+      vaultSymbol,
+      validatorsIpfsHash
+    )
     await vault.connect(holder).deposit(holder.address, { value: holderAssets })
   })
 
@@ -75,10 +86,13 @@ describe('EthVault - withdraw', () => {
 
     it('does not overflow', async () => {
       const vault: EthVaultMock = await createVaultMock(
+        operator,
+        maxTotalAssets,
+        validatorsRoot,
+        feePercent,
         vaultName,
         vaultSymbol,
-        feePercent,
-        maxTotalAssets
+        validatorsIpfsHash
       )
       await vault.connect(holder).deposit(holder.address, { value: holderAssets })
 
@@ -192,17 +206,32 @@ describe('EthVault - withdraw', () => {
     })
 
     it('skips if it is too early', async () => {
-      await vault.connect(keeper).harvest(0)
+      await vault.updateHarvestedState()
       await vault.connect(holder).deposit(holder.address, { value: holderAssets })
       await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
-      await expect(vault.connect(keeper).harvest(0)).to.not.emit(exitQueue, 'CheckpointCreated')
+      await expect(vault.updateHarvestedState()).to.not.emit(exitQueue, 'CheckpointCreated')
     })
 
     it('skips with 0 queued shares', async () => {
-      await expect(vault.connect(keeper).harvest(0)).to.emit(exitQueue, 'CheckpointCreated')
+      await expect(vault.updateHarvestedState()).to.emit(exitQueue, 'CheckpointCreated')
       expect(await vault.queuedShares()).to.be.eq(0)
       await increaseTime(ONE_DAY)
-      await expect(vault.connect(keeper).harvest(0)).to.not.emit(exitQueue, 'CheckpointCreated')
+      await expect(vault.updateHarvestedState()).to.not.emit(exitQueue, 'CheckpointCreated')
+    })
+
+    it('skips with 0 burned assets', async () => {
+      const totalAssets = await vault.totalAssets()
+      const penalty = totalAssets.sub(totalAssets.mul(2))
+      const tree = await updateRewardsRoot(keeper, signers, getSignatures, [
+        { vault: vault.address, reward: penalty },
+      ])
+      await expect(
+        keeper.harvest(
+          vault.address,
+          penalty,
+          getRewardsRootProof(tree, { vault: vault.address, reward: penalty })
+        )
+      ).to.not.emit(exitQueue, 'CheckpointCreated')
     })
 
     it('for not all the queued shares', async () => {
@@ -210,7 +239,7 @@ describe('EthVault - withdraw', () => {
       const halfHolderShares = holderShares.div(2)
       await setBalance(vault.address, halfHolderAssets)
 
-      const receipt = await vault.connect(keeper).harvest(0)
+      const receipt = await vault.updateHarvestedState()
       expect(receipt)
         .to.emit(exitQueue, 'CheckpointCreated')
         .withArgs(halfHolderShares, halfHolderAssets)
@@ -222,7 +251,7 @@ describe('EthVault - withdraw', () => {
     })
 
     it('adds checkpoint', async () => {
-      const receipt = await vault.connect(keeper).harvest(0)
+      const receipt = await vault.updateHarvestedState()
       expect(receipt).to.emit(exitQueue, 'CheckpointCreated').withArgs(holderShares, holderAssets)
       expect(await waffle.provider.getBalance(vault.address)).to.be.eq(holderAssets)
       expect(await vault.getCheckpointIndex(0)).to.be.eq(0)
@@ -236,10 +265,13 @@ describe('EthVault - withdraw', () => {
 
   it('get checkpoint index works with many checkpoints', async () => {
     const vault: EthVaultMock = await createVaultMock(
+      operator,
+      maxTotalAssets,
+      validatorsRoot,
+      feePercent,
       vaultName,
       vaultSymbol,
-      feePercent,
-      maxTotalAssets
+      validatorsIpfsHash
     )
     await vault.connect(holder).deposit(holder.address, { value: holderAssets })
     const exitQueueId = await vault
@@ -253,7 +285,7 @@ describe('EthVault - withdraw', () => {
     for (let i = 1; i <= 3650; i++) {
       await setBalance(vault.address, BigNumber.from(i))
       await increaseTime(ONE_DAY)
-      await expect(vault.connect(keeper).harvest(0)).to.emit(exitQueue, 'CheckpointCreated')
+      await expect(vault.updateHarvestedState()).to.emit(exitQueue, 'CheckpointCreated')
     }
     await snapshotGasCost(await vault.getGasCostOfGetCheckpointIndex(exitQueueId))
   })
@@ -274,7 +306,7 @@ describe('EthVault - withdraw', () => {
     })
 
     it('returns zero with no queued shares', async () => {
-      await vault.connect(keeper).harvest(0)
+      await vault.updateHarvestedState()
       const checkpointIndex = await vault.getCheckpointIndex(exitQueueId)
       const result = await vault.callStatic.claimExitedAssets(
         other.address,
@@ -301,7 +333,7 @@ describe('EthVault - withdraw', () => {
     })
 
     it('fails with invalid checkpoint index', async () => {
-      await vault.connect(keeper).harvest(0)
+      await vault.updateHarvestedState()
       const checkpointIndex = await vault.getCheckpointIndex(exitQueueId)
 
       await vault.connect(holder).deposit(holder.address, { value: holderAssets.mul(2) })
@@ -314,14 +346,14 @@ describe('EthVault - withdraw', () => {
         vault.connect(holder).claimExitedAssets(receiver.address, exitQueueId2, checkpointIndex)
       ).to.be.revertedWith('InvalidCheckpointIndex()')
       await increaseTime(ONE_DAY)
-      await vault.connect(keeper).harvest(0)
+      await vault.updateHarvestedState()
 
       const exitQueueId3 = await vault
         .connect(holder)
         .callStatic.enterExitQueue(holderShares, receiver.address, holder.address)
       await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
       await increaseTime(ONE_DAY)
-      await vault.connect(keeper).harvest(0)
+      await vault.updateHarvestedState()
       const checkpointIndexThree = await vault.getCheckpointIndex(exitQueueId3)
       // checkpointIndex is higher than exitQueueId
       await expect(
@@ -330,7 +362,7 @@ describe('EthVault - withdraw', () => {
     })
 
     it('for single user in single checkpoint', async () => {
-      await vault.connect(keeper).harvest(0)
+      await vault.updateHarvestedState()
       const checkpointIndex = await vault.getCheckpointIndex(exitQueueId)
 
       const receipt = await vault
@@ -353,14 +385,14 @@ describe('EthVault - withdraw', () => {
 
       // create two checkpoints
       await setBalance(vault.address, halfHolderAssets)
-      await expect(await vault.connect(keeper).harvest(0))
+      await expect(await vault.updateHarvestedState())
         .to.emit(exitQueue, 'CheckpointCreated')
         .withArgs(halfHolderShares, halfHolderAssets)
       const checkpointIndex = await vault.getCheckpointIndex(exitQueueId)
 
       await increaseTime(ONE_DAY)
       await setBalance(vault.address, holderAssets)
-      await expect(await vault.connect(keeper).harvest(0))
+      await expect(await vault.updateHarvestedState())
         .to.emit(exitQueue, 'CheckpointCreated')
         .withArgs(holderShares, halfHolderAssets)
 
@@ -385,7 +417,7 @@ describe('EthVault - withdraw', () => {
 
       // create first checkpoint
       await setBalance(vault.address, halfHolderAssets)
-      await expect(vault.connect(keeper).harvest(0))
+      await expect(vault.updateHarvestedState())
         .to.emit(exitQueue, 'CheckpointCreated')
         .withArgs(halfHolderShares, halfHolderAssets)
       const checkpointIndex = await vault.getCheckpointIndex(exitQueueId)
@@ -406,7 +438,7 @@ describe('EthVault - withdraw', () => {
       // create second checkpoint
       await increaseTime(ONE_DAY)
       await setBalance(vault.address, halfHolderAssets)
-      await expect(await vault.connect(keeper).harvest(0))
+      await expect(await vault.updateHarvestedState())
         .to.emit(exitQueue, 'CheckpointCreated')
         .withArgs(holderShares, halfHolderAssets)
 
@@ -426,36 +458,63 @@ describe('EthVault - withdraw', () => {
     })
 
     it('for multiple users in single checkpoint', async () => {
-      await vault.connect(other).deposit(other.address, { value: holderAssets })
-      await vault.connect(other).enterExitQueue(holderShares, other.address, other.address)
-      const otherBalanceBefore = await waffle.provider.getBalance(other.address)
-
-      await expect(await vault.connect(keeper).harvest(0))
-        .to.emit(exitQueue, 'CheckpointCreated')
-        .withArgs(holderShares.mul(2), holderAssets.mul(2))
+      // harvests the previous queued position
+      await vault.updateHarvestedState()
       const checkpointIndex = await vault.getCheckpointIndex(exitQueueId)
+      await vault.connect(holder).claimExitedAssets(receiver.address, exitQueueId, checkpointIndex)
+
+      const shares = holderShares
+      const assets = holderAssets
+      const user1 = holder
+      const user2 = receiver
+
+      await vault.connect(user1).deposit(user1.address, { value: assets })
+      await vault.connect(user2).deposit(user2.address, { value: assets })
+
+      const user1ExitQueueId = await vault
+        .connect(user1)
+        .callStatic.enterExitQueue(shares, user1.address, user1.address)
+      await vault.connect(user1).enterExitQueue(shares, user1.address, user1.address)
+      const user1BalanceBefore = await waffle.provider.getBalance(user1.address)
+
+      const user2ExitQueueId = await vault
+        .connect(user2)
+        .callStatic.enterExitQueue(shares, user2.address, user2.address)
+      await vault.connect(user2).enterExitQueue(shares, user2.address, user2.address)
+      const user2BalanceBefore = await waffle.provider.getBalance(user2.address)
+
+      await increaseTime(ONE_DAY)
+      await expect(vault.connect(other).updateHarvestedState())
+        .to.emit(exitQueue, 'CheckpointCreated')
+        .withArgs(user2ExitQueueId.add(assets), assets.mul(2))
 
       let receipt = await vault
-        .connect(holder)
-        .claimExitedAssets(receiver.address, exitQueueId, checkpointIndex)
-      expect(receipt)
+        .connect(other)
+        .claimExitedAssets(
+          user2.address,
+          user2ExitQueueId,
+          await vault.getCheckpointIndex(user2ExitQueueId)
+        )
+      await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holder.address, receiver.address, exitQueueId, 0, holderAssets)
-      expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
-        receiverBalanceBefore.add(holderAssets)
+        .withArgs(other.address, user2.address, user2ExitQueueId, 0, assets)
+      expect(await waffle.provider.getBalance(user2.address)).to.be.eq(
+        user2BalanceBefore.add(assets)
       )
 
-      const otherExitQueueId = holderShares.add(exitQueueId)
       receipt = await vault
-        .connect(holder)
-        .claimExitedAssets(other.address, otherExitQueueId, checkpointIndex)
-      expect(receipt)
+        .connect(other)
+        .claimExitedAssets(
+          user1.address,
+          user1ExitQueueId,
+          await vault.getCheckpointIndex(user1ExitQueueId)
+        )
+      await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holder.address, other.address, otherExitQueueId, 0, holderAssets)
-      expect(await waffle.provider.getBalance(other.address)).to.be.eq(
-        otherBalanceBefore.add(holderAssets)
+        .withArgs(other.address, user1.address, user1ExitQueueId, 0, assets)
+      expect(await waffle.provider.getBalance(user1.address)).to.be.eq(
+        user1BalanceBefore.add(assets)
       )
-
       expect(await waffle.provider.getBalance(vault.address)).to.be.eq(0)
     })
   })
@@ -463,7 +522,15 @@ describe('EthVault - withdraw', () => {
   /// Scenario inspired by solmate ERC4626 tests:
   /// https://github.com/transmissions11/solmate/blob/main/src/test/ERC4626.t.sol
   it('multiple deposits and withdrawals', async () => {
-    const vault = await createVaultMock(vaultName, vaultSymbol, 0, maxTotalAssets)
+    const vault = await createVaultMock(
+      operator,
+      maxTotalAssets,
+      validatorsRoot,
+      0,
+      vaultName,
+      vaultSymbol,
+      validatorsIpfsHash
+    )
     const feesEscrow = await vault.feesEscrow()
     const exitQueueFactory = await ethers.getContractFactory('ExitQueue')
     const exitQueue = exitQueueFactory.attach(vault.address)
@@ -480,6 +547,7 @@ describe('EthVault - withdraw', () => {
     let unclaimedAssets = 0
     let latestExitQueueId = 0
     let vaultAssets = 0
+    let validatorsReward = 0
 
     const checkVaultState = async () => {
       expect(await vault.balanceOf(alice.address)).to.be.eq(aliceShares)
@@ -521,8 +589,16 @@ describe('EthVault - withdraw', () => {
     // 3. Vault mutates by +3000 ETH (40% from validators, 60% from priority fees)
     vaultAssets += 1800
     totalStakedAssets += 3000
+    validatorsReward += 1200
+    let tree = await updateRewardsRoot(keeper, signers, getSignatures, [
+      { vault: vault.address, reward: validatorsReward },
+    ])
     await setBalance(feesEscrow, BigNumber.from(1800))
-    await vault.connect(keeper).harvest(1200)
+    await keeper.harvest(
+      vault.address,
+      validatorsReward,
+      getRewardsRootProof(tree, { vault: vault.address, reward: validatorsReward })
+    )
     aliceAssets += 1000
     bobAssets += 2000
 
@@ -557,8 +633,16 @@ describe('EthVault - withdraw', () => {
     // 6. Vault mutates by +3000 tokens
     vaultAssets += 1800
     totalStakedAssets += 3000
+    validatorsReward += 1200
     await setBalance(feesEscrow, BigNumber.from(1800))
-    await vault.connect(keeper).harvest(1200)
+    tree = await updateRewardsRoot(keeper, signers, getSignatures, [
+      { vault: vault.address, reward: validatorsReward },
+    ])
+    await keeper.harvest(
+      vault.address,
+      validatorsReward,
+      getRewardsRootProof(tree, { vault: vault.address, reward: validatorsReward })
+    )
 
     aliceAssets += 1071
     bobAssets += 1929
@@ -629,7 +713,7 @@ describe('EthVault - withdraw', () => {
     await checkVaultState()
 
     // 12. Update exit queue and transfer not staked assets to Bob and Alice
-    await expect(vault.connect(keeper).harvest(0))
+    await expect(vault.updateHarvestedState())
       .to.emit(exitQueue, 'CheckpointCreated')
       .withArgs(1427, 2600)
 
@@ -643,9 +727,17 @@ describe('EthVault - withdraw', () => {
     // 13. Vault mutates by +5000 tokens
     vaultAssets += 3000
     totalStakedAssets += 5000
-    await setBalance(feesEscrow, BigNumber.from(3000))
-    await vault.connect(keeper).harvest(2000)
+    validatorsReward += 2000
     aliceAssets += 1007
+    tree = await updateRewardsRoot(keeper, signers, getSignatures, [
+      { vault: vault.address, reward: validatorsReward },
+    ])
+    await setBalance(feesEscrow, BigNumber.from(3000))
+    await keeper.harvest(
+      vault.address,
+      validatorsReward,
+      getRewardsRootProof(tree, { vault: vault.address, reward: validatorsReward })
+    )
 
     await checkVaultState()
 
@@ -679,7 +771,7 @@ describe('EthVault - withdraw', () => {
 
     // 16. Update exit queue and transfer assets to Bob
     await increaseTime(ONE_DAY)
-    await expect(vault.connect(keeper).harvest(0))
+    await expect(vault.updateHarvestedState())
       .to.emit(exitQueue, 'CheckpointCreated')
       .withArgs(2487, 3000)
 
@@ -706,7 +798,7 @@ describe('EthVault - withdraw', () => {
     // 18. Withdrawal of 11050 ETH arrives
     await increaseTime(ONE_DAY)
     await setBalance(vault.address, BigNumber.from(11050 + vaultAssets))
-    await expect(vault.connect(keeper).harvest(0))
+    await expect(vault.updateHarvestedState())
       .to.emit(exitQueue, 'CheckpointCreated')
       .withArgs(6391, 11043)
 

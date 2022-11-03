@@ -16,7 +16,7 @@
   },
   {
     "inputs": [],
-    "name": "InvalidProofsLength",
+    "name": "InvalidProof",
     "type": "error"
   },
   {
@@ -32,6 +32,11 @@
   {
     "inputs": [],
     "name": "MaxTotalAssetsExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotHarvested",
     "type": "error"
   },
   {
@@ -184,7 +189,7 @@
         "type": "int256"
       }
     ],
-    "name": "Harvested",
+    "name": "StateUpdated",
     "type": "event"
   },
   {
@@ -231,13 +236,13 @@
       {
         "indexed": true,
         "internalType": "bytes32",
-        "name": "newValidatorsRoot",
+        "name": "validatorsRoot",
         "type": "bytes32"
       },
       {
         "indexed": false,
         "internalType": "string",
-        "name": "newValidatorsIpfsHash",
+        "name": "validatorsIpfsHash",
         "type": "string"
       }
     ],
@@ -547,25 +552,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "int256",
-        "name": "validatorAssets",
-        "type": "int256"
-      }
-    ],
-    "name": "harvest",
-    "outputs": [
-      {
-        "internalType": "int256",
-        "name": "assetsDelta",
-        "type": "int256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "implementation",
     "outputs": [
@@ -583,7 +569,7 @@
     "name": "keeper",
     "outputs": [
       {
-        "internalType": "address",
+        "internalType": "contract IKeeper",
         "name": "",
         "type": "address"
       }
@@ -735,42 +721,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "bytes",
-        "name": "validator",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
-      }
-    ],
-    "name": "registerValidator",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes[]",
-        "name": "validators",
-        "type": "bytes[]"
-      },
-      {
-        "internalType": "bytes32[][]",
-        "name": "proofs",
-        "type": "bytes32[][]"
-      }
-    ],
-    "name": "registerValidators",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "registry",
     "outputs": [
@@ -787,12 +737,12 @@
     "inputs": [
       {
         "internalType": "bytes32",
-        "name": "newValidatorsRoot",
+        "name": "_validatorsRoot",
         "type": "bytes32"
       },
       {
         "internalType": "string",
-        "name": "newValidatorsIpfsHash",
+        "name": "_validatorsIpfsHash",
         "type": "string"
       }
     ],
@@ -904,6 +854,38 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "updateHarvestedState",
+    "outputs": [
+      {
+        "internalType": "int256",
+        "name": "assetsDelta",
+        "type": "int256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "int256",
+        "name": "validatorAssets",
+        "type": "int256"
+      }
+    ],
+    "name": "updateState",
+    "outputs": [
+      {
+        "internalType": "int256",
+        "name": "assetsDelta",
+        "type": "int256"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

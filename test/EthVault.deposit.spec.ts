@@ -1,14 +1,16 @@
 import { ethers, waffle } from 'hardhat'
-import { Wallet } from 'ethers'
-import { EthVault, EthVaultMock } from '../typechain-types'
+import { Contract, Wallet } from 'ethers'
+import { parseEther } from 'ethers/lib/utils'
+import { EthKeeper, EthVault, EthVaultMock, Signers } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
+import { updateRewardsRoot } from './shared/rewards'
+import { registerEthValidator } from './shared/validators'
 
 const createFixtureLoader = waffle.createFixtureLoader
-const parseEther = ethers.utils.parseEther
 const ether = parseEther('1')
 
 describe('EthVault - deposit', () => {
@@ -16,26 +18,33 @@ describe('EthVault - deposit', () => {
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
-  let keeper: Wallet,
-    sender: Wallet,
-    receiver: Wallet,
-    operator: Wallet,
-    registryOwner: Wallet,
-    other: Wallet
-  let vault: EthVault
+  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
+  const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+  let dao: Wallet, sender: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
+  let vault: EthVault, keeper: EthKeeper, signers: Signers, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
+  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
   let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createVaultMock']
 
   before('create fixture loader', async () => {
-    ;[keeper, sender, receiver, operator, other, registryOwner] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([keeper, operator, registryOwner])
+    ;[dao, sender, receiver, operator, other] = await (ethers as any).getSigners()
+    loadFixture = createFixtureLoader([dao])
   })
 
   beforeEach('deploy fixtures', async () => {
-    ;({ createVault, createVaultMock } = await loadFixture(ethVaultFixture))
-    vault = await createVault(vaultName, vaultSymbol, feePercent, maxTotalAssets)
+    ;({ createVault, createVaultMock, keeper, signers, validatorsRegistry, getSignatures } =
+      await loadFixture(ethVaultFixture))
+    vault = await createVault(
+      operator,
+      maxTotalAssets,
+      validatorsRoot,
+      feePercent,
+      vaultName,
+      vaultSymbol,
+      validatorsIpfsHash
+    )
   })
 
   describe('empty vault: no assets & no shares', () => {
@@ -63,7 +72,15 @@ describe('EthVault - deposit', () => {
   describe('partially empty vault: assets & no shares', () => {
     let ethVaultMock: EthVaultMock
     beforeEach(async () => {
-      ethVaultMock = await createVaultMock(vaultName, vaultSymbol, feePercent, maxTotalAssets)
+      ethVaultMock = await createVaultMock(
+        operator,
+        maxTotalAssets,
+        validatorsRoot,
+        feePercent,
+        vaultName,
+        vaultSymbol,
+        validatorsIpfsHash
+      )
       await ethVaultMock._setTotalAssets(ether)
     })
 
@@ -93,7 +110,15 @@ describe('EthVault - deposit', () => {
     let ethVaultMock: EthVaultMock
 
     beforeEach(async () => {
-      ethVaultMock = await createVaultMock(vaultName, vaultSymbol, feePercent, maxTotalAssets)
+      ethVaultMock = await createVaultMock(
+        operator,
+        maxTotalAssets,
+        validatorsRoot,
+        feePercent,
+        vaultName,
+        vaultSymbol,
+        validatorsIpfsHash
+      )
       await ethVaultMock.mockMint(receiver.address, ether)
     })
 
@@ -110,17 +135,38 @@ describe('EthVault - deposit', () => {
 
   describe('full vault: assets & shares', () => {
     beforeEach(async () => {
-      await vault.connect(other).deposit(other.address, { value: parseEther('100') })
+      await vault.connect(other).deposit(other.address, { value: parseEther('10') })
     })
 
     it('status', async () => {
-      expect(await vault.totalAssets()).to.eq(parseEther('100'))
+      expect(await vault.totalAssets()).to.eq(parseEther('10'))
     })
 
     it('fails with exceeded max total assets', async () => {
       await expect(
         vault.connect(sender).deposit(receiver.address, { value: parseEther('999') })
       ).to.be.revertedWith('MaxTotalAssetsExceeded()')
+    })
+
+    it('fails when not harvested', async () => {
+      await vault.connect(other).deposit(other.address, { value: parseEther('32') })
+      await registerEthValidator(
+        vault,
+        signers,
+        keeper,
+        validatorsRegistry,
+        operator,
+        getSignatures
+      )
+      await updateRewardsRoot(keeper, signers, getSignatures, [
+        { reward: parseEther('5'), vault: vault.address },
+      ])
+      await updateRewardsRoot(keeper, signers, getSignatures, [
+        { reward: parseEther('10'), vault: vault.address },
+      ])
+      await expect(
+        vault.connect(sender).deposit(receiver.address, { value: parseEther('10') })
+      ).to.be.revertedWith('NotHarvested()')
     })
 
     it('deposit', async () => {

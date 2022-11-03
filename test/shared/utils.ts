@@ -1,16 +1,11 @@
-import { signTypedData_v4, TypedDataUtils } from 'eth-sig-util'
 import { ECDSASignature, fromRpcSig } from 'ethereumjs-util'
+import { signTypedData, SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util'
 import { ethers, waffle } from 'hardhat'
 import { BigNumber } from 'ethers'
 import { EIP712Domain } from './constants'
 
-export const getSignatureFromTypedData = (
-  privateKey: Buffer,
-  typedData: any // TODO: should be TypedData, from eth-sig-utils, but TS doesn't accept it
-): ECDSASignature => {
-  const signature = signTypedData_v4(privateKey, {
-    data: typedData,
-  })
+export const getSignatureFromTypedData = (privateKey: Buffer, data: any): ECDSASignature => {
+  const signature = signTypedData({ privateKey, data, version: SignTypedDataVersion.V4 })
   return fromRpcSig(signature)
 }
 
@@ -25,7 +20,8 @@ export async function domainSeparator(name, version, chainId, verifyingContract)
         chainId,
         verifyingContract,
       },
-      { EIP712Domain }
+      { EIP712Domain },
+      SignTypedDataVersion.V4
     ).toString('hex')
   )
 }
