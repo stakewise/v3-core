@@ -2,9 +2,9 @@ import { network } from 'hardhat'
 import { BigNumberish } from 'ethers'
 import { toUtf8Bytes } from 'ethers/lib/utils'
 import keccak256 from 'keccak256'
+import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { Keeper, Oracles } from '../../typechain-types'
 import { EIP712Domain, KeeperSig } from './constants'
-import { StandardMerkleTree } from '../../../merkle-tree'
 import { Buffer } from 'buffer'
 
 export type RewardsTree = StandardMerkleTree<[string, BigNumberish]>
