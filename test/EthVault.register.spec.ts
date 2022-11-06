@@ -134,8 +134,7 @@ describe('EthVault - register', () => {
         proof
       )
       const publicKey = hexlify(validator.subarray(0, 48))
-      const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
-      await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey, timestamp)
+      await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
       await expect(receipt)
         .to.emit(validatorsRegistry, 'DepositEvent')
         .withArgs(
@@ -159,7 +158,12 @@ describe('EthVault - register', () => {
       validators = multiProof.leaves
       await setBalance(vault.address, validatorDeposit.mul(validators.length))
       signatures = getSignatures(
-        getEthValidatorsSigningData(validators, oracles, vault, validatorsRegistryRoot)
+        getEthValidatorsSigningData(
+          Buffer.concat(validators),
+          oracles,
+          vault,
+          validatorsRegistryRoot
+        )
       )
     })
 
@@ -169,7 +173,7 @@ describe('EthVault - register', () => {
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          validators,
+          Buffer.concat(validators),
           signatures,
           multiProof.proofFlags,
           multiProof.proof
@@ -179,7 +183,9 @@ describe('EthVault - register', () => {
 
     it('fails with sender other than keeper', async () => {
       await expect(
-        vault.connect(other).registerValidators(validators, multiProof.proofFlags, multiProof.proof)
+        vault
+          .connect(other)
+          .registerValidators(Buffer.concat(validators), multiProof.proofFlags, multiProof.proof)
       ).to.be.revertedWith('AccessDenied()')
     })
 
@@ -193,13 +199,19 @@ describe('EthVault - register', () => {
         Buffer.concat([validators[0].subarray(0, 144), invalidRoot]),
         ...validators.slice(1),
       ]
+      const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       await expect(
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          invalidValidators,
+          invalidValidatorsConcat,
           getSignatures(
-            getEthValidatorsSigningData(invalidValidators, oracles, vault, validatorsRegistryRoot)
+            getEthValidatorsSigningData(
+              invalidValidatorsConcat,
+              oracles,
+              vault,
+              validatorsRegistryRoot
+            )
           ),
           multiProof.proofFlags,
           multiProof.proof
@@ -211,16 +223,22 @@ describe('EthVault - register', () => {
 
     it('fails with invalid deposit amount', async () => {
       const invalidValidators = [
-        appendDepositData(validators[0].subarray(0, 144), parseEther('1'), vault.address),
+        appendDepositData(multiProof.leaves[0].subarray(0, 144), parseEther('1'), vault.address),
         ...validators.slice(1),
       ]
+      const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       await expect(
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          invalidValidators,
+          invalidValidatorsConcat,
           getSignatures(
-            getEthValidatorsSigningData(invalidValidators, oracles, vault, validatorsRegistryRoot)
+            getEthValidatorsSigningData(
+              invalidValidatorsConcat,
+              oracles,
+              vault,
+              validatorsRegistryRoot
+            )
           ),
           multiProof.proofFlags,
           multiProof.proof
@@ -235,13 +253,19 @@ describe('EthVault - register', () => {
         appendDepositData(validators[0].subarray(0, 144), parseEther('1'), keeper.address),
         ...validators.slice(1),
       ]
+      const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       await expect(
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          invalidValidators,
+          invalidValidatorsConcat,
           getSignatures(
-            getEthValidatorsSigningData(invalidValidators, oracles, vault, validatorsRegistryRoot)
+            getEthValidatorsSigningData(
+              invalidValidatorsConcat,
+              oracles,
+              vault,
+              validatorsRegistryRoot
+            )
           ),
           multiProof.proofFlags,
           multiProof.proof
@@ -258,7 +282,7 @@ describe('EthVault - register', () => {
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          validators,
+          Buffer.concat(validators),
           signatures,
           invalidMultiProof.proofFlags,
           invalidMultiProof.proof
@@ -267,10 +291,7 @@ describe('EthVault - register', () => {
     })
 
     it('fails with invalid validator length', async () => {
-      const invalidValidators = [
-        appendDepositData(validators[0], parseEther('1'), keeper.address),
-        ...validators.slice(1),
-      ]
+      const invalidValidators = validators[0].subarray(0, 100)
       await expect(
         keeper.registerValidators(
           vault.address,
@@ -282,23 +303,22 @@ describe('EthVault - register', () => {
           multiProof.proofFlags,
           multiProof.proof
         )
-      ).to.be.revertedWith('InvalidValidator()')
+      ).to.be.reverted
     })
 
     it('succeeds', async () => {
       const receipt = await keeper.registerValidators(
         vault.address,
         validatorsRegistryRoot,
-        validators,
+        Buffer.concat(validators),
         signatures,
         multiProof.proofFlags,
         multiProof.proof
       )
-      const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
       for (let i = 0; i < validators.length; i++) {
         const validator = validators[i]
         const publicKey = hexlify(validator.subarray(0, 48))
-        await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey, timestamp)
+        await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
         await expect(receipt)
           .to.emit(validatorsRegistry, 'DepositEvent')
           .withArgs(

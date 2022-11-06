@@ -18,9 +18,8 @@ interface IRegistry {
    * @notice Event emitted on a Vault addition
    * @param factory The address of the factory that has added the Vault
    * @param vault The address of the added Vault
-   * @param timestamp The Vault addition timestamp
    */
-  event VaultAdded(address indexed factory, address indexed vault, uint256 timestamp);
+  event VaultAdded(address indexed factory, address indexed vault);
 
   /**
    * @notice Event emitted on added upgrades

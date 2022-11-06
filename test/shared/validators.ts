@@ -209,7 +209,7 @@ export function getEthValidatorSigningData(
 }
 
 export function getEthValidatorsSigningData(
-  validators: Buffer[],
+  validators: Buffer,
   oracles: Oracles,
   vault: EthVault,
   validatorsRegistryRoot: BytesLike
@@ -226,7 +226,7 @@ export function getEthValidatorsSigningData(
     message: {
       validatorsRegistryRoot,
       vault: vault.address,
-      validators: keccak256(defaultAbiCoder.encode(['bytes[]'], [validators])),
+      validators: keccak256(defaultAbiCoder.encode(['bytes'], [validators])),
     },
   }
 }

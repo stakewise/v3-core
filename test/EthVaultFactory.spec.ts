@@ -116,10 +116,7 @@ describe('EthVaultFactory', () => {
         validatorsIpfsHash
       )
 
-    const timestamp = (await waffle.provider.getBlock(tx.blockNumber as number)).timestamp
-    await expect(tx)
-      .to.emit(registry, 'VaultAdded')
-      .withArgs(factory.address, vaultAddress, timestamp)
+    await expect(tx).to.emit(registry, 'VaultAdded').withArgs(factory.address, vaultAddress)
 
     const ethVault = await ethers.getContractFactory('EthVault')
     const vault = ethVault.attach(vaultAddress) as EthVault

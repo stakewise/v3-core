@@ -69,7 +69,13 @@ contract EthKeeper is Keeper, IEthKeeper {
 
     _collateralize(vault);
 
-    emit ValidatorRegistered(vault, validatorsRegistryRoot, validator, signatures);
+    emit ValidatorsRegistered(
+      vault,
+      validatorsRegistryRoot,
+      validator,
+      signatures,
+      block.timestamp
+    );
 
     // register validator
     IEthVault(vault).registerValidator(validator, proof);
@@ -79,7 +85,7 @@ contract EthKeeper is Keeper, IEthKeeper {
   function registerValidators(
     address vault,
     bytes32 validatorsRegistryRoot,
-    bytes[] calldata validators,
+    bytes calldata validators,
     bytes calldata signatures,
     bool[] calldata proofFlags,
     bytes32[] calldata proof
@@ -104,7 +110,13 @@ contract EthKeeper is Keeper, IEthKeeper {
 
     _collateralize(vault);
 
-    emit ValidatorsRegistered(vault, validatorsRegistryRoot, validators, signatures);
+    emit ValidatorsRegistered(
+      vault,
+      validatorsRegistryRoot,
+      validators,
+      signatures,
+      block.timestamp
+    );
 
     // register validators
     IEthVault(vault).registerValidators(validators, proofFlags, proof);

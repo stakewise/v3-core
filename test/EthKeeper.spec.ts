@@ -160,9 +160,16 @@ describe('EthKeeper', () => {
         signatures,
         proof
       )
+      const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
       await expect(receipt)
-        .to.emit(keeper, 'ValidatorRegistered')
-        .withArgs(vault.address, validatorsRegistryRoot, hexlify(validator), hexlify(signatures))
+        .to.emit(keeper, 'ValidatorsRegistered')
+        .withArgs(
+          vault.address,
+          validatorsRegistryRoot,
+          hexlify(validator),
+          hexlify(signatures),
+          timestamp
+        )
 
       // collateralize vault
       rewardsSync = await keeper.rewards(vault.address)
@@ -219,17 +226,17 @@ describe('EthKeeper', () => {
     let signingData: any
 
     beforeEach(async () => {
-      proof = getValidatorsMultiProof(
-        validatorsData.tree,
-        validatorsData.validators,
-        depositAmount,
-        vault.address
-      )
+      proof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators)
       validators = proof.leaves
       await vault
         .connect(sender)
         .deposit(sender.address, { value: depositAmount.mul(validators.length) })
-      signingData = getEthValidatorsSigningData(validators, oracles, vault, validatorsRegistryRoot)
+      signingData = getEthValidatorsSigningData(
+        Buffer.concat(validators),
+        oracles,
+        vault,
+        validatorsRegistryRoot
+      )
       signatures = getSignatures(signingData)
     })
 
@@ -238,7 +245,7 @@ describe('EthKeeper', () => {
         keeper.registerValidators(
           keeper.address,
           validatorsRegistryRoot,
-          validators,
+          Buffer.concat(validators),
           signatures,
           proof.proofFlags,
           proof.proof
@@ -259,7 +266,7 @@ describe('EthKeeper', () => {
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          validators,
+          Buffer.concat(validators),
           signatures,
           proof.proofFlags,
           proof.proof
@@ -272,7 +279,7 @@ describe('EthKeeper', () => {
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          validators,
+          Buffer.concat(validators),
           getSignatures(signingData, REQUIRED_ORACLES - 1),
           proof.proofFlags,
           proof.proof
@@ -285,7 +292,7 @@ describe('EthKeeper', () => {
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          [validators[0]],
+          validators[0],
           signatures,
           proof.proofFlags,
           proof.proof
@@ -299,34 +306,39 @@ describe('EthKeeper', () => {
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          validators,
-          signatures,
+          validators[1],
+          getSignatures(
+            getEthValidatorsSigningData(validators[1], oracles, vault, validatorsRegistryRoot)
+          ),
           invalidProof.proofFlags,
           invalidProof.proof
         )
-      ).revertedWith('MerkleProof: invalid multiproof')
+      ).revertedWith('InvalidProof()')
     })
 
     it('succeeds', async () => {
       let rewardsSync = await keeper.rewards(vault.address)
       expect(rewardsSync.nonce).to.eq(0)
       expect(rewardsSync.reward).to.eq(0)
+      const validatorsConcat = Buffer.concat(validators)
 
       let receipt = await keeper.registerValidators(
         vault.address,
         validatorsRegistryRoot,
-        validators,
+        validatorsConcat,
         signatures,
         proof.proofFlags,
         proof.proof
       )
+      const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsRegistered')
         .withArgs(
           vault.address,
           validatorsRegistryRoot,
-          validators.map((v) => hexlify(v)),
-          hexlify(signatures)
+          hexlify(validatorsConcat),
+          hexlify(signatures),
+          timestamp
         )
 
       rewardsSync = await keeper.rewards(vault.address)
@@ -342,7 +354,7 @@ describe('EthKeeper', () => {
         keeper.registerValidators(
           vault.address,
           newValidatorsRegistryRoot,
-          validators,
+          Buffer.concat(validators),
           signatures,
           proof.proofFlags,
           proof.proof
@@ -354,7 +366,7 @@ describe('EthKeeper', () => {
         .deposit(sender.address, { value: depositAmount.mul(validators.length) })
 
       const newSigningData = getEthValidatorsSigningData(
-        validators,
+        Buffer.concat(validators),
         oracles,
         vault,
         newValidatorsRegistryRoot
@@ -363,7 +375,7 @@ describe('EthKeeper', () => {
       receipt = await keeper.registerValidators(
         vault.address,
         newValidatorsRegistryRoot,
-        validators,
+        Buffer.concat(validators),
         newSignatures,
         proof.proofFlags,
         proof.proof

@@ -2,21 +2,21 @@
 
 exports[`EthKeeper register multiple validators succeeds 1`] = `
 Object {
-  "calldataByteLength": 3588,
-  "gasUsed": 699582,
+  "calldataByteLength": 2788,
+  "gasUsed": 674985,
 }
 `;
 
 exports[`EthKeeper register multiple validators succeeds 2`] = `
 Object {
-  "calldataByteLength": 3588,
-  "gasUsed": 605784,
+  "calldataByteLength": 2788,
+  "gasUsed": 581222,
 }
 `;
 
 exports[`EthKeeper register single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 996,
-  "gasUsed": 273390,
+  "gasUsed": 273418,
 }
 `;

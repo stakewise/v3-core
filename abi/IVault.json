@@ -225,12 +225,6 @@
         "internalType": "bytes",
         "name": "publicKey",
         "type": "bytes"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
       }
     ],
     "name": "ValidatorRegistered",

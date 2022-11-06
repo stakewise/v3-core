@@ -39,12 +39,12 @@ interface IEthVault is IVault {
 
   /**
    * @notice Function for registering multiple validators. Can only be called by the Keeper.
-   * @param validators The list of concatenations of the validators' public key, signature and deposit data root
+   * @param validators The concatenation of the validators' public key, signature and deposit data root
    * @param proofFlags The multi proof flags for the Merkle Tree verification
    * @param proof The multi proof used for the Merkle Tree verification
    */
   function registerValidators(
-    bytes[] calldata validators,
+    bytes calldata validators,
     bool[] calldata proofFlags,
     bytes32[] calldata proof
   ) external;
