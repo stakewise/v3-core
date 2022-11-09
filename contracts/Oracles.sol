@@ -81,18 +81,37 @@ contract Oracles is Ownable, EIP712, IOracles {
   }
 
   /// @inheritdoc IOracles
-  function verifySignatures(bytes32 message, bytes calldata signatures) external view override {
-    // SLOAD to memory
-    uint256 _requiredOracles = requiredOracles;
+  function verifyMinSignatures(bytes32 message, bytes calldata signatures) external view override {
+    _verifySignatures(requiredOracles, message, signatures);
+  }
 
+  /// @inheritdoc IOracles
+  function verifyAllSignatures(bytes32 message, bytes calldata signatures) external view override {
+    _verifySignatures(totalOracles, message, signatures);
+  }
+
+  /**
+   * @notice Internal function for verifying oracles' signatures
+   * @param requiredSignatures The number of signatures required for the verification to pass
+   * @param message The message that was signed
+   * @param signatures The concatenation of the oracles' signatures
+   */
+  function _verifySignatures(
+    uint256 requiredSignatures,
+    bytes32 message,
+    bytes calldata signatures
+  ) internal view {
     // check whether enough signatures
-    if (signatures.length < _requiredOracles * 65) revert NotEnoughSignatures();
+    unchecked {
+      // cannot realistically overflow
+      if (signatures.length < requiredSignatures * 65) revert NotEnoughSignatures();
+    }
 
     bytes32 data = _hashTypedDataV4(message);
     address lastOracle;
     address currentOracle;
     uint256 startIndex;
-    for (uint256 i = 0; i < _requiredOracles; ) {
+    for (uint256 i = 0; i < requiredSignatures; ) {
       unchecked {
         // cannot overflow as signatures.length is checked above
         currentOracle = ECDSA.recover(data, signatures[startIndex:startIndex + 65]);

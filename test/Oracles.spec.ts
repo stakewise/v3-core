@@ -175,43 +175,69 @@ describe('Oracles', () => {
       )
     })
 
-    it('fails with invalid signatures length', async () => {
-      const signatures = getSignatures(signData, 5)
-      await expect(oracles.verifySignatures(verifyData, signatures)).revertedWith(
-        'NotEnoughSignatures()'
-      )
+    describe('min signatures', () => {
+      it('fails with invalid signatures length', async () => {
+        const signatures = getSignatures(signData, REQUIRED_ORACLES - 1)
+        await expect(oracles.verifyMinSignatures(verifyData, signatures)).revertedWith(
+          'NotEnoughSignatures()'
+        )
+      })
+
+      it('succeeds with required signatures', async () => {
+        const OraclesMock = await ethers.getContractFactory('OraclesMock')
+        const oraclesMock = await OraclesMock.deploy(oracles.address)
+        const receipt = await oraclesMock.getGasCostOfVerifyMinSignatures(
+          verifyData,
+          getSignatures(signData, REQUIRED_ORACLES)
+        )
+        await snapshotGasCost(receipt)
+      })
+
+      it('succeeds with all signatures', async () => {
+        const OraclesMock = await ethers.getContractFactory('OraclesMock')
+        const oraclesMock = await OraclesMock.deploy(oracles.address)
+        const receipt = await oraclesMock.getGasCostOfVerifyMinSignatures(
+          verifyData,
+          getSignatures(signData, ORACLES.length)
+        )
+        await snapshotGasCost(receipt)
+      })
+    })
+
+    describe('all signatures', () => {
+      it('fails with invalid signatures length', async () => {
+        const signatures = getSignatures(signData, ORACLES.length - 1)
+        await expect(oracles.verifyAllSignatures(verifyData, signatures)).revertedWith(
+          'NotEnoughSignatures()'
+        )
+      })
+
+      it('succeeds with all signatures', async () => {
+        const OraclesMock = await ethers.getContractFactory('OraclesMock')
+        const oraclesMock = await OraclesMock.deploy(oracles.address)
+        const receipt = await oraclesMock.getGasCostOfVerifyAllSignatures(
+          verifyData,
+          getSignatures(signData, ORACLES.length)
+        )
+        await snapshotGasCost(receipt)
+      })
     })
 
     it('fails with repeated signature', async () => {
-      const signatures = Buffer.concat([getSignatures(signData, 5), getSignatures(signData, 1)])
-      await expect(oracles.verifySignatures(verifyData, signatures)).revertedWith('InvalidOracle()')
+      const signatures = Buffer.concat([
+        getSignatures(signData, REQUIRED_ORACLES - 1),
+        getSignatures(signData, 1),
+      ])
+      await expect(oracles.verifyMinSignatures(verifyData, signatures)).revertedWith(
+        'InvalidOracle()'
+      )
     })
 
     it('fails with invalid oracle', async () => {
       await oracles.connect(owner).removeOracle(new EthereumWallet(ORACLES[0]).getAddressString())
       await expect(
-        oracles.verifySignatures(verifyData, getSignatures(signData, REQUIRED_ORACLES))
+        oracles.verifyMinSignatures(verifyData, getSignatures(signData, REQUIRED_ORACLES))
       ).revertedWith('InvalidOracle()')
-    })
-
-    it('succeeds with required signatures', async () => {
-      const OraclesMock = await ethers.getContractFactory('OraclesMock')
-      const oraclesMock = await OraclesMock.deploy(oracles.address)
-      const receipt = await oraclesMock.getGasCostOfVerifySignatures(
-        verifyData,
-        getSignatures(signData, REQUIRED_ORACLES)
-      )
-      await snapshotGasCost(receipt)
-    })
-
-    it('succeeds with all signatures', async () => {
-      const OraclesMock = await ethers.getContractFactory('OraclesMock')
-      const oraclesMock = await OraclesMock.deploy(oracles.address)
-      const receipt = await oraclesMock.getGasCostOfVerifySignatures(
-        verifyData,
-        getSignatures(signData, ORACLES.length)
-      )
-      await snapshotGasCost(receipt)
     })
   })
 })

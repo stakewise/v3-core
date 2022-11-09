@@ -160,7 +160,25 @@
         "type": "bytes"
       }
     ],
-    "name": "verifySignatures",
+    "name": "verifyAllSignatures",
+    "outputs": [],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "message",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "signatures",
+        "type": "bytes"
+      }
+    ],
+    "name": "verifyMinSignatures",
     "outputs": [],
     "stateMutability": "view",
     "type": "function"

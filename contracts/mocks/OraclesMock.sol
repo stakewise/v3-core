@@ -16,12 +16,21 @@ contract OraclesMock {
     oracles = _oracles;
   }
 
-  function getGasCostOfVerifySignatures(
+  function getGasCostOfVerifyMinSignatures(
     bytes32 message,
     bytes calldata signatures
   ) external view returns (uint256) {
     uint256 gasBefore = gasleft();
-    oracles.verifySignatures(message, signatures);
+    oracles.verifyMinSignatures(message, signatures);
+    return gasBefore - gasleft();
+  }
+
+  function getGasCostOfVerifyAllSignatures(
+    bytes32 message,
+    bytes calldata signatures
+  ) external view returns (uint256) {
+    uint256 gasBefore = gasleft();
+    oracles.verifyAllSignatures(message, signatures);
     return gasBefore - gasleft();
   }
 }

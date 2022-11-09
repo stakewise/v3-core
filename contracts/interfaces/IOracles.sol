@@ -71,9 +71,16 @@ interface IOracles {
   function setRequiredOracles(uint256 _requiredOracles) external;
 
   /**
-   * @notice Function for verifying whether enough oracles have signed the message
+   * @notice Function for verifying whether minimum number of oracles have signed the message
    * @param message The message that was signed
    * @param signatures The concatenation of the oracles' signatures
    */
-  function verifySignatures(bytes32 message, bytes calldata signatures) external view;
+  function verifyMinSignatures(bytes32 message, bytes calldata signatures) external view;
+
+  /**
+   * @notice Function for verifying whether all the oracles have signed the message
+   * @param message The message that was signed
+   * @param signatures The concatenation of the oracles' signatures
+   */
+  function verifyAllSignatures(bytes32 message, bytes calldata signatures) external view;
 }

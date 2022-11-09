@@ -63,8 +63,8 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
 
     if (rewardsRoot == _rewardsRoot) revert InvalidRewardsRoot();
 
-    // verify oracles approved the new merkle root
-    oracles.verifySignatures(
+    // verify minimal number of oracles approved the new merkle root
+    oracles.verifyMinSignatures(
       keccak256(
         abi.encode(_rewardsRootTypeHash, _rewardsRoot, keccak256(bytes(rewardsIpfsHash)), nonce)
       ),

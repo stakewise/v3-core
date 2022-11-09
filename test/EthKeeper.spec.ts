@@ -5,7 +5,7 @@ import { EthKeeper, EthVault, Oracles } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { REQUIRED_ORACLES } from './shared/constants'
+import { ORACLES } from './shared/constants'
 import {
   createEthValidatorsData,
   getEthValidatorSigningData,
@@ -78,7 +78,7 @@ describe('EthKeeper', () => {
       proof = getValidatorProof(validatorsData.tree, validator)
       await vault.connect(sender).deposit(sender.address, { value: depositAmount })
       signingData = getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot)
-      signatures = getSignatures(signingData)
+      signatures = getSignatures(signingData, ORACLES.length)
     })
 
     it('fails for invalid vault', async () => {
@@ -118,7 +118,7 @@ describe('EthKeeper', () => {
           vault.address,
           validatorsRegistryRoot,
           validator,
-          getSignatures(signingData, REQUIRED_ORACLES - 1),
+          getSignatures(signingData, ORACLES.length - 1),
           proof
         )
       ).revertedWith('NotEnoughSignatures()')
@@ -201,7 +201,7 @@ describe('EthKeeper', () => {
         vault,
         newValidatorsRegistryRoot
       )
-      const newSignatures = getSignatures(newSigningData)
+      const newSignatures = getSignatures(newSigningData, ORACLES.length)
       receipt = await keeper.registerValidator(
         vault.address,
         newValidatorsRegistryRoot,
@@ -237,7 +237,7 @@ describe('EthKeeper', () => {
         vault,
         validatorsRegistryRoot
       )
-      signatures = getSignatures(signingData)
+      signatures = getSignatures(signingData, ORACLES.length)
     })
 
     it('fails for invalid vault', async () => {
@@ -280,7 +280,7 @@ describe('EthKeeper', () => {
           vault.address,
           validatorsRegistryRoot,
           Buffer.concat(validators),
-          getSignatures(signingData, REQUIRED_ORACLES - 1),
+          getSignatures(signingData, ORACLES.length - 1),
           proof.proofFlags,
           proof.proof
         )
@@ -308,7 +308,8 @@ describe('EthKeeper', () => {
           validatorsRegistryRoot,
           validators[1],
           getSignatures(
-            getEthValidatorsSigningData(validators[1], oracles, vault, validatorsRegistryRoot)
+            getEthValidatorsSigningData(validators[1], oracles, vault, validatorsRegistryRoot),
+            ORACLES.length
           ),
           invalidProof.proofFlags,
           invalidProof.proof
@@ -371,7 +372,7 @@ describe('EthKeeper', () => {
         vault,
         newValidatorsRegistryRoot
       )
-      const newSignatures = getSignatures(newSigningData)
+      const newSignatures = getSignatures(newSigningData, ORACLES.length)
       receipt = await keeper.registerValidators(
         vault.address,
         newValidatorsRegistryRoot,

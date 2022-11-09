@@ -7,7 +7,7 @@ import { arrayify, defaultAbiCoder, parseEther } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
 import keccak256 from 'keccak256'
 import { EthKeeper, EthVault, Oracles } from '../../typechain-types'
-import { EIP712Domain, RegisterValidatorSig, RegisterValidatorsSig } from './constants'
+import { EIP712Domain, ORACLES, RegisterValidatorSig, RegisterValidatorsSig } from './constants'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -259,7 +259,7 @@ export async function registerEthValidator(
   await vault.connect(operator).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
   const validator = validatorsData.validators[0]
   const signingData = getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot)
-  const signatures = getSignatures(signingData)
+  const signatures = getSignatures(signingData, ORACLES.length)
   const proof = getValidatorProof(validatorsData.tree, validator)
   await keeper.registerValidator(
     vault.address,

@@ -24,6 +24,6 @@ Object {
 exports[`Keeper set rewards root succeeds 1`] = `
 Object {
   "calldataByteLength": 676,
-  "gasUsed": 132378,
+  "gasUsed": 132360,
 }
 `;

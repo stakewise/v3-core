@@ -19,7 +19,7 @@ import {
   ValidatorsMultiProof,
 } from './shared/validators'
 import { ethVaultFixture } from './shared/fixtures'
-import { ZERO_BYTES32 } from './shared/constants'
+import { ORACLES, ZERO_BYTES32 } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const gwei = 1000000000
@@ -74,7 +74,8 @@ describe('EthVault - register', () => {
       validator = validatorsData.validators[0]
       proof = getValidatorProof(validatorsData.tree, validator)
       signatures = getSignatures(
-        getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot)
+        getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot),
+        ORACLES.length
       )
     })
 
@@ -118,7 +119,8 @@ describe('EthVault - register', () => {
           validatorsRegistryRoot,
           appendDepositData(validator, validatorDeposit, vault.address),
           getSignatures(
-            getEthValidatorSigningData(invalidValidator, oracles, vault, validatorsRegistryRoot)
+            getEthValidatorSigningData(invalidValidator, oracles, vault, validatorsRegistryRoot),
+            ORACLES.length
           ),
           proof
         )
@@ -163,7 +165,8 @@ describe('EthVault - register', () => {
           oracles,
           vault,
           validatorsRegistryRoot
-        )
+        ),
+        ORACLES.length
       )
     })
 
@@ -211,7 +214,8 @@ describe('EthVault - register', () => {
               oracles,
               vault,
               validatorsRegistryRoot
-            )
+            ),
+            ORACLES.length
           ),
           multiProof.proofFlags,
           multiProof.proof
@@ -238,7 +242,8 @@ describe('EthVault - register', () => {
               oracles,
               vault,
               validatorsRegistryRoot
-            )
+            ),
+            ORACLES.length
           ),
           multiProof.proofFlags,
           multiProof.proof
@@ -265,7 +270,8 @@ describe('EthVault - register', () => {
               oracles,
               vault,
               validatorsRegistryRoot
-            )
+            ),
+            ORACLES.length
           ),
           multiProof.proofFlags,
           multiProof.proof
@@ -298,7 +304,8 @@ describe('EthVault - register', () => {
           validatorsRegistryRoot,
           invalidValidators,
           getSignatures(
-            getEthValidatorsSigningData(invalidValidators, oracles, vault, validatorsRegistryRoot)
+            getEthValidatorsSigningData(invalidValidators, oracles, vault, validatorsRegistryRoot),
+            ORACLES.length
           ),
           multiProof.proofFlags,
           multiProof.proof

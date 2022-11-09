@@ -59,8 +59,8 @@ contract EthKeeper is Keeper, IEthKeeper {
     }
     if (!registry.vaults(vault)) revert InvalidVault();
 
-    // verify oracles approved registration
-    oracles.verifySignatures(
+    // verify all oracles approved registration
+    oracles.verifyAllSignatures(
       keccak256(
         abi.encode(_registerValidatorTypeHash, validatorsRegistryRoot, vault, keccak256(validator))
       ),
@@ -95,8 +95,8 @@ contract EthKeeper is Keeper, IEthKeeper {
     }
     if (!registry.vaults(vault)) revert InvalidVault();
 
-    // verify oracles approved registration
-    oracles.verifySignatures(
+    // verify all oracles approved registration
+    oracles.verifyAllSignatures(
       keccak256(
         abi.encode(
           _registerValidatorsTypeHash,
