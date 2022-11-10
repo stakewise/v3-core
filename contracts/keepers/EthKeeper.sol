@@ -2,19 +2,19 @@
 
 pragma solidity =0.8.17;
 
-import {Keeper} from '../abstract/Keeper.sol';
 import {IEthKeeper} from '../interfaces/IEthKeeper.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
+import {BaseKeeper} from './BaseKeeper.sol';
 
 /**
  * @title EthKeeper
  * @author StakeWise
  * @notice Defines the functionality for registering validators for the Ethereum Vaults
  */
-contract EthKeeper is Keeper, IEthKeeper {
+contract EthKeeper is BaseKeeper, IEthKeeper {
   bytes32 internal constant _registerValidatorTypeHash =
     keccak256('EthKeeper(bytes32 validatorsRegistryRoot,address vault,bytes32 validator)');
   bytes32 internal constant _registerValidatorsTypeHash =
@@ -37,13 +37,13 @@ contract EthKeeper is Keeper, IEthKeeper {
     IOracles _oracles,
     IRegistry _registry,
     IValidatorsRegistry _validatorsRegistry
-  ) Keeper(_oracles, _registry) {
+  ) BaseKeeper(_oracles, _registry) {
     validatorsRegistry = _validatorsRegistry;
   }
 
   /// @inheritdoc IEthKeeper
   function initialize(address _owner) external override initializer {
-    __Keeper_init(_owner);
+    __BaseKeeper_init(_owner);
   }
 
   /// @inheritdoc IEthKeeper

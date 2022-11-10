@@ -6,11 +6,11 @@ import {IOracles} from './IOracles.sol';
 import {IRegistry} from './IRegistry.sol';
 
 /**
- * @title IKeeper
+ * @title IBaseKeeper
  * @author StakeWise
- * @notice Defines the interface for the Keeper contract
+ * @notice Defines the interface for the BaseKeeper contract
  */
-interface IKeeper {
+interface IBaseKeeper {
   // Custom errors
   error InvalidRewardsRoot();
   error InvalidProof();

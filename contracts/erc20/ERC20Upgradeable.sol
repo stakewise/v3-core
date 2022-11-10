@@ -12,11 +12,14 @@ error PermitInvalidSigner();
 error InvalidInitArgs();
 
 /**
- * @title ERC20 Permit Token
+ * @title ERC20 Upgradeable
  * @author StakeWise
  * @notice Modern and gas efficient ERC20 + EIP-2612 implementation
  */
-abstract contract ERC20Permit is Initializable, IERC20Permit {
+abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
+  bytes32 internal constant _permitTypeHash =
+    keccak256('Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)');
+
   /// @inheritdoc IERC20
   string public override name;
 
@@ -95,18 +98,7 @@ abstract contract ERC20Permit is Initializable, IERC20Permit {
           abi.encodePacked(
             '\x19\x01',
             DOMAIN_SEPARATOR(),
-            keccak256(
-              abi.encode(
-                keccak256(
-                  'Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)'
-                ),
-                owner,
-                spender,
-                value,
-                nonces[owner]++,
-                deadline
-              )
-            )
+            keccak256(abi.encode(_permitTypeHash, owner, spender, value, nonces[owner]++, deadline))
           )
         ),
         v,
@@ -171,11 +163,11 @@ abstract contract ERC20Permit is Initializable, IERC20Permit {
   }
 
   /**
-   * @dev Initializes the ERC20Permit contract
+   * @dev Initializes the ERC20Upgradeable contract
    * @param _name The name of the ERC20 token
    * @param _symbol The symbol of the ERC20 token
    */
-  function __ERC20Permit_init(
+  function __ERC20Upgradeable_init(
     string memory _name,
     string memory _symbol
   ) internal onlyInitializing {

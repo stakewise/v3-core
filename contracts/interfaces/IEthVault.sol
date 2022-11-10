@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.17;
 
-import {IVault} from './IVault.sol';
+import {IBaseVault} from './IBaseVault.sol';
 import {IEthValidatorsRegistry} from './IEthValidatorsRegistry.sol';
 
 /**
@@ -10,7 +10,7 @@ import {IEthValidatorsRegistry} from './IEthValidatorsRegistry.sol';
  * @author StakeWise
  * @notice Defines the interface for the EthVault contract
  */
-interface IEthVault is IVault {
+interface IEthVault is IBaseVault {
   /**
    * @notice The ETH Validators Registry
    * @return The address of the ETH validators registry
@@ -21,7 +21,7 @@ interface IEthVault is IVault {
    * @dev Initializes the EthVault contract
    * @param initParams The Vault's initialization parameters
    */
-  function initialize(IVault.InitParams memory initParams) external;
+  function initialize(IBaseVault.InitParams memory initParams) external;
 
   /**
    * @notice Deposit assets to the Vault. Must transfer Ether together with the call.

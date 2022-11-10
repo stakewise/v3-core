@@ -4,14 +4,14 @@ pragma solidity =0.8.17;
 
 import {IOracles} from './IOracles.sol';
 import {IValidatorsRegistry} from './IValidatorsRegistry.sol';
-import {IKeeper} from './IKeeper.sol';
+import {IBaseKeeper} from './IBaseKeeper.sol';
 
 /**
  * @title IEthKeeper
  * @author StakeWise
  * @notice Defines the interface for the EthKeeper contract
  */
-interface IEthKeeper is IKeeper {
+interface IEthKeeper is IBaseKeeper {
   /**
    * @notice Event emitted on validators registration
    * @param vault The address of the Vault

@@ -4,13 +4,13 @@ pragma solidity =0.8.17;
 
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import {IVault} from '../interfaces/IVault.sol';
+import {IBaseVault} from '../interfaces/IBaseVault.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
-import {IKeeper} from '../interfaces/IKeeper.sol';
-import {Vault} from '../abstract/Vault.sol';
+import {IBaseKeeper} from '../interfaces/IBaseKeeper.sol';
+import {BaseVault} from './BaseVault.sol';
 import {EthFeesEscrow} from './EthFeesEscrow.sol';
 
 /**
@@ -18,7 +18,7 @@ import {EthFeesEscrow} from './EthFeesEscrow.sol';
  * @author StakeWise
  * @notice Defines Vault functionality for staking on Ethereum
  */
-contract EthVault is Vault, IEthVault {
+contract EthVault is BaseVault, IEthVault {
   uint256 internal constant _validatorDeposit = 32 ether;
   uint256 internal constant _validatorLength = 176;
 
@@ -36,15 +36,15 @@ contract EthVault is Vault, IEthVault {
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    IKeeper _keeper,
+    IBaseKeeper _keeper,
     IRegistry _registry,
     IEthValidatorsRegistry _validatorsRegistry
-  ) Vault(_keeper, _registry) {
+  ) BaseVault(_keeper, _registry) {
     validatorsRegistry = _validatorsRegistry;
   }
 
   /// @inheritdoc IEthVault
-  function initialize(IVault.InitParams memory params) external override initializer {
+  function initialize(IBaseVault.InitParams memory params) external override initializer {
     __EthVault_init(params);
   }
 
@@ -123,7 +123,7 @@ contract EthVault is Vault, IEthVault {
     }
   }
 
-  /// @inheritdoc IVault
+  /// @inheritdoc IBaseVault
   function withdrawalCredentials() public view override returns (bytes memory) {
     return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
   }
@@ -133,12 +133,12 @@ contract EthVault is Vault, IEthVault {
    */
   receive() external payable {}
 
-  /// @inheritdoc Vault
+  /// @inheritdoc BaseVault
   function _vaultAssets() internal view override returns (uint256) {
     return address(this).balance;
   }
 
-  /// @inheritdoc Vault
+  /// @inheritdoc BaseVault
   function _transferAssets(address receiver, uint256 assets) internal override {
     return Address.sendValue(payable(receiver), assets);
   }
@@ -147,8 +147,8 @@ contract EthVault is Vault, IEthVault {
    * @dev Initializes the EthVault contract
    * @param initParams The Vault's initialization parameters
    */
-  function __EthVault_init(IVault.InitParams memory initParams) internal onlyInitializing {
-    __Vault_init(initParams);
+  function __EthVault_init(IBaseVault.InitParams memory initParams) internal onlyInitializing {
+    __BaseVault_init(initParams);
   }
 
   /**

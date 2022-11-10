@@ -5,36 +5,36 @@ pragma solidity =0.8.17;
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import {IVault} from '../interfaces/IVault.sol';
-import {IKeeper} from '../interfaces/IKeeper.sol';
+import {IBaseVault} from '../interfaces/IBaseVault.sol';
+import {IBaseKeeper} from '../interfaces/IBaseKeeper.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
-import {Upgradeable} from './Upgradeable.sol';
+import {Versioned} from '../common/Versioned.sol';
 
 /**
- * @title Keeper
+ * @title BaseKeeper
  * @author StakeWise
  * @notice Defines the functionality for updating Vaults' rewards
  */
-abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
+abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
   bytes32 internal constant _rewardsRootTypeHash =
     keccak256('Keeper(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint96 nonce)');
 
-  /// @inheritdoc IKeeper
+  /// @inheritdoc IBaseKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IOracles public immutable override oracles;
 
-  /// @inheritdoc IKeeper
+  /// @inheritdoc IBaseKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IRegistry public immutable override registry;
 
-  /// @inheritdoc IKeeper
+  /// @inheritdoc IBaseKeeper
   bytes32 public override rewardsRoot;
 
-  /// @inheritdoc IKeeper
+  /// @inheritdoc IBaseKeeper
   mapping(address => RewardSync) public override rewards;
 
-  /// @inheritdoc IKeeper
+  /// @inheritdoc IBaseKeeper
   uint96 public override rewardsNonce;
 
   /**
@@ -52,7 +52,7 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
     registry = _registry;
   }
 
-  /// @inheritdoc IKeeper
+  /// @inheritdoc IBaseKeeper
   function setRewardsRoot(
     bytes32 _rewardsRoot,
     string calldata rewardsIpfsHash,
@@ -77,7 +77,7 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
     emit RewardsRootUpdated(msg.sender, _rewardsRoot, nonce, rewardsIpfsHash, signatures);
   }
 
-  /// @inheritdoc IKeeper
+  /// @inheritdoc IBaseKeeper
   function isHarvested(address vault) external view override returns (bool) {
     // vault is considered harvested in case it does not have any validators
     // or it has the latest nonce
@@ -85,7 +85,7 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
     return nonce == 0 || nonce >= rewardsNonce;
   }
 
-  /// @inheritdoc IKeeper
+  /// @inheritdoc IBaseKeeper
   function harvest(
     address vault,
     int160 reward,
@@ -112,17 +112,17 @@ abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
     emit Harvested(msg.sender, vault, reward);
 
     // update Vault's state
-    return IVault(vault).updateState(reward - lastRewardSync.reward);
+    return IBaseVault(vault).updateState(reward - lastRewardSync.reward);
   }
 
   /// @inheritdoc UUPSUpgradeable
   function _authorizeUpgrade(address) internal override onlyOwner {}
 
   /**
-   * @dev Initializes the Keeper contract
+   * @dev Initializes the BaseKeeper contract
    * @param _owner The address of the contract owner
    */
-  function __Keeper_init(address _owner) internal onlyInitializing {
+  function __BaseKeeper_init(address _owner) internal onlyInitializing {
     _transferOwnership(_owner);
   }
 

@@ -6,7 +6,7 @@ import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {IEthVaultFactory} from '../interfaces/IEthVaultFactory.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
-import {IVault} from '../interfaces/IVault.sol';
+import {IBaseVault} from '../interfaces/IBaseVault.sol';
 import {EthFeesEscrow} from './EthFeesEscrow.sol';
 
 /**
@@ -58,7 +58,7 @@ contract EthVaultFactory is IEthVaultFactory {
 
     // initialize vault
     IEthVault(vault).initialize(
-      IVault.InitParams({
+      IBaseVault.InitParams({
         maxTotalAssets: maxTotalAssets,
         validatorsRoot: validatorsRoot,
         operator: msg.sender,
