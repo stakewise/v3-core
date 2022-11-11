@@ -4,6 +4,7 @@ pragma solidity =0.8.17;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IBaseVault} from '../interfaces/IBaseVault.sol';
@@ -19,7 +20,7 @@ import {Versioned} from '../common/Versioned.sol';
  * @author StakeWise
  * @notice Defines the common Vault functionality
  */
-abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
+abstract contract BaseVault is Versioned, ReentrancyGuardUpgradeable, ERC20Upgradeable, IBaseVault {
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IBaseVault
@@ -60,14 +61,17 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
   IFeesEscrow public override feesEscrow;
 
   /// @inheritdoc IBaseVault
-  address public override operator;
+  address public override admin;
+
+  /// @inheritdoc IBaseVault
+  address public override feeRecipient;
 
   /// @inheritdoc IBaseVault
   uint16 public override feePercent;
 
-  /// @dev Prevents calling a function from anyone except Vault's operator
-  modifier onlyOperator() {
-    if (msg.sender != operator) revert AccessDenied();
+  /// @dev Prevents calling a function from anyone except Vault's admin
+  modifier onlyAdmin() {
+    if (msg.sender != admin) revert AccessDenied();
     _;
   }
 
@@ -241,7 +245,7 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
   /// @inheritdoc IBaseVault
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
     uint256 totalShares = _totalShares;
-    // Will revert if assets > 0, totalSupply > 0 and _totalAssets = 0.
+    // Will revert if assets > 0, totalShares > 0 and _totalAssets = 0.
     // That corresponds to a case where any asset would represent an infinite amount of shares.
     return
       (assets == 0 || totalShares == 0) ? assets : Math.mulDiv(assets, totalShares, _totalAssets);
@@ -257,9 +261,21 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
   function setValidatorsRoot(
     bytes32 _validatorsRoot,
     string memory _validatorsIpfsHash
-  ) external override onlyOperator {
+  ) external override onlyAdmin {
     validatorsRoot = _validatorsRoot;
     emit ValidatorsRootUpdated(_validatorsRoot, _validatorsIpfsHash);
+  }
+
+  /// @inheritdoc IBaseVault
+  function setFeeRecipient(address _feeRecipient) external override onlyAdmin {
+    if (_feeRecipient == address(0)) revert InvalidFeeRecipient();
+
+    // allocate fee to the current fee recipient
+    updateHarvestedState();
+
+    // update fee recipient address
+    feeRecipient = _feeRecipient;
+    emit FeeRecipientUpdated(_feeRecipient);
   }
 
   /**
@@ -357,33 +373,38 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
       // increase total staked amount
       totalAssetsAfter += profitAccrued;
 
-      // calculate operator's shares
-      uint256 operatorShares;
+      // calculate fee recipient's shares
+      uint256 feeRecipientShares;
       if (totalSharesAfter == 0) {
-        operatorShares = profitAccrued;
+        feeRecipientShares = profitAccrued;
       } else {
-        uint256 operatorAssets = Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
-        // Will revert if assets > 0, totalSupply > 0 and _totalAssets = 0.
-        // That corresponds to a case where any asset would represent an infinite amount of shares.
-        unchecked {
-          // cannot underflow as totalAssetsAfter >= operatorAssets
-          operatorShares = Math.mulDiv(
-            operatorAssets,
-            totalSharesAfter,
-            totalAssetsAfter - operatorAssets
-          );
+        // SLOAD to memory
+        uint256 _feePercent = feePercent;
+        if (_feePercent > 0) {
+          uint256 feeRecipientAssets = Math.mulDiv(profitAccrued, _feePercent, _maxFeePercent);
+          // Will revert if totalAssetsAfter - feeRecipientAssets = 0.
+          // That corresponds to a case where any asset would represent an infinite amount of shares.
+          unchecked {
+            // cannot underflow as feePercent <= maxFeePercent
+            feeRecipientShares = Math.mulDiv(
+              feeRecipientAssets,
+              totalSharesAfter,
+              totalAssetsAfter - feeRecipientAssets
+            );
+          }
         }
       }
 
-      if (operatorShares > 0) {
-        // mint shares to the operator
-        totalSharesAfter += operatorShares;
-        address _operator = operator;
+      if (feeRecipientShares > 0) {
+        // SLOAD to memory
+        address _feeRecipient = feeRecipient;
+        // mint shares to the fee recipient
+        totalSharesAfter += feeRecipientShares;
         unchecked {
           // cannot underflow because the sum of all shares can't exceed the _totalShares
-          balanceOf[_operator] += operatorShares;
+          balanceOf[_feeRecipient] += feeRecipientShares;
         }
-        emit Transfer(address(0), _operator, operatorShares);
+        emit Transfer(address(0), _feeRecipient, feeRecipientShares);
       }
     } else if (assetsDelta < 0) {
       // apply penalty
@@ -405,7 +426,7 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
   }
 
   /// @inheritdoc UUPSUpgradeable
-  function _authorizeUpgrade(address newImplementation) internal view override onlyOperator {
+  function _authorizeUpgrade(address newImplementation) internal view override onlyAdmin {
     address currImplementation = _getImplementation();
     if (
       newImplementation == address(0) ||
@@ -439,15 +460,19 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
   function __BaseVault_init(InitParams memory initParams) internal onlyInitializing {
     if (initParams.feePercent > _maxFeePercent) revert InvalidFeePercent();
 
+    // initialize ReentrancyGuard
+    __ReentrancyGuard_init();
+
     // initialize ERC20Permit
     __ERC20Upgradeable_init(initParams.name, initParams.symbol);
 
     // initialize Vault
     maxTotalAssets = initParams.maxTotalAssets;
     feesEscrow = IFeesEscrow(initParams.feesEscrow);
-    operator = initParams.operator;
-    feePercent = initParams.feePercent;
     validatorsRoot = initParams.validatorsRoot;
+    admin = initParams.admin;
+    feeRecipient = initParams.admin;
+    feePercent = initParams.feePercent;
     emit ValidatorsRootUpdated(initParams.validatorsRoot, initParams.validatorsIpfsHash);
   }
 
@@ -462,7 +487,7 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
    * @param receiver The address that will receive the assets
    * @param assets The number of assets to transfer
    */
-  function _transferAssets(address receiver, uint256 assets) internal virtual {}
+  function _transferAssets(address receiver, uint256 assets) internal virtual nonReentrant {}
 
   /**
    * @dev This empty reserved space is put in place to allow future versions to add new

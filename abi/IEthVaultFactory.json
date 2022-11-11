@@ -5,7 +5,7 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "operator",
+        "name": "admin",
         "type": "address"
       },
       {
@@ -64,7 +64,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "operator",
+        "name": "deployer",
         "type": "address"
       }
     ],
@@ -137,7 +137,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "operator",
+        "name": "deployer",
         "type": "address"
       }
     ],

@@ -22,7 +22,7 @@ describe('EthVault - harvest', () => {
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
 
-  let holder: Wallet, operator: Wallet, dao: Wallet
+  let holder: Wallet, admin: Wallet, dao: Wallet
   let vault: EthVault, keeper: EthKeeper, oracles: Oracles
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -30,14 +30,14 @@ describe('EthVault - harvest', () => {
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
   before('create fixture loader', async () => {
-    ;[holder, operator, dao] = await (ethers as any).getSigners()
+    ;[holder, admin, dao] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([dao])
   })
 
   beforeEach('deploy fixture', async () => {
     ;({ createVault, keeper, oracles, getSignatures } = await loadFixture(ethVaultFixture))
     vault = await createVault(
-      operator,
+      admin,
       maxTotalAssets,
       validatorsRoot,
       feePercent,
@@ -87,7 +87,7 @@ describe('EthVault - harvest', () => {
   })
 
   it('only keeper can update', async () => {
-    await expect(vault.connect(operator).updateState(1)).revertedWith('AccessDenied()')
+    await expect(vault.connect(admin).updateState(1)).revertedWith('AccessDenied()')
   })
 
   it('applies penalty when delta is below zero', async () => {
@@ -116,7 +116,7 @@ describe('EthVault - harvest', () => {
     await snapshotGasCost(receipt)
   })
 
-  it('allocates fee to operator when delta is above zero', async () => {
+  it('allocates fee to recipient when delta is above zero', async () => {
     const rewardValidators = parseEther('0.5')
     const rewardFeesEscrow = parseEther('0.5')
     const operatorReward = parseEther('0.1')
@@ -136,7 +136,7 @@ describe('EthVault - harvest', () => {
     const totalAssetsBefore = await vault.totalAssets()
     const receipt = await keeper.harvest(vault.address, rewardValidators, proof)
 
-    const operatorShares = await vault.balanceOf(operator.address)
+    const operatorShares = await vault.balanceOf(admin.address)
     expect(await vault.convertToAssets(operatorShares)).to.be.eq(operatorReward.sub(1)) // rounding error
     expect(await vault.convertToShares(operatorReward)).to.be.eq(operatorShares)
     expect(await waffle.provider.getBalance(feesEscrow)).to.be.eq(0)
@@ -144,7 +144,7 @@ describe('EthVault - harvest', () => {
     await expect(receipt).emit(vault, 'StateUpdated').withArgs(reward)
     await expect(receipt)
       .emit(vault, 'Transfer')
-      .withArgs(ZERO_ADDRESS, operator.address, operatorShares)
+      .withArgs(ZERO_ADDRESS, admin.address, operatorShares)
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
       rewardFeesEscrow.add(holderAssets)
     )
@@ -172,7 +172,7 @@ describe('EthVault - harvest', () => {
     const proof = getRewardsRootProof(tree, { vault: vault.address, reward: rewardValidators })
 
     const receipt = await keeper.harvest(vault.address, rewardValidators, proof)
-    const operatorShares = await vault.balanceOf(operator.address)
+    const operatorShares = await vault.balanceOf(admin.address)
     expect(await waffle.provider.getBalance(feesEscrow)).to.be.eq(0)
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
       rewardFeesEscrow.add(holderAssets)

@@ -251,12 +251,12 @@ export async function registerEthValidator(
   oracles: Oracles,
   keeper: EthKeeper,
   validatorsRegistry: Contract,
-  operator: Wallet,
+  admin: Wallet,
   getSignatures: (typedData: any, count?: number) => Buffer
 ) {
   const validatorsData = await createEthValidatorsData(vault)
   const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
-  await vault.connect(operator).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
+  await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
   const validator = validatorsData.validators[0]
   const signingData = getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot)
   const signatures = getSignatures(signingData, ORACLES.length)

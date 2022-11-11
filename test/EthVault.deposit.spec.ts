@@ -20,7 +20,7 @@ describe('EthVault - deposit', () => {
   const vaultSymbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
-  let dao: Wallet, sender: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
+  let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Wallet, other: Wallet
   let vault: EthVault, keeper: EthKeeper, oracles: Oracles, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -29,7 +29,7 @@ describe('EthVault - deposit', () => {
   let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createVaultMock']
 
   before('create fixture loader', async () => {
-    ;[dao, sender, receiver, operator, other] = await (ethers as any).getSigners()
+    ;[dao, sender, receiver, admin, other] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([dao])
   })
 
@@ -37,7 +37,7 @@ describe('EthVault - deposit', () => {
     ;({ createVault, createVaultMock, keeper, oracles, validatorsRegistry, getSignatures } =
       await loadFixture(ethVaultFixture))
     vault = await createVault(
-      operator,
+      admin,
       maxTotalAssets,
       validatorsRoot,
       feePercent,
@@ -73,7 +73,7 @@ describe('EthVault - deposit', () => {
     let ethVaultMock: EthVaultMock
     beforeEach(async () => {
       ethVaultMock = await createVaultMock(
-        operator,
+        admin,
         maxTotalAssets,
         validatorsRoot,
         feePercent,
@@ -111,7 +111,7 @@ describe('EthVault - deposit', () => {
 
     beforeEach(async () => {
       ethVaultMock = await createVaultMock(
-        operator,
+        admin,
         maxTotalAssets,
         validatorsRoot,
         feePercent,
@@ -150,14 +150,7 @@ describe('EthVault - deposit', () => {
 
     it('fails when not harvested', async () => {
       await vault.connect(other).deposit(other.address, { value: parseEther('32') })
-      await registerEthValidator(
-        vault,
-        oracles,
-        keeper,
-        validatorsRegistry,
-        operator,
-        getSignatures
-      )
+      await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
       await updateRewardsRoot(keeper, oracles, getSignatures, [
         { reward: parseEther('5'), vault: vault.address },
       ])

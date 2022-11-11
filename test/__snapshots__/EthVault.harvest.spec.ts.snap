@@ -1,9 +1,9 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`EthVault - harvest allocates fee to operator when delta is above zero 1`] = `
+exports[`EthVault - harvest allocates fee to recipient when delta is above zero 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 119177,
+  "gasUsed": 119223,
 }
 `;
 
@@ -17,6 +17,6 @@ Object {
 exports[`EthVault - harvest updates exit queue 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 173453,
+  "gasUsed": 173499,
 }
 `;

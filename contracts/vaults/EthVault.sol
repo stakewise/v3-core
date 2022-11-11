@@ -139,7 +139,7 @@ contract EthVault is BaseVault, IEthVault {
   }
 
   /// @inheritdoc BaseVault
-  function _transferAssets(address receiver, uint256 assets) internal override {
+  function _transferAssets(address receiver, uint256 assets) internal override nonReentrant {
     return Address.sendValue(payable(receiver), assets);
   }
 

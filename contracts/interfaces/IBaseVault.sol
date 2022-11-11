@@ -19,6 +19,7 @@ interface IBaseVault is IVersioned, IERC20Permit {
   error InvalidSharesAmount();
   error AccessDenied();
   error NotHarvested();
+  error InvalidFeeRecipient();
   error InvalidFeePercent();
   error UpgradeFailed();
   error InsufficientAvailableAssets();
@@ -29,9 +30,9 @@ interface IBaseVault is IVersioned, IERC20Permit {
    * @dev Struct for initializing the Vault contract
    * @param maxTotalAssets The max total assets that can be staked into the Vault
    * @param validatorsRoot The validators Merkle tree root
-   * @param operator The address of the Vault operator
+   * @param admin The address of the Vault admin
    * @param feesEscrow The address of the fees escrow contract
-   * @param feePercent The fee percent that is charged by the Vault operator
+   * @param feePercent The fee percent that is charged by the Vault
    * @param name The name of the ERC20 token
    * @param symbol The symbol of the ERC20 token
    * @param validatorsIpfsHash The IPFS hash with all the validators deposit data
@@ -39,7 +40,7 @@ interface IBaseVault is IVersioned, IERC20Permit {
   struct InitParams {
     uint256 maxTotalAssets;
     bytes32 validatorsRoot;
-    address operator;
+    address admin;
     address feesEscrow;
     uint16 feePercent;
     string name;
@@ -84,6 +85,12 @@ interface IBaseVault is IVersioned, IERC20Permit {
    * @param publicKey The public key of the validator that was registered
    */
   event ValidatorRegistered(bytes publicKey);
+
+  /**
+   * @notice Event emitted on validator registration
+   * @param feeRecipient The address of the new fee recipient
+   */
+  event FeeRecipientUpdated(address feeRecipient);
 
   /**
    * @notice Event emitted on shares added to the exit queue
@@ -166,16 +173,22 @@ interface IBaseVault is IVersioned, IERC20Permit {
   function maxTotalAssets() external view returns (uint256);
 
   /**
-   * @notice The Vault's operator fee percent
-   * @return The fee percent applied by the Vault operator on the rewards
+   * @notice The Vault admin
+   * @return The address of the Vault admin
    */
-  function feePercent() external view returns (uint16);
+  function admin() external view returns (address);
 
   /**
-   * @notice The Vault operator
-   * @return The Vault operator address
+   * @notice The Vault's fee recipient
+   * @return The address of the Vault's fee recipient
    */
-  function operator() external view returns (address);
+  function feeRecipient() external view returns (address);
+
+  /**
+   * @notice The Vault's fee percent
+   * @return The fee percent applied by the Vault on the rewards
+   */
+  function feePercent() external view returns (uint16);
 
   /**
    * @notice The contract that accumulates rewards received from priority fees and MEV
@@ -202,11 +215,17 @@ interface IBaseVault is IVersioned, IERC20Permit {
   function withdrawalCredentials() external view returns (bytes memory);
 
   /**
-   * @notice Function for updating the validators Merkle Tree root. Can only be called by the operator.
+   * @notice Function for updating the validators Merkle Tree root. Can only be called by the admin.
    * @param _validatorsRoot The new validators Merkle tree root
    * @param _validatorsIpfsHash The new IPFS hash with all the validators deposit data for the new root
    */
   function setValidatorsRoot(bytes32 _validatorsRoot, string memory _validatorsIpfsHash) external;
+
+  /**
+   * @notice Function for updating the fee recipient address
+   * @param _feeRecipient The address of the new fee recipient
+   */
+  function setFeeRecipient(address _feeRecipient) external;
 
   /**
    * @notice Get the checkpoint index to claim exited assets from

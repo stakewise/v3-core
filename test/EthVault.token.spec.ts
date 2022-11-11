@@ -22,20 +22,20 @@ describe('EthVault - token', () => {
   const initialSupply = 1000
 
   let vault: EthVault
-  let operator: Wallet, dao: Wallet, initialHolder: Wallet, spender: Wallet, recipient: Wallet
+  let admin: Wallet, dao: Wallet, initialHolder: Wallet, spender: Wallet, recipient: Wallet
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
 
   before('create fixture loader', async () => {
-    ;[operator, dao, initialHolder, spender, recipient] = await (ethers as any).getSigners()
+    ;[admin, dao, initialHolder, spender, recipient] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([dao])
   })
 
   beforeEach('deploy fixture', async () => {
     ;({ createVault } = await loadFixture(ethVaultFixture))
     vault = await createVault(
-      operator,
+      admin,
       maxTotalAssets,
       validatorsRoot,
       feePercent,
@@ -61,7 +61,7 @@ describe('EthVault - token', () => {
   it('fails to deploy with invalid name length', async () => {
     await expect(
       createVault(
-        operator,
+        admin,
         maxTotalAssets,
         validatorsRoot,
         feePercent,
@@ -75,7 +75,7 @@ describe('EthVault - token', () => {
   it('fails to deploy with invalid symbol length', async () => {
     await expect(
       createVault(
-        operator,
+        admin,
         maxTotalAssets,
         validatorsRoot,
         feePercent,

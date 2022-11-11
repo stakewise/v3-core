@@ -2,6 +2,7 @@
 
 pragma solidity =0.8.17;
 
+import {Create2} from '@openzeppelin/contracts/utils/Create2.sol';
 import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 import {IEthVaultFactory} from '../interfaces/IEthVaultFactory.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
@@ -48,20 +49,19 @@ contract EthVaultFactory is IEthVaultFactory {
     string calldata symbol,
     string calldata validatorsIpfsHash
   ) external override returns (address vault, address feesEscrow) {
-    bytes32 operatorNonce = keccak256(abi.encode(msg.sender, nonces[msg.sender]));
-
     // create vault proxy
-    vault = address(new ERC1967Proxy{salt: operatorNonce}(vaultImplementation, ''));
+    bytes32 nonce = keccak256(abi.encode(msg.sender, nonces[msg.sender]));
+    vault = address(new ERC1967Proxy{salt: nonce}(vaultImplementation, ''));
 
     // create fees escrow contract
-    feesEscrow = address(new EthFeesEscrow{salt: operatorNonce}(vault));
+    feesEscrow = address(new EthFeesEscrow{salt: nonce}(vault));
 
     // initialize vault
     IEthVault(vault).initialize(
       IBaseVault.InitParams({
         maxTotalAssets: maxTotalAssets,
         validatorsRoot: validatorsRoot,
-        operator: msg.sender,
+        admin: msg.sender,
         feesEscrow: feesEscrow,
         feePercent: feePercent,
         name: name,
@@ -93,36 +93,13 @@ contract EthVaultFactory is IEthVaultFactory {
 
   /// @inheritdoc IEthVaultFactory
   function computeAddresses(
-    address operator
-  ) external view override returns (address vault, address feesEscrow) {
-    bytes32 operatorNonce = keccak256(abi.encode(operator, nonces[operator]));
-    vault = address(
-      uint160(
-        uint256(
-          keccak256(
-            abi.encodePacked(
-              bytes1(0xFF), // prefix
-              address(this), // creator
-              operatorNonce, // salt
-              _vaultCreationCodeHash // vault bytecode hash
-            )
-          )
-        )
-      )
-    );
-    feesEscrow = address(
-      uint160(
-        uint256(
-          keccak256(
-            abi.encodePacked(
-              bytes1(0xFF), // prefix
-              address(this), // creator
-              operatorNonce, // salt
-              keccak256(abi.encodePacked(type(EthFeesEscrow).creationCode, abi.encode(vault))) // escrow bytecode hash
-            )
-          )
-        )
-      )
+    address deployer
+  ) public view override returns (address vault, address feesEscrow) {
+    bytes32 nonce = keccak256(abi.encode(deployer, nonces[deployer]));
+    vault = Create2.computeAddress(nonce, _vaultCreationCodeHash);
+    feesEscrow = Create2.computeAddress(
+      nonce,
+      keccak256(abi.encodePacked(type(EthFeesEscrow).creationCode, abi.encode(vault)))
     );
   }
 }

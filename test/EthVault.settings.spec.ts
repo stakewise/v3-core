@@ -6,6 +6,7 @@ import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
+import { ZERO_ADDRESS } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -16,13 +17,13 @@ describe('EthVault - settings', () => {
   const vaultSymbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
-  let operator: Wallet, owner: Wallet, other: Wallet
+  let admin: Wallet, owner: Wallet, other: Wallet, newFeeRecipient: Wallet
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
 
   before('create fixture loader', async () => {
-    ;[operator, owner, other] = await (ethers as any).getSigners()
+    ;[admin, owner, other, newFeeRecipient] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([owner])
   })
 
@@ -34,7 +35,7 @@ describe('EthVault - settings', () => {
     it('cannot be set to invalid value', async () => {
       await expect(
         createVault(
-          operator,
+          admin,
           maxTotalAssets,
           validatorsRoot,
           10001,
@@ -53,7 +54,7 @@ describe('EthVault - settings', () => {
 
     beforeEach('deploy vault', async () => {
       vault = await createVault(
-        operator,
+        admin,
         maxTotalAssets,
         validatorsRoot,
         feePercent,
@@ -63,7 +64,7 @@ describe('EthVault - settings', () => {
       )
     })
 
-    it('only operator can update', async () => {
+    it('only admin can update', async () => {
       await expect(
         vault.connect(other).setValidatorsRoot(newValidatorsRoot, newValidatorsIpfsHash)
       ).to.be.revertedWith('AccessDenied()')
@@ -71,12 +72,49 @@ describe('EthVault - settings', () => {
 
     it('can update', async () => {
       const receipt = await vault
-        .connect(operator)
+        .connect(admin)
         .setValidatorsRoot(newValidatorsRoot, newValidatorsIpfsHash)
       expect(receipt)
         .to.emit(vault, 'ValidatorsRootUpdated')
         .withArgs(newValidatorsRoot, newValidatorsIpfsHash)
       expect(await vault.validatorsRoot()).to.be.eq(newValidatorsRoot)
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('fee recipient', () => {
+    let vault: EthVault
+
+    beforeEach('deploy vault', async () => {
+      vault = await createVault(
+        admin,
+        maxTotalAssets,
+        validatorsRoot,
+        feePercent,
+        vaultName,
+        vaultSymbol,
+        validatorsIpfsHash
+      )
+    })
+
+    it('only admin can update', async () => {
+      await expect(
+        vault.connect(other).setFeeRecipient(newFeeRecipient.address)
+      ).to.be.revertedWith('AccessDenied()')
+    })
+
+    it('cannot set to zero address', async () => {
+      await expect(vault.connect(admin).setFeeRecipient(ZERO_ADDRESS)).to.be.revertedWith(
+        'InvalidFeeRecipient()'
+      )
+    })
+
+    it('can update', async () => {
+      expect(await vault.feeRecipient()).to.be.eq(admin.address)
+      const receipt = await vault.connect(admin).setFeeRecipient(newFeeRecipient.address)
+      expect(receipt).to.emit(vault, 'FeeRecipientUpdated').withArgs(newFeeRecipient.address)
+      expect(receipt).to.emit(vault, 'StateUpdated').withArgs(0)
+      expect(await vault.feeRecipient()).to.be.eq(newFeeRecipient.address)
       await snapshotGasCost(receipt)
     })
   })

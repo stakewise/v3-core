@@ -22,7 +22,7 @@ describe('EthVault - withdraw', () => {
   const holderShares = parseEther('1')
   const holderAssets = parseEther('1')
 
-  let holder: Wallet, receiver: Wallet, operator: Wallet, dao: Wallet, other: Wallet
+  let holder: Wallet, receiver: Wallet, admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault, keeper: EthKeeper, oracles: Oracles
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -31,7 +31,7 @@ describe('EthVault - withdraw', () => {
   let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createVaultMock']
 
   before('create fixture loader', async () => {
-    ;[holder, receiver, dao, operator, other] = await (ethers as any).getSigners()
+    ;[holder, receiver, dao, admin, other] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([dao])
   })
 
@@ -40,7 +40,7 @@ describe('EthVault - withdraw', () => {
       ethVaultFixture
     ))
     vault = await createVault(
-      operator,
+      admin,
       maxTotalAssets,
       validatorsRoot,
       feePercent,
@@ -86,7 +86,7 @@ describe('EthVault - withdraw', () => {
 
     it('does not overflow', async () => {
       const vault: EthVaultMock = await createVaultMock(
-        operator,
+        admin,
         maxTotalAssets,
         validatorsRoot,
         feePercent,
@@ -265,7 +265,7 @@ describe('EthVault - withdraw', () => {
 
   it('get checkpoint index works with many checkpoints', async () => {
     const vault: EthVaultMock = await createVaultMock(
-      operator,
+      admin,
       maxTotalAssets,
       validatorsRoot,
       feePercent,
@@ -523,7 +523,7 @@ describe('EthVault - withdraw', () => {
   /// https://github.com/transmissions11/solmate/blob/main/src/test/ERC4626.t.sol
   it('multiple deposits and withdrawals', async () => {
     const vault = await createVaultMock(
-      operator,
+      admin,
       maxTotalAssets,
       validatorsRoot,
       0,
