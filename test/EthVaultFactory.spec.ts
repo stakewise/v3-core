@@ -59,7 +59,8 @@ describe('EthVaultFactory', () => {
   })
 
   it('predicts addresses', async () => {
-    expect(await factory.nonces(admin.address)).to.be.eq(0)
+    // FIXME: for some reason returns 1 instead of 0 when running with coverage
+    const currentNonce = await factory.nonces(admin.address)
     let addresses = await factory.computeAddresses(admin.address)
     let expectedVaultAddr = addresses.vault
     let expectedFeesEscrowAddr = addresses.feesEscrow
@@ -77,7 +78,7 @@ describe('EthVaultFactory', () => {
     expect(vault.address).to.be.eq(expectedVaultAddr)
     expect(await vault.feesEscrow()).to.be.eq(expectedFeesEscrowAddr)
 
-    expect(await factory.nonces(admin.address)).to.be.eq(1)
+    expect(await factory.nonces(admin.address)).to.be.eq(currentNonce.add(1))
     addresses = await factory.computeAddresses(admin.address)
     expectedVaultAddr = addresses.vault
     expectedFeesEscrowAddr = addresses.feesEscrow

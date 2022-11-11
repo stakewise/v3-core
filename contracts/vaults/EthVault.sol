@@ -4,6 +4,7 @@ pragma solidity =0.8.17;
 
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
+import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import {IBaseVault} from '../interfaces/IBaseVault.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
@@ -18,7 +19,7 @@ import {EthFeesEscrow} from './EthFeesEscrow.sol';
  * @author StakeWise
  * @notice Defines Vault functionality for staking on Ethereum
  */
-contract EthVault is BaseVault, IEthVault {
+contract EthVault is BaseVault, ReentrancyGuardUpgradeable, IEthVault {
   uint256 internal constant _validatorDeposit = 32 ether;
   uint256 internal constant _validatorLength = 176;
 
@@ -148,6 +149,9 @@ contract EthVault is BaseVault, IEthVault {
    * @param initParams The Vault's initialization parameters
    */
   function __EthVault_init(IBaseVault.InitParams memory initParams) internal onlyInitializing {
+    // initialize ReentrancyGuard
+    __ReentrancyGuard_init();
+
     __BaseVault_init(initParams);
   }
 

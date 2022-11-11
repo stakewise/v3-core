@@ -4,7 +4,6 @@ pragma solidity =0.8.17;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
-import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IBaseVault} from '../interfaces/IBaseVault.sol';
@@ -20,7 +19,7 @@ import {Versioned} from '../common/Versioned.sol';
  * @author StakeWise
  * @notice Defines the common Vault functionality
  */
-abstract contract BaseVault is Versioned, ReentrancyGuardUpgradeable, ERC20Upgradeable, IBaseVault {
+abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IBaseVault
@@ -460,9 +459,6 @@ abstract contract BaseVault is Versioned, ReentrancyGuardUpgradeable, ERC20Upgra
   function __BaseVault_init(InitParams memory initParams) internal onlyInitializing {
     if (initParams.feePercent > _maxFeePercent) revert InvalidFeePercent();
 
-    // initialize ReentrancyGuard
-    __ReentrancyGuard_init();
-
     // initialize ERC20Permit
     __ERC20Upgradeable_init(initParams.name, initParams.symbol);
 
@@ -487,7 +483,7 @@ abstract contract BaseVault is Versioned, ReentrancyGuardUpgradeable, ERC20Upgra
    * @param receiver The address that will receive the assets
    * @param assets The number of assets to transfer
    */
-  function _transferAssets(address receiver, uint256 assets) internal virtual nonReentrant {}
+  function _transferAssets(address receiver, uint256 assets) internal virtual {}
 
   /**
    * @dev This empty reserved space is put in place to allow future versions to add new
