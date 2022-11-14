@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthKeeper, EthVault, EthVaultMock, Signers } from '../typechain-types'
+import { EthKeeper, EthVault, EthVaultMock, Oracles } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -21,7 +21,7 @@ describe('EthVault - deposit', () => {
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
   let dao: Wallet, sender: Wallet, receiver: Wallet, operator: Wallet, other: Wallet
-  let vault: EthVault, keeper: EthKeeper, signers: Signers, validatorsRegistry: Contract
+  let vault: EthVault, keeper: EthKeeper, oracles: Oracles, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -34,7 +34,7 @@ describe('EthVault - deposit', () => {
   })
 
   beforeEach('deploy fixtures', async () => {
-    ;({ createVault, createVaultMock, keeper, signers, validatorsRegistry, getSignatures } =
+    ;({ createVault, createVaultMock, keeper, oracles, validatorsRegistry, getSignatures } =
       await loadFixture(ethVaultFixture))
     vault = await createVault(
       operator,
@@ -152,16 +152,16 @@ describe('EthVault - deposit', () => {
       await vault.connect(other).deposit(other.address, { value: parseEther('32') })
       await registerEthValidator(
         vault,
-        signers,
+        oracles,
         keeper,
         validatorsRegistry,
         operator,
         getSignatures
       )
-      await updateRewardsRoot(keeper, signers, getSignatures, [
+      await updateRewardsRoot(keeper, oracles, getSignatures, [
         { reward: parseEther('5'), vault: vault.address },
       ])
-      await updateRewardsRoot(keeper, signers, getSignatures, [
+      await updateRewardsRoot(keeper, oracles, getSignatures, [
         { reward: parseEther('10'), vault: vault.address },
       ])
       await expect(

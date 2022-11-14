@@ -6,12 +6,11 @@ export const PANIC_CODES = {
 }
 
 export const MAX_UINT256 = BigNumber.from(2).pow(256).sub(1)
-export const MAX_INT256 = MAX_UINT256.div(2)
 export const MAX_UINT128 = BigNumber.from(2).pow(128).sub(1)
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 export const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000'
 export const ONE_DAY = 86400
-export const SIGNERS = [
+export const ORACLES = [
   Buffer.from('c2bc8560ffcc278ded2efffaccfc4ce08b2a3a867eb744cec45732603e30ebf7', 'hex'),
   Buffer.from('aff434fa2127355afdf265af1ba7e1d1384ffca4b7c2a8b7b9e04d23e316f395', 'hex'),
   Buffer.from('cdb517b473daa98584897f3d224453ec4b1ed574ad98697a0e910103599903d6', 'hex'),
@@ -24,7 +23,7 @@ export const SIGNERS = [
   Buffer.from('06087f518d2c684d1a2a3523fe358f3fdc45dfe560cf7a7ccb8ba01da7786796', 'hex'),
   Buffer.from('3999c56744678c5cb451df5eadf2846b92aa158b6d5eda55775f27064c6e880a', 'hex'),
 ]
-export const REQUIRED_SIGNERS = 6
+export const REQUIRED_ORACLES = 6
 
 export const EIP712Domain = [
   { name: 'name', type: 'string' },

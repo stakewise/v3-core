@@ -10,10 +10,10 @@ import {
   EthVaultMock,
   EthKeeper,
   Registry,
-  Signers,
+  Oracles,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
-import { REQUIRED_SIGNERS, SIGNERS } from './constants'
+import { REQUIRED_ORACLES, ORACLES } from './constants'
 
 export const createValidatorsRegistry = async function (): Promise<Contract> {
   const validatorsRegistryFactory = await getValidatorsRegistryFactory()
@@ -25,25 +25,25 @@ export const createRegistry = async function (owner: Wallet): Promise<Registry> 
   return (await factory.deploy(owner.address)) as Registry
 }
 
-export const createSigners = async function (
+export const createOracles = async function (
   owner: Wallet,
-  initialSigners: string[],
-  initialRequiredSigners: number
-): Promise<Signers> {
-  const factory = await ethers.getContractFactory('Signers')
-  return (await factory.deploy(owner.address, initialSigners, initialRequiredSigners)) as Signers
+  initialOracles: string[],
+  initialRequiredOracles: number
+): Promise<Oracles> {
+  const factory = await ethers.getContractFactory('Oracles')
+  return (await factory.deploy(owner.address, initialOracles, initialRequiredOracles)) as Oracles
 }
 
 export const createEthKeeper = async function (
   owner: Wallet,
-  signers: Signers,
+  oracles: Oracles,
   registry: Registry,
   validatorsRegistry: Contract
 ): Promise<EthKeeper> {
   const factory = await ethers.getContractFactory('EthKeeper')
   const instance = await upgrades.deployProxy(factory, [owner.address], {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [signers.address, registry.address, validatorsRegistry.address],
+    constructorArgs: [oracles.address, registry.address, validatorsRegistry.address],
   })
   return (await instance.deployed()) as EthKeeper
 }
@@ -80,7 +80,7 @@ export const createEthVaultMockFactory = async function (
 
 interface EthVaultFixture {
   registry: Registry
-  signers: Signers
+  oracles: Oracles
   keeper: EthKeeper
   validatorsRegistry: Contract
   ethVaultFactory: EthVaultFactory
@@ -114,17 +114,17 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   const registry = await createRegistry(dao)
   const validatorsRegistry = await createValidatorsRegistry()
 
-  const sortedSigners = SIGNERS.sort((signer1, signer2) => {
-    const signer1Addr = new EthereumWallet(signer1).getAddressString()
-    const signer2Addr = new EthereumWallet(signer2).getAddressString()
-    return signer1Addr > signer2Addr ? 1 : -1
+  const sortedOracles = ORACLES.sort((oracle1, oracle2) => {
+    const oracle1Addr = new EthereumWallet(oracle1).getAddressString()
+    const oracle2Addr = new EthereumWallet(oracle2).getAddressString()
+    return oracle1Addr > oracle2Addr ? 1 : -1
   })
-  const signers = await createSigners(
+  const oracles = await createOracles(
     dao,
-    sortedSigners.map((s) => new EthereumWallet(s).getAddressString()),
-    REQUIRED_SIGNERS
+    sortedOracles.map((s) => new EthereumWallet(s).getAddressString()),
+    REQUIRED_ORACLES
   )
-  const keeper = await createEthKeeper(dao, signers, registry, validatorsRegistry)
+  const keeper = await createEthKeeper(dao, oracles, registry, validatorsRegistry)
   const ethVaultFactory = await createEthVaultFactory(keeper, registry, validatorsRegistry)
   await registry.connect(dao).addFactory(ethVaultFactory.address)
 
@@ -135,7 +135,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
   return {
     registry,
-    signers,
+    oracles,
     keeper,
     validatorsRegistry,
     ethVaultFactory,
@@ -171,14 +171,14 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethVaultMock.attach(vaultAddress) as EthVaultMock
     },
-    getSignatures: (typedData: any, count: number = REQUIRED_SIGNERS): Buffer => {
+    getSignatures: (typedData: any, count: number = REQUIRED_ORACLES): Buffer => {
       const signatures: Buffer[] = []
       for (let i = 0; i < count; i++) {
         signatures.push(
           Buffer.from(
             arrayify(
               signTypedData({
-                privateKey: sortedSigners[i],
+                privateKey: sortedOracles[i],
                 data: typedData,
                 version: SignTypedDataVersion.V4,
               })

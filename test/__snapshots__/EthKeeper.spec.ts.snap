@@ -1,8 +1,22 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`EthKeeper register multiple validators succeeds 1`] = `
+Object {
+  "calldataByteLength": 3108,
+  "gasUsed": 714756,
+}
+`;
+
+exports[`EthKeeper register multiple validators succeeds 2`] = `
+Object {
+  "calldataByteLength": 3108,
+  "gasUsed": 620994,
+}
+`;
+
 exports[`EthKeeper register single validator succeeds 1`] = `
 Object {
-  "calldataByteLength": 996,
-  "gasUsed": 272947,
+  "calldataByteLength": 1316,
+  "gasUsed": 313172,
 }
 `;
