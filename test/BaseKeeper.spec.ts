@@ -234,9 +234,7 @@ describe('BaseKeeper', () => {
       const receipt = await keeper
         .connect(sender)
         .harvest(vaultReward.vault, vaultReward.reward, proof)
-      await expect(receipt)
-        .to.emit(keeper, 'Harvested')
-        .withArgs(sender.address, vaultReward.vault, vaultReward.reward)
+      await expect(receipt).to.not.emit(keeper, 'Harvested')
       await expect(receipt).to.emit(vault, 'StateUpdated').withArgs(0)
       await snapshotGasCost(receipt)
     })

@@ -41,6 +41,11 @@
   },
   {
     "inputs": [],
+    "name": "NotCollateralized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NotHarvested",
     "type": "error"
   },
@@ -898,19 +903,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "updateHarvestedState",
-    "outputs": [
-      {
-        "internalType": "int256",
-        "name": "assetsDelta",
-        "type": "int256"
-      }
-    ],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

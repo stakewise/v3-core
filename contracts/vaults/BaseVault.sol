@@ -4,6 +4,7 @@ pragma solidity =0.8.17;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IBaseVault} from '../interfaces/IBaseVault.sol';
@@ -19,7 +20,7 @@ import {Versioned} from '../common/Versioned.sol';
  * @author StakeWise
  * @notice Defines the common Vault functionality
  */
-abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
+abstract contract BaseVault is Versioned, ReentrancyGuardUpgradeable, ERC20Upgradeable, IBaseVault {
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IBaseVault
@@ -119,9 +120,8 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
     uint256 shares,
     address receiver,
     address owner
-  ) external override returns (uint256 assets) {
-    // update Vault's state
-    updateHarvestedState();
+  ) external override nonReentrant returns (uint256 assets) {
+    if (!keeper.isHarvested(address(this))) revert NotHarvested();
 
     // calculate amount of assets to burn
     assets = convertToAssets(shares);
@@ -161,8 +161,9 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
     uint256 shares,
     address receiver,
     address owner
-  ) external override returns (uint256 exitQueueId) {
+  ) external override nonReentrant returns (uint256 exitQueueId) {
     if (shares == 0) revert InvalidSharesAmount();
+    if (!keeper.isCollateralized(address(this))) revert NotCollateralized();
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
@@ -229,19 +230,6 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
   }
 
   /// @inheritdoc IBaseVault
-  function updateState(
-    int256 validatorAssets
-  ) external override onlyKeeper returns (int256 assetsDelta) {
-    return _updateState(validatorAssets);
-  }
-
-  /// @inheritdoc IBaseVault
-  function updateHarvestedState() public override returns (int256 assetsDelta) {
-    if (!keeper.isHarvested(address(this))) revert NotHarvested();
-    return _updateState(0);
-  }
-
-  /// @inheritdoc IBaseVault
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
     uint256 totalShares = _totalShares;
     // Will revert if assets > 0, totalShares > 0 and _totalAssets = 0.
@@ -266,98 +254,19 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
   }
 
   /// @inheritdoc IBaseVault
-  function setFeeRecipient(address _feeRecipient) external override onlyAdmin {
+  function setFeeRecipient(address _feeRecipient) external override nonReentrant onlyAdmin {
     if (_feeRecipient == address(0)) revert InvalidFeeRecipient();
-
-    // allocate fee to the current fee recipient
-    updateHarvestedState();
+    if (!keeper.isHarvested(address(this))) revert NotHarvested();
 
     // update fee recipient address
     feeRecipient = _feeRecipient;
     emit FeeRecipientUpdated(_feeRecipient);
   }
 
-  /**
-   * @dev Internal function that must be used to process user deposits
-   * @param to The address to mint shares to
-   * @param assets The number of assets deposited
-   * @return shares The total amount of shares minted
-   */
-  function _deposit(address to, uint256 assets) internal returns (uint256 shares) {
-    // update Vault's state
-    updateHarvestedState();
-
-    uint256 totalAssetsAfter;
-    unchecked {
-      // cannot overflow as it is capped with staked asset total supply
-      totalAssetsAfter = _totalAssets + assets;
-    }
-    if (totalAssetsAfter > maxTotalAssets) revert MaxTotalAssetsExceeded();
-
-    // calculate amount of shares to mint
-    shares = convertToShares(assets);
-
-    // update counters
-    _totalShares += SafeCast.toUint128(shares);
-    _totalAssets = SafeCast.toUint128(totalAssetsAfter);
-
-    unchecked {
-      // cannot overflow because the sum of all user
-      // balances can't exceed the max uint256 value
-      balanceOf[to] += shares;
-    }
-
-    emit Transfer(address(0), to, shares);
-    emit Deposit(msg.sender, to, assets, shares);
-  }
-
-  /**
-   * @dev Internal function that must be used to process exit queue
-   * @return burnedShares The amount of shares that must be deducted from total shares
-   * @return exitedAssets The amount of assets that must be deducted from total assets
-   */
-  function _updateExitQueue() internal returns (uint256 burnedShares, uint256 exitedAssets) {
-    if (block.timestamp < _exitQueueNextUpdate) return (0, 0);
-
-    // SLOAD to memory
-    uint256 _queuedShares = queuedShares;
-    if (_queuedShares == 0) return (0, 0);
-
-    // calculate the amount of assets that can be exited
-    uint256 _unclaimedAssets = unclaimedAssets;
-    unchecked {
-      // cannot underflow as _vaultAssets() >= _unclaimedAssets
-      exitedAssets = Math.min(_vaultAssets() - _unclaimedAssets, convertToAssets(_queuedShares));
-    }
-
-    // calculate the amount of shares that can be burned
-    burnedShares = convertToShares(exitedAssets);
-    if (burnedShares == 0 || exitedAssets == 0) return (0, 0);
-
-    unchecked {
-      // cannot underflow as queuedShares >= burnedShares
-      queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
-
-      // cannot overflow as it is capped with staked asset total supply
-      unclaimedAssets = SafeCast.toUint96(_unclaimedAssets + exitedAssets);
-
-      // cannot overflow on human timescales
-      _exitQueueNextUpdate = uint64(block.timestamp + exitQueueUpdateDelay);
-    }
-
-    // emit burn event
-    emit Transfer(address(this), address(0), burnedShares);
-
-    // push checkpoint so that exited assets could be claimed
-    _exitQueue.push(burnedShares, exitedAssets);
-  }
-
-  /**
-   * @dev Internal function that must be used to update Vault's state
-   * @param validatorAssets The delta of assets earned or lost inside the validators
-   * @return assetsDelta The amount of assets that the Vault has earned or lost
-   */
-  function _updateState(int256 validatorAssets) internal returns (int256 assetsDelta) {
+  /// @inheritdoc IBaseVault
+  function updateState(
+    int256 validatorAssets
+  ) external override onlyKeeper returns (int256 assetsDelta) {
     // can be negative in case of the loss
     assetsDelta = validatorAssets + int256(feesEscrow.withdraw());
 
@@ -424,6 +333,80 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
     emit StateUpdated(assetsDelta);
   }
 
+  /**
+   * @dev Internal function that must be used to process user deposits
+   * @param to The address to mint shares to
+   * @param assets The number of assets deposited
+   * @return shares The total amount of shares minted
+   */
+  function _deposit(address to, uint256 assets) internal nonReentrant returns (uint256 shares) {
+    if (!keeper.isHarvested(address(this))) revert NotHarvested();
+
+    uint256 totalAssetsAfter;
+    unchecked {
+      // cannot overflow as it is capped with staked asset total supply
+      totalAssetsAfter = _totalAssets + assets;
+    }
+    if (totalAssetsAfter > maxTotalAssets) revert MaxTotalAssetsExceeded();
+
+    // calculate amount of shares to mint
+    shares = convertToShares(assets);
+
+    // update counters
+    _totalShares += SafeCast.toUint128(shares);
+    _totalAssets = SafeCast.toUint128(totalAssetsAfter);
+
+    unchecked {
+      // cannot overflow because the sum of all user
+      // balances can't exceed the max uint256 value
+      balanceOf[to] += shares;
+    }
+
+    emit Transfer(address(0), to, shares);
+    emit Deposit(msg.sender, to, assets, shares);
+  }
+
+  /**
+   * @dev Internal function that must be used to process exit queue
+   * @return burnedShares The amount of shares that must be deducted from total shares
+   * @return exitedAssets The amount of assets that must be deducted from total assets
+   */
+  function _updateExitQueue() internal returns (uint256 burnedShares, uint256 exitedAssets) {
+    if (block.timestamp < _exitQueueNextUpdate) return (0, 0);
+
+    // SLOAD to memory
+    uint256 _queuedShares = queuedShares;
+    if (_queuedShares == 0) return (0, 0);
+
+    // calculate the amount of assets that can be exited
+    uint256 _unclaimedAssets = unclaimedAssets;
+    unchecked {
+      // cannot underflow as _vaultAssets() >= _unclaimedAssets
+      exitedAssets = Math.min(_vaultAssets() - _unclaimedAssets, convertToAssets(_queuedShares));
+    }
+
+    // calculate the amount of shares that can be burned
+    burnedShares = convertToShares(exitedAssets);
+    if (burnedShares == 0 || exitedAssets == 0) return (0, 0);
+
+    unchecked {
+      // cannot underflow as queuedShares >= burnedShares
+      queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
+
+      // cannot overflow as it is capped with staked asset total supply
+      unclaimedAssets = SafeCast.toUint96(_unclaimedAssets + exitedAssets);
+
+      // cannot overflow on human timescales
+      _exitQueueNextUpdate = uint64(block.timestamp + exitQueueUpdateDelay);
+    }
+
+    // emit burn event
+    emit Transfer(address(this), address(0), burnedShares);
+
+    // push checkpoint so that exited assets could be claimed
+    _exitQueue.push(burnedShares, exitedAssets);
+  }
+
   /// @inheritdoc UUPSUpgradeable
   function _authorizeUpgrade(address newImplementation) internal view override onlyAdmin {
     address currImplementation = _getImplementation();
@@ -458,6 +441,9 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
    */
   function __BaseVault_init(InitParams memory initParams) internal onlyInitializing {
     if (initParams.feePercent > _maxFeePercent) revert InvalidFeePercent();
+
+    // initialize ReentrancyGuard
+    __ReentrancyGuard_init();
 
     // initialize ERC20Permit
     __ERC20Upgradeable_init(initParams.name, initParams.symbol);

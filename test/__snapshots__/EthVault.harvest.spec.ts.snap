@@ -3,20 +3,20 @@
 exports[`EthVault - harvest allocates fee to recipient when delta is above zero 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 119223,
+  "gasUsed": 119180,
 }
 `;
 
 exports[`EthVault - harvest applies penalty when delta is below zero 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 92729,
+  "gasUsed": 92686,
 }
 `;
 
 exports[`EthVault - harvest updates exit queue 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 173499,
+  "gasUsed": 141450,
 }
 `;

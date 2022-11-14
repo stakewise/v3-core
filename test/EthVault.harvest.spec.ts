@@ -1,5 +1,5 @@
 import { ethers, waffle } from 'hardhat'
-import { BigNumber, Wallet } from 'ethers'
+import { BigNumber, Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 import { EthKeeper, EthVault, ExitQueue, Oracles } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
@@ -8,7 +8,7 @@ import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 import { setBalance } from './shared/utils'
-import { getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
+import { collateralizeEthVault, getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -23,7 +23,7 @@ describe('EthVault - harvest', () => {
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
 
   let holder: Wallet, admin: Wallet, dao: Wallet
-  let vault: EthVault, keeper: EthKeeper, oracles: Oracles
+  let vault: EthVault, keeper: EthKeeper, oracles: Oracles, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -35,7 +35,9 @@ describe('EthVault - harvest', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createVault, keeper, oracles, getSignatures } = await loadFixture(ethVaultFixture))
+    ;({ createVault, keeper, oracles, validatorsRegistry, getSignatures } = await loadFixture(
+      ethVaultFixture
+    ))
     vault = await createVault(
       admin,
       maxTotalAssets,
@@ -156,6 +158,7 @@ describe('EthVault - harvest', () => {
   it('updates exit queue', async () => {
     const exitQueueFactory = await ethers.getContractFactory('ExitQueue')
     const exitQueue = exitQueueFactory.attach(vault.address) as ExitQueue
+    await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
     await vault.connect(holder).enterExitQueue(holderShares, holder.address, holder.address)
 
     const totalSupplyBefore = await vault.totalSupply()

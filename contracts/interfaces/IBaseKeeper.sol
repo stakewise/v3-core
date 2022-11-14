@@ -86,9 +86,16 @@ interface IBaseKeeper {
   /**
    * @notice Checks whether the Vault is harvested
    * @param vault The address of the Vault
-   * @return `true` if vault is harvested, `false` otherwise
+   * @return `true` if Vault is harvested, `false` otherwise
    */
   function isHarvested(address vault) external view returns (bool);
+
+  /**
+   * @notice Checks whether the Vault has registered validators
+   * @param vault The address of the Vault
+   * @return `true` if Vault is collateralized, `false` otherwise
+   */
+  function isCollateralized(address vault) external view returns (bool);
 
   /**
    * @notice Update Merkle Tree Rewards Root

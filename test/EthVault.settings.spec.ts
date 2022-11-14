@@ -1,12 +1,13 @@
 import { ethers, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthVault } from '../typechain-types'
+import { EthVault, EthKeeper, Oracles } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ZERO_ADDRESS } from './shared/constants'
+import { getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -17,10 +18,12 @@ describe('EthVault - settings', () => {
   const vaultSymbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
-  let admin: Wallet, owner: Wallet, other: Wallet, newFeeRecipient: Wallet
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
+  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
+  let admin: Wallet, owner: Wallet, other: Wallet, newFeeRecipient: Wallet
+  let keeper: EthKeeper, oracles: Oracles
 
   before('create fixture loader', async () => {
     ;[admin, owner, other, newFeeRecipient] = await (ethers as any).getSigners()
@@ -28,7 +31,7 @@ describe('EthVault - settings', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createVault } = await loadFixture(ethVaultFixture))
+    ;({ keeper, oracles, getSignatures, createVault } = await loadFixture(ethVaultFixture))
   })
 
   describe('fee percent', () => {
@@ -109,11 +112,22 @@ describe('EthVault - settings', () => {
       )
     })
 
+    it('cannot update when not harvested', async () => {
+      const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+        { vault: vault.address, reward: 1 },
+      ])
+      const proof = getRewardsRootProof(tree, { vault: vault.address, reward: 1 })
+      await keeper.harvest(vault.address, 1, proof)
+      await updateRewardsRoot(keeper, oracles, getSignatures, [{ vault: vault.address, reward: 2 }])
+      await expect(
+        vault.connect(admin).setFeeRecipient(newFeeRecipient.address)
+      ).to.be.revertedWith('NotHarvested()')
+    })
+
     it('can update', async () => {
       expect(await vault.feeRecipient()).to.be.eq(admin.address)
       const receipt = await vault.connect(admin).setFeeRecipient(newFeeRecipient.address)
       expect(receipt).to.emit(vault, 'FeeRecipientUpdated').withArgs(newFeeRecipient.address)
-      expect(receipt).to.emit(vault, 'StateUpdated').withArgs(0)
       expect(await vault.feeRecipient()).to.be.eq(newFeeRecipient.address)
       await snapshotGasCost(receipt)
     })

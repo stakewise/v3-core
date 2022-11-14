@@ -19,6 +19,7 @@ interface IBaseVault is IVersioned, IERC20Permit {
   error InvalidSharesAmount();
   error AccessDenied();
   error NotHarvested();
+  error NotCollateralized();
   error InvalidFeeRecipient();
   error InvalidFeePercent();
   error UpgradeFailed();
@@ -295,10 +296,4 @@ interface IBaseVault is IVersioned, IERC20Permit {
    * @return assetsDelta The number of assets added or deducted from/to the total assets
    */
   function updateState(int256 validatorAssets) external returns (int256 assetsDelta);
-
-  /**
-   * @notice Updates the total amount of assets in the Vault and its exit queue when harvesting is not required
-   * @return assetsDelta The number of assets added or deducted from/to the total assets
-   */
-  function updateHarvestedState() external returns (int256 assetsDelta);
 }
