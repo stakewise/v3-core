@@ -2,19 +2,19 @@
 
 pragma solidity =0.8.17;
 
+import {Keeper} from '../abstract/Keeper.sol';
 import {IEthKeeper} from '../interfaces/IEthKeeper.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
-import {IOracles} from '../interfaces/IOracles.sol';
+import {ISigners} from '../interfaces/ISigners.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
-import {BaseKeeper} from './BaseKeeper.sol';
 
 /**
  * @title EthKeeper
  * @author StakeWise
  * @notice Defines the functionality for registering validators for the Ethereum Vaults
  */
-contract EthKeeper is BaseKeeper, IEthKeeper {
+contract EthKeeper is Keeper, IEthKeeper {
   bytes32 internal constant _registerValidatorTypeHash =
     keccak256('EthKeeper(bytes32 validatorsRegistryRoot,address vault,bytes32 validator)');
   bytes32 internal constant _registerValidatorsTypeHash =
@@ -28,22 +28,22 @@ contract EthKeeper is BaseKeeper, IEthKeeper {
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _oracles The address of the Oracles contract
+   * @param _signers The address of the Signers contract
    * @param _registry The address of the Registry contract
    * @param _validatorsRegistry The address of the Validators Registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    IOracles _oracles,
+    ISigners _signers,
     IRegistry _registry,
     IValidatorsRegistry _validatorsRegistry
-  ) BaseKeeper(_oracles, _registry) {
+  ) Keeper(_signers, _registry) {
     validatorsRegistry = _validatorsRegistry;
   }
 
   /// @inheritdoc IEthKeeper
   function initialize(address _owner) external override initializer {
-    __BaseKeeper_init(_owner);
+    __Keeper_init(_owner);
   }
 
   /// @inheritdoc IEthKeeper
@@ -59,8 +59,8 @@ contract EthKeeper is BaseKeeper, IEthKeeper {
     }
     if (!registry.vaults(vault)) revert InvalidVault();
 
-    // verify all oracles approved registration
-    oracles.verifyAllSignatures(
+    // verify signers approved registration
+    signers.verifySignatures(
       keccak256(
         abi.encode(_registerValidatorTypeHash, validatorsRegistryRoot, vault, keccak256(validator))
       ),
@@ -69,13 +69,7 @@ contract EthKeeper is BaseKeeper, IEthKeeper {
 
     _collateralize(vault);
 
-    emit ValidatorsRegistered(
-      vault,
-      validatorsRegistryRoot,
-      validator,
-      signatures,
-      block.timestamp
-    );
+    emit ValidatorRegistered(vault, validatorsRegistryRoot, validator, signatures);
 
     // register validator
     IEthVault(vault).registerValidator(validator, proof);
@@ -85,7 +79,7 @@ contract EthKeeper is BaseKeeper, IEthKeeper {
   function registerValidators(
     address vault,
     bytes32 validatorsRegistryRoot,
-    bytes calldata validators,
+    bytes[] calldata validators,
     bytes calldata signatures,
     bool[] calldata proofFlags,
     bytes32[] calldata proof
@@ -95,8 +89,8 @@ contract EthKeeper is BaseKeeper, IEthKeeper {
     }
     if (!registry.vaults(vault)) revert InvalidVault();
 
-    // verify all oracles approved registration
-    oracles.verifyAllSignatures(
+    // verify signers approved registration
+    signers.verifySignatures(
       keccak256(
         abi.encode(
           _registerValidatorsTypeHash,
@@ -110,13 +104,7 @@ contract EthKeeper is BaseKeeper, IEthKeeper {
 
     _collateralize(vault);
 
-    emit ValidatorsRegistered(
-      vault,
-      validatorsRegistryRoot,
-      validators,
-      signatures,
-      block.timestamp
-    );
+    emit ValidatorsRegistered(vault, validatorsRegistryRoot, validators, signatures);
 
     // register validators
     IEthVault(vault).registerValidators(validators, proofFlags, proof);

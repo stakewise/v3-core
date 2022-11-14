@@ -2,15 +2,15 @@
 
 pragma solidity =0.8.17;
 
-import {IOracles} from './IOracles.sol';
+import {ISigners} from './ISigners.sol';
 import {IRegistry} from './IRegistry.sol';
 
 /**
- * @title IBaseKeeper
+ * @title IKeeper
  * @author StakeWise
- * @notice Defines the interface for the BaseKeeper contract
+ * @notice Defines the interface for the Keeper contract
  */
-interface IBaseKeeper {
+interface IKeeper {
   // Custom errors
   error InvalidRewardsRoot();
   error InvalidProof();
@@ -23,7 +23,7 @@ interface IBaseKeeper {
    * @param rewardsRoot The new rewards Merkle Tree root
    * @param nonce The nonce used for verifying signatures
    * @param rewardsIpfsHash The new rewards IPFS hash
-   * @param signatures The concatenation of Oracles' signatures
+   * @param signatures The concatenation of Signers' signatures
    */
   event RewardsRootUpdated(
     address indexed caller,
@@ -52,10 +52,10 @@ interface IBaseKeeper {
   }
 
   /**
-   * @notice Oracles Address
-   * @return The address of the Oracles contract
+   * @notice Signers Address
+   * @return The address of the Signers contract
    */
-  function oracles() external view returns (IOracles);
+  function signers() external view returns (ISigners);
 
   /**
    * @notice Registry Address
@@ -94,7 +94,7 @@ interface IBaseKeeper {
    * @notice Update Merkle Tree Rewards Root
    * @param _rewardsRoot The new rewards Merkle root
    * @param rewardsIpfsHash The new IPFS hash with all the Vaults' rewards for the new root
-   * @param signatures The concatenation of the Oracles' signatures
+   * @param signatures The concatenation of the Signers' signatures
    */
   function setRewardsRoot(
     bytes32 _rewardsRoot,

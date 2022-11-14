@@ -5,54 +5,54 @@ pragma solidity =0.8.17;
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import {IBaseVault} from '../interfaces/IBaseVault.sol';
-import {IBaseKeeper} from '../interfaces/IBaseKeeper.sol';
-import {IOracles} from '../interfaces/IOracles.sol';
+import {IVault} from '../interfaces/IVault.sol';
+import {IKeeper} from '../interfaces/IKeeper.sol';
+import {ISigners} from '../interfaces/ISigners.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
-import {Versioned} from '../common/Versioned.sol';
+import {Upgradeable} from './Upgradeable.sol';
 
 /**
- * @title BaseKeeper
+ * @title Keeper
  * @author StakeWise
  * @notice Defines the functionality for updating Vaults' rewards
  */
-abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
+abstract contract Keeper is OwnableUpgradeable, Upgradeable, IKeeper {
   bytes32 internal constant _rewardsRootTypeHash =
     keccak256('Keeper(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint96 nonce)');
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IOracles public immutable override oracles;
+  ISigners public immutable override signers;
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IRegistry public immutable override registry;
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeper
   bytes32 public override rewardsRoot;
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeper
   mapping(address => RewardSync) public override rewards;
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeper
   uint96 public override rewardsNonce;
 
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _oracles The address of the Oracles contract
+   * @param _signers The address of the Signers contract
    * @param _registry The address of the Registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(IOracles _oracles, IRegistry _registry) {
+  constructor(ISigners _signers, IRegistry _registry) {
     // disable initializers for the implementation contract
     _disableInitializers();
-    oracles = _oracles;
+    signers = _signers;
     registry = _registry;
   }
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeper
   function setRewardsRoot(
     bytes32 _rewardsRoot,
     string calldata rewardsIpfsHash,
@@ -63,8 +63,8 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
 
     if (rewardsRoot == _rewardsRoot) revert InvalidRewardsRoot();
 
-    // verify minimal number of oracles approved the new merkle root
-    oracles.verifyMinSignatures(
+    // verify signers approved the new merkle root
+    signers.verifySignatures(
       keccak256(
         abi.encode(_rewardsRootTypeHash, _rewardsRoot, keccak256(bytes(rewardsIpfsHash)), nonce)
       ),
@@ -77,7 +77,7 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     emit RewardsRootUpdated(msg.sender, _rewardsRoot, nonce, rewardsIpfsHash, signatures);
   }
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeper
   function isHarvested(address vault) external view override returns (bool) {
     // vault is considered harvested in case it does not have any validators
     // or it has the latest nonce
@@ -85,7 +85,7 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     return nonce == 0 || nonce >= rewardsNonce;
   }
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeper
   function harvest(
     address vault,
     int160 reward,
@@ -94,13 +94,7 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     if (!registry.vaults(vault)) revert InvalidVault();
 
     // verify the proof
-    if (
-      !MerkleProof.verifyCalldata(
-        proof,
-        rewardsRoot,
-        keccak256(bytes.concat(keccak256(abi.encode(vault, reward))))
-      )
-    ) {
+    if (!MerkleProof.verifyCalldata(proof, rewardsRoot, keccak256(abi.encode(vault, reward)))) {
       revert InvalidProof();
     }
 
@@ -112,17 +106,17 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     emit Harvested(msg.sender, vault, reward);
 
     // update Vault's state
-    return IBaseVault(vault).updateState(reward - lastRewardSync.reward);
+    return IVault(vault).updateState(reward - lastRewardSync.reward);
   }
 
   /// @inheritdoc UUPSUpgradeable
   function _authorizeUpgrade(address) internal override onlyOwner {}
 
   /**
-   * @dev Initializes the BaseKeeper contract
+   * @dev Initializes the Keeper contract
    * @param _owner The address of the contract owner
    */
-  function __BaseKeeper_init(address _owner) internal onlyInitializing {
+  function __Keeper_init(address _owner) internal onlyInitializing {
     _transferOwnership(_owner);
   }
 

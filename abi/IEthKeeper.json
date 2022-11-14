@@ -99,7 +99,7 @@
       {
         "indexed": false,
         "internalType": "bytes",
-        "name": "validators",
+        "name": "validator",
         "type": "bytes"
       },
       {
@@ -107,12 +107,37 @@
         "internalType": "bytes",
         "name": "signatures",
         "type": "bytes"
+      }
+    ],
+    "name": "ValidatorRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "validatorsRegistryRoot",
+        "type": "bytes32"
       },
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "timestamp",
-        "type": "uint256"
+        "internalType": "bytes[]",
+        "name": "validators",
+        "type": "bytes[]"
+      },
+      {
+        "indexed": false,
+        "internalType": "bytes",
+        "name": "signatures",
+        "type": "bytes"
       }
     ],
     "name": "ValidatorsRegistered",
@@ -180,19 +205,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "oracles",
-    "outputs": [
-      {
-        "internalType": "contract IOracles",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -238,9 +250,9 @@
         "type": "bytes32"
       },
       {
-        "internalType": "bytes",
+        "internalType": "bytes[]",
         "name": "validators",
-        "type": "bytes"
+        "type": "bytes[]"
       },
       {
         "internalType": "bytes",
@@ -347,6 +359,19 @@
     "name": "setRewardsRoot",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "signers",
+    "outputs": [
+      {
+        "internalType": "contract ISigners",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
