@@ -4,16 +4,16 @@ pragma solidity =0.8.17;
 
 import {IERC20Permit} from './IERC20Permit.sol';
 import {IRegistry} from './IRegistry.sol';
-import {IBaseKeeper} from './IBaseKeeper.sol';
-import {IVersioned} from './IVersioned.sol';
+import {IKeeper} from './IKeeper.sol';
+import {IUpgradeable} from './IUpgradeable.sol';
 import {IFeesEscrow} from './IFeesEscrow.sol';
 
 /**
- * @title IBaseVault
+ * @title IVault
  * @author StakeWise
- * @notice Defines the interface for the BaseVault contract
+ * @notice Defines the interface for the Vault contract
  */
-interface IBaseVault is IVersioned, IERC20Permit {
+interface IVault is IUpgradeable, IERC20Permit {
   // Custom errors
   error MaxTotalAssetsExceeded();
   error InvalidSharesAmount();
@@ -127,7 +127,7 @@ interface IBaseVault is IVersioned, IERC20Permit {
    * @notice The Keeper address that can update Vault's state
    * @return The address of the Vault's keeper
    */
-  function keeper() external view returns (IBaseKeeper);
+  function keeper() external view returns (IKeeper);
 
   /**
    * @notice The Registry

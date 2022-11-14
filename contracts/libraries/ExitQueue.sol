@@ -58,10 +58,11 @@ library ExitQueue {
    * @param sharesCounter The shares counter to search the closest checkpoint for
    * @return The checkpoint index or the length of checkpoints array in case there is no such
    */
-  function getCheckpointIndex(
-    History storage self,
-    uint256 sharesCounter
-  ) internal view returns (uint256) {
+  function getCheckpointIndex(History storage self, uint256 sharesCounter)
+    internal
+    view
+    returns (uint256)
+  {
     uint256 high = self.checkpoints.length;
     uint256 low;
     while (low < high) {
@@ -159,7 +160,11 @@ library ExitQueue {
    * @param shares The number of shares to add to the latest shares counter
    * @param assets The number of assets that were exited for this checkpoint
    */
-  function push(History storage self, uint256 shares, uint256 assets) internal {
+  function push(
+    History storage self,
+    uint256 shares,
+    uint256 assets
+  ) internal {
     Checkpoint memory checkpoint = Checkpoint({
       sharesCounter: SafeCast.toUint160(getSharesCounter(self) + shares),
       exitedAssets: SafeCast.toUint96(assets)
@@ -168,10 +173,11 @@ library ExitQueue {
     emit CheckpointCreated(checkpoint.sharesCounter, checkpoint.exitedAssets);
   }
 
-  function _unsafeAccess(
-    Checkpoint[] storage self,
-    uint256 pos
-  ) private pure returns (Checkpoint storage result) {
+  function _unsafeAccess(Checkpoint[] storage self, uint256 pos)
+    private
+    pure
+    returns (Checkpoint storage result)
+  {
     assembly {
       mstore(0, self.slot)
       result.slot := add(keccak256(0, 0x20), pos)

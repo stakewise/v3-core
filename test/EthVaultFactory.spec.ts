@@ -115,7 +115,6 @@ describe('EthVaultFactory', () => {
         vaultSymbol,
         validatorsIpfsHash
       )
-
     await expect(tx).to.emit(registry, 'VaultAdded').withArgs(factory.address, vaultAddress)
 
     const ethVault = await ethers.getContractFactory('EthVault')

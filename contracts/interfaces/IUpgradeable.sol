@@ -3,11 +3,11 @@
 pragma solidity =0.8.17;
 
 /**
- * @title IVersioned
+ * @title IUpgradeable
  * @author StakeWise
- * @notice Defines the interface for the Versioned contract
+ * @notice Defines the interface for the Upgradeable contract
  */
-interface IVersioned {
+interface IUpgradeable {
   /// Custom errors
   error NotImplementedError();
 

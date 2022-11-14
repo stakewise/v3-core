@@ -11,12 +11,12 @@
   },
   {
     "inputs": [],
-    "name": "InvalidOracle",
+    "name": "InvalidRequiredSigners",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "InvalidRequiredOracles",
+    "name": "InvalidSigner",
     "type": "error"
   },
   {
@@ -28,50 +28,50 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "oracle",
-        "type": "address"
-      }
-    ],
-    "name": "OracleAdded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "oracle",
-        "type": "address"
-      }
-    ],
-    "name": "OracleRemoved",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": false,
         "internalType": "uint256",
-        "name": "requiredOracles",
+        "name": "requiredSigners",
         "type": "uint256"
       }
     ],
-    "name": "RequiredOraclesUpdated",
+    "name": "RequiredSignersUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "signer",
+        "type": "address"
+      }
+    ],
+    "name": "SignerAdded",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "signer",
+        "type": "address"
+      }
+    ],
+    "name": "SignerRemoved",
     "type": "event"
   },
   {
     "inputs": [
       {
         "internalType": "address",
-        "name": "oracle",
+        "name": "signer",
         "type": "address"
       }
     ],
-    "name": "addOracle",
+    "name": "addSigner",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -80,11 +80,11 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "oracle",
+        "name": "signer",
         "type": "address"
       }
     ],
-    "name": "isOracle",
+    "name": "isSigner",
     "outputs": [
       {
         "internalType": "bool",
@@ -99,18 +99,18 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "oracle",
+        "name": "signer",
         "type": "address"
       }
     ],
-    "name": "removeOracle",
+    "name": "removeSigner",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [],
-    "name": "requiredOracles",
+    "name": "requiredSigners",
     "outputs": [
       {
         "internalType": "uint256",
@@ -125,18 +125,18 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "_requiredOracles",
+        "name": "_requiredSigners",
         "type": "uint256"
       }
     ],
-    "name": "setRequiredOracles",
+    "name": "setRequiredSigners",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [],
-    "name": "totalOracles",
+    "name": "totalSigners",
     "outputs": [
       {
         "internalType": "uint256",
@@ -160,25 +160,7 @@
         "type": "bytes"
       }
     ],
-    "name": "verifyAllSignatures",
-    "outputs": [],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "message",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes",
-        "name": "signatures",
-        "type": "bytes"
-      }
-    ],
-    "name": "verifyMinSignatures",
+    "name": "verifySignatures",
     "outputs": [],
     "stateMutability": "view",
     "type": "function"

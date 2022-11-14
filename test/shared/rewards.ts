@@ -1,18 +1,15 @@
+import { MerkleTree } from 'merkletreejs'
 import { network } from 'hardhat'
 import { BigNumberish } from 'ethers'
-import { toUtf8Bytes } from 'ethers/lib/utils'
+import { defaultAbiCoder, toUtf8Bytes } from 'ethers/lib/utils'
 import keccak256 from 'keccak256'
-import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
-import { Keeper, Oracles } from '../../typechain-types'
+import { Signers, Keeper } from '../../typechain-types'
 import { EIP712Domain, KeeperSig } from './constants'
-import { Buffer } from 'buffer'
-
-export type RewardsTree = StandardMerkleTree<[string, BigNumberish]>
 
 export type RewardsRoot = {
   root: string
   ipfsHash: string
-  tree: RewardsTree
+  tree: MerkleTree
   signingData: any
 }
 
@@ -23,15 +20,14 @@ export type VaultReward = {
 
 export function createVaultRewardsRoot(
   rewards: VaultReward[],
-  oracles: Oracles,
+  signers: Signers,
   nonce = 0
 ): RewardsRoot {
-  const tree = StandardMerkleTree.of(
-    rewards.map((r) => [r.vault, r.reward]),
-    ['address', 'int160']
-  ) as RewardsTree
-
-  const treeRoot = tree.root
+  const elements = rewards.map((r) =>
+    defaultAbiCoder.encode(['address', 'int160'], [r.vault, r.reward])
+  )
+  const tree = new MerkleTree(elements, keccak256, { hashLeaves: true, sortPairs: true })
+  const treeRoot = tree.getHexRoot()
   // mock IPFS hash
   const ipfsHash = '/ipfs/' + treeRoot
 
@@ -43,10 +39,10 @@ export function createVaultRewardsRoot(
       primaryType: 'Keeper',
       types: { EIP712Domain, Keeper: KeeperSig },
       domain: {
-        name: 'Oracles',
+        name: 'Signers',
         version: '1',
         chainId: network.config.chainId,
-        verifyingContract: oracles.address,
+        verifyingContract: signers.address,
       },
       message: {
         rewardsRoot: treeRoot,
@@ -59,12 +55,12 @@ export function createVaultRewardsRoot(
 
 export async function updateRewardsRoot(
   keeper: Keeper,
-  oracles: Oracles,
+  signers: Signers,
   getSignatures: (typedData: any, count?: number) => Buffer,
   rewards: VaultReward[]
-): Promise<RewardsTree> {
+): Promise<MerkleTree> {
   const rewardsNonce = await keeper.rewardsNonce()
-  const rewardsRoot = createVaultRewardsRoot(rewards, oracles, rewardsNonce.toNumber())
+  const rewardsRoot = createVaultRewardsRoot(rewards, signers, rewardsNonce.toNumber())
   await keeper.setRewardsRoot(
     rewardsRoot.root,
     rewardsRoot.ipfsHash,
@@ -73,6 +69,10 @@ export async function updateRewardsRoot(
   return rewardsRoot.tree
 }
 
-export function getRewardsRootProof(tree: RewardsTree, vaultReward: VaultReward): string[] {
-  return tree.getProof([vaultReward.vault, vaultReward.reward])
+export function getRewardsRootProof(tree: MerkleTree, vaultReward: VaultReward): string[] {
+  return tree.getHexProof(
+    keccak256(
+      defaultAbiCoder.encode(['address', 'int160'], [vaultReward.vault, vaultReward.reward])
+    )
+  )
 }

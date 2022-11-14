@@ -628,7 +628,7 @@
             "type": "string"
           }
         ],
-        "internalType": "struct IBaseVault.InitParams",
+        "internalType": "struct IVault.InitParams",
         "name": "initParams",
         "type": "tuple"
       }
@@ -643,7 +643,7 @@
     "name": "keeper",
     "outputs": [
       {
-        "internalType": "contract IBaseKeeper",
+        "internalType": "contract IKeeper",
         "name": "",
         "type": "address"
       }
@@ -815,9 +815,9 @@
   {
     "inputs": [
       {
-        "internalType": "bytes",
+        "internalType": "bytes[]",
         "name": "validators",
-        "type": "bytes"
+        "type": "bytes[]"
       },
       {
         "internalType": "bool[]",
