@@ -569,7 +569,7 @@
     "name": "keeper",
     "outputs": [
       {
-        "internalType": "contract IKeeper",
+        "internalType": "contract IBaseKeeper",
         "name": "",
         "type": "address"
       }

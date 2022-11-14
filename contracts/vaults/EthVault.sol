@@ -4,13 +4,13 @@ pragma solidity =0.8.17;
 
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import {IVault} from '../interfaces/IVault.sol';
+import {IBaseVault} from '../interfaces/IBaseVault.sol';
 import {IEthVault} from '../interfaces/IEthVault.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
-import {IKeeper} from '../interfaces/IKeeper.sol';
-import {Vault} from '../abstract/Vault.sol';
+import {IBaseKeeper} from '../interfaces/IBaseKeeper.sol';
+import {BaseVault} from './BaseVault.sol';
 import {EthFeesEscrow} from './EthFeesEscrow.sol';
 
 /**
@@ -18,8 +18,9 @@ import {EthFeesEscrow} from './EthFeesEscrow.sol';
  * @author StakeWise
  * @notice Defines Vault functionality for staking on Ethereum
  */
-contract EthVault is Vault, IEthVault {
+contract EthVault is BaseVault, IEthVault {
   uint256 internal constant _validatorDeposit = 32 ether;
+  uint256 internal constant _validatorLength = 176;
 
   /// @inheritdoc IEthVault
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -35,15 +36,15 @@ contract EthVault is Vault, IEthVault {
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    IKeeper _keeper,
+    IBaseKeeper _keeper,
     IRegistry _registry,
     IEthValidatorsRegistry _validatorsRegistry
-  ) Vault(_keeper, _registry) {
+  ) BaseVault(_keeper, _registry) {
     validatorsRegistry = _validatorsRegistry;
   }
 
   /// @inheritdoc IEthVault
-  function initialize(IVault.InitParams memory params) external override initializer {
+  function initialize(IBaseVault.InitParams memory params) external override initializer {
     __EthVault_init(params);
   }
 
@@ -53,15 +54,17 @@ contract EthVault is Vault, IEthVault {
   }
 
   /// @inheritdoc IEthVault
-  function registerValidator(bytes calldata validator, bytes32[] calldata proof)
-    external
-    override
-    onlyKeeper
-  {
+  function registerValidator(
+    bytes calldata validator,
+    bytes32[] calldata proof
+  ) external override onlyKeeper {
     if (availableAssets() < _validatorDeposit) revert InsufficientAvailableAssets();
     if (
-      validator.length != 176 ||
-      !MerkleProof.verifyCalldata(proof, validatorsRoot, keccak256(validator[:144]))
+      !MerkleProof.verifyCalldata(
+        proof,
+        validatorsRoot,
+        keccak256(bytes.concat(keccak256(abi.encode(validator))))
+      )
     ) {
       revert InvalidValidator();
     }
@@ -71,7 +74,7 @@ contract EthVault is Vault, IEthVault {
       publicKey,
       withdrawalCredentials(),
       validator[48:144],
-      bytes32(validator[144:176])
+      bytes32(validator[144:_validatorLength])
     );
 
     emit ValidatorRegistered(publicKey);
@@ -79,23 +82,28 @@ contract EthVault is Vault, IEthVault {
 
   /// @inheritdoc IEthVault
   function registerValidators(
-    bytes[] calldata validators,
+    bytes calldata validators,
     bool[] calldata proofFlags,
     bytes32[] calldata proof
   ) external override onlyKeeper {
-    if (availableAssets() < _validatorDeposit * validators.length) {
+    uint256 validatorsCount = validators.length / _validatorLength;
+    if (availableAssets() < _validatorDeposit * validatorsCount) {
       revert InsufficientAvailableAssets();
     }
 
+    uint256 endIdx;
+    uint256 leavesCount;
     bytes calldata validator;
     bytes calldata publicKey;
-    bytes32[] memory leaves = new bytes32[](validators.length);
+    bytes32[] memory leaves = new bytes32[](validatorsCount);
     bytes memory withdrawalCreds = withdrawalCredentials();
-    for (uint256 i = 0; i < validators.length; ) {
-      validator = validators[i];
-      if (validator.length != 176) revert InvalidValidator();
-      leaves[i] = keccak256(validator[:144]);
-
+    for (uint256 startIdx = 0; startIdx < validators.length; ) {
+      unchecked {
+        // cannot overflow as it is capped with staked asset total supply
+        endIdx = startIdx + _validatorLength;
+      }
+      validator = validators[startIdx:endIdx];
+      leaves[leavesCount] = keccak256(bytes.concat(keccak256(abi.encode(validator))));
       publicKey = validator[:48];
       validatorsRegistry.deposit{value: _validatorDeposit}(
         publicKey,
@@ -103,8 +111,9 @@ contract EthVault is Vault, IEthVault {
         validator[48:144],
         bytes32(validator[144:176])
       );
+      startIdx = endIdx;
       unchecked {
-        ++i;
+        ++leavesCount;
       }
       emit ValidatorRegistered(publicKey);
     }
@@ -114,7 +123,7 @@ contract EthVault is Vault, IEthVault {
     }
   }
 
-  /// @inheritdoc IVault
+  /// @inheritdoc IBaseVault
   function withdrawalCredentials() public view override returns (bytes memory) {
     return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
   }
@@ -124,12 +133,12 @@ contract EthVault is Vault, IEthVault {
    */
   receive() external payable {}
 
-  /// @inheritdoc Vault
+  /// @inheritdoc BaseVault
   function _vaultAssets() internal view override returns (uint256) {
     return address(this).balance;
   }
 
-  /// @inheritdoc Vault
+  /// @inheritdoc BaseVault
   function _transferAssets(address receiver, uint256 assets) internal override {
     return Address.sendValue(payable(receiver), assets);
   }
@@ -138,8 +147,8 @@ contract EthVault is Vault, IEthVault {
    * @dev Initializes the EthVault contract
    * @param initParams The Vault's initialization parameters
    */
-  function __EthVault_init(IVault.InitParams memory initParams) internal onlyInitializing {
-    __Vault_init(initParams);
+  function __EthVault_init(IBaseVault.InitParams memory initParams) internal onlyInitializing {
+    __BaseVault_init(initParams);
   }
 
   /**
