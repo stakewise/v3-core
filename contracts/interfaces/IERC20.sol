@@ -85,5 +85,9 @@ interface IERC20 {
    * @param amount The amount of the transfer
    * @return Returns true for a successful transfer, false for unsuccessful
    */
-  function transferFrom(address from, address to, uint256 amount) external returns (bool);
+  function transferFrom(
+    address from,
+    address to,
+    uint256 amount
+  ) external returns (bool);
 }

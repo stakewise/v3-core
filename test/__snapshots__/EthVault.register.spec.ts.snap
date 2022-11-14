@@ -1,15 +1,8 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`EthVault - register multiple validators succeeds 1`] = `
-Object {
-  "calldataByteLength": 3108,
-  "gasUsed": 714818,
-}
-`;
-
 exports[`EthVault - register single validator succeeds 1`] = `
 Object {
-  "calldataByteLength": 1284,
-  "gasUsed": 350971,
+  "calldataByteLength": 996,
+  "gasUsed": 311520,
 }
 `;

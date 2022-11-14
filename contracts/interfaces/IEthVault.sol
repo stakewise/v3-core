@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.17;
 
-import {IBaseVault} from './IBaseVault.sol';
+import {IVault} from './IVault.sol';
 import {IEthValidatorsRegistry} from './IEthValidatorsRegistry.sol';
 
 /**
@@ -10,7 +10,7 @@ import {IEthValidatorsRegistry} from './IEthValidatorsRegistry.sol';
  * @author StakeWise
  * @notice Defines the interface for the EthVault contract
  */
-interface IEthVault is IBaseVault {
+interface IEthVault is IVault {
   /**
    * @notice The ETH Validators Registry
    * @return The address of the ETH validators registry
@@ -21,7 +21,7 @@ interface IEthVault is IBaseVault {
    * @dev Initializes the EthVault contract
    * @param initParams The Vault's initialization parameters
    */
-  function initialize(IBaseVault.InitParams memory initParams) external;
+  function initialize(IVault.InitParams memory initParams) external;
 
   /**
    * @notice Deposit assets to the Vault. Must transfer Ether together with the call.
@@ -39,12 +39,12 @@ interface IEthVault is IBaseVault {
 
   /**
    * @notice Function for registering multiple validators. Can only be called by the Keeper.
-   * @param validators The concatenation of the validators' public key, signature and deposit data root
+   * @param validators The list of concatenations of the validators' public key, signature and deposit data root
    * @param proofFlags The multi proof flags for the Merkle Tree verification
    * @param proof The multi proof used for the Merkle Tree verification
    */
   function registerValidators(
-    bytes calldata validators,
+    bytes[] calldata validators,
     bool[] calldata proofFlags,
     bytes32[] calldata proof
   ) external;

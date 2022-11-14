@@ -6,47 +6,47 @@ import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
-import {IBaseVault} from '../interfaces/IBaseVault.sol';
-import {IBaseKeeper} from '../interfaces/IBaseKeeper.sol';
+import {IVault} from '../interfaces/IVault.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
+import {IKeeper} from '../interfaces/IKeeper.sol';
 import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
-import {ERC20Upgradeable} from '../erc20/ERC20Upgradeable.sol';
-import {Versioned} from '../common/Versioned.sol';
+import {ERC20Permit} from './ERC20Permit.sol';
+import {Upgradeable} from './Upgradeable.sol';
 
 /**
- * @title BaseVault
+ * @title Vault
  * @author StakeWise
  * @notice Defines the common Vault functionality
  */
-abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
+abstract contract Vault is Upgradeable, ERC20Permit, IVault {
   using ExitQueue for ExitQueue.History;
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   uint256 public constant override exitQueueUpdateDelay = 1 days;
 
   uint256 internal constant _maxFeePercent = 10_000; // @dev 100.00 %
 
   bytes4 private constant _upgradeSelector = bytes4(keccak256('upgrade(bytes)'));
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IBaseKeeper public immutable override keeper;
+  IKeeper public immutable override keeper;
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IRegistry public immutable override registry;
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   uint256 public override maxTotalAssets;
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   bytes32 public override validatorsRoot;
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   uint96 public override queuedShares;
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   uint96 public override unclaimedAssets;
 
   uint64 internal _exitQueueNextUpdate;
@@ -56,13 +56,13 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   IFeesEscrow public override feesEscrow;
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   address public override operator;
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   uint16 public override feePercent;
 
   /// @dev Prevents calling a function from anyone except Vault's operator
@@ -85,7 +85,7 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
    * @param _registry The address of the Registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(IBaseKeeper _keeper, IRegistry _registry) ERC20Upgradeable() {
+  constructor(IKeeper _keeper, IRegistry _registry) ERC20Permit() {
     keeper = _keeper;
     registry = _registry;
   }
@@ -95,12 +95,12 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
     return _totalShares;
   }
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   function totalAssets() external view override returns (uint256) {
     return _totalAssets;
   }
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   function availableAssets() public view override returns (uint256) {
     uint256 vaultAssets = _vaultAssets();
     unchecked {
@@ -111,7 +111,7 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
     }
   }
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   function redeem(
     uint256 shares,
     address receiver,
@@ -147,13 +147,13 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
     emit Withdraw(msg.sender, receiver, owner, assets, shares);
   }
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   function getCheckpointIndex(uint256 exitQueueId) external view override returns (int256) {
     uint256 checkpointIdx = _exitQueue.getCheckpointIndex(exitQueueId);
     return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
   }
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   function enterExitQueue(
     uint256 shares,
     address receiver,
@@ -183,7 +183,7 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
     emit ExitQueueEntered(msg.sender, receiver, owner, exitQueueId, shares);
   }
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   function claimExitedAssets(
     address receiver,
     uint256 exitQueueId,
@@ -225,20 +225,23 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
     emit ExitedAssetsClaimed(msg.sender, receiver, exitQueueId, newExitQueueId, claimedAssets);
   }
 
-  /// @inheritdoc IBaseVault
-  function updateState(
-    int256 validatorAssets
-  ) external override onlyKeeper returns (int256 assetsDelta) {
+  /// @inheritdoc IVault
+  function updateState(int256 validatorAssets)
+    external
+    override
+    onlyKeeper
+    returns (int256 assetsDelta)
+  {
     return _updateState(validatorAssets);
   }
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   function updateHarvestedState() public override returns (int256 assetsDelta) {
     if (!keeper.isHarvested(address(this))) revert NotHarvested();
     return _updateState(0);
   }
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
     uint256 totalShares = _totalShares;
     // Will revert if assets > 0, totalSupply > 0 and _totalAssets = 0.
@@ -247,17 +250,18 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
       (assets == 0 || totalShares == 0) ? assets : Math.mulDiv(assets, totalShares, _totalAssets);
   }
 
-  /// @inheritdoc IBaseVault
+  /// @inheritdoc IVault
   function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
     uint256 totalShares = _totalShares;
     return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares);
   }
 
-  /// @inheritdoc IBaseVault
-  function setValidatorsRoot(
-    bytes32 _validatorsRoot,
-    string memory _validatorsIpfsHash
-  ) external override onlyOperator {
+  /// @inheritdoc IVault
+  function setValidatorsRoot(bytes32 _validatorsRoot, string memory _validatorsIpfsHash)
+    external
+    override
+    onlyOperator
+  {
     validatorsRoot = _validatorsRoot;
     emit ValidatorsRootUpdated(_validatorsRoot, _validatorsIpfsHash);
   }
@@ -423,24 +427,26 @@ abstract contract BaseVault is Versioned, ERC20Upgradeable, IBaseVault {
   }
 
   /// @inheritdoc UUPSUpgradeable
-  function upgradeToAndCall(
-    address newImplementation,
-    bytes memory data
-  ) external payable override onlyProxy {
+  function upgradeToAndCall(address newImplementation, bytes memory data)
+    external
+    payable
+    override
+    onlyProxy
+  {
     _authorizeUpgrade(newImplementation);
     bytes memory params = abi.encodeWithSelector(_upgradeSelector, data);
     _upgradeToAndCallUUPS(newImplementation, params, true);
   }
 
   /**
-   * @dev Initializes the BaseVault contract
+   * @dev Initializes the Vault contract
    * @param initParams The Vault's initialization parameters
    */
-  function __BaseVault_init(InitParams memory initParams) internal onlyInitializing {
+  function __Vault_init(InitParams memory initParams) internal onlyInitializing {
     if (initParams.feePercent > _maxFeePercent) revert InvalidFeePercent();
 
     // initialize ERC20Permit
-    __ERC20Upgradeable_init(initParams.name, initParams.symbol);
+    __ERC20Permit_init(initParams.name, initParams.symbol);
 
     // initialize Vault
     maxTotalAssets = initParams.maxTotalAssets;
