@@ -33,13 +33,13 @@ describe('EthKeeper', () => {
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
-  let sender: Wallet, owner: Wallet, operator: Wallet
+  let sender: Wallet, owner: Wallet, admin: Wallet
   let keeper: EthKeeper, oracles: Oracles, vault: EthVault, validatorsRegistry: Contract
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
 
   before('create fixture loader', async () => {
-    ;[sender, operator, owner] = await (ethers as any).getSigners()
+    ;[sender, admin, owner] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([owner])
   })
 
@@ -48,7 +48,7 @@ describe('EthKeeper', () => {
       ethVaultFixture
     ))
     vault = await createVault(
-      operator,
+      admin,
       maxTotalAssets,
       validatorsRoot,
       feePercent,
@@ -58,7 +58,7 @@ describe('EthKeeper', () => {
     )
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
-    await vault.connect(operator).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
+    await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
   })
 
   it('fails to initialize', async () => {

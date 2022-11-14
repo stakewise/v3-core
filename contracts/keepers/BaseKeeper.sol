@@ -86,6 +86,11 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
   }
 
   /// @inheritdoc IBaseKeeper
+  function isCollateralized(address vault) external view override returns (bool) {
+    return rewards[vault].nonce != 0;
+  }
+
+  /// @inheritdoc IBaseKeeper
   function harvest(
     address vault,
     int160 reward,
@@ -104,15 +109,22 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
       revert InvalidProof();
     }
 
-    // update state
+    // SLOAD to memory
     RewardSync memory lastRewardSync = rewards[vault];
-    rewards[vault] = RewardSync({nonce: rewardsNonce, reward: reward});
+    int256 periodReward;
+    unchecked {
+      // cannot underflow
+      periodReward = reward - lastRewardSync.reward;
+    }
+    if (periodReward != 0) {
+      // update state
+      rewards[vault] = RewardSync({nonce: rewardsNonce, reward: reward});
 
-    // emit event
-    emit Harvested(msg.sender, vault, reward);
-
+      // emit event
+      emit Harvested(msg.sender, vault, reward);
+    }
     // update Vault's state
-    return IBaseVault(vault).updateState(reward - lastRewardSync.reward);
+    return IBaseVault(vault).updateState(periodReward);
   }
 
   /// @inheritdoc UUPSUpgradeable

@@ -31,7 +31,7 @@ describe('EthVault - register', () => {
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
-  let operator: Wallet, dao: Wallet, other: Wallet
+  let admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault, keeper: EthKeeper, validatorsRegistry: Contract, oracles: Oracles
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
@@ -41,7 +41,7 @@ describe('EthVault - register', () => {
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
   before('create fixture loader', async () => {
-    ;[operator, dao, other] = await (ethers as any).getSigners()
+    ;[admin, dao, other] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([dao])
   })
 
@@ -51,7 +51,7 @@ describe('EthVault - register', () => {
     ))
 
     vault = await createVault(
-      operator,
+      admin,
       maxTotalAssets,
       ZERO_BYTES32,
       feePercent,
@@ -62,7 +62,7 @@ describe('EthVault - register', () => {
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(other).deposit(other.address, { value: validatorDeposit })
-    await vault.connect(operator).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
+    await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
   })
 
   describe('single validator', () => {

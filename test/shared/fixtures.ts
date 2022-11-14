@@ -86,7 +86,7 @@ interface EthVaultFixture {
   ethVaultFactory: EthVaultFactory
 
   createVault(
-    operator: Wallet,
+    admin: Wallet,
     maxTotalAssets: BigNumberish,
     validatorsRoot: BytesLike,
     feePercent: BigNumberish,
@@ -96,7 +96,7 @@ interface EthVaultFixture {
   ): Promise<EthVault>
 
   createVaultMock(
-    operator: Wallet,
+    admin: Wallet,
     maxTotalAssets: BigNumberish,
     validatorsRoot: BytesLike,
     feePercent: BigNumberish,
@@ -140,7 +140,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     validatorsRegistry,
     ethVaultFactory,
     createVault: async (
-      operator: Wallet,
+      admin: Wallet,
       maxTotalAssets: BigNumberish,
       validatorsRoot: BytesLike,
       feePercent: BigNumberish,
@@ -149,14 +149,14 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
       validatorsIpfsHash: string
     ): Promise<EthVault> => {
       const tx = await ethVaultFactory
-        .connect(operator)
+        .connect(admin)
         .createVault(maxTotalAssets, validatorsRoot, feePercent, name, symbol, validatorsIpfsHash)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethVault.attach(vaultAddress) as EthVault
     },
     createVaultMock: async (
-      operator: Wallet,
+      admin: Wallet,
       maxTotalAssets: BigNumberish,
       validatorsRoot: BytesLike,
       feePercent: BigNumberish,
@@ -165,7 +165,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
       validatorsIpfsHash: string
     ): Promise<EthVaultMock> => {
       const tx = await ethVaultMockFactory
-        .connect(operator)
+        .connect(admin)
         .createVault(maxTotalAssets, validatorsRoot, feePercent, name, symbol, validatorsIpfsHash)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string

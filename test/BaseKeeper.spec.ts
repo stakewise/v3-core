@@ -16,7 +16,7 @@ import {
 
 const createFixtureLoader = waffle.createFixtureLoader
 
-describe('Keeper', () => {
+describe('BaseKeeper', () => {
   const maxTotalAssets = parseEther('1000')
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
@@ -28,18 +28,18 @@ describe('Keeper', () => {
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
-  let sender: Wallet, owner: Wallet, operator: Wallet
+  let sender: Wallet, owner: Wallet, admin: Wallet
   let keeper: EthKeeper, oracles: Oracles, vault: EthVault
 
   before('create fixture loader', async () => {
-    ;[sender, operator, owner] = await (ethers as any).getSigners()
+    ;[sender, admin, owner] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([owner])
   })
 
   beforeEach(async () => {
     ;({ oracles, keeper, createVault, getSignatures } = await loadFixture(ethVaultFixture))
     vault = await createVault(
-      operator,
+      admin,
       maxTotalAssets,
       validatorsRoot,
       feePercent,
@@ -168,7 +168,7 @@ describe('Keeper', () => {
       const vaultRewards = [vaultReward]
       for (let i = 1; i < 11; i++) {
         const vlt = await createVault(
-          operator,
+          admin,
           maxTotalAssets,
           validatorsRoot,
           feePercent,
@@ -234,9 +234,7 @@ describe('Keeper', () => {
       const receipt = await keeper
         .connect(sender)
         .harvest(vaultReward.vault, vaultReward.reward, proof)
-      await expect(receipt)
-        .to.emit(keeper, 'Harvested')
-        .withArgs(sender.address, vaultReward.vault, vaultReward.reward)
+      await expect(receipt).to.not.emit(keeper, 'Harvested')
       await expect(receipt).to.emit(vault, 'StateUpdated').withArgs(0)
       await snapshotGasCost(receipt)
     })
