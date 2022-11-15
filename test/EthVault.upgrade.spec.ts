@@ -16,7 +16,7 @@ describe('EthVault - upgrade', () => {
   const vaultSymbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
-  let operator: Wallet, dao: Wallet, other: Wallet
+  let admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault
   let updatedVault: EthVaultV2Mock
   let currImpl: string
@@ -26,14 +26,14 @@ describe('EthVault - upgrade', () => {
   let loadFixture: ReturnType<typeof createFixtureLoader>
 
   before('create fixture loader', async () => {
-    ;[dao, operator, other] = await (ethers as any).getSigners()
+    ;[dao, admin, other] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([dao])
   })
 
   beforeEach('deploy fixture', async () => {
     const { createVault, registry, validatorsRegistry, keeper } = await loadFixture(ethVaultFixture)
     vault = await createVault(
-      operator,
+      admin,
       maxTotalAssets,
       validatorsRoot,
       feePercent,
@@ -53,13 +53,11 @@ describe('EthVault - upgrade', () => {
   })
 
   it('fails without the call', async () => {
-    await expect(vault.connect(operator).upgradeTo(newImpl)).to.revertedWith(
-      'NotImplementedError()'
-    )
+    await expect(vault.connect(admin).upgradeTo(newImpl)).to.revertedWith('NotImplementedError()')
     expect(await vault.version()).to.be.eq(1)
   })
 
-  it('fails from not operator', async () => {
+  it('fails from not admin', async () => {
     await expect(vault.connect(other).upgradeToAndCall(newImpl, callData)).to.revertedWith(
       'AccessDenied()'
     )
@@ -67,21 +65,21 @@ describe('EthVault - upgrade', () => {
   })
 
   it('fails with zero new implementation address', async () => {
-    await expect(vault.connect(operator).upgradeToAndCall(ZERO_ADDRESS, callData)).to.revertedWith(
+    await expect(vault.connect(admin).upgradeToAndCall(ZERO_ADDRESS, callData)).to.revertedWith(
       'UpgradeFailed()'
     )
     expect(await vault.version()).to.be.eq(1)
   })
 
   it('fails for the same implementation', async () => {
-    await expect(vault.connect(operator).upgradeToAndCall(currImpl, callData)).to.revertedWith(
+    await expect(vault.connect(admin).upgradeToAndCall(currImpl, callData)).to.revertedWith(
       'UpgradeFailed()'
     )
     expect(await vault.version()).to.be.eq(1)
   })
 
   it('fails for not approved implementation', async () => {
-    await expect(vault.connect(operator).upgradeToAndCall(other.address, callData)).to.revertedWith(
+    await expect(vault.connect(admin).upgradeToAndCall(other.address, callData)).to.revertedWith(
       'UpgradeFailed()'
     )
     expect(await vault.version()).to.be.eq(1)
@@ -90,22 +88,22 @@ describe('EthVault - upgrade', () => {
   it('fails with invalid call data', async () => {
     await expect(
       vault
-        .connect(operator)
+        .connect(admin)
         .upgradeToAndCall(newImpl, defaultAbiCoder.encode(['uint256'], [MAX_UINT256]))
     ).to.revertedWith('Address: low-level delegate call failed')
     expect(await vault.version()).to.be.eq(1)
   })
 
   it('works with valid call data', async () => {
-    const receipt = await vault.connect(operator).upgradeToAndCall(newImpl, callData)
+    const receipt = await vault.connect(admin).upgradeToAndCall(newImpl, callData)
     expect(await vault.version()).to.be.eq(2)
     expect(await vault.implementation()).to.be.eq(newImpl)
     expect(await updatedVault.newVar()).to.be.eq(100)
     expect(await updatedVault.somethingNew()).to.be.eq(true)
-    await expect(vault.connect(operator).upgradeToAndCall(newImpl, callData)).to.revertedWith(
+    await expect(vault.connect(admin).upgradeToAndCall(newImpl, callData)).to.revertedWith(
       'UpgradeFailed()'
     )
-    await expect(updatedVault.connect(operator).upgrade(callData)).to.revertedWith(
+    await expect(updatedVault.connect(admin).upgrade(callData)).to.revertedWith(
       'Initializable: contract is already initialized'
     )
     await snapshotGasCost(receipt)

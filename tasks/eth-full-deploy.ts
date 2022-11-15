@@ -6,7 +6,7 @@ import { deployContract } from '../helpers/utils'
 
 task('eth-full-deploy', 'deploys StakeWise V3 Protocol').setAction(async (taskArgs, hre) => {
   const ethers = hre.ethers
-  const accounts = await ethers.getSigners()
+  const accounts = await ethers.getOracles()
   const deployer = accounts[0]
 
   // Nonce management in case of deployment issues

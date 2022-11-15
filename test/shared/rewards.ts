@@ -1,15 +1,20 @@
-import { MerkleTree } from 'merkletreejs'
-import { network } from 'hardhat'
-import { BigNumberish } from 'ethers'
-import { defaultAbiCoder, toUtf8Bytes } from 'ethers/lib/utils'
+import { network, waffle } from 'hardhat'
+import { BigNumberish, Contract, Wallet } from 'ethers'
+import { parseEther, toUtf8Bytes } from 'ethers/lib/utils'
 import keccak256 from 'keccak256'
-import { Signers, Keeper } from '../../typechain-types'
-import { EIP712Domain, KeeperSig } from './constants'
+import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
+import { BaseKeeper, EthKeeper, EthVault, Oracles } from '../../typechain-types'
+import { EIP712Domain, KeeperSig, ONE_DAY } from './constants'
+import { Buffer } from 'buffer'
+import { registerEthValidator } from './validators'
+import { increaseTime, setBalance } from './utils'
+
+export type RewardsTree = StandardMerkleTree<[string, BigNumberish]>
 
 export type RewardsRoot = {
   root: string
   ipfsHash: string
-  tree: MerkleTree
+  tree: RewardsTree
   signingData: any
 }
 
@@ -20,14 +25,15 @@ export type VaultReward = {
 
 export function createVaultRewardsRoot(
   rewards: VaultReward[],
-  signers: Signers,
+  oracles: Oracles,
   nonce = 0
 ): RewardsRoot {
-  const elements = rewards.map((r) =>
-    defaultAbiCoder.encode(['address', 'int160'], [r.vault, r.reward])
-  )
-  const tree = new MerkleTree(elements, keccak256, { hashLeaves: true, sortPairs: true })
-  const treeRoot = tree.getHexRoot()
+  const tree = StandardMerkleTree.of(
+    rewards.map((r) => [r.vault, r.reward]),
+    ['address', 'int160']
+  ) as RewardsTree
+
+  const treeRoot = tree.root
   // mock IPFS hash
   const ipfsHash = '/ipfs/' + treeRoot
 
@@ -39,10 +45,10 @@ export function createVaultRewardsRoot(
       primaryType: 'Keeper',
       types: { EIP712Domain, Keeper: KeeperSig },
       domain: {
-        name: 'Signers',
+        name: 'Oracles',
         version: '1',
         chainId: network.config.chainId,
-        verifyingContract: signers.address,
+        verifyingContract: oracles.address,
       },
       message: {
         rewardsRoot: treeRoot,
@@ -54,13 +60,13 @@ export function createVaultRewardsRoot(
 }
 
 export async function updateRewardsRoot(
-  keeper: Keeper,
-  signers: Signers,
+  keeper: BaseKeeper,
+  oracles: Oracles,
   getSignatures: (typedData: any, count?: number) => Buffer,
   rewards: VaultReward[]
-): Promise<MerkleTree> {
+): Promise<RewardsTree> {
   const rewardsNonce = await keeper.rewardsNonce()
-  const rewardsRoot = createVaultRewardsRoot(rewards, signers, rewardsNonce.toNumber())
+  const rewardsRoot = createVaultRewardsRoot(rewards, oracles, rewardsNonce.toNumber())
   await keeper.setRewardsRoot(
     rewardsRoot.root,
     rewardsRoot.ipfsHash,
@@ -69,10 +75,45 @@ export async function updateRewardsRoot(
   return rewardsRoot.tree
 }
 
-export function getRewardsRootProof(tree: MerkleTree, vaultReward: VaultReward): string[] {
-  return tree.getHexProof(
-    keccak256(
-      defaultAbiCoder.encode(['address', 'int160'], [vaultReward.vault, vaultReward.reward])
-    )
-  )
+export function getRewardsRootProof(tree: RewardsTree, vaultReward: VaultReward): string[] {
+  return tree.getProof([vaultReward.vault, vaultReward.reward])
+}
+
+export async function collateralizeEthVault(
+  vault: EthVault,
+  oracles: Oracles,
+  keeper: EthKeeper,
+  validatorsRegistry: Contract,
+  admin: Wallet,
+  getSignatures: (typedData: any, count?: number) => Buffer
+): Promise<string[]> {
+  const balanceBefore = await waffle.provider.getBalance(vault.address)
+  // register validator
+  const validatorDeposit = parseEther('32')
+  await vault.connect(admin).deposit(admin.address, { value: validatorDeposit })
+  await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+
+  // update rewards tree
+  const rewardsTree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    { vault: vault.address, reward: 0 },
+  ])
+  const proof = getRewardsRootProof(rewardsTree, { vault: vault.address, reward: 0 })
+
+  // exit validator
+  const exitQueueId = await vault
+    .connect(admin)
+    .callStatic.enterExitQueue(validatorDeposit, admin.address, admin.address)
+  await vault.connect(admin).enterExitQueue(validatorDeposit, admin.address, admin.address)
+  await setBalance(vault.address, validatorDeposit)
+
+  await keeper.harvest(vault.address, 0, proof)
+
+  // claim exited assets
+  const checkpointIndex = await vault.getCheckpointIndex(exitQueueId)
+  vault.connect(admin).claimExitedAssets(admin.address, exitQueueId, checkpointIndex)
+
+  await increaseTime(ONE_DAY)
+  await setBalance(vault.address, balanceBefore)
+
+  return proof
 }

@@ -3,7 +3,7 @@ import { Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
 import { UintNumberType } from '@chainsafe/ssz'
 import { ThenArg } from '../helpers/types'
-import { EthKeeper, EthVault, Signers } from '../typechain-types'
+import { EthKeeper, EthVault, Oracles } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 import { setBalance } from './shared/utils'
@@ -19,7 +19,7 @@ import {
   ValidatorsMultiProof,
 } from './shared/validators'
 import { ethVaultFixture } from './shared/fixtures'
-import { ZERO_BYTES32 } from './shared/constants'
+import { ORACLES, ZERO_BYTES32 } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const gwei = 1000000000
@@ -31,8 +31,8 @@ describe('EthVault - register', () => {
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
   const vaultSymbol = 'SW-ETH-1'
-  let operator: Wallet, dao: Wallet, other: Wallet
-  let vault: EthVault, keeper: EthKeeper, validatorsRegistry: Contract, signers: Signers
+  let admin: Wallet, dao: Wallet, other: Wallet
+  let vault: EthVault, keeper: EthKeeper, validatorsRegistry: Contract, oracles: Oracles
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
 
@@ -41,17 +41,17 @@ describe('EthVault - register', () => {
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
   before('create fixture loader', async () => {
-    ;[operator, dao, other] = await (ethers as any).getSigners()
+    ;[admin, dao, other] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([dao])
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ validatorsRegistry, createVault, getSignatures, signers, keeper } = await loadFixture(
+    ;({ validatorsRegistry, createVault, getSignatures, oracles, keeper } = await loadFixture(
       ethVaultFixture
     ))
 
     vault = await createVault(
-      operator,
+      admin,
       maxTotalAssets,
       ZERO_BYTES32,
       feePercent,
@@ -60,8 +60,9 @@ describe('EthVault - register', () => {
       ''
     )
     validatorsData = await createEthValidatorsData(vault)
+    validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(other).deposit(other.address, { value: validatorDeposit })
-    await vault.connect(operator).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
+    await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
   })
 
   describe('single validator', () => {
@@ -72,9 +73,9 @@ describe('EthVault - register', () => {
     beforeEach(async () => {
       validator = validatorsData.validators[0]
       proof = getValidatorProof(validatorsData.tree, validator)
-      validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
       signatures = getSignatures(
-        getEthValidatorSigningData(validator, signers, vault, validatorsRegistryRoot)
+        getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot),
+        ORACLES.length
       )
     })
 
@@ -94,50 +95,6 @@ describe('EthVault - register', () => {
     it('fails with sender other than keeper', async () => {
       await expect(vault.connect(other).registerValidator(validator, proof)).to.be.revertedWith(
         'AccessDenied()'
-      )
-    })
-
-    it('fails with invalid deposit data root', async () => {
-      const invalidRoot = appendDepositData(
-        validatorsData.validators[1].subarray(0, 144),
-        validatorDeposit,
-        vault.address
-      ).subarray(144, 176)
-      const invalidValidator = Buffer.concat([validator.subarray(0, 144), invalidRoot])
-      await expect(
-        keeper.registerValidator(
-          vault.address,
-          validatorsRegistryRoot,
-          invalidValidator,
-          getSignatures(
-            getEthValidatorSigningData(invalidValidator, signers, vault, validatorsRegistryRoot)
-          ),
-          proof
-        )
-      ).to.be.revertedWith(
-        'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
-      )
-    })
-
-    it('fails with invalid deposit amount', async () => {
-      const invalidValidator = appendDepositData(
-        validator.subarray(0, 144),
-        parseEther('1'),
-        vault.address
-      )
-
-      await expect(
-        keeper.registerValidator(
-          vault.address,
-          validatorsRegistryRoot,
-          invalidValidator,
-          getSignatures(
-            getEthValidatorSigningData(invalidValidator, signers, vault, validatorsRegistryRoot)
-          ),
-          proof
-        )
-      ).to.be.revertedWith(
-        'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
       )
     })
 
@@ -162,7 +119,8 @@ describe('EthVault - register', () => {
           validatorsRegistryRoot,
           appendDepositData(validator, validatorDeposit, vault.address),
           getSignatures(
-            getEthValidatorSigningData(invalidValidator, signers, vault, validatorsRegistryRoot)
+            getEthValidatorSigningData(invalidValidator, oracles, vault, validatorsRegistryRoot),
+            ORACLES.length
           ),
           proof
         )
@@ -198,23 +156,29 @@ describe('EthVault - register', () => {
     let signatures: Buffer
 
     beforeEach(async () => {
-      validators = validatorsData.validators
-      multiProof = getValidatorsMultiProof(validatorsData.tree, validators)
+      multiProof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators)
+      validators = multiProof.leaves
       await setBalance(vault.address, validatorDeposit.mul(validators.length))
       signatures = getSignatures(
-        getEthValidatorsSigningData(validators, signers, vault, validatorsRegistryRoot)
+        getEthValidatorsSigningData(
+          Buffer.concat(validators),
+          oracles,
+          vault,
+          validatorsRegistryRoot
+        ),
+        ORACLES.length
       )
     })
 
     it('fails with not enough available assets', async () => {
-      await setBalance(vault.address, parseEther('32').mul(validators.length - 1))
+      await setBalance(vault.address, validatorDeposit.mul(validators.length - 1))
       await expect(
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          validators,
+          Buffer.concat(validators),
           signatures,
-          multiProof.flags,
+          multiProof.proofFlags,
           multiProof.proof
         )
       ).to.be.revertedWith('InsufficientAvailableAssets()')
@@ -222,7 +186,9 @@ describe('EthVault - register', () => {
 
     it('fails with sender other than keeper', async () => {
       await expect(
-        vault.connect(other).registerValidators(validators, multiProof.flags, multiProof.proof)
+        vault
+          .connect(other)
+          .registerValidators(Buffer.concat(validators), multiProof.proofFlags, multiProof.proof)
       ).to.be.revertedWith('AccessDenied()')
     })
 
@@ -236,15 +202,22 @@ describe('EthVault - register', () => {
         Buffer.concat([validators[0].subarray(0, 144), invalidRoot]),
         ...validators.slice(1),
       ]
+      const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       await expect(
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          invalidValidators,
+          invalidValidatorsConcat,
           getSignatures(
-            getEthValidatorsSigningData(invalidValidators, signers, vault, validatorsRegistryRoot)
+            getEthValidatorsSigningData(
+              invalidValidatorsConcat,
+              oracles,
+              vault,
+              validatorsRegistryRoot
+            ),
+            ORACLES.length
           ),
-          multiProof.flags,
+          multiProof.proofFlags,
           multiProof.proof
         )
       ).to.be.revertedWith(
@@ -254,18 +227,25 @@ describe('EthVault - register', () => {
 
     it('fails with invalid deposit amount', async () => {
       const invalidValidators = [
-        appendDepositData(validators[0].subarray(0, 144), parseEther('1'), vault.address),
+        appendDepositData(multiProof.leaves[0].subarray(0, 144), parseEther('1'), vault.address),
         ...validators.slice(1),
       ]
+      const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       await expect(
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          invalidValidators,
+          invalidValidatorsConcat,
           getSignatures(
-            getEthValidatorsSigningData(invalidValidators, signers, vault, validatorsRegistryRoot)
+            getEthValidatorsSigningData(
+              invalidValidatorsConcat,
+              oracles,
+              vault,
+              validatorsRegistryRoot
+            ),
+            ORACLES.length
           ),
-          multiProof.flags,
+          multiProof.proofFlags,
           multiProof.proof
         )
       ).to.be.revertedWith(
@@ -278,15 +258,22 @@ describe('EthVault - register', () => {
         appendDepositData(validators[0].subarray(0, 144), parseEther('1'), keeper.address),
         ...validators.slice(1),
       ]
+      const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       await expect(
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          invalidValidators,
+          invalidValidatorsConcat,
           getSignatures(
-            getEthValidatorsSigningData(invalidValidators, signers, vault, validatorsRegistryRoot)
+            getEthValidatorsSigningData(
+              invalidValidatorsConcat,
+              oracles,
+              vault,
+              validatorsRegistryRoot
+            ),
+            ORACLES.length
           ),
-          multiProof.flags,
+          multiProof.proofFlags,
           multiProof.proof
         )
       ).to.be.revertedWith(
@@ -301,41 +288,38 @@ describe('EthVault - register', () => {
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
-          validators,
+          Buffer.concat(validators),
           signatures,
-          invalidMultiProof.flags,
+          invalidMultiProof.proofFlags,
           invalidMultiProof.proof
         )
       ).to.be.revertedWith('MerkleProof: invalid multiproof')
     })
 
     it('fails with invalid validator length', async () => {
-      const invalidValidators = [
-        appendDepositData(validators[0], parseEther('1'), keeper.address),
-        ...validators.slice(1),
-      ]
+      const invalidValidators = validators[0].subarray(0, 100)
       await expect(
         keeper.registerValidators(
           vault.address,
           validatorsRegistryRoot,
           invalidValidators,
           getSignatures(
-            getEthValidatorsSigningData(invalidValidators, signers, vault, validatorsRegistryRoot)
+            getEthValidatorsSigningData(invalidValidators, oracles, vault, validatorsRegistryRoot),
+            ORACLES.length
           ),
-          multiProof.flags,
+          multiProof.proofFlags,
           multiProof.proof
         )
-      ).to.be.revertedWith('InvalidValidator()')
+      ).to.be.reverted
     })
 
-    // TODO: enable once https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3743 is resolved
-    it.skip('succeeds', async () => {
+    it('succeeds', async () => {
       const receipt = await keeper.registerValidators(
         vault.address,
         validatorsRegistryRoot,
-        validators,
+        Buffer.concat(validators),
         signatures,
-        multiProof.flags,
+        multiProof.proofFlags,
         multiProof.proof
       )
       for (let i = 0; i < validators.length; i++) {

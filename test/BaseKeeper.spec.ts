@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
-import { EthVault, EthKeeper, Signers } from '../typechain-types'
+import { EthVault, EthKeeper, Oracles } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -16,7 +16,7 @@ import {
 
 const createFixtureLoader = waffle.createFixtureLoader
 
-describe('Keeper', () => {
+describe('BaseKeeper', () => {
   const maxTotalAssets = parseEther('1000')
   const feePercent = 1000
   const vaultName = 'SW ETH Vault'
@@ -28,18 +28,18 @@ describe('Keeper', () => {
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
-  let sender: Wallet, owner: Wallet, operator: Wallet
-  let keeper: EthKeeper, signers: Signers, vault: EthVault
+  let sender: Wallet, owner: Wallet, admin: Wallet
+  let keeper: EthKeeper, oracles: Oracles, vault: EthVault
 
   before('create fixture loader', async () => {
-    ;[sender, operator, owner] = await (ethers as any).getSigners()
+    ;[sender, admin, owner] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([owner])
   })
 
   beforeEach(async () => {
-    ;({ signers, keeper, createVault, getSignatures } = await loadFixture(ethVaultFixture))
+    ;({ oracles, keeper, createVault, getSignatures } = await loadFixture(ethVaultFixture))
     vault = await createVault(
-      operator,
+      admin,
       maxTotalAssets,
       validatorsRoot,
       feePercent,
@@ -55,7 +55,7 @@ describe('Keeper', () => {
 
     beforeEach(async () => {
       vaultReward = { reward: parseEther('5'), vault: vault.address }
-      rewardsRoot = createVaultRewardsRoot([vaultReward], signers)
+      rewardsRoot = createVaultRewardsRoot([vaultReward], oracles)
     })
 
     it('fails with invalid root', async () => {
@@ -75,7 +75,7 @@ describe('Keeper', () => {
           ZERO_BYTES32,
           getSignatures(rewardsRoot.signingData)
         )
-      ).to.be.revertedWith('InvalidSigner()')
+      ).to.be.revertedWith('InvalidOracle()')
     })
 
     it('fails with invalid nonce', async () => {
@@ -85,14 +85,14 @@ describe('Keeper', () => {
         .setRewardsRoot(rewardsRoot.root, rewardsRoot.ipfsHash, signatures)
 
       const newVaultReward = { reward: parseEther('3'), vault: vault.address }
-      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], signers)
+      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles)
       await expect(
         keeper.setRewardsRoot(
           newRewardsRoot.root,
           newRewardsRoot.ipfsHash,
           getSignatures(newRewardsRoot.signingData)
         )
-      ).to.be.revertedWith('InvalidSigner()')
+      ).to.be.revertedWith('InvalidOracle()')
     })
 
     it('succeeds', async () => {
@@ -117,7 +117,7 @@ describe('Keeper', () => {
 
     beforeEach(async () => {
       vaultReward = { reward: parseEther('5'), vault: vault.address }
-      rewardsRoot = createVaultRewardsRoot([vaultReward], signers)
+      rewardsRoot = createVaultRewardsRoot([vaultReward], oracles)
       const signatures = getSignatures(rewardsRoot.signingData)
       await keeper.setRewardsRoot(rewardsRoot.root, rewardsRoot.ipfsHash, signatures)
       proof = getRewardsRootProof(rewardsRoot.tree, vaultReward)
@@ -130,7 +130,7 @@ describe('Keeper', () => {
     it('returns false for collateralized unharvested vault', async () => {
       await keeper.harvest(vaultReward.vault, vaultReward.reward, proof)
       const newVaultReward = { reward: parseEther('3'), vault: vault.address }
-      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], signers, 1)
+      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1)
       await keeper.setRewardsRoot(
         newRewardsRoot.root,
         newRewardsRoot.ipfsHash,
@@ -142,7 +142,7 @@ describe('Keeper', () => {
     it('returns true for collateralized harvested vault', async () => {
       await keeper.harvest(vaultReward.vault, vaultReward.reward, proof)
       const newVaultReward = { reward: parseEther('3'), vault: vault.address }
-      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], signers, 1)
+      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1)
       await keeper.setRewardsRoot(
         newRewardsRoot.root,
         newRewardsRoot.ipfsHash,
@@ -168,7 +168,7 @@ describe('Keeper', () => {
       const vaultRewards = [vaultReward]
       for (let i = 1; i < 11; i++) {
         const vlt = await createVault(
-          operator,
+          admin,
           maxTotalAssets,
           validatorsRoot,
           feePercent,
@@ -179,7 +179,7 @@ describe('Keeper', () => {
         vaultRewards.push({ reward: parseEther(i.toString()), vault: vlt.address })
       }
 
-      rewardsRoot = createVaultRewardsRoot(vaultRewards, signers)
+      rewardsRoot = createVaultRewardsRoot(vaultRewards, oracles)
       proof = getRewardsRootProof(rewardsRoot.tree, vaultReward)
       await keeper.setRewardsRoot(
         rewardsRoot.root,
@@ -212,7 +212,7 @@ describe('Keeper', () => {
         vault: vaultReward.vault,
       }
 
-      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], signers, 1)
+      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1)
       const signatures = getSignatures(newRewardsRoot.signingData)
       await keeper.setRewardsRoot(newRewardsRoot.root, newRewardsRoot.ipfsHash, signatures)
 
@@ -234,9 +234,7 @@ describe('Keeper', () => {
       const receipt = await keeper
         .connect(sender)
         .harvest(vaultReward.vault, vaultReward.reward, proof)
-      await expect(receipt)
-        .to.emit(keeper, 'Harvested')
-        .withArgs(sender.address, vaultReward.vault, vaultReward.reward)
+      await expect(receipt).to.not.emit(keeper, 'Harvested')
       await expect(receipt).to.emit(vault, 'StateUpdated').withArgs(0)
       await snapshotGasCost(receipt)
     })
