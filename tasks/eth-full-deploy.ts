@@ -1,5 +1,6 @@
 import '@nomiclabs/hardhat-ethers'
 import fs from 'fs'
+import '@openzeppelin/hardhat-upgrades/dist/type-extensions'
 import { task } from 'hardhat/config'
 import {
   EthKeeper__factory,
@@ -12,8 +13,9 @@ import { deployContract } from '../helpers/utils'
 import { NETWORKS } from '../helpers/constants'
 import { NetworkConfig } from '../helpers/types'
 
+const DEPLOYMENTS_DIR = 'deployments'
+
 task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (taskArgs, hre) => {
-  // @ts-ignore
   const upgrades = hre.upgrades
   const ethers = hre.ethers
   const accounts = await ethers.getSigners()
@@ -63,7 +65,12 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     EthVaultFactory: ethVaultFactory.address,
   }
   const json = JSON.stringify(addresses, null, 2)
-  const fileName = `${networkName}-addresses.json`
+  const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`
+
+  if (!fs.existsSync(DEPLOYMENTS_DIR)) {
+    fs.mkdirSync(DEPLOYMENTS_DIR)
+  }
+
   fs.writeFileSync(fileName, json, 'utf-8')
   console.log('Saved to', fileName)
 })
