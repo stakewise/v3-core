@@ -22,10 +22,10 @@ contract Registry is Ownable, IRegistry {
 
   /**
    * @dev Constructor
-   * @param _owner The address of the registry owner
+   * @param owner_ The address of the registry owner
    */
-  constructor(address _owner) {
-    _transferOwnership(_owner);
+  constructor(address owner_) {
+    _transferOwnership(owner_);
   }
 
   /// @inheritdoc IRegistry
