@@ -118,12 +118,44 @@
         "type": "address"
       }
     ],
+    "name": "isCollateralized",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      }
+    ],
     "name": "isHarvested",
     "outputs": [
       {
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "oracles",
+    "outputs": [
+      {
+        "internalType": "contract IOracles",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -213,19 +245,6 @@
     "name": "setRewardsRoot",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "signers",
-    "outputs": [
-      {
-        "internalType": "contract ISigners",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   }
 ]

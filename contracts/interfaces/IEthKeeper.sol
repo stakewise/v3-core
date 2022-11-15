@@ -2,42 +2,30 @@
 
 pragma solidity =0.8.17;
 
-import {ISigners} from './ISigners.sol';
+import {IOracles} from './IOracles.sol';
 import {IValidatorsRegistry} from './IValidatorsRegistry.sol';
-import {IKeeper} from './IKeeper.sol';
+import {IBaseKeeper} from './IBaseKeeper.sol';
 
 /**
  * @title IEthKeeper
  * @author StakeWise
  * @notice Defines the interface for the EthKeeper contract
  */
-interface IEthKeeper is IKeeper {
+interface IEthKeeper is IBaseKeeper {
   /**
-   * @notice Event emitted on single validator registration
+   * @notice Event emitted on validators registration
    * @param vault The address of the Vault
-   * @param validatorsRegistryRoot The deposit data root used to verify that signers approved validator registration
-   * @param validator The validator registered
-   * @param signatures The Signers signatures
-   */
-  event ValidatorRegistered(
-    address indexed vault,
-    bytes32 indexed validatorsRegistryRoot,
-    bytes validator,
-    bytes signatures
-  );
-
-  /**
-   * @notice Event emitted on multiple validators registration
-   * @param vault The address of the Vault
-   * @param validatorsRegistryRoot The deposit data root used to verify that signers approved validator registration
+   * @param validatorsRegistryRoot The deposit data root used to verify that oracles approved validator registration
    * @param validators The validators registered
-   * @param signatures The Signers signatures
+   * @param signatures The Oracles signatures
+   * @param timestamp The validators registration timestamp
    */
   event ValidatorsRegistered(
     address indexed vault,
     bytes32 indexed validatorsRegistryRoot,
-    bytes[] validators,
-    bytes signatures
+    bytes validators,
+    bytes signatures,
+    uint256 timestamp
   );
 
   /**
@@ -55,9 +43,9 @@ interface IEthKeeper is IKeeper {
   /**
    * @notice Function for registering single validator
    * @param vault The address of the vault
-   * @param validatorsRegistryRoot The deposit data root used to verify that signers approved validator registration
+   * @param validatorsRegistryRoot The deposit data root used to verify that oracles approved validator registration
    * @param validator The concatenation of the validator public key, signature and deposit data root
-   * @param signatures The concatenation of Signers' signatures
+   * @param signatures The concatenation of Oracles' signatures
    * @param proof The proof used to verify that the validator is part of the validators Merkle Tree
    */
   function registerValidator(
@@ -71,16 +59,16 @@ interface IEthKeeper is IKeeper {
   /**
    * @notice Function for registering multiple validators in one call
    * @param vault The address of the vault
-   * @param validatorsRegistryRoot The deposit data root used to verify that signers approved validators registration
-   * @param validators The list of concatenations of the validators' public key, signature and deposit data root
-   * @param signatures The concatenation of Signers' signatures
+   * @param validatorsRegistryRoot The deposit data root used to verify that oracles approved validators registration
+   * @param validators The concatenation of the validators' public key, signature and deposit data root
+   * @param signatures The concatenation of Oracles' signatures
    * @param proofFlags The multi proof flags for the validators Merkle Tree verification
    * @param proof The multi proof used for the validators Merkle Tree verification
    */
   function registerValidators(
     address vault,
     bytes32 validatorsRegistryRoot,
-    bytes[] calldata validators,
+    bytes calldata validators,
     bytes calldata signatures,
     bool[] calldata proofFlags,
     bytes32[] calldata proof

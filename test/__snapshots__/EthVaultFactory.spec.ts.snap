@@ -1,8 +1,10 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`EthVaultFactory predicts addresses 1`] = `4880`;
+
 exports[`EthVaultFactory vault deployment gas 1`] = `
 Object {
   "calldataByteLength": 420,
-  "gasUsed": 580400,
+  "gasUsed": 624946,
 }
 `;

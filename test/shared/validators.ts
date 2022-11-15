@@ -1,13 +1,13 @@
 import { ByteVectorType, ContainerType, Type, UintNumberType } from '@chainsafe/ssz'
+import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { network } from 'hardhat'
 import { Buffer } from 'buffer'
 import { BigNumber, BytesLike, Contract, Wallet } from 'ethers'
 import { arrayify, defaultAbiCoder, parseEther } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
-import { MerkleTree } from 'merkletreejs'
 import keccak256 from 'keccak256'
-import { Signers, EthVault, EthKeeper } from '../../typechain-types'
-import { EIP712Domain, RegisterValidatorSig, RegisterValidatorsSig } from './constants'
+import { EthKeeper, EthVault, Oracles } from '../../typechain-types'
+import { EIP712Domain, ORACLES, RegisterValidatorSig, RegisterValidatorsSig } from './constants'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -68,14 +68,17 @@ const DepositData = new ContainerType(
 )
 
 export type ValidatorsMultiProof = {
-  flags: boolean[]
-  proof: Buffer[]
+  proofFlags: boolean[]
+  proof: string[]
+  leaves: Buffer[]
 }
+
+export type ValidatorsTree = StandardMerkleTree<[Buffer]>
 
 export type EthValidatorsData = {
   root: string
   ipfsHash: string
-  tree: MerkleTree
+  tree: ValidatorsTree
   validators: Buffer[]
 }
 
@@ -140,7 +143,8 @@ export async function createValidators(
     const domain = computeDomain(DOMAIN_DEPOSIT, GENESIS_FORK_VERSION, ZERO_HASH)
     const signingRoot = computeSigningRoot(DepositMessage, depositData, domain)
     const signature = secretKey.sign(signingRoot).serialize()
-    validators.push(Buffer.concat([publicKey, signature]))
+    depositData.signature = Buffer.from(signature)
+    validators.push(Buffer.concat([publicKey, signature, DepositData.hashTreeRoot(depositData)]))
   }
   return validators
 }
@@ -164,12 +168,12 @@ export function appendDepositData(
 
 export async function createEthValidatorsData(vault: EthVault): Promise<EthValidatorsData> {
   const validatorDeposit = parseEther('32')
-  const validators = (await createValidators(validatorDeposit, vault.address)).sort(Buffer.compare)
-  const tree = new MerkleTree(validators, keccak256, {
-    hashLeaves: true,
-    sortPairs: true,
-  })
-  const treeRoot = tree.getHexRoot()
+  const validators = await createValidators(validatorDeposit, vault.address)
+  const tree = StandardMerkleTree.of(
+    validators.map((v) => [v]),
+    ['bytes']
+  ) as ValidatorsTree
+  const treeRoot = tree.root
   // mock IPFS hash
   const ipfsHash = '/ipfs/' + treeRoot
 
@@ -177,13 +181,13 @@ export async function createEthValidatorsData(vault: EthVault): Promise<EthValid
     root: treeRoot,
     ipfsHash,
     tree,
-    validators: validators.map((v) => appendDepositData(v, validatorDeposit, vault.address)),
+    validators,
   }
 }
 
 export function getEthValidatorSigningData(
   validator: Buffer,
-  signers: Signers,
+  oracles: Oracles,
   vault: EthVault,
   validatorsRegistryRoot: BytesLike
 ) {
@@ -191,10 +195,10 @@ export function getEthValidatorSigningData(
     primaryType: 'EthKeeper',
     types: { EIP712Domain, EthKeeper: RegisterValidatorSig },
     domain: {
-      name: 'Signers',
+      name: 'Oracles',
       version: '1',
       chainId: network.config.chainId,
-      verifyingContract: signers.address,
+      verifyingContract: oracles.address,
     },
     message: {
       validatorsRegistryRoot,
@@ -205,8 +209,8 @@ export function getEthValidatorSigningData(
 }
 
 export function getEthValidatorsSigningData(
-  validators: Buffer[],
-  signers: Signers,
+  validators: Buffer,
+  oracles: Oracles,
   vault: EthVault,
   validatorsRegistryRoot: BytesLike
 ) {
@@ -214,47 +218,48 @@ export function getEthValidatorsSigningData(
     primaryType: 'EthKeeper',
     types: { EIP712Domain, EthKeeper: RegisterValidatorsSig },
     domain: {
-      name: 'Signers',
+      name: 'Oracles',
       version: '1',
       chainId: network.config.chainId,
-      verifyingContract: signers.address,
+      verifyingContract: oracles.address,
     },
     message: {
       validatorsRegistryRoot,
       vault: vault.address,
-      validators: keccak256(defaultAbiCoder.encode(['bytes[]'], [validators])),
+      validators: keccak256(defaultAbiCoder.encode(['bytes'], [validators])),
     },
   }
 }
 
-export function getValidatorProof(tree: MerkleTree, validator: Buffer): string[] {
-  return tree.getHexProof(keccak256(validator.subarray(0, 144)))
+export function getValidatorProof(tree: ValidatorsTree, validator: Buffer): string[] {
+  return tree.getProof([validator])
 }
 
 export function getValidatorsMultiProof(
-  tree: MerkleTree,
+  tree: ValidatorsTree,
   validators: Buffer[]
 ): ValidatorsMultiProof {
-  const leaves = validators.map((val) => keccak256(val.subarray(0, 144)))
-  const proof = tree.getMultiProof(leaves)
-  const flags = tree.getProofFlags(leaves, proof)
-  return { flags, proof }
+  const multiProof = tree.getMultiProof(validators.map((v) => [v]))
+  return {
+    ...multiProof,
+    leaves: multiProof.leaves.map((l) => l[0]),
+  }
 }
 
 export async function registerEthValidator(
   vault: EthVault,
-  signers: Signers,
+  oracles: Oracles,
   keeper: EthKeeper,
   validatorsRegistry: Contract,
-  operator: Wallet,
+  admin: Wallet,
   getSignatures: (typedData: any, count?: number) => Buffer
 ) {
   const validatorsData = await createEthValidatorsData(vault)
   const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
-  await vault.connect(operator).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
+  await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
   const validator = validatorsData.validators[0]
-  const signingData = getEthValidatorSigningData(validator, signers, vault, validatorsRegistryRoot)
-  const signatures = getSignatures(signingData)
+  const signingData = getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot)
+  const signatures = getSignatures(signingData, ORACLES.length)
   const proof = getValidatorProof(validatorsData.tree, validator)
   await keeper.registerValidator(
     vault.address,

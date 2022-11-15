@@ -3,20 +3,20 @@
 pragma solidity =0.8.17;
 
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import {IUpgradeable} from '../interfaces/IUpgradeable.sol';
+import {IVersioned} from '../interfaces/IVersioned.sol';
 
 /**
- * @title Upgradeable
+ * @title Versioned
  * @author StakeWise
- * @notice Defines the common upgrades functionality
+ * @notice Defines the common versioning functionality
  */
-abstract contract Upgradeable is UUPSUpgradeable, IUpgradeable {
-  /// @inheritdoc IUpgradeable
+abstract contract Versioned is UUPSUpgradeable, IVersioned {
+  /// @inheritdoc IVersioned
   function version() external view override returns (uint8) {
     return _getInitializedVersion();
   }
 
-  /// @inheritdoc IUpgradeable
+  /// @inheritdoc IVersioned
   function implementation() external view override returns (address) {
     return _getImplementation();
   }

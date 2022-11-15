@@ -12,18 +12,18 @@ import {IRegistry} from './IRegistry.sol';
 interface IEthVaultFactory {
   /**
    * @notice Event emitted on a Vault creation
-   * @param operator The address of the Vault operator
+   * @param admin The address of the Vault admin
    * @param vault The address of the created Vault
    * @param feesEscrow The address of the fees escrow contract
    * @param maxTotalAssets The max total assets that can be staked into the Vault
    * @param validatorsRoot The validators merkle tree root
-   * @param feePercent The fee percent that is charged by the Vault operator
+   * @param feePercent The fee percent that is charged by the Vault
    * @param name The name of the ERC20 token
    * @param symbol The symbol of the ERC20 token
    * @param validatorsIpfsHash The IPFS hash with all the validators deposit data
    */
   event VaultCreated(
-    address indexed operator,
+    address indexed admin,
     address indexed vault,
     address indexed feesEscrow,
     uint256 maxTotalAssets,
@@ -47,17 +47,17 @@ interface IEthVaultFactory {
   function registry() external view returns (IRegistry);
 
   /**
-   * @notice Returns operator's nonce
-   * @param operator The address of the operator
-   * @return The nonce of the operator that is used for the vault and fees escrow creation
+   * @notice Returns deployer's nonce
+   * @param deployer The address of the Vault deployer
+   * @return The nonce of the deployer that is used for the vault and fees escrow creation
    */
-  function nonces(address operator) external view returns (uint256);
+  function nonces(address deployer) external view returns (uint256);
 
   /**
    * @notice Create Vault
    * @param maxTotalAssets The max total assets that can be staked into the Vault
    * @param validatorsRoot The validators merkle tree root
-   * @param feePercent The fee percent that is charged by the Vault operator
+   * @param feePercent The fee percent that is charged by the Vault
    * @param name The name of the ERC20 token
    * @param symbol The symbol of the ERC20 token
    * @param validatorsIpfsHash The IPFS hash with all the validators deposit data
@@ -75,12 +75,11 @@ interface IEthVaultFactory {
 
   /**
    * @notice Compute Vault and Fees Escrow addresses
-   * @param operator The address of the Vault operator
+   * @param deployer The address of the Vault deployer
    * @return vault The address of the next created Vault
    * @return feesEscrow The address of the next created FeesEscrow
    */
-  function computeAddresses(address operator)
-    external
-    view
-    returns (address vault, address feesEscrow);
+  function computeAddresses(
+    address deployer
+  ) external view returns (address vault, address feesEscrow);
 }
