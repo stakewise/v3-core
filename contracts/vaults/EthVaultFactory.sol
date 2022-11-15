@@ -51,6 +51,11 @@ contract EthVaultFactory is IEthVaultFactory {
   ) external override returns (address vault, address feesEscrow) {
     // create vault proxy
     bytes32 nonce = keccak256(abi.encode(msg.sender, nonces[msg.sender]));
+    unchecked {
+      // cannot realistically overflow
+      nonces[msg.sender] += 1;
+    }
+
     vault = address(new ERC1967Proxy{salt: nonce}(vaultImplementation, ''));
 
     // create fees escrow contract
@@ -69,11 +74,6 @@ contract EthVaultFactory is IEthVaultFactory {
         validatorsIpfsHash: validatorsIpfsHash
       })
     );
-
-    unchecked {
-      // cannot realistically overflow
-      nonces[msg.sender] += 1;
-    }
 
     // add vault to the registry
     registry.addVault(vault);

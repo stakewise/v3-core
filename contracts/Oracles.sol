@@ -24,12 +24,12 @@ contract Oracles is Ownable, EIP712, IOracles {
 
   /**
    * @dev Constructor
-   * @param _owner The address of the contract owner
+   * @param owner_ The address of the contract owner
    * @param initialOracles The addresses of the initial oracles
    * @param initialRequiredOracles The number or required oracles for the verification
    */
   constructor(
-    address _owner,
+    address owner_,
     address[] memory initialOracles,
     uint256 initialRequiredOracles
   ) EIP712('Oracles', '1') {
@@ -40,7 +40,7 @@ contract Oracles is Ownable, EIP712, IOracles {
       }
     }
     setRequiredOracles(initialRequiredOracles);
-    _transferOwnership(_owner);
+    _transferOwnership(owner_);
   }
 
   /// @inheritdoc IOracles
