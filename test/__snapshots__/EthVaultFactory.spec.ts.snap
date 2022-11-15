@@ -5,6 +5,6 @@ exports[`EthVaultFactory predicts addresses 1`] = `4880`;
 exports[`EthVaultFactory vault deployment gas 1`] = `
 Object {
   "calldataByteLength": 420,
-  "gasUsed": 624797,
+  "gasUsed": 624777,
 }
 `;
