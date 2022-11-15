@@ -49,12 +49,20 @@ contract EthVaultFactory is IEthVaultFactory {
     string calldata symbol,
     string calldata validatorsIpfsHash
   ) external override returns (address vault, address feesEscrow) {
-    // create vault proxy
-    bytes32 nonce = keccak256(abi.encode(msg.sender, nonces[msg.sender]));
-    vault = address(new ERC1967Proxy{salt: nonce}(vaultImplementation, ''));
+    {
+      uint256 nonce = nonces[msg.sender];
+      unchecked {
+        // cannot realistically overflow
+        nonces[msg.sender] = nonce + 1;
+      }
 
-    // create fees escrow contract
-    feesEscrow = address(new EthFeesEscrow{salt: nonce}(vault));
+      // create vault proxy
+      bytes32 salt = keccak256(abi.encode(msg.sender, nonce));
+      vault = address(new ERC1967Proxy{salt: salt}(vaultImplementation, ''));
+
+      // create fees escrow contract
+      feesEscrow = address(new EthFeesEscrow{salt: salt}(vault));
+    }
 
     // initialize vault
     IEthVault(vault).initialize(
@@ -69,11 +77,6 @@ contract EthVaultFactory is IEthVaultFactory {
         validatorsIpfsHash: validatorsIpfsHash
       })
     );
-
-    unchecked {
-      // cannot realistically overflow
-      nonces[msg.sender] += 1;
-    }
 
     // add vault to the registry
     registry.addVault(vault);
