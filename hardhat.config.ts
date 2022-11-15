@@ -13,9 +13,11 @@ import 'hardhat-log-remover'
 import 'hardhat-spdx-license-identifier'
 import 'hardhat-abi-exporter'
 import '@openzeppelin/hardhat-upgrades'
-import { EthereumNetwork } from './helpers/types'
 
 dotenv.config({ path: '.env' })
+
+import { Networks } from './helpers/types'
+import { NETWORKS } from './helpers/constants'
 
 if (!process.env.SKIP_LOAD) {
   glob.sync('./tasks/*.ts').forEach((file) => {
@@ -30,23 +32,18 @@ const TRACK_GAS = process.env.TRACK_GAS === 'true'
 const BLOCK_EXPLORER_KEY = process.env.BLOCK_EXPLORER_KEY || ''
 const HARDHATEVM_CHAINID = 31337
 
-const networkConfig = {
-  [EthereumNetwork.goerli]: {
-    url: process.env.GOERLI_RPC_URL || '',
-    chainId: 5,
-  },
+const getCommonNetworkConfig = (networkName) => {
+  return {
+    url: NETWORKS[networkName].url,
+    chainId: NETWORKS[networkName].chainId,
+    accounts: {
+      mnemonic: MNEMONIC,
+      path: MNEMONIC_PATH,
+      initialIndex: 0,
+      count: 20,
+    },
+  }
 }
-
-const getCommonNetworkConfig = (networkName) => ({
-  url: networkConfig[networkName].url,
-  chainId: networkConfig[networkName].chainId,
-  accounts: {
-    mnemonic: MNEMONIC,
-    path: MNEMONIC_PATH,
-    initialIndex: 0,
-    count: 20,
-  },
-})
 
 const config: HardhatUserConfig = {
   solidity: {
@@ -66,7 +63,9 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
-    goerli: getCommonNetworkConfig(EthereumNetwork.goerli),
+    goerli: getCommonNetworkConfig(Networks.goerli),
+    gnosis: getCommonNetworkConfig(Networks.gnosis),
+    mainnet: getCommonNetworkConfig(Networks.mainnet),
     hardhat: {
       hardfork: 'merge',
       blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,
