@@ -133,6 +133,7 @@ contract EthVault is BaseVault, IEthVault {
         bytes.concat(keccak256(abi.encode(validator, _validatorIndex)))
       );
       publicKey = validator[:48];
+      // slither-disable-next-line arbitrary-send-eth
       validatorsRegistry.deposit{value: _validatorDeposit}(
         publicKey,
         withdrawalCreds,
