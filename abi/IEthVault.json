@@ -856,6 +856,11 @@
         "type": "bytes"
       },
       {
+        "internalType": "uint256[]",
+        "name": "indexes",
+        "type": "uint256[]"
+      },
+      {
         "internalType": "bool[]",
         "name": "proofFlags",
         "type": "bool[]"
@@ -1037,6 +1042,19 @@
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "validatorIndex",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

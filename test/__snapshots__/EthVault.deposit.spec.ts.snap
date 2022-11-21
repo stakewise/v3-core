@@ -17,6 +17,6 @@ Object {
 exports[`EthVault - deposit partially empty vault: assets & no shares deposit 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 74134,
+  "gasUsed": 74112,
 }
 `;

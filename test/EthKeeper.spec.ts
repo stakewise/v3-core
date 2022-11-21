@@ -75,7 +75,7 @@ describe('EthKeeper', () => {
 
     beforeEach(async () => {
       validator = validatorsData.validators[0]
-      proof = getValidatorProof(validatorsData.tree, validator)
+      proof = getValidatorProof(validatorsData.tree, validator, 0)
       await vault.connect(sender).deposit(sender.address, { value: depositAmount })
       signingData = getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot)
       signatures = getSignatures(signingData, ORACLES.length)
@@ -143,7 +143,7 @@ describe('EthKeeper', () => {
           validatorsRegistryRoot,
           validator,
           signatures,
-          getValidatorProof(validatorsData.tree, validatorsData.validators[1])
+          getValidatorProof(validatorsData.tree, validatorsData.validators[1], 1)
         )
       ).revertedWith('InvalidValidator()')
     })
@@ -192,7 +192,7 @@ describe('EthKeeper', () => {
       ).revertedWith('InvalidOracle()')
 
       const newValidator = validatorsData.validators[1]
-      const newProof = getValidatorProof(validatorsData.tree, newValidator)
+      const newProof = getValidatorProof(validatorsData.tree, newValidator, 1)
       await vault.connect(sender).deposit(sender.address, { value: depositAmount })
 
       const newSigningData = getEthValidatorSigningData(
@@ -221,13 +221,18 @@ describe('EthKeeper', () => {
 
   describe('register multiple validators', () => {
     let validators: Buffer[]
+    let indexes: number[]
     let signatures: Buffer
     let proof: ValidatorsMultiProof
     let signingData: any
 
     beforeEach(async () => {
-      proof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators)
-      validators = proof.leaves
+      proof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators, [
+        ...Array(validatorsData.validators.length).keys(),
+      ])
+      validators = validatorsData.validators
+      const sortedVals = proof.leaves.map((v) => v[0])
+      indexes = validators.map((v) => sortedVals.indexOf(v))
       await vault
         .connect(sender)
         .deposit(sender.address, { value: depositAmount.mul(validators.length) })
@@ -247,6 +252,7 @@ describe('EthKeeper', () => {
           validatorsRegistryRoot,
           Buffer.concat(validators),
           signatures,
+          indexes,
           proof.proofFlags,
           proof.proof
         )
@@ -268,6 +274,7 @@ describe('EthKeeper', () => {
           validatorsRegistryRoot,
           Buffer.concat(validators),
           signatures,
+          indexes,
           proof.proofFlags,
           proof.proof
         )
@@ -281,6 +288,7 @@ describe('EthKeeper', () => {
           validatorsRegistryRoot,
           Buffer.concat(validators),
           getSignatures(signingData, ORACLES.length - 1),
+          indexes,
           proof.proofFlags,
           proof.proof
         )
@@ -294,6 +302,7 @@ describe('EthKeeper', () => {
           validatorsRegistryRoot,
           validators[0],
           signatures,
+          indexes,
           proof.proofFlags,
           proof.proof
         )
@@ -301,7 +310,7 @@ describe('EthKeeper', () => {
     })
 
     it('fails for invalid proof', async () => {
-      const invalidProof = getValidatorsMultiProof(validatorsData.tree, [validators[0]])
+      const invalidProof = getValidatorsMultiProof(validatorsData.tree, [validators[0]], [0])
       await expect(
         keeper.registerValidators(
           vault.address,
@@ -311,6 +320,7 @@ describe('EthKeeper', () => {
             getEthValidatorsSigningData(validators[1], oracles, vault, validatorsRegistryRoot),
             ORACLES.length
           ),
+          [0],
           invalidProof.proofFlags,
           invalidProof.proof
         )
@@ -328,6 +338,7 @@ describe('EthKeeper', () => {
         validatorsRegistryRoot,
         validatorsConcat,
         signatures,
+        indexes,
         proof.proofFlags,
         proof.proof
       )
@@ -355,8 +366,9 @@ describe('EthKeeper', () => {
         keeper.registerValidators(
           vault.address,
           newValidatorsRegistryRoot,
-          Buffer.concat(validators),
+          validatorsConcat,
           signatures,
+          indexes,
           proof.proofFlags,
           proof.proof
         )
@@ -366,8 +378,10 @@ describe('EthKeeper', () => {
         .connect(sender)
         .deposit(sender.address, { value: depositAmount.mul(validators.length) })
 
+      // reset validator index
+      await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
       const newSigningData = getEthValidatorsSigningData(
-        Buffer.concat(validators),
+        validatorsConcat,
         oracles,
         vault,
         newValidatorsRegistryRoot
@@ -376,8 +390,9 @@ describe('EthKeeper', () => {
       receipt = await keeper.registerValidators(
         vault.address,
         newValidatorsRegistryRoot,
-        Buffer.concat(validators),
+        validatorsConcat,
         newSignatures,
+        indexes,
         proof.proofFlags,
         proof.proof
       )

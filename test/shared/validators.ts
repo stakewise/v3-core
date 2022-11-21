@@ -70,10 +70,10 @@ const DepositData = new ContainerType(
 export type ValidatorsMultiProof = {
   proofFlags: boolean[]
   proof: string[]
-  leaves: Buffer[]
+  leaves: [Buffer, number][]
 }
 
-export type ValidatorsTree = StandardMerkleTree<[Buffer]>
+export type ValidatorsTree = StandardMerkleTree<[Buffer, number]>
 
 export type EthValidatorsData = {
   root: string
@@ -170,8 +170,8 @@ export async function createEthValidatorsData(vault: EthVault): Promise<EthValid
   const validatorDeposit = parseEther('32')
   const validators = await createValidators(validatorDeposit, vault.address)
   const tree = StandardMerkleTree.of(
-    validators.map((v) => [v]),
-    ['bytes']
+    validators.map((v, i) => [v, i]),
+    ['bytes', 'uint256']
   ) as ValidatorsTree
   const treeRoot = tree.root
   // mock IPFS hash
@@ -231,18 +231,23 @@ export function getEthValidatorsSigningData(
   }
 }
 
-export function getValidatorProof(tree: ValidatorsTree, validator: Buffer): string[] {
-  return tree.getProof([validator])
+export function getValidatorProof(
+  tree: ValidatorsTree,
+  validator: Buffer,
+  index: number
+): string[] {
+  return tree.getProof([validator, index])
 }
 
 export function getValidatorsMultiProof(
   tree: ValidatorsTree,
-  validators: Buffer[]
+  validators: Buffer[],
+  indexes: number[]
 ): ValidatorsMultiProof {
-  const multiProof = tree.getMultiProof(validators.map((v) => [v]))
+  const multiProof = tree.getMultiProof(validators.map((v, i) => [v, indexes[i]]))
   return {
     ...multiProof,
-    leaves: multiProof.leaves.map((l) => l[0]),
+    leaves: multiProof.leaves,
   }
 }
 
@@ -260,7 +265,7 @@ export async function registerEthValidator(
   const validator = validatorsData.validators[0]
   const signingData = getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot)
   const signatures = getSignatures(signingData, ORACLES.length)
-  const proof = getValidatorProof(validatorsData.tree, validator)
+  const proof = getValidatorProof(validatorsData.tree, validator, 0)
   await keeper.registerValidator(
     vault.address,
     validatorsRegistryRoot,

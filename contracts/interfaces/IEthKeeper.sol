@@ -62,6 +62,7 @@ interface IEthKeeper is IBaseKeeper {
    * @param validatorsRegistryRoot The deposit data root used to verify that oracles approved validators registration
    * @param validators The concatenation of the validators' public key, signature and deposit data root
    * @param signatures The concatenation of Oracles' signatures
+   * @param indexes The indexes of the validators for the proof verification
    * @param proofFlags The multi proof flags for the validators Merkle Tree verification
    * @param proof The multi proof used for the validators Merkle Tree verification
    */
@@ -70,6 +71,7 @@ interface IEthKeeper is IBaseKeeper {
     bytes32 validatorsRegistryRoot,
     bytes calldata validators,
     bytes calldata signatures,
+    uint256[] calldata indexes,
     bool[] calldata proofFlags,
     bytes32[] calldata proof
   ) external;

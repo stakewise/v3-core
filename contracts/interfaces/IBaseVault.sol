@@ -210,6 +210,12 @@ interface IBaseVault is IVersioned, IERC20Permit {
   function validatorsRoot() external view returns (bytes32);
 
   /**
+   * @notice The Vault validator index
+   * @return The index of the next validator to register with the current validators root
+   */
+  function validatorIndex() external view returns (uint256);
+
+  /**
    * @notice Withdrawal Credentials
    * @return The credentials used for the validators withdrawals
    */

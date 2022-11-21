@@ -45,6 +45,9 @@ abstract contract BaseVault is Versioned, ReentrancyGuardUpgradeable, ERC20Upgra
   bytes32 public override validatorsRoot;
 
   /// @inheritdoc IBaseVault
+  uint256 public override validatorIndex;
+
+  /// @inheritdoc IBaseVault
   uint96 public override queuedShares;
 
   /// @inheritdoc IBaseVault
@@ -250,6 +253,7 @@ abstract contract BaseVault is Versioned, ReentrancyGuardUpgradeable, ERC20Upgra
     string memory _validatorsIpfsHash
   ) external override onlyAdmin {
     validatorsRoot = _validatorsRoot;
+    validatorIndex = 0;
     emit ValidatorsRootUpdated(_validatorsRoot, _validatorsIpfsHash);
   }
 
