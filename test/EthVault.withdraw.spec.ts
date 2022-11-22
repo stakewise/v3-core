@@ -134,10 +134,10 @@ describe('EthVault - withdraw', () => {
       const receipt = await vault
         .connect(holder)
         .redeem(holderShares, receiver.address, holder.address)
-      expect(receipt)
+      await expect(receipt)
         .to.emit(vault, 'Withdraw')
         .withArgs(holder.address, receiver.address, holder.address, holderAssets, holderShares)
-      expect(receipt)
+      await expect(receipt)
         .to.emit(vault, 'Transfer')
         .withArgs(holder.address, ZERO_ADDRESS, holderShares)
 
@@ -296,7 +296,7 @@ describe('EthVault - withdraw', () => {
 
     it('adds checkpoint', async () => {
       const receipt = await keeper.harvest(vault.address, 0, proof)
-      expect(receipt)
+      await expect(receipt)
         .to.emit(exitQueue, 'CheckpointCreated')
         .withArgs(startCheckpointId.add(holderShares), holderAssets)
       expect(await waffle.provider.getBalance(vault.address)).to.be.eq(holderAssets)
@@ -424,7 +424,7 @@ describe('EthVault - withdraw', () => {
       const receipt = await vault
         .connect(holder)
         .claimExitedAssets(receiver.address, exitQueueId, checkpointIndex)
-      expect(receipt)
+      await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
         .withArgs(holder.address, receiver.address, exitQueueId, 0, holderAssets)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
@@ -456,7 +456,7 @@ describe('EthVault - withdraw', () => {
         .connect(holder)
         .claimExitedAssets(receiver.address, exitQueueId, checkpointIndex)
 
-      expect(receipt)
+      await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
         .withArgs(holder.address, receiver.address, exitQueueId, 0, holderAssets)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
@@ -717,7 +717,7 @@ describe('EthVault - withdraw', () => {
 
     // 8. Bob redeems 1608 shares (2929 assets)
     const receipt = await vault.connect(bob).redeem(1608, bob.address, bob.address)
-    expect(receipt).to.emit(vault, 'Transfer').withArgs(bob.address, ZERO_ADDRESS, 1608)
+    await expect(receipt).to.emit(vault, 'Transfer').withArgs(bob.address, ZERO_ADDRESS, 1608)
 
     bobShares -= 1608
     bobAssets -= 2929

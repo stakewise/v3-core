@@ -77,7 +77,7 @@ describe('EthVault - settings', () => {
       const receipt = await vault
         .connect(admin)
         .setValidatorsRoot(newValidatorsRoot, newValidatorsIpfsHash)
-      expect(receipt)
+      await expect(receipt)
         .to.emit(vault, 'ValidatorsRootUpdated')
         .withArgs(newValidatorsRoot, newValidatorsIpfsHash)
       expect(await vault.validatorsRoot()).to.be.eq(newValidatorsRoot)
@@ -127,7 +127,7 @@ describe('EthVault - settings', () => {
     it('can update', async () => {
       expect(await vault.feeRecipient()).to.be.eq(admin.address)
       const receipt = await vault.connect(admin).setFeeRecipient(newFeeRecipient.address)
-      expect(receipt).to.emit(vault, 'FeeRecipientUpdated').withArgs(newFeeRecipient.address)
+      await expect(receipt).to.emit(vault, 'FeeRecipientUpdated').withArgs(newFeeRecipient.address)
       expect(await vault.feeRecipient()).to.be.eq(newFeeRecipient.address)
       await snapshotGasCost(receipt)
     })

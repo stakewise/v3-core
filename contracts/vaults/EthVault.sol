@@ -59,14 +59,22 @@ contract EthVault is BaseVault, IEthVault {
     bytes32[] calldata proof
   ) external override onlyKeeper {
     if (availableAssets() < _validatorDeposit) revert InsufficientAvailableAssets();
+
+    // SLOAD to memory
+    uint256 _validatorIndex = validatorIndex;
     if (
       !MerkleProof.verifyCalldata(
         proof,
         validatorsRoot,
-        keccak256(bytes.concat(keccak256(abi.encode(validator))))
+        keccak256(bytes.concat(keccak256(abi.encode(validator, _validatorIndex))))
       )
     ) {
       revert InvalidValidator();
+    }
+
+    unchecked {
+      // cannot realistically overflow
+      validatorIndex = _validatorIndex + 1;
     }
 
     bytes calldata publicKey = validator[:48];
@@ -83,6 +91,7 @@ contract EthVault is BaseVault, IEthVault {
   /// @inheritdoc IEthVault
   function registerValidators(
     bytes calldata validators,
+    uint256[] calldata indexes,
     bool[] calldata proofFlags,
     bytes32[] calldata proof
   ) external override onlyKeeper {
@@ -91,35 +100,53 @@ contract EthVault is BaseVault, IEthVault {
       revert InsufficientAvailableAssets();
     }
 
-    uint256 endIdx;
-    uint256 leavesCount;
+    // update validator index
+    bytes32[] memory leaves = new bytes32[](validatorsCount);
+    validatorIndex = _registerValidators(validators, indexes, leaves);
+
+    // verify validators part of the root
+    if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, validatorsRoot, leaves)) {
+      revert InvalidProof();
+    }
+  }
+
+  function _registerValidators(
+    bytes calldata validators,
+    uint256[] calldata indexes,
+    bytes32[] memory leaves
+  ) internal returns (uint256 _validatorIndex) {
+    // SLOAD to memory
+    _validatorIndex = validatorIndex;
+
+    uint256 endIndex;
+    uint256 count;
     bytes calldata validator;
     bytes calldata publicKey;
-    bytes32[] memory leaves = new bytes32[](validatorsCount);
     bytes memory withdrawalCreds = withdrawalCredentials();
-    for (uint256 startIdx = 0; startIdx < validators.length; ) {
+    for (uint256 startIndex = 0; startIndex < validators.length; ) {
       unchecked {
         // cannot overflow as it is capped with staked asset total supply
-        endIdx = startIdx + _validatorLength;
+        endIndex = startIndex + _validatorLength;
       }
-      validator = validators[startIdx:endIdx];
-      leaves[leavesCount] = keccak256(bytes.concat(keccak256(abi.encode(validator))));
+      validator = validators[startIndex:endIndex];
+      leaves[indexes[count]] = keccak256(
+        bytes.concat(keccak256(abi.encode(validator, _validatorIndex)))
+      );
       publicKey = validator[:48];
+      // slither-disable-next-line arbitrary-send-eth
       validatorsRegistry.deposit{value: _validatorDeposit}(
         publicKey,
         withdrawalCreds,
         validator[48:144],
         bytes32(validator[144:176])
       );
-      startIdx = endIdx;
+      startIndex = endIndex;
       unchecked {
-        ++leavesCount;
+        // cannot realistically overflow
+        ++count;
+        ++_validatorIndex;
       }
       emit ValidatorRegistered(publicKey);
-    }
-
-    if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, validatorsRoot, leaves)) {
-      revert InvalidProof();
     }
   }
 

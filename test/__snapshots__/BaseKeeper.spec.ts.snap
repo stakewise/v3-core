@@ -3,27 +3,27 @@
 exports[`BaseKeeper harvest calculates delta since last update 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 67912,
+  "gasUsed": 67890,
 }
 `;
 
 exports[`BaseKeeper harvest succeeds for already harvested vault 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 60396,
+  "gasUsed": 60374,
 }
 `;
 
 exports[`BaseKeeper harvest succeeds for not harvested vault 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 130849,
+  "gasUsed": 130827,
 }
 `;
 
 exports[`BaseKeeper set rewards root succeeds 1`] = `
 Object {
   "calldataByteLength": 676,
-  "gasUsed": 132370,
+  "gasUsed": 132348,
 }
 `;
