@@ -87,6 +87,7 @@ contract EthKeeper is BaseKeeper, IEthKeeper {
     bytes32 validatorsRegistryRoot,
     bytes calldata validators,
     bytes calldata signatures,
+    uint256[] calldata indexes,
     bool[] calldata proofFlags,
     bytes32[] calldata proof
   ) external override {
@@ -119,6 +120,6 @@ contract EthKeeper is BaseKeeper, IEthKeeper {
     );
 
     // register validators
-    IEthVault(vault).registerValidators(validators, proofFlags, proof);
+    IEthVault(vault).registerValidators(validators, indexes, proofFlags, proof);
   }
 }

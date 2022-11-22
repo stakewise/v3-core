@@ -19,7 +19,7 @@ import {
   ValidatorsMultiProof,
 } from './shared/validators'
 import { ethVaultFixture } from './shared/fixtures'
-import { ORACLES, ZERO_BYTES32 } from './shared/constants'
+import { ORACLES, PANIC_CODES, ZERO_BYTES32 } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const gwei = 1000000000
@@ -72,7 +72,7 @@ describe('EthVault - register', () => {
 
     beforeEach(async () => {
       validator = validatorsData.validators[0]
-      proof = getValidatorProof(validatorsData.tree, validator)
+      proof = getValidatorProof(validatorsData.tree, validator, 0)
       signatures = getSignatures(
         getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot),
         ORACLES.length
@@ -99,7 +99,7 @@ describe('EthVault - register', () => {
     })
 
     it('fails with invalid proof', async () => {
-      const invalidProof = getValidatorProof(validatorsData.tree, validatorsData.validators[1])
+      const invalidProof = getValidatorProof(validatorsData.tree, validatorsData.validators[1], 1)
       await expect(
         keeper.registerValidator(
           vault.address,
@@ -135,6 +135,7 @@ describe('EthVault - register', () => {
         signatures,
         proof
       )
+      expect(await vault.validatorIndex()).to.eq(1)
       const publicKey = hexlify(validator.subarray(0, 48))
       await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
       await expect(receipt)
@@ -152,12 +153,17 @@ describe('EthVault - register', () => {
 
   describe('multiple validators', () => {
     let validators: Buffer[]
+    let indexes: number[]
     let multiProof: ValidatorsMultiProof
     let signatures: Buffer
 
     beforeEach(async () => {
-      multiProof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators)
-      validators = multiProof.leaves
+      multiProof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators, [
+        ...Array(validatorsData.validators.length).keys(),
+      ])
+      validators = validatorsData.validators
+      const sortedVals = multiProof.leaves.map((v) => v[0])
+      indexes = validators.map((v) => sortedVals.indexOf(v))
       await setBalance(vault.address, validatorDeposit.mul(validators.length))
       signatures = getSignatures(
         getEthValidatorsSigningData(
@@ -178,6 +184,7 @@ describe('EthVault - register', () => {
           validatorsRegistryRoot,
           Buffer.concat(validators),
           signatures,
+          indexes,
           multiProof.proofFlags,
           multiProof.proof
         )
@@ -188,7 +195,12 @@ describe('EthVault - register', () => {
       await expect(
         vault
           .connect(other)
-          .registerValidators(Buffer.concat(validators), multiProof.proofFlags, multiProof.proof)
+          .registerValidators(
+            Buffer.concat(validators),
+            indexes,
+            multiProof.proofFlags,
+            multiProof.proof
+          )
       ).to.be.revertedWith('AccessDenied()')
     })
 
@@ -217,6 +229,8 @@ describe('EthVault - register', () => {
             ),
             ORACLES.length
           ),
+          indexes,
+
           multiProof.proofFlags,
           multiProof.proof
         )
@@ -227,7 +241,7 @@ describe('EthVault - register', () => {
 
     it('fails with invalid deposit amount', async () => {
       const invalidValidators = [
-        appendDepositData(multiProof.leaves[0].subarray(0, 144), parseEther('1'), vault.address),
+        appendDepositData(validators[0].subarray(0, 144), parseEther('1'), vault.address),
         ...validators.slice(1),
       ]
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
@@ -245,6 +259,7 @@ describe('EthVault - register', () => {
             ),
             ORACLES.length
           ),
+          indexes,
           multiProof.proofFlags,
           multiProof.proof
         )
@@ -273,6 +288,7 @@ describe('EthVault - register', () => {
             ),
             ORACLES.length
           ),
+          indexes,
           multiProof.proofFlags,
           multiProof.proof
         )
@@ -282,7 +298,11 @@ describe('EthVault - register', () => {
     })
 
     it('fails with invalid proof', async () => {
-      const invalidMultiProof = getValidatorsMultiProof(validatorsData.tree, validators.slice(1))
+      const invalidMultiProof = getValidatorsMultiProof(
+        validatorsData.tree,
+        validators.slice(1),
+        [...Array(validatorsData.validators.length).keys()].slice(1)
+      )
 
       await expect(
         keeper.registerValidators(
@@ -290,10 +310,39 @@ describe('EthVault - register', () => {
           validatorsRegistryRoot,
           Buffer.concat(validators),
           signatures,
+          indexes,
           invalidMultiProof.proofFlags,
           invalidMultiProof.proof
         )
       ).to.be.revertedWith('MerkleProof: invalid multiproof')
+    })
+
+    it('fails with invalid indexes', async () => {
+      const invalidIndexes = [[], indexes.map((i) => i + 1), indexes.slice(1)]
+      for (let i = 0; i < invalidIndexes.length; i++) {
+        await expect(
+          keeper.registerValidators(
+            vault.address,
+            validatorsRegistryRoot,
+            Buffer.concat(validators),
+            signatures,
+            invalidIndexes[i],
+            multiProof.proofFlags,
+            multiProof.proof
+          )
+        ).to.be.revertedWith(PANIC_CODES.OUT_OF_BOUND_INDEX)
+      }
+      await expect(
+        keeper.registerValidators(
+          vault.address,
+          validatorsRegistryRoot,
+          Buffer.concat(validators),
+          signatures,
+          indexes.reverse(),
+          multiProof.proofFlags,
+          multiProof.proof
+        )
+      ).to.be.revertedWith('InvalidProof()')
     })
 
     it('fails with invalid validator length', async () => {
@@ -307,6 +356,7 @@ describe('EthVault - register', () => {
             getEthValidatorsSigningData(invalidValidators, oracles, vault, validatorsRegistryRoot),
             ORACLES.length
           ),
+          indexes,
           multiProof.proofFlags,
           multiProof.proof
         )
@@ -319,6 +369,7 @@ describe('EthVault - register', () => {
         validatorsRegistryRoot,
         Buffer.concat(validators),
         signatures,
+        indexes,
         multiProof.proofFlags,
         multiProof.proof
       )
@@ -336,6 +387,7 @@ describe('EthVault - register', () => {
             hexlify(uintSerializer.serialize(i))
           )
       }
+      expect(await vault.validatorIndex()).to.eq(validators.length)
       await snapshotGasCost(receipt)
     })
   })

@@ -3,6 +3,7 @@ import { BigNumber } from 'ethers'
 export const PANIC_CODES = {
   ARITHMETIC_UNDER_OR_OVERFLOW: 'panic code 0x11',
   DIVISION_BY_ZERO: 'panic code 0x12',
+  OUT_OF_BOUND_INDEX: 'panic code 0x32',
 }
 
 export const MAX_UINT256 = BigNumber.from(2).pow(256).sub(1)

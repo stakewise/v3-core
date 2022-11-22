@@ -31,14 +31,14 @@ Object {
 exports[`EthVault - withdraw enter exit queue locks tokens for the time of exit 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 77248,
+  "gasUsed": 77226,
 }
 `;
 
 exports[`EthVault - withdraw enter exit queue reduces allowance for sender other than owner 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 77924,
+  "gasUsed": 77902,
 }
 `;
 
@@ -61,13 +61,13 @@ Object {
 exports[`EthVault - withdraw update exit queue adds checkpoint 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 95217,
+  "gasUsed": 95195,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue for not all the queued shares 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 100007,
+  "gasUsed": 99985,
 }
 `;
