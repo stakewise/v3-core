@@ -62,6 +62,7 @@ describe('BaseKeeper', () => {
       await expect(
         keeper.setRewardsRoot(
           ZERO_BYTES32,
+          rewardsRoot.updateTimestamp,
           rewardsRoot.ipfsHash,
           getSignatures(rewardsRoot.signingData)
         )
@@ -72,6 +73,7 @@ describe('BaseKeeper', () => {
       await expect(
         keeper.setRewardsRoot(
           rewardsRoot.root,
+          rewardsRoot.updateTimestamp,
           ZERO_BYTES32,
           getSignatures(rewardsRoot.signingData)
         )
@@ -82,13 +84,19 @@ describe('BaseKeeper', () => {
       const signatures = getSignatures(rewardsRoot.signingData)
       await keeper
         .connect(sender)
-        .setRewardsRoot(rewardsRoot.root, rewardsRoot.ipfsHash, signatures)
+        .setRewardsRoot(
+          rewardsRoot.root,
+          rewardsRoot.updateTimestamp,
+          rewardsRoot.ipfsHash,
+          signatures
+        )
 
       const newVaultReward = { reward: parseEther('3'), vault: vault.address }
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles)
       await expect(
         keeper.setRewardsRoot(
           newRewardsRoot.root,
+          rewardsRoot.updateTimestamp,
           newRewardsRoot.ipfsHash,
           getSignatures(newRewardsRoot.signingData)
         )
@@ -99,13 +107,25 @@ describe('BaseKeeper', () => {
       const signatures = getSignatures(rewardsRoot.signingData)
       const receipt = await keeper
         .connect(sender)
-        .setRewardsRoot(rewardsRoot.root, rewardsRoot.ipfsHash, signatures)
+        .setRewardsRoot(
+          rewardsRoot.root,
+          rewardsRoot.updateTimestamp,
+          rewardsRoot.ipfsHash,
+          signatures
+        )
 
       await expect(receipt)
         .to.emit(keeper, 'RewardsRootUpdated')
-        .withArgs(sender.address, rewardsRoot.root, 0, rewardsRoot.ipfsHash, hexlify(signatures))
+        .withArgs(
+          sender.address,
+          rewardsRoot.root,
+          rewardsRoot.updateTimestamp,
+          1,
+          rewardsRoot.ipfsHash,
+          hexlify(signatures)
+        )
       expect(await keeper.rewardsRoot()).to.eq(rewardsRoot.root)
-      expect(await keeper.rewardsNonce()).to.eq(1)
+      expect(await keeper.rewardsNonce()).to.eq(2)
       await snapshotGasCost(receipt)
     })
   })
@@ -119,7 +139,12 @@ describe('BaseKeeper', () => {
       vaultReward = { reward: parseEther('5'), vault: vault.address }
       rewardsRoot = createVaultRewardsRoot([vaultReward], oracles)
       const signatures = getSignatures(rewardsRoot.signingData)
-      await keeper.setRewardsRoot(rewardsRoot.root, rewardsRoot.ipfsHash, signatures)
+      await keeper.setRewardsRoot(
+        rewardsRoot.root,
+        rewardsRoot.updateTimestamp,
+        rewardsRoot.ipfsHash,
+        signatures
+      )
       proof = getRewardsRootProof(rewardsRoot.tree, vaultReward)
     })
 
@@ -129,22 +154,49 @@ describe('BaseKeeper', () => {
 
     it('returns false for collateralized unharvested vault', async () => {
       await keeper.harvest(vaultReward.vault, vaultReward.reward, proof)
-      const newVaultReward = { reward: parseEther('3'), vault: vault.address }
-      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1)
+      let newVaultReward = { reward: parseEther('3'), vault: vault.address }
+      let newRewardsRoot = createVaultRewardsRoot(
+        [newVaultReward],
+        oracles,
+        rewardsRoot.updateTimestamp,
+        2
+      )
       await keeper.setRewardsRoot(
         newRewardsRoot.root,
+        rewardsRoot.updateTimestamp,
         newRewardsRoot.ipfsHash,
         getSignatures(newRewardsRoot.signingData)
       )
+
+      // returns true if not harvested one time
+      expect(await keeper.isHarvested(vault.address)).to.equal(true)
+
+      const newTimestamp = rewardsRoot.updateTimestamp + 1
+      newVaultReward = { reward: parseEther('4'), vault: vault.address }
+      newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, newTimestamp, 3)
+      await keeper.setRewardsRoot(
+        newRewardsRoot.root,
+        newTimestamp,
+        newRewardsRoot.ipfsHash,
+        getSignatures(newRewardsRoot.signingData)
+      )
+
+      // returns false if not harvested two times
       expect(await keeper.isHarvested(vault.address)).to.equal(false)
     })
 
     it('returns true for collateralized harvested vault', async () => {
       await keeper.harvest(vaultReward.vault, vaultReward.reward, proof)
       const newVaultReward = { reward: parseEther('3'), vault: vault.address }
-      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1)
+      const newRewardsRoot = createVaultRewardsRoot(
+        [newVaultReward],
+        oracles,
+        rewardsRoot.updateTimestamp,
+        2
+      )
       await keeper.setRewardsRoot(
         newRewardsRoot.root,
+        rewardsRoot.updateTimestamp,
         newRewardsRoot.ipfsHash,
         getSignatures(newRewardsRoot.signingData)
       )
@@ -183,6 +235,7 @@ describe('BaseKeeper', () => {
       proof = getRewardsRootProof(rewardsRoot.tree, vaultReward)
       await keeper.setRewardsRoot(
         rewardsRoot.root,
+        rewardsRoot.updateTimestamp,
         rewardsRoot.ipfsHash,
         getSignatures(rewardsRoot.signingData)
       )
@@ -212,9 +265,19 @@ describe('BaseKeeper', () => {
         vault: vaultReward.vault,
       }
 
-      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1)
+      const newRewardsRoot = createVaultRewardsRoot(
+        [newVaultReward],
+        oracles,
+        rewardsRoot.updateTimestamp,
+        2
+      )
       const signatures = getSignatures(newRewardsRoot.signingData)
-      await keeper.setRewardsRoot(newRewardsRoot.root, newRewardsRoot.ipfsHash, signatures)
+      await keeper.setRewardsRoot(
+        newRewardsRoot.root,
+        rewardsRoot.updateTimestamp,
+        newRewardsRoot.ipfsHash,
+        signatures
+      )
 
       const newProof = getRewardsRootProof(newRewardsRoot.tree, newVaultReward)
       const receipt = await keeper

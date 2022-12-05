@@ -1,6 +1,11 @@
 [
   {
     "inputs": [],
+    "name": "EarlyRewardsRootUpdate",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidProof",
     "type": "error"
   },
@@ -61,9 +66,15 @@
       },
       {
         "indexed": false,
-        "internalType": "uint256",
+        "internalType": "uint64",
+        "name": "updateTimestamp",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint96",
         "name": "nonce",
-        "type": "uint256"
+        "type": "uint96"
       },
       {
         "indexed": false,
@@ -230,6 +241,11 @@
         "internalType": "bytes32",
         "name": "_rewardsRoot",
         "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "updateTimestamp",
+        "type": "uint64"
       },
       {
         "internalType": "string",

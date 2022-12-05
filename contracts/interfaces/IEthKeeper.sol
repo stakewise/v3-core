@@ -13,18 +13,56 @@ import {IBaseKeeper} from './IBaseKeeper.sol';
  */
 interface IEthKeeper is IBaseKeeper {
   /**
+   * @notice Struct for registering single validator
+   * @param vault The address of the vault
+   * @param validatorsRegistryRoot The deposit data root used to verify that oracles approved validator registration
+   * @param validator The concatenation of the validator public key, signature and deposit data root
+   * @param signatures The concatenation of Oracles' signatures
+   * @param exitSignatureIpfsHash The IPFS hash with the validator's exit signature
+   * @param proof The proof used to verify that the validator is part of the validators Merkle Tree
+   */
+  struct ValidatorRegistrationData {
+    address vault;
+    bytes32 validatorsRegistryRoot;
+    bytes validator;
+    bytes signatures;
+    string exitSignatureIpfsHash;
+    bytes32[] proof;
+  }
+
+  /**
+   * @notice Struct for registering multiple validators
+   * @param vault The address of the vault
+   * @param validatorsRegistryRoot The deposit data root used to verify that oracles approved validators registration
+   * @param validators The concatenation of the validators' public key, signature and deposit data root
+   * @param signatures The concatenation of Oracles' signatures
+   * @param exitSignaturesIpfsHash The IPFS hash with the validators' exit signature
+   * @param indexes The indexes of the validators for the proof verification
+   * @param proofFlags The multi proof flags for the validators Merkle Tree verification
+   * @param proof The multi proof used for the validators Merkle Tree verification
+   */
+  struct ValidatorsRegistrationData {
+    address vault;
+    bytes32 validatorsRegistryRoot;
+    bytes validators;
+    bytes signatures;
+    string exitSignaturesIpfsHash;
+    uint256[] indexes;
+    bool[] proofFlags;
+    bytes32[] proof;
+  }
+
+  /**
    * @notice Event emitted on validators registration
    * @param vault The address of the Vault
-   * @param validatorsRegistryRoot The deposit data root used to verify that oracles approved validator registration
    * @param validators The validators registered
-   * @param signatures The Oracles signatures
+   * @param exitSignaturesIpfsHash The IPFS hash with the validators' exit signatures
    * @param timestamp The validators registration timestamp
    */
   event ValidatorsRegistered(
     address indexed vault,
-    bytes32 indexed validatorsRegistryRoot,
     bytes validators,
-    bytes signatures,
+    string exitSignaturesIpfsHash,
     uint256 timestamp
   );
 
@@ -42,37 +80,13 @@ interface IEthKeeper is IBaseKeeper {
 
   /**
    * @notice Function for registering single validator
-   * @param vault The address of the vault
-   * @param validatorsRegistryRoot The deposit data root used to verify that oracles approved validator registration
-   * @param validator The concatenation of the validator public key, signature and deposit data root
-   * @param signatures The concatenation of Oracles' signatures
-   * @param proof The proof used to verify that the validator is part of the validators Merkle Tree
+   * @param data The data for registering single validator
    */
-  function registerValidator(
-    address vault,
-    bytes32 validatorsRegistryRoot,
-    bytes calldata validator,
-    bytes calldata signatures,
-    bytes32[] calldata proof
-  ) external;
+  function registerValidator(ValidatorRegistrationData calldata data) external;
 
   /**
    * @notice Function for registering multiple validators in one call
-   * @param vault The address of the vault
-   * @param validatorsRegistryRoot The deposit data root used to verify that oracles approved validators registration
-   * @param validators The concatenation of the validators' public key, signature and deposit data root
-   * @param signatures The concatenation of Oracles' signatures
-   * @param indexes The indexes of the validators for the proof verification
-   * @param proofFlags The multi proof flags for the validators Merkle Tree verification
-   * @param proof The multi proof used for the validators Merkle Tree verification
+   * @param data The data for registering multiple validators
    */
-  function registerValidators(
-    address vault,
-    bytes32 validatorsRegistryRoot,
-    bytes calldata validators,
-    bytes calldata signatures,
-    uint256[] calldata indexes,
-    bool[] calldata proofFlags,
-    bytes32[] calldata proof
-  ) external;
+  function registerValidators(ValidatorsRegistrationData calldata data) external;
 }

@@ -9,7 +9,7 @@ import { ThenArg } from '../helpers/types'
 import { createOracles, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { EIP712Domain, REQUIRED_ORACLES, ORACLES, KeeperSig } from './shared/constants'
+import { EIP712Domain, REQUIRED_ORACLES, ORACLES, BaseKeeperSig } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -156,19 +156,20 @@ describe('Oracles', () => {
     let verifyData
 
     beforeEach(async () => {
+      const updateTimestamp = 1670256410
       signData = {
-        primaryType: 'Keeper',
-        types: { EIP712Domain, Keeper: KeeperSig },
+        primaryType: 'BaseKeeper',
+        types: { EIP712Domain, BaseKeeper: BaseKeeperSig },
         domain: {
           name: 'Oracles',
           version: '1',
           chainId: network.config.chainId,
           verifyingContract: oracles.address,
         },
-        message: { rewardsRoot, rewardsIpfsHash, nonce },
+        message: { rewardsRoot, rewardsIpfsHash, updateTimestamp, nonce },
       }
       verifyData = TypedDataUtils.hashStruct(
-        'Keeper',
+        'BaseKeeper',
         signData.message,
         signData.types,
         SignTypedDataVersion.V4

@@ -1,6 +1,11 @@
 [
   {
     "inputs": [],
+    "name": "EarlyRewardsRootUpdate",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidProof",
     "type": "error"
   },
@@ -61,9 +66,15 @@
       },
       {
         "indexed": false,
-        "internalType": "uint256",
+        "internalType": "uint64",
+        "name": "updateTimestamp",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint96",
         "name": "nonce",
-        "type": "uint256"
+        "type": "uint96"
       },
       {
         "indexed": false,
@@ -91,12 +102,6 @@
         "type": "address"
       },
       {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "validatorsRegistryRoot",
-        "type": "bytes32"
-      },
-      {
         "indexed": false,
         "internalType": "bytes",
         "name": "validators",
@@ -104,9 +109,9 @@
       },
       {
         "indexed": false,
-        "internalType": "bytes",
-        "name": "signatures",
-        "type": "bytes"
+        "internalType": "string",
+        "name": "exitSignaturesIpfsHash",
+        "type": "string"
       },
       {
         "indexed": false,
@@ -214,29 +219,41 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "vault",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "validatorsRegistryRoot",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes",
-        "name": "validator",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "signatures",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
+        "components": [
+          {
+            "internalType": "address",
+            "name": "vault",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "validatorsRegistryRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "validator",
+            "type": "bytes"
+          },
+          {
+            "internalType": "bytes",
+            "name": "signatures",
+            "type": "bytes"
+          },
+          {
+            "internalType": "string",
+            "name": "exitSignatureIpfsHash",
+            "type": "string"
+          },
+          {
+            "internalType": "bytes32[]",
+            "name": "proof",
+            "type": "bytes32[]"
+          }
+        ],
+        "internalType": "struct IEthKeeper.ValidatorRegistrationData",
+        "name": "data",
+        "type": "tuple"
       }
     ],
     "name": "registerValidator",
@@ -247,39 +264,51 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "vault",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes32",
-        "name": "validatorsRegistryRoot",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "bytes",
-        "name": "validators",
-        "type": "bytes"
-      },
-      {
-        "internalType": "bytes",
-        "name": "signatures",
-        "type": "bytes"
-      },
-      {
-        "internalType": "uint256[]",
-        "name": "indexes",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "bool[]",
-        "name": "proofFlags",
-        "type": "bool[]"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
+        "components": [
+          {
+            "internalType": "address",
+            "name": "vault",
+            "type": "address"
+          },
+          {
+            "internalType": "bytes32",
+            "name": "validatorsRegistryRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "bytes",
+            "name": "validators",
+            "type": "bytes"
+          },
+          {
+            "internalType": "bytes",
+            "name": "signatures",
+            "type": "bytes"
+          },
+          {
+            "internalType": "string",
+            "name": "exitSignaturesIpfsHash",
+            "type": "string"
+          },
+          {
+            "internalType": "uint256[]",
+            "name": "indexes",
+            "type": "uint256[]"
+          },
+          {
+            "internalType": "bool[]",
+            "name": "proofFlags",
+            "type": "bool[]"
+          },
+          {
+            "internalType": "bytes32[]",
+            "name": "proof",
+            "type": "bytes32[]"
+          }
+        ],
+        "internalType": "struct IEthKeeper.ValidatorsRegistrationData",
+        "name": "data",
+        "type": "tuple"
       }
     ],
     "name": "registerValidators",
@@ -356,6 +385,11 @@
         "internalType": "bytes32",
         "name": "_rewardsRoot",
         "type": "bytes32"
+      },
+      {
+        "internalType": "uint64",
+        "name": "updateTimestamp",
+        "type": "uint64"
       },
       {
         "internalType": "string",

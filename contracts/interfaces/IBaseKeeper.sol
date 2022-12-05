@@ -16,11 +16,13 @@ interface IBaseKeeper {
   error InvalidProof();
   error InvalidVault();
   error InvalidValidatorsRegistryRoot();
+  error EarlyRewardsRootUpdate();
 
   /**
    * @notice Event emitted on rewards root update
    * @param caller The address of the rewards root update caller
    * @param rewardsRoot The new rewards Merkle Tree root
+   * @param updateTimestamp The update timestamp used for rewards calculation
    * @param nonce The nonce used for verifying signatures
    * @param rewardsIpfsHash The new rewards IPFS hash
    * @param signatures The concatenation of Oracles' signatures
@@ -28,7 +30,8 @@ interface IBaseKeeper {
   event RewardsRootUpdated(
     address indexed caller,
     bytes32 indexed rewardsRoot,
-    uint256 nonce,
+    uint64 updateTimestamp,
+    uint96 nonce,
     string rewardsIpfsHash,
     bytes signatures
   );
@@ -100,11 +103,13 @@ interface IBaseKeeper {
   /**
    * @notice Update Merkle Tree Rewards Root
    * @param _rewardsRoot The new rewards Merkle root
+   * @param updateTimestamp The update timestamp used for rewards calculation
    * @param rewardsIpfsHash The new IPFS hash with all the Vaults' rewards for the new root
    * @param signatures The concatenation of the Oracles' signatures
    */
   function setRewardsRoot(
     bytes32 _rewardsRoot,
+    uint64 updateTimestamp,
     string calldata rewardsIpfsHash,
     bytes calldata signatures
   ) external;

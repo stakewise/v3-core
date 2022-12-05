@@ -15,6 +15,7 @@ import {
   getWithdrawalCredentials,
   ValidatorsMultiProof,
   EthValidatorsData,
+  exitSignatureIpfsHashes,
 } from './shared/validators'
 import snapshotGasCost from './shared/snapshotGasCost'
 
@@ -70,26 +71,35 @@ describe('EthKeeper', () => {
   describe('register single validator', () => {
     let validator: Buffer
     let signatures: Buffer
+    let exitSignatureIpfsHash: string
     let proof: string[]
     let signingData: any
 
     beforeEach(async () => {
       validator = validatorsData.validators[0]
+      exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
       proof = getValidatorProof(validatorsData.tree, validator, 0)
       await vault.connect(sender).deposit(sender.address, { value: depositAmount })
-      signingData = getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot)
+      signingData = getEthValidatorSigningData(
+        validator,
+        exitSignatureIpfsHash,
+        oracles,
+        vault,
+        validatorsRegistryRoot
+      )
       signatures = getSignatures(signingData, ORACLES.length)
     })
 
     it('fails for invalid vault', async () => {
       await expect(
-        keeper.registerValidator(
-          keeper.address,
+        keeper.registerValidator({
+          vault: keeper.address,
           validatorsRegistryRoot,
           validator,
           signatures,
-          proof
-        )
+          exitSignatureIpfsHash,
+          proof,
+        })
       ).revertedWith('InvalidVault()')
     })
 
@@ -102,49 +112,53 @@ describe('EthKeeper', () => {
         { value: depositAmount }
       )
       await expect(
-        keeper.registerValidator(
-          vault.address,
+        keeper.registerValidator({
+          vault: vault.address,
           validatorsRegistryRoot,
           validator,
           signatures,
-          proof
-        )
+          exitSignatureIpfsHash,
+          proof,
+        })
       ).revertedWith('InvalidValidatorsRegistryRoot()')
     })
 
     it('fails for invalid signatures', async () => {
       await expect(
-        keeper.registerValidator(
-          vault.address,
+        keeper.registerValidator({
+          vault: vault.address,
           validatorsRegistryRoot,
           validator,
-          getSignatures(signingData, ORACLES.length - 1),
-          proof
-        )
+          signatures: getSignatures(signingData, ORACLES.length - 1),
+          exitSignatureIpfsHash,
+          proof,
+        })
       ).revertedWith('NotEnoughSignatures()')
     })
 
     it('fails for invalid validator', async () => {
       await expect(
-        keeper.registerValidator(
-          vault.address,
+        keeper.registerValidator({
+          vault: vault.address,
           validatorsRegistryRoot,
-          validatorsData.validators[1],
+          validator: validatorsData.validators[1],
           signatures,
-          proof
-        )
+          exitSignatureIpfsHash,
+          proof,
+        })
       ).revertedWith('InvalidOracle()')
     })
 
     it('fails for invalid proof', async () => {
       await expect(
-        keeper.registerValidator(
-          vault.address,
+        keeper.registerValidator({
+          vault: vault.address,
           validatorsRegistryRoot,
           validator,
           signatures,
-          getValidatorProof(validatorsData.tree, validatorsData.validators[1], 1)
-        )
+          exitSignatureIpfsHash,
+          proof: getValidatorProof(validatorsData.tree, validatorsData.validators[1], 1),
+        })
       ).revertedWith('InvalidValidator()')
     })
 
@@ -153,62 +167,61 @@ describe('EthKeeper', () => {
       expect(rewardsSync.nonce).to.eq(0)
       expect(rewardsSync.reward).to.eq(0)
 
-      let receipt = await keeper.registerValidator(
-        vault.address,
+      let receipt = await keeper.registerValidator({
+        vault: vault.address,
         validatorsRegistryRoot,
         validator,
         signatures,
-        proof
-      )
+        exitSignatureIpfsHash,
+        proof,
+      })
       const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsRegistered')
-        .withArgs(
-          vault.address,
-          validatorsRegistryRoot,
-          hexlify(validator),
-          hexlify(signatures),
-          timestamp
-        )
+        .withArgs(vault.address, hexlify(validator), exitSignatureIpfsHash, timestamp)
 
       // collateralize vault
       rewardsSync = await keeper.rewards(vault.address)
       expect(rewardsSync.nonce).to.eq(1)
       expect(rewardsSync.reward).to.eq(0)
 
-      // await snapshotGasCost(receipt)
+      await snapshotGasCost(receipt)
 
       const newValidatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
 
       // fails to register twice
       await expect(
-        keeper.registerValidator(
-          vault.address,
-          newValidatorsRegistryRoot,
+        keeper.registerValidator({
+          vault: vault.address,
+          validatorsRegistryRoot: newValidatorsRegistryRoot,
           validator,
           signatures,
-          proof
-        )
+          exitSignatureIpfsHash,
+          proof,
+        })
       ).revertedWith('InvalidOracle()')
 
       const newValidator = validatorsData.validators[1]
+      const newExitSignatureIpfsHash = exitSignatureIpfsHashes[1]
       const newProof = getValidatorProof(validatorsData.tree, newValidator, 1)
       await vault.connect(sender).deposit(sender.address, { value: depositAmount })
 
       const newSigningData = getEthValidatorSigningData(
         newValidator,
+        newExitSignatureIpfsHash,
         oracles,
         vault,
         newValidatorsRegistryRoot
       )
       const newSignatures = getSignatures(newSigningData, ORACLES.length)
-      receipt = await keeper.registerValidator(
-        vault.address,
-        newValidatorsRegistryRoot,
-        newValidator,
-        newSignatures,
-        newProof
-      )
+      receipt = await keeper.registerValidator({
+        vault: vault.address,
+        validatorsRegistryRoot: newValidatorsRegistryRoot,
+        validator: newValidator,
+        signatures: newSignatures,
+        exitSignatureIpfsHash: newExitSignatureIpfsHash,
+        proof: newProof,
+      })
 
       // doesn't collateralize twice
       rewardsSync = await keeper.rewards(vault.address)
@@ -223,6 +236,7 @@ describe('EthKeeper', () => {
     let validators: Buffer[]
     let indexes: number[]
     let signatures: Buffer
+    let exitSignaturesIpfsHash: string
     let proof: ValidatorsMultiProof
     let signingData: any
 
@@ -236,8 +250,10 @@ describe('EthKeeper', () => {
       await vault
         .connect(sender)
         .deposit(sender.address, { value: depositAmount.mul(validators.length) })
+      exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       signingData = getEthValidatorsSigningData(
         Buffer.concat(validators),
+        exitSignaturesIpfsHash,
         oracles,
         vault,
         validatorsRegistryRoot
@@ -247,15 +263,16 @@ describe('EthKeeper', () => {
 
     it('fails for invalid vault', async () => {
       await expect(
-        keeper.registerValidators(
-          keeper.address,
+        keeper.registerValidators({
+          vault: keeper.address,
           validatorsRegistryRoot,
-          Buffer.concat(validators),
+          validators: Buffer.concat(validators),
           signatures,
+          exitSignaturesIpfsHash,
           indexes,
-          proof.proofFlags,
-          proof.proof
-        )
+          proofFlags: proof.proofFlags,
+          proof: proof.proof,
+        })
       ).revertedWith('InvalidVault()')
     })
 
@@ -269,61 +286,71 @@ describe('EthKeeper', () => {
         { value: depositAmount }
       )
       await expect(
-        keeper.registerValidators(
-          vault.address,
+        keeper.registerValidators({
+          vault: vault.address,
           validatorsRegistryRoot,
-          Buffer.concat(validators),
+          validators: Buffer.concat(validators),
           signatures,
+          exitSignaturesIpfsHash,
           indexes,
-          proof.proofFlags,
-          proof.proof
-        )
+          proofFlags: proof.proofFlags,
+          proof: proof.proof,
+        })
       ).revertedWith('InvalidValidatorsRegistryRoot()')
     })
 
     it('fails for invalid signatures', async () => {
       await expect(
-        keeper.registerValidators(
-          vault.address,
+        keeper.registerValidators({
+          vault: vault.address,
           validatorsRegistryRoot,
-          Buffer.concat(validators),
-          getSignatures(signingData, ORACLES.length - 1),
+          validators: Buffer.concat(validators),
+          signatures: getSignatures(signingData, ORACLES.length - 1),
+          exitSignaturesIpfsHash,
           indexes,
-          proof.proofFlags,
-          proof.proof
-        )
+          proofFlags: proof.proofFlags,
+          proof: proof.proof,
+        })
       ).revertedWith('NotEnoughSignatures()')
     })
 
     it('fails for invalid validators', async () => {
       await expect(
-        keeper.registerValidators(
-          vault.address,
+        keeper.registerValidators({
+          vault: vault.address,
           validatorsRegistryRoot,
-          validators[0],
+          validators: validators[0],
           signatures,
+          exitSignaturesIpfsHash,
           indexes,
-          proof.proofFlags,
-          proof.proof
-        )
+          proofFlags: proof.proofFlags,
+          proof: proof.proof,
+        })
       ).revertedWith('InvalidOracle()')
     })
 
     it('fails for invalid proof', async () => {
       const invalidProof = getValidatorsMultiProof(validatorsData.tree, [validators[0]], [0])
       await expect(
-        keeper.registerValidators(
-          vault.address,
+        keeper.registerValidators({
+          vault: vault.address,
           validatorsRegistryRoot,
-          validators[1],
-          getSignatures(
-            getEthValidatorsSigningData(validators[1], oracles, vault, validatorsRegistryRoot),
+          validators: validators[1],
+          signatures: getSignatures(
+            getEthValidatorsSigningData(
+              validators[1],
+              exitSignaturesIpfsHash,
+              oracles,
+              vault,
+              validatorsRegistryRoot
+            ),
             ORACLES.length
           ),
-          [0],
-          invalidProof.proofFlags,
-          invalidProof.proof
-        )
+          exitSignaturesIpfsHash,
+          indexes: [0],
+          proofFlags: invalidProof.proofFlags,
+          proof: invalidProof.proof,
+        })
       ).revertedWith('InvalidProof()')
     })
 
@@ -333,25 +360,20 @@ describe('EthKeeper', () => {
       expect(rewardsSync.reward).to.eq(0)
       const validatorsConcat = Buffer.concat(validators)
 
-      let receipt = await keeper.registerValidators(
-        vault.address,
+      let receipt = await keeper.registerValidators({
+        vault: vault.address,
         validatorsRegistryRoot,
-        validatorsConcat,
+        validators: validatorsConcat,
         signatures,
+        exitSignaturesIpfsHash,
         indexes,
-        proof.proofFlags,
-        proof.proof
-      )
+        proofFlags: proof.proofFlags,
+        proof: proof.proof,
+      })
       const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsRegistered')
-        .withArgs(
-          vault.address,
-          validatorsRegistryRoot,
-          hexlify(validatorsConcat),
-          hexlify(signatures),
-          timestamp
-        )
+        .withArgs(vault.address, hexlify(validatorsConcat), exitSignaturesIpfsHash, timestamp)
 
       rewardsSync = await keeper.rewards(vault.address)
       expect(rewardsSync.nonce).to.eq(1)
@@ -363,15 +385,16 @@ describe('EthKeeper', () => {
 
       // fails to register twice
       await expect(
-        keeper.registerValidators(
-          vault.address,
-          newValidatorsRegistryRoot,
-          validatorsConcat,
+        keeper.registerValidators({
+          vault: vault.address,
+          validatorsRegistryRoot: newValidatorsRegistryRoot,
+          validators: validatorsConcat,
           signatures,
+          exitSignaturesIpfsHash,
           indexes,
-          proof.proofFlags,
-          proof.proof
-        )
+          proofFlags: proof.proofFlags,
+          proof: proof.proof,
+        })
       ).revertedWith('InvalidOracle()')
 
       await vault
@@ -382,20 +405,22 @@ describe('EthKeeper', () => {
       await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
       const newSigningData = getEthValidatorsSigningData(
         validatorsConcat,
+        exitSignaturesIpfsHash,
         oracles,
         vault,
         newValidatorsRegistryRoot
       )
       const newSignatures = getSignatures(newSigningData, ORACLES.length)
-      receipt = await keeper.registerValidators(
-        vault.address,
-        newValidatorsRegistryRoot,
-        validatorsConcat,
-        newSignatures,
+      receipt = await keeper.registerValidators({
+        vault: vault.address,
+        validatorsRegistryRoot: newValidatorsRegistryRoot,
+        validators: validatorsConcat,
+        signatures: newSignatures,
+        exitSignaturesIpfsHash,
         indexes,
-        proof.proofFlags,
-        proof.proof
-      )
+        proofFlags: proof.proofFlags,
+        proof: proof.proof,
+      })
 
       // doesn't collateralize twice
       rewardsSync = await keeper.rewards(vault.address)

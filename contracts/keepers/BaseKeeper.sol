@@ -18,7 +18,9 @@ import {Versioned} from '../common/Versioned.sol';
  */
 abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
   bytes32 internal constant _rewardsRootTypeHash =
-    keccak256('Keeper(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint96 nonce)');
+    keccak256(
+      'BaseKeeper(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint64 updateTimestamp,uint96 nonce)'
+    );
 
   /// @inheritdoc IBaseKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -55,6 +57,7 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
   /// @inheritdoc IBaseKeeper
   function setRewardsRoot(
     bytes32 _rewardsRoot,
+    uint64 updateTimestamp,
     string calldata rewardsIpfsHash,
     bytes calldata signatures
   ) external override {
@@ -66,7 +69,13 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     // verify minimal number of oracles approved the new merkle root
     oracles.verifyMinSignatures(
       keccak256(
-        abi.encode(_rewardsRootTypeHash, _rewardsRoot, keccak256(bytes(rewardsIpfsHash)), nonce)
+        abi.encode(
+          _rewardsRootTypeHash,
+          _rewardsRoot,
+          keccak256(bytes(rewardsIpfsHash)),
+          updateTimestamp,
+          nonce
+        )
       ),
       signatures
     );
@@ -74,15 +83,24 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     // update state
     rewardsNonce = nonce + 1;
     rewardsRoot = _rewardsRoot;
-    emit RewardsRootUpdated(msg.sender, _rewardsRoot, nonce, rewardsIpfsHash, signatures);
+    emit RewardsRootUpdated(
+      msg.sender,
+      _rewardsRoot,
+      updateTimestamp,
+      nonce,
+      rewardsIpfsHash,
+      signatures
+    );
   }
 
   /// @inheritdoc IBaseKeeper
   function isHarvested(address vault) external view override returns (bool) {
     // vault is considered harvested in case it does not have any validators
-    // or it has the latest nonce
+    // or it synced previous or current rewards root update
     uint96 nonce = rewards[vault].nonce;
-    return nonce == 0 || nonce >= rewardsNonce;
+    unchecked {
+      return nonce == 0 || nonce + 1 >= rewardsNonce;
+    }
   }
 
   /// @inheritdoc IBaseKeeper
@@ -136,6 +154,10 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
    */
   function __BaseKeeper_init(address _owner) internal onlyInitializing {
     _transferOwnership(_owner);
+
+    // set rewardsNonce to 1 so that vaults collateralized
+    // before first rewards root update will not have 0 nonce
+    rewardsNonce = 1;
   }
 
   /**
@@ -144,7 +166,7 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
    */
   function _collateralize(address vault) internal {
     if (rewards[vault].nonce == 0) {
-      rewards[vault] = RewardSync({nonce: rewardsNonce + 1, reward: 0});
+      rewards[vault] = RewardSync({nonce: rewardsNonce, reward: 0});
     }
   }
 
