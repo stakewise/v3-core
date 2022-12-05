@@ -1,11 +1,6 @@
 [
   {
     "inputs": [],
-    "name": "EarlyRewardsRootUpdate",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidProof",
     "type": "error"
   },

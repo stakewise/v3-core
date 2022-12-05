@@ -16,7 +16,6 @@ interface IBaseKeeper {
   error InvalidProof();
   error InvalidVault();
   error InvalidValidatorsRegistryRoot();
-  error EarlyRewardsRootUpdate();
 
   /**
    * @notice Event emitted on rewards root update
