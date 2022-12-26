@@ -96,6 +96,9 @@ contract EthVault is BaseVault, IEthVault {
     bytes32[] calldata proof
   ) external override onlyKeeper {
     uint256 validatorsCount = validators.length / _validatorLength;
+    if (validatorsCount == 0) {
+      revert InvalidValidatorsCount();
+    }
     if (availableAssets() < _validatorDeposit * validatorsCount) {
       revert InsufficientAvailableAssets();
     }

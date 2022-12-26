@@ -26,6 +26,7 @@ interface IBaseVault is IVersioned, IERC20Permit {
   error InsufficientAvailableAssets();
   error InvalidValidator();
   error InvalidProof();
+  error InvalidValidatorsCount();
 
   /**
    * @dev Struct for initializing the Vault contract

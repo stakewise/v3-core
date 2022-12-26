@@ -41,6 +41,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidValidatorsCount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NotCollateralized",
     "type": "error"
   },

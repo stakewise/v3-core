@@ -49,13 +49,6 @@ export const BaseKeeperSig = [
   { name: 'nonce', type: 'uint96' },
 ]
 
-export const RegisterValidatorSig = [
-  { name: 'validatorsRegistryRoot', type: 'bytes32' },
-  { name: 'vault', type: 'address' },
-  { name: 'validator', type: 'bytes32' },
-  { name: 'exitSignatureIpfsHash', type: 'bytes32' },
-]
-
 export const RegisterValidatorsSig = [
   { name: 'validatorsRegistryRoot', type: 'bytes32' },
   { name: 'vault', type: 'address' },

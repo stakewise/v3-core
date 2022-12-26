@@ -229,6 +229,30 @@ describe('EthVault - register', () => {
       ).to.be.revertedWith('AccessDenied()')
     })
 
+    it('fails with invalid validators count', async () => {
+      await expect(
+        keeper.registerValidators({
+          vault: vault.address,
+          validatorsRegistryRoot,
+          validators: Buffer.from(''),
+          signatures: getSignatures(
+            getEthValidatorsSigningData(
+              Buffer.from(''),
+              exitSignaturesIpfsHash,
+              oracles,
+              vault,
+              validatorsRegistryRoot
+            ),
+            ORACLES.length
+          ),
+          exitSignaturesIpfsHash,
+          indexes,
+          proofFlags: multiProof.proofFlags,
+          proof: multiProof.proof,
+        })
+      ).to.be.revertedWith('InvalidValidatorsCount()')
+    })
+
     it('fails with invalid deposit data root', async () => {
       const invalidRoot = appendDepositData(
         validators[1].subarray(0, 144),

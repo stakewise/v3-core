@@ -3,11 +3,11 @@ import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { network } from 'hardhat'
 import { Buffer } from 'buffer'
 import { BigNumber, BytesLike, Contract, Wallet } from 'ethers'
-import { arrayify, parseEther, toUtf8Bytes } from 'ethers/lib/utils'
+import { arrayify, parseEther } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
 import keccak256 from 'keccak256'
 import { EthKeeper, EthVault, Oracles } from '../../typechain-types'
-import { EIP712Domain, ORACLES, RegisterValidatorSig, RegisterValidatorsSig } from './constants'
+import { EIP712Domain, ORACLES, RegisterValidatorsSig } from './constants'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
