@@ -100,23 +100,11 @@ contract EthVault is BaseVault, IEthVault {
       revert InsufficientAvailableAssets();
     }
 
-    // update validator index
-    bytes32[] memory leaves = new bytes32[](validatorsCount);
-    validatorIndex = _registerValidators(validators, indexes, leaves);
-
-    // verify validators part of the root
-    if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, validatorsRoot, leaves)) {
-      revert InvalidProof();
-    }
-  }
-
-  function _registerValidators(
-    bytes calldata validators,
-    uint256[] calldata indexes,
-    bytes32[] memory leaves
-  ) internal returns (uint256 _validatorIndex) {
     // SLOAD to memory
-    _validatorIndex = validatorIndex;
+    uint256 _validatorIndex = validatorIndex;
+
+    // store leaves for merkle proof validation
+    bytes32[] memory leaves = new bytes32[](validatorsCount);
 
     uint256 endIndex;
     uint256 count;
@@ -125,7 +113,7 @@ contract EthVault is BaseVault, IEthVault {
     bytes memory withdrawalCreds = withdrawalCredentials();
     for (uint256 startIndex = 0; startIndex < validators.length; ) {
       unchecked {
-        // cannot overflow as it is capped with staked asset total supply
+        // cannot realistically overflow
         endIndex = startIndex + _validatorLength;
       }
       validator = validators[startIndex:endIndex];
@@ -147,6 +135,14 @@ contract EthVault is BaseVault, IEthVault {
         ++_validatorIndex;
       }
       emit ValidatorRegistered(publicKey);
+    }
+
+    // update validator index
+    validatorIndex = _validatorIndex;
+
+    // verify validators part of the root
+    if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, validatorsRoot, leaves)) {
+      revert InvalidProof();
     }
   }
 

@@ -4,7 +4,7 @@ import { parseEther, toUtf8Bytes } from 'ethers/lib/utils'
 import keccak256 from 'keccak256'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { BaseKeeper, EthKeeper, EthVault, Oracles } from '../../typechain-types'
-import { EIP712Domain, BaseKeeperSig, ONE_DAY } from './constants'
+import { EIP712Domain, BaseKeeperSig, ONE_DAY, ORACLES } from './constants'
 import { Buffer } from 'buffer'
 import { registerEthValidator } from './validators'
 import { increaseTime, setBalance } from './utils'
@@ -71,12 +71,16 @@ export async function updateRewardsRoot(
 ): Promise<RewardsTree> {
   const rewardsNonce = await keeper.rewardsNonce()
   const rewardsRoot = createVaultRewardsRoot(rewards, oracles, 1670257866, rewardsNonce.toNumber())
-  await keeper.setRewardsRoot(
-    rewardsRoot.root,
-    rewardsRoot.updateTimestamp,
-    rewardsRoot.ipfsHash,
-    getSignatures(rewardsRoot.signingData)
-  )
+  const oracle = new Wallet(ORACLES[0], await waffle.provider)
+  await setBalance(oracle.address, parseEther('1'))
+  await keeper
+    .connect(oracle)
+    .setRewardsRoot(
+      rewardsRoot.root,
+      rewardsRoot.updateTimestamp,
+      rewardsRoot.ipfsHash,
+      getSignatures(rewardsRoot.signingData)
+    )
   return rewardsRoot.tree
 }
 

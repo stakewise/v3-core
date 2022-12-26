@@ -61,10 +61,11 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     string calldata rewardsIpfsHash,
     bytes calldata signatures
   ) external override {
+    if (!oracles.isOracle(msg.sender)) revert AccessDenied();
+    if (rewardsRoot == _rewardsRoot) revert InvalidRewardsRoot();
+
     // SLOAD to memory
     uint96 nonce = rewardsNonce;
-
-    if (rewardsRoot == _rewardsRoot) revert InvalidRewardsRoot();
 
     // verify minimal number of oracles approved the new merkle root
     oracles.verifyMinSignatures(
@@ -96,7 +97,7 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
   /// @inheritdoc IBaseKeeper
   function isHarvested(address vault) external view override returns (bool) {
     // vault is considered harvested in case it does not have any validators
-    // or it synced previous or current rewards root update
+    // or it is maximum 2 syncs behind
     uint96 nonce = rewards[vault].nonce;
     unchecked {
       return nonce == 0 || nonce + 1 >= rewardsNonce;
@@ -134,9 +135,12 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
       // cannot underflow
       periodReward = reward - lastRewardSync.reward;
     }
-    if (periodReward != 0) {
+
+    // SLOAD to memory
+    uint96 currentNonce = rewardsNonce;
+    if (currentNonce != lastRewardSync.nonce) {
       // update state
-      rewards[vault] = RewardSync({nonce: rewardsNonce, reward: reward});
+      rewards[vault] = RewardSync({nonce: currentNonce, reward: reward});
 
       // emit event
       emit Harvested(msg.sender, vault, reward);

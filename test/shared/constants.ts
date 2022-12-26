@@ -25,6 +25,7 @@ export const ORACLES = [
   Buffer.from('3999c56744678c5cb451df5eadf2846b92aa158b6d5eda55775f27064c6e880a', 'hex'),
 ]
 export const REQUIRED_ORACLES = 6
+export const ORACLES_CONFIG = 'QmbwQ6zFEWs1SjLPGk4NNJqn4wduVe6dK3xyte2iG59Uru'
 
 export const EIP712Domain = [
   { name: 'name', type: 'string' },

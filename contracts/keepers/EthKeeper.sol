@@ -15,10 +15,6 @@ import {BaseKeeper} from './BaseKeeper.sol';
  * @notice Defines the functionality for registering validators for the Ethereum Vaults
  */
 contract EthKeeper is BaseKeeper, IEthKeeper {
-  bytes32 internal constant _registerValidatorTypeHash =
-    keccak256(
-      'EthKeeper(bytes32 validatorsRegistryRoot,address vault,bytes32 validator,bytes32 exitSignatureIpfsHash)'
-    );
   bytes32 internal constant _registerValidatorsTypeHash =
     keccak256(
       'EthKeeper(bytes32 validatorsRegistryRoot,address vault,bytes32 validators,bytes32 exitSignaturesIpfsHash)'
@@ -61,7 +57,7 @@ contract EthKeeper is BaseKeeper, IEthKeeper {
     oracles.verifyAllSignatures(
       keccak256(
         abi.encode(
-          _registerValidatorTypeHash,
+          _registerValidatorsTypeHash,
           data.validatorsRegistryRoot,
           data.vault,
           keccak256(data.validator),

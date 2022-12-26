@@ -8,7 +8,6 @@ import { expect } from './shared/expect'
 import { ORACLES } from './shared/constants'
 import {
   createEthValidatorsData,
-  getEthValidatorSigningData,
   getEthValidatorsSigningData,
   getValidatorProof,
   getValidatorsMultiProof,
@@ -22,12 +21,13 @@ import snapshotGasCost from './shared/snapshotGasCost'
 const createFixtureLoader = waffle.createFixtureLoader
 
 describe('EthKeeper', () => {
-  const maxTotalAssets = parseEther('1000')
+  const capacity = parseEther('1000')
   const feePercent = 1000
-  const vaultName = 'SW ETH Vault'
-  const vaultSymbol = 'SW-ETH-1'
+  const name = 'SW ETH Vault'
+  const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+  const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
   const depositAmount = parseEther('32')
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -48,15 +48,15 @@ describe('EthKeeper', () => {
     ;({ oracles, keeper, validatorsRegistry, createVault, getSignatures } = await loadFixture(
       ethVaultFixture
     ))
-    vault = await createVault(
-      admin,
-      maxTotalAssets,
+    vault = await createVault(admin, {
+      capacity,
       validatorsRoot,
       feePercent,
-      vaultName,
-      vaultSymbol,
-      validatorsIpfsHash
-    )
+      name,
+      symbol,
+      validatorsIpfsHash,
+      metadataIpfsHash,
+    })
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
@@ -80,7 +80,7 @@ describe('EthKeeper', () => {
       exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
       proof = getValidatorProof(validatorsData.tree, validator, 0)
       await vault.connect(sender).deposit(sender.address, { value: depositAmount })
-      signingData = getEthValidatorSigningData(
+      signingData = getEthValidatorsSigningData(
         validator,
         exitSignatureIpfsHash,
         oracles,
@@ -206,7 +206,7 @@ describe('EthKeeper', () => {
       const newProof = getValidatorProof(validatorsData.tree, newValidator, 1)
       await vault.connect(sender).deposit(sender.address, { value: depositAmount })
 
-      const newSigningData = getEthValidatorSigningData(
+      const newSigningData = getEthValidatorsSigningData(
         newValidator,
         newExitSignatureIpfsHash,
         oracles,

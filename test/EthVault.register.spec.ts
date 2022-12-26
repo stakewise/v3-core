@@ -12,7 +12,6 @@ import {
   createEthValidatorsData,
   EthValidatorsData,
   exitSignatureIpfsHashes,
-  getEthValidatorSigningData,
   getEthValidatorsSigningData,
   getValidatorProof,
   getValidatorsMultiProof,
@@ -20,7 +19,7 @@ import {
   ValidatorsMultiProof,
 } from './shared/validators'
 import { ethVaultFixture } from './shared/fixtures'
-import { ORACLES, PANIC_CODES, ZERO_BYTES32 } from './shared/constants'
+import { ORACLES, PANIC_CODES } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const gwei = 1000000000
@@ -28,10 +27,13 @@ const uintSerializer = new UintNumberType(8)
 
 describe('EthVault - register', () => {
   const validatorDeposit = parseEther('32')
-  const maxTotalAssets = parseEther('1000')
+  const capacity = parseEther('1000')
   const feePercent = 1000
-  const vaultName = 'SW ETH Vault'
-  const vaultSymbol = 'SW-ETH-1'
+  const name = 'SW ETH Vault'
+  const symbol = 'SW-ETH-1'
+  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
+  const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+  const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
   let admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault, keeper: EthKeeper, validatorsRegistry: Contract, oracles: Oracles
   let validatorsData: EthValidatorsData
@@ -51,15 +53,15 @@ describe('EthVault - register', () => {
       ethVaultFixture
     ))
 
-    vault = await createVault(
-      admin,
-      maxTotalAssets,
-      ZERO_BYTES32,
+    vault = await createVault(admin, {
+      capacity,
+      validatorsRoot,
       feePercent,
-      vaultName,
-      vaultSymbol,
-      ''
-    )
+      name,
+      symbol,
+      validatorsIpfsHash,
+      metadataIpfsHash,
+    })
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(other).deposit(other.address, { value: validatorDeposit })
@@ -77,7 +79,7 @@ describe('EthVault - register', () => {
       proof = getValidatorProof(validatorsData.tree, validator, 0)
       exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
       signatures = getSignatures(
-        getEthValidatorSigningData(
+        getEthValidatorsSigningData(
           validator,
           exitSignatureIpfsHash,
           oracles,
@@ -130,7 +132,7 @@ describe('EthVault - register', () => {
           validatorsRegistryRoot,
           validator: appendDepositData(validator, validatorDeposit, vault.address),
           signatures: getSignatures(
-            getEthValidatorSigningData(
+            getEthValidatorsSigningData(
               invalidValidator,
               exitSignatureIpfsHash,
               oracles,

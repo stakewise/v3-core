@@ -14,12 +14,13 @@ const createFixtureLoader = waffle.createFixtureLoader
 const ether = parseEther('1')
 
 describe('EthVault - deposit', () => {
-  const maxTotalAssets = parseEther('1000')
+  const capacity = parseEther('1000')
   const feePercent = 1000
-  const vaultName = 'SW ETH Vault'
-  const vaultSymbol = 'SW-ETH-1'
+  const name = 'SW ETH Vault'
+  const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+  const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
   let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Wallet, other: Wallet
   let vault: EthVault, keeper: EthKeeper, oracles: Oracles, validatorsRegistry: Contract
 
@@ -36,15 +37,15 @@ describe('EthVault - deposit', () => {
   beforeEach('deploy fixtures', async () => {
     ;({ createVault, createVaultMock, keeper, oracles, validatorsRegistry, getSignatures } =
       await loadFixture(ethVaultFixture))
-    vault = await createVault(
-      admin,
-      maxTotalAssets,
+    vault = await createVault(admin, {
+      capacity,
       validatorsRoot,
       feePercent,
-      vaultName,
-      vaultSymbol,
-      validatorsIpfsHash
-    )
+      name,
+      symbol,
+      validatorsIpfsHash,
+      metadataIpfsHash,
+    })
   })
 
   describe('empty vault: no assets & no shares', () => {
@@ -72,15 +73,15 @@ describe('EthVault - deposit', () => {
   describe('partially empty vault: assets & no shares', () => {
     let ethVaultMock: EthVaultMock
     beforeEach(async () => {
-      ethVaultMock = await createVaultMock(
-        admin,
-        maxTotalAssets,
+      ethVaultMock = await createVaultMock(admin, {
+        capacity,
         validatorsRoot,
         feePercent,
-        vaultName,
-        vaultSymbol,
-        validatorsIpfsHash
-      )
+        name,
+        symbol,
+        validatorsIpfsHash,
+        metadataIpfsHash,
+      })
       await ethVaultMock._setTotalAssets(ether)
     })
 
@@ -110,15 +111,15 @@ describe('EthVault - deposit', () => {
     let ethVaultMock: EthVaultMock
 
     beforeEach(async () => {
-      ethVaultMock = await createVaultMock(
-        admin,
-        maxTotalAssets,
+      ethVaultMock = await createVaultMock(admin, {
+        capacity,
         validatorsRoot,
         feePercent,
-        vaultName,
-        vaultSymbol,
-        validatorsIpfsHash
-      )
+        name,
+        symbol,
+        validatorsIpfsHash,
+        metadataIpfsHash,
+      })
       await ethVaultMock.mockMint(receiver.address, ether)
     })
 
@@ -142,10 +143,10 @@ describe('EthVault - deposit', () => {
       expect(await vault.totalAssets()).to.eq(parseEther('10'))
     })
 
-    it('fails with exceeded max total assets', async () => {
+    it('fails with exceeded capacity', async () => {
       await expect(
         vault.connect(sender).deposit(receiver.address, { value: parseEther('999') })
-      ).to.be.revertedWith('MaxTotalAssetsExceeded()')
+      ).to.be.revertedWith('CapacityExceeded()')
     })
 
     it('fails when not harvested', async () => {

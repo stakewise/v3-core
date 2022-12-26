@@ -9,7 +9,13 @@ import { ThenArg } from '../helpers/types'
 import { createOracles, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { EIP712Domain, REQUIRED_ORACLES, ORACLES, BaseKeeperSig } from './shared/constants'
+import {
+  EIP712Domain,
+  REQUIRED_ORACLES,
+  ORACLES,
+  BaseKeeperSig,
+  ORACLES_CONFIG,
+} from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -33,7 +39,7 @@ describe('Oracles', () => {
 
   describe('deploy oracles', () => {
     it('fails without initial oracles', async () => {
-      await expect(createOracles(owner, [], REQUIRED_ORACLES)).revertedWith(
+      await expect(createOracles(owner, [], REQUIRED_ORACLES, ORACLES_CONFIG)).revertedWith(
         'InvalidRequiredOracles()'
       )
     })
@@ -43,7 +49,8 @@ describe('Oracles', () => {
         createOracles(
           owner,
           ORACLES.map((s) => new EthereumWallet(s).getAddressString()),
-          0
+          0,
+          ORACLES_CONFIG
         )
       ).revertedWith('InvalidRequiredOracles()')
     })
@@ -142,6 +149,20 @@ describe('Oracles', () => {
       const receipt = await oracles.connect(owner).setRequiredOracles(1)
       await expect(receipt).to.emit(oracles, 'RequiredOraclesUpdated').withArgs(1)
       expect(await oracles.requiredOracles()).to.be.eq(1)
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('update config', () => {
+    it('fails if not owner', async () => {
+      await expect(oracles.connect(other).updateConfig(ORACLES_CONFIG)).revertedWith(
+        'Ownable: caller is not the owner'
+      )
+    })
+
+    it('succeeds', async () => {
+      const receipt = await oracles.connect(owner).updateConfig(ORACLES_CONFIG)
+      await expect(receipt).to.emit(oracles, 'ConfigUpdated').withArgs(ORACLES_CONFIG)
       await snapshotGasCost(receipt)
     })
   })

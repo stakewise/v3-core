@@ -39,7 +39,7 @@ abstract contract BaseVault is Versioned, ReentrancyGuardUpgradeable, ERC20Upgra
   IRegistry public immutable override registry;
 
   /// @inheritdoc IBaseVault
-  uint256 public override maxTotalAssets;
+  uint256 public override capacity;
 
   /// @inheritdoc IBaseVault
   bytes32 public override validatorsRoot;
@@ -268,6 +268,11 @@ abstract contract BaseVault is Versioned, ReentrancyGuardUpgradeable, ERC20Upgra
   }
 
   /// @inheritdoc IBaseVault
+  function updateMetadata(string calldata metadataIpfsHash) external override onlyAdmin {
+    emit MetadataUpdated(metadataIpfsHash);
+  }
+
+  /// @inheritdoc IBaseVault
   function updateState(
     int256 validatorAssets
   ) external override onlyKeeper returns (int256 assetsDelta) {
@@ -351,7 +356,7 @@ abstract contract BaseVault is Versioned, ReentrancyGuardUpgradeable, ERC20Upgra
       // cannot overflow as it is capped with staked asset total supply
       totalAssetsAfter = _totalAssets + assets;
     }
-    if (totalAssetsAfter > maxTotalAssets) revert MaxTotalAssetsExceeded();
+    if (totalAssetsAfter > capacity) revert CapacityExceeded();
 
     // calculate amount of shares to mint
     shares = convertToShares(assets);
@@ -453,13 +458,13 @@ abstract contract BaseVault is Versioned, ReentrancyGuardUpgradeable, ERC20Upgra
     __ERC20Upgradeable_init(initParams.name, initParams.symbol);
 
     // initialize Vault
-    maxTotalAssets = initParams.maxTotalAssets;
+    capacity = initParams.capacity;
     feesEscrow = IFeesEscrow(initParams.feesEscrow);
     validatorsRoot = initParams.validatorsRoot;
     admin = initParams.admin;
+    // initially fee recipient is admin
     feeRecipient = initParams.admin;
     feePercent = initParams.feePercent;
-    emit ValidatorsRootUpdated(initParams.validatorsRoot, initParams.validatorsIpfsHash);
   }
 
   /**

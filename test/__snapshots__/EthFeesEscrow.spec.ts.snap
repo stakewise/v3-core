@@ -2,7 +2,7 @@
 
 exports[`EthFeesEscrow vault deployment gas 1`] = `
 Object {
-  "calldataByteLength": 525,
-  "gasUsed": 132498,
+  "calldataByteLength": 606,
+  "gasUsed": 150018,
 }
 `;

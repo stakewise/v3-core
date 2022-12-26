@@ -198,31 +198,6 @@ export async function createEthValidatorsData(vault: EthVault): Promise<EthValid
   }
 }
 
-export function getEthValidatorSigningData(
-  validator: Buffer,
-  exitSignatureIpfsHash: string,
-  oracles: Oracles,
-  vault: EthVault,
-  validatorsRegistryRoot: BytesLike
-) {
-  return {
-    primaryType: 'EthKeeper',
-    types: { EIP712Domain, EthKeeper: RegisterValidatorSig },
-    domain: {
-      name: 'Oracles',
-      version: '1',
-      chainId: network.config.chainId,
-      verifyingContract: oracles.address,
-    },
-    message: {
-      validatorsRegistryRoot,
-      vault: vault.address,
-      validator: keccak256(validator),
-      exitSignatureIpfsHash: keccak256(Buffer.from(toUtf8Bytes(exitSignatureIpfsHash))),
-    },
-  }
-}
-
 export function getEthValidatorsSigningData(
   validators: Buffer,
   exitSignaturesIpfsHash: string,
@@ -281,7 +256,7 @@ export async function registerEthValidator(
   await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
   const validator = validatorsData.validators[0]
   const exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
-  const signingData = getEthValidatorSigningData(
+  const signingData = getEthValidatorsSigningData(
     validator,
     exitSignatureIpfsHash,
     oracles,

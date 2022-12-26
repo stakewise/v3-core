@@ -15,7 +15,7 @@ import {IFeesEscrow} from './IFeesEscrow.sol';
  */
 interface IBaseVault is IVersioned, IERC20Permit {
   // Custom errors
-  error MaxTotalAssetsExceeded();
+  error CapacityExceeded();
   error InvalidSharesAmount();
   error AccessDenied();
   error NotHarvested();
@@ -29,7 +29,7 @@ interface IBaseVault is IVersioned, IERC20Permit {
 
   /**
    * @dev Struct for initializing the Vault contract
-   * @param maxTotalAssets The max total assets that can be staked into the Vault
+   * @param capacity The Vault stops accepting deposits after exceeding the capacity
    * @param validatorsRoot The validators Merkle tree root
    * @param admin The address of the Vault admin
    * @param feesEscrow The address of the fees escrow contract
@@ -37,9 +37,10 @@ interface IBaseVault is IVersioned, IERC20Permit {
    * @param name The name of the ERC20 token
    * @param symbol The symbol of the ERC20 token
    * @param validatorsIpfsHash The IPFS hash with all the validators deposit data
+   * @param metadataIpfsHash The IPFS hash of the Vault's metadata file
    */
   struct InitParams {
-    uint256 maxTotalAssets;
+    uint256 capacity;
     bytes32 validatorsRoot;
     address admin;
     address feesEscrow;
@@ -47,6 +48,7 @@ interface IBaseVault is IVersioned, IERC20Permit {
     string name;
     string symbol;
     string validatorsIpfsHash;
+    string metadataIpfsHash;
   }
 
   /**
@@ -80,6 +82,12 @@ interface IBaseVault is IVersioned, IERC20Permit {
    * @param validatorsIpfsHash The new IPFS hash with all the validators deposit data
    */
   event ValidatorsRootUpdated(bytes32 indexed validatorsRoot, string validatorsIpfsHash);
+
+  /**
+   * @notice Event emitted on metadata ipfs hash update
+   * @param metadataIpfsHash The new metadata IPFS hash
+   */
+  event MetadataUpdated(string metadataIpfsHash);
 
   /**
    * @notice Event emitted on validator registration
@@ -168,10 +176,10 @@ interface IBaseVault is IVersioned, IERC20Permit {
   function totalAssets() external view returns (uint256);
 
   /**
-   * @notice Max total assets in the Vault
-   * @return The total number of assets in the Vault after which new deposits are not accepted anymore
+   * @notice The Vault's capacity
+   * @return The amount after which the Vault stops accepting deposits
    */
-  function maxTotalAssets() external view returns (uint256);
+  function capacity() external view returns (uint256);
 
   /**
    * @notice The Vault admin
@@ -233,6 +241,12 @@ interface IBaseVault is IVersioned, IERC20Permit {
    * @param _feeRecipient The address of the new fee recipient
    */
   function setFeeRecipient(address _feeRecipient) external;
+
+  /**
+   * @notice Function for updating the metadata IPFS hash
+   * @param metadataIpfsHash The new metadata IPFS hash
+   */
+  function updateMetadata(string calldata metadataIpfsHash) external;
 
   /**
    * @notice Get the checkpoint index to claim exited assets from

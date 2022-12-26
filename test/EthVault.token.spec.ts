@@ -13,12 +13,13 @@ import { ethVaultFixture } from './shared/fixtures'
 const createFixtureLoader = waffle.createFixtureLoader
 
 describe('EthVault - token', () => {
-  const maxTotalAssets = parseEther('1000')
+  const capacity = parseEther('1000')
   const feePercent = 1000
-  const vaultName = 'SW ETH Vault'
-  const vaultSymbol = 'SW-ETH-1'
+  const name = 'SW ETH Vault'
+  const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+  const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
   const initialSupply = 1000
 
   let vault: EthVault
@@ -34,24 +35,24 @@ describe('EthVault - token', () => {
 
   beforeEach('deploy fixture', async () => {
     ;({ createVault } = await loadFixture(ethVaultFixture))
-    vault = await createVault(
-      admin,
-      maxTotalAssets,
+    vault = await createVault(admin, {
+      capacity,
       validatorsRoot,
       feePercent,
-      vaultName,
-      vaultSymbol,
-      validatorsIpfsHash
-    )
+      name,
+      symbol,
+      validatorsIpfsHash,
+      metadataIpfsHash,
+    })
     await vault.connect(initialHolder).deposit(initialHolder.address, { value: initialSupply })
   })
 
   it('has a name', async () => {
-    expect(await vault.name()).to.eq(vaultName)
+    expect(await vault.name()).to.eq(name)
   })
 
   it('has a symbol', async () => {
-    expect(await vault.symbol()).to.eq(vaultSymbol)
+    expect(await vault.symbol()).to.eq(symbol)
   })
 
   it('has 18 decimals', async () => {
@@ -60,29 +61,29 @@ describe('EthVault - token', () => {
 
   it('fails to deploy with invalid name length', async () => {
     await expect(
-      createVault(
-        admin,
-        maxTotalAssets,
+      createVault(admin, {
+        capacity,
         validatorsRoot,
         feePercent,
-        'a'.repeat(31),
-        vaultSymbol,
-        validatorsIpfsHash
-      )
+        name: 'a'.repeat(31),
+        symbol,
+        validatorsIpfsHash,
+        metadataIpfsHash,
+      })
     ).to.be.revertedWith('InvalidInitArgs()')
   })
 
   it('fails to deploy with invalid symbol length', async () => {
     await expect(
-      createVault(
-        admin,
-        maxTotalAssets,
+      createVault(admin, {
+        capacity,
         validatorsRoot,
         feePercent,
-        vaultName,
-        'a'.repeat(21),
-        validatorsIpfsHash
-      )
+        name,
+        symbol: 'a'.repeat(21),
+        validatorsIpfsHash,
+        metadataIpfsHash,
+      })
     ).to.be.revertedWith('InvalidInitArgs()')
   })
 
@@ -323,7 +324,7 @@ describe('EthVault - token', () => {
       primaryType: 'Permit',
       types: { EIP712Domain, Permit: PermitSig },
       domain: {
-        name: vaultName,
+        name,
         version: '1',
         chainId,
         verifyingContract: vault.address,
@@ -337,7 +338,7 @@ describe('EthVault - token', () => {
 
     it('domain separator', async () => {
       expect(await vault.DOMAIN_SEPARATOR()).to.equal(
-        await domainSeparator(vaultName, '1', chainId, vault.address)
+        await domainSeparator(name, '1', chainId, vault.address)
       )
     })
 
