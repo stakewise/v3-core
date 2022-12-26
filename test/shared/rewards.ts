@@ -72,7 +72,7 @@ export async function updateRewardsRoot(
   const rewardsNonce = await keeper.rewardsNonce()
   const rewardsRoot = createVaultRewardsRoot(rewards, oracles, 1670257866, rewardsNonce.toNumber())
   const oracle = new Wallet(ORACLES[0], await waffle.provider)
-  await setBalance(oracle.address, parseEther('1'))
+  await setBalance(oracle.address, parseEther('10000'))
   await keeper
     .connect(oracle)
     .setRewardsRoot(

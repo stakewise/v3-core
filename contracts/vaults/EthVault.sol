@@ -100,11 +100,23 @@ contract EthVault is BaseVault, IEthVault {
       revert InsufficientAvailableAssets();
     }
 
-    // SLOAD to memory
-    uint256 _validatorIndex = validatorIndex;
-
-    // store leaves for merkle proof validation
+    // update validator index
     bytes32[] memory leaves = new bytes32[](validatorsCount);
+    validatorIndex = _registerValidators(validators, indexes, leaves);
+
+    // verify validators part of the root
+    if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, validatorsRoot, leaves)) {
+      revert InvalidProof();
+    }
+  }
+
+  function _registerValidators(
+    bytes calldata validators,
+    uint256[] calldata indexes,
+    bytes32[] memory leaves
+  ) internal returns (uint256 _validatorIndex) {
+    // SLOAD to memory
+    _validatorIndex = validatorIndex;
 
     uint256 endIndex;
     uint256 count;
@@ -135,14 +147,6 @@ contract EthVault is BaseVault, IEthVault {
         ++_validatorIndex;
       }
       emit ValidatorRegistered(publicKey);
-    }
-
-    // update validator index
-    validatorIndex = _validatorIndex;
-
-    // verify validators part of the root
-    if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, validatorsRoot, leaves)) {
-      revert InvalidProof();
     }
   }
 

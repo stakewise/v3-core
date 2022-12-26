@@ -50,7 +50,7 @@ describe('BaseKeeper', () => {
       validatorsIpfsHash,
       metadataIpfsHash,
     })
-    await setBalance(oracle.address, parseEther('1'))
+    await setBalance(oracle.address, parseEther('10000'))
   })
 
   describe('set rewards root', () => {

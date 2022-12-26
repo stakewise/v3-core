@@ -136,19 +136,4 @@ contract Oracles is Ownable, EIP712, IOracles {
       }
     }
   }
-
-  /**
-   * @dev Internal function for adding new oracle to the set
-   * @param oracle The new oracle address
-   */
-  function _addOracle(address oracle) internal {
-    if (isOracle[oracle]) revert AlreadyAdded();
-
-    isOracle[oracle] = true;
-    unchecked {
-      // cannot realistically overflow
-      totalOracles += 1;
-    }
-    emit OracleAdded(oracle);
-  }
 }

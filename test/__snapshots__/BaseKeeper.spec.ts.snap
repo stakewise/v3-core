@@ -17,7 +17,7 @@ Object {
 exports[`BaseKeeper harvest succeeds for not harvested vault 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 130337,
+  "gasUsed": 130332,
 }
 `;
 
