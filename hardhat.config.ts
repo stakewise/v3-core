@@ -29,6 +29,7 @@ const DEFAULT_BLOCK_GAS_LIMIT = 12450000
 const MNEMONIC_PATH = "m/44'/60'/0'/0"
 const MNEMONIC = process.env.MNEMONIC || ''
 const TRACK_GAS = process.env.TRACK_GAS === 'true'
+const IS_COVERAGE = process.env.COVERAGE === 'true'
 const BLOCK_EXPLORER_KEY = process.env.BLOCK_EXPLORER_KEY || ''
 const HARDHATEVM_CHAINID = 31337
 
@@ -51,6 +52,7 @@ const config: HardhatUserConfig = {
       {
         version: '0.8.17',
         settings: {
+          viaIR: !IS_COVERAGE,
           optimizer: {
             enabled: true,
             runs: 200,

@@ -10,12 +10,13 @@ import { MAX_UINT256, ZERO_ADDRESS } from './shared/constants'
 const createFixtureLoader = waffle.createFixtureLoader
 
 describe('EthVault - upgrade', () => {
-  const maxTotalAssets = parseEther('1000')
+  const capacity = parseEther('1000')
   const feePercent = 1000
-  const vaultName = 'SW ETH Vault'
-  const vaultSymbol = 'SW-ETH-1'
+  const name = 'SW ETH Vault'
+  const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+  const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
   let admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault
   let updatedVault: EthVaultV2Mock
@@ -32,15 +33,15 @@ describe('EthVault - upgrade', () => {
 
   beforeEach('deploy fixture', async () => {
     const { createVault, registry, validatorsRegistry, keeper } = await loadFixture(ethVaultFixture)
-    vault = await createVault(
-      admin,
-      maxTotalAssets,
+    vault = await createVault(admin, {
+      capacity,
       validatorsRoot,
       feePercent,
-      vaultName,
-      vaultSymbol,
-      validatorsIpfsHash
-    )
+      name,
+      symbol,
+      validatorsIpfsHash,
+      metadataIpfsHash,
+    })
     const ethVaultMock = await ethers.getContractFactory('EthVaultV2Mock')
     newImpl = (await upgrades.deployImplementation(ethVaultMock, {
       unsafeAllow: ['delegatecall'],

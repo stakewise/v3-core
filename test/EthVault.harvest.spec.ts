@@ -15,12 +15,13 @@ const createFixtureLoader = waffle.createFixtureLoader
 describe('EthVault - harvest', () => {
   const holderAssets = parseEther('1')
   const holderShares = parseEther('1')
-  const maxTotalAssets = parseEther('1000')
+  const capacity = parseEther('1000')
   const feePercent = 1000
-  const vaultName = 'SW ETH Vault'
-  const vaultSymbol = 'SW-ETH-1'
+  const name = 'SW ETH Vault'
+  const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+  const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
 
   let holder: Wallet, admin: Wallet, dao: Wallet
   let vault: EthVault, keeper: EthKeeper, oracles: Oracles, validatorsRegistry: Contract
@@ -38,15 +39,15 @@ describe('EthVault - harvest', () => {
     ;({ createVault, keeper, oracles, validatorsRegistry, getSignatures } = await loadFixture(
       ethVaultFixture
     ))
-    vault = await createVault(
-      admin,
-      maxTotalAssets,
+    vault = await createVault(admin, {
+      capacity,
       validatorsRoot,
       feePercent,
-      vaultName,
-      vaultSymbol,
-      validatorsIpfsHash
-    )
+      name,
+      symbol,
+      validatorsIpfsHash,
+      metadataIpfsHash,
+    })
     await vault.connect(holder).deposit(holder.address, { value: holderAssets })
   })
 
@@ -69,7 +70,10 @@ describe('EthVault - harvest', () => {
       keeper.harvest(
         vault.address,
         reward,
-        getRewardsRootProof(tree, { vault: vault.address, reward })
+        getRewardsRootProof(tree, {
+          vault: vault.address,
+          reward,
+        })
       )
     ).revertedWith("SafeCast: value doesn't fit in 128 bits")
   })
@@ -83,7 +87,10 @@ describe('EthVault - harvest', () => {
       keeper.harvest(
         vault.address,
         reward,
-        getRewardsRootProof(tree, { vault: vault.address, reward })
+        getRewardsRootProof(tree, {
+          vault: vault.address,
+          reward,
+        })
       )
     ).revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
   })
@@ -127,7 +134,10 @@ describe('EthVault - harvest', () => {
     const feesEscrow = await vault.feesEscrow()
     await setBalance(feesEscrow, rewardFeesEscrow)
     const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward: rewardValidators },
+      {
+        vault: vault.address,
+        reward: rewardValidators,
+      },
     ])
     const proof = getRewardsRootProof(tree, { vault: vault.address, reward: rewardValidators })
 
@@ -170,7 +180,10 @@ describe('EthVault - harvest', () => {
     const feesEscrow = await vault.feesEscrow()
     await setBalance(feesEscrow, rewardFeesEscrow)
     const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward: rewardValidators },
+      {
+        vault: vault.address,
+        reward: rewardValidators,
+      },
     ])
     const proof = getRewardsRootProof(tree, { vault: vault.address, reward: rewardValidators })
 

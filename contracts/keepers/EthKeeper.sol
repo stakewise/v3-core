@@ -15,10 +15,10 @@ import {BaseKeeper} from './BaseKeeper.sol';
  * @notice Defines the functionality for registering validators for the Ethereum Vaults
  */
 contract EthKeeper is BaseKeeper, IEthKeeper {
-  bytes32 internal constant _registerValidatorTypeHash =
-    keccak256('EthKeeper(bytes32 validatorsRegistryRoot,address vault,bytes32 validator)');
   bytes32 internal constant _registerValidatorsTypeHash =
-    keccak256('EthKeeper(bytes32 validatorsRegistryRoot,address vault,bytes32 validators)');
+    keccak256(
+      'EthKeeper(bytes32 validatorsRegistryRoot,address vault,bytes32 validators,bytes32 exitSignaturesIpfsHash)'
+    );
 
   /// @inheritdoc IEthKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -47,79 +47,75 @@ contract EthKeeper is BaseKeeper, IEthKeeper {
   }
 
   /// @inheritdoc IEthKeeper
-  function registerValidator(
-    address vault,
-    bytes32 validatorsRegistryRoot,
-    bytes calldata validator,
-    bytes calldata signatures,
-    bytes32[] calldata proof
-  ) external override {
-    if (validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
+  function registerValidator(ValidatorRegistrationData calldata data) external override {
+    if (validatorsRegistry.get_deposit_root() != data.validatorsRegistryRoot) {
       revert InvalidValidatorsRegistryRoot();
     }
-    if (!registry.vaults(vault)) revert InvalidVault();
-
-    // verify all oracles approved registration
-    oracles.verifyAllSignatures(
-      keccak256(
-        abi.encode(_registerValidatorTypeHash, validatorsRegistryRoot, vault, keccak256(validator))
-      ),
-      signatures
-    );
-
-    _collateralize(vault);
-
-    emit ValidatorsRegistered(
-      vault,
-      validatorsRegistryRoot,
-      validator,
-      signatures,
-      block.timestamp
-    );
-
-    // register validator
-    IEthVault(vault).registerValidator(validator, proof);
-  }
-
-  /// @inheritdoc IEthKeeper
-  function registerValidators(
-    address vault,
-    bytes32 validatorsRegistryRoot,
-    bytes calldata validators,
-    bytes calldata signatures,
-    uint256[] calldata indexes,
-    bool[] calldata proofFlags,
-    bytes32[] calldata proof
-  ) external override {
-    if (validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
-      revert InvalidValidatorsRegistryRoot();
-    }
-    if (!registry.vaults(vault)) revert InvalidVault();
+    if (!registry.vaults(data.vault)) revert InvalidVault();
 
     // verify all oracles approved registration
     oracles.verifyAllSignatures(
       keccak256(
         abi.encode(
           _registerValidatorsTypeHash,
-          validatorsRegistryRoot,
-          vault,
-          keccak256(abi.encode(validators))
+          data.validatorsRegistryRoot,
+          data.vault,
+          keccak256(data.validator),
+          keccak256(bytes(data.exitSignatureIpfsHash))
         )
       ),
-      signatures
+      data.signatures
     );
 
-    _collateralize(vault);
+    _collateralize(data.vault);
 
     emit ValidatorsRegistered(
-      vault,
-      validatorsRegistryRoot,
-      validators,
-      signatures,
+      data.vault,
+      data.validator,
+      data.exitSignatureIpfsHash,
+      block.timestamp
+    );
+
+    // register validator
+    IEthVault(data.vault).registerValidator(data.validator, data.proof);
+  }
+
+  /// @inheritdoc IEthKeeper
+  function registerValidators(ValidatorsRegistrationData calldata data) external override {
+    if (validatorsRegistry.get_deposit_root() != data.validatorsRegistryRoot) {
+      revert InvalidValidatorsRegistryRoot();
+    }
+    if (!registry.vaults(data.vault)) revert InvalidVault();
+
+    // verify all oracles approved registration
+    oracles.verifyAllSignatures(
+      keccak256(
+        abi.encode(
+          _registerValidatorsTypeHash,
+          data.validatorsRegistryRoot,
+          data.vault,
+          keccak256(data.validators),
+          keccak256(bytes(data.exitSignaturesIpfsHash))
+        )
+      ),
+      data.signatures
+    );
+
+    _collateralize(data.vault);
+
+    emit ValidatorsRegistered(
+      data.vault,
+      data.validators,
+      data.exitSignaturesIpfsHash,
       block.timestamp
     );
 
     // register validators
-    IEthVault(vault).registerValidators(validators, indexes, proofFlags, proof);
+    IEthVault(data.vault).registerValidators(
+      data.validators,
+      data.indexes,
+      data.proofFlags,
+      data.proof
+    );
   }
 }

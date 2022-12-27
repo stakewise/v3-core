@@ -21,15 +21,22 @@ contract EthFeesEscrow is IFeesEscrow {
   function withdraw() external override returns (uint256 assets) {
     if (msg.sender != vault) revert WithdrawalFailed();
 
-    assets = address(this).balance;
+    assets = balance();
     if (assets == 0) return 0;
 
     (bool success, ) = vault.call{value: assets}('');
     if (!success) revert WithdrawalFailed();
   }
 
+  /// @inheritdoc IFeesEscrow
+  function balance() public view override returns (uint256) {
+    return address(this).balance;
+  }
+
   /**
    * @dev Function for receiving priority fees and MEV
    */
-  receive() external payable {}
+  receive() external payable {
+    emit Deposited(msg.value);
+  }
 }

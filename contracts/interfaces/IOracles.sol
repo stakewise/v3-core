@@ -28,6 +28,12 @@ interface IOracles {
   event OracleRemoved(address indexed oracle);
 
   /**
+   * @notice Event emitted on oracles config update
+   * @param configIpfsHash The IPFS hash of the new config
+   */
+  event ConfigUpdated(string configIpfsHash);
+
+  /**
    * @notice Event emitted on the required oracles number update
    * @param requiredOracles The new number of required oracles
    */
@@ -69,6 +75,12 @@ interface IOracles {
    * @param _requiredOracles The new number of required signatures. Cannot be zero or larger than total oracles.
    */
   function setRequiredOracles(uint256 _requiredOracles) external;
+
+  /**
+   * @notice Function for updating the config IPFS hash
+   * @param configIpfsHash The new config IPFS hash
+   */
+  function updateConfig(string calldata configIpfsHash) external;
 
   /**
    * @notice Function for verifying whether minimum number of oracles have signed the message
