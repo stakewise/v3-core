@@ -13,4 +13,5 @@ export type NetworkConfig = {
   validatorsRegistry: string
   oracles: string[]
   requiredOracles: number
+  oraclesConfigIpfsHash: string
 }
