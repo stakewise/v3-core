@@ -25,6 +25,7 @@ export const ORACLES = [
   Buffer.from('3999c56744678c5cb451df5eadf2846b92aa158b6d5eda55775f27064c6e880a', 'hex'),
 ]
 export const REQUIRED_ORACLES = 6
+export const ORACLES_CONFIG = 'QmbwQ6zFEWs1SjLPGk4NNJqn4wduVe6dK3xyte2iG59Uru'
 
 export const EIP712Domain = [
   { name: 'name', type: 'string' },
@@ -41,20 +42,16 @@ export const PermitSig = [
   { name: 'deadline', type: 'uint256' },
 ]
 
-export const KeeperSig = [
+export const BaseKeeperSig = [
   { name: 'rewardsRoot', type: 'bytes32' },
   { name: 'rewardsIpfsHash', type: 'bytes32' },
+  { name: 'updateTimestamp', type: 'uint64' },
   { name: 'nonce', type: 'uint96' },
-]
-
-export const RegisterValidatorSig = [
-  { name: 'validatorsRegistryRoot', type: 'bytes32' },
-  { name: 'vault', type: 'address' },
-  { name: 'validator', type: 'bytes32' },
 ]
 
 export const RegisterValidatorsSig = [
   { name: 'validatorsRegistryRoot', type: 'bytes32' },
   { name: 'vault', type: 'address' },
   { name: 'validators', type: 'bytes32' },
+  { name: 'exitSignaturesIpfsHash', type: 'bytes32' },
 ]

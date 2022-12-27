@@ -15,12 +15,13 @@ const createFixtureLoader = waffle.createFixtureLoader
 const validatorDeposit = parseEther('32')
 
 describe('EthVault - withdraw', () => {
-  const maxTotalAssets = parseEther('1000')
+  const capacity = parseEther('1000')
   const feePercent = 1000
-  const vaultName = 'SW ETH Vault'
-  const vaultSymbol = 'SW-ETH-1'
+  const name = 'SW ETH Vault'
+  const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+  const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
   const holderShares = parseEther('1')
   const holderAssets = parseEther('1')
 
@@ -41,15 +42,15 @@ describe('EthVault - withdraw', () => {
   beforeEach('deploy fixture', async () => {
     ;({ createVault, createVaultMock, getSignatures, keeper, oracles, validatorsRegistry } =
       await loadFixture(ethVaultFixture))
-    vault = await createVault(
-      admin,
-      maxTotalAssets,
+    vault = await createVault(admin, {
+      capacity,
       validatorsRoot,
       feePercent,
-      vaultName,
-      vaultSymbol,
-      validatorsIpfsHash
-    )
+      name,
+      symbol,
+      validatorsIpfsHash,
+      metadataIpfsHash,
+    })
 
     // collateralize vault
     proof = await collateralizeEthVault(
@@ -89,6 +90,7 @@ describe('EthVault - withdraw', () => {
     it('fails for not harvested vault', async () => {
       await keeper.harvest(vault.address, 0, proof)
       await updateRewardsRoot(keeper, oracles, getSignatures, [{ vault: vault.address, reward: 1 }])
+      await updateRewardsRoot(keeper, oracles, getSignatures, [{ vault: vault.address, reward: 2 }])
       await expect(
         vault.connect(holder).redeem(holderShares, receiver.address, holder.address)
       ).to.be.revertedWith('NotHarvested()')
@@ -106,15 +108,15 @@ describe('EthVault - withdraw', () => {
     })
 
     it('does not overflow', async () => {
-      const vault: EthVaultMock = await createVaultMock(
-        admin,
-        maxTotalAssets,
+      const vault: EthVaultMock = await createVaultMock(admin, {
+        capacity,
         validatorsRoot,
         feePercent,
-        vaultName,
-        vaultSymbol,
-        validatorsIpfsHash
-      )
+        name,
+        symbol,
+        validatorsIpfsHash,
+        metadataIpfsHash,
+      })
       await vault.connect(holder).deposit(holder.address, { value: holderAssets })
 
       const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
@@ -172,15 +174,15 @@ describe('EthVault - withdraw', () => {
     })
 
     it('fails for not collateralized', async () => {
-      const newVault = await createVault(
-        admin,
-        maxTotalAssets,
+      const newVault = await createVault(admin, {
+        capacity,
         validatorsRoot,
         feePercent,
-        vaultName,
-        vaultSymbol,
-        validatorsIpfsHash
-      )
+        name,
+        symbol,
+        validatorsIpfsHash,
+        metadataIpfsHash,
+      })
       await newVault.connect(holder).deposit(holder.address, { value: holderAssets })
       await expect(
         newVault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
@@ -310,15 +312,15 @@ describe('EthVault - withdraw', () => {
   })
 
   it('get checkpoint index works with many checkpoints', async () => {
-    const vault: EthVaultMock = await createVaultMock(
-      admin,
-      maxTotalAssets,
+    const vault: EthVaultMock = await createVaultMock(admin, {
+      capacity,
       validatorsRoot,
       feePercent,
-      vaultName,
-      vaultSymbol,
-      validatorsIpfsHash
-    )
+      name,
+      symbol,
+      validatorsIpfsHash,
+      metadataIpfsHash,
+    })
 
     // collateralize vault by registering validator
     await vault.connect(holder).deposit(holder.address, { value: validatorDeposit })
@@ -578,15 +580,15 @@ describe('EthVault - withdraw', () => {
   /// Scenario inspired by solmate ERC4626 tests:
   /// https://github.com/transmissions11/solmate/blob/main/src/test/ERC4626.t.sol
   it('multiple deposits and withdrawals', async () => {
-    const vault = await createVaultMock(
-      admin,
-      maxTotalAssets,
+    const vault = await createVaultMock(admin, {
+      capacity,
       validatorsRoot,
-      0,
-      vaultName,
-      vaultSymbol,
-      validatorsIpfsHash
-    )
+      feePercent: 0,
+      name,
+      symbol,
+      validatorsIpfsHash,
+      metadataIpfsHash,
+    })
     const feesEscrow = await vault.feesEscrow()
     const exitQueueFactory = await ethers.getContractFactory('ExitQueue')
     const exitQueue = exitQueueFactory.attach(vault.address)

@@ -9,7 +9,13 @@ import { ThenArg } from '../helpers/types'
 import { createOracles, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { EIP712Domain, REQUIRED_ORACLES, ORACLES, KeeperSig } from './shared/constants'
+import {
+  EIP712Domain,
+  REQUIRED_ORACLES,
+  ORACLES,
+  BaseKeeperSig,
+  ORACLES_CONFIG,
+} from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -33,7 +39,7 @@ describe('Oracles', () => {
 
   describe('deploy oracles', () => {
     it('fails without initial oracles', async () => {
-      await expect(createOracles(owner, [], REQUIRED_ORACLES)).revertedWith(
+      await expect(createOracles(owner, [], REQUIRED_ORACLES, ORACLES_CONFIG)).revertedWith(
         'InvalidRequiredOracles()'
       )
     })
@@ -43,7 +49,8 @@ describe('Oracles', () => {
         createOracles(
           owner,
           ORACLES.map((s) => new EthereumWallet(s).getAddressString()),
-          0
+          0,
+          ORACLES_CONFIG
         )
       ).revertedWith('InvalidRequiredOracles()')
     })
@@ -146,6 +153,20 @@ describe('Oracles', () => {
     })
   })
 
+  describe('update config', () => {
+    it('fails if not owner', async () => {
+      await expect(oracles.connect(other).updateConfig(ORACLES_CONFIG)).revertedWith(
+        'Ownable: caller is not the owner'
+      )
+    })
+
+    it('succeeds', async () => {
+      const receipt = await oracles.connect(owner).updateConfig(ORACLES_CONFIG)
+      await expect(receipt).to.emit(oracles, 'ConfigUpdated').withArgs(ORACLES_CONFIG)
+      await snapshotGasCost(receipt)
+    })
+  })
+
   describe('verify oracles', () => {
     const rewardsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
     const rewardsIpfsHash = keccak256(
@@ -156,19 +177,20 @@ describe('Oracles', () => {
     let verifyData
 
     beforeEach(async () => {
+      const updateTimestamp = 1670256410
       signData = {
-        primaryType: 'Keeper',
-        types: { EIP712Domain, Keeper: KeeperSig },
+        primaryType: 'BaseKeeper',
+        types: { EIP712Domain, BaseKeeper: BaseKeeperSig },
         domain: {
           name: 'Oracles',
           version: '1',
           chainId: network.config.chainId,
           verifyingContract: oracles.address,
         },
-        message: { rewardsRoot, rewardsIpfsHash, nonce },
+        message: { rewardsRoot, rewardsIpfsHash, updateTimestamp, nonce },
       }
       verifyData = TypedDataUtils.hashStruct(
-        'Keeper',
+        'BaseKeeper',
         signData.message,
         signData.types,
         SignTypedDataVersion.V4

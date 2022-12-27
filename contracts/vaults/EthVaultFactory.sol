@@ -42,56 +42,40 @@ contract EthVaultFactory is IEthVaultFactory {
 
   /// @inheritdoc IEthVaultFactory
   function createVault(
-    uint256 maxTotalAssets,
-    bytes32 validatorsRoot,
-    uint16 feePercent,
-    string calldata name,
-    string calldata symbol,
-    string calldata validatorsIpfsHash
+    VaultParams calldata params
   ) external override returns (address vault, address feesEscrow) {
-    {
-      uint256 nonce = nonces[msg.sender];
-      unchecked {
-        // cannot realistically overflow
-        nonces[msg.sender] = nonce + 1;
-      }
-
-      // create vault proxy
-      bytes32 salt = keccak256(abi.encode(msg.sender, nonce));
-      vault = address(new ERC1967Proxy{salt: salt}(vaultImplementation, ''));
-
-      // create fees escrow contract
-      feesEscrow = address(new EthFeesEscrow{salt: salt}(vault));
+    uint256 nonce = nonces[msg.sender];
+    unchecked {
+      // cannot realistically overflow
+      nonces[msg.sender] = nonce + 1;
     }
+
+    // create vault proxy
+    bytes32 salt = keccak256(abi.encode(msg.sender, nonce));
+    vault = address(new ERC1967Proxy{salt: salt}(vaultImplementation, ''));
+
+    // create fees escrow contract
+    feesEscrow = address(new EthFeesEscrow{salt: salt}(vault));
 
     // initialize vault
     IEthVault(vault).initialize(
       IBaseVault.InitParams({
-        maxTotalAssets: maxTotalAssets,
-        validatorsRoot: validatorsRoot,
+        capacity: params.capacity,
+        validatorsRoot: params.validatorsRoot,
         admin: msg.sender,
         feesEscrow: feesEscrow,
-        feePercent: feePercent,
-        name: name,
-        symbol: symbol,
-        validatorsIpfsHash: validatorsIpfsHash
+        feePercent: params.feePercent,
+        name: params.name,
+        symbol: params.symbol,
+        validatorsIpfsHash: params.validatorsIpfsHash,
+        metadataIpfsHash: params.metadataIpfsHash
       })
     );
 
     // add vault to the registry
     registry.addVault(vault);
 
-    emit VaultCreated(
-      msg.sender,
-      vault,
-      feesEscrow,
-      maxTotalAssets,
-      validatorsRoot,
-      feePercent,
-      name,
-      symbol,
-      validatorsIpfsHash
-    );
+    emit VaultCreated(msg.sender, vault, feesEscrow, params);
   }
 
   /// @inheritdoc IEthVaultFactory

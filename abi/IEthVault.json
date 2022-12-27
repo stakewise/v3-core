@@ -6,6 +6,11 @@
   },
   {
     "inputs": [],
+    "name": "CapacityExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InsufficientAvailableAssets",
     "type": "error"
   },
@@ -36,7 +41,7 @@
   },
   {
     "inputs": [],
-    "name": "MaxTotalAssetsExceeded",
+    "name": "InvalidValidatorsCount",
     "type": "error"
   },
   {
@@ -200,6 +205,19 @@
       }
     ],
     "name": "FeeRecipientUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "metadataIpfsHash",
+        "type": "string"
+      }
+    ],
+    "name": "MetadataUpdated",
     "type": "event"
   },
   {
@@ -405,6 +423,19 @@
       }
     ],
     "name": "balanceOf",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "capacity",
     "outputs": [
       {
         "internalType": "uint256",
@@ -638,7 +669,7 @@
         "components": [
           {
             "internalType": "uint256",
-            "name": "maxTotalAssets",
+            "name": "capacity",
             "type": "uint256"
           },
           {
@@ -675,6 +706,11 @@
             "internalType": "string",
             "name": "validatorsIpfsHash",
             "type": "string"
+          },
+          {
+            "internalType": "string",
+            "name": "metadataIpfsHash",
+            "type": "string"
           }
         ],
         "internalType": "struct IBaseVault.InitParams",
@@ -695,19 +731,6 @@
         "internalType": "contract IBaseKeeper",
         "name": "",
         "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "maxTotalAssets",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -1023,6 +1046,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "metadataIpfsHash",
+        "type": "string"
+      }
+    ],
+    "name": "updateMetadata",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

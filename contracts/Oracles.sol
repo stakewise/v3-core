@@ -27,11 +27,13 @@ contract Oracles is Ownable, EIP712, IOracles {
    * @param owner_ The address of the contract owner
    * @param initialOracles The addresses of the initial oracles
    * @param initialRequiredOracles The number or required oracles for the verification
+   * @param configIpfsHash The IPFS hash of the config file
    */
   constructor(
     address owner_,
     address[] memory initialOracles,
-    uint256 initialRequiredOracles
+    uint256 initialRequiredOracles,
+    string memory configIpfsHash
   ) EIP712('Oracles', '1') {
     for (uint256 i = 0; i < initialOracles.length; ) {
       addOracle(initialOracles[i]);
@@ -41,6 +43,7 @@ contract Oracles is Ownable, EIP712, IOracles {
     }
     setRequiredOracles(initialRequiredOracles);
     _transferOwnership(owner_);
+    emit ConfigUpdated(configIpfsHash);
   }
 
   /// @inheritdoc IOracles
@@ -78,6 +81,11 @@ contract Oracles is Ownable, EIP712, IOracles {
     if (_requiredOracles == 0 || totalOracles < _requiredOracles) revert InvalidRequiredOracles();
     requiredOracles = _requiredOracles;
     emit RequiredOraclesUpdated(_requiredOracles);
+  }
+
+  /// @inheritdoc IOracles
+  function updateConfig(string calldata configIpfsHash) external override onlyOwner {
+    emit ConfigUpdated(configIpfsHash);
   }
 
   /// @inheritdoc IOracles

@@ -1,11 +1,12 @@
 import { ethers, upgrades } from 'hardhat'
 import { Fixture } from 'ethereum-waffle'
-import { BigNumberish, BytesLike, Contract, Wallet } from 'ethers'
+import { Contract, Wallet } from 'ethers'
 import { arrayify } from 'ethers/lib/utils'
 import { signTypedData, SignTypedDataVersion } from '@metamask/eth-sig-util'
 import EthereumWallet from 'ethereumjs-wallet'
 import {
   EthVault,
+  IEthVaultFactory,
   EthVaultFactory,
   EthVaultMock,
   EthKeeper,
@@ -13,7 +14,7 @@ import {
   Oracles,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
-import { REQUIRED_ORACLES, ORACLES } from './constants'
+import { REQUIRED_ORACLES, ORACLES, ORACLES_CONFIG } from './constants'
 
 export const createValidatorsRegistry = async function (): Promise<Contract> {
   const validatorsRegistryFactory = await getValidatorsRegistryFactory()
@@ -28,10 +29,16 @@ export const createRegistry = async function (owner: Wallet): Promise<Registry> 
 export const createOracles = async function (
   owner: Wallet,
   initialOracles: string[],
-  initialRequiredOracles: number
+  initialRequiredOracles: number,
+  configIpfsHash: string
 ): Promise<Oracles> {
   const factory = await ethers.getContractFactory('Oracles')
-  return (await factory.deploy(owner.address, initialOracles, initialRequiredOracles)) as Oracles
+  return (await factory.deploy(
+    owner.address,
+    initialOracles,
+    initialRequiredOracles,
+    configIpfsHash
+  )) as Oracles
 }
 
 export const createEthKeeper = async function (
@@ -84,28 +91,14 @@ interface EthVaultFixture {
   keeper: EthKeeper
   validatorsRegistry: Contract
   ethVaultFactory: EthVaultFactory
+  getSignatures: (typedData: any, count?: number) => Buffer
 
-  createVault(
-    admin: Wallet,
-    maxTotalAssets: BigNumberish,
-    validatorsRoot: BytesLike,
-    feePercent: BigNumberish,
-    name: string,
-    symbol: string,
-    validatorsIpfsHash: string
-  ): Promise<EthVault>
+  createVault(admin: Wallet, vaultParams: IEthVaultFactory.VaultParamsStruct): Promise<EthVault>
 
   createVaultMock(
     admin: Wallet,
-    maxTotalAssets: BigNumberish,
-    validatorsRoot: BytesLike,
-    feePercent: BigNumberish,
-    name: string,
-    symbol: string,
-    validatorsIpfsHash: string
+    vaultParams: IEthVaultFactory.VaultParamsStruct
   ): Promise<EthVaultMock>
-
-  getSignatures: (typedData: any, count?: number) => Buffer
 }
 
 export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
@@ -122,7 +115,8 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   const oracles = await createOracles(
     dao,
     sortedOracles.map((s) => new EthereumWallet(s).getAddressString()),
-    REQUIRED_ORACLES
+    REQUIRED_ORACLES,
+    ORACLES_CONFIG
   )
   const keeper = await createEthKeeper(dao, oracles, registry, validatorsRegistry)
   const ethVaultFactory = await createEthVaultFactory(keeper, registry, validatorsRegistry)
@@ -141,32 +135,18 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     ethVaultFactory,
     createVault: async (
       admin: Wallet,
-      maxTotalAssets: BigNumberish,
-      validatorsRoot: BytesLike,
-      feePercent: BigNumberish,
-      name: string,
-      symbol: string,
-      validatorsIpfsHash: string
+      vaultParams: IEthVaultFactory.VaultParamsStruct
     ): Promise<EthVault> => {
-      const tx = await ethVaultFactory
-        .connect(admin)
-        .createVault(maxTotalAssets, validatorsRoot, feePercent, name, symbol, validatorsIpfsHash)
+      const tx = await ethVaultFactory.connect(admin).createVault(vaultParams)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethVault.attach(vaultAddress) as EthVault
     },
     createVaultMock: async (
       admin: Wallet,
-      maxTotalAssets: BigNumberish,
-      validatorsRoot: BytesLike,
-      feePercent: BigNumberish,
-      name: string,
-      symbol: string,
-      validatorsIpfsHash: string
+      vaultParams: IEthVaultFactory.VaultParamsStruct
     ): Promise<EthVaultMock> => {
-      const tx = await ethVaultMockFactory
-        .connect(admin)
-        .createVault(maxTotalAssets, validatorsRoot, feePercent, name, symbol, validatorsIpfsHash)
+      const tx = await ethVaultMockFactory.connect(admin).createVault(vaultParams)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethVaultMock.attach(vaultAddress) as EthVaultMock

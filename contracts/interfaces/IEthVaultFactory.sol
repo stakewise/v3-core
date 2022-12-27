@@ -15,24 +15,34 @@ interface IEthVaultFactory {
    * @param admin The address of the Vault admin
    * @param vault The address of the created Vault
    * @param feesEscrow The address of the fees escrow contract
-   * @param maxTotalAssets The max total assets that can be staked into the Vault
-   * @param validatorsRoot The validators merkle tree root
-   * @param feePercent The fee percent that is charged by the Vault
-   * @param name The name of the ERC20 token
-   * @param symbol The symbol of the ERC20 token
-   * @param validatorsIpfsHash The IPFS hash with all the validators deposit data
+   * @param params The Vault creation parameters
    */
   event VaultCreated(
     address indexed admin,
     address indexed vault,
     address indexed feesEscrow,
-    uint256 maxTotalAssets,
-    bytes32 validatorsRoot,
-    uint16 feePercent,
-    string name,
-    string symbol,
-    string validatorsIpfsHash
+    VaultParams params
   );
+
+  /**
+   * @notice A struct containing a Vault creation parameters
+   * @param capacity The Vault stops accepting deposits after exceeding the capacity
+   * @param validatorsRoot The validators merkle tree root
+   * @param feePercent The fee percent that is charged by the Vault
+   * @param name The name of the ERC20 token
+   * @param symbol The symbol of the ERC20 token
+   * @param validatorsIpfsHash The IPFS hash with all the validators deposit data
+   * @param metadataIpfsHash The IPFS hash of the Vault's metadata file
+   */
+  struct VaultParams {
+    uint256 capacity;
+    bytes32 validatorsRoot;
+    uint16 feePercent;
+    string name;
+    string symbol;
+    string validatorsIpfsHash;
+    string metadataIpfsHash;
+  }
 
   /**
    * @notice Vault implementation contract
@@ -55,22 +65,12 @@ interface IEthVaultFactory {
 
   /**
    * @notice Create Vault
-   * @param maxTotalAssets The max total assets that can be staked into the Vault
-   * @param validatorsRoot The validators merkle tree root
-   * @param feePercent The fee percent that is charged by the Vault
-   * @param name The name of the ERC20 token
-   * @param symbol The symbol of the ERC20 token
-   * @param validatorsIpfsHash The IPFS hash with all the validators deposit data
+   * @param params The Vault creation parameters
    * @return vault The address of the created Vault
    * @return feesEscrow The address of the created FeesEscrow
    */
   function createVault(
-    uint256 maxTotalAssets,
-    bytes32 validatorsRoot,
-    uint16 feePercent,
-    string calldata name,
-    string calldata symbol,
-    string calldata validatorsIpfsHash
+    VaultParams calldata params
   ) external returns (address vault, address feesEscrow);
 
   /**

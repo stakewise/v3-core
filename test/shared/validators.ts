@@ -3,11 +3,11 @@ import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { network } from 'hardhat'
 import { Buffer } from 'buffer'
 import { BigNumber, BytesLike, Contract, Wallet } from 'ethers'
-import { arrayify, defaultAbiCoder, parseEther } from 'ethers/lib/utils'
+import { arrayify, parseEther } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
 import keccak256 from 'keccak256'
 import { EthKeeper, EthVault, Oracles } from '../../typechain-types'
-import { EIP712Domain, ORACLES, RegisterValidatorSig, RegisterValidatorsSig } from './constants'
+import { EIP712Domain, ORACLES, RegisterValidatorsSig } from './constants'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -20,6 +20,19 @@ export const secretKeys = [
   '0x4bbeb944e4abb46d929e6c2b7c6fea0adbdb72f942f8fa825bfb375e175e2762',
   '0x047a48f9d1790ebe3f9cde4e93f1e135beef0406f68d6c8dae42b0adef2ad8d2',
   '0x0d5b3814d2242c03bef667daf6823c866e9f458617667043a30fe5f5f3996f4b',
+]
+
+export const exitSignatureIpfsHashes = [
+  'QmUFSdZoQUqkRkAgDEtFa2fMmWhQLC7tx8J3ckCL7XkZ1T',
+  'QmUE7ixjUY9A3hK13HWDNztJ6SyPDutUEmFBSjj5XJfGa8',
+  'QmWeQTjiM5UZrNtqiBe5VynNitHADSoCny8z1i4aMGTi6C',
+  'QmbkxyF2xNibmwMds3dmvqAMn6RK7UbWwG4Y8Lz5meZUu5',
+  'QmS7TDL3ATbiQySsVTasJ4Luw3WMHgYBaGw2eBJb9t9t2A',
+  'QmRWw7QHKy72pKrJkukG5xxPqEr9XHktyhCmyf33wMUZzS',
+  'QmbBRfY6xgBsHU2f3YitqB5ay1xJaAPEekcG1tW51tD3wD',
+  'QmSPpB4TEEW8JjfuzhzFqsPnkMSVyfwMxqHhoGC5hTQL8s',
+  'Qmccn5jxLqDMdY3c5nibVUtRtx3Vt7sGfMxCUD2jUSmBa1',
+  'QmemVbNEhXugNCG3sjWHFS6wSH74wBvKBfiW86H1dBnwfV',
 ]
 
 const DOMAIN_DEPOSIT = Uint8Array.from([3, 0, 0, 0])
@@ -185,31 +198,9 @@ export async function createEthValidatorsData(vault: EthVault): Promise<EthValid
   }
 }
 
-export function getEthValidatorSigningData(
-  validator: Buffer,
-  oracles: Oracles,
-  vault: EthVault,
-  validatorsRegistryRoot: BytesLike
-) {
-  return {
-    primaryType: 'EthKeeper',
-    types: { EIP712Domain, EthKeeper: RegisterValidatorSig },
-    domain: {
-      name: 'Oracles',
-      version: '1',
-      chainId: network.config.chainId,
-      verifyingContract: oracles.address,
-    },
-    message: {
-      validatorsRegistryRoot,
-      vault: vault.address,
-      validator: keccak256(validator),
-    },
-  }
-}
-
 export function getEthValidatorsSigningData(
   validators: Buffer,
+  exitSignaturesIpfsHash: string,
   oracles: Oracles,
   vault: EthVault,
   validatorsRegistryRoot: BytesLike
@@ -226,7 +217,8 @@ export function getEthValidatorsSigningData(
     message: {
       validatorsRegistryRoot,
       vault: vault.address,
-      validators: keccak256(defaultAbiCoder.encode(['bytes'], [validators])),
+      validators: keccak256(validators),
+      exitSignaturesIpfsHash: keccak256(exitSignaturesIpfsHash),
     },
   }
 }
@@ -263,14 +255,22 @@ export async function registerEthValidator(
   const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
   await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
   const validator = validatorsData.validators[0]
-  const signingData = getEthValidatorSigningData(validator, oracles, vault, validatorsRegistryRoot)
+  const exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
+  const signingData = getEthValidatorsSigningData(
+    validator,
+    exitSignatureIpfsHash,
+    oracles,
+    vault,
+    validatorsRegistryRoot
+  )
   const signatures = getSignatures(signingData, ORACLES.length)
   const proof = getValidatorProof(validatorsData.tree, validator, 0)
-  await keeper.registerValidator(
-    vault.address,
+  await keeper.registerValidator({
+    vault: vault.address,
     validatorsRegistryRoot,
     validator,
     signatures,
-    proof
-  )
+    exitSignatureIpfsHash,
+    proof,
+  })
 }

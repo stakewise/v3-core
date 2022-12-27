@@ -4,7 +4,7 @@ import { parseEther, toUtf8Bytes } from 'ethers/lib/utils'
 import keccak256 from 'keccak256'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { BaseKeeper, EthKeeper, EthVault, Oracles } from '../../typechain-types'
-import { EIP712Domain, KeeperSig, ONE_DAY } from './constants'
+import { EIP712Domain, BaseKeeperSig, ONE_DAY, ORACLES } from './constants'
 import { Buffer } from 'buffer'
 import { registerEthValidator } from './validators'
 import { increaseTime, setBalance } from './utils'
@@ -14,6 +14,7 @@ export type RewardsTree = StandardMerkleTree<[string, BigNumberish]>
 export type RewardsRoot = {
   root: string
   ipfsHash: string
+  updateTimestamp: number
   tree: RewardsTree
   signingData: any
 }
@@ -26,7 +27,8 @@ export type VaultReward = {
 export function createVaultRewardsRoot(
   rewards: VaultReward[],
   oracles: Oracles,
-  nonce = 0
+  updateTimestamp = 1670255895,
+  nonce = 1
 ): RewardsRoot {
   const tree = StandardMerkleTree.of(
     rewards.map((r) => [r.vault, r.reward]),
@@ -40,10 +42,11 @@ export function createVaultRewardsRoot(
   return {
     root: treeRoot,
     ipfsHash,
+    updateTimestamp,
     tree,
     signingData: {
-      primaryType: 'Keeper',
-      types: { EIP712Domain, Keeper: KeeperSig },
+      primaryType: 'BaseKeeper',
+      types: { EIP712Domain, BaseKeeper: BaseKeeperSig },
       domain: {
         name: 'Oracles',
         version: '1',
@@ -53,6 +56,7 @@ export function createVaultRewardsRoot(
       message: {
         rewardsRoot: treeRoot,
         rewardsIpfsHash: keccak256(Buffer.from(toUtf8Bytes(ipfsHash))),
+        updateTimestamp,
         nonce,
       },
     },
@@ -66,12 +70,17 @@ export async function updateRewardsRoot(
   rewards: VaultReward[]
 ): Promise<RewardsTree> {
   const rewardsNonce = await keeper.rewardsNonce()
-  const rewardsRoot = createVaultRewardsRoot(rewards, oracles, rewardsNonce.toNumber())
-  await keeper.setRewardsRoot(
-    rewardsRoot.root,
-    rewardsRoot.ipfsHash,
-    getSignatures(rewardsRoot.signingData)
-  )
+  const rewardsRoot = createVaultRewardsRoot(rewards, oracles, 1670257866, rewardsNonce.toNumber())
+  const oracle = new Wallet(ORACLES[0], await waffle.provider)
+  await setBalance(oracle.address, parseEther('10000'))
+  await keeper
+    .connect(oracle)
+    .setRewardsRoot(
+      rewardsRoot.root,
+      rewardsRoot.updateTimestamp,
+      rewardsRoot.ipfsHash,
+      getSignatures(rewardsRoot.signingData)
+    )
   return rewardsRoot.tree
 }
 

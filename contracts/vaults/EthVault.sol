@@ -96,6 +96,9 @@ contract EthVault is BaseVault, IEthVault {
     bytes32[] calldata proof
   ) external override onlyKeeper {
     uint256 validatorsCount = validators.length / _validatorLength;
+    if (validatorsCount == 0) {
+      revert InvalidValidatorsCount();
+    }
     if (availableAssets() < _validatorDeposit * validatorsCount) {
       revert InsufficientAvailableAssets();
     }
@@ -125,7 +128,7 @@ contract EthVault is BaseVault, IEthVault {
     bytes memory withdrawalCreds = withdrawalCredentials();
     for (uint256 startIndex = 0; startIndex < validators.length; ) {
       unchecked {
-        // cannot overflow as it is capped with staked asset total supply
+        // cannot realistically overflow
         endIndex = startIndex + _validatorLength;
       }
       validator = validators[startIndex:endIndex];

@@ -11,6 +11,12 @@ interface IFeesEscrow {
   error WithdrawalFailed();
 
   /**
+   * @notice Event emitted on deposits
+   * @param amount The amount of fees deposited
+   */
+  event Deposited(uint256 amount);
+
+  /**
    * @notice Withdraws MEV and priority fees accumulated in the escrow.
              Can perform additional conversions in case different asset is staked.
    * @dev IMPORTANT: because control is transferred to the Vault, care must be
@@ -19,4 +25,10 @@ interface IFeesEscrow {
    * @return assets The amount of assets withdrawn
    */
   function withdraw() external returns (uint256 assets);
+
+  /**
+   * @notice The balance of the FeesEscrow
+   * @return The accumulated fees amount
+   */
+  function balance() external view returns (uint256);
 }
