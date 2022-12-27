@@ -12,5 +12,6 @@ export type NetworkConfig = {
   governor: string
   validatorsRegistry: string
   oracles: string[]
-  requiredOracles: number
+  requiredOracles: number,
+  oraclesConfigIpfsHash: string
 }
