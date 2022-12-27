@@ -22,7 +22,6 @@ const FEE_DATA = {
 task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (taskArgs, hre) => {
   const upgrades = hre.upgrades
   const ethers = hre.ethers
-  const accounts = await ethers.getSigners()
   const networkName = hre.network.name
   const networkConfig: NetworkConfig = NETWORKS[networkName]
 
