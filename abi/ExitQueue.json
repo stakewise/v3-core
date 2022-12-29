@@ -1,0 +1,21 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint160",
+        "name": "sharesCounter",
+        "type": "uint160"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint96",
+        "name": "exitedAssets",
+        "type": "uint96"
+      }
+    ],
+    "name": "CheckpointCreated",
+    "type": "event"
+  }
+]

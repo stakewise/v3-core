@@ -95,7 +95,7 @@ const config: HardhatUserConfig = {
     path: './abi',
     clear: true,
     flat: true,
-    only: ['interfaces/'],
+    only: ['interfaces/', 'libraries/'],
     spacing: 2,
   },
   etherscan: {
