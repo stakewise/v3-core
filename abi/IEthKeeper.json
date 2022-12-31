@@ -30,14 +30,14 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "caller",
+        "name": "vault",
         "type": "address"
       },
       {
         "indexed": true,
-        "internalType": "address",
-        "name": "vault",
-        "type": "address"
+        "internalType": "bytes32",
+        "name": "rewardsRoot",
+        "type": "bytes32"
       },
       {
         "indexed": false,
@@ -81,12 +81,6 @@
         "internalType": "string",
         "name": "rewardsIpfsHash",
         "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "signatures",
-        "type": "bytes"
       }
     ],
     "name": "RewardsRootUpdated",
@@ -129,23 +123,49 @@
         "internalType": "address",
         "name": "vault",
         "type": "address"
-      },
+      }
+    ],
+    "name": "canHarvest",
+    "outputs": [
       {
-        "internalType": "int160",
-        "name": "vaultReward",
-        "type": "int160"
-      },
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
       {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "rewardsRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "int160",
+            "name": "reward",
+            "type": "int160"
+          },
+          {
+            "internalType": "bytes32[]",
+            "name": "proof",
+            "type": "bytes32[]"
+          }
+        ],
+        "internalType": "struct IBaseKeeper.HarvestParams",
+        "name": "params",
+        "type": "tuple"
       }
     ],
     "name": "harvest",
     "outputs": [
       {
         "internalType": "int256",
-        "name": "",
+        "name": "periodReward",
         "type": "int256"
       }
     ],
@@ -192,7 +212,7 @@
         "type": "address"
       }
     ],
-    "name": "isHarvested",
+    "name": "isHarvestRequired",
     "outputs": [
       {
         "internalType": "bool",
@@ -211,6 +231,19 @@
         "internalType": "contract IOracles",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "prevRewardsRoot",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
       }
     ],
     "stateMutability": "view",
@@ -382,24 +415,31 @@
   {
     "inputs": [
       {
-        "internalType": "bytes32",
-        "name": "_rewardsRoot",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "uint64",
-        "name": "updateTimestamp",
-        "type": "uint64"
-      },
-      {
-        "internalType": "string",
-        "name": "rewardsIpfsHash",
-        "type": "string"
-      },
-      {
-        "internalType": "bytes",
-        "name": "signatures",
-        "type": "bytes"
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "rewardsRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "updateTimestamp",
+            "type": "uint64"
+          },
+          {
+            "internalType": "string",
+            "name": "rewardsIpfsHash",
+            "type": "string"
+          },
+          {
+            "internalType": "bytes",
+            "name": "signatures",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct IBaseKeeper.RewardsRootUpdateParams",
+        "name": "params",
+        "type": "tuple"
       }
     ],
     "name": "setRewardsRoot",

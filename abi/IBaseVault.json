@@ -658,6 +658,25 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "bytes[]",
+        "name": "data",
+        "type": "bytes[]"
+      }
+    ],
+    "name": "multicall",
+    "outputs": [
+      {
+        "internalType": "bytes[]",
+        "name": "results",
+        "type": "bytes[]"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "name",
     "outputs": [
@@ -939,19 +958,30 @@
   {
     "inputs": [
       {
-        "internalType": "int256",
-        "name": "validatorAssets",
-        "type": "int256"
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "rewardsRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "int160",
+            "name": "reward",
+            "type": "int160"
+          },
+          {
+            "internalType": "bytes32[]",
+            "name": "proof",
+            "type": "bytes32[]"
+          }
+        ],
+        "internalType": "struct IBaseKeeper.HarvestParams",
+        "name": "harvestParams",
+        "type": "tuple"
       }
     ],
     "name": "updateState",
-    "outputs": [
-      {
-        "internalType": "int256",
-        "name": "assetsDelta",
-        "type": "int256"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },

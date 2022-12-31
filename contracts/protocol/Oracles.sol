@@ -5,7 +5,7 @@ pragma solidity =0.8.17;
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
-import {IOracles} from './interfaces/IOracles.sol';
+import {IOracles} from '../interfaces/IOracles.sol';
 
 /**
  * @title Oracles
@@ -13,6 +13,8 @@ import {IOracles} from './interfaces/IOracles.sol';
  * @notice Defines the functionality for verifying signatures of the whitelisted off-chain oracles
  */
 contract Oracles is Ownable, EIP712, IOracles {
+  uint256 internal constant _signatureLength = 65;
+
   /// @inheritdoc IOracles
   mapping(address => bool) public override isOracle;
 
@@ -112,7 +114,7 @@ contract Oracles is Ownable, EIP712, IOracles {
     // check whether enough signatures
     unchecked {
       // cannot realistically overflow
-      if (signatures.length < requiredSignatures * 65) revert NotEnoughSignatures();
+      if (signatures.length < requiredSignatures * _signatureLength) revert NotEnoughSignatures();
     }
 
     bytes32 data = _hashTypedDataV4(message);
@@ -122,7 +124,7 @@ contract Oracles is Ownable, EIP712, IOracles {
     for (uint256 i = 0; i < requiredSignatures; ) {
       unchecked {
         // cannot overflow as signatures.length is checked above
-        currentOracle = ECDSA.recover(data, signatures[startIndex:startIndex + 65]);
+        currentOracle = ECDSA.recover(data, signatures[startIndex:startIndex + _signatureLength]);
       }
       if (currentOracle <= lastOracle || !isOracle[currentOracle]) revert InvalidOracle();
 
@@ -132,7 +134,7 @@ contract Oracles is Ownable, EIP712, IOracles {
       unchecked {
         // cannot overflow as it's capped with requiredOracles
         ++i;
-        startIndex += 65;
+        startIndex += _signatureLength;
       }
     }
   }

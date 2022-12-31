@@ -4,11 +4,11 @@ pragma solidity =0.8.17;
 
 import {Create2} from '@openzeppelin/contracts/utils/Create2.sol';
 import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
-import {IEthVaultFactory} from '../interfaces/IEthVaultFactory.sol';
-import {IRegistry} from '../interfaces/IRegistry.sol';
-import {IEthVault} from '../interfaces/IEthVault.sol';
-import {IBaseVault} from '../interfaces/IBaseVault.sol';
-import {EthFeesEscrow} from './EthFeesEscrow.sol';
+import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
+import {IRegistry} from '../../interfaces/IRegistry.sol';
+import {IEthVault} from '../../interfaces/IEthVault.sol';
+import {IBaseVault} from '../../interfaces/IBaseVault.sol';
+import {EthFeesEscrow} from '../escrows/EthFeesEscrow.sol';
 
 /**
  * @title EthVaultFactory
