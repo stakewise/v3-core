@@ -3,7 +3,7 @@
 pragma solidity =0.8.17;
 
 import {IRegistry} from '../interfaces/IRegistry.sol';
-import {EthVaultFactory} from '../vaults/EthVaultFactory.sol';
+import {EthVaultFactory} from '../protocol/factories/EthVaultFactory.sol';
 
 contract EthVaultFactoryMock is EthVaultFactory {
   constructor(

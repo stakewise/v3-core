@@ -5,16 +5,15 @@ pragma solidity =0.8.17;
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import {IBaseVault} from '../interfaces/IBaseVault.sol';
-import {IBaseKeeper} from '../interfaces/IBaseKeeper.sol';
-import {IOracles} from '../interfaces/IOracles.sol';
-import {IRegistry} from '../interfaces/IRegistry.sol';
-import {Versioned} from '../common/Versioned.sol';
+import {IBaseKeeper} from '../../interfaces/IBaseKeeper.sol';
+import {IOracles} from '../../interfaces/IOracles.sol';
+import {IRegistry} from '../../interfaces/IRegistry.sol';
+import {Versioned} from '../base/Versioned.sol';
 
 /**
  * @title BaseKeeper
  * @author StakeWise
- * @notice Defines the functionality for updating Vaults' rewards
+ * @notice Defines the functionality for updating Vaults' consensus rewards
  */
 abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
   bytes32 internal constant _rewardsRootTypeHash =
@@ -29,6 +28,9 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
   /// @inheritdoc IBaseKeeper
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IRegistry public immutable override registry;
+
+  /// @inheritdoc IBaseKeeper
+  bytes32 public override prevRewardsRoot;
 
   /// @inheritdoc IBaseKeeper
   bytes32 public override rewardsRoot;
@@ -55,14 +57,14 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
   }
 
   /// @inheritdoc IBaseKeeper
-  function setRewardsRoot(
-    bytes32 _rewardsRoot,
-    uint64 updateTimestamp,
-    string calldata rewardsIpfsHash,
-    bytes calldata signatures
-  ) external override {
+  function setRewardsRoot(RewardsRootUpdateParams calldata params) external override {
     if (!oracles.isOracle(msg.sender)) revert AccessDenied();
-    if (rewardsRoot == _rewardsRoot) revert InvalidRewardsRoot();
+
+    // SLOAD to memory
+    bytes32 currRewardsRoot = rewardsRoot;
+    if (currRewardsRoot == params.rewardsRoot || prevRewardsRoot == params.rewardsRoot) {
+      revert InvalidRewardsRoot();
+    }
 
     // SLOAD to memory
     uint96 nonce = rewardsNonce;
@@ -72,35 +74,44 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
       keccak256(
         abi.encode(
           _rewardsRootTypeHash,
-          _rewardsRoot,
-          keccak256(bytes(rewardsIpfsHash)),
-          updateTimestamp,
+          params.rewardsRoot,
+          keccak256(bytes(params.rewardsIpfsHash)),
+          params.updateTimestamp,
           nonce
         )
       ),
-      signatures
+      params.signatures
     );
 
     // update state
     rewardsNonce = nonce + 1;
-    rewardsRoot = _rewardsRoot;
+    prevRewardsRoot = currRewardsRoot;
+    rewardsRoot = params.rewardsRoot;
+
     emit RewardsRootUpdated(
       msg.sender,
-      _rewardsRoot,
-      updateTimestamp,
+      params.rewardsRoot,
+      params.updateTimestamp,
       nonce,
-      rewardsIpfsHash,
-      signatures
+      params.rewardsIpfsHash
     );
   }
 
   /// @inheritdoc IBaseKeeper
-  function isHarvested(address vault) external view override returns (bool) {
-    // vault is considered harvested in case it does not have any validators
-    // or it is maximum 2 syncs behind
+  function isHarvestRequired(address vault) external view override returns (bool) {
+    // vault is considered harvested in case it does not have any validators (nonce = 0)
+    // or it is up to 1 sync behind
     uint96 nonce = rewards[vault].nonce;
     unchecked {
-      return nonce == 0 || nonce + 1 >= rewardsNonce;
+      return nonce != 0 && nonce + 1 < rewardsNonce;
+    }
+  }
+
+  /// @inheritdoc IBaseKeeper
+  function canHarvest(address vault) external view override returns (bool) {
+    uint96 nonce = rewards[vault].nonce;
+    unchecked {
+      return nonce != 0 && nonce < rewardsNonce;
     }
   }
 
@@ -110,43 +121,54 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
   }
 
   /// @inheritdoc IBaseKeeper
-  function harvest(
-    address vault,
-    int160 reward,
-    bytes32[] calldata proof
-  ) external override returns (int256) {
-    if (!registry.vaults(vault)) revert InvalidVault();
+  function harvest(HarvestParams calldata params) external override returns (int256 periodReward) {
+    if (!registry.vaults(msg.sender)) revert AccessDenied();
+
+    // SLOAD to memory
+    uint96 currentNonce = rewardsNonce;
+
+    // allow harvest for the past two updates
+    if (params.rewardsRoot != rewardsRoot) {
+      if (params.rewardsRoot != prevRewardsRoot) revert InvalidRewardsRoot();
+      currentNonce -= 1;
+    }
 
     // verify the proof
     if (
       !MerkleProof.verifyCalldata(
-        proof,
-        rewardsRoot,
-        keccak256(bytes.concat(keccak256(abi.encode(vault, reward))))
+        params.proof,
+        params.rewardsRoot,
+        keccak256(bytes.concat(keccak256(abi.encode(msg.sender, params.reward))))
       )
     ) {
       revert InvalidProof();
     }
 
     // SLOAD to memory
-    RewardSync memory lastRewardSync = rewards[vault];
-    int256 periodReward;
+    RewardSync memory lastRewardSync = rewards[msg.sender];
+    // check whether Vault's nonce is smaller that the current, otherwise it's already harvested
+    if (lastRewardSync.nonce >= currentNonce) return 0;
+
+    // update state
+    rewards[msg.sender] = RewardSync({nonce: currentNonce, reward: params.reward});
+
+    // emit event
+    emit Harvested(msg.sender, params.rewardsRoot, params.reward);
+
     unchecked {
       // cannot underflow
-      periodReward = reward - lastRewardSync.reward;
+      return params.reward - lastRewardSync.reward;
     }
+  }
 
-    // SLOAD to memory
-    uint96 currentNonce = rewardsNonce;
-    if (currentNonce != lastRewardSync.nonce) {
-      // update state
-      rewards[vault] = RewardSync({nonce: currentNonce, reward: reward});
-
-      // emit event
-      emit Harvested(msg.sender, vault, reward);
+  /**
+   * @dev Collateralize Vault so that it must be harvested in future reward updates
+   * @param vault The address of the Vault
+   */
+  function _collateralize(address vault) internal {
+    if (rewards[vault].nonce == 0) {
+      rewards[vault] = RewardSync({nonce: rewardsNonce, reward: 0});
     }
-    // update Vault's state
-    return IBaseVault(vault).updateState(periodReward);
   }
 
   /// @inheritdoc UUPSUpgradeable
@@ -162,16 +184,6 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     // set rewardsNonce to 1 so that vaults collateralized
     // before first rewards root update will not have 0 nonce
     rewardsNonce = 1;
-  }
-
-  /**
-   * @dev Collateralize Vault so that it must be harvested in future reward updates
-   * @param vault The address of the Vault
-   */
-  function _collateralize(address vault) internal {
-    if (rewards[vault].nonce == 0) {
-      rewards[vault] = RewardSync({nonce: rewardsNonce, reward: 0});
-    }
   }
 
   /**

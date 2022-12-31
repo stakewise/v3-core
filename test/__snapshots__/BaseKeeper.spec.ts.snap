@@ -1,29 +1,36 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`BaseKeeper harvest calculates delta since last update 1`] = `
+exports[`BaseKeeper harvest succeeds for latest rewards root 1`] = `
 Object {
-  "calldataByteLength": 132,
-  "gasUsed": 67754,
+  "calldataByteLength": 260,
+  "gasUsed": 131439,
 }
 `;
 
-exports[`BaseKeeper harvest succeeds for already harvested vault 1`] = `
+exports[`BaseKeeper harvest succeeds for latest rewards root 2`] = `
 Object {
-  "calldataByteLength": 228,
-  "gasUsed": 62026,
+  "calldataByteLength": 260,
+  "gasUsed": 61195,
 }
 `;
 
-exports[`BaseKeeper harvest succeeds for not harvested vault 1`] = `
+exports[`BaseKeeper harvest succeeds for previous rewards root 1`] = `
 Object {
-  "calldataByteLength": 228,
-  "gasUsed": 130337,
+  "calldataByteLength": 260,
+  "gasUsed": 133616,
 }
 `;
 
-exports[`BaseKeeper set rewards root succeeds 1`] = `
+exports[`BaseKeeper harvest succeeds for previous rewards root 2`] = `
 Object {
-  "calldataByteLength": 708,
-  "gasUsed": 114734,
+  "calldataByteLength": 164,
+  "gasUsed": 78428,
+}
+`;
+
+exports[`BaseKeeper harvest succeeds for previous rewards root 3`] = `
+Object {
+  "calldataByteLength": 260,
+  "gasUsed": 63372,
 }
 `;

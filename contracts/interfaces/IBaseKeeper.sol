@@ -20,29 +20,27 @@ interface IBaseKeeper {
 
   /**
    * @notice Event emitted on rewards root update
-   * @param caller The address of the rewards root update caller
-   * @param rewardsRoot The new rewards Merkle Tree root
+   * @param caller The address of the function caller
+   * @param rewardsRoot The new rewards merkle tree root
    * @param updateTimestamp The update timestamp used for rewards calculation
    * @param nonce The nonce used for verifying signatures
    * @param rewardsIpfsHash The new rewards IPFS hash
-   * @param signatures The concatenation of Oracles' signatures
    */
   event RewardsRootUpdated(
     address indexed caller,
     bytes32 indexed rewardsRoot,
     uint64 updateTimestamp,
     uint96 nonce,
-    string rewardsIpfsHash,
-    bytes signatures
+    string rewardsIpfsHash
   );
 
   /**
    * @notice Event emitted on Vault harvest
-   * @param caller The address of the harvest caller
    * @param vault The address of the Vault
+   * @param rewardsRoot The rewards merkle tree root
    * @param reward The cumulative reward/penalty accumulated by the Vault
    */
-  event Harvested(address indexed caller, address indexed vault, int160 reward);
+  event Harvested(address indexed vault, bytes32 indexed rewardsRoot, int160 reward);
 
   /**
    * @notice A struct containing the last synced Vault's reward
@@ -52,6 +50,32 @@ interface IBaseKeeper {
   struct RewardSync {
     uint96 nonce;
     int160 reward;
+  }
+
+  /**
+   * @notice A struct containing parameters for rewards merkle tree root update
+   * @param rewardsRoot The new rewards merkle root
+   * @param updateTimestamp The update timestamp used for rewards calculation
+   * @param rewardsIpfsHash The new IPFS hash with all the Vaults' rewards for the new root
+   * @param signatures The concatenation of the Oracles' signatures
+   */
+  struct RewardsRootUpdateParams {
+    bytes32 rewardsRoot;
+    uint64 updateTimestamp;
+    string rewardsIpfsHash;
+    bytes signatures;
+  }
+
+  /**
+   * @notice A struct containing parameters for harvesting rewards. Can only be called by Vault.
+   * @param rewardsRoot The rewards merkle root
+   * @param vaultReward The Vault cumulative reward. Can be negative in case of penalty/slashing.
+   * @param proof The proof to verify that Vault's reward is correct
+   */
+  struct HarvestParams {
+    bytes32 rewardsRoot;
+    int160 reward;
+    bytes32[] proof;
   }
 
   /**
@@ -67,14 +91,20 @@ interface IBaseKeeper {
   function registry() external view returns (IRegistry);
 
   /**
+   * @notice Previous Rewards Root
+   * @return The previous merkle tree root of the rewards accumulated by the Vaults in the consensus layer
+   */
+  function prevRewardsRoot() external view returns (bytes32);
+
+  /**
    * @notice Rewards Root
-   * @return The latest Merkle Tree root of the rewards accumulated by the Vaults in the consensus layer
+   * @return The latest merkle tree root of the rewards accumulated by the Vaults in the consensus layer
    */
   function rewardsRoot() external view returns (bytes32);
 
   /**
    * @notice Rewards Nonce
-   * @return The nonce used for updating rewards Merkle Tree root
+   * @return The nonce used for updating rewards merkle tree root
    */
   function rewardsNonce() external view returns (uint96);
 
@@ -87,11 +117,18 @@ interface IBaseKeeper {
   function rewards(address vault) external view returns (uint96 nonce, int160 reward);
 
   /**
-   * @notice Checks whether the Vault is harvested
+   * @notice Checks whether Vault must be harvested
    * @param vault The address of the Vault
-   * @return `true` if Vault is harvested, `false` otherwise
+   * @return `true` if the Vault requires harvesting, `false` otherwise
    */
-  function isHarvested(address vault) external view returns (bool);
+  function isHarvestRequired(address vault) external view returns (bool);
+
+  /**
+   * @notice Checks whether the Vault can be harvested
+   * @param vault The address of the Vault
+   * @return `true` if Vault can be harvested, `false` otherwise
+   */
+  function canHarvest(address vault) external view returns (bool);
 
   /**
    * @notice Checks whether the Vault has registered validators
@@ -101,29 +138,15 @@ interface IBaseKeeper {
   function isCollateralized(address vault) external view returns (bool);
 
   /**
-   * @notice Update Merkle Tree Rewards Root
-   * @param _rewardsRoot The new rewards Merkle root
-   * @param updateTimestamp The update timestamp used for rewards calculation
-   * @param rewardsIpfsHash The new IPFS hash with all the Vaults' rewards for the new root
-   * @param signatures The concatenation of the Oracles' signatures
+   * @notice Update rewards merkle tree root. Can be called only by oracle.
+   * @param params The struct containing rewards root update parameters
    */
-  function setRewardsRoot(
-    bytes32 _rewardsRoot,
-    uint64 updateTimestamp,
-    string calldata rewardsIpfsHash,
-    bytes calldata signatures
-  ) external;
+  function setRewardsRoot(RewardsRootUpdateParams calldata params) external;
 
   /**
-   * @notice Harvest Vault rewards
-   * @param vault The address of the Vault to harvest
-   * @param vaultReward The Vault cumulative reward. Can be negative in case of penalty/slashing.
-   * @param proof The proof to verify that Vault's reward is correct
-   * @return The total reward/penalty accumulated by the Vault since the last sync
+   * @notice Harvest rewards. Can be called only by Vault.
+   * @param params The struct containing rewards harvesting parameters
+   * @return periodReward The total reward/penalty accumulated by the Vault since the last sync
    */
-  function harvest(
-    address vault,
-    int160 vaultReward,
-    bytes32[] calldata proof
-  ) external returns (int256);
+  function harvest(HarvestParams calldata params) external returns (int256 periodReward);
 }

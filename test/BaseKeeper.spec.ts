@@ -1,16 +1,16 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Wallet } from 'ethers'
-import { hexlify, parseEther } from 'ethers/lib/utils'
-import { EthVault, EthKeeper, Oracles } from '../typechain-types'
+import { parseEther } from 'ethers/lib/utils'
+import { EthKeeper, EthVault, IBaseKeeper, Oracles } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ORACLES, ZERO_ADDRESS, ZERO_BYTES32 } from './shared/constants'
+import { ORACLES, ZERO_BYTES32 } from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
 import {
   createVaultRewardsRoot,
   getRewardsRootProof,
-  RewardsRoot,
+  RewardsTree,
   VaultReward,
 } from './shared/rewards'
 import { setBalance } from './shared/utils'
@@ -55,199 +55,173 @@ describe('BaseKeeper', () => {
 
   describe('set rewards root', () => {
     let vaultReward: VaultReward
-    let rewardsRoot: RewardsRoot
+    let rewardsTree: RewardsTree
+    let rewardsRootParams: IBaseKeeper.RewardsRootUpdateParamsStruct
 
     beforeEach(async () => {
       vaultReward = { reward: parseEther('5'), vault: vault.address }
-      rewardsRoot = createVaultRewardsRoot([vaultReward], oracles)
+      const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles)
+      rewardsTree = rewardsRoot.tree
+      rewardsRootParams = {
+        rewardsRoot: rewardsRoot.root,
+        updateTimestamp: rewardsRoot.updateTimestamp,
+        rewardsIpfsHash: rewardsRoot.ipfsHash,
+        signatures: getSignatures(rewardsRoot.signingData),
+      }
     })
 
     it('fails with invalid root', async () => {
       await expect(
-        keeper
-          .connect(oracle)
-          .setRewardsRoot(
-            ZERO_BYTES32,
-            rewardsRoot.updateTimestamp,
-            rewardsRoot.ipfsHash,
-            getSignatures(rewardsRoot.signingData)
-          )
+        keeper.connect(oracle).setRewardsRoot({ ...rewardsRootParams, rewardsRoot: ZERO_BYTES32 })
+      ).to.be.revertedWith('InvalidRewardsRoot()')
+
+      // check can't set to previous rewards root
+      await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
+      await expect(
+        keeper.connect(oracle).setRewardsRoot({ ...rewardsRootParams, rewardsRoot: ZERO_BYTES32 })
       ).to.be.revertedWith('InvalidRewardsRoot()')
     })
 
     it('fails if not oracle', async () => {
-      await expect(
-        keeper
-          .connect(sender)
-          .setRewardsRoot(
-            rewardsRoot.root,
-            rewardsRoot.updateTimestamp,
-            rewardsRoot.ipfsHash,
-            getSignatures(rewardsRoot.signingData)
-          )
-      ).to.be.revertedWith('AccessDenied()')
+      await expect(keeper.connect(sender).setRewardsRoot(rewardsRootParams)).to.be.revertedWith(
+        'AccessDenied()'
+      )
     })
 
     it('fails with invalid IPFS hash', async () => {
       await expect(
         keeper
           .connect(oracle)
-          .setRewardsRoot(
-            rewardsRoot.root,
-            rewardsRoot.updateTimestamp,
-            ZERO_BYTES32,
-            getSignatures(rewardsRoot.signingData)
-          )
+          .setRewardsRoot({ ...rewardsRootParams, rewardsIpfsHash: ZERO_BYTES32 })
       ).to.be.revertedWith('InvalidOracle()')
     })
 
     it('fails with invalid nonce', async () => {
-      const signatures = getSignatures(rewardsRoot.signingData)
-      await keeper
-        .connect(oracle)
-        .setRewardsRoot(
-          rewardsRoot.root,
-          rewardsRoot.updateTimestamp,
-          rewardsRoot.ipfsHash,
-          signatures
-        )
-
+      await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
       const newVaultReward = { reward: parseEther('3'), vault: vault.address }
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles)
       await expect(
-        keeper
-          .connect(oracle)
-          .setRewardsRoot(
-            newRewardsRoot.root,
-            rewardsRoot.updateTimestamp,
-            newRewardsRoot.ipfsHash,
-            getSignatures(newRewardsRoot.signingData)
-          )
+        keeper.connect(oracle).setRewardsRoot({
+          rewardsRoot: newRewardsRoot.root,
+          rewardsIpfsHash: newRewardsRoot.ipfsHash,
+          updateTimestamp: newRewardsRoot.updateTimestamp,
+          signatures: getSignatures(newRewardsRoot.signingData),
+        })
       ).to.be.revertedWith('InvalidOracle()')
     })
 
     it('succeeds', async () => {
-      const signatures = getSignatures(rewardsRoot.signingData)
-      const receipt = await keeper
-        .connect(oracle)
-        .setRewardsRoot(
-          rewardsRoot.root,
-          rewardsRoot.updateTimestamp,
-          rewardsRoot.ipfsHash,
-          signatures
-        )
-
+      let receipt = await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
       await expect(receipt)
         .to.emit(keeper, 'RewardsRootUpdated')
         .withArgs(
           oracle.address,
-          rewardsRoot.root,
-          rewardsRoot.updateTimestamp,
+          rewardsRootParams.rewardsRoot,
+          rewardsRootParams.updateTimestamp,
           1,
-          rewardsRoot.ipfsHash,
-          hexlify(signatures)
+          rewardsRootParams.rewardsIpfsHash
         )
-      expect(await keeper.rewardsRoot()).to.eq(rewardsRoot.root)
+      expect(await keeper.prevRewardsRoot()).to.eq(ZERO_BYTES32)
+      expect(await keeper.rewardsRoot()).to.eq(rewardsRootParams.rewardsRoot)
       expect(await keeper.rewardsNonce()).to.eq(2)
+      await snapshotGasCost(receipt)
+
+      // check keeps previous rewards root
+      const newVaultReward = { reward: parseEther('3'), vault: vault.address }
+      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1670256000, 2)
+      receipt = await keeper.connect(oracle).setRewardsRoot({
+        rewardsRoot: newRewardsRoot.root,
+        rewardsIpfsHash: newRewardsRoot.ipfsHash,
+        updateTimestamp: newRewardsRoot.updateTimestamp,
+        signatures: getSignatures(newRewardsRoot.signingData),
+      })
+      await expect(receipt)
+        .to.emit(keeper, 'RewardsRootUpdated')
+        .withArgs(
+          oracle.address,
+          newRewardsRoot.root,
+          newRewardsRoot.updateTimestamp,
+          2,
+          newRewardsRoot.ipfsHash
+        )
+      expect(await keeper.prevRewardsRoot()).to.eq(rewardsRootParams.rewardsRoot)
+      expect(await keeper.rewardsRoot()).to.eq(newRewardsRoot.root)
+      expect(await keeper.rewardsNonce()).to.eq(3)
       await snapshotGasCost(receipt)
     })
   })
 
-  describe('is harvested', () => {
-    let vaultReward: VaultReward
-    let rewardsRoot: RewardsRoot
+  describe('is harvest required', () => {
+    let harvestParams: IBaseKeeper.HarvestParamsStruct
     let proof: string[]
 
     beforeEach(async () => {
-      vaultReward = { reward: parseEther('5'), vault: vault.address }
-      rewardsRoot = createVaultRewardsRoot([vaultReward], oracles)
-      const signatures = getSignatures(rewardsRoot.signingData)
-      await keeper
-        .connect(oracle)
-        .setRewardsRoot(
-          rewardsRoot.root,
-          rewardsRoot.updateTimestamp,
-          rewardsRoot.ipfsHash,
-          signatures
-        )
+      const vaultReward = { reward: parseEther('5'), vault: vault.address }
+      const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles)
+      await keeper.connect(oracle).setRewardsRoot({
+        rewardsRoot: rewardsRoot.root,
+        updateTimestamp: rewardsRoot.updateTimestamp,
+        rewardsIpfsHash: rewardsRoot.ipfsHash,
+        signatures: getSignatures(rewardsRoot.signingData),
+      })
       proof = getRewardsRootProof(rewardsRoot.tree, vaultReward)
+      harvestParams = {
+        rewardsRoot: rewardsRoot.root,
+        reward: vaultReward.reward,
+        proof,
+      }
     })
 
-    it('returns true for uncollateralized vault', async () => {
-      expect(await keeper.isHarvested(vault.address)).to.equal(true)
+    it('returns false for uncollateralized vault', async () => {
+      expect(await keeper.isCollateralized(vault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
+      expect(await keeper.canHarvest(vault.address)).to.equal(false)
     })
 
-    it('returns false for collateralized unharvested vault', async () => {
-      await keeper.harvest(vaultReward.vault, vaultReward.reward, proof)
+    it('returns true for collateralized two times unharvested vault', async () => {
+      // collateralize vault
+      await vault.updateState(harvestParams)
+      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
+      expect(await keeper.canHarvest(vault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
+
+      // update rewards first time
       let newVaultReward = { reward: parseEther('3'), vault: vault.address }
-      let newRewardsRoot = createVaultRewardsRoot(
-        [newVaultReward],
-        oracles,
-        rewardsRoot.updateTimestamp,
-        2
-      )
-      await keeper
-        .connect(oracle)
-        .setRewardsRoot(
-          newRewardsRoot.root,
-          rewardsRoot.updateTimestamp,
-          newRewardsRoot.ipfsHash,
-          getSignatures(newRewardsRoot.signingData)
-        )
+      let newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1670258895, 2)
+      await keeper.connect(oracle).setRewardsRoot({
+        rewardsRoot: newRewardsRoot.root,
+        rewardsIpfsHash: newRewardsRoot.ipfsHash,
+        updateTimestamp: newRewardsRoot.updateTimestamp,
+        signatures: getSignatures(newRewardsRoot.signingData),
+      })
 
-      // returns true if not harvested one time
-      expect(await keeper.isHarvested(vault.address)).to.equal(true)
+      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
+      expect(await keeper.canHarvest(vault.address)).to.equal(true)
+      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
 
-      const newTimestamp = rewardsRoot.updateTimestamp + 1
+      // update rewards second time
+      const newTimestamp = newRewardsRoot.updateTimestamp + 1
       newVaultReward = { reward: parseEther('4'), vault: vault.address }
       newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, newTimestamp, 3)
-      await keeper
-        .connect(oracle)
-        .setRewardsRoot(
-          newRewardsRoot.root,
-          newTimestamp,
-          newRewardsRoot.ipfsHash,
-          getSignatures(newRewardsRoot.signingData)
-        )
+      await keeper.connect(oracle).setRewardsRoot({
+        rewardsRoot: newRewardsRoot.root,
+        rewardsIpfsHash: newRewardsRoot.ipfsHash,
+        updateTimestamp: newRewardsRoot.updateTimestamp,
+        signatures: getSignatures(newRewardsRoot.signingData),
+      })
 
-      // returns false if not harvested two times
-      expect(await keeper.isHarvested(vault.address)).to.equal(false)
-    })
-
-    it('returns true for collateralized harvested vault', async () => {
-      await keeper.harvest(vaultReward.vault, vaultReward.reward, proof)
-      const newVaultReward = { reward: parseEther('3'), vault: vault.address }
-      const newRewardsRoot = createVaultRewardsRoot(
-        [newVaultReward],
-        oracles,
-        rewardsRoot.updateTimestamp,
-        2
-      )
-      await keeper
-        .connect(oracle)
-        .setRewardsRoot(
-          newRewardsRoot.root,
-          rewardsRoot.updateTimestamp,
-          newRewardsRoot.ipfsHash,
-          getSignatures(newRewardsRoot.signingData)
-        )
-      await keeper.harvest(
-        newVaultReward.vault,
-        newVaultReward.reward,
-        getRewardsRootProof(newRewardsRoot.tree, newVaultReward)
-      )
-      expect(await keeper.isHarvested(vault.address)).to.equal(true)
+      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
+      expect(await keeper.canHarvest(vault.address)).to.equal(true)
+      expect(await keeper.isHarvestRequired(vault.address)).to.equal(true)
     })
   })
 
-  describe('harvest', () => {
-    let vaultReward: VaultReward
-    let rewardsRoot: RewardsRoot
+  describe.only('harvest', () => {
+    let harvestParams: IBaseKeeper.HarvestParamsStruct
     let proof: string[]
 
     beforeEach(async () => {
-      vaultReward = { reward: parseEther('5'), vault: vault.address }
-
+      const vaultReward = { reward: parseEther('5'), vault: vault.address }
       const vaultRewards = [vaultReward]
       for (let i = 1; i < 11; i++) {
         const vlt = await createVault(admin, {
@@ -262,87 +236,138 @@ describe('BaseKeeper', () => {
         vaultRewards.push({ reward: parseEther(i.toString()), vault: vlt.address })
       }
 
-      rewardsRoot = createVaultRewardsRoot(vaultRewards, oracles)
+      const rewardsRoot = createVaultRewardsRoot(vaultRewards, oracles)
       proof = getRewardsRootProof(rewardsRoot.tree, vaultReward)
-      await keeper
-        .connect(oracle)
-        .setRewardsRoot(
-          rewardsRoot.root,
-          rewardsRoot.updateTimestamp,
-          rewardsRoot.ipfsHash,
-          getSignatures(rewardsRoot.signingData)
-        )
+      await keeper.connect(oracle).setRewardsRoot({
+        rewardsRoot: rewardsRoot.root,
+        updateTimestamp: rewardsRoot.updateTimestamp,
+        rewardsIpfsHash: rewardsRoot.ipfsHash,
+        signatures: getSignatures(rewardsRoot.signingData),
+      })
+      harvestParams = {
+        rewardsRoot: rewardsRoot.root,
+        reward: vaultReward.reward,
+        proof,
+      }
     })
 
-    it('fails for invalid vault', async () => {
-      await expect(keeper.harvest(ZERO_ADDRESS, vaultReward.reward, proof)).to.be.revertedWith(
-        'InvalidVault()'
-      )
+    it('only vault can harvest', async () => {
+      await expect(keeper.harvest(harvestParams)).to.be.revertedWith('AccessDenied()')
     })
 
     it('fails for invalid reward', async () => {
-      await expect(keeper.harvest(vaultReward.vault, 0, proof)).to.be.revertedWith('InvalidProof()')
-    })
-
-    it('fails for invalid proof', async () => {
-      await expect(keeper.harvest(vaultReward.vault, vaultReward.reward, [])).to.be.revertedWith(
+      await expect(vault.updateState({ ...harvestParams, reward: 0 })).to.be.revertedWith(
         'InvalidProof()'
       )
     })
 
-    it('calculates delta since last update', async () => {
-      await keeper.harvest(vaultReward.vault, vaultReward.reward, proof)
+    it('fails for invalid proof', async () => {
+      await expect(vault.updateState({ ...harvestParams, proof: [] })).to.be.revertedWith(
+        'InvalidProof()'
+      )
+    })
 
-      const newVaultReward = {
-        reward: BigNumber.from(vaultReward.reward).sub(parseEther('1')),
-        vault: vaultReward.vault,
+    it('fails for invalid root', async () => {
+      const invalidRoot = '0x' + '1'.repeat(64)
+      await expect(
+        vault.updateState({ ...harvestParams, rewardsRoot: invalidRoot })
+      ).to.be.revertedWith('InvalidRewardsRoot()')
+    })
+
+    it('succeeds for latest rewards root', async () => {
+      let receipt = await vault.updateState(harvestParams)
+      await expect(receipt)
+        .to.emit(keeper, 'Harvested')
+        .withArgs(vault.address, harvestParams.rewardsRoot, harvestParams.reward)
+      await expect(receipt).to.emit(vault, 'StateUpdated').withArgs(harvestParams.reward)
+
+      let rewardsSync = await keeper.rewards(vault.address)
+      expect(rewardsSync.nonce).to.equal(2)
+      expect(rewardsSync.reward).to.equal(harvestParams.reward)
+
+      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
+      expect(await keeper.canHarvest(vault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+
+      // doesn't fail for harvesting twice
+      receipt = await vault.updateState(harvestParams)
+      await expect(receipt).to.not.emit(keeper, 'Harvested')
+      await expect(receipt).to.not.emit(vault, 'StateUpdated')
+
+      rewardsSync = await keeper.rewards(vault.address)
+      expect(rewardsSync.nonce).to.equal(2)
+      expect(rewardsSync.reward).to.equal(harvestParams.reward)
+
+      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
+      expect(await keeper.canHarvest(vault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+    })
+
+    it('succeeds for previous rewards root', async () => {
+      const prevHarvestParams = harvestParams
+
+      // update rewards root
+      const vaultReward = { reward: parseEther('10'), vault: vault.address }
+      const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles, 1670255995, 2)
+      await keeper.connect(oracle).setRewardsRoot({
+        rewardsRoot: rewardsRoot.root,
+        updateTimestamp: rewardsRoot.updateTimestamp,
+        rewardsIpfsHash: rewardsRoot.ipfsHash,
+        signatures: getSignatures(rewardsRoot.signingData),
+      })
+      proof = getRewardsRootProof(rewardsRoot.tree, vaultReward)
+      const currHarvestParams = {
+        rewardsRoot: rewardsRoot.root,
+        reward: vaultReward.reward,
+        proof,
       }
 
-      const newRewardsRoot = createVaultRewardsRoot(
-        [newVaultReward],
-        oracles,
-        rewardsRoot.updateTimestamp,
-        2
-      )
-      const signatures = getSignatures(newRewardsRoot.signingData)
-      await keeper
-        .connect(oracle)
-        .setRewardsRoot(
-          newRewardsRoot.root,
-          rewardsRoot.updateTimestamp,
-          newRewardsRoot.ipfsHash,
-          signatures
-        )
-
-      const newProof = getRewardsRootProof(newRewardsRoot.tree, newVaultReward)
-      const receipt = await keeper
-        .connect(sender)
-        .harvest(newVaultReward.vault, newVaultReward.reward, newProof)
+      let receipt = await vault.updateState(prevHarvestParams)
       await expect(receipt)
         .to.emit(keeper, 'Harvested')
-        .withArgs(sender.address, newVaultReward.vault, newVaultReward.reward)
+        .withArgs(vault.address, prevHarvestParams.rewardsRoot, prevHarvestParams.reward)
+      await expect(receipt).to.emit(vault, 'StateUpdated').withArgs(prevHarvestParams.reward)
+
+      let rewardsSync = await keeper.rewards(vault.address)
+      expect(rewardsSync.nonce).to.equal(2)
+      expect(rewardsSync.reward).to.equal(prevHarvestParams.reward)
+
+      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
+      expect(await keeper.canHarvest(vault.address)).to.equal(true)
+      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+
+      receipt = await vault.updateState(currHarvestParams)
+      await expect(receipt)
+        .to.emit(keeper, 'Harvested')
+        .withArgs(vault.address, currHarvestParams.rewardsRoot, currHarvestParams.reward)
       await expect(receipt)
         .to.emit(vault, 'StateUpdated')
-        .withArgs(BigNumber.from(newVaultReward.reward).sub(vaultReward.reward))
-      await snapshotGasCost(receipt)
-    })
+        .withArgs(currHarvestParams.reward.sub(BigNumber.from(prevHarvestParams.reward)))
 
-    it('succeeds for already harvested vault', async () => {
-      await keeper.harvest(vaultReward.vault, vaultReward.reward, proof)
-      const receipt = await keeper
-        .connect(sender)
-        .harvest(vaultReward.vault, vaultReward.reward, proof)
+      rewardsSync = await keeper.rewards(vault.address)
+      expect(rewardsSync.nonce).to.equal(3)
+      expect(rewardsSync.reward).to.equal(currHarvestParams.reward)
+
+      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
+      expect(await keeper.canHarvest(vault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+
+      // doesn't fail for harvesting previous again
+      receipt = await vault.updateState(prevHarvestParams)
       await expect(receipt).to.not.emit(keeper, 'Harvested')
-      await expect(receipt).to.emit(vault, 'StateUpdated').withArgs(0)
-      await snapshotGasCost(receipt)
-    })
+      await expect(receipt).to.not.emit(vault, 'StateUpdated')
 
-    it('succeeds for not harvested vault', async () => {
-      const receipt = keeper.connect(sender).harvest(vaultReward.vault, vaultReward.reward, proof)
-      await expect(receipt)
-        .to.emit(keeper, 'Harvested')
-        .withArgs(sender.address, vaultReward.vault, vaultReward.reward)
-      await expect(receipt).to.emit(vault, 'StateUpdated').withArgs(vaultReward.reward)
+      rewardsSync = await keeper.rewards(vault.address)
+      expect(rewardsSync.nonce).to.equal(3)
+      expect(rewardsSync.reward).to.equal(currHarvestParams.reward)
+
+      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
+      expect(await keeper.canHarvest(vault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
       await snapshotGasCost(receipt)
     })
   })
