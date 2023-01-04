@@ -1,7 +1,7 @@
 [
   {
     "inputs": [],
-    "name": "implementation",
+    "name": "keeper",
     "outputs": [
       {
         "internalType": "address",
@@ -14,12 +14,12 @@
   },
   {
     "inputs": [],
-    "name": "proxiableUUID",
+    "name": "registry",
     "outputs": [
       {
-        "internalType": "bytes32",
+        "internalType": "address",
         "name": "",
-        "type": "bytes32"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -27,12 +27,12 @@
   },
   {
     "inputs": [],
-    "name": "version",
+    "name": "validatorsRegistry",
     "outputs": [
       {
-        "internalType": "uint8",
+        "internalType": "address",
         "name": "",
-        "type": "uint8"
+        "type": "address"
       }
     ],
     "stateMutability": "view",

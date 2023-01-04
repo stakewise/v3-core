@@ -17,7 +17,7 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "feesEscrow",
+        "name": "mevEscrow",
         "type": "address"
       },
       {
@@ -84,7 +84,7 @@
       },
       {
         "internalType": "address",
-        "name": "feesEscrow",
+        "name": "mevEscrow",
         "type": "address"
       }
     ],
@@ -142,11 +142,6 @@
         "internalType": "address",
         "name": "vault",
         "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "feesEscrow",
-        "type": "address"
       }
     ],
     "stateMutability": "nonpayable",
@@ -173,20 +168,7 @@
   },
   {
     "inputs": [],
-    "name": "registry",
-    "outputs": [
-      {
-        "internalType": "contract IRegistry",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "vaultImplementation",
+    "name": "publicVaultImpl",
     "outputs": [
       {
         "internalType": "address",

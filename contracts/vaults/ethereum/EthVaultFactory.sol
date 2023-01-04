@@ -5,10 +5,9 @@ pragma solidity =0.8.17;
 import {Create2} from '@openzeppelin/contracts/utils/Create2.sol';
 import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
-import {IRegistry} from '../../interfaces/IRegistry.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
-import {IBaseVault} from '../../interfaces/IBaseVault.sol';
-import {EthFeesEscrow} from '../escrows/EthFeesEscrow.sol';
+import {IRegistry} from '../../interfaces/IRegistry.sol';
+import {OwnMevEscrow} from './mev/OwnMevEscrow.sol';
 
 /**
  * @title EthVaultFactory
@@ -17,33 +16,30 @@ import {EthFeesEscrow} from '../escrows/EthFeesEscrow.sol';
  */
 contract EthVaultFactory is IEthVaultFactory {
   /// @inheritdoc IEthVaultFactory
-  address public immutable override vaultImplementation;
-
-  /// @inheritdoc IEthVaultFactory
-  IRegistry public immutable override registry;
+  address public immutable override publicVaultImpl;
 
   /// @inheritdoc IEthVaultFactory
   mapping(address => uint256) public override nonces;
 
-  bytes32 internal immutable _vaultCreationCodeHash;
+  bytes32 internal immutable _publicVaultCreateHash;
+
+  IRegistry internal immutable _registry;
 
   /**
    * @dev Constructor
-   * @param _vaultImplementation The address of the Vault implementation used for the proxy deployment
-   * @param _registry The address of the Registry
+   * @param _publicVaultImpl The implementation address of the public Ethereum Vault
+   * @param registry The address of the Registry
    */
-  constructor(address _vaultImplementation, IRegistry _registry) {
-    vaultImplementation = _vaultImplementation;
-    registry = _registry;
-    _vaultCreationCodeHash = keccak256(
-      abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(_vaultImplementation, ''))
+  constructor(address _publicVaultImpl, IRegistry registry) {
+    publicVaultImpl = _publicVaultImpl;
+    _registry = registry;
+    _publicVaultCreateHash = keccak256(
+      abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(_publicVaultImpl, ''))
     );
   }
 
   /// @inheritdoc IEthVaultFactory
-  function createVault(
-    VaultParams calldata params
-  ) external override returns (address vault, address feesEscrow) {
+  function createVault(VaultParams calldata params) external override returns (address vault) {
     uint256 nonce = nonces[msg.sender];
     unchecked {
       // cannot realistically overflow
@@ -52,18 +48,18 @@ contract EthVaultFactory is IEthVaultFactory {
 
     // create vault proxy
     bytes32 salt = keccak256(abi.encode(msg.sender, nonce));
-    vault = address(new ERC1967Proxy{salt: salt}(vaultImplementation, ''));
+    vault = address(new ERC1967Proxy{salt: salt}(publicVaultImpl, ''));
 
-    // create fees escrow contract
-    feesEscrow = address(new EthFeesEscrow{salt: salt}(vault));
+    // create MEV escrow contract
+    address mevEscrow = address(new OwnMevEscrow{salt: salt}(vault));
 
     // initialize vault
     IEthVault(vault).initialize(
-      IBaseVault.InitParams({
+      IEthVault.EthVaultInitParams({
         capacity: params.capacity,
         validatorsRoot: params.validatorsRoot,
         admin: msg.sender,
-        feesEscrow: feesEscrow,
+        mevEscrow: mevEscrow,
         feePercent: params.feePercent,
         name: params.name,
         symbol: params.symbol,
@@ -73,20 +69,20 @@ contract EthVaultFactory is IEthVaultFactory {
     );
 
     // add vault to the registry
-    registry.addVault(vault);
+    _registry.addVault(vault);
 
-    emit VaultCreated(msg.sender, vault, feesEscrow, params);
+    emit VaultCreated(msg.sender, vault, mevEscrow, params);
   }
 
   /// @inheritdoc IEthVaultFactory
   function computeAddresses(
     address deployer
-  ) public view override returns (address vault, address feesEscrow) {
+  ) public view override returns (address vault, address mevEscrow) {
     bytes32 nonce = keccak256(abi.encode(deployer, nonces[deployer]));
-    vault = Create2.computeAddress(nonce, _vaultCreationCodeHash);
-    feesEscrow = Create2.computeAddress(
+    vault = Create2.computeAddress(nonce, _publicVaultCreateHash);
+    mevEscrow = Create2.computeAddress(
       nonce,
-      keccak256(abi.encodePacked(type(EthFeesEscrow).creationCode, abi.encode(vault)))
+      keccak256(abi.encodePacked(type(OwnMevEscrow).creationCode, abi.encode(vault)))
     );
   }
 }

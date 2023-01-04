@@ -1,7 +1,7 @@
 [
   {
     "inputs": [],
-    "name": "WithdrawalFailed",
+    "name": "AccessDenied",
     "type": "error"
   },
   {
@@ -9,37 +9,37 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "amount",
-        "type": "uint256"
+        "internalType": "string",
+        "name": "metadataIpfsHash",
+        "type": "string"
       }
     ],
-    "name": "Deposited",
+    "name": "MetadataUpdated",
     "type": "event"
   },
   {
     "inputs": [],
-    "name": "balance",
+    "name": "admin",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "address",
         "name": "",
-        "type": "uint256"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "withdraw",
-    "outputs": [
+    "inputs": [
       {
-        "internalType": "uint256",
-        "name": "assets",
-        "type": "uint256"
+        "internalType": "string",
+        "name": "metadataIpfsHash",
+        "type": "string"
       }
     ],
+    "name": "setMetadata",
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   }
