@@ -77,7 +77,7 @@ describe('EthVault - withdraw', () => {
     await vault.connect(holder).deposit(holder.address, { value: holderAssets })
   })
 
-  describe('redeem', () => {
+  describe('redeem & withdraw', () => {
     it('fails with not enough balance', async () => {
       await setBalance(vault.address, BigNumber.from(0))
       await expect(
@@ -143,11 +143,34 @@ describe('EthVault - withdraw', () => {
       )
     })
 
-    it('transfers assets to receiver', async () => {
+    it('redeem transfers assets to receiver', async () => {
       const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
       const receipt = await vault
         .connect(holder)
         .redeem(holderShares, receiver.address, holder.address)
+      await expect(receipt)
+        .to.emit(vault, 'Withdraw')
+        .withArgs(holder.address, receiver.address, holder.address, holderAssets, holderShares)
+      await expect(receipt)
+        .to.emit(vault, 'Transfer')
+        .withArgs(holder.address, ZERO_ADDRESS, holderShares)
+
+      expect(await vault.totalAssets()).to.be.eq(0)
+      expect(await vault.totalSupply()).to.be.eq(0)
+      expect(await vault.balanceOf(holder.address)).to.be.eq(0)
+      expect(await waffle.provider.getBalance(vault.address)).to.be.eq(0)
+      expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
+        receiverBalanceBefore.add(holderAssets)
+      )
+
+      await snapshotGasCost(receipt)
+    })
+
+    it('withdraw transfers assets to receiver', async () => {
+      const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
+      const receipt = await vault
+        .connect(holder)
+        .withdraw(holderAssets, receiver.address, holder.address)
       await expect(receipt)
         .to.emit(vault, 'Withdraw')
         .withArgs(holder.address, receiver.address, holder.address, holderAssets, holderShares)
@@ -737,8 +760,8 @@ describe('EthVault - withdraw', () => {
 
     await checkVaultState()
 
-    // 8. Bob redeems 1608 shares (2929 assets)
-    const receipt = await vault.connect(bob).redeem(1608, bob.address, bob.address)
+    // 8. Bob withdraws 2929 assets (1608 shares)
+    const receipt = await vault.connect(bob).withdraw(2929, bob.address, bob.address)
     await expect(receipt).to.emit(vault, 'Transfer').withArgs(bob.address, ZERO_ADDRESS, 1608)
 
     bobShares -= 1608

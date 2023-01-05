@@ -3,6 +3,7 @@
 pragma solidity =0.8.17;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
 import {ExitQueue} from '../../libraries/ExitQueue.sol';
@@ -19,38 +20,24 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IVaultEnterExit
+  function withdraw(
+    uint256 assets,
+    address receiver,
+    address owner
+  ) external override returns (uint256 shares) {
+    shares = _convertToShares(assets, Math.Rounding.Up);
+    _withdraw(receiver, owner, assets, shares);
+  }
+
+  /// @inheritdoc IVaultEnterExit
   function redeem(
     uint256 shares,
     address receiver,
     address owner
   ) external override returns (uint256 assets) {
-    if (IKeeperRewards(keeper).isHarvestRequired(address(this))) revert NotHarvested();
-
     // calculate amount of assets to burn
     assets = convertToAssets(shares);
-
-    // reverts in case there are not enough available assets
-    if (assets > availableAssets()) revert InsufficientAvailableAssets();
-
-    // reduce allowance
-    if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
-
-    // burn shares
-    balanceOf[owner] -= shares;
-
-    // update counters
-    unchecked {
-      // cannot underflow because the sum of all shares can't exceed the _totalShares
-      _totalShares -= SafeCast.toUint128(shares);
-      // cannot underflow because the sum of all assets can't exceed the _totalAssets
-      _totalAssets -= SafeCast.toUint128(assets);
-    }
-
-    // transfer assets to the receiver
-    _transferVaultAssets(receiver, assets);
-
-    emit Transfer(owner, address(0), shares);
-    emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    _withdraw(receiver, owner, assets, shares);
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -157,6 +144,40 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
 
     emit Transfer(address(0), to, shares);
     emit Deposit(msg.sender, to, assets, shares);
+  }
+
+  /**
+   * @dev Internal function for common withdraw/redeem functionality
+   * @param receiver The address of the assets receiver
+   * @param owner The address of the shares owner
+   * @param assets The total amount of assets to transfer
+   * @param shares The total amount of shares to burn
+   */
+  function _withdraw(address receiver, address owner, uint256 assets, uint256 shares) internal {
+    if (IKeeperRewards(keeper).isHarvestRequired(address(this))) revert NotHarvested();
+
+    // reverts in case there are not enough available assets
+    if (assets > availableAssets()) revert InsufficientAvailableAssets();
+
+    // reduce allowance
+    if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
+
+    // burn shares
+    balanceOf[owner] -= shares;
+
+    // update counters
+    unchecked {
+      // cannot underflow because the sum of all shares can't exceed the _totalShares
+      _totalShares -= SafeCast.toUint128(shares);
+      // cannot underflow because the sum of all assets can't exceed the _totalAssets
+      _totalAssets -= SafeCast.toUint128(assets);
+    }
+
+    // transfer assets to the receiver
+    _transferVaultAssets(receiver, assets);
+
+    emit Transfer(owner, address(0), shares);
+    emit Withdraw(msg.sender, receiver, owner, assets, shares);
   }
 
   /**

@@ -113,4 +113,17 @@ interface IVaultEnterExit is IVaultImmutables, IVaultToken, IVaultState {
     address receiver,
     address owner
   ) external returns (uint256 assets);
+
+  /**
+   * @notice Withdraws assets from the Vault by utilising what has not been staked yet
+   * @param assets The number of assets to withdraw
+   * @param receiver The address that will receive assets
+   * @param owner The address that owns the shares
+   * @return shares The number of shares burned
+   */
+  function withdraw(
+    uint256 assets,
+    address receiver,
+    address owner
+  ) external returns (uint256 shares);
 }

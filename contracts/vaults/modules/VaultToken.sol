@@ -35,11 +35,7 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
 
   /// @inheritdoc IVaultToken
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
-    uint256 totalShares = _totalShares;
-    // Will revert if assets > 0, totalShares > 0 and _totalAssets = 0.
-    // That corresponds to a case where any asset would represent an infinite amount of shares.
-    return
-      (assets == 0 || totalShares == 0) ? assets : Math.mulDiv(assets, totalShares, _totalAssets);
+    return _convertToShares(assets, Math.Rounding.Down);
   }
 
   /// @inheritdoc IVaultToken
@@ -63,6 +59,22 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
    * @param assets The number of assets to transfer
    */
   function _transferVaultAssets(address receiver, uint256 assets) internal virtual;
+
+  /**
+   * @dev Internal conversion function (from assets to shares) with support for rounding direction.
+   */
+  function _convertToShares(
+    uint256 assets,
+    Math.Rounding rounding
+  ) internal view returns (uint256 shares) {
+    uint256 totalShares = _totalShares;
+    // Will revert if assets > 0, totalShares > 0 and _totalAssets = 0.
+    // That corresponds to a case where any asset would represent an infinite amount of shares.
+    return
+      (assets == 0 || totalShares == 0)
+        ? assets
+        : Math.mulDiv(assets, totalShares, _totalAssets, rounding);
+  }
 
   /**
    * @dev Initializes the VaultToken contract

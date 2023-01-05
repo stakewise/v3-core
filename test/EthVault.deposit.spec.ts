@@ -9,6 +9,7 @@ import { expect } from './shared/expect'
 import { PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 import { getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
 import { registerEthValidator } from './shared/validators'
+import { setBalance } from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const ether = parseEther('1')
@@ -182,6 +183,9 @@ describe('EthVault - deposit', () => {
         reward: vaultReward,
         proof: getRewardsRootProof(tree, { vault: vault.address, reward: vaultReward }),
       }
+      await setBalance(await vault.mevEscrow(), parseEther('10'))
+      await setBalance(await vault.address, parseEther('5'))
+      await vault.connect(other).enterExitQueue(parseEther('32'), other.address, other.address)
 
       const amount = parseEther('100')
       const receipt = await vault

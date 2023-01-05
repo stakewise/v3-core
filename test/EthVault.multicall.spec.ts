@@ -109,4 +109,13 @@ describe('EthVault - multicall', () => {
     ]
     await expect(vault.connect(sender).multicall(calls)).reverted
   })
+
+  it('fails to deposit in multicall', async () => {
+    const amount = parseEther('1')
+    const calls: string[] = [
+      vault.interface.encodeFunctionData('deposit', [sender.address]),
+      vault.interface.encodeFunctionData('withdraw', [amount, sender.address, sender.address]),
+    ]
+    await expect(vault.connect(sender).multicall(calls)).reverted
+  })
 })
