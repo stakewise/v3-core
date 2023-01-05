@@ -3,20 +3,20 @@
 exports[`EthVault - settings fee recipient can update 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 51058,
+  "gasUsed": 48717,
 }
 `;
 
 exports[`EthVault - settings metadata IPFS hash only admin can update 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 32103,
+  "gasUsed": 32235,
 }
 `;
 
 exports[`EthVault - settings validators root can update 1`] = `
 Object {
   "calldataByteLength": 164,
-  "gasUsed": 38171,
+  "gasUsed": 37790,
 }
 `;

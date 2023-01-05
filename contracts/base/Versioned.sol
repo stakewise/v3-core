@@ -3,7 +3,7 @@
 pragma solidity =0.8.17;
 
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import {IVersioned} from '../../interfaces/IVersioned.sol';
+import {IVersioned} from '../interfaces/IVersioned.sol';
 
 /**
  * @title Versioned

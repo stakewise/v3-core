@@ -7,7 +7,7 @@ import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IRegistry} from '../../interfaces/IRegistry.sol';
-import {OwnMevEscrow} from './mev/OwnMevEscrow.sol';
+import {VaultMevEscrow} from './mev/VaultMevEscrow.sol';
 
 /**
  * @title EthVaultFactory
@@ -51,7 +51,7 @@ contract EthVaultFactory is IEthVaultFactory {
     vault = address(new ERC1967Proxy{salt: salt}(publicVaultImpl, ''));
 
     // create MEV escrow contract
-    address mevEscrow = address(new OwnMevEscrow{salt: salt}(vault));
+    address mevEscrow = address(new VaultMevEscrow{salt: salt}(vault));
 
     // initialize vault
     IEthVault(vault).initialize(
@@ -82,7 +82,7 @@ contract EthVaultFactory is IEthVaultFactory {
     vault = Create2.computeAddress(nonce, _publicVaultCreateHash);
     mevEscrow = Create2.computeAddress(
       nonce,
-      keccak256(abi.encodePacked(type(OwnMevEscrow).creationCode, abi.encode(vault)))
+      keccak256(abi.encodePacked(type(VaultMevEscrow).creationCode, abi.encode(vault)))
     );
   }
 }

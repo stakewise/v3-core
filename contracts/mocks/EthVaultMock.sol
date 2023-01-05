@@ -5,8 +5,7 @@ pragma solidity =0.8.17;
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
 import {IRegistry} from '../interfaces/IRegistry.sol';
-import {IBaseKeeper} from '../interfaces/IBaseKeeper.sol';
-import {EthVault} from '../vaults/EthVault.sol';
+import {EthVault} from '../vaults/ethereum/EthVault.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
 
 /**
@@ -19,9 +18,9 @@ contract EthVaultMock is EthVault {
 
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    IBaseKeeper _keeper,
-    IRegistry _registry,
-    IEthValidatorsRegistry _validatorsRegistry
+    address _keeper,
+    address _registry,
+    address _validatorsRegistry
   ) EthVault(_keeper, _registry, _validatorsRegistry) {}
 
   function mockMint(address receiver, uint256 assets) external returns (uint256 shares) {

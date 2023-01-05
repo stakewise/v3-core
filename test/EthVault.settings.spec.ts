@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthKeeper, EthVault, Oracles } from '../typechain-types'
+import { Keeper, EthVault, Oracles } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -24,7 +24,7 @@ describe('EthVault - settings', () => {
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
   let admin: Wallet, owner: Wallet, other: Wallet, newFeeRecipient: Wallet
-  let keeper: EthKeeper, oracles: Oracles, validatorsRegistry: Contract
+  let keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
 
   before('create fixture loader', async () => {
     ;[admin, owner, other, newFeeRecipient] = await (ethers as any).getSigners()
@@ -150,10 +150,10 @@ describe('EthVault - settings', () => {
     })
 
     it('only admin can update', async () => {
-      await expect(vault.connect(other).updateMetadata(newMetadataIpfsHash)).to.be.revertedWith(
+      await expect(vault.connect(other).setMetadata(newMetadataIpfsHash)).to.be.revertedWith(
         'AccessDenied()'
       )
-      const receipt = await vault.connect(admin).updateMetadata(newMetadataIpfsHash)
+      const receipt = await vault.connect(admin).setMetadata(newMetadataIpfsHash)
       await expect(receipt).to.emit(vault, 'MetadataUpdated').withArgs(newMetadataIpfsHash)
       await snapshotGasCost(receipt)
     })

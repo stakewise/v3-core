@@ -2,26 +2,69 @@
 
 pragma solidity =0.8.17;
 
-import {IBaseVault} from './IBaseVault.sol';
-import {IEthValidatorsRegistry} from './IEthValidatorsRegistry.sol';
+import {IVaultAdmin} from './IVaultAdmin.sol';
+import {IVaultEnterExit} from './IVaultEnterExit.sol';
+import {IVaultFee} from './IVaultFee.sol';
+import {IVaultImmutables} from './IVaultImmutables.sol';
+import {IVaultState} from './IVaultState.sol';
+import {IVaultToken} from './IVaultToken.sol';
+import {IVaultValidators} from './IVaultValidators.sol';
+import {IVaultVersion} from './IVaultVersion.sol';
+import {IMulticall} from './IMulticall.sol';
+import {IKeeperRewards} from './IKeeperRewards.sol';
+import {IMevEscrow} from './IMevEscrow.sol';
 
 /**
  * @title IEthVault
  * @author StakeWise
  * @notice Defines the interface for the EthVault contract
  */
-interface IEthVault is IBaseVault {
+interface IEthVault is
+  IVaultImmutables,
+  IVaultToken,
+  IVaultAdmin,
+  IVaultVersion,
+  IVaultFee,
+  IVaultState,
+  IVaultValidators,
+  IVaultEnterExit,
+  IMulticall
+{
   /**
-   * @notice The ETH Validators Registry
-   * @return The address of the ETH validators registry
+   * @dev Struct for initializing the EthVault contract
+   * @param capacity The Vault stops accepting deposits after exceeding the capacity
+   * @param validatorsRoot The validators Merkle tree root
+   * @param admin The address of the Vault admin
+   * @param mevEscrow The address of the MEV escrow
+   * @param feePercent The fee percent that is charged by the Vault
+   * @param name The name of the ERC20 token
+   * @param symbol The symbol of the ERC20 token
+   * @param validatorsIpfsHash The IPFS hash with all the validators deposit data
+   * @param metadataIpfsHash The IPFS hash of the Vault's metadata file
    */
-  function validatorsRegistry() external view returns (IEthValidatorsRegistry);
+  struct EthVaultInitParams {
+    uint256 capacity;
+    bytes32 validatorsRoot;
+    address admin;
+    address mevEscrow;
+    uint16 feePercent;
+    string name;
+    string symbol;
+    string validatorsIpfsHash;
+    string metadataIpfsHash;
+  }
 
   /**
-   * @dev Initializes the EthVault contract
-   * @param initParams The Vault's initialization parameters
+   * @notice The contract that accumulates MEV rewards
+   * @return The MEV escrow contract address
    */
-  function initialize(IBaseVault.InitParams memory initParams) external;
+  function mevEscrow() external view returns (IMevEscrow);
+
+  /**
+   * @notice Initializes the EthVault contract
+   * @param params The parameters for initializing the EthVault contract
+   */
+  function initialize(EthVaultInitParams calldata params) external;
 
   /**
    * @notice Deposit assets to the Vault. Must transfer Ether together with the call.
@@ -31,23 +74,13 @@ interface IEthVault is IBaseVault {
   function deposit(address receiver) external payable returns (uint256 shares);
 
   /**
-   * @notice Function for registering single validator. Can only be called by the Keeper.
-   * @param validator The concatenation of the validator public key, signature and deposit data root
-   * @param proof The proof used to verify that the validator is part of the validators Merkle Tree
+   * @notice Updates Vault state and deposits assets to the Vault. ETH must be transferred together with the call.
+   * @param receiver The address that will receive Vault's shares
+   * @param harvestParams The parameters for harvesting Keeper rewards
+   * @return shares The number of shares minted
    */
-  function registerValidator(bytes calldata validator, bytes32[] calldata proof) external;
-
-  /**
-   * @notice Function for registering multiple validators. Can only be called by the Keeper.
-   * @param validators The concatenation of the validators' public key, signature and deposit data root
-   * @param indexes The indexes of the validators for the proof verification
-   * @param proofFlags The multi proof flags for the Merkle Tree verification
-   * @param proof The multi proof used for the Merkle Tree verification
-   */
-  function registerValidators(
-    bytes calldata validators,
-    uint256[] calldata indexes,
-    bool[] calldata proofFlags,
-    bytes32[] calldata proof
-  ) external;
+  function updateStateAndDeposit(
+    address receiver,
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) external payable returns (uint256 shares);
 }

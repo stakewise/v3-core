@@ -3,42 +3,42 @@
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in multiple transactions 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 74603,
+  "gasUsed": 76971,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in multiple transactions 2`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 52037,
+  "gasUsed": 54405,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in single transaction 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 54663,
+  "gasUsed": 57031,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in single checkpoint 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 52037,
+  "gasUsed": 54405,
 }
 `;
 
 exports[`EthVault - withdraw enter exit queue locks tokens for the time of exit 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 77287,
+  "gasUsed": 74960,
 }
 `;
 
 exports[`EthVault - withdraw enter exit queue reduces allowance for sender other than owner 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 77951,
+  "gasUsed": 75624,
 }
 `;
 
@@ -47,27 +47,27 @@ exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`
 exports[`EthVault - withdraw redeem reduces allowance for sender other than owner 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 63510,
+  "gasUsed": 63422,
 }
 `;
 
 exports[`EthVault - withdraw redeem transfers assets to receiver 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 61523,
+  "gasUsed": 61413,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue adds checkpoint 1`] = `
 Object {
-  "calldataByteLength": 132,
-  "gasUsed": 96841,
+  "calldataByteLength": 164,
+  "gasUsed": 95793,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue for not all the queued shares 1`] = `
 Object {
-  "calldataByteLength": 132,
-  "gasUsed": 101637,
+  "calldataByteLength": 164,
+  "gasUsed": 100589,
 }
 `;

@@ -2,15 +2,14 @@
 
 pragma solidity =0.8.17;
 
+import {IERC1822ProxiableUpgradeable} from '@openzeppelin/contracts-upgradeable/interfaces/draft-IERC1822Upgradeable.sol';
+
 /**
  * @title IVersioned
  * @author StakeWise
  * @notice Defines the interface for the Versioned contract
  */
-interface IVersioned {
-  /// Custom errors
-  error NotImplementedError();
-
+interface IVersioned is IERC1822ProxiableUpgradeable {
   /**
    * @notice Version
    * @return The version of the proxy contract

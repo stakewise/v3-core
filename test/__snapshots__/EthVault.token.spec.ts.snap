@@ -3,21 +3,21 @@
 exports[`EthVault - token approve when the sender has enough balance when the spender had an approved amount approves the requested amount and replaces the previous one 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 33711,
+  "gasUsed": 33733,
 }
 `;
 
 exports[`EthVault - token approve when the sender has enough balance when there was no approved amount before approves the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 50811,
+  "gasUsed": 50833,
 }
 `;
 
 exports[`EthVault - token permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 82244,
+  "gasUsed": 82310,
 }
 `;
 
@@ -38,13 +38,13 @@ Object {
 exports[`EthVault - token transfer when the sender transfers all balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 51727,
+  "gasUsed": 51771,
 }
 `;
 
 exports[`EthVault - token transfer when the sender transfers zero tokens transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 33803,
+  "gasUsed": 33847,
 }
 `;
