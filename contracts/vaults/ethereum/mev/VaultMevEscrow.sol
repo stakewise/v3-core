@@ -2,14 +2,14 @@
 
 pragma solidity =0.8.17;
 
-import {IFeesEscrow} from '../interfaces/IFeesEscrow.sol';
+import {IMevEscrow} from '../../../interfaces/IMevEscrow.sol';
 
 /**
- * @title EthFeesEscrow
+ * @title VaultMevEscrow
  * @author StakeWise
- * @notice Accumulates rewards received from priority fees and MEV on Ethereum. The escrow is owned by the Vault.
+ * @notice Accumulates received MEV on Ethereum. The escrow is owned by the Vault.
  */
-contract EthFeesEscrow is IFeesEscrow {
+contract VaultMevEscrow is IMevEscrow {
   address payable private immutable vault;
 
   /// @dev Constructor
@@ -17,26 +17,21 @@ contract EthFeesEscrow is IFeesEscrow {
     vault = payable(_vault);
   }
 
-  /// @inheritdoc IFeesEscrow
+  /// @inheritdoc IMevEscrow
   function withdraw() external override returns (uint256 assets) {
     if (msg.sender != vault) revert WithdrawalFailed();
 
-    assets = balance();
+    assets = address(this).balance;
     if (assets == 0) return 0;
 
     (bool success, ) = vault.call{value: assets}('');
     if (!success) revert WithdrawalFailed();
   }
 
-  /// @inheritdoc IFeesEscrow
-  function balance() public view override returns (uint256) {
-    return address(this).balance;
-  }
-
   /**
-   * @dev Function for receiving priority fees and MEV
+   * @dev Function for receiving MEV
    */
   receive() external payable {
-    emit Deposited(msg.value);
+    emit MevReceived(msg.value);
   }
 }
