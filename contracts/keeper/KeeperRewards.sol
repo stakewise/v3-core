@@ -3,42 +3,39 @@
 pragma solidity =0.8.17;
 
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
-import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
-import {IBaseKeeper} from '../../interfaces/IBaseKeeper.sol';
-import {IOracles} from '../../interfaces/IOracles.sol';
-import {IRegistry} from '../../interfaces/IRegistry.sol';
-import {Versioned} from '../base/Versioned.sol';
+import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
+import {IOracles} from '../interfaces/IOracles.sol';
+import {IRegistry} from '../interfaces/IRegistry.sol';
 
 /**
- * @title BaseKeeper
+ * @title KeeperRewards
  * @author StakeWise
  * @notice Defines the functionality for updating Vaults' consensus rewards
  */
-abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
+abstract contract KeeperRewards is IKeeperRewards {
   bytes32 internal constant _rewardsRootTypeHash =
     keccak256(
-      'BaseKeeper(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint64 updateTimestamp,uint96 nonce)'
+      'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint64 updateTimestamp,uint96 nonce)'
     );
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeperRewards
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IOracles public immutable override oracles;
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeperRewards
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IRegistry public immutable override registry;
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeperRewards
   bytes32 public override prevRewardsRoot;
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeperRewards
   bytes32 public override rewardsRoot;
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeperRewards
   mapping(address => RewardSync) public override rewards;
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeperRewards
   uint96 public override rewardsNonce;
 
   /**
@@ -50,13 +47,11 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(IOracles _oracles, IRegistry _registry) {
-    // disable initializers for the implementation contract
-    _disableInitializers();
     oracles = _oracles;
     registry = _registry;
   }
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeperRewards
   function setRewardsRoot(RewardsRootUpdateParams calldata params) external override {
     if (!oracles.isOracle(msg.sender)) revert AccessDenied();
 
@@ -97,7 +92,7 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     );
   }
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeperRewards
   function isHarvestRequired(address vault) external view override returns (bool) {
     // vault is considered harvested in case it does not have any validators (nonce = 0)
     // or it is up to 1 sync behind
@@ -107,7 +102,7 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     }
   }
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeperRewards
   function canHarvest(address vault) external view override returns (bool) {
     uint96 nonce = rewards[vault].nonce;
     unchecked {
@@ -115,12 +110,12 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     }
   }
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeperRewards
   function isCollateralized(address vault) external view override returns (bool) {
     return rewards[vault].nonce != 0;
   }
 
-  /// @inheritdoc IBaseKeeper
+  /// @inheritdoc IKeeperRewards
   function harvest(HarvestParams calldata params) external override returns (int256 periodReward) {
     if (!registry.vaults(msg.sender)) revert AccessDenied();
 
@@ -169,21 +164,6 @@ abstract contract BaseKeeper is OwnableUpgradeable, Versioned, IBaseKeeper {
     if (rewards[vault].nonce == 0) {
       rewards[vault] = RewardSync({nonce: rewardsNonce, reward: 0});
     }
-  }
-
-  /// @inheritdoc UUPSUpgradeable
-  function _authorizeUpgrade(address) internal override onlyOwner {}
-
-  /**
-   * @dev Initializes the BaseKeeper contract
-   * @param _owner The address of the contract owner
-   */
-  function __BaseKeeper_init(address _owner) internal onlyInitializing {
-    _transferOwnership(_owner);
-
-    // set rewardsNonce to 1 so that vaults collateralized
-    // before first rewards root update will not have 0 nonce
-    rewardsNonce = 1;
   }
 
   /**

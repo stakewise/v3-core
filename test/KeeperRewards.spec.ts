@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthKeeper, EthVault, IBaseKeeper, Oracles } from '../typechain-types'
+import { Keeper, EthVault, Oracles, IKeeperRewards } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -17,7 +17,7 @@ import { setBalance } from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
-describe('BaseKeeper', () => {
+describe('KeeperRewards', () => {
   const capacity = parseEther('1000')
   const feePercent = 1000
   const name = 'SW ETH Vault'
@@ -31,7 +31,7 @@ describe('BaseKeeper', () => {
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
   let sender: Wallet, owner: Wallet, admin: Wallet, oracle: Wallet
-  let keeper: EthKeeper, oracles: Oracles, vault: EthVault
+  let keeper: Keeper, oracles: Oracles, vault: EthVault
 
   before('create fixture loader', async () => {
     ;[sender, admin, owner] = await (ethers as any).getSigners()
@@ -56,7 +56,7 @@ describe('BaseKeeper', () => {
   describe('set rewards root', () => {
     let vaultReward: VaultReward
     let rewardsTree: RewardsTree
-    let rewardsRootParams: IBaseKeeper.RewardsRootUpdateParamsStruct
+    let rewardsRootParams: IKeeperRewards.RewardsRootUpdateParamsStruct
 
     beforeEach(async () => {
       vaultReward = { reward: parseEther('5'), vault: vault.address }
@@ -152,7 +152,7 @@ describe('BaseKeeper', () => {
   })
 
   describe('is harvest required', () => {
-    let harvestParams: IBaseKeeper.HarvestParamsStruct
+    let harvestParams: IKeeperRewards.HarvestParamsStruct
     let proof: string[]
 
     beforeEach(async () => {
@@ -216,8 +216,8 @@ describe('BaseKeeper', () => {
     })
   })
 
-  describe.only('harvest', () => {
-    let harvestParams: IBaseKeeper.HarvestParamsStruct
+  describe('harvest', () => {
+    let harvestParams: IKeeperRewards.HarvestParamsStruct
     let proof: string[]
 
     beforeEach(async () => {
