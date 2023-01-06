@@ -7,12 +7,7 @@ import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { ORACLES, ZERO_BYTES32 } from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
-import {
-  createVaultRewardsRoot,
-  getRewardsRootProof,
-  RewardsTree,
-  VaultReward,
-} from './shared/rewards'
+import { createVaultRewardsRoot, getRewardsRootProof, VaultReward } from './shared/rewards'
 import { setBalance } from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
@@ -55,13 +50,11 @@ describe('KeeperRewards', () => {
 
   describe('set rewards root', () => {
     let vaultReward: VaultReward
-    let rewardsTree: RewardsTree
     let rewardsRootParams: IKeeperRewards.RewardsRootUpdateParamsStruct
 
     beforeEach(async () => {
       vaultReward = { reward: parseEther('5'), vault: vault.address }
       const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles)
-      rewardsTree = rewardsRoot.tree
       rewardsRootParams = {
         rewardsRoot: rewardsRoot.root,
         updateTimestamp: rewardsRoot.updateTimestamp,
