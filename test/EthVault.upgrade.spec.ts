@@ -54,7 +54,7 @@ describe('EthVault - upgrade', () => {
   })
 
   it('fails without the call', async () => {
-    await expect(vault.connect(admin).upgradeTo(newImpl)).to.revertedWith('NotImplementedError()')
+    await expect(vault.connect(admin).upgradeTo(newImpl)).to.revertedWith('UpgradeFailed()')
     expect(await vault.version()).to.be.eq(1)
   })
 

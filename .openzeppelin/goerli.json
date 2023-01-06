@@ -2,15 +2,15 @@
   "manifestVersion": "3.2",
   "proxies": [
     {
-      "address": "0x045cef33dbf92399E690e1e74345fFbEDee16B33",
-      "txHash": "0xf1070cf0ee59081a3655c0975ee54da93092b2692c10007c9855d9dea4eda26c",
+      "address": "0xd5255D69e3cD2378C9dcc787fCCc2724D838fFEE",
+      "txHash": "0xc0b702c02b99d757e10f59b786ba5ece87546fc350e48d7182b7192893912570",
       "kind": "uups"
     }
   ],
   "impls": {
-    "7228be6caf112d984f34fa7160155e80ed53d2222880df3ee25e3db17028bee5": {
-      "address": "0x7dc5286316900d0fA8b786308f85b63E9703b35b",
-      "txHash": "0x93ebf76b7d5f88abb61ac35ddc400b2168b9bcd0e0fefba2919399dc52c0a493",
+    "689cc2a614d933e94db2cdd7dda7f85f88078b5959ba25216f4b3a23907ed8de": {
+      "address": "0xa4EB666BaE83E366967b7f61FEfE8938e86a864E",
+      "txHash": "0x32c1989dc39e2fa46bea72fb15fef72ff9a7d40d3a697f1ad01a60fd080abc62",
       "layout": {
         "solcVersion": "0.8.17",
         "storage": [
@@ -72,36 +72,52 @@
             "src": "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol:107"
           },
           {
-            "label": "rewardsRoot",
+            "label": "prevRewardsRoot",
             "offset": 0,
             "slot": "201",
             "type": "t_bytes32",
-            "contract": "BaseKeeper",
-            "src": "contracts/keepers/BaseKeeper.sol:34"
+            "contract": "KeeperRewards",
+            "src": "contracts/keeper/KeeperRewards.sol:30"
+          },
+          {
+            "label": "rewardsRoot",
+            "offset": 0,
+            "slot": "202",
+            "type": "t_bytes32",
+            "contract": "KeeperRewards",
+            "src": "contracts/keeper/KeeperRewards.sol:33"
           },
           {
             "label": "rewards",
             "offset": 0,
-            "slot": "202",
-            "type": "t_mapping(t_address,t_struct(RewardSync)6879_storage)",
-            "contract": "BaseKeeper",
-            "src": "contracts/keepers/BaseKeeper.sol:37"
+            "slot": "203",
+            "type": "t_mapping(t_address,t_struct(RewardSync)6975_storage)",
+            "contract": "KeeperRewards",
+            "src": "contracts/keeper/KeeperRewards.sol:36"
           },
           {
             "label": "rewardsNonce",
             "offset": 0,
-            "slot": "203",
+            "slot": "204",
             "type": "t_uint96",
-            "contract": "BaseKeeper",
-            "src": "contracts/keepers/BaseKeeper.sol:40"
+            "contract": "KeeperRewards",
+            "src": "contracts/keeper/KeeperRewards.sol:39"
           },
           {
             "label": "__gap",
             "offset": 0,
-            "slot": "204",
+            "slot": "205",
             "type": "t_array(t_uint256)50_storage",
-            "contract": "BaseKeeper",
-            "src": "contracts/keepers/BaseKeeper.sol:182"
+            "contract": "KeeperRewards",
+            "src": "contracts/keeper/KeeperRewards.sol:174"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "255",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "KeeperValidators",
+            "src": "contracts/keeper/KeeperValidators.sol:79"
           }
         ],
         "types": {
@@ -129,12 +145,12 @@
             "label": "int160",
             "numberOfBytes": "20"
           },
-          "t_mapping(t_address,t_struct(RewardSync)6879_storage)": {
-            "label": "mapping(address => struct IBaseKeeper.RewardSync)",
+          "t_mapping(t_address,t_struct(RewardSync)6975_storage)": {
+            "label": "mapping(address => struct IKeeperRewards.RewardSync)",
             "numberOfBytes": "32"
           },
-          "t_struct(RewardSync)6879_storage": {
-            "label": "struct IBaseKeeper.RewardSync",
+          "t_struct(RewardSync)6975_storage": {
+            "label": "struct IKeeperRewards.RewardSync",
             "members": [
               {
                 "label": "nonce",
@@ -166,9 +182,9 @@
         }
       }
     },
-    "4733384a007ee8aa92a150954b07c3066cc492956faa9c80392c229c0a131365": {
-      "address": "0xd841328B334d648c6769c139C15643D3202bb53e",
-      "txHash": "0xca653720694604df09c91df664db4dc2291d33de52326554bff6e0e079d18f46",
+    "3b1b1dab778595de3cd330f9446fc9ae9760ea59e72e307d5e145406d12ced6d": {
+      "address": "0xf349D22E8d06DC47dcD097be346c0D6ea645a2a3",
+      "txHash": "0xf8a7b03554e010f87c88541abdbc0966d741a58e1d3c43032e46cecf687c4b4b",
       "layout": {
         "solcVersion": "0.8.17",
         "storage": [
@@ -190,25 +206,9 @@
             "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:67"
           },
           {
-            "label": "__gap",
-            "offset": 0,
-            "slot": "1",
-            "type": "t_array(t_uint256)50_storage",
-            "contract": "ERC1967UpgradeUpgradeable",
-            "src": "@openzeppelin/contracts-upgradeable/proxy/ERC1967/ERC1967UpgradeUpgradeable.sol:211"
-          },
-          {
-            "label": "__gap",
-            "offset": 0,
-            "slot": "51",
-            "type": "t_array(t_uint256)50_storage",
-            "contract": "UUPSUpgradeable",
-            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol:107"
-          },
-          {
             "label": "_status",
             "offset": 0,
-            "slot": "101",
+            "slot": "1",
             "type": "t_uint256",
             "contract": "ReentrancyGuardUpgradeable",
             "src": "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:38"
@@ -216,10 +216,26 @@
           {
             "label": "__gap",
             "offset": 0,
-            "slot": "102",
+            "slot": "2",
             "type": "t_array(t_uint256)49_storage",
             "contract": "ReentrancyGuardUpgradeable",
             "src": "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol:80"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "51",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "ERC1967UpgradeUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/ERC1967/ERC1967UpgradeUpgradeable.sol:211"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "101",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "UUPSUpgradeable",
+            "src": "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol:107"
           },
           {
             "label": "name",
@@ -227,7 +243,7 @@
             "slot": "151",
             "type": "t_string_storage",
             "contract": "ERC20Upgradeable",
-            "src": "contracts/erc20/ERC20Upgradeable.sol:24"
+            "src": "contracts/base/ERC20Upgradeable.sol:24"
           },
           {
             "label": "symbol",
@@ -235,7 +251,7 @@
             "slot": "152",
             "type": "t_string_storage",
             "contract": "ERC20Upgradeable",
-            "src": "contracts/erc20/ERC20Upgradeable.sol:27"
+            "src": "contracts/base/ERC20Upgradeable.sol:27"
           },
           {
             "label": "balanceOf",
@@ -243,7 +259,7 @@
             "slot": "153",
             "type": "t_mapping(t_address,t_uint256)",
             "contract": "ERC20Upgradeable",
-            "src": "contracts/erc20/ERC20Upgradeable.sol:33"
+            "src": "contracts/base/ERC20Upgradeable.sol:33"
           },
           {
             "label": "allowance",
@@ -251,7 +267,7 @@
             "slot": "154",
             "type": "t_mapping(t_address,t_mapping(t_address,t_uint256))",
             "contract": "ERC20Upgradeable",
-            "src": "contracts/erc20/ERC20Upgradeable.sol:36"
+            "src": "contracts/base/ERC20Upgradeable.sol:36"
           },
           {
             "label": "nonces",
@@ -259,7 +275,7 @@
             "slot": "155",
             "type": "t_mapping(t_address,t_uint256)",
             "contract": "ERC20Upgradeable",
-            "src": "contracts/erc20/ERC20Upgradeable.sol:39"
+            "src": "contracts/base/ERC20Upgradeable.sol:39"
           },
           {
             "label": "_initialDomainSeparator",
@@ -267,7 +283,7 @@
             "slot": "156",
             "type": "t_bytes32",
             "contract": "ERC20Upgradeable",
-            "src": "contracts/erc20/ERC20Upgradeable.sol:44"
+            "src": "contracts/base/ERC20Upgradeable.sol:44"
           },
           {
             "label": "__gap",
@@ -275,135 +291,183 @@
             "slot": "157",
             "type": "t_array(t_uint256)50_storage",
             "contract": "ERC20Upgradeable",
-            "src": "contracts/erc20/ERC20Upgradeable.sol:189"
+            "src": "contracts/base/ERC20Upgradeable.sol:189"
           },
           {
             "label": "capacity",
             "offset": 0,
             "slot": "207",
             "type": "t_uint256",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:42"
-          },
-          {
-            "label": "validatorsRoot",
-            "offset": 0,
-            "slot": "208",
-            "type": "t_bytes32",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:45"
-          },
-          {
-            "label": "validatorIndex",
-            "offset": 0,
-            "slot": "209",
-            "type": "t_uint256",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:48"
-          },
-          {
-            "label": "queuedShares",
-            "offset": 0,
-            "slot": "210",
-            "type": "t_uint96",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:51"
-          },
-          {
-            "label": "unclaimedAssets",
-            "offset": 12,
-            "slot": "210",
-            "type": "t_uint96",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:54"
-          },
-          {
-            "label": "_exitQueueNextUpdate",
-            "offset": 24,
-            "slot": "210",
-            "type": "t_uint64",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:56"
+            "contract": "VaultToken",
+            "src": "contracts/vaults/modules/VaultToken.sol:21"
           },
           {
             "label": "_totalShares",
             "offset": 0,
-            "slot": "211",
+            "slot": "208",
             "type": "t_uint128",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:57"
+            "contract": "VaultToken",
+            "src": "contracts/vaults/modules/VaultToken.sol:23"
           },
           {
             "label": "_totalAssets",
             "offset": 16,
-            "slot": "211",
+            "slot": "208",
             "type": "t_uint128",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:58"
+            "contract": "VaultToken",
+            "src": "contracts/vaults/modules/VaultToken.sol:24"
           },
           {
-            "label": "_exitQueue",
+            "label": "__gap",
             "offset": 0,
-            "slot": "212",
-            "type": "t_struct(History)8509_storage",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:60"
-          },
-          {
-            "label": "_exitRequests",
-            "offset": 0,
-            "slot": "213",
-            "type": "t_mapping(t_bytes32,t_uint256)",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:61"
-          },
-          {
-            "label": "feesEscrow",
-            "offset": 0,
-            "slot": "214",
-            "type": "t_contract(IFeesEscrow)7672",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:64"
+            "slot": "209",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "VaultToken",
+            "src": "contracts/vaults/modules/VaultToken.sol:100"
           },
           {
             "label": "admin",
             "offset": 0,
-            "slot": "215",
+            "slot": "259",
             "type": "t_address",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:67"
+            "contract": "VaultAdmin",
+            "src": "contracts/vaults/modules/VaultAdmin.sol:15"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "260",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "VaultAdmin",
+            "src": "contracts/vaults/modules/VaultAdmin.sol:45"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "310",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "VaultVersion",
+            "src": "contracts/vaults/modules/VaultVersion.sol:56"
           },
           {
             "label": "feeRecipient",
             "offset": 0,
-            "slot": "216",
+            "slot": "360",
             "type": "t_address",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:70"
+            "contract": "VaultFee",
+            "src": "contracts/vaults/modules/VaultFee.sol:20"
           },
           {
             "label": "feePercent",
             "offset": 20,
-            "slot": "216",
+            "slot": "360",
             "type": "t_uint16",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:73"
+            "contract": "VaultFee",
+            "src": "contracts/vaults/modules/VaultFee.sol:23"
           },
           {
             "label": "__gap",
             "offset": 0,
-            "slot": "217",
+            "slot": "361",
             "type": "t_array(t_uint256)50_storage",
-            "contract": "BaseVault",
-            "src": "contracts/vaults/BaseVault.sol:488"
+            "contract": "VaultFee",
+            "src": "contracts/vaults/modules/VaultFee.sol:60"
+          },
+          {
+            "label": "queuedShares",
+            "offset": 0,
+            "slot": "411",
+            "type": "t_uint96",
+            "contract": "VaultState",
+            "src": "contracts/vaults/modules/VaultState.sol:26"
+          },
+          {
+            "label": "unclaimedAssets",
+            "offset": 12,
+            "slot": "411",
+            "type": "t_uint96",
+            "contract": "VaultState",
+            "src": "contracts/vaults/modules/VaultState.sol:29"
+          },
+          {
+            "label": "_exitQueueNextUpdate",
+            "offset": 24,
+            "slot": "411",
+            "type": "t_uint64",
+            "contract": "VaultState",
+            "src": "contracts/vaults/modules/VaultState.sol:31"
+          },
+          {
+            "label": "_exitQueue",
+            "offset": 0,
+            "slot": "412",
+            "type": "t_struct(History)8717_storage",
+            "contract": "VaultState",
+            "src": "contracts/vaults/modules/VaultState.sol:33"
+          },
+          {
+            "label": "_exitRequests",
+            "offset": 0,
+            "slot": "413",
+            "type": "t_mapping(t_bytes32,t_uint256)",
+            "contract": "VaultState",
+            "src": "contracts/vaults/modules/VaultState.sol:34"
           },
           {
             "label": "__gap",
             "offset": 0,
-            "slot": "267",
+            "slot": "414",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "VaultState",
+            "src": "contracts/vaults/modules/VaultState.sol:183"
+          },
+          {
+            "label": "validatorsRoot",
+            "offset": 0,
+            "slot": "464",
+            "type": "t_bytes32",
+            "contract": "VaultValidators",
+            "src": "contracts/vaults/modules/VaultValidators.sol:29"
+          },
+          {
+            "label": "validatorIndex",
+            "offset": 0,
+            "slot": "465",
+            "type": "t_uint256",
+            "contract": "VaultValidators",
+            "src": "contracts/vaults/modules/VaultValidators.sol:32"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "466",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "VaultValidators",
+            "src": "contracts/vaults/modules/VaultValidators.sol:180"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "516",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "VaultEnterExit",
+            "src": "contracts/vaults/modules/VaultEnterExit.sol:188"
+          },
+          {
+            "label": "mevEscrow",
+            "offset": 0,
+            "slot": "566",
+            "type": "t_contract(IMevEscrow)7134",
+            "contract": "EthVault",
+            "src": "contracts/vaults/ethereum/EthVault.sol:42"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "567",
             "type": "t_array(t_uint256)50_storage",
             "contract": "EthVault",
-            "src": "contracts/vaults/EthVault.sol:189"
+            "src": "contracts/vaults/ethereum/EthVault.sol:168"
           }
         ],
         "types": {
@@ -411,7 +475,7 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_array(t_struct(Checkpoint)8504_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)8712_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -431,8 +495,8 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_contract(IFeesEscrow)7672": {
-            "label": "contract IFeesEscrow",
+          "t_contract(IMevEscrow)7134": {
+            "label": "contract IMevEscrow",
             "numberOfBytes": "20"
           },
           "t_mapping(t_address,t_mapping(t_address,t_uint256))": {
@@ -451,7 +515,7 @@
             "label": "string",
             "numberOfBytes": "32"
           },
-          "t_struct(Checkpoint)8504_storage": {
+          "t_struct(Checkpoint)8712_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -469,12 +533,12 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)8509_storage": {
+          "t_struct(History)8717_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)8504_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)8712_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }

@@ -1,0 +1,22 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthVault - state allocates fee to recipient when delta is above zero 1`] = `
+Object {
+  "calldataByteLength": 164,
+  "gasUsed": 119741,
+}
+`;
+
+exports[`EthVault - state applies penalty when delta is below zero 1`] = `
+Object {
+  "calldataByteLength": 164,
+  "gasUsed": 93303,
+}
+`;
+
+exports[`EthVault - state updates exit queue 1`] = `
+Object {
+  "calldataByteLength": 164,
+  "gasUsed": 141699,
+}
+`;

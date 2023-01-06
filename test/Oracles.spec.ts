@@ -13,7 +13,7 @@ import {
   EIP712Domain,
   REQUIRED_ORACLES,
   ORACLES,
-  BaseKeeperSig,
+  KeeperRewardsSig,
   ORACLES_CONFIG,
 } from './shared/constants'
 
@@ -180,7 +180,7 @@ describe('Oracles', () => {
       const updateTimestamp = 1670256410
       signData = {
         primaryType: 'BaseKeeper',
-        types: { EIP712Domain, BaseKeeper: BaseKeeperSig },
+        types: { EIP712Domain, BaseKeeper: KeeperRewardsSig },
         domain: {
           name: 'Oracles',
           version: '1',

@@ -6,8 +6,8 @@ import { BigNumber, BytesLike, Contract, Wallet } from 'ethers'
 import { arrayify, parseEther } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
 import keccak256 from 'keccak256'
-import { EthKeeper, EthVault, Oracles } from '../../typechain-types'
-import { EIP712Domain, ORACLES, RegisterValidatorsSig } from './constants'
+import { Keeper, EthVault, Oracles } from '../../typechain-types'
+import { EIP712Domain, ORACLES, KeeperValidatorsSig } from './constants'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -206,8 +206,8 @@ export function getEthValidatorsSigningData(
   validatorsRegistryRoot: BytesLike
 ) {
   return {
-    primaryType: 'EthKeeper',
-    types: { EIP712Domain, EthKeeper: RegisterValidatorsSig },
+    primaryType: 'KeeperValidators',
+    types: { EIP712Domain, KeeperValidators: KeeperValidatorsSig },
     domain: {
       name: 'Oracles',
       version: '1',
@@ -246,7 +246,7 @@ export function getValidatorsMultiProof(
 export async function registerEthValidator(
   vault: EthVault,
   oracles: Oracles,
-  keeper: EthKeeper,
+  keeper: Keeper,
   validatorsRegistry: Contract,
   admin: Wallet,
   getSignatures: (typedData: any, count?: number) => Buffer
@@ -265,12 +265,13 @@ export async function registerEthValidator(
   )
   const signatures = getSignatures(signingData, ORACLES.length)
   const proof = getValidatorProof(validatorsData.tree, validator, 0)
-  await keeper.registerValidator({
-    vault: vault.address,
-    validatorsRegistryRoot,
-    validator,
-    signatures,
-    exitSignatureIpfsHash,
-    proof,
-  })
+  await vault.registerValidator(
+    {
+      validatorsRegistryRoot,
+      validators: validator,
+      signatures,
+      exitSignaturesIpfsHash: exitSignatureIpfsHash,
+    },
+    proof
+  )
 }

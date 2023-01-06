@@ -14,14 +14,20 @@ interface IEthVaultFactory {
    * @notice Event emitted on a Vault creation
    * @param admin The address of the Vault admin
    * @param vault The address of the created Vault
-   * @param feesEscrow The address of the fees escrow contract
-   * @param params The Vault creation parameters
+   * @param mevEscrow The address of the MEV escrow contract
+   * @param capacity The Vault stops accepting deposits after exceeding the capacity
+   * @param feePercent The fee percent that is charged by the Vault
+   * @param name The name of the ERC20 token
+   * @param symbol The symbol of the ERC20 token
    */
   event VaultCreated(
     address indexed admin,
     address indexed vault,
-    address indexed feesEscrow,
-    VaultParams params
+    address indexed mevEscrow,
+    uint256 capacity,
+    uint16 feePercent,
+    string name,
+    string symbol
   );
 
   /**
@@ -45,18 +51,6 @@ interface IEthVaultFactory {
   }
 
   /**
-   * @notice Vault implementation contract
-   * @return The address of the Vault implementation contract used for the proxy deployment
-   */
-  function vaultImplementation() external view returns (address);
-
-  /**
-   * @notice Registry contract
-   * @return The address of the Registry contract
-   */
-  function registry() external view returns (IRegistry);
-
-  /**
    * @notice Returns deployer's nonce
    * @param deployer The address of the Vault deployer
    * @return The nonce of the deployer that is used for the vault and fees escrow creation
@@ -64,22 +58,25 @@ interface IEthVaultFactory {
   function nonces(address deployer) external view returns (uint256);
 
   /**
+   * @notice Public Ethereum Vault implementation
+   * @return The address of the Vault implementation contract
+   */
+  function publicVaultImpl() external view returns (address);
+
+  /**
    * @notice Create Vault
    * @param params The Vault creation parameters
    * @return vault The address of the created Vault
-   * @return feesEscrow The address of the created FeesEscrow
    */
-  function createVault(
-    VaultParams calldata params
-  ) external returns (address vault, address feesEscrow);
+  function createVault(VaultParams calldata params) external returns (address vault);
 
   /**
-   * @notice Compute Vault and Fees Escrow addresses
+   * @notice Compute Vault and MEV Escrow addresses
    * @param deployer The address of the Vault deployer
-   * @return vault The address of the next created Vault
-   * @return feesEscrow The address of the next created FeesEscrow
+   * @return vault The address of the created Vault
+   * @return mevEscrow The address of the created MevEscrow
    */
   function computeAddresses(
     address deployer
-  ) external view returns (address vault, address feesEscrow);
+  ) external view returns (address vault, address mevEscrow);
 }

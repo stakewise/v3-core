@@ -1,10 +1,10 @@
 import { ethers, waffle } from 'hardhat'
-import { Wallet } from 'ethers'
+import { Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 import {
   EthVault,
   EthVaultFactory,
-  EthKeeper,
+  Keeper,
   Registry,
   EthVaultFactoryMock,
 } from '../typechain-types'
@@ -25,7 +25,7 @@ describe('EthVaultFactory', () => {
   const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
 
   let admin: Wallet, owner: Wallet
-  let factory: EthVaultFactory, registry: Registry, keeper: EthKeeper
+  let factory: EthVaultFactory, registry: Registry, keeper: Keeper, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -40,6 +40,7 @@ describe('EthVaultFactory', () => {
       ethVaultFactory: factory,
       registry,
       keeper,
+      validatorsRegistry,
       createVault,
     } = await loadFixture(ethVaultFixture))
   })
@@ -63,7 +64,7 @@ describe('EthVaultFactory', () => {
     const currentNonce = await factory.nonces(admin.address)
     let addresses = await factory.computeAddresses(admin.address)
     let expectedVaultAddr = addresses.vault
-    let expectedFeesEscrowAddr = addresses.feesEscrow
+    let expectedMevEscrowAddr = addresses.mevEscrow
 
     let vault = await createVault(admin, {
       capacity,
@@ -76,12 +77,12 @@ describe('EthVaultFactory', () => {
     })
 
     expect(vault.address).to.be.eq(expectedVaultAddr)
-    expect(await vault.feesEscrow()).to.be.eq(expectedFeesEscrowAddr)
+    expect(await vault.mevEscrow()).to.be.eq(expectedMevEscrowAddr)
 
     expect(await factory.nonces(admin.address)).to.be.eq(currentNonce.add(1))
     addresses = await factory.computeAddresses(admin.address)
     expectedVaultAddr = addresses.vault
-    expectedFeesEscrowAddr = addresses.feesEscrow
+    expectedMevEscrowAddr = addresses.mevEscrow
 
     vault = await createVault(admin, {
       capacity,
@@ -94,12 +95,12 @@ describe('EthVaultFactory', () => {
     })
 
     expect(vault.address).to.be.eq(expectedVaultAddr)
-    expect(await vault.feesEscrow()).to.be.eq(expectedFeesEscrowAddr)
+    expect(await vault.mevEscrow()).to.be.eq(expectedMevEscrowAddr)
 
     // measure gas consumption
     const factoryMockFactory = await ethers.getContractFactory('EthVaultFactoryMock')
     const factoryMock = (await factoryMockFactory.deploy(
-      await factory.vaultImplementation(),
+      await factory.publicVaultImpl(),
       registry.address
     )) as EthVaultFactoryMock
     await snapshotGasCost(await factoryMock.getGasCostOfComputeAddresses(admin.address))
@@ -108,7 +109,7 @@ describe('EthVaultFactory', () => {
   it('creates vault correctly', async () => {
     const addresses = await factory.computeAddresses(admin.address)
     const vaultAddress = addresses.vault
-    const feesEscrowAddress = addresses.feesEscrow
+    const mevEscrowAddress = addresses.mevEscrow
     const ethVault = await ethers.getContractFactory('EthVault')
     const vault = ethVault.attach(vaultAddress) as EthVault
     const tx = await factory.connect(admin).createVault({
@@ -122,22 +123,14 @@ describe('EthVaultFactory', () => {
     })
     await expect(tx)
       .to.emit(factory, 'VaultCreated')
-      .withArgs(admin.address, vaultAddress, feesEscrowAddress, [
-        capacity,
-        validatorsRoot,
-        feePercent,
-        name,
-        symbol,
-        validatorsIpfsHash,
-        metadataIpfsHash,
-      ])
+      .withArgs(admin.address, vaultAddress, mevEscrowAddress, capacity, feePercent, name, symbol)
 
     await expect(tx).to.emit(registry, 'VaultAdded').withArgs(factory.address, vaultAddress)
 
     await expect(
       vault.connect(admin).initialize({
         admin: admin.address,
-        feesEscrow: feesEscrowAddress,
+        mevEscrow: mevEscrowAddress,
         capacity,
         validatorsRoot,
         feePercent,
@@ -147,17 +140,36 @@ describe('EthVaultFactory', () => {
         metadataIpfsHash,
       })
     ).to.revertedWith('Initializable: contract is already initialized')
+
     expect(await registry.vaults(vaultAddress)).to.be.eq(true)
+
+    // VaultImmutables
     expect(await vault.keeper()).to.be.eq(keeper.address)
     expect(await vault.registry()).to.be.eq(registry.address)
-    expect(await vault.validatorsRoot()).to.be.eq(validatorsRoot)
+    expect(await vault.validatorsRegistry()).to.be.eq(validatorsRegistry.address)
+
+    // VaultToken
     expect(await vault.name()).to.be.eq(name)
     expect(await vault.symbol()).to.be.eq(symbol)
     expect(await vault.capacity()).to.be.eq(capacity)
-    expect(await vault.feePercent()).to.be.eq(feePercent)
-    expect(await vault.version()).to.be.eq(1)
-    expect(await vault.implementation()).to.be.eq(await factory.vaultImplementation())
+
+    // VaultAdmin
     expect(await vault.admin()).to.be.eq(admin.address)
+    await expect(tx).to.emit(vault, 'MetadataUpdated').withArgs(metadataIpfsHash)
+
+    // VaultVersion
+    expect(await vault.version()).to.be.eq(1)
+    expect(await vault.implementation()).to.be.eq(await factory.publicVaultImpl())
+
+    // VaultFee
     expect(await vault.feeRecipient()).to.be.eq(admin.address)
+    expect(await vault.feePercent()).to.be.eq(feePercent)
+    await expect(tx).to.emit(vault, 'FeeRecipientUpdated').withArgs(admin.address)
+
+    // VaultValidators
+    expect(await vault.validatorsRoot()).to.be.eq(validatorsRoot)
+    await expect(tx)
+      .to.emit(vault, 'ValidatorsRootUpdated')
+      .withArgs(validatorsRoot, validatorsIpfsHash)
   })
 })
