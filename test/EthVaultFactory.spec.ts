@@ -123,15 +123,7 @@ describe('EthVaultFactory', () => {
     })
     await expect(tx)
       .to.emit(factory, 'VaultCreated')
-      .withArgs(admin.address, vaultAddress, mevEscrowAddress, [
-        capacity,
-        validatorsRoot,
-        feePercent,
-        name,
-        symbol,
-        validatorsIpfsHash,
-        metadataIpfsHash,
-      ])
+      .withArgs(admin.address, vaultAddress, mevEscrowAddress, capacity, feePercent, name, symbol)
 
     await expect(tx).to.emit(registry, 'VaultAdded').withArgs(factory.address, vaultAddress)
 

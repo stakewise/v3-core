@@ -21,47 +21,28 @@
         "type": "address"
       },
       {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "capacity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "validatorsRoot",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "uint16",
-            "name": "feePercent",
-            "type": "uint16"
-          },
-          {
-            "internalType": "string",
-            "name": "name",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "symbol",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "validatorsIpfsHash",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "metadataIpfsHash",
-            "type": "string"
-          }
-        ],
         "indexed": false,
-        "internalType": "struct IEthVaultFactory.VaultParams",
-        "name": "params",
-        "type": "tuple"
+        "internalType": "uint256",
+        "name": "capacity",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "feePercent",
+        "type": "uint16"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "name",
+        "type": "string"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "symbol",
+        "type": "string"
       }
     ],
     "name": "VaultCreated",

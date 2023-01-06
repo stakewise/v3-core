@@ -15,13 +15,19 @@ interface IEthVaultFactory {
    * @param admin The address of the Vault admin
    * @param vault The address of the created Vault
    * @param mevEscrow The address of the MEV escrow contract
-   * @param params The Vault creation parameters
+   * @param capacity The Vault stops accepting deposits after exceeding the capacity
+   * @param feePercent The fee percent that is charged by the Vault
+   * @param name The name of the ERC20 token
+   * @param symbol The symbol of the ERC20 token
    */
   event VaultCreated(
     address indexed admin,
     address indexed vault,
     address indexed mevEscrow,
-    VaultParams params
+    uint256 capacity,
+    uint16 feePercent,
+    string name,
+    string symbol
   );
 
   /**

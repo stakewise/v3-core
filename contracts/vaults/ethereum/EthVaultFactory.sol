@@ -71,7 +71,15 @@ contract EthVaultFactory is IEthVaultFactory {
     // add vault to the registry
     _registry.addVault(vault);
 
-    emit VaultCreated(msg.sender, vault, mevEscrow, params);
+    emit VaultCreated(
+      msg.sender,
+      vault,
+      mevEscrow,
+      params.capacity,
+      params.feePercent,
+      params.name,
+      params.symbol
+    );
   }
 
   /// @inheritdoc IEthVaultFactory
