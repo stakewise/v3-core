@@ -3,7 +3,7 @@ import { Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
 import { UintNumberType } from '@chainsafe/ssz'
 import { ThenArg } from '../helpers/types'
-import { EthKeeper, EthVault, Oracles } from '../typechain-types'
+import { Keeper, EthVault, Oracles, IKeeperValidators } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 import { setBalance } from './shared/utils'
@@ -35,7 +35,7 @@ describe('EthVault - register', () => {
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
   const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
   let admin: Wallet, dao: Wallet, other: Wallet
-  let vault: EthVault, keeper: EthKeeper, validatorsRegistry: Contract, oracles: Oracles
+  let vault: EthVault, keeper: Keeper, validatorsRegistry: Contract, oracles: Oracles
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
 
@@ -71,91 +71,71 @@ describe('EthVault - register', () => {
   describe('single validator', () => {
     let validator: Buffer
     let proof: string[]
-    let exitSignatureIpfsHash: string
-    let signatures: Buffer
+    let approvalParams: IKeeperValidators.ApprovalParamsStruct
 
     beforeEach(async () => {
       validator = validatorsData.validators[0]
       proof = getValidatorProof(validatorsData.tree, validator, 0)
-      exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
-      signatures = getSignatures(
+      const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
+      const signatures = getSignatures(
         getEthValidatorsSigningData(
           validator,
-          exitSignatureIpfsHash,
+          exitSignaturesIpfsHash,
           oracles,
           vault,
           validatorsRegistryRoot
         ),
         ORACLES.length
       )
+      approvalParams = {
+        validatorsRegistryRoot,
+        validators: validator,
+        signatures,
+        exitSignaturesIpfsHash,
+      }
     })
 
     it('fails with not enough available assets', async () => {
       await setBalance(vault.address, parseEther('31.9'))
-      await expect(
-        keeper.registerValidator({
-          vault: vault.address,
-          validatorsRegistryRoot,
-          validator,
-          signatures,
-          exitSignatureIpfsHash,
-          proof,
-        })
-      ).to.be.revertedWith('InsufficientAvailableAssets()')
-    })
-
-    it('fails with sender other than keeper', async () => {
-      await expect(vault.connect(other).registerValidator(validator, proof)).to.be.revertedWith(
-        'AccessDenied()'
+      await expect(vault.registerValidator(approvalParams, proof)).to.be.revertedWith(
+        'InsufficientAvailableAssets()'
       )
     })
 
     it('fails with invalid proof', async () => {
       const invalidProof = getValidatorProof(validatorsData.tree, validatorsData.validators[1], 1)
-      await expect(
-        keeper.registerValidator({
-          vault: vault.address,
-          validatorsRegistryRoot,
-          validator,
-          signatures,
-          exitSignatureIpfsHash,
-          proof: invalidProof,
-        })
-      ).to.be.revertedWith('InvalidValidator()')
+      await expect(vault.registerValidator(approvalParams, invalidProof)).to.be.revertedWith(
+        'InvalidProof()'
+      )
     })
 
     it('fails with invalid validator length', async () => {
       const invalidValidator = appendDepositData(validator, validatorDeposit, vault.address)
+      const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        keeper.registerValidator({
-          vault: vault.address,
-          validatorsRegistryRoot,
-          validator: appendDepositData(validator, validatorDeposit, vault.address),
-          signatures: getSignatures(
-            getEthValidatorsSigningData(
-              invalidValidator,
-              exitSignatureIpfsHash,
-              oracles,
-              vault,
-              validatorsRegistryRoot
+        vault.registerValidator(
+          {
+            validatorsRegistryRoot,
+            validators: appendDepositData(validator, validatorDeposit, vault.address),
+            signatures: getSignatures(
+              getEthValidatorsSigningData(
+                invalidValidator,
+                exitSignaturesIpfsHash,
+                oracles,
+                vault,
+                validatorsRegistryRoot
+              ),
+              ORACLES.length
             ),
-            ORACLES.length
-          ),
-          exitSignatureIpfsHash,
-          proof,
-        })
+            exitSignaturesIpfsHash,
+          },
+          proof
+        )
       ).to.be.revertedWith('InvalidValidator()')
     })
 
     it('succeeds', async () => {
-      const receipt = await keeper.registerValidator({
-        vault: vault.address,
-        validatorsRegistryRoot,
-        validator,
-        signatures,
-        exitSignatureIpfsHash,
-        proof,
-      })
+      const receipt = await vault.registerValidator(approvalParams, proof)
       expect(await vault.validatorIndex()).to.eq(1)
       const publicKey = hexlify(validator.subarray(0, 48))
       await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
@@ -175,7 +155,7 @@ describe('EthVault - register', () => {
   describe('multiple validators', () => {
     let validators: Buffer[]
     let indexes: number[]
-    let exitSignaturesIpfsHash: string
+    let approvalParams: IKeeperValidators.ApprovalParamsStruct
     let multiProof: ValidatorsMultiProof
     let signatures: Buffer
 
@@ -184,7 +164,7 @@ describe('EthVault - register', () => {
         ...Array(validatorsData.validators.length).keys(),
       ])
       validators = validatorsData.validators
-      exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
+      const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       const sortedVals = multiProof.leaves.map((v) => v[0])
       indexes = validators.map((v) => sortedVals.indexOf(v))
       await setBalance(vault.address, validatorDeposit.mul(validators.length))
@@ -198,59 +178,45 @@ describe('EthVault - register', () => {
         ),
         ORACLES.length
       )
+      approvalParams = {
+        validatorsRegistryRoot,
+        validators: Buffer.concat(validators),
+        signatures,
+        exitSignaturesIpfsHash,
+      }
     })
 
     it('fails with not enough available assets', async () => {
       await setBalance(vault.address, validatorDeposit.mul(validators.length - 1))
       await expect(
-        keeper.registerValidators({
-          vault: vault.address,
-          validatorsRegistryRoot,
-          validators: Buffer.concat(validators),
-          signatures,
-          exitSignaturesIpfsHash,
-          indexes,
-          proofFlags: multiProof.proofFlags,
-          proof: multiProof.proof,
-        })
+        vault.registerValidators(approvalParams, indexes, multiProof.proofFlags, multiProof.proof)
       ).to.be.revertedWith('InsufficientAvailableAssets()')
     })
 
-    it('fails with sender other than keeper', async () => {
-      await expect(
-        vault
-          .connect(other)
-          .registerValidators(
-            Buffer.concat(validators),
-            indexes,
-            multiProof.proofFlags,
-            multiProof.proof
-          )
-      ).to.be.revertedWith('AccessDenied()')
-    })
-
     it('fails with invalid validators count', async () => {
+      const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        keeper.registerValidators({
-          vault: vault.address,
-          validatorsRegistryRoot,
-          validators: Buffer.from(''),
-          signatures: getSignatures(
-            getEthValidatorsSigningData(
-              Buffer.from(''),
-              exitSignaturesIpfsHash,
-              oracles,
-              vault,
-              validatorsRegistryRoot
+        vault.registerValidators(
+          {
+            validatorsRegistryRoot,
+            validators: Buffer.from(''),
+            signatures: getSignatures(
+              getEthValidatorsSigningData(
+                Buffer.from(''),
+                exitSignaturesIpfsHash,
+                oracles,
+                vault,
+                validatorsRegistryRoot
+              ),
+              ORACLES.length
             ),
-            ORACLES.length
-          ),
-          exitSignaturesIpfsHash,
+            exitSignaturesIpfsHash,
+          },
           indexes,
-          proofFlags: multiProof.proofFlags,
-          proof: multiProof.proof,
-        })
-      ).to.be.revertedWith('InvalidValidatorsCount()')
+          multiProof.proofFlags,
+          multiProof.proof
+        )
+      ).to.be.revertedWith('InvalidValidators()')
     })
 
     it('fails with invalid deposit data root', async () => {
@@ -264,26 +230,28 @@ describe('EthVault - register', () => {
         ...validators.slice(1),
       ]
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
+      const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        keeper.registerValidators({
-          vault: vault.address,
-          validatorsRegistryRoot,
-          validators: invalidValidatorsConcat,
-          signatures: getSignatures(
-            getEthValidatorsSigningData(
-              invalidValidatorsConcat,
-              exitSignaturesIpfsHash,
-              oracles,
-              vault,
-              validatorsRegistryRoot
+        vault.registerValidators(
+          {
+            validatorsRegistryRoot,
+            validators: invalidValidatorsConcat,
+            signatures: getSignatures(
+              getEthValidatorsSigningData(
+                invalidValidatorsConcat,
+                exitSignaturesIpfsHash,
+                oracles,
+                vault,
+                validatorsRegistryRoot
+              ),
+              ORACLES.length
             ),
-            ORACLES.length
-          ),
-          exitSignaturesIpfsHash,
+            exitSignaturesIpfsHash,
+          },
           indexes,
-          proofFlags: multiProof.proofFlags,
-          proof: multiProof.proof,
-        })
+          multiProof.proofFlags,
+          multiProof.proof
+        )
       ).to.be.revertedWith(
         'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
       )
@@ -295,26 +263,28 @@ describe('EthVault - register', () => {
         ...validators.slice(1),
       ]
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
+      const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        keeper.registerValidators({
-          vault: vault.address,
-          validatorsRegistryRoot,
-          validators: invalidValidatorsConcat,
-          signatures: getSignatures(
-            getEthValidatorsSigningData(
-              invalidValidatorsConcat,
-              exitSignaturesIpfsHash,
-              oracles,
-              vault,
-              validatorsRegistryRoot
+        vault.registerValidators(
+          {
+            validatorsRegistryRoot,
+            validators: invalidValidatorsConcat,
+            signatures: getSignatures(
+              getEthValidatorsSigningData(
+                invalidValidatorsConcat,
+                exitSignaturesIpfsHash,
+                oracles,
+                vault,
+                validatorsRegistryRoot
+              ),
+              ORACLES.length
             ),
-            ORACLES.length
-          ),
-          exitSignaturesIpfsHash,
+            exitSignaturesIpfsHash,
+          },
           indexes,
-          proofFlags: multiProof.proofFlags,
-          proof: multiProof.proof,
-        })
+          multiProof.proofFlags,
+          multiProof.proof
+        )
       ).to.be.revertedWith(
         'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
       )
@@ -326,26 +296,28 @@ describe('EthVault - register', () => {
         ...validators.slice(1),
       ]
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
+      const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        keeper.registerValidators({
-          vault: vault.address,
-          validatorsRegistryRoot,
-          validators: invalidValidatorsConcat,
-          signatures: getSignatures(
-            getEthValidatorsSigningData(
-              invalidValidatorsConcat,
-              exitSignaturesIpfsHash,
-              oracles,
-              vault,
-              validatorsRegistryRoot
+        vault.registerValidators(
+          {
+            validatorsRegistryRoot,
+            validators: invalidValidatorsConcat,
+            signatures: getSignatures(
+              getEthValidatorsSigningData(
+                invalidValidatorsConcat,
+                exitSignaturesIpfsHash,
+                oracles,
+                vault,
+                validatorsRegistryRoot
+              ),
+              ORACLES.length
             ),
-            ORACLES.length
-          ),
-          exitSignaturesIpfsHash,
+            exitSignaturesIpfsHash,
+          },
           indexes,
-          proofFlags: multiProof.proofFlags,
-          proof: multiProof.proof,
-        })
+          multiProof.proofFlags,
+          multiProof.proof
+        )
       ).to.be.revertedWith(
         'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
       )
@@ -359,85 +331,88 @@ describe('EthVault - register', () => {
       )
 
       await expect(
-        keeper.registerValidators({
-          vault: vault.address,
-          validatorsRegistryRoot,
-          validators: Buffer.concat(validators),
-          signatures,
-          exitSignaturesIpfsHash,
+        vault.registerValidators(
+          approvalParams,
           indexes,
-          proofFlags: invalidMultiProof.proofFlags,
-          proof: invalidMultiProof.proof,
-        })
+          invalidMultiProof.proofFlags,
+          invalidMultiProof.proof
+        )
       ).to.be.revertedWith('MerkleProof: invalid multiproof')
     })
 
     it('fails with invalid indexes', async () => {
-      const invalidIndexes = [[], indexes.map((i) => i + 1), indexes.slice(1)]
-      for (let i = 0; i < invalidIndexes.length; i++) {
-        await expect(
-          keeper.registerValidators({
-            vault: vault.address,
-            validatorsRegistryRoot,
-            validators: Buffer.concat(validators),
-            signatures,
-            exitSignaturesIpfsHash,
-            indexes: invalidIndexes[i],
-            proofFlags: multiProof.proofFlags,
-            proof: multiProof.proof,
-          })
-        ).to.be.revertedWith(PANIC_CODES.OUT_OF_BOUND_INDEX)
-      }
       await expect(
-        keeper.registerValidators({
-          vault: vault.address,
-          validatorsRegistryRoot,
-          validators: Buffer.concat(validators),
-          signatures,
-          exitSignaturesIpfsHash,
-          indexes: indexes.reverse(),
-          proofFlags: multiProof.proofFlags,
-          proof: multiProof.proof,
-        })
+        vault.registerValidators(approvalParams, [], multiProof.proofFlags, multiProof.proof)
+      ).to.be.revertedWith('InvalidValidators()')
+
+      await expect(
+        vault.registerValidators(
+          approvalParams,
+          indexes.map((i) => i + 1),
+          multiProof.proofFlags,
+          multiProof.proof
+        )
+      ).to.be.revertedWith(PANIC_CODES.OUT_OF_BOUND_INDEX)
+
+      await expect(
+        vault.registerValidators(
+          approvalParams,
+          indexes.slice(1),
+          multiProof.proofFlags,
+          multiProof.proof
+        )
+      ).to.be.revertedWith('InvalidValidators()')
+
+      await expect(
+        vault.registerValidators(
+          approvalParams,
+          indexes.reverse(),
+          multiProof.proofFlags,
+          multiProof.proof
+        )
       ).to.be.revertedWith('InvalidProof()')
     })
 
     it('fails with invalid validator length', async () => {
-      const invalidValidators = validators[0].subarray(0, 100)
-      await expect(
-        keeper.registerValidators({
-          vault: vault.address,
-          validatorsRegistryRoot,
-          validators: invalidValidators,
-          signatures: getSignatures(
-            getEthValidatorsSigningData(
-              invalidValidators,
+      const invalidValidators = [
+        validators[0].subarray(0, 100),
+        Buffer.concat([validators[0], validators[1].subarray(0, 10)]),
+      ]
+      const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
+
+      for (let i = 0; i < invalidValidators.length; i++) {
+        await expect(
+          vault.registerValidators(
+            {
+              validatorsRegistryRoot,
+              validators: invalidValidators[i],
+              signatures: getSignatures(
+                getEthValidatorsSigningData(
+                  invalidValidators[i],
+                  exitSignaturesIpfsHash,
+                  oracles,
+                  vault,
+                  validatorsRegistryRoot
+                ),
+                ORACLES.length
+              ),
               exitSignaturesIpfsHash,
-              oracles,
-              vault,
-              validatorsRegistryRoot
-            ),
-            ORACLES.length
-          ),
-          exitSignaturesIpfsHash,
-          indexes,
-          proofFlags: multiProof.proofFlags,
-          proof: multiProof.proof,
-        })
-      ).to.be.reverted
+            },
+            indexes,
+            multiProof.proofFlags,
+            multiProof.proof
+          )
+        ).to.be.revertedWith('InvalidValidators()')
+      }
     })
 
     it('succeeds', async () => {
-      const receipt = await keeper.registerValidators({
-        vault: vault.address,
-        validatorsRegistryRoot,
-        validators: Buffer.concat(validators),
-        signatures,
-        exitSignaturesIpfsHash,
+      const receipt = await vault.registerValidators(
+        approvalParams,
         indexes,
-        proofFlags: multiProof.proofFlags,
-        proof: multiProof.proof,
-      })
+        multiProof.proofFlags,
+        multiProof.proof
+      )
       for (let i = 0; i < validators.length; i++) {
         const validator = validators[i]
         const publicKey = hexlify(validator.subarray(0, 48))

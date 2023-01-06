@@ -1,8 +1,0 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
-
-exports[`EthFeesEscrow vault deployment gas 1`] = `
-Object {
-  "calldataByteLength": 606,
-  "gasUsed": 150006,
-}
-`;

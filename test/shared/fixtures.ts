@@ -9,9 +9,9 @@ import {
   IEthVaultFactory,
   EthVaultFactory,
   EthVaultMock,
-  EthKeeper,
   Registry,
   Oracles,
+  Keeper,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
 import { REQUIRED_ORACLES, ORACLES, ORACLES_CONFIG } from './constants'
@@ -41,22 +41,22 @@ export const createOracles = async function (
   )) as Oracles
 }
 
-export const createEthKeeper = async function (
+export const createKeeper = async function (
   owner: Wallet,
   oracles: Oracles,
   registry: Registry,
   validatorsRegistry: Contract
-): Promise<EthKeeper> {
-  const factory = await ethers.getContractFactory('EthKeeper')
+): Promise<Keeper> {
+  const factory = await ethers.getContractFactory('Keeper')
   const instance = await upgrades.deployProxy(factory, [owner.address], {
     unsafeAllow: ['delegatecall'],
     constructorArgs: [oracles.address, registry.address, validatorsRegistry.address],
   })
-  return (await instance.deployed()) as EthKeeper
+  return (await instance.deployed()) as Keeper
 }
 
 export const createEthVaultFactory = async function (
-  keeper: EthKeeper,
+  keeper: Keeper,
   registry: Registry,
   validatorsRegistry: Contract
 ): Promise<EthVaultFactory> {
@@ -71,7 +71,7 @@ export const createEthVaultFactory = async function (
 }
 
 export const createEthVaultMockFactory = async function (
-  keeper: EthKeeper,
+  keeper: Keeper,
   registry: Registry,
   validatorsRegistry: Contract
 ): Promise<EthVaultFactory> {
@@ -88,7 +88,7 @@ export const createEthVaultMockFactory = async function (
 interface EthVaultFixture {
   registry: Registry
   oracles: Oracles
-  keeper: EthKeeper
+  keeper: Keeper
   validatorsRegistry: Contract
   ethVaultFactory: EthVaultFactory
   getSignatures: (typedData: any, count?: number) => Buffer
@@ -118,7 +118,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     REQUIRED_ORACLES,
     ORACLES_CONFIG
   )
-  const keeper = await createEthKeeper(dao, oracles, registry, validatorsRegistry)
+  const keeper = await createKeeper(dao, oracles, registry, validatorsRegistry)
   const ethVaultFactory = await createEthVaultFactory(keeper, registry, validatorsRegistry)
   await registry.connect(dao).addFactory(ethVaultFactory.address)
 

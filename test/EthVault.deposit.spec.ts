@@ -1,14 +1,15 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthKeeper, EthVault, EthVaultMock, Oracles } from '../typechain-types'
+import { Keeper, EthVault, EthVaultMock, Oracles, IKeeperRewards } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
-import { updateRewardsRoot } from './shared/rewards'
+import { getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
 import { registerEthValidator } from './shared/validators'
+import { setBalance } from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const ether = parseEther('1')
@@ -22,7 +23,7 @@ describe('EthVault - deposit', () => {
   const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
   const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
   let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Wallet, other: Wallet
-  let vault: EthVault, keeper: EthKeeper, oracles: Oracles, validatorsRegistry: Contract
+  let vault: EthVault, keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -161,6 +162,39 @@ describe('EthVault - deposit', () => {
       await expect(
         vault.connect(sender).deposit(receiver.address, { value: parseEther('10') })
       ).to.be.revertedWith('NotHarvested()')
+    })
+
+    it('update state and deposit', async () => {
+      await vault.connect(other).deposit(other.address, { value: parseEther('32') })
+      await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+
+      let vaultReward = parseEther('10')
+      await updateRewardsRoot(keeper, oracles, getSignatures, [
+        { reward: vaultReward, vault: vault.address },
+      ])
+
+      vaultReward = vaultReward.add(parseEther('1'))
+      const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+        { reward: vaultReward, vault: vault.address },
+      ])
+
+      const harvestParams: IKeeperRewards.HarvestParamsStruct = {
+        rewardsRoot: tree.root,
+        reward: vaultReward,
+        proof: getRewardsRootProof(tree, { vault: vault.address, reward: vaultReward }),
+      }
+      await setBalance(await vault.mevEscrow(), parseEther('10'))
+      await setBalance(await vault.address, parseEther('5'))
+      await vault.connect(other).enterExitQueue(parseEther('32'), other.address, other.address)
+
+      const amount = parseEther('100')
+      const receipt = await vault
+        .connect(sender)
+        .updateStateAndDeposit(receiver.address, harvestParams, { value: amount })
+      await expect(receipt).to.emit(vault, 'Transfer')
+      await expect(receipt).to.emit(vault, 'Deposit')
+      await expect(receipt).to.emit(vault, 'StateUpdated')
+      await snapshotGasCost(receipt)
     })
 
     it('deposit', async () => {

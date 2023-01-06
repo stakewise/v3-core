@@ -42,14 +42,14 @@ export const PermitSig = [
   { name: 'deadline', type: 'uint256' },
 ]
 
-export const BaseKeeperSig = [
+export const KeeperRewardsSig = [
   { name: 'rewardsRoot', type: 'bytes32' },
   { name: 'rewardsIpfsHash', type: 'bytes32' },
   { name: 'updateTimestamp', type: 'uint64' },
   { name: 'nonce', type: 'uint96' },
 ]
 
-export const RegisterValidatorsSig = [
+export const KeeperValidatorsSig = [
   { name: 'validatorsRegistryRoot', type: 'bytes32' },
   { name: 'vault', type: 'address' },
   { name: 'validators', type: 'bytes32' },

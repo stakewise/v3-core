@@ -3,7 +3,7 @@ import fs from 'fs'
 import '@openzeppelin/hardhat-upgrades/dist/type-extensions'
 import { task } from 'hardhat/config'
 import {
-  EthKeeper__factory,
+  Keeper__factory,
   EthVault__factory,
   EthVaultFactory__factory,
   Oracles__factory,
@@ -48,7 +48,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   console.log('Oracles deployed at', oracles.address)
 
   const keeper = await upgrades.deployProxy(
-    new EthKeeper__factory(deployer),
+    new Keeper__factory(deployer),
     [networkConfig.governor],
     {
       unsafeAllow: ['delegatecall'],
@@ -56,14 +56,14 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     }
   )
   await keeper.deployed()
-  console.log('EthKeeper deployed at', keeper.address)
+  console.log('Keeper deployed at', keeper.address)
 
-  const ethVaultImpl = await upgrades.deployImplementation(new EthVault__factory(deployer), {
+  const publicVaultImpl = await upgrades.deployImplementation(new EthVault__factory(deployer), {
     unsafeAllow: ['delegatecall'],
     constructorArgs: [keeper.address, registry.address, networkConfig.validatorsRegistry],
   })
   const ethVaultFactory = await deployContract(
-    new EthVaultFactory__factory(deployer).deploy(ethVaultImpl as string, registry.address)
+    new EthVaultFactory__factory(deployer).deploy(publicVaultImpl as string, registry.address)
   )
   console.log('EthVaultFactory deployed at', ethVaultFactory.address)
 
@@ -71,7 +71,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const addresses = {
     Registry: registry.address,
     Oracles: oracles.address,
-    EthKeeper: keeper.address,
+    Keeper: keeper.address,
     EthVaultFactory: ethVaultFactory.address,
   }
   const json = JSON.stringify(addresses, null, 2)

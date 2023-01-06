@@ -3,8 +3,8 @@ import { BigNumberish, Contract, Wallet } from 'ethers'
 import { parseEther, toUtf8Bytes } from 'ethers/lib/utils'
 import keccak256 from 'keccak256'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
-import { BaseKeeper, EthKeeper, EthVault, Oracles } from '../../typechain-types'
-import { EIP712Domain, BaseKeeperSig, ONE_DAY, ORACLES } from './constants'
+import { Keeper, EthVault, Oracles } from '../../typechain-types'
+import { EIP712Domain, KeeperRewardsSig, ONE_DAY, ORACLES } from './constants'
 import { Buffer } from 'buffer'
 import { registerEthValidator } from './validators'
 import { increaseTime, setBalance } from './utils'
@@ -45,8 +45,8 @@ export function createVaultRewardsRoot(
     updateTimestamp,
     tree,
     signingData: {
-      primaryType: 'BaseKeeper',
-      types: { EIP712Domain, BaseKeeper: BaseKeeperSig },
+      primaryType: 'KeeperRewards',
+      types: { EIP712Domain, KeeperRewards: KeeperRewardsSig },
       domain: {
         name: 'Oracles',
         version: '1',
@@ -64,7 +64,7 @@ export function createVaultRewardsRoot(
 }
 
 export async function updateRewardsRoot(
-  keeper: BaseKeeper,
+  keeper: Keeper,
   oracles: Oracles,
   getSignatures: (typedData: any, count?: number) => Buffer,
   rewards: VaultReward[]
@@ -73,14 +73,12 @@ export async function updateRewardsRoot(
   const rewardsRoot = createVaultRewardsRoot(rewards, oracles, 1670257866, rewardsNonce.toNumber())
   const oracle = new Wallet(ORACLES[0], await waffle.provider)
   await setBalance(oracle.address, parseEther('10000'))
-  await keeper
-    .connect(oracle)
-    .setRewardsRoot(
-      rewardsRoot.root,
-      rewardsRoot.updateTimestamp,
-      rewardsRoot.ipfsHash,
-      getSignatures(rewardsRoot.signingData)
-    )
+  await keeper.connect(oracle).setRewardsRoot({
+    rewardsRoot: rewardsRoot.root,
+    updateTimestamp: rewardsRoot.updateTimestamp,
+    rewardsIpfsHash: rewardsRoot.ipfsHash,
+    signatures: getSignatures(rewardsRoot.signingData),
+  })
   return rewardsRoot.tree
 }
 
@@ -91,11 +89,11 @@ export function getRewardsRootProof(tree: RewardsTree, vaultReward: VaultReward)
 export async function collateralizeEthVault(
   vault: EthVault,
   oracles: Oracles,
-  keeper: EthKeeper,
+  keeper: Keeper,
   validatorsRegistry: Contract,
   admin: Wallet,
   getSignatures: (typedData: any, count?: number) => Buffer
-): Promise<string[]> {
+): Promise<[string, string[]]> {
   const balanceBefore = await waffle.provider.getBalance(vault.address)
   // register validator
   const validatorDeposit = parseEther('32')
@@ -115,7 +113,7 @@ export async function collateralizeEthVault(
   await vault.connect(admin).enterExitQueue(validatorDeposit, admin.address, admin.address)
   await setBalance(vault.address, validatorDeposit)
 
-  await keeper.harvest(vault.address, 0, proof)
+  await vault.updateState({ rewardsRoot: rewardsTree.root, reward: 0, proof })
 
   // claim exited assets
   const checkpointIndex = await vault.getCheckpointIndex(exitQueueId)
@@ -124,5 +122,5 @@ export async function collateralizeEthVault(
   await increaseTime(ONE_DAY)
   await setBalance(vault.address, balanceBefore)
 
-  return proof
+  return [rewardsTree.root, proof]
 }
