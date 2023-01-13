@@ -42,6 +42,7 @@ contract EthVault is
   bytes32 private constant _VAULT_ID = keccak256('EthVault');
 
   /// @inheritdoc IEthVault
+  // slither-disable-next-line uninitialized-state
   IMevEscrow public override mevEscrow;
 
   /**
