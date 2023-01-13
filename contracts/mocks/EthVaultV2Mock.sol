@@ -3,7 +3,7 @@
 pragma solidity =0.8.17;
 
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
-import {IRegistry} from '../interfaces/IRegistry.sol';
+import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {EthVault} from '../vaults/ethereum/EthVault.sol';
 
 contract EthVaultV2Mock is EthVault {
@@ -12,11 +12,11 @@ contract EthVaultV2Mock is EthVault {
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     address _keeper,
-    address _registry,
+    address _vaultsRegistry,
     address _validatorsRegistry
-  ) EthVault(_keeper, _registry, _validatorsRegistry) {}
+  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry) {}
 
-  function upgrade(bytes calldata data) external virtual reinitializer(2) {
+  function initialize(bytes calldata data) external override reinitializer(2) {
     (newVar) = abi.decode(data, (uint128));
   }
 

@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.17;
 
-import {IRegistry} from './IRegistry.sol';
+import {IVaultsRegistry} from './IVaultsRegistry.sol';
 
 /**
  * @title IEthVaultFactory

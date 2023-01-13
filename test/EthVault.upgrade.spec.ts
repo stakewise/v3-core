@@ -1,7 +1,7 @@
 import { ethers, upgrades, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
 import { defaultAbiCoder, parseEther } from 'ethers/lib/utils'
-import { EthVault, EthVaultV2Mock } from '../typechain-types'
+import { EthVault, EthVaultV2Mock, VaultsRegistry } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -19,6 +19,7 @@ describe('EthVault - upgrade', () => {
   const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
   let admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault
+  let vaultsRegistry: VaultsRegistry
   let updatedVault: EthVaultV2Mock
   let currImpl: string
   let newImpl: string
@@ -32,7 +33,13 @@ describe('EthVault - upgrade', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    const { createVault, registry, validatorsRegistry, keeper } = await loadFixture(ethVaultFixture)
+    const {
+      createVault,
+      vaultsRegistry: registry,
+      validatorsRegistry,
+      keeper,
+    } = await loadFixture(ethVaultFixture)
+    vaultsRegistry = registry
     vault = await createVault(admin, {
       capacity,
       validatorsRoot,
@@ -49,7 +56,7 @@ describe('EthVault - upgrade', () => {
     })) as string
     currImpl = await vault.implementation()
     callData = defaultAbiCoder.encode(['uint128'], [100])
-    await registry.connect(dao).addUpgrade(currImpl, newImpl)
+    await registry.connect(dao).addVaultImpl(newImpl)
     updatedVault = (await ethVaultMock.attach(vault.address)) as EthVaultV2Mock
   })
 
@@ -80,9 +87,20 @@ describe('EthVault - upgrade', () => {
   })
 
   it('fails for not approved implementation', async () => {
-    await expect(vault.connect(admin).upgradeToAndCall(other.address, callData)).to.revertedWith(
+    await vaultsRegistry.connect(dao).removeVaultImpl(newImpl)
+    await expect(vault.connect(admin).upgradeToAndCall(newImpl, callData)).to.revertedWith(
       'UpgradeFailed()'
     )
+    expect(await vault.version()).to.be.eq(1)
+  })
+
+  it('fails for invalid implementation', async () => {
+    const factory = await ethers.getContractFactory('EthVaultV2InvalidMock')
+    const invalidImpl = await factory.deploy()
+    await vaultsRegistry.connect(dao).addVaultImpl(invalidImpl.address)
+    await expect(
+      vault.connect(admin).upgradeToAndCall(invalidImpl.address, callData)
+    ).to.revertedWith('UpgradeFailed()')
     expect(await vault.version()).to.be.eq(1)
   })
 
@@ -104,7 +122,7 @@ describe('EthVault - upgrade', () => {
     await expect(vault.connect(admin).upgradeToAndCall(newImpl, callData)).to.revertedWith(
       'UpgradeFailed()'
     )
-    await expect(updatedVault.connect(admin).upgrade(callData)).to.revertedWith(
+    await expect(updatedVault.connect(admin).initialize(callData)).to.revertedWith(
       'Initializable: contract is already initialized'
     )
     await snapshotGasCost(receipt)

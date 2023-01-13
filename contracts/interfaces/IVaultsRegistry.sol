@@ -3,16 +3,15 @@
 pragma solidity =0.8.17;
 
 /**
- * @title IRegistry
+ * @title IVaultsRegistry
  * @author StakeWise
- * @notice Defines the interface for the Registry
+ * @notice Defines the interface for the VaultsRegistry
  */
-interface IRegistry {
+interface IVaultsRegistry {
   /// Custom errors
   error AccessDenied();
   error AlreadyAdded();
   error AlreadyRemoved();
-  error InvalidUpgrade();
 
   /**
    * @notice Event emitted on a Vault addition
@@ -22,11 +21,16 @@ interface IRegistry {
   event VaultAdded(address indexed factory, address indexed vault);
 
   /**
-   * @notice Event emitted on added upgrades
-   * @param fromImpl The address of the implementation contract before the upgrade
-   * @param toImpl The address of the implementation contract after the upgrade
+   * @notice Event emitted on adding Vault implementation contract
+   * @param impl The address of the new implementation contract
    */
-  event UpgradeAdded(address indexed fromImpl, address indexed toImpl);
+  event VaultImplAdded(address indexed impl);
+
+  /**
+   * @notice Event emitted on removing Vault implementation contract
+   * @param impl The address of the removed implementation contract
+   */
+  event VaultImplRemoved(address indexed impl);
 
   /**
    * @notice Event emitted on whitelisting the factory
@@ -48,18 +52,18 @@ interface IRegistry {
   function vaults(address vault) external view returns (bool);
 
   /**
+   * @notice Registered Vault implementations
+   * @param impl The address of the vault implementation
+   * @return `true` for the registered implementation, `false` otherwise
+   */
+  function vaultImpls(address impl) external view returns (bool);
+
+  /**
    * @notice Registered Factories
    * @param factory The address of the factory to check whether it is whitelisted
    * @return `true` for the whitelisted Factory, `false` otherwise
    */
   function factories(address factory) external view returns (bool);
-
-  /**
-   * @notice Upgrades
-   * @param fromImpl The address of the implementation contract to upgrade from
-   * @return toImpl The address of the implementation contract to upgrade to
-   */
-  function upgrades(address fromImpl) external view returns (address toImpl);
 
   /**
    * @notice Function for adding Vault to the registry. Can only be called by the whitelisted Factory.
@@ -68,11 +72,16 @@ interface IRegistry {
   function addVault(address vault) external;
 
   /**
-   * @notice Function for adding upgrade from one implementation contract to another
-   * @param prevImpl The address of the implementation contract to upgrade from
-   * @param newImpl The address of the implementation contract to upgrade to
+   * @notice Function for adding Vault implementation contract
+   * @param newImpl The address of the new implementation contract
    */
-  function addUpgrade(address prevImpl, address newImpl) external;
+  function addVaultImpl(address newImpl) external;
+
+  /**
+   * @notice Function for removing Vault implementation contract
+   * @param impl The address of the removed implementation contract
+   */
+  function removeVaultImpl(address impl) external;
 
   /**
    * @notice Function for adding the factory to the whitelist

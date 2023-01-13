@@ -280,19 +280,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "registry",
-    "outputs": [
-      {
-        "internalType": "contract IRegistry",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -383,6 +370,19 @@
     "outputs": [
       {
         "internalType": "contract IValidatorsRegistry",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vaultsRegistry",
+    "outputs": [
+      {
+        "internalType": "contract IVaultsRegistry",
         "name": "",
         "type": "address"
       }

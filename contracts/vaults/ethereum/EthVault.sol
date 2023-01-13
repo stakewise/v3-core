@@ -7,6 +7,7 @@ import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/se
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {IEthValidatorsRegistry} from '../../interfaces/IEthValidatorsRegistry.sol';
 import {IMevEscrow} from '../../interfaces/IMevEscrow.sol';
+import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {Multicall} from '../../base/Multicall.sol';
@@ -38,6 +39,8 @@ contract EthVault is
   Multicall,
   IEthVault
 {
+  bytes32 private constant _VAULT_ID = keccak256('EthVault');
+
   /// @inheritdoc IEthVault
   IMevEscrow public override mevEscrow;
 
@@ -46,20 +49,21 @@ contract EthVault is
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param _keeper The address of the Keeper contract
-   * @param _registry The address of the Registry contract
+   * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     address _keeper,
-    address _registry,
+    address _vaultsRegistry,
     address _validatorsRegistry
-  ) VaultImmutables(_keeper, _registry, _validatorsRegistry) {
+  ) VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry) {
     _disableInitializers();
   }
 
   /// @inheritdoc IEthVault
-  function initialize(EthVaultInitParams calldata params) external override initializer {
+  function initialize(bytes calldata initParams) external virtual override initializer {
+    EthVaultInitParams memory params = abi.decode(initParams, (EthVaultInitParams));
     __ReentrancyGuard_init();
     __VaultToken_init(params.name, params.symbol, params.capacity);
     __VaultAdmin_init(params.admin, params.metadataIpfsHash);
@@ -158,6 +162,11 @@ contract EthVault is
     IKeeperRewards.HarvestParams calldata harvestParams
   ) internal override returns (int256) {
     return super._harvestAssets(harvestParams) + int256(mevEscrow.withdraw());
+  }
+
+  /// @inheritdoc VaultVersion
+  function vaultId() public pure override(IVaultVersion, VaultVersion) returns (bytes32) {
+    return _VAULT_ID;
   }
 
   /**
