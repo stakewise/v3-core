@@ -15,10 +15,10 @@ interface IVaultImmutables {
   function keeper() external view returns (address);
 
   /**
-   * @notice The Registry address
-   * @return The address of the Vault's registry contract
+   * @notice The Vaults Registry Address
+   * @return The address of the Vaults' registry contract
    */
-  function registry() external view returns (address);
+  function vaultsRegistry() external view returns (address);
 
   /**
    * @notice Validators Registry

@@ -5,13 +5,14 @@ import {
   EthVault,
   EthVaultFactory,
   Keeper,
-  Registry,
+  VaultsRegistry,
   EthVaultFactoryMock,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 import { ethVaultFixture } from './shared/fixtures'
+import { ZERO_BYTES32 } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -25,7 +26,10 @@ describe('EthVaultFactory', () => {
   const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
 
   let admin: Wallet, owner: Wallet
-  let factory: EthVaultFactory, registry: Registry, keeper: Keeper, validatorsRegistry: Contract
+  let factory: EthVaultFactory,
+    vaultsRegistry: VaultsRegistry,
+    keeper: Keeper,
+    validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -38,7 +42,7 @@ describe('EthVaultFactory', () => {
   beforeEach(async () => {
     ;({
       ethVaultFactory: factory,
-      registry,
+      vaultsRegistry,
       keeper,
       validatorsRegistry,
       createVault,
@@ -101,7 +105,7 @@ describe('EthVaultFactory', () => {
     const factoryMockFactory = await ethers.getContractFactory('EthVaultFactoryMock')
     const factoryMock = (await factoryMockFactory.deploy(
       await factory.publicVaultImpl(),
-      registry.address
+      vaultsRegistry.address
     )) as EthVaultFactoryMock
     await snapshotGasCost(await factoryMock.getGasCostOfComputeAddresses(admin.address))
   })
@@ -125,27 +129,17 @@ describe('EthVaultFactory', () => {
       .to.emit(factory, 'VaultCreated')
       .withArgs(admin.address, vaultAddress, mevEscrowAddress, capacity, feePercent, name, symbol)
 
-    await expect(tx).to.emit(registry, 'VaultAdded').withArgs(factory.address, vaultAddress)
+    await expect(tx).to.emit(vaultsRegistry, 'VaultAdded').withArgs(factory.address, vaultAddress)
 
-    await expect(
-      vault.connect(admin).initialize({
-        admin: admin.address,
-        mevEscrow: mevEscrowAddress,
-        capacity,
-        validatorsRoot,
-        feePercent,
-        name,
-        symbol,
-        validatorsIpfsHash,
-        metadataIpfsHash,
-      })
-    ).to.revertedWith('Initializable: contract is already initialized')
+    await expect(vault.connect(admin).initialize(ZERO_BYTES32)).to.revertedWith(
+      'Initializable: contract is already initialized'
+    )
 
-    expect(await registry.vaults(vaultAddress)).to.be.eq(true)
+    expect(await vaultsRegistry.vaults(vaultAddress)).to.be.eq(true)
 
     // VaultImmutables
     expect(await vault.keeper()).to.be.eq(keeper.address)
-    expect(await vault.registry()).to.be.eq(registry.address)
+    expect(await vault.vaultsRegistry()).to.be.eq(vaultsRegistry.address)
     expect(await vault.validatorsRegistry()).to.be.eq(validatorsRegistry.address)
 
     // VaultToken

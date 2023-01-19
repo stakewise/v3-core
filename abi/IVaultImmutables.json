@@ -14,7 +14,7 @@
   },
   {
     "inputs": [],
-    "name": "registry",
+    "name": "validatorsRegistry",
     "outputs": [
       {
         "internalType": "address",
@@ -27,7 +27,7 @@
   },
   {
     "inputs": [],
-    "name": "validatorsRegistry",
+    "name": "vaultsRegistry",
     "outputs": [
       {
         "internalType": "address",

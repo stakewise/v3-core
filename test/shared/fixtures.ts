@@ -9,7 +9,7 @@ import {
   IEthVaultFactory,
   EthVaultFactory,
   EthVaultMock,
-  Registry,
+  VaultsRegistry,
   Oracles,
   Keeper,
 } from '../../typechain-types'
@@ -21,9 +21,9 @@ export const createValidatorsRegistry = async function (): Promise<Contract> {
   return validatorsRegistryFactory.deploy()
 }
 
-export const createRegistry = async function (owner: Wallet): Promise<Registry> {
-  const factory = await ethers.getContractFactory('Registry')
-  return (await factory.deploy(owner.address)) as Registry
+export const createVaultsRegistry = async function (owner: Wallet): Promise<VaultsRegistry> {
+  const factory = await ethers.getContractFactory('VaultsRegistry')
+  return (await factory.deploy(owner.address)) as VaultsRegistry
 }
 
 export const createOracles = async function (
@@ -44,49 +44,49 @@ export const createOracles = async function (
 export const createKeeper = async function (
   owner: Wallet,
   oracles: Oracles,
-  registry: Registry,
+  vaultsRegistry: VaultsRegistry,
   validatorsRegistry: Contract
 ): Promise<Keeper> {
   const factory = await ethers.getContractFactory('Keeper')
   const instance = await upgrades.deployProxy(factory, [owner.address], {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [oracles.address, registry.address, validatorsRegistry.address],
+    constructorArgs: [oracles.address, vaultsRegistry.address, validatorsRegistry.address],
   })
   return (await instance.deployed()) as Keeper
 }
 
 export const createEthVaultFactory = async function (
   keeper: Keeper,
-  registry: Registry,
+  vaultsRegistry: VaultsRegistry,
   validatorsRegistry: Contract
 ): Promise<EthVaultFactory> {
   const ethVault = await ethers.getContractFactory('EthVault')
   const ethVaultImpl = await upgrades.deployImplementation(ethVault, {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [keeper.address, registry.address, validatorsRegistry.address],
+    constructorArgs: [keeper.address, vaultsRegistry.address, validatorsRegistry.address],
   })
 
   const factory = await ethers.getContractFactory('EthVaultFactory')
-  return (await factory.deploy(ethVaultImpl, registry.address)) as EthVaultFactory
+  return (await factory.deploy(ethVaultImpl, vaultsRegistry.address)) as EthVaultFactory
 }
 
 export const createEthVaultMockFactory = async function (
   keeper: Keeper,
-  registry: Registry,
+  vaultsRegistry: VaultsRegistry,
   validatorsRegistry: Contract
 ): Promise<EthVaultFactory> {
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
   const ethVaultMockImpl = await upgrades.deployImplementation(ethVaultMock, {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [keeper.address, registry.address, validatorsRegistry.address],
+    constructorArgs: [keeper.address, vaultsRegistry.address, validatorsRegistry.address],
   })
 
   const factory = await ethers.getContractFactory('EthVaultFactory')
-  return (await factory.deploy(ethVaultMockImpl, registry.address)) as EthVaultFactory
+  return (await factory.deploy(ethVaultMockImpl, vaultsRegistry.address)) as EthVaultFactory
 }
 
 interface EthVaultFixture {
-  registry: Registry
+  vaultsRegistry: VaultsRegistry
   oracles: Oracles
   keeper: Keeper
   validatorsRegistry: Contract
@@ -104,7 +104,7 @@ interface EthVaultFixture {
 export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   dao,
 ]): Promise<EthVaultFixture> {
-  const registry = await createRegistry(dao)
+  const registry = await createVaultsRegistry(dao)
   const validatorsRegistry = await createValidatorsRegistry()
 
   const sortedOracles = ORACLES.sort((oracle1, oracle2) => {
@@ -128,7 +128,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   const ethVault = await ethers.getContractFactory('EthVault')
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
   return {
-    registry,
+    vaultsRegistry: registry,
     oracles,
     keeper,
     validatorsRegistry,
