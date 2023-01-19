@@ -31,7 +31,7 @@ abstract contract VaultAdmin is Initializable, IVaultAdmin {
    */
   function __VaultAdmin_init(
     address _admin,
-    string calldata metadataIpfsHash
+    string memory metadataIpfsHash
   ) internal onlyInitializing {
     admin = _admin;
     emit MetadataUpdated(metadataIpfsHash);

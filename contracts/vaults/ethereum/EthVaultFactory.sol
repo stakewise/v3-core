@@ -6,7 +6,7 @@ import {Create2} from '@openzeppelin/contracts/utils/Create2.sol';
 import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
-import {IRegistry} from '../../interfaces/IRegistry.sol';
+import {IVaultsRegistry} from '../../interfaces/IVaultsRegistry.sol';
 import {VaultMevEscrow} from './mev/VaultMevEscrow.sol';
 
 /**
@@ -23,16 +23,16 @@ contract EthVaultFactory is IEthVaultFactory {
 
   bytes32 internal immutable _publicVaultCreateHash;
 
-  IRegistry internal immutable _registry;
+  IVaultsRegistry internal immutable _vaultsRegistry;
 
   /**
    * @dev Constructor
    * @param _publicVaultImpl The implementation address of the public Ethereum Vault
-   * @param registry The address of the Registry
+   * @param vaultsRegistry The address of the VaultsRegistry
    */
-  constructor(address _publicVaultImpl, IRegistry registry) {
+  constructor(address _publicVaultImpl, IVaultsRegistry vaultsRegistry) {
     publicVaultImpl = _publicVaultImpl;
-    _registry = registry;
+    _vaultsRegistry = vaultsRegistry;
     _publicVaultCreateHash = keccak256(
       abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(_publicVaultImpl, ''))
     );
@@ -55,21 +55,23 @@ contract EthVaultFactory is IEthVaultFactory {
 
     // initialize vault
     IEthVault(vault).initialize(
-      IEthVault.EthVaultInitParams({
-        capacity: params.capacity,
-        validatorsRoot: params.validatorsRoot,
-        admin: msg.sender,
-        mevEscrow: mevEscrow,
-        feePercent: params.feePercent,
-        name: params.name,
-        symbol: params.symbol,
-        validatorsIpfsHash: params.validatorsIpfsHash,
-        metadataIpfsHash: params.metadataIpfsHash
-      })
+      abi.encode(
+        IEthVault.EthVaultInitParams({
+          capacity: params.capacity,
+          validatorsRoot: params.validatorsRoot,
+          admin: msg.sender,
+          mevEscrow: mevEscrow,
+          feePercent: params.feePercent,
+          name: params.name,
+          symbol: params.symbol,
+          validatorsIpfsHash: params.validatorsIpfsHash,
+          metadataIpfsHash: params.metadataIpfsHash
+        })
+      )
     );
 
     // add vault to the registry
-    _registry.addVault(vault);
+    _vaultsRegistry.addVault(vault);
 
     emit VaultCreated(
       msg.sender,

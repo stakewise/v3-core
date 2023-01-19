@@ -630,56 +630,9 @@
   {
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "capacity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "validatorsRoot",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "address",
-            "name": "admin",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "mevEscrow",
-            "type": "address"
-          },
-          {
-            "internalType": "uint16",
-            "name": "feePercent",
-            "type": "uint16"
-          },
-          {
-            "internalType": "string",
-            "name": "name",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "symbol",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "validatorsIpfsHash",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "metadataIpfsHash",
-            "type": "string"
-          }
-        ],
-        "internalType": "struct IEthVault.EthVaultInitParams",
+        "internalType": "bytes",
         "name": "params",
-        "type": "tuple"
+        "type": "bytes"
       }
     ],
     "name": "initialize",
@@ -966,19 +919,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "registry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -1232,6 +1172,32 @@
         "internalType": "bytes32",
         "name": "",
         "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vaultId",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "pure",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vaultsRegistry",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",

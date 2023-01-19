@@ -3,7 +3,7 @@
 pragma solidity =0.8.17;
 
 import {IOracles} from './IOracles.sol';
-import {IRegistry} from './IRegistry.sol';
+import {IVaultsRegistry} from './IVaultsRegistry.sol';
 
 /**
  * @title IKeeperRewards
@@ -83,10 +83,10 @@ interface IKeeperRewards {
   function oracles() external view returns (IOracles);
 
   /**
-   * @notice Registry Address
-   * @return The address of the Registry contract
+   * @notice Vaults Registry Address
+   * @return The address of the Vaults Registry contract
    */
-  function registry() external view returns (IRegistry);
+  function vaultsRegistry() external view returns (IVaultsRegistry);
 
   /**
    * @notice Previous Rewards Root

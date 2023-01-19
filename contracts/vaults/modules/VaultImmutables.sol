@@ -16,7 +16,7 @@ abstract contract VaultImmutables is IVaultImmutables {
 
   /// @inheritdoc IVaultImmutables
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  address public immutable override registry;
+  address public immutable override vaultsRegistry;
 
   /// @inheritdoc IVaultImmutables
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -27,13 +27,13 @@ abstract contract VaultImmutables is IVaultImmutables {
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param _keeper The address of the Keeper contract
-   * @param _registry The address of the Registry contract
+   * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address _keeper, address _registry, address _validatorsRegistry) {
+  constructor(address _keeper, address _vaultsRegistry, address _validatorsRegistry) {
     keeper = _keeper;
-    registry = _registry;
+    vaultsRegistry = _vaultsRegistry;
     validatorsRegistry = _validatorsRegistry;
   }
 }

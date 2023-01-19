@@ -4,7 +4,7 @@ pragma solidity =0.8.17;
 
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
-import {IRegistry} from '../interfaces/IRegistry.sol';
+import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IKeeperValidators} from '../interfaces/IKeeperValidators.sol';
 import {KeeperRewards} from './KeeperRewards.sol';
 
@@ -28,15 +28,15 @@ abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param _oracles The address of the Oracles contract
-   * @param _registry The address of the Registry contract
+   * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The address of the beacon chain validators registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     IOracles _oracles,
-    IRegistry _registry,
+    IVaultsRegistry _vaultsRegistry,
     IValidatorsRegistry _validatorsRegistry
-  ) KeeperRewards(_oracles, _registry) {
+  ) KeeperRewards(_oracles, _vaultsRegistry) {
     validatorsRegistry = _validatorsRegistry;
   }
 
@@ -45,7 +45,7 @@ abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
     if (validatorsRegistry.get_deposit_root() != params.validatorsRegistryRoot) {
       revert InvalidValidatorsRegistryRoot();
     }
-    if (!registry.vaults(msg.sender)) revert AccessDenied();
+    if (!vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
 
     // verify all oracles approved registration
     oracles.verifyAllSignatures(

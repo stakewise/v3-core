@@ -62,9 +62,9 @@ interface IEthVault is
 
   /**
    * @notice Initializes the EthVault contract
-   * @param params The parameters for initializing the EthVault contract
+   * @param params The encoded parameters for initializing the EthVault contract
    */
-  function initialize(EthVaultInitParams calldata params) external;
+  function initialize(bytes calldata params) external;
 
   /**
    * @notice Deposit assets to the Vault. Must transfer Ether together with the call.

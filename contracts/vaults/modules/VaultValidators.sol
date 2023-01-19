@@ -133,10 +133,7 @@ abstract contract VaultValidators is
    * @param _validatorsRoot The new validators merkle tree root
    * @param validatorsIpfsHash The new IPFS hash with all the validators deposit data for the new root
    */
-  function _setValidatorsRoot(
-    bytes32 _validatorsRoot,
-    string calldata validatorsIpfsHash
-  ) internal {
+  function _setValidatorsRoot(bytes32 _validatorsRoot, string memory validatorsIpfsHash) internal {
     validatorsRoot = _validatorsRoot;
     // reset validator index on every root update
     validatorIndex = 0;
@@ -167,7 +164,7 @@ abstract contract VaultValidators is
    */
   function __VaultValidators_init(
     bytes32 _validatorsRoot,
-    string calldata validatorsIpfsHash
+    string memory validatorsIpfsHash
   ) internal onlyInitializing {
     _setValidatorsRoot(_validatorsRoot, validatorsIpfsHash);
   }

@@ -283,19 +283,6 @@
   },
   {
     "inputs": [],
-    "name": "registry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "symbol",
     "outputs": [
       {
@@ -389,6 +376,19 @@
   {
     "inputs": [],
     "name": "validatorsRegistry",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vaultsRegistry",
     "outputs": [
       {
         "internalType": "address",

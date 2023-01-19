@@ -119,6 +119,10 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
     return block.chainid == _initialChainId ? _initialDomainSeparator : _computeDomainSeparator();
   }
 
+  /**
+   * @notice Computes the hash of the EIP712 typed data
+   * @dev This function is used to compute the hash of the EIP712 typed data
+   */
   function _computeDomainSeparator() private view returns (bytes32) {
     return
       keccak256(

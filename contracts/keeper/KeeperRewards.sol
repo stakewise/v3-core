@@ -5,7 +5,7 @@ pragma solidity =0.8.17;
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
-import {IRegistry} from '../interfaces/IRegistry.sol';
+import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 
 /**
  * @title KeeperRewards
@@ -24,7 +24,7 @@ abstract contract KeeperRewards is IKeeperRewards {
 
   /// @inheritdoc IKeeperRewards
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IRegistry public immutable override registry;
+  IVaultsRegistry public immutable override vaultsRegistry;
 
   /// @inheritdoc IKeeperRewards
   bytes32 public override prevRewardsRoot;
@@ -43,12 +43,12 @@ abstract contract KeeperRewards is IKeeperRewards {
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param _oracles The address of the Oracles contract
-   * @param _registry The address of the Registry contract
+   * @param _vaultsRegistry The address of the VaultsRegistry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(IOracles _oracles, IRegistry _registry) {
+  constructor(IOracles _oracles, IVaultsRegistry _vaultsRegistry) {
     oracles = _oracles;
-    registry = _registry;
+    vaultsRegistry = _vaultsRegistry;
   }
 
   /// @inheritdoc IKeeperRewards
@@ -117,7 +117,7 @@ abstract contract KeeperRewards is IKeeperRewards {
 
   /// @inheritdoc IKeeperRewards
   function harvest(HarvestParams calldata params) external override returns (int256 periodReward) {
-    if (!registry.vaults(msg.sender)) revert AccessDenied();
+    if (!vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
 
     // SLOAD to memory
     uint96 currentNonce = rewardsNonce;
