@@ -14,6 +14,7 @@ interface IEthVaultFactory {
    * @notice Event emitted on a Vault creation
    * @param admin The address of the Vault admin
    * @param vault The address of the created Vault
+   * @param isPrivate Defines whether Vault is private or not
    * @param mevEscrow The address of the MEV escrow contract
    * @param capacity The Vault stops accepting deposits after exceeding the capacity
    * @param feePercent The fee percent that is charged by the Vault
@@ -23,7 +24,8 @@ interface IEthVaultFactory {
   event VaultCreated(
     address indexed admin,
     address indexed vault,
-    address indexed mevEscrow,
+    bool indexed isPrivate,
+    address mevEscrow,
     uint256 capacity,
     uint16 feePercent,
     string name,
@@ -59,24 +61,36 @@ interface IEthVaultFactory {
 
   /**
    * @notice Public Ethereum Vault implementation
-   * @return The address of the Vault implementation contract
+   * @return The address of the public Vault implementation contract
    */
   function publicVaultImpl() external view returns (address);
 
   /**
+   * @notice Private Ethereum Vault implementation
+   * @return The address of the private Vault implementation contract
+   */
+  function privateVaultImpl() external view returns (address);
+
+  /**
    * @notice Create Vault
    * @param params The Vault creation parameters
+   * @param isPrivate Defines whether Vault is private or not
    * @return vault The address of the created Vault
    */
-  function createVault(VaultParams calldata params) external returns (address vault);
+  function createVault(
+    VaultParams calldata params,
+    bool isPrivate
+  ) external returns (address vault);
 
   /**
    * @notice Compute Vault and MEV Escrow addresses
    * @param deployer The address of the Vault deployer
+   * @param isPrivate Defines whether Vault is private or not
    * @return vault The address of the created Vault
    * @return mevEscrow The address of the created MevEscrow
    */
   function computeAddresses(
-    address deployer
+    address deployer,
+    bool isPrivate
   ) external view returns (address vault, address mevEscrow);
 }

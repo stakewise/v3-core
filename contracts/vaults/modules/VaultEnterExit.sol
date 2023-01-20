@@ -119,7 +119,7 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
    * @param assets The number of assets deposited
    * @return shares The total amount of shares minted
    */
-  function _deposit(address to, uint256 assets) internal returns (uint256 shares) {
+  function _deposit(address to, uint256 assets) internal virtual returns (uint256 shares) {
     if (IKeeperRewards(keeper).isHarvestRequired(address(this))) revert NotHarvested();
 
     uint256 totalAssetsAfter;

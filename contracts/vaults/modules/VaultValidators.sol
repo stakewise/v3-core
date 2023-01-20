@@ -137,7 +137,7 @@ abstract contract VaultValidators is
     validatorsRoot = _validatorsRoot;
     // reset validator index on every root update
     validatorIndex = 0;
-    emit ValidatorsRootUpdated(_validatorsRoot, validatorsIpfsHash);
+    emit ValidatorsRootUpdated(msg.sender, _validatorsRoot, validatorsIpfsHash);
   }
 
   /**

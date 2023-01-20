@@ -170,7 +170,7 @@ describe('Oracles', () => {
   describe('verify oracles', () => {
     const rewardsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
     const rewardsIpfsHash = keccak256(
-      Buffer.from(toUtf8Bytes('/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'))
+      Buffer.from(toUtf8Bytes('bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'))
     )
     const nonce = 1
     let signData

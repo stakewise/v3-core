@@ -1,0 +1,248 @@
+[
+  {
+    "inputs": [],
+    "name": "AccessDenied",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidAccount",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidWhitelistProof",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "WhitelistAlreadyUpdated",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "metadataIpfsHash",
+        "type": "string"
+      }
+    ],
+    "name": "MetadataUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bytes32",
+        "name": "root",
+        "type": "bytes32"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "whitelistIpfsHash",
+        "type": "string"
+      }
+    ],
+    "name": "WhitelistRootUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "approved",
+        "type": "bool"
+      }
+    ],
+    "name": "WhitelistUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "sender",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "whitelister",
+        "type": "address"
+      }
+    ],
+    "name": "WhitelisterUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "admin",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32[]",
+        "name": "proof",
+        "type": "bytes32[]"
+      }
+    ],
+    "name": "joinWhitelist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "string",
+        "name": "metadataIpfsHash",
+        "type": "string"
+      }
+    ],
+    "name": "setMetadata",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "_whitelistRoot",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "string",
+        "name": "whitelistIpfsHash",
+        "type": "string"
+      }
+    ],
+    "name": "setWhitelistRoot",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_whitelister",
+        "type": "address"
+      }
+    ],
+    "name": "setWhitelister",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "approved",
+        "type": "bool"
+      }
+    ],
+    "name": "updateWhitelist",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "whitelistRoot",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "whitelistedAccounts",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "whitelister",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  }
+]

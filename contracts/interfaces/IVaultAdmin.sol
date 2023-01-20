@@ -13,9 +13,10 @@ interface IVaultAdmin {
 
   /**
    * @notice Event emitted on metadata ipfs hash update
+   * @param sender The address of the function caller
    * @param metadataIpfsHash The new metadata IPFS hash
    */
-  event MetadataUpdated(string metadataIpfsHash);
+  event MetadataUpdated(address indexed sender, string metadataIpfsHash);
 
   /**
    * @notice The Vault admin
