@@ -16,7 +16,7 @@ contract EthVaultV2Mock is EthVault {
     address _validatorsRegistry
   ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry) {}
 
-  function initialize(bytes calldata data) public override reinitializer(2) {
+  function initialize(bytes calldata data) external override reinitializer(2) {
     (newVar) = abi.decode(data, (uint128));
   }
 

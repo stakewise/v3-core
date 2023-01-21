@@ -78,8 +78,6 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
    * @param _whitelister The address of the new whitelister
    */
   function _setWhitelister(address _whitelister) internal {
-    if (_whitelister == address(0)) revert InvalidAccount();
-
     // update whitelister address
     whitelister = _whitelister;
     emit WhitelisterUpdated(msg.sender, _whitelister);

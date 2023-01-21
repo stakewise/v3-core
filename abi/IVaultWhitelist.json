@@ -6,11 +6,6 @@
   },
   {
     "inputs": [],
-    "name": "InvalidAccount",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidWhitelistProof",
     "type": "error"
   },

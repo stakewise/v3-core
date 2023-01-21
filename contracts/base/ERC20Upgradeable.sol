@@ -142,7 +142,7 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
    * @dev Moves `amount` of tokens from `from` to `to`.
    * Emits a {Transfer} event.
    */
-  function _transfer(address from, address to, uint256 amount) internal virtual {
+  function _transfer(address from, address to, uint256 amount) internal {
     balanceOf[from] -= amount;
 
     // Cannot overflow because the sum of all user

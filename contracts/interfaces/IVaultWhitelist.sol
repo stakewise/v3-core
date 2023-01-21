@@ -13,7 +13,6 @@ interface IVaultWhitelist is IVaultAdmin {
   /// Custom errors
   error InvalidWhitelistProof();
   error WhitelistAlreadyUpdated();
-  error InvalidAccount();
 
   /**
    * @notice Event emitted on whitelist update
@@ -71,7 +70,7 @@ interface IVaultWhitelist is IVaultAdmin {
   /**
    * @notice Used to join whitelist using the whitelisted accounts tree proof
    * @dev Note that to remove the account from the whitelist, the new Merkle tree must be generated.
-          Otherwise, the account will be able to be re-join.
+          Otherwise, the account will be able to re-join.
    * @param account The account to add to the list
    * @param proof The proof used to verify that account is part of the merkle tree
    */
@@ -80,7 +79,7 @@ interface IVaultWhitelist is IVaultAdmin {
   /**
    * @notice Used to update root of of the merkle tree with all the whitelisted accounts
    * @dev Note that to remove the account from the whitelist, the root must be updated.
-          Otherwise, the account will be able to be re-join.
+          Otherwise, the account will be able to re-join.
    * @param _whitelistRoot The root of the Merkle tree
    * @param whitelistIpfsHash The IPFS hash with all the whitelisted accounts
    */

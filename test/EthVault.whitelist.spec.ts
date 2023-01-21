@@ -50,12 +50,6 @@ describe('EthVault - whitelist', () => {
       )
     })
 
-    it('cannot update to zero address', async () => {
-      await expect(vault.connect(admin).setWhitelister(ZERO_ADDRESS)).to.revertedWith(
-        'InvalidAccount()'
-      )
-    })
-
     it('admin can update whitelister', async () => {
       const tx = await vault.connect(admin).setWhitelister(whitelister.address)
       await expect(tx)

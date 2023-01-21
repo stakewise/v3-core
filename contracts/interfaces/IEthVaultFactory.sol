@@ -14,7 +14,7 @@ interface IEthVaultFactory {
    * @notice Event emitted on a Vault creation
    * @param admin The address of the Vault admin
    * @param vault The address of the created Vault
-   * @param isPrivate Defines whether Vault is private or not
+   * @param isPrivate Defines whether the Vault is private or not
    * @param mevEscrow The address of the MEV escrow contract
    * @param capacity The Vault stops accepting deposits after exceeding the capacity
    * @param feePercent The fee percent that is charged by the Vault
@@ -74,7 +74,7 @@ interface IEthVaultFactory {
   /**
    * @notice Create Vault
    * @param params The Vault creation parameters
-   * @param isPrivate Defines whether Vault is private or not
+   * @param isPrivate Defines whether the Vault is private or not
    * @return vault The address of the created Vault
    */
   function createVault(
@@ -85,7 +85,7 @@ interface IEthVaultFactory {
   /**
    * @notice Compute Vault and MEV Escrow addresses
    * @param deployer The address of the Vault deployer
-   * @param isPrivate Defines whether Vault is private or not
+   * @param isPrivate Defines whether the Vault is private or not
    * @return vault The address of the created Vault
    * @return mevEscrow The address of the created MevEscrow
    */

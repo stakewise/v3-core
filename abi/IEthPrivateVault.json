@@ -16,11 +16,6 @@
   },
   {
     "inputs": [],
-    "name": "InvalidAccount",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidFeePercent",
     "type": "error"
   },

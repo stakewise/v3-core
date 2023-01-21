@@ -5,9 +5,10 @@ import { task } from 'hardhat/config'
 import {
   Keeper__factory,
   EthVault__factory,
+  EthPrivateVault__factory,
   EthVaultFactory__factory,
   Oracles__factory,
-  Registry__factory,
+  VaultsRegistry__factory,
 } from '../typechain-types'
 import { deployContract } from '../helpers/utils'
 import { NETWORKS } from '../helpers/constants'
@@ -32,10 +33,10 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   // Create the signer for the mnemonic, connected to the provider with hardcoded fee data
   const deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC).connect(provider)
 
-  const registry = await deployContract(
-    new Registry__factory(deployer).deploy(networkConfig.governor)
+  const vaultsRegistry = await deployContract(
+    new VaultsRegistry__factory(deployer).deploy(networkConfig.governor)
   )
-  console.log('Registry deployed at', registry.address)
+  console.log('VaultsRegistry deployed at', vaultsRegistry.address)
 
   const oracles = await deployContract(
     new Oracles__factory(deployer).deploy(
@@ -52,7 +53,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     [networkConfig.governor],
     {
       unsafeAllow: ['delegatecall'],
-      constructorArgs: [oracles.address, registry.address, networkConfig.validatorsRegistry],
+      constructorArgs: [oracles.address, vaultsRegistry.address, networkConfig.validatorsRegistry],
     }
   )
   await keeper.deployed()
@@ -60,16 +61,27 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
 
   const publicVaultImpl = await upgrades.deployImplementation(new EthVault__factory(deployer), {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [keeper.address, registry.address, networkConfig.validatorsRegistry],
+    constructorArgs: [keeper.address, vaultsRegistry.address, networkConfig.validatorsRegistry],
   })
+  const privateVaultImpl = await upgrades.deployImplementation(
+    new EthPrivateVault__factory(deployer),
+    {
+      unsafeAllow: ['delegatecall'],
+      constructorArgs: [keeper.address, vaultsRegistry.address, networkConfig.validatorsRegistry],
+    }
+  )
   const ethVaultFactory = await deployContract(
-    new EthVaultFactory__factory(deployer).deploy(publicVaultImpl as string, registry.address)
+    new EthVaultFactory__factory(deployer).deploy(
+      publicVaultImpl as string,
+      privateVaultImpl as string,
+      vaultsRegistry.address
+    )
   )
   console.log('EthVaultFactory deployed at', ethVaultFactory.address)
 
   // Save the addresses
   const addresses = {
-    Registry: registry.address,
+    VaultsRegistry: vaultsRegistry.address,
     Oracles: oracles.address,
     Keeper: keeper.address,
     EthVaultFactory: ethVaultFactory.address,
