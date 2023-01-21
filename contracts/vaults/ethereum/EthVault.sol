@@ -36,8 +36,6 @@ contract EthVault is
   Multicall,
   IEthVault
 {
-  bytes32 private constant _VAULT_ID = keccak256('EthVault');
-
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -75,6 +73,6 @@ contract EthVault is
 
   /// @inheritdoc VaultVersion
   function vaultId() public pure virtual override(IVaultVersion, VaultVersion) returns (bytes32) {
-    return _VAULT_ID;
+    return keccak256('EthVault');
   }
 }

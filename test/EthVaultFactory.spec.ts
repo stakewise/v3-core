@@ -1,6 +1,6 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
-import { hexlify, parseEther, toUtf8Bytes } from 'ethers/lib/utils'
+import { hexlify, parseEther } from 'ethers/lib/utils'
 import {
   EthVault,
   EthPrivateVault,
@@ -14,7 +14,6 @@ import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 import { ethVaultFixture } from './shared/fixtures'
 import { ZERO_BYTES32 } from './shared/constants'
-import { init } from 'bls-eth-wasm'
 import keccak256 from 'keccak256'
 
 const createFixtureLoader = waffle.createFixtureLoader

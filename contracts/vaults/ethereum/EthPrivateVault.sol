@@ -16,8 +16,6 @@ import {EthVault} from './EthVault.sol';
  * @notice Defines the Ethereum staking Vault with whitelist
  */
 contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivateVault {
-  bytes32 private constant _VAULT_ID = keccak256('EthPrivateVault');
-
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -43,7 +41,7 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
 
   /// @inheritdoc IVaultVersion
   function vaultId() public pure virtual override(EthVault, IVaultVersion) returns (bytes32) {
-    return _VAULT_ID;
+    return keccak256('EthPrivateVault');
   }
 
   /// @inheritdoc VaultEnterExit

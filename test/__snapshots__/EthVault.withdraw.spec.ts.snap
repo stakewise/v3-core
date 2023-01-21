@@ -42,7 +42,7 @@ Object {
 }
 `;
 
-exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`] = `29960`;
+exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`] = `30161`;
 
 exports[`EthVault - withdraw redeem & withdraw redeem transfers assets to receiver 1`] = `
 Object {
