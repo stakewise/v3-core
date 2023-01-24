@@ -77,10 +77,10 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
         // calculate fee recipient's shares
         uint256 feeRecipientAssets = Math.mulDiv(profitAccrued, _feePercent, _maxFeePercent);
 
-        // Will revert if totalAssetsAfter - feeRecipientAssets = 0.
-        // That corresponds to a case where any asset would represent an infinite amount of shares.
         uint256 feeRecipientShares;
         unchecked {
+          // Will revert if totalAssetsAfter - feeRecipientAssets = 0.
+          // That corresponds to a case where any asset would represent an infinite amount of shares.
           // cannot underflow as feePercent <= maxFeePercent
           feeRecipientShares = Math.mulDiv(
             feeRecipientAssets,
