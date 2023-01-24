@@ -1,10 +1,16 @@
-// SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: BUSL-1.1
+
+pragma solidity =0.8.17;
 
 import {IVersioned} from './IVersioned.sol';
 import {IVaultImmutables} from './IVaultImmutables.sol';
 import {IVaultAdmin} from './IVaultAdmin.sol';
 
+/**
+ * @title IVaultVersion
+ * @author StakeWise
+ * @notice Defines the interface for VaultVersion contract
+ */
 interface IVaultVersion is IVaultImmutables, IVersioned, IVaultAdmin {
   /**
    * @notice Vault Unique Identifier

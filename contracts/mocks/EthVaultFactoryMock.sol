@@ -8,12 +8,16 @@ import {EthVaultFactory} from '../vaults/ethereum/EthVaultFactory.sol';
 contract EthVaultFactoryMock is EthVaultFactory {
   constructor(
     address _publicVaultImpl,
+    address _privateVaultImpl,
     IVaultsRegistry vaultsRegistry
-  ) EthVaultFactory(_publicVaultImpl, vaultsRegistry) {}
+  ) EthVaultFactory(_publicVaultImpl, _privateVaultImpl, vaultsRegistry) {}
 
-  function getGasCostOfComputeAddresses(address deployer) external view returns (uint256) {
+  function getGasCostOfComputeAddresses(
+    address deployer,
+    bool isPrivate
+  ) external view returns (uint256) {
     uint256 gasBefore = gasleft();
-    computeAddresses(deployer);
+    computeAddresses(deployer, isPrivate);
     return gasBefore - gasleft();
   }
 }

@@ -18,8 +18,8 @@ describe('KeeperRewards', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
-  const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
+  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
+  const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -73,12 +73,6 @@ describe('KeeperRewards', () => {
       await expect(
         keeper.connect(oracle).setRewardsRoot({ ...rewardsRootParams, rewardsRoot: ZERO_BYTES32 })
       ).to.be.revertedWith('InvalidRewardsRoot()')
-    })
-
-    it('fails if not oracle', async () => {
-      await expect(keeper.connect(sender).setRewardsRoot(rewardsRootParams)).to.be.revertedWith(
-        'AccessDenied()'
-      )
     })
 
     it('fails with invalid IPFS hash', async () => {

@@ -171,9 +171,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
    */
   function _harvestAssets(
     IKeeperRewards.HarvestParams calldata harvestParams
-  ) internal virtual returns (int256) {
-    return IKeeperRewards(keeper).harvest(harvestParams);
-  }
+  ) internal virtual returns (int256);
 
   /**
    * @dev This empty reserved space is put in place to allow future versions to add new

@@ -22,7 +22,7 @@ abstract contract VaultAdmin is Initializable, IVaultAdmin {
 
   /// @inheritdoc IVaultAdmin
   function setMetadata(string calldata metadataIpfsHash) external override onlyAdmin {
-    emit MetadataUpdated(metadataIpfsHash);
+    emit MetadataUpdated(msg.sender, metadataIpfsHash);
   }
 
   /**
@@ -34,7 +34,7 @@ abstract contract VaultAdmin is Initializable, IVaultAdmin {
     string memory metadataIpfsHash
   ) internal onlyInitializing {
     admin = _admin;
-    emit MetadataUpdated(metadataIpfsHash);
+    emit MetadataUpdated(msg.sender, metadataIpfsHash);
   }
 
   /**

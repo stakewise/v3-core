@@ -26,10 +26,15 @@ interface IVaultValidators is IVaultImmutables, IVaultAdmin, IVaultState {
 
   /**
    * @notice Event emitted on validators merkle tree root update
+   * @param sender The address of the function caller
    * @param validatorsRoot The new validators merkle tree root
    * @param validatorsIpfsHash The new IPFS hash with all the validators deposit data
    */
-  event ValidatorsRootUpdated(bytes32 indexed validatorsRoot, string validatorsIpfsHash);
+  event ValidatorsRootUpdated(
+    address indexed sender,
+    bytes32 indexed validatorsRoot,
+    string validatorsIpfsHash
+  );
 
   /**
    * @notice The Vault validators root
