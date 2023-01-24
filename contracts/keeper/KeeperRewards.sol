@@ -53,8 +53,6 @@ abstract contract KeeperRewards is IKeeperRewards {
 
   /// @inheritdoc IKeeperRewards
   function setRewardsRoot(RewardsRootUpdateParams calldata params) external override {
-    if (!oracles.isOracle(msg.sender)) revert AccessDenied();
-
     // SLOAD to memory
     bytes32 currRewardsRoot = rewardsRoot;
     if (currRewardsRoot == params.rewardsRoot || prevRewardsRoot == params.rewardsRoot) {

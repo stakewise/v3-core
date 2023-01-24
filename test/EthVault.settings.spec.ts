@@ -17,8 +17,8 @@ describe('EthVault - settings', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
-  const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
+  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
+  const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -55,7 +55,7 @@ describe('EthVault - settings', () => {
 
   describe('validators root', () => {
     const newValidatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-    const newValidatorsIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+    const newValidatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
@@ -82,7 +82,7 @@ describe('EthVault - settings', () => {
         .setValidatorsRoot(newValidatorsRoot, newValidatorsIpfsHash)
       await expect(receipt)
         .to.emit(vault, 'ValidatorsRootUpdated')
-        .withArgs(newValidatorsRoot, newValidatorsIpfsHash)
+        .withArgs(admin.address, newValidatorsRoot, newValidatorsIpfsHash)
       expect(await vault.validatorsRoot()).to.be.eq(newValidatorsRoot)
       await snapshotGasCost(receipt)
     })
@@ -127,7 +127,9 @@ describe('EthVault - settings', () => {
     it('can update', async () => {
       expect(await vault.feeRecipient()).to.be.eq(admin.address)
       const receipt = await vault.connect(admin).setFeeRecipient(newFeeRecipient.address)
-      await expect(receipt).to.emit(vault, 'FeeRecipientUpdated').withArgs(newFeeRecipient.address)
+      await expect(receipt)
+        .to.emit(vault, 'FeeRecipientUpdated')
+        .withArgs(admin.address, newFeeRecipient.address)
       expect(await vault.feeRecipient()).to.be.eq(newFeeRecipient.address)
       await snapshotGasCost(receipt)
     })
@@ -135,7 +137,7 @@ describe('EthVault - settings', () => {
 
   describe('metadata IPFS hash', () => {
     let vault: EthVault
-    const newMetadataIpfsHash = '/ipfs/QmfPnyNojfyqoi9yqS3jMp16GGiTQee4bdCXJC64KqvTgc'
+    const newMetadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
     beforeEach('deploy vault', async () => {
       vault = await createVault(admin, {
@@ -154,7 +156,9 @@ describe('EthVault - settings', () => {
         'AccessDenied()'
       )
       const receipt = await vault.connect(admin).setMetadata(newMetadataIpfsHash)
-      await expect(receipt).to.emit(vault, 'MetadataUpdated').withArgs(newMetadataIpfsHash)
+      await expect(receipt)
+        .to.emit(vault, 'MetadataUpdated')
+        .withArgs(admin.address, newMetadataIpfsHash)
       await snapshotGasCost(receipt)
     })
   })

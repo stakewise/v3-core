@@ -19,27 +19,40 @@ contract EthVaultFactory is IEthVaultFactory {
   address public immutable override publicVaultImpl;
 
   /// @inheritdoc IEthVaultFactory
+  address public immutable override privateVaultImpl;
+
+  /// @inheritdoc IEthVaultFactory
   mapping(address => uint256) public override nonces;
 
   bytes32 internal immutable _publicVaultCreateHash;
+  bytes32 internal immutable _privateVaultCreateHash;
 
   IVaultsRegistry internal immutable _vaultsRegistry;
 
   /**
    * @dev Constructor
    * @param _publicVaultImpl The implementation address of the public Ethereum Vault
+   * @param _privateVaultImpl The implementation address of the private Ethereum Vault
    * @param vaultsRegistry The address of the VaultsRegistry
    */
-  constructor(address _publicVaultImpl, IVaultsRegistry vaultsRegistry) {
+  constructor(address _publicVaultImpl, address _privateVaultImpl, IVaultsRegistry vaultsRegistry) {
     publicVaultImpl = _publicVaultImpl;
+    privateVaultImpl = _privateVaultImpl;
     _vaultsRegistry = vaultsRegistry;
+
     _publicVaultCreateHash = keccak256(
       abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(_publicVaultImpl, ''))
+    );
+    _privateVaultCreateHash = keccak256(
+      abi.encodePacked(type(ERC1967Proxy).creationCode, abi.encode(_privateVaultImpl, ''))
     );
   }
 
   /// @inheritdoc IEthVaultFactory
-  function createVault(VaultParams calldata params) external override returns (address vault) {
+  function createVault(
+    VaultParams calldata params,
+    bool isPrivate
+  ) external override returns (address vault) {
     uint256 nonce = nonces[msg.sender];
     unchecked {
       // cannot realistically overflow
@@ -48,7 +61,12 @@ contract EthVaultFactory is IEthVaultFactory {
 
     // create vault proxy
     bytes32 salt = keccak256(abi.encode(msg.sender, nonce));
-    vault = address(new ERC1967Proxy{salt: salt}(publicVaultImpl, ''));
+
+    if (isPrivate) {
+      vault = address(new ERC1967Proxy{salt: salt}(privateVaultImpl, ''));
+    } else {
+      vault = address(new ERC1967Proxy{salt: salt}(publicVaultImpl, ''));
+    }
 
     // create MEV escrow contract
     address mevEscrow = address(new VaultMevEscrow{salt: salt}(vault));
@@ -76,6 +94,7 @@ contract EthVaultFactory is IEthVaultFactory {
     emit VaultCreated(
       msg.sender,
       vault,
+      isPrivate,
       mevEscrow,
       params.capacity,
       params.feePercent,
@@ -86,10 +105,15 @@ contract EthVaultFactory is IEthVaultFactory {
 
   /// @inheritdoc IEthVaultFactory
   function computeAddresses(
-    address deployer
+    address deployer,
+    bool isPrivate
   ) public view override returns (address vault, address mevEscrow) {
     bytes32 nonce = keccak256(abi.encode(deployer, nonces[deployer]));
-    vault = Create2.computeAddress(nonce, _publicVaultCreateHash);
+    if (isPrivate) {
+      vault = Create2.computeAddress(nonce, _privateVaultCreateHash);
+    } else {
+      vault = Create2.computeAddress(nonce, _publicVaultCreateHash);
+    }
     mevEscrow = Create2.computeAddress(
       nonce,
       keccak256(abi.encodePacked(type(VaultMevEscrow).creationCode, abi.encode(vault)))

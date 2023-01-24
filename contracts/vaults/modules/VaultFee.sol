@@ -37,7 +37,7 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
 
     // update fee recipient address
     feeRecipient = _feeRecipient;
-    emit FeeRecipientUpdated(_feeRecipient);
+    emit FeeRecipientUpdated(msg.sender, _feeRecipient);
   }
 
   /**

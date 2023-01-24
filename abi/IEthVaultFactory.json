@@ -16,6 +16,12 @@
       },
       {
         "indexed": true,
+        "internalType": "bool",
+        "name": "isPrivate",
+        "type": "bool"
+      },
+      {
+        "indexed": false,
         "internalType": "address",
         "name": "mevEscrow",
         "type": "address"
@@ -54,6 +60,11 @@
         "internalType": "address",
         "name": "deployer",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "isPrivate",
+        "type": "bool"
       }
     ],
     "name": "computeAddresses",
@@ -115,6 +126,11 @@
         "internalType": "struct IEthVaultFactory.VaultParams",
         "name": "params",
         "type": "tuple"
+      },
+      {
+        "internalType": "bool",
+        "name": "isPrivate",
+        "type": "bool"
       }
     ],
     "name": "createVault",
@@ -142,6 +158,19 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "privateVaultImpl",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",

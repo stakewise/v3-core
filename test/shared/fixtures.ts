@@ -6,6 +6,7 @@ import { signTypedData, SignTypedDataVersion } from '@metamask/eth-sig-util'
 import EthereumWallet from 'ethereumjs-wallet'
 import {
   EthVault,
+  EthPrivateVault,
   IEthVaultFactory,
   EthVaultFactory,
   EthVaultMock,
@@ -66,8 +67,18 @@ export const createEthVaultFactory = async function (
     constructorArgs: [keeper.address, vaultsRegistry.address, validatorsRegistry.address],
   })
 
+  const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
+  const ethPrivateVaultImpl = await upgrades.deployImplementation(ethPrivateVault, {
+    unsafeAllow: ['delegatecall'],
+    constructorArgs: [keeper.address, vaultsRegistry.address, validatorsRegistry.address],
+  })
+
   const factory = await ethers.getContractFactory('EthVaultFactory')
-  return (await factory.deploy(ethVaultImpl, vaultsRegistry.address)) as EthVaultFactory
+  return (await factory.deploy(
+    ethVaultImpl,
+    ethPrivateVaultImpl,
+    vaultsRegistry.address
+  )) as EthVaultFactory
 }
 
 export const createEthVaultMockFactory = async function (
@@ -81,8 +92,18 @@ export const createEthVaultMockFactory = async function (
     constructorArgs: [keeper.address, vaultsRegistry.address, validatorsRegistry.address],
   })
 
+  const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
+  const ethPrivateVaultImpl = await upgrades.deployImplementation(ethPrivateVault, {
+    unsafeAllow: ['delegatecall'],
+    constructorArgs: [keeper.address, vaultsRegistry.address, validatorsRegistry.address],
+  })
+
   const factory = await ethers.getContractFactory('EthVaultFactory')
-  return (await factory.deploy(ethVaultMockImpl, vaultsRegistry.address)) as EthVaultFactory
+  return (await factory.deploy(
+    ethVaultMockImpl,
+    ethPrivateVaultImpl,
+    vaultsRegistry.address
+  )) as EthVaultFactory
 }
 
 interface EthVaultFixture {
@@ -94,6 +115,11 @@ interface EthVaultFixture {
   getSignatures: (typedData: any, count?: number) => Buffer
 
   createVault(admin: Wallet, vaultParams: IEthVaultFactory.VaultParamsStruct): Promise<EthVault>
+
+  createPrivateVault(
+    admin: Wallet,
+    vaultParams: IEthVaultFactory.VaultParamsStruct
+  ): Promise<EthPrivateVault>
 
   createVaultMock(
     admin: Wallet,
@@ -126,6 +152,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   await registry.connect(dao).addFactory(ethVaultMockFactory.address)
 
   const ethVault = await ethers.getContractFactory('EthVault')
+  const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
   return {
     vaultsRegistry: registry,
@@ -137,16 +164,25 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
       admin: Wallet,
       vaultParams: IEthVaultFactory.VaultParamsStruct
     ): Promise<EthVault> => {
-      const tx = await ethVaultFactory.connect(admin).createVault(vaultParams)
+      const tx = await ethVaultFactory.connect(admin).createVault(vaultParams, false)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethVault.attach(vaultAddress) as EthVault
+    },
+    createPrivateVault: async (
+      admin: Wallet,
+      vaultParams: IEthVaultFactory.VaultParamsStruct
+    ): Promise<EthPrivateVault> => {
+      const tx = await ethVaultFactory.connect(admin).createVault(vaultParams, true)
+      const receipt = await tx.wait()
+      const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
+      return ethPrivateVault.attach(vaultAddress) as EthPrivateVault
     },
     createVaultMock: async (
       admin: Wallet,
       vaultParams: IEthVaultFactory.VaultParamsStruct
     ): Promise<EthVaultMock> => {
-      const tx = await ethVaultMockFactory.connect(admin).createVault(vaultParams)
+      const tx = await ethVaultMockFactory.connect(admin).createVault(vaultParams, false)
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethVaultMock.attach(vaultAddress) as EthVaultMock
