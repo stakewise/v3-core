@@ -1,5 +1,15 @@
 [
   {
+    "inputs": [],
+    "name": "PermitDeadlineExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PermitInvalidSigner",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {

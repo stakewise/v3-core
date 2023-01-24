@@ -5,8 +5,9 @@ pragma solidity =0.8.17;
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IEthPrivateVault} from '../../interfaces/IEthPrivateVault.sol';
+import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
-import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
+import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
 import {VaultWhitelist} from '../modules/VaultWhitelist.sol';
 import {EthVault} from './EthVault.sol';
 
@@ -32,7 +33,9 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
   ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry) {}
 
   /// @inheritdoc IEthVault
-  function initialize(bytes calldata params) external override(IEthVault, EthVault) initializer {
+  function initialize(
+    bytes calldata params
+  ) external payable override(IEthVault, EthVault) initializer {
     EthVaultInitParams memory initParams = abi.decode(params, (EthVaultInitParams));
     __EthVault_init(initParams);
     // whitelister is initially set to admin address
@@ -44,9 +47,11 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
     return keccak256('EthPrivateVault');
   }
 
-  /// @inheritdoc VaultEnterExit
-  function _deposit(address to, uint256 assets) internal override returns (uint256 shares) {
-    if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[to])) revert AccessDenied();
-    return super._deposit(to, assets);
+  /// @inheritdoc IVaultEthStaking
+  function deposit(
+    address receiver
+  ) public payable override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
+    if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver])) revert AccessDenied();
+    return super.deposit(receiver);
   }
 }

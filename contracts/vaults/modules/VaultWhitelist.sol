@@ -89,6 +89,7 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
    */
   function __VaultWhitelist_init(address _whitelister) internal onlyInitializing {
     _setWhitelister(_whitelister);
+    _updateWhitelist(_whitelister, true);
   }
 
   /**

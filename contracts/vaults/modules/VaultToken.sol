@@ -11,6 +11,9 @@ import {IVaultToken} from '../../interfaces/IVaultToken.sol';
 import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
 
+// Custom errors
+error InvalidTokenMeta();
+
 /**
  * @title VaultToken
  * @author StakeWise
@@ -40,8 +43,7 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
 
   /// @inheritdoc IVaultToken
   function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
-    uint256 totalShares = _totalShares;
-    return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares);
+    return _convertToAssets(shares, Math.Rounding.Down);
   }
 
   /**
@@ -77,6 +79,17 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
   }
 
   /**
+   * @dev Internal conversion function (from shares to assets) with support for rounding direction.
+   */
+  function _convertToAssets(
+    uint256 shares,
+    Math.Rounding rounding
+  ) internal view returns (uint256) {
+    uint256 totalShares = _totalShares;
+    return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares, rounding);
+  }
+
+  /**
    * @dev Initializes the VaultToken contract
    * @param _name The name of the ERC20 token
    * @param _symbol The symbol of the ERC20 token
@@ -87,6 +100,8 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
     string memory _symbol,
     uint256 _capacity
   ) internal onlyInitializing {
+    if (bytes(_name).length > 30 || bytes(_symbol).length > 20) revert InvalidTokenMeta();
+
     // initialize ERC20Permit
     __ERC20Upgradeable_init(_name, _symbol);
     capacity = _capacity;

@@ -55,8 +55,8 @@ interface IEthVault is
   }
 
   /**
-   * @notice Initializes the EthVault contract
+   * @notice Initializes the EthVault contract. Must transfer security deposit together with a call.
    * @param params The encoded parameters for initializing the EthVault contract
    */
-  function initialize(bytes calldata params) external;
+  function initialize(bytes calldata params) external payable;
 }

@@ -1,11 +1,17 @@
 import { ethers, network, waffle } from 'hardhat'
-import { Wallet } from 'ethers'
+import { BigNumber, Wallet } from 'ethers'
 import { arrayify, parseEther } from 'ethers/lib/utils'
 import EthereumWallet from 'ethereumjs-wallet'
 import { EthVault } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { expect } from './shared/expect'
-import { EIP712Domain, MAX_UINT256, PANIC_CODES, PermitSig } from './shared/constants'
+import {
+  EIP712Domain,
+  MAX_UINT256,
+  PANIC_CODES,
+  PermitSig,
+  SECURITY_DEPOSIT,
+} from './shared/constants'
 import { domainSeparator, getSignatureFromTypedData, latestTimestamp } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -70,7 +76,7 @@ describe('EthVault - token', () => {
         validatorsIpfsHash,
         metadataIpfsHash,
       })
-    ).to.be.revertedWith('InvalidInitArgs()')
+    ).to.be.revertedWith('InvalidTokenMeta()')
   })
 
   it('fails to deploy with invalid symbol length', async () => {
@@ -84,12 +90,12 @@ describe('EthVault - token', () => {
         validatorsIpfsHash,
         metadataIpfsHash,
       })
-    ).to.be.revertedWith('InvalidInitArgs()')
+    ).to.be.revertedWith('InvalidTokenMeta()')
   })
 
   describe('total supply', () => {
     it('returns the total amount of tokens', async () => {
-      expect(await vault.totalSupply()).to.eq(initialSupply)
+      expect(await vault.totalSupply()).to.eq(BigNumber.from(SECURITY_DEPOSIT).add(initialSupply))
     })
   })
 

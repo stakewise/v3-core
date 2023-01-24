@@ -7,13 +7,13 @@ exports[`EthVaultFactory predicts vault addresses 2`] = `4865`;
 exports[`EthVaultFactory private vault deployment gas 1`] = `
 Object {
   "calldataByteLength": 612,
-  "gasUsed": 575828,
+  "gasUsed": 657780,
 }
 `;
 
 exports[`EthVaultFactory public vault deployment gas 1`] = `
 Object {
   "calldataByteLength": 612,
-  "gasUsed": 551839,
+  "gasUsed": 609544,
 }
 `;

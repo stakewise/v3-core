@@ -14,6 +14,9 @@ import {VaultToken} from '../modules/VaultToken.sol';
 import {VaultState} from '../modules/VaultState.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
 
+// Custom errors
+error InvalidSecurityDeposit();
+
 /**
  * @title VaultEthStaking
  * @author StakeWise
@@ -28,12 +31,15 @@ abstract contract VaultEthStaking is
   VaultEnterExit,
   IVaultEthStaking
 {
+  // @inheritdoc IVaultEthStaking
+  uint256 public constant override securityDeposit = 1e9;
+
   /// @inheritdoc IVaultEthStaking
   // slither-disable-next-line uninitialized-state
   IMevEscrow public override mevEscrow;
 
   /// @inheritdoc IVaultEthStaking
-  function deposit(address receiver) public payable override returns (uint256 shares) {
+  function deposit(address receiver) public payable virtual override returns (uint256 shares) {
     return _deposit(receiver, msg.value);
   }
 
@@ -43,7 +49,7 @@ abstract contract VaultEthStaking is
     IKeeperRewards.HarvestParams calldata harvestParams
   ) public payable virtual override returns (uint256 shares) {
     updateState(harvestParams);
-    return _deposit(receiver, msg.value);
+    return deposit(receiver);
   }
 
   /**
@@ -129,6 +135,9 @@ abstract contract VaultEthStaking is
   function __VaultEthStaking_init(address _mevEscrow) internal onlyInitializing {
     __ReentrancyGuard_init();
     mevEscrow = IMevEscrow(_mevEscrow);
+
+    if (msg.value < securityDeposit) revert InvalidSecurityDeposit();
+    _deposit(address(this), msg.value);
   }
 
   /**
