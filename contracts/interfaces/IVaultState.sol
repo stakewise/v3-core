@@ -14,7 +14,7 @@ import {IVaultFee} from './IVaultFee.sol';
  */
 interface IVaultState is IVaultImmutables, IVaultToken, IVaultFee {
   // Custom errors
-  error InsufficientAvailableAssets();
+  error InsufficientAssets();
 
   /**
    * @notice Event emitted on Vault's state update
@@ -24,9 +24,9 @@ interface IVaultState is IVaultImmutables, IVaultToken, IVaultFee {
 
   /**
    * @notice Total assets available in the Vault. They can be staked or withdrawn.
-   * @return The total amount of available assets
+   * @return The total amount of withdrawable assets
    */
-  function availableAssets() external view returns (uint256);
+  function withdrawableAssets() external view returns (uint256);
 
   /**
    * @notice Total shares that can be redeemed from the Vault

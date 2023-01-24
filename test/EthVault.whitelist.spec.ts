@@ -1,13 +1,14 @@
 import { ethers, waffle } from 'hardhat'
-import { Wallet } from 'ethers'
+import { Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
-import { EthPrivateVault } from '../typechain-types'
+import { EthPrivateVault, Keeper, Oracles, IKeeperRewards } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { ZERO_ADDRESS } from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
+import { collateralizeEthVault, getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -20,10 +21,11 @@ describe('EthVault - whitelist', () => {
   const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   let dao: Wallet, sender: Wallet, whitelister: Wallet, admin: Wallet, other: Wallet
-  let vault: EthPrivateVault
+  let vault: EthPrivateVault, keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createPrivateVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createPrivateVault']
+  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
   before('create fixture loader', async () => {
     ;[dao, sender, whitelister, admin, other] = await (ethers as any).getSigners()
@@ -31,7 +33,8 @@ describe('EthVault - whitelist', () => {
   })
 
   beforeEach('deploy fixtures', async () => {
-    ;({ createPrivateVault } = await loadFixture(ethVaultFixture))
+    ;({ createPrivateVault, keeper, oracles, validatorsRegistry, getSignatures } =
+      await loadFixture(ethVaultFixture))
     vault = await createPrivateVault(admin, {
       capacity,
       validatorsRoot,
@@ -108,6 +111,23 @@ describe('EthVault - whitelist', () => {
       await expect(vault.connect(other).deposit(other.address, { value: amount })).to.revertedWith(
         'AccessDenied()'
       )
+    })
+
+    it('cannot update state and call', async () => {
+      await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+      const vaultReward = parseEther('1')
+      const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+        { reward: vaultReward, vault: vault.address },
+      ])
+
+      const harvestParams: IKeeperRewards.HarvestParamsStruct = {
+        rewardsRoot: tree.root,
+        reward: vaultReward,
+        proof: getRewardsRootProof(tree, { vault: vault.address, reward: vaultReward }),
+      }
+      await expect(
+        vault.connect(other).updateStateAndDeposit(other.address, harvestParams, { value: amount })
+      ).to.revertedWith('AccessDenied()')
     })
 
     it('cannot set receiver to not whitelisted user', async () => {

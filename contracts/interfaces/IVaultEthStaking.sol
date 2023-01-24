@@ -16,6 +16,12 @@ import {IMevEscrow} from './IMevEscrow.sol';
  */
 interface IVaultEthStaking is IVaultToken, IVaultState, IVaultValidators, IVaultEnterExit {
   /**
+   * @notice Security deposit amount
+   * @return The amount that is permanently deposited by the Vault creator to protect from the inflation attack
+   */
+  function securityDeposit() external view returns (uint256);
+
+  /**
    * @notice The contract that accumulates MEV rewards
    * @return The MEV escrow contract address
    */

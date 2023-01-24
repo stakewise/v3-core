@@ -13,7 +13,7 @@ import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 import { ethVaultFixture } from './shared/fixtures'
-import { ZERO_BYTES32 } from './shared/constants'
+import { SECURITY_DEPOSIT, ZERO_BYTES32 } from './shared/constants'
 import keccak256 from 'keccak256'
 
 const createFixtureLoader = waffle.createFixtureLoader
@@ -63,11 +63,21 @@ describe('EthVaultFactory', () => {
   })
 
   it('public vault deployment gas', async () => {
-    await snapshotGasCost(factory.connect(admin).createVault(initParams, false))
+    await snapshotGasCost(
+      factory.connect(admin).createVault(initParams, false, { value: SECURITY_DEPOSIT })
+    )
   })
 
   it('private vault deployment gas', async () => {
-    await snapshotGasCost(factory.connect(admin).createVault(initParams, true))
+    await snapshotGasCost(
+      factory.connect(admin).createVault(initParams, true, { value: SECURITY_DEPOSIT })
+    )
+  })
+
+  it('fails to create without security deposit', async () => {
+    await expect(factory.connect(admin).createVault(initParams, true)).to.revertedWith(
+      'InvalidSecurityDeposit()'
+    )
   })
 
   it('predicts vault addresses', async () => {
@@ -128,7 +138,9 @@ describe('EthVaultFactory', () => {
         vault = ethVault.attach(vaultAddress) as EthVault
       }
 
-      const tx = await factory.connect(admin).createVault(initParams, isPrivate)
+      const tx = await factory
+        .connect(admin)
+        .createVault(initParams, isPrivate, { value: SECURITY_DEPOSIT })
       await expect(tx)
         .to.emit(factory, 'VaultCreated')
         .withArgs(

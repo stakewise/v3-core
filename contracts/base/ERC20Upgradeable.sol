@@ -6,11 +6,6 @@ import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
 
-/// Custom errors
-error PermitDeadlineExpired();
-error PermitInvalidSigner();
-error InvalidInitArgs();
-
 /**
  * @title ERC20 Upgradeable
  * @author StakeWise
@@ -175,8 +170,6 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
     string memory _name,
     string memory _symbol
   ) internal onlyInitializing {
-    if (bytes(_name).length > 30 || bytes(_symbol).length > 20) revert InvalidInitArgs();
-
     // initialize ERC20
     name = _name;
     symbol = _symbol;

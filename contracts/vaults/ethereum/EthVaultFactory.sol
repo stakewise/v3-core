@@ -52,7 +52,7 @@ contract EthVaultFactory is IEthVaultFactory {
   function createVault(
     VaultParams calldata params,
     bool isPrivate
-  ) external override returns (address vault) {
+  ) external payable override returns (address vault) {
     uint256 nonce = nonces[msg.sender];
     unchecked {
       // cannot realistically overflow
@@ -72,7 +72,7 @@ contract EthVaultFactory is IEthVaultFactory {
     address mevEscrow = address(new VaultMevEscrow{salt: salt}(vault));
 
     // initialize vault
-    IEthVault(vault).initialize(
+    IEthVault(vault).initialize{value: msg.value}(
       abi.encode(
         IEthVault.EthVaultInitParams({
           capacity: params.capacity,

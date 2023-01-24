@@ -18,10 +18,10 @@ interface IVaultFee is IVaultImmutables, IVaultAdmin {
 
   /**
    * @notice Event emitted on validator registration
-   * @param sender The address of the function caller
+   * @param caller The address of the function caller
    * @param feeRecipient The address of the new fee recipient
    */
-  event FeeRecipientUpdated(address indexed sender, address indexed feeRecipient);
+  event FeeRecipientUpdated(address indexed caller, address indexed feeRecipient);
 
   /**
    * @notice The Vault's fee recipient

@@ -15,7 +15,7 @@ import {
   Keeper,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
-import { REQUIRED_ORACLES, ORACLES, ORACLES_CONFIG } from './constants'
+import { REQUIRED_ORACLES, ORACLES, ORACLES_CONFIG, SECURITY_DEPOSIT } from './constants'
 
 export const createValidatorsRegistry = async function (): Promise<Contract> {
   const validatorsRegistryFactory = await getValidatorsRegistryFactory()
@@ -164,7 +164,9 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
       admin: Wallet,
       vaultParams: IEthVaultFactory.VaultParamsStruct
     ): Promise<EthVault> => {
-      const tx = await ethVaultFactory.connect(admin).createVault(vaultParams, false)
+      const tx = await ethVaultFactory
+        .connect(admin)
+        .createVault(vaultParams, false, { value: SECURITY_DEPOSIT })
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethVault.attach(vaultAddress) as EthVault
@@ -173,7 +175,9 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
       admin: Wallet,
       vaultParams: IEthVaultFactory.VaultParamsStruct
     ): Promise<EthPrivateVault> => {
-      const tx = await ethVaultFactory.connect(admin).createVault(vaultParams, true)
+      const tx = await ethVaultFactory
+        .connect(admin)
+        .createVault(vaultParams, true, { value: SECURITY_DEPOSIT })
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethPrivateVault.attach(vaultAddress) as EthPrivateVault
@@ -182,7 +186,9 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
       admin: Wallet,
       vaultParams: IEthVaultFactory.VaultParamsStruct
     ): Promise<EthVaultMock> => {
-      const tx = await ethVaultMockFactory.connect(admin).createVault(vaultParams, false)
+      const tx = await ethVaultMockFactory
+        .connect(admin)
+        .createVault(vaultParams, false, { value: SECURITY_DEPOSIT })
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethVaultMock.attach(vaultAddress) as EthVaultMock

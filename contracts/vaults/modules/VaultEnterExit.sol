@@ -119,12 +119,12 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
    * @param assets The number of assets deposited
    * @return shares The total amount of shares minted
    */
-  function _deposit(address to, uint256 assets) internal virtual returns (uint256 shares) {
+  function _deposit(address to, uint256 assets) internal returns (uint256 shares) {
     if (IKeeperRewards(keeper).isHarvestRequired(address(this))) revert NotHarvested();
 
     uint256 totalAssetsAfter;
     unchecked {
-      // cannot overflow as it is capped with staked asset total supply
+      // cannot overflow as it is capped with underlying asset total supply
       totalAssetsAfter = _totalAssets + assets;
     }
     if (totalAssetsAfter > capacity) revert CapacityExceeded();
@@ -156,8 +156,8 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
   function _withdraw(address receiver, address owner, uint256 assets, uint256 shares) internal {
     if (IKeeperRewards(keeper).isHarvestRequired(address(this))) revert NotHarvested();
 
-    // reverts in case there are not enough available assets
-    if (assets > availableAssets()) revert InsufficientAvailableAssets();
+    // reverts in case there are not enough withdrawable assets
+    if (assets > withdrawableAssets()) revert InsufficientAssets();
 
     // reduce allowance
     if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);

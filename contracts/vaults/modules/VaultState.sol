@@ -34,11 +34,11 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
   mapping(bytes32 => uint256) internal _exitRequests;
 
   /// @inheritdoc IVaultState
-  function availableAssets() public view override returns (uint256) {
+  function withdrawableAssets() public view override returns (uint256) {
     uint256 vaultAssets = _vaultAssets();
     unchecked {
       // calculate assets that are reserved by users who queued for exit
-      // cannot overflow as it is capped with staked asset total supply
+      // cannot overflow as it is capped with underlying asset total supply
       uint256 reservedAssets = convertToAssets(queuedShares) + unclaimedAssets;
       return vaultAssets > reservedAssets ? vaultAssets - reservedAssets : 0;
     }
@@ -46,7 +46,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
 
   /// @inheritdoc IVaultState
   function redeemableShares() public view override returns (uint256) {
-    return convertToShares(availableAssets());
+    return convertToShares(withdrawableAssets());
   }
 
   /// @inheritdoc IVaultState
@@ -71,38 +71,35 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
       // increase total staked amount
       totalAssetsAfter += profitAccrued;
 
-      // calculate fee recipient's shares
-      uint256 feeRecipientShares;
-      if (totalSharesAfter == 0) {
-        feeRecipientShares = profitAccrued;
-      } else {
-        // SLOAD to memory
-        uint256 _feePercent = feePercent;
-        if (_feePercent > 0) {
-          uint256 feeRecipientAssets = Math.mulDiv(profitAccrued, _feePercent, _maxFeePercent);
+      // SLOAD to memory
+      uint256 _feePercent = feePercent;
+      if (_feePercent > 0) {
+        // calculate fee recipient's shares
+        uint256 feeRecipientAssets = Math.mulDiv(profitAccrued, _feePercent, _maxFeePercent);
+
+        uint256 feeRecipientShares;
+        unchecked {
           // Will revert if totalAssetsAfter - feeRecipientAssets = 0.
           // That corresponds to a case where any asset would represent an infinite amount of shares.
-          unchecked {
-            // cannot underflow as feePercent <= maxFeePercent
-            feeRecipientShares = Math.mulDiv(
-              feeRecipientAssets,
-              totalSharesAfter,
-              totalAssetsAfter - feeRecipientAssets
-            );
-          }
+          // cannot underflow as feePercent <= maxFeePercent
+          feeRecipientShares = Math.mulDiv(
+            feeRecipientAssets,
+            totalSharesAfter,
+            totalAssetsAfter - feeRecipientAssets
+          );
         }
-      }
 
-      if (feeRecipientShares > 0) {
-        // SLOAD to memory
-        address _feeRecipient = feeRecipient;
-        // mint shares to the fee recipient
-        totalSharesAfter += feeRecipientShares;
-        unchecked {
-          // cannot underflow because the sum of all shares can't exceed the _totalShares
-          balanceOf[_feeRecipient] += feeRecipientShares;
+        if (feeRecipientShares > 0) {
+          // SLOAD to memory
+          address _feeRecipient = feeRecipient;
+          // mint shares to the fee recipient
+          totalSharesAfter += feeRecipientShares;
+          unchecked {
+            // cannot underflow because the sum of all shares can't exceed the _totalShares
+            balanceOf[_feeRecipient] += feeRecipientShares;
+          }
+          emit Transfer(address(0), _feeRecipient, feeRecipientShares);
         }
-        emit Transfer(address(0), _feeRecipient, feeRecipientShares);
       }
     } else if (assetsDelta < 0) {
       // apply penalty
@@ -151,7 +148,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
       // cannot underflow as queuedShares >= burnedShares
       queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
 
-      // cannot overflow as it is capped with staked asset total supply
+      // cannot overflow as it is capped with underlying asset total supply
       unclaimedAssets = SafeCast.toUint96(_unclaimedAssets + exitedAssets);
 
       // cannot overflow on human timescales
