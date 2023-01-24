@@ -14,7 +14,7 @@ import {IVaultFee} from './IVaultFee.sol';
  */
 interface IVaultState is IVaultImmutables, IVaultToken, IVaultFee {
   // Custom errors
-  error InsufficientWithdrawableAssets();
+  error InsufficientAssets();
 
   /**
    * @notice Event emitted on Vault's state update

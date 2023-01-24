@@ -10,7 +10,7 @@ Object {
 exports[`EthVault - whitelist set whitelister admin can update whitelister 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 36440,
+  "gasUsed": 36482,
 }
 `;
 

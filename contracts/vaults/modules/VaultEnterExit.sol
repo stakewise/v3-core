@@ -157,7 +157,7 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     if (IKeeperRewards(keeper).isHarvestRequired(address(this))) revert NotHarvested();
 
     // reverts in case there are not enough withdrawable assets
-    if (assets > withdrawableAssets()) revert InsufficientWithdrawableAssets();
+    if (assets > withdrawableAssets()) revert InsufficientAssets();
 
     // reduce allowance
     if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);

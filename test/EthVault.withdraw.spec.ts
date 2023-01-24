@@ -88,7 +88,7 @@ describe('EthVault - withdraw', () => {
       await setBalance(vault.address, BigNumber.from(0))
       await expect(
         vault.connect(holder).redeem(holderShares, receiver.address, holder.address)
-      ).to.be.revertedWith('InsufficientWithdrawableAssets()')
+      ).to.be.revertedWith('InsufficientAssets()')
     })
 
     it('fails for sender other than owner without approval', async () => {

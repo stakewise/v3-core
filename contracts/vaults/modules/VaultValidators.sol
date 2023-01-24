@@ -45,7 +45,7 @@ abstract contract VaultValidators is
     IKeeperValidators(keeper).approveValidators(keeperParams);
 
     // check enough withdrawable assets
-    if (withdrawableAssets() < _validatorDeposit) revert InsufficientWithdrawableAssets();
+    if (withdrawableAssets() < _validatorDeposit) revert InsufficientAssets();
 
     // check validator length is valid
     if (keeperParams.validators.length != _validatorLength) revert InvalidValidator();
@@ -87,7 +87,7 @@ abstract contract VaultValidators is
     // check enough withdrawable assets
     uint256 validatorsCount = keeperParams.validators.length / _validatorLength;
     if (withdrawableAssets() < _validatorDeposit * validatorsCount) {
-      revert InsufficientWithdrawableAssets();
+      revert InsufficientAssets();
     }
 
     // check validators length is valid
