@@ -16,27 +16,27 @@ interface IVaultWhitelist is IVaultAdmin {
 
   /**
    * @notice Event emitted on whitelist update
-   * @param sender The address of the function caller
+   * @param caller The address of the function caller
    * @param account The address of the account updated
    * @param approved Whether account is approved or not
    */
-  event WhitelistUpdated(address indexed sender, address indexed account, bool approved);
+  event WhitelistUpdated(address indexed caller, address indexed account, bool approved);
 
   /**
    * @notice Event emitted when whitelister address is updated
-   * @param sender The address of the function caller
+   * @param caller The address of the function caller
    * @param whitelister The address of the new whitelister
    */
-  event WhitelisterUpdated(address indexed sender, address indexed whitelister);
+  event WhitelisterUpdated(address indexed caller, address indexed whitelister);
 
   /**
    * @notice Event emitted when whitelist Merkle tree root is updated
-   * @param sender The address of the function caller
+   * @param caller The address of the function caller
    * @param root The root of the Merkle tree
    * @param whitelistIpfsHash The IPFS hash with all the whitelisted accounts
    */
   event WhitelistRootUpdated(
-    address indexed sender,
+    address indexed caller,
     bytes32 indexed root,
     string whitelistIpfsHash
   );

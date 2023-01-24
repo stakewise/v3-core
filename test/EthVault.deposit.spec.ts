@@ -6,7 +6,7 @@ import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
+import { PANIC_CODES, SECURITY_DEPOSIT, ZERO_ADDRESS } from './shared/constants'
 import { getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
 import { registerEthValidator } from './shared/validators'
 import { setBalance } from './shared/utils'
@@ -51,8 +51,8 @@ describe('EthVault - deposit', () => {
 
   describe('empty vault: no assets & no shares', () => {
     it('status', async () => {
-      expect(await vault.totalAssets()).to.equal(0)
-      expect(await vault.totalSupply()).to.equal(0)
+      expect(await vault.totalAssets()).to.equal(SECURITY_DEPOSIT)
+      expect(await vault.totalSupply()).to.equal(SECURITY_DEPOSIT)
     })
 
     it('deposit', async () => {
@@ -71,43 +71,6 @@ describe('EthVault - deposit', () => {
     })
   })
 
-  describe('partially empty vault: assets & no shares', () => {
-    let ethVaultMock: EthVaultMock
-    beforeEach(async () => {
-      ethVaultMock = await createVaultMock(admin, {
-        capacity,
-        validatorsRoot,
-        feePercent,
-        name,
-        symbol,
-        validatorsIpfsHash,
-        metadataIpfsHash,
-      })
-      await ethVaultMock._setTotalAssets(ether)
-    })
-
-    it('status', async () => {
-      expect(await ethVaultMock.totalAssets()).to.eq(ether)
-    })
-
-    it('deposit', async () => {
-      const amount = ether
-      expect(await ethVaultMock.convertToShares(amount)).to.eq(amount)
-      const receipt = await ethVaultMock
-        .connect(sender)
-        .deposit(receiver.address, { value: amount })
-      expect(await ethVaultMock.balanceOf(receiver.address)).to.eq(amount)
-
-      await expect(receipt)
-        .to.emit(ethVaultMock, 'Transfer')
-        .withArgs(ZERO_ADDRESS, receiver.address, amount)
-      await expect(receipt)
-        .to.emit(ethVaultMock, 'Deposit')
-        .withArgs(sender.address, receiver.address, amount, amount)
-      await snapshotGasCost(receipt)
-    })
-  })
-
   describe('partially empty vault: shares & no assets', () => {
     let ethVaultMock: EthVaultMock
 
@@ -121,11 +84,11 @@ describe('EthVault - deposit', () => {
         validatorsIpfsHash,
         metadataIpfsHash,
       })
-      await ethVaultMock.mockMint(receiver.address, ether)
+      await ethVaultMock._setTotalAssets(0)
     })
 
     it('status', async () => {
-      expect(await ethVaultMock.totalAssets()).to.eq('0')
+      expect(await ethVaultMock.totalAssets()).to.eq(0)
     })
 
     it('deposit', async () => {
@@ -141,7 +104,7 @@ describe('EthVault - deposit', () => {
     })
 
     it('status', async () => {
-      expect(await vault.totalAssets()).to.eq(parseEther('10'))
+      expect(await vault.totalAssets()).to.eq(parseEther('10').add(SECURITY_DEPOSIT))
     })
 
     it('fails with exceeded capacity', async () => {

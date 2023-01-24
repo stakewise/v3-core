@@ -23,7 +23,7 @@ contract EthVaultMock is EthVault {
     address _validatorsRegistry
   ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry) {}
 
-  function mockMint(address receiver, uint256 assets) external returns (uint256 shares) {
+  function mockDeposit(address receiver, uint256 assets) external returns (uint256 shares) {
     // calculate amount of shares to mint
     shares = convertToShares(assets);
 
@@ -48,5 +48,12 @@ contract EthVaultMock is EthVault {
 
   function _setTotalAssets(uint128 value) external {
     _totalAssets = value;
+  }
+
+  function resetSecurityDeposit() external {
+    balanceOf[address(this)] -= securityDeposit;
+    _totalShares -= SafeCast.toUint128(securityDeposit);
+    _totalAssets -= SafeCast.toUint128(securityDeposit);
+    _transferVaultAssets(address(0), securityDeposit);
   }
 }

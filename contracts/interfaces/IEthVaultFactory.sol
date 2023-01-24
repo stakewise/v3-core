@@ -72,7 +72,7 @@ interface IEthVaultFactory {
   function privateVaultImpl() external view returns (address);
 
   /**
-   * @notice Create Vault
+   * @notice Create Vault. Must transfer security deposit together with a call.
    * @param params The Vault creation parameters
    * @param isPrivate Defines whether the Vault is private or not
    * @return vault The address of the created Vault
@@ -80,7 +80,7 @@ interface IEthVaultFactory {
   function createVault(
     VaultParams calldata params,
     bool isPrivate
-  ) external returns (address vault);
+  ) external payable returns (address vault);
 
   /**
    * @notice Compute Vault and MEV Escrow addresses

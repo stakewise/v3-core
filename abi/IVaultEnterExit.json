@@ -11,7 +11,7 @@
   },
   {
     "inputs": [],
-    "name": "InsufficientAvailableAssets",
+    "name": "InsufficientWithdrawableAssets",
     "type": "error"
   },
   {
@@ -37,6 +37,16 @@
   {
     "inputs": [],
     "name": "NotHarvested",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PermitDeadlineExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PermitInvalidSigner",
     "type": "error"
   },
   {
@@ -175,7 +185,7 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "sender",
+        "name": "caller",
         "type": "address"
       },
       {
@@ -194,7 +204,7 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "sender",
+        "name": "caller",
         "type": "address"
       },
       {
@@ -354,19 +364,6 @@
       }
     ],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "availableAssets",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -917,6 +914,19 @@
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "withdrawableAssets",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   }
 ]

@@ -44,8 +44,8 @@ abstract contract VaultValidators is
     // get approval from oracles
     IKeeperValidators(keeper).approveValidators(keeperParams);
 
-    // check enough available assets
-    if (availableAssets() < _validatorDeposit) revert InsufficientAvailableAssets();
+    // check enough withdrawable assets
+    if (withdrawableAssets() < _validatorDeposit) revert InsufficientWithdrawableAssets();
 
     // check validator length is valid
     if (keeperParams.validators.length != _validatorLength) revert InvalidValidator();
@@ -84,10 +84,10 @@ abstract contract VaultValidators is
     // get approval from oracles
     IKeeperValidators(keeper).approveValidators(keeperParams);
 
-    // check enough available assets
+    // check enough withdrawable assets
     uint256 validatorsCount = keeperParams.validators.length / _validatorLength;
-    if (availableAssets() < _validatorDeposit * validatorsCount) {
-      revert InsufficientAvailableAssets();
+    if (withdrawableAssets() < _validatorDeposit * validatorsCount) {
+      revert InsufficientWithdrawableAssets();
     }
 
     // check validators length is valid

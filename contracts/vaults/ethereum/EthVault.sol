@@ -54,7 +54,7 @@ contract EthVault is
   }
 
   /// @inheritdoc IEthVault
-  function initialize(bytes calldata params) external virtual override initializer {
+  function initialize(bytes calldata params) external payable virtual override initializer {
     __EthVault_init(abi.decode(params, (EthVaultInitParams)));
   }
 

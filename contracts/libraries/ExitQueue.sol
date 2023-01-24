@@ -128,7 +128,7 @@ library ExitQueue {
         // cannot underflow as requiredShares > burnedShares while in the loop
         sharesDelta = Math.min(availableShares, requiredShares - burnedShares);
 
-        // cannot overflow as it is capped with staked asset total supply
+        // cannot overflow as it is capped with underlying asset total supply
         burnedShares += sharesDelta;
         exitedAssets += Math.mulDiv(sharesDelta, checkpointAssets, checkpointShares);
 

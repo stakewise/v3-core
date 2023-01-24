@@ -6,7 +6,7 @@ import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { PANIC_CODES, ZERO_ADDRESS, ZERO_BYTES32 } from './shared/constants'
+import { PANIC_CODES, SECURITY_DEPOSIT, ZERO_ADDRESS, ZERO_BYTES32 } from './shared/constants'
 import { setBalance } from './shared/utils'
 import { collateralizeEthVault, getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
 
@@ -118,7 +118,7 @@ describe('EthVault - state', () => {
 
     await expect(receipt).emit(vault, 'StateUpdated').withArgs(reward)
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
-      rewardMevEscrow.add(holderAssets)
+      rewardMevEscrow.add(holderAssets).add(SECURITY_DEPOSIT)
     )
     expect(await vault.totalSupply()).to.be.eq(totalSupplyBefore)
     expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore.add(reward))
@@ -150,7 +150,7 @@ describe('EthVault - state', () => {
     })
 
     const operatorShares = await vault.balanceOf(admin.address)
-    expect(await vault.convertToAssets(operatorShares)).to.be.eq(operatorReward.sub(1)) // rounding error
+    expect(await vault.convertToAssets(operatorShares)).to.be.eq(operatorReward.sub(2)) // rounding error
     expect(await vault.convertToShares(operatorReward)).to.be.eq(operatorShares)
     expect(await waffle.provider.getBalance(mevEscrow)).to.be.eq(0)
 
@@ -159,7 +159,7 @@ describe('EthVault - state', () => {
       .emit(vault, 'Transfer')
       .withArgs(ZERO_ADDRESS, admin.address, operatorShares)
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
-      rewardMevEscrow.add(holderAssets)
+      rewardMevEscrow.add(holderAssets).add(SECURITY_DEPOSIT)
     )
     expect(await vault.totalSupply()).to.be.eq(totalSupplyBefore.add(operatorShares))
     expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore.add(reward))
@@ -196,7 +196,7 @@ describe('EthVault - state', () => {
     const operatorShares = await vault.balanceOf(admin.address)
     expect(await waffle.provider.getBalance(mevEscrow)).to.be.eq(0)
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
-      rewardMevEscrow.add(holderAssets)
+      rewardMevEscrow.add(holderAssets).add(SECURITY_DEPOSIT)
     )
     await expect(receipt).emit(vault, 'StateUpdated').withArgs(reward)
     await expect(receipt).emit(exitQueue, 'CheckpointCreated')
@@ -204,7 +204,8 @@ describe('EthVault - state', () => {
     let totalSupplyAfter = totalSupplyBefore.add(operatorShares)
     let totalAssetsAfter = totalAssetsBefore.add(reward)
 
-    const unclaimedAssets = holderAssets.add(rewardMevEscrow)
+    const unclaimedAssets = holderAssets.add(rewardMevEscrow).add(SECURITY_DEPOSIT)
+    expect(await vault.unclaimedAssets()).to.eq(unclaimedAssets)
     const burnedShares = unclaimedAssets.mul(totalSupplyAfter).div(totalAssetsAfter)
 
     totalSupplyAfter = totalSupplyAfter.sub(burnedShares)

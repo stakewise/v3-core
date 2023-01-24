@@ -95,10 +95,10 @@ describe('EthVault - register', () => {
       }
     })
 
-    it('fails with not enough available assets', async () => {
+    it('fails with not enough withdrawable assets', async () => {
       await setBalance(vault.address, parseEther('31.9'))
       await expect(vault.registerValidator(approvalParams, proof)).to.be.revertedWith(
-        'InsufficientAvailableAssets()'
+        'InsufficientWithdrawableAssets()'
       )
     })
 
@@ -186,11 +186,11 @@ describe('EthVault - register', () => {
       }
     })
 
-    it('fails with not enough available assets', async () => {
+    it('fails with not enough withdrawable assets', async () => {
       await setBalance(vault.address, validatorDeposit.mul(validators.length - 1))
       await expect(
         vault.registerValidators(approvalParams, indexes, multiProof.proofFlags, multiProof.proof)
-      ).to.be.revertedWith('InsufficientAvailableAssets()')
+      ).to.be.revertedWith('InsufficientWithdrawableAssets()')
     })
 
     it('fails with invalid validators count', async () => {
