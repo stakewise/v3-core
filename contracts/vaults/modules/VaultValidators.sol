@@ -121,23 +121,19 @@ abstract contract VaultValidators is
   }
 
   /// @inheritdoc IVaultValidators
-  function setValidatorsRoot(
-    bytes32 _validatorsRoot,
-    string calldata validatorsIpfsHash
-  ) external override onlyAdmin {
-    _setValidatorsRoot(_validatorsRoot, validatorsIpfsHash);
+  function setValidatorsRoot(bytes32 _validatorsRoot) external override onlyAdmin {
+    _setValidatorsRoot(_validatorsRoot);
   }
 
   /**
    * @dev Internal function for updating the validators root externally or from the initializer
    * @param _validatorsRoot The new validators merkle tree root
-   * @param validatorsIpfsHash The new IPFS hash with all the validators deposit data for the new root
    */
-  function _setValidatorsRoot(bytes32 _validatorsRoot, string memory validatorsIpfsHash) internal {
+  function _setValidatorsRoot(bytes32 _validatorsRoot) internal {
     validatorsRoot = _validatorsRoot;
     // reset validator index on every root update
     validatorIndex = 0;
-    emit ValidatorsRootUpdated(msg.sender, _validatorsRoot, validatorsIpfsHash);
+    emit ValidatorsRootUpdated(msg.sender, _validatorsRoot);
   }
 
   /**
@@ -160,13 +156,9 @@ abstract contract VaultValidators is
   /**
    * @dev Initializes the VaultValidators contract
    * @param _validatorsRoot The validators merkle tree root
-   * @param validatorsIpfsHash The IPFS hash with all the validators deposit data for the new root
    */
-  function __VaultValidators_init(
-    bytes32 _validatorsRoot,
-    string memory validatorsIpfsHash
-  ) internal onlyInitializing {
-    _setValidatorsRoot(_validatorsRoot, validatorsIpfsHash);
+  function __VaultValidators_init(bytes32 _validatorsRoot) internal onlyInitializing {
+    _setValidatorsRoot(_validatorsRoot);
   }
 
   /**

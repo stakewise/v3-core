@@ -24,7 +24,6 @@ describe('EthVault - token', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const initialSupply = 1000
 
@@ -47,7 +46,6 @@ describe('EthVault - token', () => {
       feePercent,
       name,
       symbol,
-      validatorsIpfsHash,
       metadataIpfsHash,
     })
     await vault.connect(initialHolder).deposit(initialHolder.address, { value: initialSupply })
@@ -73,10 +71,9 @@ describe('EthVault - token', () => {
         feePercent,
         name: 'a'.repeat(31),
         symbol,
-        validatorsIpfsHash,
         metadataIpfsHash,
       })
-    ).to.be.revertedWith('InvalidTokenMeta()')
+    ).to.be.revertedWith('InvalidTokenMeta')
   })
 
   it('fails to deploy with invalid symbol length', async () => {
@@ -87,10 +84,9 @@ describe('EthVault - token', () => {
         feePercent,
         name,
         symbol: 'a'.repeat(21),
-        validatorsIpfsHash,
         metadataIpfsHash,
       })
-    ).to.be.revertedWith('InvalidTokenMeta()')
+    ).to.be.revertedWith('InvalidTokenMeta')
   })
 
   describe('total supply', () => {
@@ -369,7 +365,7 @@ describe('EthVault - token', () => {
 
       await expect(
         vault.permit(initialHolder.address, spender.address, value, maxDeadline, v, r, s)
-      ).to.be.revertedWith('PermitInvalidSigner()')
+      ).to.be.revertedWith('PermitInvalidSigner')
     })
 
     it('rejects other signature', async () => {
@@ -379,7 +375,7 @@ describe('EthVault - token', () => {
 
       await expect(
         vault.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
-      ).to.be.revertedWith('PermitInvalidSigner()')
+      ).to.be.revertedWith('PermitInvalidSigner')
     })
 
     it('rejects expired permit', async () => {
@@ -388,7 +384,7 @@ describe('EthVault - token', () => {
 
       await expect(
         vault.permit(ownerAddress, spender.address, value, deadline, v, r, s)
-      ).to.be.revertedWith('PermitDeadlineExpired()')
+      ).to.be.revertedWith('PermitDeadlineExpired')
     })
   })
 })

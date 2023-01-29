@@ -26,7 +26,6 @@ describe('KeeperValidators', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const depositAmount = parseEther('32')
 
@@ -54,12 +53,11 @@ describe('KeeperValidators', () => {
       feePercent,
       name,
       symbol,
-      validatorsIpfsHash,
       metadataIpfsHash,
     })
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
-    await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
+    await vault.connect(admin).setValidatorsRoot(validatorsData.root)
   })
 
   it('fails to initialize', async () => {
@@ -95,7 +93,7 @@ describe('KeeperValidators', () => {
     })
 
     it('fails for invalid vault', async () => {
-      await expect(keeper.approveValidators(approveParams)).revertedWith('AccessDenied()')
+      await expect(keeper.approveValidators(approveParams)).revertedWith('AccessDenied')
     })
 
     it('fails for invalid validators registry root', async () => {
@@ -107,7 +105,7 @@ describe('KeeperValidators', () => {
         { value: depositAmount }
       )
       await expect(vault.registerValidator(approveParams, proof)).revertedWith(
-        'InvalidValidatorsRegistryRoot()'
+        'InvalidValidatorsRegistryRoot'
       )
     })
 
@@ -120,7 +118,7 @@ describe('KeeperValidators', () => {
           },
           proof
         )
-      ).revertedWith('NotEnoughSignatures()')
+      ).revertedWith('NotEnoughSignatures')
     })
 
     it('fails for invalid validator', async () => {
@@ -132,7 +130,7 @@ describe('KeeperValidators', () => {
           },
           proof
         )
-      ).revertedWith('InvalidOracle()')
+      ).revertedWith('InvalidOracle')
     })
 
     it('fails for invalid proof', async () => {
@@ -141,7 +139,7 @@ describe('KeeperValidators', () => {
           approveParams,
           getValidatorProof(validatorsData.tree, validatorsData.validators[1], 1)
         )
-      ).revertedWith('InvalidProof()')
+      ).revertedWith('InvalidProof')
     })
 
     it('succeeds', async () => {
@@ -171,7 +169,7 @@ describe('KeeperValidators', () => {
 
       // fails to register twice
       await expect(vault.registerValidator(approveParams, proof)).revertedWith(
-        'InvalidValidatorsRegistryRoot()'
+        'InvalidValidatorsRegistryRoot'
       )
 
       const newValidator = validatorsData.validators[1]
@@ -240,7 +238,7 @@ describe('KeeperValidators', () => {
     })
 
     it('fails for invalid vault', async () => {
-      await expect(keeper.approveValidators(approveParams)).revertedWith('AccessDenied()')
+      await expect(keeper.approveValidators(approveParams)).revertedWith('AccessDenied')
     })
 
     it('fails for invalid validators registry root', async () => {
@@ -254,7 +252,7 @@ describe('KeeperValidators', () => {
       )
       await expect(
         vault.registerValidators(approveParams, indexes, proof.proofFlags, proof.proof)
-      ).revertedWith('InvalidValidatorsRegistryRoot()')
+      ).revertedWith('InvalidValidatorsRegistryRoot')
     })
 
     it('fails for invalid signatures', async () => {
@@ -268,7 +266,7 @@ describe('KeeperValidators', () => {
           proof.proofFlags,
           proof.proof
         )
-      ).revertedWith('NotEnoughSignatures()')
+      ).revertedWith('NotEnoughSignatures')
     })
 
     it('fails for invalid validators', async () => {
@@ -282,7 +280,7 @@ describe('KeeperValidators', () => {
           proof.proofFlags,
           proof.proof
         )
-      ).revertedWith('InvalidOracle()')
+      ).revertedWith('InvalidOracle')
     })
 
     it('fails for invalid proof', async () => {
@@ -309,7 +307,7 @@ describe('KeeperValidators', () => {
           invalidProof.proofFlags,
           invalidProof.proof
         )
-      ).revertedWith('InvalidProof()')
+      ).revertedWith('InvalidProof')
     })
 
     it('succeeds', async () => {
@@ -345,14 +343,14 @@ describe('KeeperValidators', () => {
       // fails to register twice
       await expect(
         vault.registerValidators(approveParams, indexes, proof.proofFlags, proof.proof)
-      ).revertedWith('InvalidValidatorsRegistryRoot()')
+      ).revertedWith('InvalidValidatorsRegistryRoot')
 
       await vault
         .connect(sender)
         .deposit(sender.address, { value: depositAmount.mul(validators.length) })
 
       // reset validator index
-      await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
+      await vault.connect(admin).setValidatorsRoot(validatorsData.root)
       const newSigningData = getEthValidatorsSigningData(
         validatorsConcat,
         approveParams.exitSignaturesIpfsHash as string,

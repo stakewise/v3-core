@@ -3,6 +3,6 @@
 exports[`EthVault - multicall can update state, redeem and queue for exit 1`] = `
 Object {
   "calldataByteLength": 708,
-  "gasUsed": 184361,
+  "gasUsed": 184427,
 }
 `;

@@ -39,7 +39,6 @@ interface IEthVault is
    * @param feePercent The fee percent that is charged by the Vault
    * @param name The name of the ERC20 token
    * @param symbol The symbol of the ERC20 token
-   * @param validatorsIpfsHash The IPFS hash with all the validators deposit data
    * @param metadataIpfsHash The IPFS hash of the Vault's metadata file
    */
   struct EthVaultInitParams {
@@ -50,7 +49,6 @@ interface IEthVault is
     uint16 feePercent;
     string name;
     string symbol;
-    string validatorsIpfsHash;
     string metadataIpfsHash;
   }
 

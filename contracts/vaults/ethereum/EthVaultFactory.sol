@@ -82,7 +82,6 @@ contract EthVaultFactory is IEthVaultFactory {
           feePercent: params.feePercent,
           name: params.name,
           symbol: params.symbol,
-          validatorsIpfsHash: params.validatorsIpfsHash,
           metadataIpfsHash: params.metadataIpfsHash
         })
       )

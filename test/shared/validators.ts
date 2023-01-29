@@ -90,7 +90,6 @@ export type ValidatorsTree = StandardMerkleTree<[Buffer, number]>
 
 export type EthValidatorsData = {
   root: string
-  ipfsHash: string
   tree: ValidatorsTree
   validators: Buffer[]
 }
@@ -187,12 +186,9 @@ export async function createEthValidatorsData(vault: EthVault): Promise<EthValid
     ['bytes', 'uint256']
   ) as ValidatorsTree
   const treeRoot = tree.root
-  // mock IPFS hash
-  const ipfsHash = '/ipfs/' + treeRoot
 
   return {
     root: treeRoot,
-    ipfsHash,
     tree,
     validators,
   }
@@ -253,7 +249,7 @@ export async function registerEthValidator(
 ) {
   const validatorsData = await createEthValidatorsData(vault)
   const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
-  await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
+  await vault.connect(admin).setValidatorsRoot(validatorsData.root)
   const validator = validatorsData.validators[0]
   const exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
   const signingData = getEthValidatorsSigningData(

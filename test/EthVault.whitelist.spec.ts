@@ -18,7 +18,6 @@ describe('EthVault - whitelist', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   let dao: Wallet, sender: Wallet, whitelister: Wallet, admin: Wallet, other: Wallet
   let vault: EthPrivateVault, keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
@@ -41,7 +40,6 @@ describe('EthVault - whitelist', () => {
       feePercent,
       name,
       symbol,
-      validatorsIpfsHash,
       metadataIpfsHash,
     })
   })
@@ -49,7 +47,7 @@ describe('EthVault - whitelist', () => {
   describe('set whitelister', () => {
     it('cannot be called by not admin', async () => {
       await expect(vault.connect(other).setWhitelister(whitelister.address)).to.revertedWith(
-        'AccessDenied()'
+        'AccessDenied'
       )
     })
 
@@ -70,7 +68,7 @@ describe('EthVault - whitelist', () => {
 
     it('cannot be updated by not whitelister', async () => {
       await expect(vault.connect(other).updateWhitelist(sender.address, true)).to.revertedWith(
-        'AccessDenied()'
+        'AccessDenied'
       )
     })
 
@@ -78,7 +76,7 @@ describe('EthVault - whitelist', () => {
       await vault.connect(whitelister).updateWhitelist(sender.address, true)
       await expect(
         vault.connect(whitelister).updateWhitelist(sender.address, true)
-      ).to.revertedWith('WhitelistAlreadyUpdated()')
+      ).to.revertedWith('WhitelistAlreadyUpdated')
     })
 
     it('can be updated by whitelister', async () => {
@@ -109,7 +107,7 @@ describe('EthVault - whitelist', () => {
 
     it('cannot be called by not whitelisted sender', async () => {
       await expect(vault.connect(other).deposit(other.address, { value: amount })).to.revertedWith(
-        'AccessDenied()'
+        'AccessDenied'
       )
     })
 
@@ -127,12 +125,12 @@ describe('EthVault - whitelist', () => {
       }
       await expect(
         vault.connect(other).updateStateAndDeposit(other.address, harvestParams, { value: amount })
-      ).to.revertedWith('AccessDenied()')
+      ).to.revertedWith('AccessDenied')
     })
 
     it('cannot set receiver to not whitelisted user', async () => {
       await expect(vault.connect(other).deposit(other.address, { value: amount })).to.revertedWith(
-        'AccessDenied()'
+        'AccessDenied'
       )
     })
 
@@ -162,7 +160,7 @@ describe('EthVault - whitelist', () => {
     it('cannot be updated by not whitelister', async () => {
       await expect(
         vault.connect(other).setWhitelistRoot(tree.root, whitelistIpfsHash)
-      ).to.revertedWith('AccessDenied()')
+      ).to.revertedWith('AccessDenied')
     })
 
     it('admin can update root', async () => {
@@ -178,7 +176,7 @@ describe('EthVault - whitelist', () => {
       await vault.connect(whitelister).setWhitelistRoot(tree.root, whitelistIpfsHash)
       await expect(
         vault.joinWhitelist(other.address, tree.getProof([sender.address]))
-      ).to.revertedWith('InvalidWhitelistProof()')
+      ).to.revertedWith('InvalidWhitelistProof')
     })
 
     it('user can join with valid proof', async () => {
