@@ -20,7 +20,6 @@ describe('EthVault - deposit', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Wallet, other: Wallet
   let vault: EthVault, keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
@@ -44,7 +43,6 @@ describe('EthVault - deposit', () => {
       feePercent,
       name,
       symbol,
-      validatorsIpfsHash,
       metadataIpfsHash,
     })
   })
@@ -81,7 +79,6 @@ describe('EthVault - deposit', () => {
         feePercent,
         name,
         symbol,
-        validatorsIpfsHash,
         metadataIpfsHash,
       })
       await ethVaultMock._setTotalAssets(0)
@@ -110,7 +107,7 @@ describe('EthVault - deposit', () => {
     it('fails with exceeded capacity', async () => {
       await expect(
         vault.connect(sender).deposit(receiver.address, { value: parseEther('999') })
-      ).to.be.revertedWith('CapacityExceeded()')
+      ).to.be.revertedWith('CapacityExceeded')
     })
 
     it('fails when not harvested', async () => {
@@ -124,7 +121,7 @@ describe('EthVault - deposit', () => {
       ])
       await expect(
         vault.connect(sender).deposit(receiver.address, { value: parseEther('10') })
-      ).to.be.revertedWith('NotHarvested()')
+      ).to.be.revertedWith('NotHarvested')
     })
 
     it('update state and deposit', async () => {

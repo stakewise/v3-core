@@ -24,7 +24,6 @@ describe('EthVaultFactory', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   const initParams = {
@@ -33,7 +32,6 @@ describe('EthVaultFactory', () => {
     feePercent,
     name,
     symbol,
-    validatorsIpfsHash,
     metadataIpfsHash,
   }
   let admin: Wallet, owner: Wallet
@@ -76,7 +74,7 @@ describe('EthVaultFactory', () => {
 
   it('fails to create without security deposit', async () => {
     await expect(factory.connect(admin).createVault(initParams, true)).to.revertedWith(
-      'InvalidSecurityDeposit()'
+      'InvalidSecurityDeposit'
     )
   })
 
@@ -196,7 +194,7 @@ describe('EthVaultFactory', () => {
       expect(await vault.validatorsRoot()).to.be.eq(validatorsRoot)
       await expect(tx)
         .to.emit(vault, 'ValidatorsRootUpdated')
-        .withArgs(factory.address, validatorsRoot, validatorsIpfsHash)
+        .withArgs(factory.address, validatorsRoot)
 
       // VaultWhitelist
       if (isPrivate) {

@@ -28,13 +28,8 @@ interface IVaultValidators is IVaultImmutables, IVaultAdmin, IVaultState {
    * @notice Event emitted on validators merkle tree root update
    * @param caller The address of the function caller
    * @param validatorsRoot The new validators merkle tree root
-   * @param validatorsIpfsHash The new IPFS hash with all the validators deposit data
    */
-  event ValidatorsRootUpdated(
-    address indexed caller,
-    bytes32 indexed validatorsRoot,
-    string validatorsIpfsHash
-  );
+  event ValidatorsRootUpdated(address indexed caller, bytes32 indexed validatorsRoot);
 
   /**
    * @notice The Vault validators root
@@ -81,7 +76,6 @@ interface IVaultValidators is IVaultImmutables, IVaultAdmin, IVaultState {
   /**
    * @notice Function for updating the validators merkle tree root. Can only be called by the admin.
    * @param _validatorsRoot The new validators merkle tree root
-   * @param validatorsIpfsHash The new IPFS hash with all the validators deposit data for the new root
    */
-  function setValidatorsRoot(bytes32 _validatorsRoot, string memory validatorsIpfsHash) external;
+  function setValidatorsRoot(bytes32 _validatorsRoot) external;
 }

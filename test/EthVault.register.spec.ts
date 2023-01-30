@@ -32,7 +32,6 @@ describe('EthVault - register', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   let admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault, keeper: Keeper, validatorsRegistry: Contract, oracles: Oracles
@@ -59,13 +58,12 @@ describe('EthVault - register', () => {
       feePercent,
       name,
       symbol,
-      validatorsIpfsHash,
       metadataIpfsHash,
     })
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(other).deposit(other.address, { value: validatorDeposit })
-    await vault.connect(admin).setValidatorsRoot(validatorsData.root, validatorsData.ipfsHash)
+    await vault.connect(admin).setValidatorsRoot(validatorsData.root)
   })
 
   describe('single validator', () => {
@@ -98,14 +96,14 @@ describe('EthVault - register', () => {
     it('fails with not enough withdrawable assets', async () => {
       await setBalance(vault.address, parseEther('31.9'))
       await expect(vault.registerValidator(approvalParams, proof)).to.be.revertedWith(
-        'InsufficientAssets()'
+        'InsufficientAssets'
       )
     })
 
     it('fails with invalid proof', async () => {
       const invalidProof = getValidatorProof(validatorsData.tree, validatorsData.validators[1], 1)
       await expect(vault.registerValidator(approvalParams, invalidProof)).to.be.revertedWith(
-        'InvalidProof()'
+        'InvalidProof'
       )
     })
 
@@ -131,7 +129,7 @@ describe('EthVault - register', () => {
           },
           proof
         )
-      ).to.be.revertedWith('InvalidValidator()')
+      ).to.be.revertedWith('InvalidValidator')
     })
 
     it('succeeds', async () => {
@@ -190,7 +188,7 @@ describe('EthVault - register', () => {
       await setBalance(vault.address, validatorDeposit.mul(validators.length - 1))
       await expect(
         vault.registerValidators(approvalParams, indexes, multiProof.proofFlags, multiProof.proof)
-      ).to.be.revertedWith('InsufficientAssets()')
+      ).to.be.revertedWith('InsufficientAssets')
     })
 
     it('fails with invalid validators count', async () => {
@@ -216,7 +214,7 @@ describe('EthVault - register', () => {
           multiProof.proofFlags,
           multiProof.proof
         )
-      ).to.be.revertedWith('InvalidValidators()')
+      ).to.be.revertedWith('InvalidValidators')
     })
 
     it('fails with invalid deposit data root', async () => {
@@ -343,7 +341,7 @@ describe('EthVault - register', () => {
     it('fails with invalid indexes', async () => {
       await expect(
         vault.registerValidators(approvalParams, [], multiProof.proofFlags, multiProof.proof)
-      ).to.be.revertedWith('InvalidValidators()')
+      ).to.be.revertedWith('InvalidValidators')
 
       await expect(
         vault.registerValidators(
@@ -361,7 +359,7 @@ describe('EthVault - register', () => {
           multiProof.proofFlags,
           multiProof.proof
         )
-      ).to.be.revertedWith('InvalidValidators()')
+      ).to.be.revertedWith('InvalidValidators')
 
       await expect(
         vault.registerValidators(
@@ -370,7 +368,7 @@ describe('EthVault - register', () => {
           multiProof.proofFlags,
           multiProof.proof
         )
-      ).to.be.revertedWith('InvalidProof()')
+      ).to.be.revertedWith('InvalidProof')
     })
 
     it('fails with invalid validator length', async () => {
@@ -402,7 +400,7 @@ describe('EthVault - register', () => {
             multiProof.proofFlags,
             multiProof.proof
           )
-        ).to.be.revertedWith('InvalidValidators()')
+        ).to.be.revertedWith('InvalidValidators')
       }
     })
 

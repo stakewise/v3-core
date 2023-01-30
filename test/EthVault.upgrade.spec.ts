@@ -15,7 +15,6 @@ describe('EthVault - upgrade', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   let admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault
@@ -46,7 +45,6 @@ describe('EthVault - upgrade', () => {
       feePercent,
       name,
       symbol,
-      validatorsIpfsHash,
       metadataIpfsHash,
     })
     const ethVaultMock = await ethers.getContractFactory('EthVaultV2Mock')
@@ -61,27 +59,27 @@ describe('EthVault - upgrade', () => {
   })
 
   it('fails without the call', async () => {
-    await expect(vault.connect(admin).upgradeTo(newImpl)).to.revertedWith('UpgradeFailed()')
+    await expect(vault.connect(admin).upgradeTo(newImpl)).to.revertedWith('UpgradeFailed')
     expect(await vault.version()).to.be.eq(1)
   })
 
   it('fails from not admin', async () => {
     await expect(vault.connect(other).upgradeToAndCall(newImpl, callData)).to.revertedWith(
-      'AccessDenied()'
+      'AccessDenied'
     )
     expect(await vault.version()).to.be.eq(1)
   })
 
   it('fails with zero new implementation address', async () => {
     await expect(vault.connect(admin).upgradeToAndCall(ZERO_ADDRESS, callData)).to.revertedWith(
-      'UpgradeFailed()'
+      'UpgradeFailed'
     )
     expect(await vault.version()).to.be.eq(1)
   })
 
   it('fails for the same implementation', async () => {
     await expect(vault.connect(admin).upgradeToAndCall(currImpl, callData)).to.revertedWith(
-      'UpgradeFailed()'
+      'UpgradeFailed'
     )
     expect(await vault.version()).to.be.eq(1)
   })
@@ -89,7 +87,7 @@ describe('EthVault - upgrade', () => {
   it('fails for not approved implementation', async () => {
     await vaultsRegistry.connect(dao).removeVaultImpl(newImpl)
     await expect(vault.connect(admin).upgradeToAndCall(newImpl, callData)).to.revertedWith(
-      'UpgradeFailed()'
+      'UpgradeFailed'
     )
     expect(await vault.version()).to.be.eq(1)
   })
@@ -100,7 +98,7 @@ describe('EthVault - upgrade', () => {
     await vaultsRegistry.connect(dao).addVaultImpl(invalidImpl.address)
     await expect(
       vault.connect(admin).upgradeToAndCall(invalidImpl.address, callData)
-    ).to.revertedWith('UpgradeFailed()')
+    ).to.revertedWith('UpgradeFailed')
     expect(await vault.version()).to.be.eq(1)
   })
 
@@ -120,7 +118,7 @@ describe('EthVault - upgrade', () => {
     expect(await updatedVault.newVar()).to.be.eq(100)
     expect(await updatedVault.somethingNew()).to.be.eq(true)
     await expect(vault.connect(admin).upgradeToAndCall(newImpl, callData)).to.revertedWith(
-      'UpgradeFailed()'
+      'UpgradeFailed'
     )
     await expect(updatedVault.connect(admin).initialize(callData)).to.revertedWith(
       'Initializable: contract is already initialized'

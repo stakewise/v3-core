@@ -40,7 +40,7 @@ describe('Oracles', () => {
   describe('deploy oracles', () => {
     it('fails without initial oracles', async () => {
       await expect(createOracles(owner, [], REQUIRED_ORACLES, ORACLES_CONFIG)).revertedWith(
-        'InvalidRequiredOracles()'
+        'InvalidRequiredOracles'
       )
     })
 
@@ -52,7 +52,7 @@ describe('Oracles', () => {
           0,
           ORACLES_CONFIG
         )
-      ).revertedWith('InvalidRequiredOracles()')
+      ).revertedWith('InvalidRequiredOracles')
     })
   })
 
@@ -65,7 +65,7 @@ describe('Oracles', () => {
 
     it('fails if already added', async () => {
       await oracles.connect(owner).addOracle(oracle.address)
-      await expect(oracles.connect(owner).addOracle(oracle.address)).revertedWith('AlreadyAdded()')
+      await expect(oracles.connect(owner).addOracle(oracle.address)).revertedWith('AlreadyAdded')
     })
 
     it('succeeds', async () => {
@@ -94,7 +94,7 @@ describe('Oracles', () => {
     it('fails if already removed', async () => {
       await oracles.connect(owner).removeOracle(oracle.address)
       await expect(oracles.connect(owner).removeOracle(oracle.address)).revertedWith(
-        'AlreadyRemoved()'
+        'AlreadyRemoved'
       )
     })
 
@@ -103,7 +103,7 @@ describe('Oracles', () => {
         await oracles.connect(owner).removeOracle(new EthereumWallet(ORACLES[i]).getAddressString())
       }
       await expect(oracles.connect(owner).removeOracle(oracle.address)).revertedWith(
-        'InvalidRequiredOracles()'
+        'InvalidRequiredOracles'
       )
     })
 
@@ -141,7 +141,7 @@ describe('Oracles', () => {
 
     it('fails with number larger than total oracles', async () => {
       await expect(oracles.connect(owner).setRequiredOracles(totalOracles + 1)).revertedWith(
-        'InvalidRequiredOracles()'
+        'InvalidRequiredOracles'
       )
     })
 
@@ -201,7 +201,7 @@ describe('Oracles', () => {
       it('fails with invalid signatures length', async () => {
         const signatures = getSignatures(signData, REQUIRED_ORACLES - 1)
         await expect(oracles.verifyMinSignatures(verifyData, signatures)).revertedWith(
-          'NotEnoughSignatures()'
+          'NotEnoughSignatures'
         )
       })
 
@@ -230,7 +230,7 @@ describe('Oracles', () => {
       it('fails with invalid signatures length', async () => {
         const signatures = getSignatures(signData, ORACLES.length - 1)
         await expect(oracles.verifyAllSignatures(verifyData, signatures)).revertedWith(
-          'NotEnoughSignatures()'
+          'NotEnoughSignatures'
         )
       })
 
@@ -251,7 +251,7 @@ describe('Oracles', () => {
         getSignatures(signData, 1),
       ])
       await expect(oracles.verifyMinSignatures(verifyData, signatures)).revertedWith(
-        'InvalidOracle()'
+        'InvalidOracle'
       )
     })
 
@@ -259,7 +259,7 @@ describe('Oracles', () => {
       await oracles.connect(owner).removeOracle(new EthereumWallet(ORACLES[0]).getAddressString())
       await expect(
         oracles.verifyMinSignatures(verifyData, getSignatures(signData, REQUIRED_ORACLES))
-      ).revertedWith('InvalidOracle()')
+      ).revertedWith('InvalidOracle')
     })
   })
 })

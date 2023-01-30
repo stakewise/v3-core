@@ -31,14 +31,14 @@ Object {
 exports[`EthVault - withdraw enter exit queue locks tokens for the time of exit 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 74968,
+  "gasUsed": 74990,
 }
 `;
 
 exports[`EthVault - withdraw enter exit queue reduces allowance for sender other than owner 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 75632,
+  "gasUsed": 75654,
 }
 `;
 
@@ -47,21 +47,21 @@ exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`
 exports[`EthVault - withdraw redeem & withdraw redeem transfers assets to receiver 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 66235,
+  "gasUsed": 66257,
 }
 `;
 
 exports[`EthVault - withdraw redeem & withdraw reduces allowance for sender other than owner 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 66899,
+  "gasUsed": 66921,
 }
 `;
 
 exports[`EthVault - withdraw redeem & withdraw withdraw transfers assets to receiver 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 66274,
+  "gasUsed": 66296,
 }
 `;
 

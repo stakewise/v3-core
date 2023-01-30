@@ -17,7 +17,6 @@ describe('EthVault - settings', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -46,16 +45,14 @@ describe('EthVault - settings', () => {
           feePercent: 10001,
           name,
           symbol,
-          validatorsIpfsHash,
           metadataIpfsHash,
         })
-      ).to.be.revertedWith('InvalidFeePercent()')
+      ).to.be.revertedWith('InvalidFeePercent')
     })
   })
 
   describe('validators root', () => {
     const newValidatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-    const newValidatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
@@ -65,24 +62,21 @@ describe('EthVault - settings', () => {
         feePercent,
         name,
         symbol,
-        validatorsIpfsHash,
         metadataIpfsHash,
       })
     })
 
     it('only admin can update', async () => {
-      await expect(
-        vault.connect(other).setValidatorsRoot(newValidatorsRoot, newValidatorsIpfsHash)
-      ).to.be.revertedWith('AccessDenied()')
+      await expect(vault.connect(other).setValidatorsRoot(newValidatorsRoot)).to.be.revertedWith(
+        'AccessDenied'
+      )
     })
 
     it('can update', async () => {
-      const receipt = await vault
-        .connect(admin)
-        .setValidatorsRoot(newValidatorsRoot, newValidatorsIpfsHash)
+      const receipt = await vault.connect(admin).setValidatorsRoot(newValidatorsRoot)
       await expect(receipt)
         .to.emit(vault, 'ValidatorsRootUpdated')
-        .withArgs(admin.address, newValidatorsRoot, newValidatorsIpfsHash)
+        .withArgs(admin.address, newValidatorsRoot)
       expect(await vault.validatorsRoot()).to.be.eq(newValidatorsRoot)
       await snapshotGasCost(receipt)
     })
@@ -98,7 +92,6 @@ describe('EthVault - settings', () => {
         feePercent,
         name,
         symbol,
-        validatorsIpfsHash,
         metadataIpfsHash,
       })
       await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
@@ -107,12 +100,12 @@ describe('EthVault - settings', () => {
     it('only admin can update', async () => {
       await expect(
         vault.connect(other).setFeeRecipient(newFeeRecipient.address)
-      ).to.be.revertedWith('AccessDenied()')
+      ).to.be.revertedWith('AccessDenied')
     })
 
     it('cannot set to zero address', async () => {
       await expect(vault.connect(admin).setFeeRecipient(ZERO_ADDRESS)).to.be.revertedWith(
-        'InvalidFeeRecipient()'
+        'InvalidFeeRecipient'
       )
     })
 
@@ -121,7 +114,7 @@ describe('EthVault - settings', () => {
       await updateRewardsRoot(keeper, oracles, getSignatures, [{ vault: vault.address, reward: 2 }])
       await expect(
         vault.connect(admin).setFeeRecipient(newFeeRecipient.address)
-      ).to.be.revertedWith('NotHarvested()')
+      ).to.be.revertedWith('NotHarvested')
     })
 
     it('can update', async () => {
@@ -146,14 +139,13 @@ describe('EthVault - settings', () => {
         feePercent,
         name,
         symbol,
-        validatorsIpfsHash,
         metadataIpfsHash,
       })
     })
 
     it('only admin can update', async () => {
       await expect(vault.connect(other).setMetadata(newMetadataIpfsHash)).to.be.revertedWith(
-        'AccessDenied()'
+        'AccessDenied'
       )
       const receipt = await vault.connect(admin).setMetadata(newMetadataIpfsHash)
       await expect(receipt)

@@ -33,7 +33,6 @@ describe('EthVault - withdraw', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const holderShares = parseEther('1')
   const holderAssets = parseEther('1')
@@ -61,7 +60,6 @@ describe('EthVault - withdraw', () => {
       feePercent,
       name,
       symbol,
-      validatorsIpfsHash,
       metadataIpfsHash,
     })
 
@@ -88,7 +86,7 @@ describe('EthVault - withdraw', () => {
       await setBalance(vault.address, BigNumber.from(0))
       await expect(
         vault.connect(holder).redeem(holderShares, receiver.address, holder.address)
-      ).to.be.revertedWith('InsufficientAssets()')
+      ).to.be.revertedWith('InsufficientAssets')
     })
 
     it('fails for sender other than owner without approval', async () => {
@@ -111,7 +109,7 @@ describe('EthVault - withdraw', () => {
       await updateRewardsRoot(keeper, oracles, getSignatures, [{ vault: vault.address, reward: 2 }])
       await expect(
         vault.connect(holder).redeem(holderShares, receiver.address, holder.address)
-      ).to.be.revertedWith('NotHarvested()')
+      ).to.be.revertedWith('NotHarvested')
     })
 
     it('reduces allowance for sender other than owner', async () => {
@@ -132,7 +130,6 @@ describe('EthVault - withdraw', () => {
         feePercent,
         name,
         symbol,
-        validatorsIpfsHash,
         metadataIpfsHash,
       })
       await vault.resetSecurityDeposit()
@@ -214,7 +211,7 @@ describe('EthVault - withdraw', () => {
     it('fails with 0 shares', async () => {
       await expect(
         vault.connect(holder).enterExitQueue(0, receiver.address, holder.address)
-      ).to.be.revertedWith('InvalidSharesAmount()')
+      ).to.be.revertedWith('InvalidSharesAmount')
     })
 
     it('fails for not collateralized', async () => {
@@ -224,13 +221,12 @@ describe('EthVault - withdraw', () => {
         feePercent,
         name,
         symbol,
-        validatorsIpfsHash,
         metadataIpfsHash,
       })
       await newVault.connect(holder).deposit(holder.address, { value: holderAssets })
       await expect(
         newVault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
-      ).to.be.revertedWith('NotCollateralized()')
+      ).to.be.revertedWith('NotCollateralized')
     })
 
     it('fails for sender other than owner without approval', async () => {
@@ -358,7 +354,6 @@ describe('EthVault - withdraw', () => {
       feePercent,
       name,
       symbol,
-      validatorsIpfsHash,
       metadataIpfsHash,
     })
 
@@ -450,7 +445,7 @@ describe('EthVault - withdraw', () => {
       // checkpointIndex is lower than exitQueueId
       await expect(
         vault.connect(holder).claimExitedAssets(receiver.address, exitQueueId2, checkpointIndex)
-      ).to.be.revertedWith('InvalidCheckpointIndex()')
+      ).to.be.revertedWith('InvalidCheckpointIndex')
       await increaseTime(ONE_DAY)
       await vault.updateState(harvestParams)
 
@@ -464,7 +459,7 @@ describe('EthVault - withdraw', () => {
       // checkpointIndex is higher than exitQueueId
       await expect(
         vault.connect(holder).claimExitedAssets(receiver.address, exitQueueId, checkpointIndexThree)
-      ).to.be.revertedWith('InvalidCheckpointIndex()')
+      ).to.be.revertedWith('InvalidCheckpointIndex')
     })
 
     it('for single user in single checkpoint', async () => {
@@ -634,7 +629,6 @@ describe('EthVault - withdraw', () => {
       feePercent: 0,
       name,
       symbol,
-      validatorsIpfsHash,
       metadataIpfsHash,
     })
     await vault.resetSecurityDeposit()
