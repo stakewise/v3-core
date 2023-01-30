@@ -18,7 +18,6 @@ describe('KeeperRewards', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-  const validatorsIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -42,7 +41,6 @@ describe('KeeperRewards', () => {
       feePercent,
       name,
       symbol,
-      validatorsIpfsHash,
       metadataIpfsHash,
     })
     await setBalance(oracle.address, parseEther('10000'))
@@ -66,13 +64,13 @@ describe('KeeperRewards', () => {
     it('fails with invalid root', async () => {
       await expect(
         keeper.connect(oracle).setRewardsRoot({ ...rewardsRootParams, rewardsRoot: ZERO_BYTES32 })
-      ).to.be.revertedWith('InvalidRewardsRoot()')
+      ).to.be.revertedWith('InvalidRewardsRoot')
 
       // check can't set to previous rewards root
       await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
       await expect(
         keeper.connect(oracle).setRewardsRoot({ ...rewardsRootParams, rewardsRoot: ZERO_BYTES32 })
-      ).to.be.revertedWith('InvalidRewardsRoot()')
+      ).to.be.revertedWith('InvalidRewardsRoot')
     })
 
     it('fails with invalid IPFS hash', async () => {
@@ -80,7 +78,7 @@ describe('KeeperRewards', () => {
         keeper
           .connect(oracle)
           .setRewardsRoot({ ...rewardsRootParams, rewardsIpfsHash: ZERO_BYTES32 })
-      ).to.be.revertedWith('InvalidOracle()')
+      ).to.be.revertedWith('InvalidOracle')
     })
 
     it('fails with invalid nonce', async () => {
@@ -94,7 +92,7 @@ describe('KeeperRewards', () => {
           updateTimestamp: newRewardsRoot.updateTimestamp,
           signatures: getSignatures(newRewardsRoot.signingData),
         })
-      ).to.be.revertedWith('InvalidOracle()')
+      ).to.be.revertedWith('InvalidOracle')
     })
 
     it('succeeds', async () => {
@@ -217,7 +215,6 @@ describe('KeeperRewards', () => {
           feePercent,
           name,
           symbol,
-          validatorsIpfsHash,
           metadataIpfsHash,
         })
         vaultRewards.push({ reward: parseEther(i.toString()), vault: vlt.address })
@@ -239,18 +236,18 @@ describe('KeeperRewards', () => {
     })
 
     it('only vault can harvest', async () => {
-      await expect(keeper.harvest(harvestParams)).to.be.revertedWith('AccessDenied()')
+      await expect(keeper.harvest(harvestParams)).to.be.revertedWith('AccessDenied')
     })
 
     it('fails for invalid reward', async () => {
       await expect(vault.updateState({ ...harvestParams, reward: 0 })).to.be.revertedWith(
-        'InvalidProof()'
+        'InvalidProof'
       )
     })
 
     it('fails for invalid proof', async () => {
       await expect(vault.updateState({ ...harvestParams, proof: [] })).to.be.revertedWith(
-        'InvalidProof()'
+        'InvalidProof'
       )
     })
 
@@ -258,7 +255,7 @@ describe('KeeperRewards', () => {
       const invalidRoot = '0x' + '1'.repeat(64)
       await expect(
         vault.updateState({ ...harvestParams, rewardsRoot: invalidRoot })
-      ).to.be.revertedWith('InvalidRewardsRoot()')
+      ).to.be.revertedWith('InvalidRewardsRoot')
     })
 
     it('succeeds for latest rewards root', async () => {

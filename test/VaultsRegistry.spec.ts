@@ -23,9 +23,7 @@ describe('VaultsRegistry', () => {
   })
 
   it('fails to add a vault if not a factory', async () => {
-    await expect(vaultsRegistry.connect(owner).addVault(vault.address)).revertedWith(
-      'AccessDenied()'
-    )
+    await expect(vaultsRegistry.connect(owner).addVault(vault.address)).revertedWith('AccessDenied')
   })
 
   it('factory can add vault', async () => {
@@ -54,7 +52,7 @@ describe('VaultsRegistry', () => {
   it('cannot add the same implementation contract', async () => {
     await vaultsRegistry.connect(owner).addVaultImpl(newImpl.address)
     await expect(vaultsRegistry.connect(owner).addVaultImpl(newImpl.address)).revertedWith(
-      'AlreadyAdded()'
+      'AlreadyAdded'
     )
   })
 
@@ -75,7 +73,7 @@ describe('VaultsRegistry', () => {
 
   it('cannot remove already removed implementation', async () => {
     await expect(vaultsRegistry.connect(owner).removeVaultImpl(newImpl.address)).revertedWith(
-      'AlreadyRemoved()'
+      'AlreadyRemoved'
     )
     expect(await vaultsRegistry.vaults(newImpl.address)).to.be.eq(false)
   })
@@ -96,7 +94,7 @@ describe('VaultsRegistry', () => {
   it('cannot add already whitelisted factory', async () => {
     await vaultsRegistry.connect(owner).addFactory(factory.address)
     await expect(vaultsRegistry.connect(owner).addFactory(factory.address)).revertedWith(
-      'AlreadyAdded()'
+      'AlreadyAdded'
     )
     expect(await vaultsRegistry.factories(factory.address)).to.be.eq(true)
   })
@@ -118,7 +116,7 @@ describe('VaultsRegistry', () => {
 
   it('cannot remove already removed factory', async () => {
     await expect(vaultsRegistry.connect(owner).removeFactory(factory.address)).revertedWith(
-      'AlreadyRemoved()'
+      'AlreadyRemoved'
     )
     expect(await vaultsRegistry.factories(factory.address)).to.be.eq(false)
   })

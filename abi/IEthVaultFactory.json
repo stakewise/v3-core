@@ -114,11 +114,6 @@
           },
           {
             "internalType": "string",
-            "name": "validatorsIpfsHash",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
             "name": "metadataIpfsHash",
             "type": "string"
           }

@@ -21,7 +21,7 @@ describe('VaultMevEscrow', () => {
 
   it('only vault can withdraw assets', async () => {
     const mevEscrow = (await vaultMevEscrowFactory.deploy(vault.address)) as VaultMevEscrow
-    await expect(mevEscrow.connect(other).withdraw()).to.be.revertedWith('WithdrawalFailed()')
+    await expect(mevEscrow.connect(other).withdraw()).to.be.revertedWith('WithdrawalFailed')
   })
 
   it('emits event on transfers', async () => {
