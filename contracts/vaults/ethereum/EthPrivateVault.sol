@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
@@ -49,9 +49,10 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
 
   /// @inheritdoc IVaultEthStaking
   function deposit(
-    address receiver
+    address receiver,
+    address referrer
   ) public payable override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
     if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver])) revert AccessDenied();
-    return super.deposit(receiver);
+    return super.deposit(receiver, referrer);
   }
 }

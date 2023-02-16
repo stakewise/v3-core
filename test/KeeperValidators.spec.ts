@@ -5,7 +5,7 @@ import { Keeper, EthVault, Oracles, IKeeperValidators } from '../typechain-types
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ORACLES } from './shared/constants'
+import { ORACLES, REWARDS_DELAY, ZERO_ADDRESS } from './shared/constants'
 import {
   createEthValidatorsData,
   getEthValidatorsSigningData,
@@ -27,6 +27,7 @@ describe('KeeperValidators', () => {
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
+  const referrer = ZERO_ADDRESS
   const depositAmount = parseEther('32')
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -61,7 +62,7 @@ describe('KeeperValidators', () => {
   })
 
   it('fails to initialize', async () => {
-    await expect(keeper.initialize(owner.address)).revertedWith(
+    await expect(keeper.initialize(owner.address, REWARDS_DELAY)).revertedWith(
       'Initializable: contract is already initialized'
     )
   })
@@ -76,7 +77,7 @@ describe('KeeperValidators', () => {
       validator = validatorsData.validators[0]
       const exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
       proof = getValidatorProof(validatorsData.tree, validator, 0)
-      await vault.connect(sender).deposit(sender.address, { value: depositAmount })
+      await vault.connect(sender).deposit(sender.address, referrer, { value: depositAmount })
       signingData = getEthValidatorsSigningData(
         validator,
         exitSignatureIpfsHash,
@@ -175,7 +176,7 @@ describe('KeeperValidators', () => {
       const newValidator = validatorsData.validators[1]
       const newExitSignatureIpfsHash = exitSignatureIpfsHashes[1]
       const newProof = getValidatorProof(validatorsData.tree, newValidator, 1)
-      await vault.connect(sender).deposit(sender.address, { value: depositAmount })
+      await vault.connect(sender).deposit(sender.address, referrer, { value: depositAmount })
 
       const newSigningData = getEthValidatorsSigningData(
         newValidator,
@@ -220,7 +221,7 @@ describe('KeeperValidators', () => {
       indexes = validators.map((v) => sortedVals.indexOf(v))
       await vault
         .connect(sender)
-        .deposit(sender.address, { value: depositAmount.mul(validators.length) })
+        .deposit(sender.address, referrer, { value: depositAmount.mul(validators.length) })
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       signingData = getEthValidatorsSigningData(
         Buffer.concat(validators),
@@ -347,7 +348,7 @@ describe('KeeperValidators', () => {
 
       await vault
         .connect(sender)
-        .deposit(sender.address, { value: depositAmount.mul(validators.length) })
+        .deposit(sender.address, referrer, { value: depositAmount.mul(validators.length) })
 
       // reset validator index
       await vault.connect(admin).setValidatorsRoot(validatorsData.root)

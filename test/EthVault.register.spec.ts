@@ -19,7 +19,7 @@ import {
   ValidatorsMultiProof,
 } from './shared/validators'
 import { ethVaultFixture } from './shared/fixtures'
-import { ORACLES, PANIC_CODES } from './shared/constants'
+import { ORACLES, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const gwei = 1000000000
@@ -62,7 +62,7 @@ describe('EthVault - register', () => {
     })
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
-    await vault.connect(other).deposit(other.address, { value: validatorDeposit })
+    await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
     await vault.connect(admin).setValidatorsRoot(validatorsData.root)
   })
 
@@ -364,7 +364,7 @@ describe('EthVault - register', () => {
       await expect(
         vault.registerValidators(
           approvalParams,
-          indexes.reverse(),
+          indexes.sort(() => 0.5 - Math.random()),
           multiProof.proofFlags,
           multiProof.proof
         )

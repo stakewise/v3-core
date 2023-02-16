@@ -1,10 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
 import {IKeeper} from '../interfaces/IKeeper.sol';
@@ -18,14 +17,7 @@ import {KeeperRewards} from './KeeperRewards.sol';
  * @author StakeWise
  * @notice Defines the functionality for updating Vaults' consensus rewards and approving validators registrations
  */
-contract Keeper is
-  Initializable,
-  OwnableUpgradeable,
-  Versioned,
-  KeeperRewards,
-  KeeperValidators,
-  IKeeper
-{
+contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IKeeper {
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -45,12 +37,8 @@ contract Keeper is
   }
 
   /// @inheritdoc IKeeper
-  function initialize(address _owner) external override initializer {
-    _transferOwnership(_owner);
-
-    // set rewardsNonce to 1 so that vaults collateralized
-    // before first rewards root update will not have 0 nonce
-    rewardsNonce = 1;
+  function initialize(address _owner, uint64 _rewardsDelay) external override initializer {
+    __KeeperRewards_init(_owner, _rewardsDelay);
   }
 
   /// @inheritdoc UUPSUpgradeable

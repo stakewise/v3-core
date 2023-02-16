@@ -11,6 +11,7 @@ import {
   PANIC_CODES,
   PermitSig,
   SECURITY_DEPOSIT,
+  ZERO_ADDRESS,
 } from './shared/constants'
 import { domainSeparator, getSignatureFromTypedData, latestTimestamp } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
@@ -48,7 +49,9 @@ describe('EthVault - token', () => {
       symbol,
       metadataIpfsHash,
     })
-    await vault.connect(initialHolder).deposit(initialHolder.address, { value: initialSupply })
+    await vault
+      .connect(initialHolder)
+      .deposit(initialHolder.address, ZERO_ADDRESS, { value: initialSupply })
   })
 
   it('has a name', async () => {
@@ -117,6 +120,12 @@ describe('EthVault - token', () => {
       await expect(
         vault.connect(initialHolder).transfer(recipient.address, amount)
       ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+    })
+
+    it('reverts with zero address recipient', async () => {
+      await expect(vault.connect(initialHolder).transfer(ZERO_ADDRESS, balance)).to.be.revertedWith(
+        'ZeroAddress'
+      )
     })
 
     describe('when the sender transfers all balance', () => {
@@ -250,6 +259,13 @@ describe('EthVault - token', () => {
   })
 
   describe('approve', () => {
+    it('fails to approve zero address', async () => {
+      const amount = parseEther('1')
+      await expect(vault.connect(initialHolder).approve(ZERO_ADDRESS, amount)).to.be.revertedWith(
+        'ZeroAddress'
+      )
+    })
+
     describe('when the sender has enough balance', () => {
       const amount = initialSupply
 
@@ -322,7 +338,7 @@ describe('EthVault - token', () => {
     const ownerAddress = owner.getChecksumAddressString()
     const ownerPrivateKey = owner.getPrivateKey()
 
-    const buildData = (deadline = maxDeadline) => ({
+    const buildData = (deadline = maxDeadline, spender) => ({
       primaryType: 'Permit',
       types: { EIP712Domain, Permit: PermitSig },
       domain: {
@@ -331,7 +347,7 @@ describe('EthVault - token', () => {
         chainId,
         verifyingContract: vault.address,
       },
-      message: { owner: ownerAddress, spender: spender.address, value, nonce, deadline },
+      message: { owner: ownerAddress, spender, value, nonce, deadline },
     })
 
     it('initial nonce is 0', async () => {
@@ -345,7 +361,10 @@ describe('EthVault - token', () => {
     })
 
     it('accepts owner signature', async () => {
-      const { v, r, s } = getSignatureFromTypedData(ownerPrivateKey, buildData())
+      const { v, r, s } = getSignatureFromTypedData(
+        ownerPrivateKey,
+        buildData(maxDeadline, spender.address)
+      )
 
       const receipt = await vault.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
       await snapshotGasCost(receipt)
@@ -359,7 +378,10 @@ describe('EthVault - token', () => {
     })
 
     it('rejects reused signature', async () => {
-      const { v, r, s } = getSignatureFromTypedData(ownerPrivateKey, buildData())
+      const { v, r, s } = getSignatureFromTypedData(
+        ownerPrivateKey,
+        buildData(maxDeadline, spender.address)
+      )
 
       await vault.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
 
@@ -370,7 +392,7 @@ describe('EthVault - token', () => {
 
     it('rejects other signature', async () => {
       const otherWallet = EthereumWallet.generate()
-      const data = buildData()
+      const data = buildData(maxDeadline, spender.address)
       const { v, r, s } = getSignatureFromTypedData(otherWallet.getPrivateKey(), data)
 
       await expect(
@@ -380,11 +402,26 @@ describe('EthVault - token', () => {
 
     it('rejects expired permit', async () => {
       const deadline = (await latestTimestamp()).sub(500).toString()
-      const { v, r, s } = getSignatureFromTypedData(ownerPrivateKey, buildData(deadline))
+      const { v, r, s } = getSignatureFromTypedData(
+        ownerPrivateKey,
+        buildData(deadline, spender.address)
+      )
 
       await expect(
         vault.permit(ownerAddress, spender.address, value, deadline, v, r, s)
       ).to.be.revertedWith('PermitDeadlineExpired')
+    })
+
+    it('rejects zero address', async () => {
+      const deadline = (await latestTimestamp()).sub(500).toString()
+      const { v, r, s } = getSignatureFromTypedData(
+        ownerPrivateKey,
+        buildData(deadline, ZERO_ADDRESS)
+      )
+
+      await expect(
+        vault.permit(ownerAddress, ZERO_ADDRESS, value, deadline, v, r, s)
+      ).to.be.revertedWith('ZeroAddress')
     })
   })
 })

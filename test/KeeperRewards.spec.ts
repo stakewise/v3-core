@@ -5,10 +5,10 @@ import { Keeper, EthVault, Oracles, IKeeperRewards } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ORACLES, ZERO_BYTES32 } from './shared/constants'
+import { ORACLES, REWARDS_DELAY, ZERO_BYTES32 } from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { createVaultRewardsRoot, getRewardsRootProof, VaultReward } from './shared/rewards'
-import { setBalance } from './shared/utils'
+import { increaseTime, setBalance } from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -68,6 +68,7 @@ describe('KeeperRewards', () => {
 
       // check can't set to previous rewards root
       await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
+      await increaseTime(REWARDS_DELAY)
       await expect(
         keeper.connect(oracle).setRewardsRoot({ ...rewardsRootParams, rewardsRoot: ZERO_BYTES32 })
       ).to.be.revertedWith('InvalidRewardsRoot')
@@ -85,6 +86,7 @@ describe('KeeperRewards', () => {
       await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
       const newVaultReward = { reward: parseEther('3'), vault: vault.address }
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles)
+      await increaseTime(REWARDS_DELAY)
       await expect(
         keeper.connect(oracle).setRewardsRoot({
           rewardsRoot: newRewardsRoot.root,
@@ -95,7 +97,24 @@ describe('KeeperRewards', () => {
       ).to.be.revertedWith('InvalidOracle')
     })
 
+    it('fails if too early', async () => {
+      await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
+      const newVaultReward = { reward: parseEther('3'), vault: vault.address }
+      const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1680255895, 2)
+      expect(await keeper.canUpdateRewards()).to.eq(false)
+      await expect(
+        keeper.connect(oracle).setRewardsRoot({
+          rewardsRoot: newRewardsRoot.root,
+          rewardsIpfsHash: newRewardsRoot.ipfsHash,
+          updateTimestamp: newRewardsRoot.updateTimestamp,
+          signatures: getSignatures(newRewardsRoot.signingData),
+        })
+      ).to.be.revertedWith('TooEarlyUpdate')
+    })
+
     it('succeeds', async () => {
+      expect(await keeper.lastRewardsTimestamp()).to.eq(0)
+      expect(await keeper.canUpdateRewards()).to.eq(true)
       let receipt = await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
       await expect(receipt)
         .to.emit(keeper, 'RewardsRootUpdated')
@@ -109,11 +128,14 @@ describe('KeeperRewards', () => {
       expect(await keeper.prevRewardsRoot()).to.eq(ZERO_BYTES32)
       expect(await keeper.rewardsRoot()).to.eq(rewardsRootParams.rewardsRoot)
       expect(await keeper.rewardsNonce()).to.eq(2)
+      expect(await keeper.lastRewardsTimestamp()).to.not.eq(0)
+      expect(await keeper.canUpdateRewards()).to.eq(false)
       await snapshotGasCost(receipt)
 
       // check keeps previous rewards root
       const newVaultReward = { reward: parseEther('3'), vault: vault.address }
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1670256000, 2)
+      await increaseTime(REWARDS_DELAY)
       receipt = await keeper.connect(oracle).setRewardsRoot({
         rewardsRoot: newRewardsRoot.root,
         rewardsIpfsHash: newRewardsRoot.ipfsHash,
@@ -132,6 +154,21 @@ describe('KeeperRewards', () => {
       expect(await keeper.prevRewardsRoot()).to.eq(rewardsRootParams.rewardsRoot)
       expect(await keeper.rewardsRoot()).to.eq(newRewardsRoot.root)
       expect(await keeper.rewardsNonce()).to.eq(3)
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('set rewards delay', () => {
+    it('fails if not owner', async () => {
+      await expect(keeper.connect(admin.address).setRewardsDelay(REWARDS_DELAY)).to.be.reverted
+    })
+
+    it('succeeds', async () => {
+      const receipt = await keeper.connect(owner).setRewardsDelay(REWARDS_DELAY)
+      await expect(receipt)
+        .to.emit(keeper, 'RewardsDelayUpdated')
+        .withArgs(owner.address, REWARDS_DELAY)
+      expect(await keeper.rewardsDelay()).to.eq(REWARDS_DELAY)
       await snapshotGasCost(receipt)
     })
   })
@@ -173,6 +210,7 @@ describe('KeeperRewards', () => {
       // update rewards first time
       let newVaultReward = { reward: parseEther('3'), vault: vault.address }
       let newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1670258895, 2)
+      await increaseTime(REWARDS_DELAY)
       await keeper.connect(oracle).setRewardsRoot({
         rewardsRoot: newRewardsRoot.root,
         rewardsIpfsHash: newRewardsRoot.ipfsHash,
@@ -188,6 +226,7 @@ describe('KeeperRewards', () => {
       const newTimestamp = newRewardsRoot.updateTimestamp + 1
       newVaultReward = { reward: parseEther('4'), vault: vault.address }
       newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, newTimestamp, 3)
+      await increaseTime(REWARDS_DELAY)
       await keeper.connect(oracle).setRewardsRoot({
         rewardsRoot: newRewardsRoot.root,
         rewardsIpfsHash: newRewardsRoot.ipfsHash,
@@ -295,6 +334,7 @@ describe('KeeperRewards', () => {
       // update rewards root
       const vaultReward = { reward: parseEther('10'), vault: vault.address }
       const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles, 1670255995, 2)
+      await increaseTime(REWARDS_DELAY)
       await keeper.connect(oracle).setRewardsRoot({
         rewardsRoot: rewardsRoot.root,
         updateTimestamp: rewardsRoot.updateTimestamp,

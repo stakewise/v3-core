@@ -22,6 +22,7 @@ export const NETWORKS: {
       '0x18991d6F877eF0c0920BFF9B14D994D80d2E7B0c',
     ],
     requiredOracles: 6,
+    rewardsDelay: 12 * 60 * 60,
     oraclesConfigIpfsHash: 'QmZHT64Aauy8quU3nvsUoRp7cSmQQCmPD1fHhPuP3JMTHL',
   },
   [Networks.gnosis]: {
@@ -31,6 +32,7 @@ export const NETWORKS: {
     validatorsRegistry: '0x0B98057eA310F4d31F2a452B414647007d1645d9',
     oracles: [], // TODO: update with oracles' addresses
     requiredOracles: 6,
+    rewardsDelay: 12 * 60 * 60,
     oraclesConfigIpfsHash: '',
   },
   [Networks.mainnet]: {
@@ -39,6 +41,7 @@ export const NETWORKS: {
     governor: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
     validatorsRegistry: '0x00000000219ab540356cBB839Cbe05303d7705Fa',
     oracles: [], // TODO: update with oracles' addresses
+    rewardsDelay: 12 * 60 * 60,
     requiredOracles: 6,
     oraclesConfigIpfsHash: '',
   },

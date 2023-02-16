@@ -15,6 +15,7 @@ const createFixtureLoader = waffle.createFixtureLoader
 describe('EthVault - multicall', () => {
   const capacity = parseEther('1000')
   const feePercent = 1000
+  const referrer = '0x' + '1'.repeat(40)
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
@@ -47,7 +48,7 @@ describe('EthVault - multicall', () => {
   })
 
   it('can update state, redeem and queue for exit', async () => {
-    await vault.connect(sender).deposit(sender.address, { value: parseEther('32') })
+    await vault.connect(sender).deposit(sender.address, referrer, { value: parseEther('32') })
 
     // collateralize vault
     await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
@@ -111,7 +112,7 @@ describe('EthVault - multicall', () => {
   it('fails to deposit in multicall', async () => {
     const amount = parseEther('1')
     const calls: string[] = [
-      vault.interface.encodeFunctionData('deposit', [sender.address]),
+      vault.interface.encodeFunctionData('deposit', [sender.address, referrer]),
       vault.interface.encodeFunctionData('withdraw', [amount, sender.address, sender.address]),
     ]
     await expect(vault.connect(sender).multicall(calls)).reverted

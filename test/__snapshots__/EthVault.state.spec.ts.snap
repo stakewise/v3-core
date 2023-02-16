@@ -3,20 +3,20 @@
 exports[`EthVault - state allocates fee to recipient when delta is above zero 1`] = `
 Object {
   "calldataByteLength": 164,
-  "gasUsed": 119621,
+  "gasUsed": 119703,
 }
 `;
 
 exports[`EthVault - state applies penalty when delta is below zero 1`] = `
 Object {
   "calldataByteLength": 164,
-  "gasUsed": 93321,
+  "gasUsed": 93390,
 }
 `;
 
 exports[`EthVault - state updates exit queue 1`] = `
 Object {
   "calldataByteLength": 164,
-  "gasUsed": 141568,
+  "gasUsed": 141647,
 }
 `;

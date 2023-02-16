@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
@@ -117,9 +117,15 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
    * @dev Internal function that must be used to process user deposits
    * @param to The address to mint shares to
    * @param assets The number of assets deposited
+   * @param referrer The address of the referrer. Set to zero address if not used.
    * @return shares The total amount of shares minted
    */
-  function _deposit(address to, uint256 assets) internal returns (uint256 shares) {
+  function _deposit(
+    address to,
+    uint256 assets,
+    address referrer
+  ) internal returns (uint256 shares) {
+    if (to == address(0)) revert ZeroAddress();
     if (IKeeperRewards(keeper).isHarvestRequired(address(this))) revert NotHarvested();
 
     uint256 totalAssetsAfter;
@@ -143,7 +149,7 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     }
 
     emit Transfer(address(0), to, shares);
-    emit Deposit(msg.sender, to, assets, shares);
+    emit Deposit(msg.sender, to, assets, shares, referrer);
   }
 
   /**

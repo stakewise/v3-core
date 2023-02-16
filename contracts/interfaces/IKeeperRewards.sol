@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {IOracles} from './IOracles.sol';
 import {IVaultsRegistry} from './IVaultsRegistry.sol';
@@ -15,6 +15,7 @@ interface IKeeperRewards {
   error InvalidRewardsRoot();
   error InvalidProof();
   error AccessDenied();
+  error TooEarlyUpdate();
 
   /**
    * @notice Event emitted on rewards root update
@@ -39,6 +40,13 @@ interface IKeeperRewards {
    * @param reward The cumulative reward/penalty accumulated by the Vault
    */
   event Harvested(address indexed vault, bytes32 indexed rewardsRoot, int160 reward);
+
+  /**
+   * @notice Event emitted on the update of rewards delay
+   * @param caller The address of the function caller
+   * @param rewardsDelay The new rewards update delay
+   */
+  event RewardsDelayUpdated(address indexed caller, uint64 rewardsDelay);
 
   /**
    * @notice A struct containing the last synced Vault's reward
@@ -107,6 +115,18 @@ interface IKeeperRewards {
   function rewardsNonce() external view returns (uint96);
 
   /**
+   * @notice The last rewards update
+   * @return The timestamp of the last rewards update
+   */
+  function lastRewardsTimestamp() external view returns (uint64);
+
+  /**
+   * @notice The rewards delay
+   * @return The delay between rewards updates
+   */
+  function rewardsDelay() external view returns (uint64);
+
+  /**
    * @notice Get last synced Vault reward
    * @param vault The address of the Vault
    * @return nonce The last synced reward nonce
@@ -129,6 +149,12 @@ interface IKeeperRewards {
   function canHarvest(address vault) external view returns (bool);
 
   /**
+   * @notice Checks whether rewards can be updated
+   * @return `true` if rewards can be updated, `false` otherwise
+   */
+  function canUpdateRewards() external view returns (bool);
+
+  /**
    * @notice Checks whether the Vault has registered validators
    * @param vault The address of the Vault
    * @return `true` if Vault is collateralized, `false` otherwise
@@ -140,6 +166,12 @@ interface IKeeperRewards {
    * @param params The struct containing rewards root update parameters
    */
   function setRewardsRoot(RewardsRootUpdateParams calldata params) external;
+
+  /**
+   * @notice Update rewards delay. Can only be called by the owner.
+   * @param _rewardsDelay The new rewards update delay
+   */
+  function setRewardsDelay(uint64 _rewardsDelay) external;
 
   /**
    * @notice Harvest rewards. Can be called only by Vault.

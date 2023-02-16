@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
@@ -67,7 +67,8 @@ contract EthVault is
     __VaultAdmin_init(params.admin, params.metadataIpfsHash);
     // fee recipient is initially set to admin address
     __VaultFee_init(params.admin, params.feePercent);
-    __VaultValidators_init(params.validatorsRoot);
+    // operator is initially set to admin address
+    __VaultValidators_init(params.validatorsRoot, params.admin);
     __VaultEthStaking_init(params.mevEscrow);
   }
 

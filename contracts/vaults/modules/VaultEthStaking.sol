@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol';
@@ -39,17 +39,21 @@ abstract contract VaultEthStaking is
   IMevEscrow public override mevEscrow;
 
   /// @inheritdoc IVaultEthStaking
-  function deposit(address receiver) public payable virtual override returns (uint256 shares) {
-    return _deposit(receiver, msg.value);
+  function deposit(
+    address receiver,
+    address referrer
+  ) public payable virtual override returns (uint256 shares) {
+    return _deposit(receiver, msg.value, referrer);
   }
 
   /// @inheritdoc IVaultEthStaking
   function updateStateAndDeposit(
     address receiver,
+    address referrer,
     IKeeperRewards.HarvestParams calldata harvestParams
   ) public payable virtual override returns (uint256 shares) {
     updateState(harvestParams);
-    return deposit(receiver);
+    return deposit(receiver, referrer);
   }
 
   /**
@@ -137,7 +141,7 @@ abstract contract VaultEthStaking is
     mevEscrow = IMevEscrow(_mevEscrow);
 
     if (msg.value < securityDeposit) revert InvalidSecurityDeposit();
-    _deposit(address(this), msg.value);
+    _deposit(address(this), msg.value, address(0));
   }
 
   /**
