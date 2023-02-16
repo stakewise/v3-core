@@ -20,11 +20,19 @@ error InvalidTokenMeta();
  * @notice Defines the token functionality for the Vault
  */
 abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable, IVaultToken {
-  /// @inheritdoc IVaultToken
-  uint256 public override capacity;
-
   uint128 internal _totalShares;
   uint128 internal _totalAssets;
+
+  uint256 private _capacity;
+
+  /// @inheritdoc IVaultToken
+  function capacity() public view override returns (uint256) {
+    // SLOAD to memory
+    uint256 capacity_ = _capacity;
+
+    // if capacity is not set, it is unlimited
+    return capacity_ == 0 ? type(uint256).max : capacity_;
+  }
 
   /// @inheritdoc IERC20
   function totalSupply() external view returns (uint256) {
@@ -93,18 +101,20 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
    * @dev Initializes the VaultToken contract
    * @param _name The name of the ERC20 token
    * @param _symbol The symbol of the ERC20 token
-   * @param _capacity The amount after which the Vault stops accepting deposits
+   * @param capacity_ The amount after which the Vault stops accepting deposits
    */
   function __VaultToken_init(
     string memory _name,
     string memory _symbol,
-    uint256 _capacity
+    uint256 capacity_
   ) internal onlyInitializing {
     if (bytes(_name).length > 30 || bytes(_symbol).length > 20) revert InvalidTokenMeta();
 
     // initialize ERC20Permit
     __ERC20Upgradeable_init(_name, _symbol);
-    capacity = _capacity;
+
+    // if capacity is not set, it is unlimited
+    if (capacity_ != 0 && capacity_ != type(uint256).max) _capacity = capacity_;
   }
 
   /**

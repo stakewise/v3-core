@@ -31,18 +31,25 @@ abstract contract VaultValidators is
   /// @inheritdoc IVaultValidators
   uint256 public override validatorIndex;
 
-  /// @inheritdoc IVaultValidators
-  address public override operator;
+  address private _operator;
 
   /// @dev Prevents calling a function from anyone except Vault's operator
   modifier onlyOperator() {
-    if (msg.sender != operator) revert AccessDenied();
+    if (msg.sender != operator()) revert AccessDenied();
     _;
   }
 
   /// @inheritdoc IVaultValidators
   function withdrawalCredentials() public view override returns (bytes memory) {
     return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
+  }
+
+  /// @inheritdoc IVaultValidators
+  function operator() public view override returns (address) {
+    // SLOAD to memory
+    address operator_ = _operator;
+    // if operator is not set, use admin address
+    return operator_ == address(0) ? admin : operator_;
   }
 
   /// @inheritdoc IVaultValidators
@@ -130,8 +137,10 @@ abstract contract VaultValidators is
   }
 
   /// @inheritdoc IVaultValidators
-  function setOperator(address _operator) external override onlyAdmin {
-    _setOperator(_operator);
+  function setOperator(address operator_) external override onlyAdmin {
+    // update operator address
+    _operator = operator_;
+    emit OperatorUpdated(msg.sender, operator_);
   }
 
   /// @inheritdoc IVaultValidators
@@ -148,16 +157,6 @@ abstract contract VaultValidators is
     // reset validator index on every root update
     validatorIndex = 0;
     emit ValidatorsRootUpdated(msg.sender, _validatorsRoot);
-  }
-
-  /**
-   * @dev Internal function for updating the operator externally or from the initializer
-   * @param _operator The address of the new operator
-   */
-  function _setOperator(address _operator) internal {
-    // update operator address
-    operator = _operator;
-    emit OperatorUpdated(msg.sender, _operator);
   }
 
   /**
@@ -180,14 +179,9 @@ abstract contract VaultValidators is
   /**
    * @dev Initializes the VaultValidators contract
    * @param _validatorsRoot The validators merkle tree root
-   * @param _operator The address of the operator
    */
-  function __VaultValidators_init(
-    bytes32 _validatorsRoot,
-    address _operator
-  ) internal onlyInitializing {
+  function __VaultValidators_init(bytes32 _validatorsRoot) internal onlyInitializing {
     _setValidatorsRoot(_validatorsRoot);
-    _setOperator(_operator);
   }
 
   /**

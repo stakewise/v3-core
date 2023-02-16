@@ -17,13 +17,13 @@ Object {
 exports[`EthVault - settings operator can be updated by admin 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 36151,
+  "gasUsed": 53209,
 }
 `;
 
 exports[`EthVault - settings validators root can update 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 35099,
+  "gasUsed": 35148,
 }
 `;

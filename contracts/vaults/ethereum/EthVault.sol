@@ -67,8 +67,7 @@ contract EthVault is
     __VaultAdmin_init(params.admin, params.metadataIpfsHash);
     // fee recipient is initially set to admin address
     __VaultFee_init(params.admin, params.feePercent);
-    // operator is initially set to admin address
-    __VaultValidators_init(params.validatorsRoot, params.admin);
+    __VaultValidators_init(params.validatorsRoot);
     __VaultEthStaking_init(params.mevEscrow);
   }
 

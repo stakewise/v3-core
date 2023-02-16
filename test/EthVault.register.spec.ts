@@ -19,7 +19,7 @@ import {
   ValidatorsMultiProof,
 } from './shared/validators'
 import { ethVaultFixture } from './shared/fixtures'
-import { ORACLES, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
+import { MAX_UINT256, ORACLES, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const gwei = 1000000000
@@ -27,7 +27,7 @@ const uintSerializer = new UintNumberType(8)
 
 describe('EthVault - register', () => {
   const validatorDeposit = parseEther('32')
-  const capacity = parseEther('1000')
+  const capacity = MAX_UINT256
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'

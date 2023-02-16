@@ -133,7 +133,7 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
       // cannot overflow as it is capped with underlying asset total supply
       totalAssetsAfter = _totalAssets + assets;
     }
-    if (totalAssetsAfter > capacity) revert CapacityExceeded();
+    if (totalAssetsAfter > capacity()) revert CapacityExceeded();
 
     // calculate amount of shares to mint
     shares = convertToShares(assets);

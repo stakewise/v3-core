@@ -105,11 +105,9 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
 
   /// @inheritdoc IKeeperRewards
   function canUpdateRewards() public view override returns (bool) {
-    // SLOAD to memory
-    uint64 _lastRewardsTimestamp = lastRewardsTimestamp;
     unchecked {
-      // cannot overflow as _lastRewardsTimestamp & rewardsDelay are uint64
-      return _lastRewardsTimestamp + rewardsDelay < block.timestamp;
+      // cannot overflow as lastRewardsTimestamp & rewardsDelay are uint64
+      return lastRewardsTimestamp + rewardsDelay < block.timestamp;
     }
   }
 
