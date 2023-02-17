@@ -17,6 +17,7 @@ describe('EthVault - whitelist', () => {
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
+  const referrer = ZERO_ADDRESS
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   let dao: Wallet, sender: Wallet, whitelister: Wallet, admin: Wallet, other: Wallet
@@ -106,9 +107,9 @@ describe('EthVault - whitelist', () => {
     })
 
     it('cannot be called by not whitelisted sender', async () => {
-      await expect(vault.connect(other).deposit(other.address, { value: amount })).to.revertedWith(
-        'AccessDenied'
-      )
+      await expect(
+        vault.connect(other).deposit(other.address, referrer, { value: amount })
+      ).to.revertedWith('AccessDenied')
     })
 
     it('cannot update state and call', async () => {
@@ -124,18 +125,22 @@ describe('EthVault - whitelist', () => {
         proof: getRewardsRootProof(tree, { vault: vault.address, reward: vaultReward }),
       }
       await expect(
-        vault.connect(other).updateStateAndDeposit(other.address, harvestParams, { value: amount })
+        vault
+          .connect(other)
+          .updateStateAndDeposit(other.address, referrer, harvestParams, { value: amount })
       ).to.revertedWith('AccessDenied')
     })
 
     it('cannot set receiver to not whitelisted user', async () => {
-      await expect(vault.connect(other).deposit(other.address, { value: amount })).to.revertedWith(
-        'AccessDenied'
-      )
+      await expect(
+        vault.connect(other).deposit(other.address, referrer, { value: amount })
+      ).to.revertedWith('AccessDenied')
     })
 
     it('can be called by whitelisted user', async () => {
-      const receipt = await vault.connect(sender).deposit(sender.address, { value: amount })
+      const receipt = await vault
+        .connect(sender)
+        .deposit(sender.address, referrer, { value: amount })
       expect(await vault.balanceOf(sender.address)).to.eq(amount)
 
       await expect(receipt)
@@ -143,7 +148,7 @@ describe('EthVault - whitelist', () => {
         .withArgs(ZERO_ADDRESS, sender.address, amount)
       await expect(receipt)
         .to.emit(vault, 'Deposit')
-        .withArgs(sender.address, sender.address, amount, amount)
+        .withArgs(sender.address, sender.address, amount, amount, referrer)
       await snapshotGasCost(receipt)
     })
   })

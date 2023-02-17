@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
@@ -61,8 +61,8 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
     int256 assetsDelta = _harvestAssets(harvestParams);
 
     // SLOAD to memory
-    uint256 totalAssetsAfter = _totalAssets;
     uint256 totalSharesAfter = _totalShares;
+    uint256 totalAssetsAfter = _totalAssets;
 
     if (assetsDelta > 0) {
       // compute fees as the fee percent multiplied by the profit

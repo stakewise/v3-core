@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {IVaultImmutables} from './IVaultImmutables.sol';
 import {IVaultToken} from './IVaultToken.sol';
@@ -23,8 +23,15 @@ interface IVaultEnterExit is IVaultImmutables, IVaultToken, IVaultState {
    * @param owner The address that received the shares
    * @param assets The number of assets deposited by the caller
    * @param shares The number of Vault tokens the owner received
+   * @param referrer The address of the referrer
    */
-  event Deposit(address indexed caller, address indexed owner, uint256 assets, uint256 shares);
+  event Deposit(
+    address indexed caller,
+    address indexed owner,
+    uint256 assets,
+    uint256 shares,
+    address referrer
+  );
 
   /**
    * @notice Event emitted on withdraw

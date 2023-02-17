@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { Keeper, EthVault, EthVaultMock, Oracles, IKeeperRewards } from '../typechain-types'
+import { EthVault, EthVaultMock, IKeeperRewards, Keeper, Oracles } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -21,6 +21,7 @@ describe('EthVault - deposit', () => {
   const symbol = 'SW-ETH-1'
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
+  const referrer = '0x' + '1'.repeat(40)
   let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Wallet, other: Wallet
   let vault: EthVault, keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
 
@@ -47,6 +48,12 @@ describe('EthVault - deposit', () => {
     })
   })
 
+  it('fails to deposit to zero address', async () => {
+    await expect(
+      vault.connect(sender).deposit(ZERO_ADDRESS, referrer, { value: parseEther('999') })
+    ).to.be.revertedWith('ZeroAddress')
+  })
+
   describe('empty vault: no assets & no shares', () => {
     it('status', async () => {
       expect(await vault.totalAssets()).to.equal(SECURITY_DEPOSIT)
@@ -56,7 +63,9 @@ describe('EthVault - deposit', () => {
     it('deposit', async () => {
       const amount = ether
       expect(await vault.convertToShares(amount)).to.eq(amount)
-      const receipt = await vault.connect(sender).deposit(receiver.address, { value: amount })
+      const receipt = await vault
+        .connect(sender)
+        .deposit(receiver.address, referrer, { value: amount })
       expect(await vault.balanceOf(receiver.address)).to.eq(amount)
 
       await expect(receipt)
@@ -64,7 +73,7 @@ describe('EthVault - deposit', () => {
         .withArgs(ZERO_ADDRESS, receiver.address, amount)
       await expect(receipt)
         .to.emit(vault, 'Deposit')
-        .withArgs(sender.address, receiver.address, amount, amount)
+        .withArgs(sender.address, receiver.address, amount, amount, referrer)
       await snapshotGasCost(receipt)
     })
   })
@@ -90,14 +99,14 @@ describe('EthVault - deposit', () => {
 
     it('deposit', async () => {
       await expect(
-        ethVaultMock.connect(sender).deposit(receiver.address, { value: ether })
+        ethVaultMock.connect(sender).deposit(receiver.address, referrer, { value: ether })
       ).to.be.revertedWith(PANIC_CODES.DIVISION_BY_ZERO)
     })
   })
 
   describe('full vault: assets & shares', () => {
     beforeEach(async () => {
-      await vault.connect(other).deposit(other.address, { value: parseEther('10') })
+      await vault.connect(other).deposit(other.address, referrer, { value: parseEther('10') })
     })
 
     it('status', async () => {
@@ -106,12 +115,12 @@ describe('EthVault - deposit', () => {
 
     it('fails with exceeded capacity', async () => {
       await expect(
-        vault.connect(sender).deposit(receiver.address, { value: parseEther('999') })
+        vault.connect(sender).deposit(receiver.address, referrer, { value: parseEther('999') })
       ).to.be.revertedWith('CapacityExceeded')
     })
 
     it('fails when not harvested', async () => {
-      await vault.connect(other).deposit(other.address, { value: parseEther('32') })
+      await vault.connect(other).deposit(other.address, referrer, { value: parseEther('32') })
       await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
       await updateRewardsRoot(keeper, oracles, getSignatures, [
         { reward: parseEther('5'), vault: vault.address },
@@ -120,12 +129,12 @@ describe('EthVault - deposit', () => {
         { reward: parseEther('10'), vault: vault.address },
       ])
       await expect(
-        vault.connect(sender).deposit(receiver.address, { value: parseEther('10') })
+        vault.connect(sender).deposit(receiver.address, referrer, { value: parseEther('10') })
       ).to.be.revertedWith('NotHarvested')
     })
 
     it('update state and deposit', async () => {
-      await vault.connect(other).deposit(other.address, { value: parseEther('32') })
+      await vault.connect(other).deposit(other.address, referrer, { value: parseEther('32') })
       await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
 
       let vaultReward = parseEther('10')
@@ -150,7 +159,7 @@ describe('EthVault - deposit', () => {
       const amount = parseEther('100')
       const receipt = await vault
         .connect(sender)
-        .updateStateAndDeposit(receiver.address, harvestParams, { value: amount })
+        .updateStateAndDeposit(receiver.address, referrer, harvestParams, { value: amount })
       await expect(receipt).to.emit(vault, 'Transfer')
       await expect(receipt).to.emit(vault, 'Deposit')
       await expect(receipt).to.emit(vault, 'StateUpdated')
@@ -162,7 +171,9 @@ describe('EthVault - deposit', () => {
       const expectedShares = parseEther('100')
       expect(await vault.convertToShares(amount)).to.eq(expectedShares)
 
-      const receipt = await vault.connect(sender).deposit(receiver.address, { value: amount })
+      const receipt = await vault
+        .connect(sender)
+        .deposit(receiver.address, referrer, { value: amount })
       expect(await vault.balanceOf(receiver.address)).to.eq(expectedShares)
 
       await expect(receipt)
@@ -170,7 +181,7 @@ describe('EthVault - deposit', () => {
         .withArgs(ZERO_ADDRESS, receiver.address, expectedShares)
       await expect(receipt)
         .to.emit(vault, 'Deposit')
-        .withArgs(sender.address, receiver.address, amount, expectedShares)
+        .withArgs(sender.address, receiver.address, amount, expectedShares, referrer)
       await snapshotGasCost(receipt)
     })
   })

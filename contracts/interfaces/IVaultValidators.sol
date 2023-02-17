@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {IKeeperValidators} from './IKeeperValidators.sol';
 import {IVaultImmutables} from './IVaultImmutables.sol';
@@ -25,6 +25,13 @@ interface IVaultValidators is IVaultImmutables, IVaultAdmin, IVaultState {
   event ValidatorRegistered(bytes publicKey);
 
   /**
+   * @notice Event emitted on operator address update
+   * @param caller The address of the function caller
+   * @param operator The address of the new operator
+   */
+  event OperatorUpdated(address indexed caller, address indexed operator);
+
+  /**
    * @notice Event emitted on validators merkle tree root update
    * @param caller The address of the function caller
    * @param validatorsRoot The new validators merkle tree root
@@ -33,9 +40,15 @@ interface IVaultValidators is IVaultImmutables, IVaultAdmin, IVaultState {
 
   /**
    * @notice The Vault validators root
-   * @return The Merkle Tree root to use for verifying validators deposit data
+   * @return The merkle tree root to use for verifying validators deposit data
    */
   function validatorsRoot() external view returns (bytes32);
+
+  /**
+   * @notice The Vault operator address
+   * @return The address that can update validators merkle tree root
+   */
+  function operator() external view returns (address);
 
   /**
    * @notice The Vault validator index
@@ -74,7 +87,13 @@ interface IVaultValidators is IVaultImmutables, IVaultAdmin, IVaultState {
   ) external;
 
   /**
-   * @notice Function for updating the validators merkle tree root. Can only be called by the admin.
+   * @notice Function for updating the operator. Can only be called by the admin.
+   * @param _operator The new operator address
+   */
+  function setOperator(address _operator) external;
+
+  /**
+   * @notice Function for updating the validators merkle tree root. Can only be called by the operator.
    * @param _validatorsRoot The new validators merkle tree root
    */
   function setValidatorsRoot(bytes32 _validatorsRoot) external;

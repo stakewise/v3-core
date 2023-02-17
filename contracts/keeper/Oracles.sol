@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
@@ -12,7 +12,7 @@ import {IOracles} from '../interfaces/IOracles.sol';
  * @author StakeWise
  * @notice Defines the functionality for verifying signatures of the whitelisted off-chain oracles
  */
-contract Oracles is Ownable, EIP712, IOracles {
+contract Oracles is Ownable2Step, EIP712, IOracles {
   uint256 internal constant _signatureLength = 65;
 
   /// @inheritdoc IOracles

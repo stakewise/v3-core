@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
@@ -37,7 +37,7 @@ contract EthVaultMock is EthVault {
     }
 
     emit Transfer(address(0), receiver, shares);
-    emit Deposit(msg.sender, receiver, assets, shares);
+    emit Deposit(msg.sender, receiver, assets, shares, address(0));
   }
 
   function getGasCostOfGetCheckpointIndex(uint256 exitQueueId) external view returns (uint256) {

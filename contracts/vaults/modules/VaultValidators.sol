@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
@@ -31,9 +31,25 @@ abstract contract VaultValidators is
   /// @inheritdoc IVaultValidators
   uint256 public override validatorIndex;
 
+  address private _operator;
+
+  /// @dev Prevents calling a function from anyone except Vault's operator
+  modifier onlyOperator() {
+    if (msg.sender != operator()) revert AccessDenied();
+    _;
+  }
+
   /// @inheritdoc IVaultValidators
   function withdrawalCredentials() public view override returns (bytes memory) {
     return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
+  }
+
+  /// @inheritdoc IVaultValidators
+  function operator() public view override returns (address) {
+    // SLOAD to memory
+    address operator_ = _operator;
+    // if operator is not set, use admin address
+    return operator_ == address(0) ? admin : operator_;
   }
 
   /// @inheritdoc IVaultValidators
@@ -121,7 +137,14 @@ abstract contract VaultValidators is
   }
 
   /// @inheritdoc IVaultValidators
-  function setValidatorsRoot(bytes32 _validatorsRoot) external override onlyAdmin {
+  function setOperator(address operator_) external override onlyAdmin {
+    // update operator address
+    _operator = operator_;
+    emit OperatorUpdated(msg.sender, operator_);
+  }
+
+  /// @inheritdoc IVaultValidators
+  function setValidatorsRoot(bytes32 _validatorsRoot) external override onlyOperator {
     _setValidatorsRoot(_validatorsRoot);
   }
 

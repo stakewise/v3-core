@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {IVaultState} from './IVaultState.sol';
 import {IVaultToken} from './IVaultToken.sol';
@@ -30,18 +30,21 @@ interface IVaultEthStaking is IVaultToken, IVaultState, IVaultValidators, IVault
   /**
    * @notice Deposit ETH to the Vault
    * @param receiver The address that will receive Vault's shares
+   * @param referrer The address of the referrer. Set to zero address if not used.
    * @return shares The number of shares minted
    */
-  function deposit(address receiver) external payable returns (uint256 shares);
+  function deposit(address receiver, address referrer) external payable returns (uint256 shares);
 
   /**
    * @notice Updates Vault state and deposits ETH to the Vault
    * @param receiver The address that will receive Vault's shares
+   * @param referrer The address of the referrer. Set to zero address if not used.
    * @param harvestParams The parameters for harvesting Keeper rewards
    * @return shares The number of shares minted
    */
   function updateStateAndDeposit(
     address receiver,
+    address referrer,
     IKeeperRewards.HarvestParams calldata harvestParams
   ) external payable returns (uint256 shares);
 }

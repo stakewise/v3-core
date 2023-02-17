@@ -22,11 +22,11 @@ describe('EthVault - settings', () => {
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
-  let admin: Wallet, owner: Wallet, other: Wallet, newFeeRecipient: Wallet
+  let admin: Wallet, owner: Wallet, operator: Wallet, other: Wallet, newFeeRecipient: Wallet
   let keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
 
   before('create fixture loader', async () => {
-    ;[admin, owner, other, newFeeRecipient] = await (ethers as any).getSigners()
+    ;[admin, owner, operator, other, newFeeRecipient] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([owner])
   })
 
@@ -64,20 +64,53 @@ describe('EthVault - settings', () => {
         symbol,
         metadataIpfsHash,
       })
+      await vault.connect(admin).setOperator(operator.address)
     })
 
-    it('only admin can update', async () => {
-      await expect(vault.connect(other).setValidatorsRoot(newValidatorsRoot)).to.be.revertedWith(
+    it('only operator can update', async () => {
+      await expect(vault.connect(admin).setValidatorsRoot(newValidatorsRoot)).to.be.revertedWith(
         'AccessDenied'
       )
     })
 
     it('can update', async () => {
-      const receipt = await vault.connect(admin).setValidatorsRoot(newValidatorsRoot)
+      const receipt = await vault.connect(operator).setValidatorsRoot(newValidatorsRoot)
       await expect(receipt)
         .to.emit(vault, 'ValidatorsRootUpdated')
-        .withArgs(admin.address, newValidatorsRoot)
+        .withArgs(operator.address, newValidatorsRoot)
       expect(await vault.validatorsRoot()).to.be.eq(newValidatorsRoot)
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('operator', () => {
+    let vault: EthVault
+
+    beforeEach('deploy vault', async () => {
+      vault = await createVault(admin, {
+        capacity,
+        validatorsRoot,
+        feePercent,
+        name,
+        symbol,
+        metadataIpfsHash,
+      })
+    })
+
+    it('cannot be updated by anyone', async () => {
+      await expect(vault.connect(other).setOperator(operator.address)).to.be.revertedWith(
+        'AccessDenied'
+      )
+    })
+
+    it('can be updated by admin', async () => {
+      // initially equals to admin
+      expect(await vault.operator()).to.be.eq(admin.address)
+      const receipt = await vault.connect(admin).setOperator(operator.address)
+      await expect(receipt)
+        .to.emit(vault, 'OperatorUpdated')
+        .withArgs(admin.address, operator.address)
+      expect(await vault.operator()).to.be.eq(operator.address)
       await snapshotGasCost(receipt)
     })
   })

@@ -15,7 +15,13 @@ import {
   Keeper,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
-import { REQUIRED_ORACLES, ORACLES, ORACLES_CONFIG, SECURITY_DEPOSIT } from './constants'
+import {
+  REQUIRED_ORACLES,
+  ORACLES,
+  ORACLES_CONFIG,
+  SECURITY_DEPOSIT,
+  REWARDS_DELAY,
+} from './constants'
 
 export const createValidatorsRegistry = async function (): Promise<Contract> {
   const validatorsRegistryFactory = await getValidatorsRegistryFactory()
@@ -49,7 +55,7 @@ export const createKeeper = async function (
   validatorsRegistry: Contract
 ): Promise<Keeper> {
   const factory = await ethers.getContractFactory('Keeper')
-  const instance = await upgrades.deployProxy(factory, [owner.address], {
+  const instance = await upgrades.deployProxy(factory, [owner.address, REWARDS_DELAY], {
     unsafeAllow: ['delegatecall'],
     constructorArgs: [oracles.address, vaultsRegistry.address, validatorsRegistry.address],
   })

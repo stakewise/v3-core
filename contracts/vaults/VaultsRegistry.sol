@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
-import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 
@@ -11,7 +11,7 @@ import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
  * @author StakeWise
  * @notice Defines the registry functionality that keeps track of Vaults, Factories and Vault upgrades
  */
-contract VaultsRegistry is Ownable, IVaultsRegistry {
+contract VaultsRegistry is Ownable2Step, IVaultsRegistry {
   /// @inheritdoc IVaultsRegistry
   mapping(address => bool) public override vaults;
 
@@ -23,10 +23,10 @@ contract VaultsRegistry is Ownable, IVaultsRegistry {
 
   /**
    * @dev Constructor
-   * @param owner_ The address of the registry owner
+   * @param _owner The address of the registry owner
    */
-  constructor(address owner_) {
-    _transferOwnership(owner_);
+  constructor(address _owner) {
+    _transferOwnership(_owner);
   }
 
   /// @inheritdoc IVaultsRegistry

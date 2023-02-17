@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
+import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import {Ownable2StepUpgradeable} from '@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
@@ -12,7 +14,7 @@ import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
  * @author StakeWise
  * @notice Defines the functionality for updating Vaults' consensus rewards
  */
-abstract contract KeeperRewards is IKeeperRewards {
+abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeeperRewards {
   bytes32 internal constant _rewardsRootTypeHash =
     keccak256(
       'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint64 updateTimestamp,uint96 nonce)'
@@ -38,6 +40,12 @@ abstract contract KeeperRewards is IKeeperRewards {
   /// @inheritdoc IKeeperRewards
   uint96 public override rewardsNonce;
 
+  /// @inheritdoc IKeeperRewards
+  uint64 public override lastRewardsTimestamp;
+
+  /// @inheritdoc IKeeperRewards
+  uint64 public override rewardsDelay;
+
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -53,6 +61,8 @@ abstract contract KeeperRewards is IKeeperRewards {
 
   /// @inheritdoc IKeeperRewards
   function setRewardsRoot(RewardsRootUpdateParams calldata params) external override {
+    if (!canUpdateRewards()) revert TooEarlyUpdate();
+
     // SLOAD to memory
     bytes32 currRewardsRoot = rewardsRoot;
     if (currRewardsRoot == params.rewardsRoot || prevRewardsRoot == params.rewardsRoot) {
@@ -77,9 +87,12 @@ abstract contract KeeperRewards is IKeeperRewards {
     );
 
     // update state
-    rewardsNonce = nonce + 1;
     prevRewardsRoot = currRewardsRoot;
     rewardsRoot = params.rewardsRoot;
+    rewardsNonce = nonce + 1;
+
+    // cannot overflow on human timescales
+    lastRewardsTimestamp = uint64(block.timestamp);
 
     emit RewardsRootUpdated(
       msg.sender,
@@ -88,6 +101,14 @@ abstract contract KeeperRewards is IKeeperRewards {
       nonce,
       params.rewardsIpfsHash
     );
+  }
+
+  /// @inheritdoc IKeeperRewards
+  function canUpdateRewards() public view override returns (bool) {
+    unchecked {
+      // cannot overflow as lastRewardsTimestamp & rewardsDelay are uint64
+      return lastRewardsTimestamp + rewardsDelay < block.timestamp;
+    }
   }
 
   /// @inheritdoc IKeeperRewards
@@ -154,6 +175,23 @@ abstract contract KeeperRewards is IKeeperRewards {
     }
   }
 
+  /// @inheritdoc IKeeperRewards
+  function setRewardsDelay(uint64 _rewardsDelay) external override onlyOwner {
+    _setRewardsDelay(_rewardsDelay);
+  }
+
+  /**
+   * @notice Internal function for updating rewards delay
+   * @param _rewardsDelay The new rewards update delay
+   */
+  function _setRewardsDelay(uint64 _rewardsDelay) internal {
+    // update state
+    rewardsDelay = _rewardsDelay;
+
+    // emit event
+    emit RewardsDelayUpdated(msg.sender, _rewardsDelay);
+  }
+
   /**
    * @dev Collateralize Vault so that it must be harvested in future reward updates
    * @param vault The address of the Vault
@@ -162,6 +200,20 @@ abstract contract KeeperRewards is IKeeperRewards {
     if (rewards[vault].nonce == 0) {
       rewards[vault] = RewardSync({nonce: rewardsNonce, reward: 0});
     }
+  }
+
+  /**
+   * @notice Initializes the KeeperRewards contract
+   * @param _owner The address of the owner
+   * @param _rewardsDelay The rewards update delay
+   */
+  function __KeeperRewards_init(address _owner, uint64 _rewardsDelay) internal onlyInitializing {
+    _transferOwnership(_owner);
+    _setRewardsDelay(_rewardsDelay);
+
+    // set rewardsNonce to 1 so that vaults collateralized
+    // before first rewards root update will not have 0 nonce
+    rewardsNonce = 1;
   }
 
   /**

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {IVaultImmutables} from './IVaultImmutables.sol';
 import {IVaultAdmin} from './IVaultAdmin.sol';
@@ -37,7 +37,7 @@ interface IVaultFee is IVaultImmutables, IVaultAdmin {
 
   /**
    * @notice Function for updating the fee recipient address. Can only be called by the admin.
-   * @param _feeRecipient The address of the new fee recipient
+   * @param feeRecipient_ The address of the new fee recipient
    */
-  function setFeeRecipient(address _feeRecipient) external;
+  function setFeeRecipient(address feeRecipient_) external;
 }

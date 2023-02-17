@@ -2,42 +2,42 @@
 
 exports[`EthVault - whitelist deposit can be called by whitelisted user 1`] = `
 Object {
-  "calldataByteLength": 36,
-  "gasUsed": 75212,
+  "calldataByteLength": 68,
+  "gasUsed": 75929,
 }
 `;
 
 exports[`EthVault - whitelist set whitelister admin can update whitelister 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 36482,
+  "gasUsed": 36521,
 }
 `;
 
 exports[`EthVault - whitelist whitelist can be updated by whitelister 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 53181,
+  "gasUsed": 53174,
 }
 `;
 
 exports[`EthVault - whitelist whitelist can be updated by whitelister 2`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 31269,
+  "gasUsed": 31262,
 }
 `;
 
 exports[`EthVault - whitelist whitelist root admin can update root 1`] = `
 Object {
   "calldataByteLength": 164,
-  "gasUsed": 55594,
+  "gasUsed": 55609,
 }
 `;
 
 exports[`EthVault - whitelist whitelist root user can join with valid proof 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 54760,
+  "gasUsed": 54750,
 }
 `;

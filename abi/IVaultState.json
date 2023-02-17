@@ -35,6 +35,11 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "ZeroAddress",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -455,7 +460,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "_feeRecipient",
+        "name": "feeRecipient_",
         "type": "address"
       }
     ],

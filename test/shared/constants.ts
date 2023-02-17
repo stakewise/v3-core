@@ -12,6 +12,8 @@ export const MAX_UINT128 = BigNumber.from(2).pow(128).sub(1)
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 export const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000'
 export const ONE_DAY = 86400
+
+export const REWARDS_DELAY = ONE_DAY / 2
 export const ORACLES = [
   Buffer.from('c2bc8560ffcc278ded2efffaccfc4ce08b2a3a867eb744cec45732603e30ebf7', 'hex'),
   Buffer.from('aff434fa2127355afdf265af1ba7e1d1384ffca4b7c2a8b7b9e04d23e316f395', 'hex'),
