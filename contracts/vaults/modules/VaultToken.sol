@@ -13,6 +13,7 @@ import {VaultImmutables} from './VaultImmutables.sol';
 
 // Custom errors
 error InvalidTokenMeta();
+error InvalidCapacity();
 
 /**
  * @title VaultToken
@@ -113,8 +114,9 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
     // initialize ERC20Permit
     __ERC20Upgradeable_init(_name, _symbol);
 
-    // if capacity is not set, it is unlimited
-    if (capacity_ != 0 && capacity_ != type(uint256).max) _capacity = capacity_;
+    if (capacity_ == 0) revert InvalidCapacity();
+    // skip setting capacity if it is unlimited
+    if (capacity_ != type(uint256).max) _capacity = capacity_;
   }
 
   /**

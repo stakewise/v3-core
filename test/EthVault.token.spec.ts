@@ -79,6 +79,19 @@ describe('EthVault - token', () => {
     ).to.be.revertedWith('InvalidTokenMeta')
   })
 
+  it('fails to deploy with invalid capacity', async () => {
+    await expect(
+      createVault(admin, {
+        capacity: 0,
+        validatorsRoot,
+        feePercent,
+        name,
+        symbol,
+        metadataIpfsHash,
+      })
+    ).to.be.revertedWith('InvalidCapacity')
+  })
+
   it('fails to deploy with invalid symbol length', async () => {
     await expect(
       createVault(admin, {
