@@ -32,6 +32,7 @@ describe('EthVault - withdraw', () => {
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
+  const referrer = '0x' + '1'.repeat(40)
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const holderShares = parseEther('1')
@@ -78,7 +79,7 @@ describe('EthVault - withdraw', () => {
       proof,
     }
 
-    await vault.connect(holder).deposit(holder.address, { value: holderAssets })
+    await vault.connect(holder).deposit(holder.address, referrer, { value: holderAssets })
   })
 
   describe('redeem & withdraw', () => {
@@ -133,7 +134,7 @@ describe('EthVault - withdraw', () => {
         metadataIpfsHash,
       })
       await vault.resetSecurityDeposit()
-      await vault.connect(holder).deposit(holder.address, { value: holderAssets })
+      await vault.connect(holder).deposit(holder.address, referrer, { value: holderAssets })
 
       const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
 
@@ -223,7 +224,7 @@ describe('EthVault - withdraw', () => {
         symbol,
         metadataIpfsHash,
       })
-      await newVault.connect(holder).deposit(holder.address, { value: holderAssets })
+      await newVault.connect(holder).deposit(holder.address, referrer, { value: holderAssets })
       await expect(
         newVault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
       ).to.be.revertedWith('NotCollateralized')
@@ -287,7 +288,7 @@ describe('EthVault - withdraw', () => {
 
     it('skips if it is too early', async () => {
       await vault.updateState(harvestParams)
-      await vault.connect(holder).deposit(holder.address, { value: holderAssets })
+      await vault.connect(holder).deposit(holder.address, referrer, { value: holderAssets })
       await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
       await expect(vault.updateState(harvestParams)).to.not.emit(exitQueue, 'CheckpointCreated')
     })
@@ -358,7 +359,7 @@ describe('EthVault - withdraw', () => {
     })
 
     // collateralize vault by registering validator
-    await vault.connect(holder).deposit(holder.address, { value: validatorDeposit })
+    await vault.connect(holder).deposit(holder.address, referrer, { value: validatorDeposit })
     await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
 
     const exitQueueId = await vault
@@ -437,7 +438,7 @@ describe('EthVault - withdraw', () => {
       await vault.updateState(harvestParams)
       const checkpointIndex = await vault.getCheckpointIndex(exitQueueId)
 
-      await vault.connect(holder).deposit(holder.address, { value: holderAssets.mul(2) })
+      await vault.connect(holder).deposit(holder.address, referrer, { value: holderAssets.mul(2) })
       const exitQueueId2 = await vault
         .connect(holder)
         .callStatic.enterExitQueue(holderShares, receiver.address, holder.address)
@@ -569,8 +570,8 @@ describe('EthVault - withdraw', () => {
       const user1 = holder
       const user2 = receiver
 
-      await vault.connect(user1).deposit(user1.address, { value: assets })
-      await vault.connect(user2).deposit(user2.address, { value: assets })
+      await vault.connect(user1).deposit(user1.address, referrer, { value: assets })
+      await vault.connect(user2).deposit(user2.address, referrer, { value: assets })
 
       const user1ExitQueueId = await vault
         .connect(user1)
@@ -672,7 +673,7 @@ describe('EthVault - withdraw', () => {
     totalStakedAssets += 2000
     vaultAssets += 2000
     totalSupply += 2000
-    await expect(vault.connect(alice).deposit(alice.address, { value: aliceAssets }))
+    await expect(vault.connect(alice).deposit(alice.address, referrer, { value: aliceAssets }))
       .to.emit(vault, 'Transfer')
       .withArgs(ZERO_ADDRESS, alice.address, aliceShares)
 
@@ -684,7 +685,7 @@ describe('EthVault - withdraw', () => {
     totalStakedAssets += 4000
     vaultAssets += 4000
     totalSupply += 4000
-    await expect(vault.connect(bob).deposit(bob.address, { value: bobAssets }))
+    await expect(vault.connect(bob).deposit(bob.address, referrer, { value: bobAssets }))
       .to.emit(vault, 'Transfer')
       .withArgs(ZERO_ADDRESS, bob.address, bobShares)
 
@@ -716,14 +717,14 @@ describe('EthVault - withdraw', () => {
     vaultAssets += 2000
     totalSupply += 1333
 
-    await expect(vault.connect(alice).deposit(alice.address, { value: 2000 }))
+    await expect(vault.connect(alice).deposit(alice.address, referrer, { value: 2000 }))
       .to.emit(vault, 'Transfer')
       .withArgs(ZERO_ADDRESS, alice.address, 1333)
 
     await checkVaultState()
 
     // 5. Bob deposits 3000 ETH (mints 1999 shares)
-    await expect(vault.connect(bob).deposit(bob.address, { value: 3000 }))
+    await expect(vault.connect(bob).deposit(bob.address, referrer, { value: 3000 }))
       .to.emit(vault, 'Transfer')
       .withArgs(ZERO_ADDRESS, bob.address, 1999)
     aliceAssets += 1 // rounds up

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {IERC20} from './IERC20.sol';
 
@@ -13,6 +13,7 @@ interface IERC20Permit is IERC20 {
   /// Custom errors
   error PermitDeadlineExpired();
   error PermitInvalidSigner();
+  error ZeroAddress();
 
   /**
    * @notice Get the domain separator for the token

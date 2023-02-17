@@ -17,7 +17,7 @@ Object {
 exports[`VaultsRegistry owner can register implementation contract 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 47470,
+  "gasUsed": 47487,
 }
 `;
 
@@ -31,6 +31,6 @@ Object {
 exports[`VaultsRegistry owner can remove implementation 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 25435,
+  "gasUsed": 25430,
 }
 `;

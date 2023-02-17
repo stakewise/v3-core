@@ -3,40 +3,40 @@
 exports[`Oracles add oracle succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 52489,
+  "gasUsed": 52511,
 }
 `;
 
 exports[`Oracles remove oracle decreases required oracles 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 36966,
+  "gasUsed": 37008,
 }
 `;
 
 exports[`Oracles remove oracle succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 32783,
+  "gasUsed": 32827,
 }
 `;
 
 exports[`Oracles set required oracles succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 31860,
+  "gasUsed": 31880,
 }
 `;
 
 exports[`Oracles update config succeeds 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 26635,
+  "gasUsed": 26657,
 }
 `;
 
 exports[`Oracles verify oracles all signatures succeeds with all signatures 1`] = `75222`;
 
-exports[`Oracles verify oracles min signatures succeeds with all signatures 1`] = `44794`;
+exports[`Oracles verify oracles min signatures succeeds with all signatures 1`] = `44806`;
 
-exports[`Oracles verify oracles min signatures succeeds with required signatures 1`] = `44733`;
+exports[`Oracles verify oracles min signatures succeeds with required signatures 1`] = `44745`;

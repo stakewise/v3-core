@@ -20,6 +20,11 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "TooEarlyUpdate",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -42,6 +47,25 @@
       }
     ],
     "name": "Harvested",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
+        "name": "rewardsDelay",
+        "type": "uint64"
+      }
+    ],
+    "name": "RewardsDelayUpdated",
     "type": "event"
   },
   {
@@ -167,6 +191,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "canUpdateRewards",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "components": [
@@ -208,6 +245,11 @@
         "internalType": "address",
         "name": "_owner",
         "type": "address"
+      },
+      {
+        "internalType": "uint64",
+        "name": "_rewardsDelay",
+        "type": "uint64"
       }
     ],
     "name": "initialize",
@@ -248,6 +290,19 @@
         "internalType": "bool",
         "name": "",
         "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "lastRewardsTimestamp",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
       }
     ],
     "stateMutability": "view",
@@ -305,6 +360,19 @@
   },
   {
     "inputs": [],
+    "name": "rewardsDelay",
+    "outputs": [
+      {
+        "internalType": "uint64",
+        "name": "",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "rewardsNonce",
     "outputs": [
       {
@@ -327,6 +395,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint64",
+        "name": "_rewardsDelay",
+        "type": "uint64"
+      }
+    ],
+    "name": "setRewardsDelay",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

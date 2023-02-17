@@ -46,7 +46,7 @@ describe('EthVault - state', () => {
       symbol,
       metadataIpfsHash,
     })
-    await vault.connect(holder).deposit(holder.address, { value: holderAssets })
+    await vault.connect(holder).deposit(holder.address, ZERO_ADDRESS, { value: holderAssets })
   })
 
   it('does not fail with zero assets delta', async () => {

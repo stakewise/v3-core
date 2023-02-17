@@ -4,7 +4,7 @@ import { parseEther, toUtf8Bytes } from 'ethers/lib/utils'
 import keccak256 from 'keccak256'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { Keeper, EthVault, Oracles } from '../../typechain-types'
-import { EIP712Domain, KeeperRewardsSig, ONE_DAY } from './constants'
+import { EIP712Domain, KeeperRewardsSig, ONE_DAY, REWARDS_DELAY, ZERO_ADDRESS } from './constants'
 import { Buffer } from 'buffer'
 import { registerEthValidator } from './validators'
 import { increaseTime, setBalance } from './utils'
@@ -71,6 +71,7 @@ export async function updateRewardsRoot(
 ): Promise<RewardsTree> {
   const rewardsNonce = await keeper.rewardsNonce()
   const rewardsRoot = createVaultRewardsRoot(rewards, oracles, 1670257866, rewardsNonce.toNumber())
+  await increaseTime(REWARDS_DELAY)
   await keeper.setRewardsRoot({
     rewardsRoot: rewardsRoot.root,
     updateTimestamp: rewardsRoot.updateTimestamp,
@@ -95,7 +96,7 @@ export async function collateralizeEthVault(
   const balanceBefore = await waffle.provider.getBalance(vault.address)
   // register validator
   const validatorDeposit = parseEther('32')
-  await vault.connect(admin).deposit(admin.address, { value: validatorDeposit })
+  await vault.connect(admin).deposit(admin.address, ZERO_ADDRESS, { value: validatorDeposit })
   await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
 
   // update rewards tree
