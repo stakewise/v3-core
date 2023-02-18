@@ -11,6 +11,10 @@ import {IVaultImmutables} from './IVaultImmutables.sol';
  * @notice Defines the interface for the VaultToken contract
  */
 interface IVaultToken is IVaultImmutables, IERC20Permit {
+  // Custom errors
+  error InvalidCapacity();
+  error InvalidTokenMeta();
+
   /**
    * @notice The Vault's capacity
    * @return The amount after which the Vault stops accepting deposits

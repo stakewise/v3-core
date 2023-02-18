@@ -1,6 +1,16 @@
 [
   {
     "inputs": [],
+    "name": "InvalidCapacity",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidTokenMeta",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "PermitDeadlineExpired",
     "type": "error"
   },

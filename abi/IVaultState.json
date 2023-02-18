@@ -11,12 +11,22 @@
   },
   {
     "inputs": [],
+    "name": "InvalidCapacity",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidFeePercent",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "InvalidFeeRecipient",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidTokenMeta",
     "type": "error"
   },
   {

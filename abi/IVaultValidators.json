@@ -11,6 +11,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidCapacity",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidFeePercent",
     "type": "error"
   },
@@ -22,6 +27,11 @@
   {
     "inputs": [],
     "name": "InvalidProof",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidTokenMeta",
     "type": "error"
   },
   {
