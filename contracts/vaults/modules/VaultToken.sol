@@ -11,10 +11,6 @@ import {IVaultToken} from '../../interfaces/IVaultToken.sol';
 import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
 
-// Custom errors
-error InvalidTokenMeta();
-error InvalidCapacity();
-
 /**
  * @title VaultToken
  * @author StakeWise

@@ -37,7 +37,7 @@ interface IVaultFee is IVaultImmutables, IVaultAdmin {
 
   /**
    * @notice Function for updating the fee recipient address. Can only be called by the admin.
-   * @param feeRecipient_ The address of the new fee recipient
+   * @param _feeRecipient The address of the new fee recipient
    */
-  function setFeeRecipient(address feeRecipient_) external;
+  function setFeeRecipient(address _feeRecipient) external;
 }
