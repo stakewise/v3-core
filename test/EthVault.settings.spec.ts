@@ -103,6 +103,10 @@ describe('EthVault - settings', () => {
       )
     })
 
+    it('cannot set to zero address', async () => {
+      await expect(vault.connect(admin).setOperator(ZERO_ADDRESS)).to.be.revertedWith('ZeroAddress')
+    })
+
     it('can be updated by admin', async () => {
       // initially equals to admin
       expect(await vault.operator()).to.be.eq(admin.address)

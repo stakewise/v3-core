@@ -64,7 +64,7 @@ abstract contract VaultEthStaking is
   /// @inheritdoc VaultValidators
   function _registerSingleValidator(bytes calldata validator) internal override {
     bytes calldata publicKey = validator[:48];
-    IEthValidatorsRegistry(validatorsRegistry).deposit{value: _validatorDeposit}(
+    IEthValidatorsRegistry(validatorsRegistry).deposit{value: _validatorDeposit()}(
       publicKey,
       withdrawalCredentials(),
       validator[48:144],
@@ -99,7 +99,7 @@ abstract contract VaultEthStaking is
       );
       publicKey = validator[:48];
       // slither-disable-next-line arbitrary-send-eth
-      IEthValidatorsRegistry(validatorsRegistry).deposit{value: _validatorDeposit}(
+      IEthValidatorsRegistry(validatorsRegistry).deposit{value: _validatorDeposit()}(
         publicKey,
         withdrawalCreds,
         validator[48:144],
@@ -130,6 +130,11 @@ abstract contract VaultEthStaking is
     IKeeperRewards.HarvestParams calldata harvestParams
   ) internal override returns (int256) {
     return IKeeperRewards(keeper).harvest(harvestParams) + int256(mevEscrow.withdraw());
+  }
+
+  /// @inheritdoc VaultValidators
+  function _validatorDeposit() internal pure override returns (uint256) {
+    return 32 ether;
   }
 
   /**

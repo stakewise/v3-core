@@ -22,7 +22,6 @@ abstract contract VaultValidators is
   VaultState,
   IVaultValidators
 {
-  uint256 internal constant _validatorDeposit = 32 ether;
   uint256 internal constant _validatorLength = 176;
 
   /// @inheritdoc IVaultValidators
@@ -61,7 +60,7 @@ abstract contract VaultValidators is
     IKeeperValidators(keeper).approveValidators(keeperParams);
 
     // check enough withdrawable assets
-    if (withdrawableAssets() < _validatorDeposit) revert InsufficientAssets();
+    if (withdrawableAssets() < _validatorDeposit()) revert InsufficientAssets();
 
     // check validator length is valid
     if (keeperParams.validators.length != _validatorLength) revert InvalidValidator();
@@ -102,7 +101,7 @@ abstract contract VaultValidators is
 
     // check enough withdrawable assets
     uint256 validatorsCount = keeperParams.validators.length / _validatorLength;
-    if (withdrawableAssets() < _validatorDeposit * validatorsCount) {
+    if (withdrawableAssets() < _validatorDeposit() * validatorsCount) {
       revert InsufficientAssets();
     }
 
@@ -138,6 +137,7 @@ abstract contract VaultValidators is
 
   /// @inheritdoc IVaultValidators
   function setOperator(address operator_) external override onlyAdmin {
+    if (operator_ == address(0)) revert ZeroAddress();
     // update operator address
     _operator = operator_;
     emit OperatorUpdated(msg.sender, operator_);
@@ -177,10 +177,17 @@ abstract contract VaultValidators is
   ) internal virtual returns (bytes32[] memory leaves);
 
   /**
+   * @dev Internal function for fetching validator deposit amount
+   */
+  function _validatorDeposit() internal pure virtual returns (uint256);
+
+  /**
    * @dev Initializes the VaultValidators contract
+   * @dev NB! This initializer must be called after VaultToken initializer
    * @param _validatorsRoot The validators merkle tree root
    */
   function __VaultValidators_init(bytes32 _validatorsRoot) internal onlyInitializing {
+    if (capacity() < _validatorDeposit()) revert InvalidCapacity();
     _setValidatorsRoot(_validatorsRoot);
   }
 
