@@ -50,7 +50,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
 
   const keeper = await upgrades.deployProxy(
     new Keeper__factory(deployer),
-    [networkConfig.governor],
+    [networkConfig.governor, networkConfig.rewardsDelay],
     {
       unsafeAllow: ['delegatecall'],
       constructorArgs: [oracles.address, vaultsRegistry.address, networkConfig.validatorsRegistry],
