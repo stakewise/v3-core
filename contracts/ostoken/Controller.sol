@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
@@ -14,7 +14,7 @@ contract Controller {
   mapping(address => uint256) public override borrowedShares;
 
   /// @inheritdoc IController
-  function supply(address vault, uint256 shares, uint16 referralCode) external override {
+  function supply(address vault, uint256 shares) external override {
     if (shares == 0) revert InvalidShares();
     if (!vaultsRegistry.vaults(vault)) revert InvalidVault();
     if (_vaults[msg.sender].length >= _maxVaultsCount) revert ExceededVaultsCount();
@@ -28,7 +28,7 @@ contract Controller {
 
     SafeERC20.safeTransferFrom(IERC20(vault), msg.sender, address(this), shares);
 
-    emit Supplied(msg.sender, vault, shares, referralCode);
+    emit Supplied(msg.sender, vault, shares);
   }
 
   /// @inheritdoc IController
@@ -39,9 +39,6 @@ contract Controller {
     // get total amount of supplied shares
     uint256 suppliedShares = _suppliedShares[vault][msg.sender];
     if (suppliedShares == 0) revert InvalidVault();
-
-    // check whether all shares must be withdrawn
-    if (shares == type(uint256).max) shares = suppliedShares;
 
     // clean up vault if all the shares are withdrawn
     if (shares == suppliedShares) _vaults[msg.sender].remove(vault);
@@ -57,7 +54,7 @@ contract Controller {
       // calculate and validate current health factor
       _checkHealthFactor(suppliedAssets, borrowedAssets);
 
-      // calculate and check collateral needed for total borrowed amount
+      // calculate and validate collateral needed for total borrowed amount
       _checkLtv(suppliedAssets, borrowedAssets);
     }
 
@@ -72,7 +69,7 @@ contract Controller {
   function borrow(
     uint256 assets,
     address receiver,
-    uint16 referralCode
+    address referrer
   ) external override returns (uint256 shares) {
     if (!vaultsRegistry.vaults(vault)) revert InvalidVault();
     if (receiver == address(0)) revert InvalidRecipient();
@@ -85,7 +82,7 @@ contract Controller {
     // calculate and validate current health factor
     _checkHealthFactor(suppliedAssets, borrowedAssets);
 
-    // calculate and check collateral needed for total borrowed amount
+    // calculate and validate collateral needed for total borrowed amount
     _checkLtv(suppliedAssets, borrowedAssets);
 
     // mint shares to the receiver
@@ -98,7 +95,7 @@ contract Controller {
     }
 
     // emit event
-    emit Borrowed(msg.sender, receiver, assets, shares, referralCode);
+    emit Borrowed(msg.sender, receiver, assets, shares, referrer);
   }
 
   /// @inheritdoc IController
@@ -106,16 +103,10 @@ contract Controller {
     // fetch user state
     uint256 borrowedShares = _borrowedShares[msg.sender];
 
-    // check whether all shares must be repaid
-    if (shares == type(uint256).max) shares = borrowedShares;
-
-    // transfer shares to controller
-    SafeERC20.safeTransferFrom(IERC20(osToken), msg.sender, address(this), shares);
-
     // burn osToken shares
-    assets = osToken.burnShares(shares);
+    assets = osToken.burnShares(msg.sender, shares);
 
-    // update borrowed shares amount
+    // update borrowed shares amount. Reverts if repaid more than borrowed.
     _borrowedShares[msg.sender] = borrowedShares - shares;
 
     // emit event
@@ -123,26 +114,117 @@ contract Controller {
   }
 
   /// @inheritdoc IController
-  function liquidate(uint256 shares) external override returns (uint256 assets) {
+  function liquidate(
+    address user,
+    uint256 coveredShares,
+    address collateralReceiver,
+    bool enterExitQueue
+  ) external override returns (uint256 coveredAssets) {
     if (!vaultsRegistry.vaults(vault)) revert InvalidVault();
 
-    // fetch user state
-    uint256 borrowedShares = _borrowedShares[msg.sender];
+    // calculate health factor
+    uint256 borrowedShares = _borrowedShares[user];
+    uint256 borrowedAssets = osToken.convertToAssets(borrowedShares);
+    uint256 suppliedAssets = getSuppliedAssets(user);
+    if (_getHealthFactor(suppliedAssets, borrowedAssets) >= healthFactorLiqThreshold) {
+      revert HealthFactorNotViolated();
+    }
 
-    // check whether all shares must be repaid
-    if (shares == type(uint256).max) shares = borrowedShares;
+    // calculate assets to cover
+    if (borrowedShares == coveredShares) {
+      coveredAssets = borrowedAssets;
+    } else {
+      coveredShares = Math.min(borrowedShares, coveredShares);
+      coveredAssets = osToken.convertToAssets(coveredShares);
+    }
 
-    // transfer shares to controller
-    SafeERC20.safeTransferFrom(IERC20(osToken), msg.sender, address(this), shares);
+    // calculate assets received by liquidator with bonus
+    uint256 receivedAssets;
+    unchecked {
+      // cannot overflow as it is capped with underlying total supply
+      receivedAssets = coveredAssets + Math.mulDiv(coveredAssets, liqBonusPercent, _maxPercent);
+    }
 
-    // burn osToken shares
-    assets = osToken.burnShares(shares);
+    // adjust covered shares based on received assets
+    if (receivedAssets > suppliedAssets) {
+      receivedAssets = suppliedAssets;
+      unchecked {
+        // cannot underflow as liqBonusPercent <= _maxPercent
+        coveredAssets = suppliedAssets - Math.mulDiv(suppliedAssets, liqBonusPercent, _maxPercent);
+      }
+      coveredShares = osToken.convertToShares(coveredAssets);
+    }
 
-    // update borrowed shares amount
-    _borrowedShares[msg.sender] = borrowedShares - shares;
+    // reduce osToken supply
+    osToken.burnShares(msg.sender, coveredShares);
+
+    // execute liquidation
+    _executePayment(user, receivedAssets, collateralReceiver, enterExitQueue);
 
     // emit event
-    emit Repaid(msg.sender, assets, shares);
+    emit Liquidation(
+      msg.sender,
+      user,
+      coveredShares,
+      coveredAssets,
+      collateralReceiver,
+      receivedAssets,
+      enterExitQueue
+    );
+  }
+
+  function updateVaultState() external;
+
+  function updateTreasuryFee(address user) public override {
+    // 1. update osToken state
+    // 2. assets = osToken.convertToAssets(borrowedShares)
+    // 3. feeAssets = Math.mulDiv(abs(assets - prevAssets), feePercent, 10000)
+    // 4. borrowedShares += osToken.convertToShares(feeAssets)
+  }
+
+  function _executePayment(
+    address user,
+    uint256 totalAssets,
+    address receiver,
+    bool enterExitQueue
+  ) internal {
+    address[] memory vaults = _vaults[user].values();
+    address vault;
+    uint256 userShares;
+    uint256 paymentShares;
+    for (uint256 i = 0; i < vaults.length; ) {
+      // no need to check for harvest as it's checked at getSuppliedAssets
+      vault = vaults[i];
+
+      // fetch user shares
+      userShares = _balances[vault][user];
+
+      // calculate shares to pay
+      paymentShares = IVault(vault).convertToShares(
+        Math.min(IVault(vault).convertToAssets(userShares), totalAssets)
+      );
+
+      // clean up vault if all the shares are withdrawn
+      if (userShares == paymentShares) _vaults[user].remove(vault);
+
+      // update user supply balance
+      unchecked {
+        // cannot underflow as userShares >= paymentShares
+        _balances[vault][user] = userShares - paymentShares;
+      }
+
+      if (enterExitQueue) {
+        // submit shares to the exit queue. Exit queue ID can be obtained from the Vault's event
+        IVault(vault).enterExitQueue(paymentShares, receiver, address(this));
+      } else {
+        SafeERC20.safeTransferFrom(IERC20(vault), address(this), receiver, paymentShares);
+      }
+
+      unchecked {
+        // cannot overflow as there are up to _maxVaultsCount vaults
+        ++i;
+      }
+    }
   }
 
   /// @inheritdoc IController
@@ -162,14 +244,18 @@ contract Controller {
     }
   }
 
+  function _getHealthFactor(
+    uint256 suppliedAssets,
+    uint256 borrowedAssets
+  ) private view returns (uint256) {
+    return Math.mulDiv(suppliedAssets * liqThresholdPercent, _wad, borrowedAssets * _maxPercent);
+  }
+
   function _checkHealthFactor(uint256 suppliedAssets, uint256 borrowedAssets) private view {
     if (borrowedAssets == 0) return;
-    uint256 hf = Math.mulDiv(
-      suppliedAssets * liqThresholdPercent,
-      _wad,
-      borrowedAssets * _maxPercent
-    );
-    if (_healthFactorLiqThreshold > hf) revert LowHealthFactor();
+    if (healthFactorLiqThreshold > _getHealthFactor(suppliedAssets, borrowedAssets)) {
+      revert LowHealthFactor();
+    }
   }
 
   function _checkLtv(uint256 suppliedAssets, uint256 borrowedAssets) private view {

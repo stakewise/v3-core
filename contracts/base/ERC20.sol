@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.17;
+pragma solidity =0.8.18;
 
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
@@ -51,6 +51,7 @@ abstract contract ERC20 is IERC20Permit {
 
   /// @inheritdoc IERC20
   function approve(address spender, uint256 amount) public override returns (bool) {
+    if (spender == address(0)) revert ZeroAddress();
     allowance[msg.sender][spender] = amount;
 
     emit Approval(msg.sender, spender, amount);
@@ -82,6 +83,7 @@ abstract contract ERC20 is IERC20Permit {
     bytes32 r,
     bytes32 s
   ) public override {
+    if (spender == address(0)) revert ZeroAddress();
     if (deadline < block.timestamp) revert PermitDeadlineExpired();
 
     // Unchecked because the only math done is incrementing
@@ -137,7 +139,7 @@ abstract contract ERC20 is IERC20Permit {
    * Emits a {Transfer} event.
    */
   function _transfer(address from, address to, uint256 amount) internal {
-    if (to == address(0)) revert InvalidRecipient();
+    if (from == address(0) || to == address(0)) revert ZeroAddress();
     balanceOf[from] -= amount;
 
     // Cannot overflow because the sum of all user
