@@ -10,12 +10,12 @@ pragma solidity =0.8.19;
 interface IVaultImmutables {
   /**
    * @notice The Keeper address
-   * @return The address of the Vault's keeper contract
+   * @return The address of the Keeper contract
    */
   function keeper() external view returns (address);
 
   /**
-   * @notice The Vaults Registry Address
+   * @notice The Vaults Registry address
    * @return The address of the Vaults' registry contract
    */
   function vaultsRegistry() external view returns (address);
