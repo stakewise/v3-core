@@ -2,22 +2,22 @@
 
 exports[`KeeperRewards harvest succeeds for latest rewards root 1`] = `
 Object {
-  "calldataByteLength": 260,
-  "gasUsed": 114754,
+  "calldataByteLength": 292,
+  "gasUsed": 115505,
 }
 `;
 
 exports[`KeeperRewards harvest succeeds for latest rewards root 2`] = `
 Object {
-  "calldataByteLength": 260,
-  "gasUsed": 61227,
+  "calldataByteLength": 292,
+  "gasUsed": 61978,
 }
 `;
 
 exports[`KeeperRewards harvest succeeds for previous rewards root 1`] = `
 Object {
-  "calldataByteLength": 260,
-  "gasUsed": 116925,
+  "calldataByteLength": 292,
+  "gasUsed": 117676,
 }
 `;
 
@@ -30,8 +30,8 @@ Object {
 
 exports[`KeeperRewards harvest succeeds for previous rewards root 3`] = `
 Object {
-  "calldataByteLength": 260,
-  "gasUsed": 63398,
+  "calldataByteLength": 292,
+  "gasUsed": 64149,
 }
 `;
 
@@ -45,13 +45,13 @@ Object {
 exports[`KeeperRewards set rewards root succeeds 1`] = `
 Object {
   "calldataByteLength": 740,
-  "gasUsed": 112724,
+  "gasUsed": 112688,
 }
 `;
 
 exports[`KeeperRewards set rewards root succeeds 2`] = `
 Object {
   "calldataByteLength": 740,
-  "gasUsed": 115512,
+  "gasUsed": 115524,
 }
 `;

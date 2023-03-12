@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 
-pragma solidity =0.8.18;
+pragma solidity =0.8.19;
 
 import {IValidatorsRegistry} from './IValidatorsRegistry.sol';
 

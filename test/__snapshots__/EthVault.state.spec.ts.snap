@@ -10,7 +10,7 @@ Object {
 exports[`EthVault - state applies penalty when delta is below zero 1`] = `
 Object {
   "calldataByteLength": 164,
-  "gasUsed": 93390,
+  "gasUsed": 93402,
 }
 `;
 
