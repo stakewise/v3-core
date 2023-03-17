@@ -2,15 +2,15 @@
 
 pragma solidity =0.8.19;
 
-import {IMevEscrow} from '../../../interfaces/IMevEscrow.sol';
+import {IOwnMevEscrow} from '../../../interfaces/IOwnMevEscrow.sol';
 
 /**
- * @title VaultMevEscrow
+ * @title OwnMevEscrow
  * @author StakeWise
- * @notice Accumulates received MEV on Ethereum. The escrow is owned by the Vault.
+ * @notice Accumulates received MEV. The escrow is owned by the Vault.
  */
-contract VaultMevEscrow is IMevEscrow {
-  address payable private immutable vault;
+contract OwnMevEscrow is IOwnMevEscrow {
+  address payable public immutable override vault;
 
   /// @dev Constructor
   constructor(address _vault) {
@@ -18,14 +18,13 @@ contract VaultMevEscrow is IMevEscrow {
   }
 
   /// @inheritdoc IMevEscrow
-  function withdraw() external override returns (uint256 assets) {
+  function withdraw() external returns (uint256 assets) {
     if (msg.sender != vault) revert WithdrawalFailed();
 
     assets = address(this).balance;
     if (assets == 0) return 0;
 
     (bool success, ) = vault.call{value: assets}('');
-    if (!success) revert WithdrawalFailed();
   }
 
   /**
