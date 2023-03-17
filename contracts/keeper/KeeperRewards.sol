@@ -6,19 +6,23 @@ import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {Ownable2StepUpgradeable} from '@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
+import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
+import {IVaultMev} from '../interfaces/IVaultMev.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 
 /**
  * @title KeeperRewards
  * @author StakeWise
- * @notice Defines the functionality for updating Vaults' consensus rewards
+ * @notice Defines the functionality for updating Vaults' rewards
  */
 abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeeperRewards {
   bytes32 internal constant _rewardsRootTypeHash =
     keccak256(
       'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint64 updateTimestamp,uint96 nonce)'
     );
+
+  address private immutable _sharedMevEscrow;
 
   /// @inheritdoc IKeeperRewards
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -35,7 +39,10 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
   bytes32 public override rewardsRoot;
 
   /// @inheritdoc IKeeperRewards
-  mapping(address => RewardSync) public override rewards;
+  mapping(address => ConsensusReward) public override consensusRewards;
+
+  /// @inheritdoc IKeeperRewards
+  mapping(address => ExecutionReward) public override executionRewards;
 
   /// @inheritdoc IKeeperRewards
   uint96 public override rewardsNonce;
@@ -52,11 +59,13 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param _oracles The address of the Oracles contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
+   * @param sharedMevEscrow The address of the shared MEV escrow contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(IOracles _oracles, IVaultsRegistry _vaultsRegistry) {
+  constructor(IOracles _oracles, IVaultsRegistry _vaultsRegistry, address sharedMevEscrow) {
     oracles = _oracles;
     vaultsRegistry = _vaultsRegistry;
+    _sharedMevEscrow = sharedMevEscrow;
   }
 
   /// @inheritdoc IKeeperRewards
@@ -114,8 +123,8 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
   /// @inheritdoc IKeeperRewards
   function isHarvestRequired(address vault) external view override returns (bool) {
     // vault is considered harvested in case it does not have any validators (nonce = 0)
-    // or it is up to 1 sync behind
-    uint96 nonce = rewards[vault].nonce;
+    // or it is up to 1 consensus rewards update behind
+    uint96 nonce = consensusRewards[vault].nonce;
     unchecked {
       return nonce != 0 && nonce + 1 < rewardsNonce;
     }
@@ -123,7 +132,7 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
 
   /// @inheritdoc IKeeperRewards
   function canHarvest(address vault) external view override returns (bool) {
-    uint96 nonce = rewards[vault].nonce;
+    uint96 nonce = consensusRewards[vault].nonce;
     unchecked {
       return nonce != 0 && nonce < rewardsNonce;
     }
@@ -131,11 +140,13 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
 
   /// @inheritdoc IKeeperRewards
   function isCollateralized(address vault) external view override returns (bool) {
-    return rewards[vault].nonce != 0;
+    return consensusRewards[vault].nonce != 0;
   }
 
   /// @inheritdoc IKeeperRewards
-  function harvest(HarvestParams calldata params) external override returns (int256 periodReward) {
+  function harvest(
+    HarvestParams calldata params
+  ) external override returns (HarvestDeltas memory deltas) {
     if (!vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
 
     // SLOAD to memory
@@ -152,27 +163,52 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
       !MerkleProof.verifyCalldata(
         params.proof,
         params.rewardsRoot,
-        keccak256(bytes.concat(keccak256(abi.encode(msg.sender, params.reward))))
+        keccak256(
+          bytes.concat(
+            keccak256(abi.encode(msg.sender, params.consensusAssets, params.executionAssets))
+          )
+        )
       )
     ) {
       revert InvalidProof();
     }
 
     // SLOAD to memory
-    RewardSync memory lastRewardSync = rewards[msg.sender];
+    ConsensusReward memory lastConsensusReward = consensusRewards[msg.sender];
+
     // check whether Vault's nonce is smaller that the current, otherwise it's already harvested
-    if (lastRewardSync.nonce >= currentNonce) return 0;
+    if (lastConsensusReward.nonce >= currentNonce) {
+      deltas = HarvestDeltas({consensus: 0, execution: 0});
+      return deltas;
+    }
+
+    // calculate consensus delta
+    deltas.consensus = params.consensusAssets - lastConsensusReward.assets;
 
     // update state
-    rewards[msg.sender] = RewardSync({nonce: currentNonce, reward: params.reward});
+    consensusRewards[msg.sender] = ConsensusReward({
+      assets: params.consensusAssets,
+      nonce: currentNonce
+    });
+
+    // check whether Vault has shared execution rewards
+    if (IVaultMev(msg.sender).mevEscrow() == _sharedMevEscrow) {
+      // SLOAD to memory
+      ExecutionReward memory lastExecutionReward = executionRewards[msg.sender];
+      if (lastExecutionReward.nonce < currentNonce) {
+        // calculate execution assets delta
+        deltas.execution = lastExecutionReward.assets - params.executionAssets;
+
+        // update state
+        executionRewards[msg.sender] = ExecutionReward({
+          assets: params.executionAssets,
+          nonce: currentNonce
+        });
+      }
+    }
 
     // emit event
-    emit Harvested(msg.sender, params.rewardsRoot, params.reward);
-
-    unchecked {
-      // cannot underflow
-      return params.reward - lastRewardSync.reward;
-    }
+    emit Harvested(msg.sender, params.rewardsRoot, params.consensusAssets, params.executionAssets);
   }
 
   /// @inheritdoc IKeeperRewards
@@ -197,9 +233,8 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
    * @param vault The address of the Vault
    */
   function _collateralize(address vault) internal {
-    if (rewards[vault].nonce == 0) {
-      rewards[vault] = RewardSync({nonce: rewardsNonce, reward: 0});
-    }
+    if (consensusRewards[vault].nonce != 0) return;
+    consensusRewards[vault] = ConsensusReward({nonce: rewardsNonce, assets: 0});
   }
 
   /**

@@ -15,7 +15,7 @@ import {KeeperRewards} from './KeeperRewards.sol';
 /**
  * @title Keeper
  * @author StakeWise
- * @notice Defines the functionality for updating Vaults' consensus rewards and approving validators registrations
+ * @notice Defines the functionality for updating Vaults' rewards and approving validators registrations
  */
 contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IKeeper {
   /**
@@ -25,13 +25,15 @@ contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IK
    * @param _oracles The address of the Oracles contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The address of the beacon chain validators registry contract
+   * @param sharedMevEscrow The address of the shared MEV escrow contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     IOracles _oracles,
     IVaultsRegistry _vaultsRegistry,
-    IValidatorsRegistry _validatorsRegistry
-  ) KeeperValidators(_oracles, _vaultsRegistry, _validatorsRegistry) {
+    IValidatorsRegistry _validatorsRegistry,
+    address sharedMevEscrow
+  ) KeeperValidators(_oracles, _vaultsRegistry, _validatorsRegistry, sharedMevEscrow) {
     // disable initializers for the implementation contract
     _disableInitializers();
   }

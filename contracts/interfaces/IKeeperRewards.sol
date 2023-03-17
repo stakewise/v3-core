@@ -37,9 +37,15 @@ interface IKeeperRewards {
    * @notice Event emitted on Vault harvest
    * @param vault The address of the Vault
    * @param rewardsRoot The rewards merkle tree root
-   * @param reward The cumulative reward/penalty accumulated by the Vault
+   * @param consensusAssets The Vault cumulative consensus reward. Can be negative in case of penalty/slashing.
+   * @param executionAssets The Vault cumulative shared execution reward. Can be negative in case of penalty/slashing. Only used by shared MEV Vaults.
    */
-  event Harvested(address indexed vault, bytes32 indexed rewardsRoot, int160 reward);
+  event Harvested(
+    address indexed vault,
+    bytes32 indexed rewardsRoot,
+    int160 consensusAssets,
+    int160 executionAssets
+  );
 
   /**
    * @notice Event emitted on the update of rewards delay
@@ -49,13 +55,23 @@ interface IKeeperRewards {
   event RewardsDelayUpdated(address indexed caller, uint64 rewardsDelay);
 
   /**
-   * @notice A struct containing the last synced Vault's reward
-   * @param nonce The nonce of the last synced reward
-   * @param reward The last synced reward. Can be negative in case of penalty.
+   * @notice A struct containing the last synced Vault's consensus reward
+   * @param assets The total amount of assets earned in consensus layer. Can be negative in case of penalty.
+   * @param nonce The nonce of the last sync
    */
-  struct RewardSync {
+  struct ConsensusReward {
+    int160 assets;
     uint96 nonce;
-    int160 reward;
+  }
+
+  /**
+   * @notice A struct containing the last synced Vault's execution reward. Only used by shared MEV Vaults.
+   * @param assets The total amount of assets earned in execution layer. Can be negative in case of penalty.
+   * @param nonce The nonce of the last sync
+   */
+  struct ExecutionReward {
+    int160 assets;
+    uint96 nonce;
   }
 
   /**
@@ -75,13 +91,25 @@ interface IKeeperRewards {
   /**
    * @notice A struct containing parameters for harvesting rewards. Can only be called by Vault.
    * @param rewardsRoot The rewards merkle root
-   * @param vaultReward The Vault cumulative reward. Can be negative in case of penalty/slashing.
+   * @param consensusAssets The Vault cumulative consensus reward. Can be negative in case of penalty/slashing.
+   * @param executionAssets The Vault cumulative shared execution reward. Can be negative in case of penalty/slashing. Only used by shared MEV Vaults.
    * @param proof The proof to verify that Vault's reward is correct
    */
   struct HarvestParams {
     bytes32 rewardsRoot;
-    int160 reward;
+    int160 consensusAssets;
+    int160 executionAssets;
     bytes32[] proof;
+  }
+
+  /**
+   * @notice A struct containing harvesting deltas
+   * @param consensus The rewards delta for the consensus layer
+   * @param execution The rewards delta for the execution layer. Only used by shared MEV Vaults.
+   */
+  struct HarvestDeltas {
+    int128 consensus;
+    int128 execution;
   }
 
   /**
@@ -127,12 +155,20 @@ interface IKeeperRewards {
   function rewardsDelay() external view returns (uint64);
 
   /**
-   * @notice Get last synced Vault reward
+   * @notice Get last synced Vault consensus rewards
    * @param vault The address of the Vault
    * @return nonce The last synced reward nonce
-   * @return reward The last synced reward
+   * @return reward The last synced reward assets
    */
-  function rewards(address vault) external view returns (uint96 nonce, int160 reward);
+  function consensusRewards(address vault) external view returns (uint96 nonce, int160 assets);
+
+  /**
+   * @notice Get last synced shared MEV Vault execution rewards
+   * @param vault The address of the Vault
+   * @return nonce The last synced reward nonce
+   * @return reward The last synced reward assets
+   */
+  function executionRewards(address vault) external view returns (uint96 nonce, int160 assets);
 
   /**
    * @notice Checks whether Vault must be harvested
@@ -176,7 +212,7 @@ interface IKeeperRewards {
   /**
    * @notice Harvest rewards. Can be called only by Vault.
    * @param params The struct containing rewards harvesting parameters
-   * @return periodReward The total reward/penalty accumulated by the Vault since the last sync
+   * @return deltas The consensus and execution deltas
    */
-  function harvest(HarvestParams calldata params) external returns (int256 periodReward);
+  function harvest(HarvestParams calldata params) external returns (HarvestDeltas memory deltas);
 }

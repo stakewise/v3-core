@@ -30,13 +30,15 @@ abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
    * @param _oracles The address of the Oracles contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The address of the beacon chain validators registry contract
+   * @param sharedMevEscrow The address of the shared MEV escrow contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     IOracles _oracles,
     IVaultsRegistry _vaultsRegistry,
-    IValidatorsRegistry _validatorsRegistry
-  ) KeeperRewards(_oracles, _vaultsRegistry) {
+    IValidatorsRegistry _validatorsRegistry,
+    address sharedMevEscrow
+  ) KeeperRewards(_oracles, _vaultsRegistry, sharedMevEscrow) {
     validatorsRegistry = _validatorsRegistry;
   }
 

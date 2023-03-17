@@ -17,7 +17,7 @@ contract OwnMevEscrow is IOwnMevEscrow {
     vault = payable(_vault);
   }
 
-  /// @inheritdoc IMevEscrow
+  /// @inheritdoc IOwnMevEscrow
   function withdraw() external returns (uint256 assets) {
     if (msg.sender != vault) revert WithdrawalFailed();
 
