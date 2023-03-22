@@ -85,14 +85,14 @@ interface IOracles {
   /**
    * @notice Function for verifying whether minimum number of oracles have signed the message
    * @param message The message that was signed
-   * @param signatures The concatenation of the oracles' signatures
+   * @param signatures The concatenation of the oracles' signatures. The signatures must be sorted by oracle address and not repeat.
    */
   function verifyMinSignatures(bytes32 message, bytes calldata signatures) external view;
 
   /**
    * @notice Function for verifying whether all the oracles have signed the message
    * @param message The message that was signed
-   * @param signatures The concatenation of the oracles' signatures
+   * @param signatures The concatenation of the oracles' signatures. The signatures must be sorted by oracle address and not repeat.
    */
   function verifyAllSignatures(bytes32 message, bytes calldata signatures) external view;
 }

@@ -126,6 +126,7 @@ contract Oracles is Ownable2Step, EIP712, IOracles {
         // cannot overflow as signatures.length is checked above
         currentOracle = ECDSA.recover(data, signatures[startIndex:startIndex + _signatureLength]);
       }
+      // signatures must be sorted by oracles' addresses and not repeat
       if (currentOracle <= lastOracle || !isOracle[currentOracle]) revert InvalidOracle();
 
       // update last oracle
