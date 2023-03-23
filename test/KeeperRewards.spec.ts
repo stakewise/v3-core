@@ -1,14 +1,15 @@
 import { ethers, waffle } from 'hardhat'
-import { BigNumber, Wallet } from 'ethers'
+import { Wallet, Contract } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { Keeper, EthVault, Oracles, IKeeperRewards } from '../typechain-types'
+import { Keeper, EthVault, Oracles, IKeeperRewards, SharedMevEscrow } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ORACLES, REWARDS_DELAY, ZERO_BYTES32 } from './shared/constants'
+import { ORACLES, REWARDS_DELAY, ZERO_ADDRESS, ZERO_BYTES32 } from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { createVaultRewardsRoot, getRewardsRootProof, VaultReward } from './shared/rewards'
 import { increaseTime, setBalance } from './shared/utils'
+import { registerEthValidator } from './shared/validators'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -25,7 +26,10 @@ describe('KeeperRewards', () => {
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
   let sender: Wallet, owner: Wallet, admin: Wallet, oracle: Wallet
-  let keeper: Keeper, oracles: Oracles, vault: EthVault
+  let keeper: Keeper,
+    oracles: Oracles,
+    validatorsRegistry: Contract,
+    sharedMevEscrow: SharedMevEscrow
 
   before('create fixture loader', async () => {
     ;[sender, admin, owner] = await (ethers as any).getSigners()
@@ -34,24 +38,30 @@ describe('KeeperRewards', () => {
   })
 
   beforeEach(async () => {
-    ;({ oracles, keeper, createVault, getSignatures } = await loadFixture(ethVaultFixture))
-    vault = await createVault(admin, {
-      capacity,
-      validatorsRoot,
-      feePercent,
-      name,
-      symbol,
-      metadataIpfsHash,
-    })
+    ;({ oracles, keeper, createVault, validatorsRegistry, sharedMevEscrow, getSignatures } =
+      await loadFixture(ethVaultFixture))
     await setBalance(oracle.address, parseEther('10000'))
   })
 
   describe('set rewards root', () => {
     let vaultReward: VaultReward
     let rewardsRootParams: IKeeperRewards.RewardsRootUpdateParamsStruct
+    let vault: EthVault
 
     beforeEach(async () => {
-      vaultReward = { reward: parseEther('5'), vault: vault.address }
+      vault = await createVault(admin, {
+        capacity,
+        validatorsRoot,
+        feePercent,
+        name,
+        symbol,
+        metadataIpfsHash,
+      })
+      vaultReward = {
+        reward: parseEther('5'),
+        sharedMevReward: parseEther('1'),
+        vault: vault.address,
+      }
       const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles)
       rewardsRootParams = {
         rewardsRoot: rewardsRoot.root,
@@ -84,7 +94,12 @@ describe('KeeperRewards', () => {
 
     it('fails with invalid nonce', async () => {
       await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
-      const newVaultReward = { reward: parseEther('3'), vault: vault.address }
+
+      const newVaultReward = {
+        reward: parseEther('3'),
+        sharedMevReward: parseEther('2'),
+        vault: vault.address,
+      }
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles)
       await increaseTime(REWARDS_DELAY)
       await expect(
@@ -99,7 +114,11 @@ describe('KeeperRewards', () => {
 
     it('fails if too early', async () => {
       await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
-      const newVaultReward = { reward: parseEther('3'), vault: vault.address }
+      const newVaultReward = {
+        reward: parseEther('5'),
+        sharedMevReward: parseEther('1'),
+        vault: vault.address,
+      }
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1680255895, 2)
       expect(await keeper.canUpdateRewards()).to.eq(false)
       await expect(
@@ -110,6 +129,11 @@ describe('KeeperRewards', () => {
           signatures: getSignatures(newRewardsRoot.signingData),
         })
       ).to.be.revertedWith('TooEarlyUpdate')
+    })
+
+    it('fails when paused', async () => {
+      await keeper.connect(owner).pause()
+      await expect(keeper.setRewardsRoot(rewardsRootParams)).to.be.revertedWith('Pausable: paused')
     })
 
     it('succeeds', async () => {
@@ -133,7 +157,11 @@ describe('KeeperRewards', () => {
       await snapshotGasCost(receipt)
 
       // check keeps previous rewards root
-      const newVaultReward = { reward: parseEther('3'), vault: vault.address }
+      const newVaultReward = {
+        reward: parseEther('3'),
+        sharedMevReward: parseEther('2'),
+        vault: vault.address,
+      }
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1670256000, 2)
       await increaseTime(REWARDS_DELAY)
       receipt = await keeper.connect(oracle).setRewardsRoot({
@@ -174,24 +202,17 @@ describe('KeeperRewards', () => {
   })
 
   describe('is harvest required', () => {
-    let harvestParams: IKeeperRewards.HarvestParamsStruct
-    let proof: string[]
+    let vault: EthVault
 
     beforeEach(async () => {
-      const vaultReward = { reward: parseEther('5'), vault: vault.address }
-      const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles)
-      await keeper.connect(oracle).setRewardsRoot({
-        rewardsRoot: rewardsRoot.root,
-        updateTimestamp: rewardsRoot.updateTimestamp,
-        rewardsIpfsHash: rewardsRoot.ipfsHash,
-        signatures: getSignatures(rewardsRoot.signingData),
+      vault = await createVault(admin, {
+        capacity,
+        validatorsRoot,
+        feePercent,
+        name,
+        symbol,
+        metadataIpfsHash,
       })
-      proof = getRewardsRootProof(rewardsRoot.tree, vaultReward)
-      harvestParams = {
-        rewardsRoot: rewardsRoot.root,
-        reward: vaultReward.reward,
-        proof,
-      }
     })
 
     it('returns false for uncollateralized vault', async () => {
@@ -202,15 +223,21 @@ describe('KeeperRewards', () => {
 
     it('returns true for collateralized two times unharvested vault', async () => {
       // collateralize vault
-      await vault.updateState(harvestParams)
+      const validatorDeposit = parseEther('32')
+      await vault.connect(admin).deposit(admin.address, ZERO_ADDRESS, { value: validatorDeposit })
+      await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+
       expect(await keeper.isCollateralized(vault.address)).to.equal(true)
       expect(await keeper.canHarvest(vault.address)).to.equal(false)
       expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
 
       // update rewards first time
-      let newVaultReward = { reward: parseEther('3'), vault: vault.address }
-      let newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1670258895, 2)
-      await increaseTime(REWARDS_DELAY)
+      let newVaultReward = {
+        reward: parseEther('3'),
+        sharedMevReward: parseEther('0.5'),
+        vault: vault.address,
+      }
+      let newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1670258895)
       await keeper.connect(oracle).setRewardsRoot({
         rewardsRoot: newRewardsRoot.root,
         rewardsIpfsHash: newRewardsRoot.ipfsHash,
@@ -224,8 +251,12 @@ describe('KeeperRewards', () => {
 
       // update rewards second time
       const newTimestamp = newRewardsRoot.updateTimestamp + 1
-      newVaultReward = { reward: parseEther('4'), vault: vault.address }
-      newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, newTimestamp, 3)
+      newVaultReward = {
+        reward: parseEther('4'),
+        sharedMevReward: parseEther('2'),
+        vault: vault.address,
+      }
+      newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, newTimestamp, 2)
       await increaseTime(REWARDS_DELAY)
       await keeper.connect(oracle).setRewardsRoot({
         rewardsRoot: newRewardsRoot.root,
@@ -240,27 +271,50 @@ describe('KeeperRewards', () => {
     })
   })
 
-  describe('harvest', () => {
+  describe('harvest (own escrow)', () => {
     let harvestParams: IKeeperRewards.HarvestParamsStruct
-    let proof: string[]
+    let ownMevVault: EthVault
 
     beforeEach(async () => {
-      const vaultReward = { reward: parseEther('5'), vault: vault.address }
-      const vaultRewards = [vaultReward]
-      for (let i = 1; i < 11; i++) {
-        const vlt = await createVault(admin, {
+      ownMevVault = await createVault(
+        admin,
+        {
           capacity,
           validatorsRoot,
           feePercent,
           name,
           symbol,
           metadataIpfsHash,
+        },
+        true
+      )
+      const vaultReward = {
+        reward: parseEther('5'),
+        sharedMevReward: 0,
+        vault: ownMevVault.address,
+      }
+      const vaultRewards = [vaultReward]
+      for (let i = 1; i < 11; i++) {
+        const vlt = await createVault(
+          admin,
+          {
+            capacity,
+            validatorsRoot,
+            feePercent,
+            name,
+            symbol,
+            metadataIpfsHash,
+          },
+          true
+        )
+        vaultRewards.push({
+          reward: parseEther(i.toString()),
+          sharedMevReward: 0,
+          vault: vlt.address,
         })
-        vaultRewards.push({ reward: parseEther(i.toString()), vault: vlt.address })
       }
 
       const rewardsRoot = createVaultRewardsRoot(vaultRewards, oracles)
-      proof = getRewardsRootProof(rewardsRoot.tree, vaultReward)
       await keeper.connect(oracle).setRewardsRoot({
         rewardsRoot: rewardsRoot.root,
         updateTimestamp: rewardsRoot.updateTimestamp,
@@ -270,7 +324,8 @@ describe('KeeperRewards', () => {
       harvestParams = {
         rewardsRoot: rewardsRoot.root,
         reward: vaultReward.reward,
-        proof,
+        sharedMevReward: vaultReward.sharedMevReward,
+        proof: getRewardsRootProof(rewardsRoot.tree, vaultReward),
       }
     })
 
@@ -279,13 +334,13 @@ describe('KeeperRewards', () => {
     })
 
     it('fails for invalid reward', async () => {
-      await expect(vault.updateState({ ...harvestParams, reward: 0 })).to.be.revertedWith(
+      await expect(ownMevVault.updateState({ ...harvestParams, reward: 0 })).to.be.revertedWith(
         'InvalidProof'
       )
     })
 
     it('fails for invalid proof', async () => {
-      await expect(vault.updateState({ ...harvestParams, proof: [] })).to.be.revertedWith(
+      await expect(ownMevVault.updateState({ ...harvestParams, proof: [] })).to.be.revertedWith(
         'InvalidProof'
       )
     })
@@ -293,105 +348,375 @@ describe('KeeperRewards', () => {
     it('fails for invalid root', async () => {
       const invalidRoot = '0x' + '1'.repeat(64)
       await expect(
-        vault.updateState({ ...harvestParams, rewardsRoot: invalidRoot })
+        ownMevVault.updateState({ ...harvestParams, rewardsRoot: invalidRoot })
       ).to.be.revertedWith('InvalidRewardsRoot')
     })
 
-    it('succeeds for latest rewards root', async () => {
-      let receipt = await vault.updateState(harvestParams)
-      await expect(receipt)
-        .to.emit(keeper, 'Harvested')
-        .withArgs(vault.address, harvestParams.rewardsRoot, harvestParams.reward)
-      await expect(receipt).to.emit(vault, 'StateUpdated').withArgs(harvestParams.reward)
-
-      let rewardsSync = await keeper.rewards(vault.address)
-      expect(rewardsSync.nonce).to.equal(2)
-      expect(rewardsSync.reward).to.equal(harvestParams.reward)
-
-      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
-      expect(await keeper.canHarvest(vault.address)).to.equal(false)
-      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
-      await snapshotGasCost(receipt)
-
-      // doesn't fail for harvesting twice
-      receipt = await vault.updateState(harvestParams)
-      await expect(receipt).to.not.emit(keeper, 'Harvested')
-      await expect(receipt).to.not.emit(vault, 'StateUpdated')
-
-      rewardsSync = await keeper.rewards(vault.address)
-      expect(rewardsSync.nonce).to.equal(2)
-      expect(rewardsSync.reward).to.equal(harvestParams.reward)
-
-      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
-      expect(await keeper.canHarvest(vault.address)).to.equal(false)
-      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
-      await snapshotGasCost(receipt)
-    })
-
-    it('succeeds for previous rewards root', async () => {
-      const prevHarvestParams = harvestParams
+    it('ignores shared mev reward', async () => {
+      const sharedMevEscrowBalance = parseEther('1')
+      await setBalance(await sharedMevEscrow.address, sharedMevEscrowBalance)
+      await increaseTime(REWARDS_DELAY)
 
       // update rewards root
-      const vaultReward = { reward: parseEther('10'), vault: vault.address }
+      const vaultReward = {
+        reward: parseEther('10'),
+        vault: ownMevVault.address,
+        sharedMevReward: sharedMevEscrowBalance,
+      }
       const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles, 1670255995, 2)
-      await increaseTime(REWARDS_DELAY)
       await keeper.connect(oracle).setRewardsRoot({
         rewardsRoot: rewardsRoot.root,
         updateTimestamp: rewardsRoot.updateTimestamp,
         rewardsIpfsHash: rewardsRoot.ipfsHash,
         signatures: getSignatures(rewardsRoot.signingData),
       })
-      proof = getRewardsRootProof(rewardsRoot.tree, vaultReward)
+      const harvestParams = {
+        rewardsRoot: rewardsRoot.root,
+        reward: vaultReward.reward,
+        sharedMevReward: vaultReward.sharedMevReward,
+        proof: getRewardsRootProof(rewardsRoot.tree, vaultReward),
+      }
+
+      const receipt = await ownMevVault.updateState(harvestParams)
+      await expect(receipt)
+        .to.emit(keeper, 'Harvested')
+        .withArgs(ownMevVault.address, harvestParams.rewardsRoot, harvestParams.reward, 0)
+      expect(await waffle.provider.getBalance(sharedMevEscrow.address)).to.equal(
+        sharedMevEscrowBalance
+      )
+    })
+
+    it('succeeds for latest rewards root', async () => {
+      let receipt = await ownMevVault.updateState(harvestParams)
+      await expect(receipt)
+        .to.emit(keeper, 'Harvested')
+        .withArgs(
+          ownMevVault.address,
+          harvestParams.rewardsRoot,
+          harvestParams.reward,
+          harvestParams.sharedMevReward
+        )
+
+      let rewards = await keeper.rewards(ownMevVault.address)
+      expect(rewards.nonce).to.equal(2)
+      expect(rewards.assets).to.equal(harvestParams.reward)
+
+      let sharedMevRewards = await keeper.sharedMevRewards(ownMevVault.address)
+      expect(sharedMevRewards.nonce).to.equal(0)
+      expect(sharedMevRewards.assets).to.equal(0)
+
+      expect(await keeper.isCollateralized(ownMevVault.address)).to.equal(true)
+      expect(await keeper.canHarvest(ownMevVault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(ownMevVault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+
+      // doesn't fail for harvesting twice
+      receipt = await ownMevVault.updateState(harvestParams)
+      await expect(receipt).to.not.emit(keeper, 'Harvested')
+
+      rewards = await keeper.rewards(ownMevVault.address)
+      expect(rewards.nonce).to.equal(2)
+      expect(rewards.assets).to.equal(harvestParams.reward)
+
+      sharedMevRewards = await keeper.sharedMevRewards(ownMevVault.address)
+      expect(sharedMevRewards.nonce).to.equal(0)
+      expect(sharedMevRewards.assets).to.equal(0)
+
+      expect(await keeper.isCollateralized(ownMevVault.address)).to.equal(true)
+      expect(await keeper.canHarvest(ownMevVault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(ownMevVault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+    })
+
+    it('succeeds for previous rewards root', async () => {
+      const prevHarvestParams = harvestParams
+      await increaseTime(REWARDS_DELAY)
+
+      // update rewards root
+      const vaultReward = {
+        reward: parseEther('10'),
+        vault: ownMevVault.address,
+        sharedMevReward: 0,
+      }
+      const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles, 1670255995, 2)
+      await keeper.connect(oracle).setRewardsRoot({
+        rewardsRoot: rewardsRoot.root,
+        updateTimestamp: rewardsRoot.updateTimestamp,
+        rewardsIpfsHash: rewardsRoot.ipfsHash,
+        signatures: getSignatures(rewardsRoot.signingData),
+      })
       const currHarvestParams = {
         rewardsRoot: rewardsRoot.root,
         reward: vaultReward.reward,
-        proof,
+        sharedMevReward: 0,
+        proof: getRewardsRootProof(rewardsRoot.tree, vaultReward),
       }
 
-      let receipt = await vault.updateState(prevHarvestParams)
+      let receipt = await ownMevVault.updateState(prevHarvestParams)
       await expect(receipt)
         .to.emit(keeper, 'Harvested')
-        .withArgs(vault.address, prevHarvestParams.rewardsRoot, prevHarvestParams.reward)
-      await expect(receipt).to.emit(vault, 'StateUpdated').withArgs(prevHarvestParams.reward)
+        .withArgs(ownMevVault.address, prevHarvestParams.rewardsRoot, prevHarvestParams.reward, 0)
 
-      let rewardsSync = await keeper.rewards(vault.address)
-      expect(rewardsSync.nonce).to.equal(2)
-      expect(rewardsSync.reward).to.equal(prevHarvestParams.reward)
+      let rewards = await keeper.rewards(ownMevVault.address)
+      expect(rewards.nonce).to.equal(2)
+      expect(rewards.assets).to.equal(prevHarvestParams.reward)
 
-      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
-      expect(await keeper.canHarvest(vault.address)).to.equal(true)
-      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
+      expect(await keeper.isCollateralized(ownMevVault.address)).to.equal(true)
+      expect(await keeper.canHarvest(ownMevVault.address)).to.equal(true)
+      expect(await keeper.isHarvestRequired(ownMevVault.address)).to.equal(false)
       await snapshotGasCost(receipt)
 
-      receipt = await vault.updateState(currHarvestParams)
+      receipt = await ownMevVault.updateState(currHarvestParams)
       await expect(receipt)
         .to.emit(keeper, 'Harvested')
-        .withArgs(vault.address, currHarvestParams.rewardsRoot, currHarvestParams.reward)
-      await expect(receipt)
-        .to.emit(vault, 'StateUpdated')
-        .withArgs(currHarvestParams.reward.sub(BigNumber.from(prevHarvestParams.reward)))
+        .withArgs(
+          ownMevVault.address,
+          currHarvestParams.rewardsRoot,
+          currHarvestParams.reward.sub(prevHarvestParams.reward),
+          0
+        )
 
-      rewardsSync = await keeper.rewards(vault.address)
-      expect(rewardsSync.nonce).to.equal(3)
-      expect(rewardsSync.reward).to.equal(currHarvestParams.reward)
+      rewards = await keeper.rewards(ownMevVault.address)
+      expect(rewards.nonce).to.equal(3)
+      expect(rewards.assets).to.equal(currHarvestParams.reward)
 
-      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
-      expect(await keeper.canHarvest(vault.address)).to.equal(false)
-      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
+      expect(await keeper.isCollateralized(ownMevVault.address)).to.equal(true)
+      expect(await keeper.canHarvest(ownMevVault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(ownMevVault.address)).to.equal(false)
       await snapshotGasCost(receipt)
 
       // doesn't fail for harvesting previous again
-      receipt = await vault.updateState(prevHarvestParams)
+      receipt = await ownMevVault.updateState(prevHarvestParams)
       await expect(receipt).to.not.emit(keeper, 'Harvested')
-      await expect(receipt).to.not.emit(vault, 'StateUpdated')
 
-      rewardsSync = await keeper.rewards(vault.address)
-      expect(rewardsSync.nonce).to.equal(3)
-      expect(rewardsSync.reward).to.equal(currHarvestParams.reward)
+      rewards = await keeper.rewards(ownMevVault.address)
+      expect(rewards.nonce).to.equal(3)
+      expect(rewards.assets).to.equal(currHarvestParams.reward)
 
-      expect(await keeper.isCollateralized(vault.address)).to.equal(true)
-      expect(await keeper.canHarvest(vault.address)).to.equal(false)
-      expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
+      expect(await keeper.isCollateralized(ownMevVault.address)).to.equal(true)
+      expect(await keeper.canHarvest(ownMevVault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(ownMevVault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('harvest (shared escrow)', () => {
+    let harvestParams: IKeeperRewards.HarvestParamsStruct
+    let sharedMevVault: EthVault
+
+    beforeEach(async () => {
+      sharedMevVault = await createVault(
+        admin,
+        {
+          capacity,
+          validatorsRoot,
+          feePercent,
+          name,
+          symbol,
+          metadataIpfsHash,
+        },
+        false
+      )
+      const vaultReward = {
+        reward: parseEther('5'),
+        sharedMevReward: parseEther('2'),
+        vault: sharedMevVault.address,
+      }
+      const vaultRewards = [vaultReward]
+      for (let i = 1; i < 11; i++) {
+        const vlt = await createVault(
+          admin,
+          {
+            capacity,
+            validatorsRoot,
+            feePercent,
+            name,
+            symbol,
+            metadataIpfsHash,
+          },
+          true
+        )
+        const amount = parseEther(i.toString())
+        vaultRewards.push({
+          reward: amount,
+          sharedMevReward: amount,
+          vault: vlt.address,
+        })
+      }
+
+      const rewardsRoot = createVaultRewardsRoot(vaultRewards, oracles)
+      await keeper.connect(oracle).setRewardsRoot({
+        rewardsRoot: rewardsRoot.root,
+        updateTimestamp: rewardsRoot.updateTimestamp,
+        rewardsIpfsHash: rewardsRoot.ipfsHash,
+        signatures: getSignatures(rewardsRoot.signingData),
+      })
+      harvestParams = {
+        rewardsRoot: rewardsRoot.root,
+        reward: vaultReward.reward,
+        sharedMevReward: vaultReward.sharedMevReward,
+        proof: getRewardsRootProof(rewardsRoot.tree, vaultReward),
+      }
+      await setBalance(sharedMevEscrow.address, harvestParams.sharedMevReward)
+    })
+
+    it('only vault can harvest', async () => {
+      await expect(keeper.harvest(harvestParams)).to.be.revertedWith('AccessDenied')
+    })
+
+    it('fails for invalid shared MEV reward', async () => {
+      await expect(
+        sharedMevVault.updateState({ ...harvestParams, sharedMevReward: 0 })
+      ).to.be.revertedWith('InvalidProof')
+    })
+
+    it('fails for invalid proof', async () => {
+      await expect(sharedMevVault.updateState({ ...harvestParams, proof: [] })).to.be.revertedWith(
+        'InvalidProof'
+      )
+    })
+
+    it('fails for invalid root', async () => {
+      const invalidRoot = '0x' + '1'.repeat(64)
+      await expect(
+        sharedMevVault.updateState({ ...harvestParams, rewardsRoot: invalidRoot })
+      ).to.be.revertedWith('InvalidRewardsRoot')
+    })
+
+    it('succeeds for latest rewards root', async () => {
+      let receipt = await sharedMevVault.updateState(harvestParams)
+      await expect(receipt)
+        .to.emit(keeper, 'Harvested')
+        .withArgs(
+          sharedMevVault.address,
+          harvestParams.rewardsRoot,
+          harvestParams.reward,
+          harvestParams.sharedMevReward
+        )
+      expect(await waffle.provider.getBalance(sharedMevEscrow.address)).to.equal(0)
+      await expect(receipt)
+        .to.emit(sharedMevEscrow, 'Harvested')
+        .withArgs(sharedMevVault.address, harvestParams.sharedMevReward)
+
+      let rewards = await keeper.rewards(sharedMevVault.address)
+      expect(rewards.nonce).to.equal(2)
+      expect(rewards.assets).to.equal(harvestParams.reward)
+
+      let sharedMevRewards = await keeper.sharedMevRewards(sharedMevVault.address)
+      expect(sharedMevRewards.nonce).to.equal(2)
+      expect(sharedMevRewards.assets).to.equal(harvestParams.sharedMevReward)
+
+      expect(await keeper.isCollateralized(sharedMevVault.address)).to.equal(true)
+      expect(await keeper.canHarvest(sharedMevVault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+
+      // doesn't fail for harvesting twice
+      receipt = await sharedMevVault.updateState(harvestParams)
+      await expect(receipt).to.not.emit(keeper, 'Harvested')
+      await expect(receipt).to.not.emit(sharedMevEscrow, 'Harvested')
+
+      rewards = await keeper.rewards(sharedMevVault.address)
+      expect(rewards.nonce).to.equal(2)
+      expect(rewards.assets).to.equal(harvestParams.reward)
+
+      sharedMevRewards = await keeper.sharedMevRewards(sharedMevVault.address)
+      expect(sharedMevRewards.nonce).to.equal(2)
+      expect(sharedMevRewards.assets).to.equal(harvestParams.sharedMevReward)
+
+      expect(await keeper.isCollateralized(sharedMevVault.address)).to.equal(true)
+      expect(await keeper.canHarvest(sharedMevVault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+    })
+
+    it('succeeds for previous rewards root', async () => {
+      const prevHarvestParams = harvestParams
+      await increaseTime(REWARDS_DELAY)
+
+      // update rewards root
+      const vaultReward = {
+        reward: parseEther('10'),
+        vault: sharedMevVault.address,
+        sharedMevReward: parseEther('4'),
+      }
+      await setBalance(sharedMevEscrow.address, vaultReward.sharedMevReward)
+      const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles, 1670255995, 2)
+      await keeper.connect(oracle).setRewardsRoot({
+        rewardsRoot: rewardsRoot.root,
+        updateTimestamp: rewardsRoot.updateTimestamp,
+        rewardsIpfsHash: rewardsRoot.ipfsHash,
+        signatures: getSignatures(rewardsRoot.signingData),
+      })
+      const currHarvestParams = {
+        rewardsRoot: rewardsRoot.root,
+        reward: vaultReward.reward,
+        sharedMevReward: vaultReward.sharedMevReward,
+        proof: getRewardsRootProof(rewardsRoot.tree, vaultReward),
+      }
+
+      let receipt = await sharedMevVault.updateState(prevHarvestParams)
+      await expect(receipt)
+        .to.emit(keeper, 'Harvested')
+        .withArgs(
+          sharedMevVault.address,
+          prevHarvestParams.rewardsRoot,
+          prevHarvestParams.reward,
+          prevHarvestParams.sharedMevReward
+        )
+      expect(await waffle.provider.getBalance(sharedMevEscrow.address)).to.equal(parseEther('2'))
+      await expect(receipt)
+        .to.emit(sharedMevEscrow, 'Harvested')
+        .withArgs(sharedMevVault.address, prevHarvestParams.sharedMevReward)
+
+      let rewards = await keeper.rewards(sharedMevVault.address)
+      expect(rewards.nonce).to.equal(2)
+      expect(rewards.assets).to.equal(prevHarvestParams.reward)
+
+      expect(await keeper.isCollateralized(sharedMevVault.address)).to.equal(true)
+      expect(await keeper.canHarvest(sharedMevVault.address)).to.equal(true)
+      expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+
+      receipt = await sharedMevVault.updateState(currHarvestParams)
+      const sharedMevDelta = currHarvestParams.sharedMevReward.sub(
+        prevHarvestParams.sharedMevReward
+      )
+      await expect(receipt)
+        .to.emit(keeper, 'Harvested')
+        .withArgs(
+          sharedMevVault.address,
+          currHarvestParams.rewardsRoot,
+          currHarvestParams.reward.sub(prevHarvestParams.reward),
+          sharedMevDelta
+        )
+      await expect(receipt)
+        .to.emit(sharedMevEscrow, 'Harvested')
+        .withArgs(sharedMevVault.address, sharedMevDelta)
+      expect(await waffle.provider.getBalance(sharedMevEscrow.address)).to.equal(0)
+
+      rewards = await keeper.rewards(sharedMevVault.address)
+      expect(rewards.nonce).to.equal(3)
+      expect(rewards.assets).to.equal(currHarvestParams.reward)
+
+      expect(await keeper.isCollateralized(sharedMevVault.address)).to.equal(true)
+      expect(await keeper.canHarvest(sharedMevVault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+
+      // doesn't fail for harvesting previous again
+      receipt = await sharedMevVault.updateState(prevHarvestParams)
+      await expect(receipt).to.not.emit(keeper, 'Harvested')
+      await expect(receipt).to.not.emit(sharedMevEscrow, 'Harvested')
+      expect(await waffle.provider.getBalance(sharedMevEscrow.address)).to.equal(0)
+
+      rewards = await keeper.rewards(sharedMevVault.address)
+      expect(rewards.nonce).to.equal(3)
+      expect(rewards.assets).to.equal(currHarvestParams.reward)
+
+      expect(await keeper.isCollateralized(sharedMevVault.address)).to.equal(true)
+      expect(await keeper.canHarvest(sharedMevVault.address)).to.equal(false)
+      expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
       await snapshotGasCost(receipt)
     })
   })

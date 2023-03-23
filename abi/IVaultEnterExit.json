@@ -150,7 +150,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       },
       {
@@ -181,13 +181,13 @@
       {
         "indexed": true,
         "internalType": "uint256",
-        "name": "prevExitQueueId",
+        "name": "prevPositionCounter",
         "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "newExitQueueId",
+        "name": "newPositionCounter",
         "type": "uint256"
       },
       {
@@ -428,7 +428,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       },
       {
@@ -441,7 +441,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "newExitQueueId",
+        "name": "newPositionCounter",
         "type": "uint256"
       },
       {
@@ -526,7 +526,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       }
     ],
@@ -563,7 +563,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       }
     ],
@@ -709,19 +709,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "redeemableShares",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -862,9 +849,14 @@
             "type": "bytes32"
           },
           {
-            "internalType": "int160",
+            "internalType": "int256",
             "name": "reward",
-            "type": "int160"
+            "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "sharedMevReward",
+            "type": "uint256"
           },
           {
             "internalType": "bytes32[]",

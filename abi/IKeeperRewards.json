@@ -36,9 +36,15 @@
       },
       {
         "indexed": false,
-        "internalType": "int160",
-        "name": "reward",
-        "type": "int160"
+        "internalType": "int256",
+        "name": "totalAssetsDelta",
+        "type": "int256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "unlockedSharedMevReward",
+        "type": "uint256"
       }
     ],
     "name": "Harvested",
@@ -86,9 +92,9 @@
       },
       {
         "indexed": false,
-        "internalType": "uint96",
+        "internalType": "uint64",
         "name": "nonce",
-        "type": "uint96"
+        "type": "uint64"
       },
       {
         "indexed": false,
@@ -142,9 +148,14 @@
             "type": "bytes32"
           },
           {
-            "internalType": "int160",
+            "internalType": "int256",
             "name": "reward",
-            "type": "int160"
+            "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "sharedMevReward",
+            "type": "uint256"
           },
           {
             "internalType": "bytes32[]",
@@ -160,9 +171,21 @@
     "name": "harvest",
     "outputs": [
       {
-        "internalType": "int256",
-        "name": "periodReward",
-        "type": "int256"
+        "components": [
+          {
+            "internalType": "int256",
+            "name": "totalAssetsDelta",
+            "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "unlockedSharedMevReward",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct IKeeperRewards.HarvestDeltas",
+        "name": "deltas",
+        "type": "tuple"
       }
     ],
     "stateMutability": "nonpayable",
@@ -234,6 +257,13 @@
   },
   {
     "inputs": [],
+    "name": "pause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "prevRewardsRoot",
     "outputs": [
       {
@@ -256,14 +286,14 @@
     "name": "rewards",
     "outputs": [
       {
-        "internalType": "uint96",
-        "name": "nonce",
-        "type": "uint96"
+        "internalType": "int192",
+        "name": "reward",
+        "type": "int192"
       },
       {
-        "internalType": "int160",
-        "name": "reward",
-        "type": "int160"
+        "internalType": "uint64",
+        "name": "nonce",
+        "type": "uint64"
       }
     ],
     "stateMutability": "view",
@@ -287,9 +317,9 @@
     "name": "rewardsNonce",
     "outputs": [
       {
-        "internalType": "uint96",
+        "internalType": "uint64",
         "name": "",
-        "type": "uint96"
+        "type": "uint64"
       }
     ],
     "stateMutability": "view",
@@ -352,6 +382,37 @@
       }
     ],
     "name": "setRewardsRoot",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      }
+    ],
+    "name": "sharedMevRewards",
+    "outputs": [
+      {
+        "internalType": "uint192",
+        "name": "sharedMevReward",
+        "type": "uint192"
+      },
+      {
+        "internalType": "uint64",
+        "name": "nonce",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unpause",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

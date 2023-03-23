@@ -29,7 +29,7 @@ interface IKeeperRewards {
     address indexed caller,
     bytes32 indexed rewardsRoot,
     uint64 updateTimestamp,
-    uint96 nonce,
+    uint64 nonce,
     string rewardsIpfsHash
   );
 
@@ -37,14 +37,14 @@ interface IKeeperRewards {
    * @notice Event emitted on Vault harvest
    * @param vault The address of the Vault
    * @param rewardsRoot The rewards merkle tree root
-   * @param consensusAssets The Vault cumulative consensus reward. Can be negative in case of penalty/slashing.
-   * @param executionAssets The Vault cumulative shared execution reward. Can be negative in case of penalty/slashing. Only used by shared MEV Vaults.
+   * @param totalAssetsDelta The Vault total assets delta since last sync. Can be negative in case of penalty/slashing.
+   * @param unlockedSharedMevReward The Vault execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
    */
   event Harvested(
     address indexed vault,
     bytes32 indexed rewardsRoot,
-    int160 consensusAssets,
-    int160 executionAssets
+    int256 totalAssetsDelta,
+    uint256 unlockedSharedMevReward
   );
 
   /**
@@ -55,23 +55,23 @@ interface IKeeperRewards {
   event RewardsDelayUpdated(address indexed caller, uint64 rewardsDelay);
 
   /**
-   * @notice A struct containing the last synced Vault's consensus reward
-   * @param assets The total amount of assets earned in consensus layer. Can be negative in case of penalty.
+   * @notice A struct containing the last synced Vault's cumulative reward
+   * @param assets The Vault cumulative reward earned since the start. Can be negative in case of penalty/slashing.
    * @param nonce The nonce of the last sync
    */
-  struct ConsensusReward {
-    int160 assets;
-    uint96 nonce;
+  struct Reward {
+    int192 assets;
+    uint64 nonce;
   }
 
   /**
-   * @notice A struct containing the last synced Vault's execution reward. Only used by shared MEV Vaults.
-   * @param assets The total amount of assets earned in execution layer. Can be negative in case of penalty.
+   * @notice A struct containing the last synced Vault's cumulative execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
+   * @param assets The shared MEV Vault's cumulative execution reward that can be withdrawn
    * @param nonce The nonce of the last sync
    */
-  struct ExecutionReward {
-    int160 assets;
-    uint96 nonce;
+  struct SharedMevReward {
+    uint192 assets;
+    uint64 nonce;
   }
 
   /**
@@ -91,25 +91,25 @@ interface IKeeperRewards {
   /**
    * @notice A struct containing parameters for harvesting rewards. Can only be called by Vault.
    * @param rewardsRoot The rewards merkle root
-   * @param consensusAssets The Vault cumulative consensus reward. Can be negative in case of penalty/slashing.
-   * @param executionAssets The Vault cumulative shared execution reward. Can be negative in case of penalty/slashing. Only used by shared MEV Vaults.
+   * @param reward The Vault cumulative reward earned since the start. Can be negative in case of penalty/slashing.
+   * @param sharedMevReward The Vault cumulative execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
    * @param proof The proof to verify that Vault's reward is correct
    */
   struct HarvestParams {
     bytes32 rewardsRoot;
-    int160 consensusAssets;
-    int160 executionAssets;
+    int256 reward;
+    uint256 sharedMevReward;
     bytes32[] proof;
   }
 
   /**
    * @notice A struct containing harvesting deltas
-   * @param consensus The rewards delta for the consensus layer
-   * @param execution The rewards delta for the execution layer. Only used by shared MEV Vaults.
+   * @param totalAssetsDelta The Vault total assets delta since last sync. Can be negative in case of penalty/slashing.
+   * @param unlockedSharedMevReward The Vault execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
    */
   struct HarvestDeltas {
-    int128 consensus;
-    int128 execution;
+    int256 totalAssetsDelta;
+    uint256 unlockedSharedMevReward;
   }
 
   /**
@@ -126,13 +126,13 @@ interface IKeeperRewards {
 
   /**
    * @notice Previous Rewards Root
-   * @return The previous merkle tree root of the rewards accumulated by the Vaults in the consensus layer
+   * @return The previous merkle tree root of the rewards accumulated by the Vaults
    */
   function prevRewardsRoot() external view returns (bytes32);
 
   /**
    * @notice Rewards Root
-   * @return The latest merkle tree root of the rewards accumulated by the Vaults in the consensus layer
+   * @return The latest merkle tree root of the rewards accumulated by the Vaults
    */
   function rewardsRoot() external view returns (bytes32);
 
@@ -140,7 +140,7 @@ interface IKeeperRewards {
    * @notice Rewards Nonce
    * @return The nonce used for updating rewards merkle tree root
    */
-  function rewardsNonce() external view returns (uint96);
+  function rewardsNonce() external view returns (uint64);
 
   /**
    * @notice The last rewards update
@@ -155,20 +155,22 @@ interface IKeeperRewards {
   function rewardsDelay() external view returns (uint64);
 
   /**
-   * @notice Get last synced Vault consensus rewards
+   * @notice Get last synced Vault cumulative reward
    * @param vault The address of the Vault
-   * @return nonce The last synced reward nonce
    * @return reward The last synced reward assets
+   * @return nonce The last synced reward nonce
    */
-  function consensusRewards(address vault) external view returns (uint96 nonce, int160 assets);
+  function rewards(address vault) external view returns (int192 reward, uint64 nonce);
 
   /**
-   * @notice Get last synced shared MEV Vault execution rewards
+   * @notice Get last synced shared MEV Vault cumulative withdrawable reward
    * @param vault The address of the Vault
+   * @return sharedMevReward The last synced reward assets
    * @return nonce The last synced reward nonce
-   * @return reward The last synced reward assets
    */
-  function executionRewards(address vault) external view returns (uint96 nonce, int160 assets);
+  function sharedMevRewards(
+    address vault
+  ) external view returns (uint192 sharedMevReward, uint64 nonce);
 
   /**
    * @notice Checks whether Vault must be harvested
@@ -210,9 +212,19 @@ interface IKeeperRewards {
   function setRewardsDelay(uint64 _rewardsDelay) external;
 
   /**
+   * @notice Pause new rewards submission and validators registration. Used by owner to emergency stop malicious oracles.
+   */
+  function pause() external;
+
+  /**
+   * @notice Unpause new rewards submission and validators registration. Can be called only by owner.
+   */
+  function unpause() external;
+
+  /**
    * @notice Harvest rewards. Can be called only by Vault.
    * @param params The struct containing rewards harvesting parameters
-   * @return deltas The consensus and execution deltas
+   * @return deltas The harvest deltas
    */
   function harvest(HarvestParams calldata params) external returns (HarvestDeltas memory deltas);
 }

@@ -76,7 +76,7 @@
       },
       {
         "internalType": "address",
-        "name": "mevEscrow",
+        "name": "ownMevEscrow",
         "type": "address"
       }
     ],
@@ -125,6 +125,11 @@
       {
         "internalType": "bool",
         "name": "isPrivate",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "isOwnMevEscrow",
         "type": "bool"
       }
     ],

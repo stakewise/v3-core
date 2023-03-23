@@ -175,7 +175,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       },
       {
@@ -206,13 +206,13 @@
       {
         "indexed": true,
         "internalType": "uint256",
-        "name": "prevExitQueueId",
+        "name": "prevPositionCounter",
         "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "newExitQueueId",
+        "name": "newPositionCounter",
         "type": "uint256"
       },
       {
@@ -573,7 +573,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       },
       {
@@ -586,7 +586,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "newExitQueueId",
+        "name": "newPositionCounter",
         "type": "uint256"
       },
       {
@@ -695,7 +695,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       }
     ],
@@ -732,7 +732,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       }
     ],
@@ -797,19 +797,6 @@
     "outputs": [
       {
         "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "mevEscrow",
-    "outputs": [
-      {
-        "internalType": "contract IMevEscrow",
         "name": "",
         "type": "address"
       }
@@ -977,19 +964,6 @@
       }
     ],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "redeemableShares",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1293,9 +1267,14 @@
             "type": "bytes32"
           },
           {
-            "internalType": "int160",
+            "internalType": "int256",
             "name": "reward",
-            "type": "int160"
+            "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "sharedMevReward",
+            "type": "uint256"
           },
           {
             "internalType": "bytes32[]",
@@ -1333,9 +1312,14 @@
             "type": "bytes32"
           },
           {
-            "internalType": "int160",
+            "internalType": "int256",
             "name": "reward",
-            "type": "int160"
+            "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "sharedMevReward",
+            "type": "uint256"
           },
           {
             "internalType": "bytes32[]",

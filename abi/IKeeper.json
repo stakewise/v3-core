@@ -21,8 +21,44 @@
   },
   {
     "inputs": [],
+    "name": "InvalidVault",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "TooEarlyUpdate",
     "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "nonce",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "string",
+        "name": "exitSignaturesIpfsHash",
+        "type": "string"
+      }
+    ],
+    "name": "ExitSignaturesUpdated",
+    "type": "event"
   },
   {
     "anonymous": false,
@@ -41,9 +77,15 @@
       },
       {
         "indexed": false,
-        "internalType": "int160",
-        "name": "reward",
-        "type": "int160"
+        "internalType": "int256",
+        "name": "totalAssetsDelta",
+        "type": "int256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "unlockedSharedMevReward",
+        "type": "uint256"
       }
     ],
     "name": "Harvested",
@@ -91,9 +133,9 @@
       },
       {
         "indexed": false,
-        "internalType": "uint96",
+        "internalType": "uint64",
         "name": "nonce",
-        "type": "uint96"
+        "type": "uint64"
       },
       {
         "indexed": false,
@@ -206,6 +248,25 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      }
+    ],
+    "name": "exitSigRotationNonces",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "components": [
           {
             "internalType": "bytes32",
@@ -213,9 +274,14 @@
             "type": "bytes32"
           },
           {
-            "internalType": "int160",
+            "internalType": "int256",
             "name": "reward",
-            "type": "int160"
+            "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "sharedMevReward",
+            "type": "uint256"
           },
           {
             "internalType": "bytes32[]",
@@ -231,12 +297,37 @@
     "name": "harvest",
     "outputs": [
       {
-        "internalType": "int256",
-        "name": "periodReward",
-        "type": "int256"
+        "components": [
+          {
+            "internalType": "int256",
+            "name": "totalAssetsDelta",
+            "type": "int256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "unlockedSharedMevReward",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct IKeeperRewards.HarvestDeltas",
+        "name": "deltas",
+        "type": "tuple"
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "implementation",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -323,7 +414,27 @@
   },
   {
     "inputs": [],
+    "name": "pause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "prevRewardsRoot",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "proxiableUUID",
     "outputs": [
       {
         "internalType": "bytes32",
@@ -345,14 +456,14 @@
     "name": "rewards",
     "outputs": [
       {
-        "internalType": "uint96",
-        "name": "nonce",
-        "type": "uint96"
+        "internalType": "int192",
+        "name": "reward",
+        "type": "int192"
       },
       {
-        "internalType": "int160",
-        "name": "reward",
-        "type": "int160"
+        "internalType": "uint64",
+        "name": "nonce",
+        "type": "uint64"
       }
     ],
     "stateMutability": "view",
@@ -376,9 +487,9 @@
     "name": "rewardsNonce",
     "outputs": [
       {
-        "internalType": "uint96",
+        "internalType": "uint64",
         "name": "",
-        "type": "uint96"
+        "type": "uint64"
       }
     ],
     "stateMutability": "view",
@@ -395,6 +506,29 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "exitSignaturesIpfsHash",
+        "type": "string"
+      },
+      {
+        "internalType": "bytes",
+        "name": "oraclesSignatures",
+        "type": "bytes"
+      }
+    ],
+    "name": "rotateExitSignatures",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -446,6 +580,37 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      }
+    ],
+    "name": "sharedMevRewards",
+    "outputs": [
+      {
+        "internalType": "uint192",
+        "name": "sharedMevReward",
+        "type": "uint192"
+      },
+      {
+        "internalType": "uint64",
+        "name": "nonce",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "unpause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "validatorsRegistry",
     "outputs": [
@@ -466,6 +631,19 @@
         "internalType": "contract IVaultsRegistry",
         "name": "",
         "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "version",
+    "outputs": [
+      {
+        "internalType": "uint8",
+        "name": "",
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",
