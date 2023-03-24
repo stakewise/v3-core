@@ -2,12 +2,17 @@ import { ByteVectorType, ContainerType, Type, UintNumberType } from '@chainsafe/
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { network } from 'hardhat'
 import { Buffer } from 'buffer'
-import { BigNumber, BytesLike, Contract, Wallet } from 'ethers'
+import { BigNumber, BigNumberish, BytesLike, Contract, Wallet } from 'ethers'
 import { arrayify, parseEther } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
 import keccak256 from 'keccak256'
 import { Keeper, EthVault, Oracles } from '../../typechain-types'
-import { EIP712Domain, ORACLES, KeeperValidatorsSig } from './constants'
+import {
+  EIP712Domain,
+  ORACLES,
+  KeeperValidatorsSig,
+  KeeperUpdateExitSignaturesSig,
+} from './constants'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -214,6 +219,29 @@ export function getEthValidatorsSigningData(
       validatorsRegistryRoot,
       vault: vault.address,
       validators: keccak256(validators),
+      exitSignaturesIpfsHash: keccak256(exitSignaturesIpfsHash),
+    },
+  }
+}
+
+export function getEthValidatorsExitSignaturesSigningData(
+  oracles: Oracles,
+  vault: EthVault,
+  exitSignaturesIpfsHash: string,
+  nonce: BigNumberish
+) {
+  return {
+    primaryType: 'KeeperValidators',
+    types: { EIP712Domain, KeeperValidators: KeeperUpdateExitSignaturesSig },
+    domain: {
+      name: 'Oracles',
+      version: '1',
+      chainId: network.config.chainId,
+      verifyingContract: oracles.address,
+    },
+    message: {
+      vault: vault.address,
+      nonce,
       exitSignaturesIpfsHash: keccak256(exitSignaturesIpfsHash),
     },
   }

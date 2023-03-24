@@ -148,7 +148,7 @@ abstract contract KeeperRewards is
   }
 
   /// @inheritdoc IKeeperRewards
-  function isCollateralized(address vault) external view override returns (bool) {
+  function isCollateralized(address vault) public view override returns (bool) {
     return rewards[vault].nonce != 0;
   }
 

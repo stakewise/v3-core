@@ -15,8 +15,10 @@ import {
   ValidatorsMultiProof,
   EthValidatorsData,
   exitSignatureIpfsHashes,
+  getEthValidatorsExitSignaturesSigningData,
 } from './shared/validators'
 import snapshotGasCost from './shared/snapshotGasCost'
+import { collateralizeEthVault } from './shared/rewards'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -144,9 +146,9 @@ describe('KeeperValidators', () => {
     })
 
     it('succeeds', async () => {
-      let rewardsSync = await keeper.rewards(vault.address)
-      expect(rewardsSync.nonce).to.eq(0)
-      expect(rewardsSync.reward).to.eq(0)
+      let rewards = await keeper.rewards(vault.address)
+      expect(rewards.nonce).to.eq(0)
+      expect(rewards.assets).to.eq(0)
 
       let receipt = await vault.registerValidator(approveParams, proof)
       const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
@@ -160,9 +162,9 @@ describe('KeeperValidators', () => {
         )
 
       // collateralize vault
-      rewardsSync = await keeper.rewards(vault.address)
-      expect(rewardsSync.nonce).to.eq(1)
-      expect(rewardsSync.reward).to.eq(0)
+      rewards = await keeper.rewards(vault.address)
+      expect(rewards.nonce).to.eq(1)
+      expect(rewards.assets).to.eq(0)
 
       await snapshotGasCost(receipt)
 
@@ -197,9 +199,9 @@ describe('KeeperValidators', () => {
       )
 
       // doesn't collateralize twice
-      rewardsSync = await keeper.rewards(vault.address)
-      expect(rewardsSync.nonce).to.eq(1)
-      expect(rewardsSync.reward).to.eq(0)
+      rewards = await keeper.rewards(vault.address)
+      expect(rewards.nonce).to.eq(1)
+      expect(rewards.assets).to.eq(0)
 
       await snapshotGasCost(receipt)
     })
@@ -312,9 +314,9 @@ describe('KeeperValidators', () => {
     })
 
     it('succeeds', async () => {
-      let rewardsSync = await keeper.rewards(vault.address)
-      expect(rewardsSync.nonce).to.eq(0)
-      expect(rewardsSync.reward).to.eq(0)
+      let rewards = await keeper.rewards(vault.address)
+      expect(rewards.nonce).to.eq(0)
+      expect(rewards.assets).to.eq(0)
       const validatorsConcat = Buffer.concat(validators)
 
       let receipt = await vault.registerValidators(
@@ -333,9 +335,9 @@ describe('KeeperValidators', () => {
           timestamp
         )
 
-      rewardsSync = await keeper.rewards(vault.address)
-      expect(rewardsSync.nonce).to.eq(1)
-      expect(rewardsSync.reward).to.eq(0)
+      rewards = await keeper.rewards(vault.address)
+      expect(rewards.nonce).to.eq(1)
+      expect(rewards.assets).to.eq(0)
 
       await snapshotGasCost(receipt)
 
@@ -373,10 +375,75 @@ describe('KeeperValidators', () => {
       )
 
       // doesn't collateralize twice
-      rewardsSync = await keeper.rewards(vault.address)
-      expect(rewardsSync.nonce).to.eq(1)
-      expect(rewardsSync.reward).to.eq(0)
+      rewards = await keeper.rewards(vault.address)
+      expect(rewards.nonce).to.eq(1)
+      expect(rewards.assets).to.eq(0)
 
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('update exit signatures', () => {
+    let exitSignaturesIpfsHash: string
+    let oraclesSignatures: Buffer
+    let signingData: any
+
+    beforeEach(async () => {
+      exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
+      signingData = getEthValidatorsExitSignaturesSigningData(
+        oracles,
+        vault,
+        exitSignaturesIpfsHash,
+        0
+      )
+      oraclesSignatures = getSignatures(signingData, ORACLES.length)
+    })
+
+    it('fails for invalid vault', async () => {
+      await expect(
+        keeper.updateExitSignatures(keeper.address, exitSignaturesIpfsHash, oraclesSignatures)
+      ).revertedWith('InvalidVault')
+    })
+
+    it('fails for not collateralized vault', async () => {
+      await expect(
+        keeper.updateExitSignatures(vault.address, exitSignaturesIpfsHash, oraclesSignatures)
+      ).revertedWith('InvalidVault')
+    })
+
+    it('fails for invalid signatures', async () => {
+      await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+      await expect(
+        keeper.updateExitSignatures(
+          vault.address,
+          exitSignaturesIpfsHash,
+          getSignatures(signingData, ORACLES.length - 1)
+        )
+      ).revertedWith('NotEnoughSignatures')
+    })
+
+    it('fails to submit update twice', async () => {
+      await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+      await keeper.updateExitSignatures(vault.address, exitSignaturesIpfsHash, oraclesSignatures)
+
+      await expect(
+        keeper.updateExitSignatures(vault.address, exitSignaturesIpfsHash, oraclesSignatures)
+      ).revertedWith('InvalidOracle')
+    })
+
+    it('succeeds', async () => {
+      const nonce = await keeper.exitSignaturesNonces(vault.address)
+      expect(nonce).to.eq(0)
+
+      await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+
+      const receipt = await keeper
+        .connect(sender)
+        .updateExitSignatures(vault.address, exitSignaturesIpfsHash, oraclesSignatures)
+      await expect(receipt)
+        .to.emit(keeper, 'ExitSignaturesUpdated')
+        .withArgs(sender.address, vault.address, nonce, exitSignaturesIpfsHash)
+      expect(await keeper.exitSignaturesNonces(vault.address)).to.eq(nonce.add(1))
       await snapshotGasCost(receipt)
     })
   })

@@ -253,7 +253,7 @@
         "type": "address"
       }
     ],
-    "name": "exitSigRotationNonces",
+    "name": "exitSignaturesNonces",
     "outputs": [
       {
         "internalType": "uint256",
@@ -511,29 +511,6 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "vault",
-        "type": "address"
-      },
-      {
-        "internalType": "string",
-        "name": "exitSignaturesIpfsHash",
-        "type": "string"
-      },
-      {
-        "internalType": "bytes",
-        "name": "oraclesSignatures",
-        "type": "bytes"
-      }
-    ],
-    "name": "rotateExitSignatures",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "uint64",
         "name": "_rewardsDelay",
         "type": "uint64"
@@ -606,6 +583,29 @@
   {
     "inputs": [],
     "name": "unpause",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      },
+      {
+        "internalType": "string",
+        "name": "exitSignaturesIpfsHash",
+        "type": "string"
+      },
+      {
+        "internalType": "bytes",
+        "name": "oraclesSignatures",
+        "type": "bytes"
+      }
+    ],
+    "name": "updateExitSignatures",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

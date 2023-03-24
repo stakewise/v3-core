@@ -114,7 +114,7 @@
         "type": "address"
       }
     ],
-    "name": "exitSigRotationNonces",
+    "name": "exitSignaturesNonces",
     "outputs": [
       {
         "internalType": "uint256",
@@ -143,7 +143,7 @@
         "type": "bytes"
       }
     ],
-    "name": "rotateExitSignatures",
+    "name": "updateExitSignatures",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

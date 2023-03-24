@@ -9,7 +9,7 @@ import { Buffer } from 'buffer'
 import { registerEthValidator } from './validators'
 import { increaseTime, setBalance } from './utils'
 
-export type RewardsTree = StandardMerkleTree<[string, BigNumberish]>
+export type RewardsTree = StandardMerkleTree<[string, BigNumberish, BigNumberish]>
 
 export type RewardsRoot = {
   root: string
@@ -22,6 +22,7 @@ export type RewardsRoot = {
 export type VaultReward = {
   vault: string
   reward: BigNumberish
+  sharedMevReward: BigNumberish
 }
 
 export function createVaultRewardsRoot(
@@ -31,8 +32,8 @@ export function createVaultRewardsRoot(
   nonce = 1
 ): RewardsRoot {
   const tree = StandardMerkleTree.of(
-    rewards.map((r) => [r.vault, r.reward]),
-    ['address', 'int160']
+    rewards.map((r) => [r.vault, r.reward, r.sharedMevReward]),
+    ['address', 'int256', 'uint256']
   ) as RewardsTree
 
   const treeRoot = tree.root
@@ -82,7 +83,7 @@ export async function updateRewardsRoot(
 }
 
 export function getRewardsRootProof(tree: RewardsTree, vaultReward: VaultReward): string[] {
-  return tree.getProof([vaultReward.vault, vaultReward.reward])
+  return tree.getProof([vaultReward.vault, vaultReward.reward, vaultReward.sharedMevReward])
 }
 
 export async function collateralizeEthVault(
@@ -101,9 +102,13 @@ export async function collateralizeEthVault(
 
   // update rewards tree
   const rewardsTree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-    { vault: vault.address, reward: 0 },
+    { vault: vault.address, reward: 0, sharedMevReward: 0 },
   ])
-  const proof = getRewardsRootProof(rewardsTree, { vault: vault.address, reward: 0 })
+  const proof = getRewardsRootProof(rewardsTree, {
+    vault: vault.address,
+    reward: 0,
+    sharedMevReward: 0,
+  })
 
   // exit validator
   const exitQueueId = await vault
@@ -112,7 +117,7 @@ export async function collateralizeEthVault(
   await vault.connect(admin).enterExitQueue(validatorDeposit, admin.address, admin.address)
   await setBalance(vault.address, validatorDeposit)
 
-  await vault.updateState({ rewardsRoot: rewardsTree.root, reward: 0, proof })
+  await vault.updateState({ rewardsRoot: rewardsTree.root, reward: 0, sharedMevReward: 0, proof })
 
   // claim exited assets
   const checkpointIndex = await vault.getCheckpointIndex(exitQueueId)
