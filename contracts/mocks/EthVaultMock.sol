@@ -20,8 +20,9 @@ contract EthVaultMock is EthVault {
   constructor(
     address _keeper,
     address _vaultsRegistry,
-    address _validatorsRegistry
-  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry) {}
+    address _validatorsRegistry,
+    address sharedMevEscrow
+  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, sharedMevEscrow) {}
 
   function mockDeposit(address receiver, uint256 assets) external returns (uint256 shares) {
     // calculate amount of shares to mint

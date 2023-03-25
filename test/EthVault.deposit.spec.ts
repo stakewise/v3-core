@@ -1,7 +1,15 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthVault, EthVaultMock, IKeeperRewards, Keeper, Oracles } from '../typechain-types'
+import {
+  SharedMevEscrow,
+  EthVault,
+  EthVaultMock,
+  IKeeperRewards,
+  Keeper,
+  Oracles,
+  ExitQueue,
+} from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -23,7 +31,11 @@ describe('EthVault - deposit', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const referrer = '0x' + '1'.repeat(40)
   let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Wallet, other: Wallet
-  let vault: EthVault, keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
+  let vault: EthVault,
+    keeper: Keeper,
+    oracles: Oracles,
+    mevEscrow: SharedMevEscrow,
+    validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -36,8 +48,15 @@ describe('EthVault - deposit', () => {
   })
 
   beforeEach('deploy fixtures', async () => {
-    ;({ createVault, createVaultMock, keeper, oracles, validatorsRegistry, getSignatures } =
-      await loadFixture(ethVaultFixture))
+    ;({
+      createVault,
+      createVaultMock,
+      keeper,
+      oracles,
+      validatorsRegistry,
+      sharedMevEscrow: mevEscrow,
+      getSignatures,
+    } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
       validatorsRoot,
@@ -123,10 +142,10 @@ describe('EthVault - deposit', () => {
       await vault.connect(other).deposit(other.address, referrer, { value: parseEther('32') })
       await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
       await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { reward: parseEther('5'), vault: vault.address },
+        { reward: parseEther('5'), sharedMevReward: 0, vault: vault.address },
       ])
       await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { reward: parseEther('10'), vault: vault.address },
+        { reward: parseEther('10'), sharedMevReward: 0, vault: vault.address },
       ])
       await expect(
         vault.connect(sender).deposit(receiver.address, referrer, { value: parseEther('10') })
@@ -134,25 +153,33 @@ describe('EthVault - deposit', () => {
     })
 
     it('update state and deposit', async () => {
+      const exitQueueFactory = await ethers.getContractFactory('ExitQueue')
+      const exitQueue = exitQueueFactory.attach(vault.address) as ExitQueue
+
       await vault.connect(other).deposit(other.address, referrer, { value: parseEther('32') })
       await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
 
       let vaultReward = parseEther('10')
       await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { reward: vaultReward, vault: vault.address },
+        { reward: vaultReward, sharedMevReward: vaultReward, vault: vault.address },
       ])
 
       vaultReward = vaultReward.add(parseEther('1'))
       const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { reward: vaultReward, vault: vault.address },
+        { reward: vaultReward, sharedMevReward: vaultReward, vault: vault.address },
       ])
 
       const harvestParams: IKeeperRewards.HarvestParamsStruct = {
         rewardsRoot: tree.root,
         reward: vaultReward,
-        proof: getRewardsRootProof(tree, { vault: vault.address, reward: vaultReward }),
+        sharedMevReward: vaultReward,
+        proof: getRewardsRootProof(tree, {
+          vault: vault.address,
+          sharedMevReward: vaultReward,
+          reward: vaultReward,
+        }),
       }
-      await setBalance(await vault.mevEscrow(), parseEther('10'))
+      await setBalance(mevEscrow.address, vaultReward)
       await setBalance(await vault.address, parseEther('5'))
       await vault.connect(other).enterExitQueue(parseEther('32'), other.address, other.address)
 
@@ -162,7 +189,9 @@ describe('EthVault - deposit', () => {
         .updateStateAndDeposit(receiver.address, referrer, harvestParams, { value: amount })
       await expect(receipt).to.emit(vault, 'Transfer')
       await expect(receipt).to.emit(vault, 'Deposit')
-      await expect(receipt).to.emit(vault, 'StateUpdated')
+      await expect(receipt).to.emit(keeper, 'Harvested')
+      await expect(receipt).to.emit(mevEscrow, 'Harvested')
+      await expect(receipt).to.emit(exitQueue, 'CheckpointCreated')
       await snapshotGasCost(receipt)
     })
 

@@ -16,6 +16,7 @@ import {VaultToken} from '../modules/VaultToken.sol';
 import {VaultState} from '../modules/VaultState.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
 import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
+import {VaultMev} from '../modules/VaultMev.sol';
 
 /**
  * @title EthVault
@@ -33,6 +34,7 @@ contract EthVault is
   VaultValidators,
   VaultEnterExit,
   VaultEthStaking,
+  VaultMev,
   Multicall,
   IEthVault
 {
@@ -43,13 +45,15 @@ contract EthVault is
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param sharedMevEscrow The address of the shared MEV escrow
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     address _keeper,
     address _vaultsRegistry,
-    address _validatorsRegistry
-  ) VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry) {
+    address _validatorsRegistry,
+    address sharedMevEscrow
+  ) VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry) VaultMev(sharedMevEscrow) {
     _disableInitializers();
   }
 
@@ -68,7 +72,8 @@ contract EthVault is
     // fee recipient is initially set to admin address
     __VaultFee_init(params.admin, params.feePercent);
     __VaultValidators_init(params.validatorsRoot);
-    __VaultEthStaking_init(params.mevEscrow);
+    __VaultEthStaking_init();
+    __VaultMev_init(params.mevEscrow);
   }
 
   /// @inheritdoc VaultVersion

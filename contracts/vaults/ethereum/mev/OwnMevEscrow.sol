@@ -18,13 +18,15 @@ contract OwnMevEscrow is IOwnMevEscrow {
   }
 
   /// @inheritdoc IOwnMevEscrow
-  function withdraw() external returns (uint256 assets) {
-    if (msg.sender != vault) revert WithdrawalFailed();
+  function harvest() external returns (uint256 assets) {
+    if (msg.sender != vault) revert HarvestFailed();
 
     assets = address(this).balance;
     if (assets == 0) return 0;
 
+    emit Harvested(assets);
     (bool success, ) = vault.call{value: assets}('');
+    if (!success) revert HarvestFailed();
   }
 
   /**

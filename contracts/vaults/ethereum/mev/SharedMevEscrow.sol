@@ -19,11 +19,12 @@ contract SharedMevEscrow is ISharedMevEscrow {
   }
 
   /// @inheritdoc ISharedMevEscrow
-  function withdraw(uint256 amount) external override {
-    if (!_vaultsRegistry.vaults(msg.sender)) revert WithdrawalFailed();
+  function harvest(uint256 amount) external override {
+    if (!_vaultsRegistry.vaults(msg.sender)) revert HarvestFailed();
 
+    emit Harvested(msg.sender, amount);
     (bool success, ) = payable(msg.sender).call{value: amount}('');
-    if (!success) revert WithdrawalFailed();
+    if (!success) revert HarvestFailed();
   }
 
   /**

@@ -17,22 +17,10 @@ interface IVaultState is IVaultImmutables, IVaultToken, IVaultFee {
   error InsufficientAssets();
 
   /**
-   * @notice Event emitted on Vault's state update
-   * @param assetsDelta The number of assets added or deducted from/to the total staked assets
-   */
-  event StateUpdated(int256 assetsDelta);
-
-  /**
    * @notice Total assets available in the Vault. They can be staked or withdrawn.
    * @return The total amount of withdrawable assets
    */
   function withdrawableAssets() external view returns (uint256);
-
-  /**
-   * @notice Total shares that can be redeemed from the Vault
-   * @return The total shares that can be withdrawn without queuing
-   */
-  function redeemableShares() external view returns (uint256);
 
   /**
    * @notice Queued Shares
@@ -47,12 +35,18 @@ interface IVaultState is IVaultImmutables, IVaultToken, IVaultFee {
   function unclaimedAssets() external view returns (uint96);
 
   /**
+   * @notice Check whether exit queue can be updated
+   * @return `true` if exit queue can be updated, `false` otherwise
+   */
+  function canUpdateExitQueue() external view returns (bool);
+
+  /**
    * @notice Get the checkpoint index to claim exited assets from
-   * @param exitQueueId The exit queue ID to get the checkpoint index for
+   * @param positionCounter The exit queue counter to get the checkpoint index for
    * @return The checkpoint index that should be used to claim exited assets.
    *         Returns -1 in case such index does not exist.
    */
-  function getCheckpointIndex(uint256 exitQueueId) external view returns (int256);
+  function getCheckpointIndex(uint256 positionCounter) external view returns (int256);
 
   /**
    * @notice Updates the total amount of assets in the Vault and its exit queue

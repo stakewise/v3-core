@@ -45,130 +45,136 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
   }
 
   /// @inheritdoc IVaultState
-  function redeemableShares() public view override returns (uint256) {
-    return convertToShares(withdrawableAssets());
-  }
-
-  /// @inheritdoc IVaultState
-  function getCheckpointIndex(uint256 exitQueueId) external view override returns (int256) {
-    uint256 checkpointIdx = _exitQueue.getCheckpointIndex(exitQueueId);
+  function getCheckpointIndex(uint256 positionCounter) external view override returns (int256) {
+    uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionCounter);
     return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
   }
 
   /// @inheritdoc IVaultState
-  function updateState(IKeeperRewards.HarvestParams calldata harvestParams) public override {
-    // can be negative in case of the loss
-    int256 assetsDelta = _harvestAssets(harvestParams);
-
-    // SLOAD to memory
-    uint256 totalSharesAfter = _totalShares;
-    uint256 totalAssetsAfter = _totalAssets;
-
-    if (assetsDelta > 0) {
-      // compute fees as the fee percent multiplied by the profit
-      uint256 profitAccrued = uint256(assetsDelta);
-
-      // increase total staked amount
-      totalAssetsAfter += profitAccrued;
-
-      // SLOAD to memory
-      uint256 _feePercent = feePercent;
-      if (_feePercent > 0) {
-        // calculate fee recipient's shares
-        uint256 feeRecipientAssets = Math.mulDiv(profitAccrued, _feePercent, _maxFeePercent);
-
-        uint256 feeRecipientShares;
-        unchecked {
-          // Will revert if totalAssetsAfter - feeRecipientAssets = 0.
-          // That corresponds to a case where any asset would represent an infinite amount of shares.
-          // cannot underflow as feePercent <= maxFeePercent
-          feeRecipientShares = Math.mulDiv(
-            feeRecipientAssets,
-            totalSharesAfter,
-            totalAssetsAfter - feeRecipientAssets
-          );
-        }
-
-        if (feeRecipientShares > 0) {
-          // SLOAD to memory
-          address _feeRecipient = feeRecipient;
-          // mint shares to the fee recipient
-          totalSharesAfter += feeRecipientShares;
-          unchecked {
-            // cannot underflow because the sum of all shares can't exceed the _totalShares
-            balanceOf[_feeRecipient] += feeRecipientShares;
-          }
-          emit Transfer(address(0), _feeRecipient, feeRecipientShares);
-        }
-      }
-    } else if (assetsDelta < 0) {
-      // apply penalty
-      totalAssetsAfter -= uint256(-assetsDelta);
-    }
-
-    // update storage values
-    if (assetsDelta != 0) {
-      _totalShares = SafeCast.toUint128(totalSharesAfter);
-      _totalAssets = SafeCast.toUint128(totalAssetsAfter);
-      emit StateUpdated(assetsDelta);
-    }
-
-    // update exit queue
-    (uint256 burnedShares, uint256 exitedAssets) = _updateExitQueue();
-    if (burnedShares > 0) {
-      _totalShares -= SafeCast.toUint128(burnedShares);
-      _totalAssets -= SafeCast.toUint128(exitedAssets);
-    }
+  function canUpdateExitQueue() public view override returns (bool) {
+    return block.timestamp >= _exitQueueNextUpdate;
   }
 
-  /**
-   * @dev Internal function that must be used to process exit queue
-   * @return burnedShares The amount of shares that must be deducted from total shares
-   * @return exitedAssets The amount of assets that must be deducted from total assets
-   */
-  function _updateExitQueue() internal returns (uint256 burnedShares, uint256 exitedAssets) {
-    if (block.timestamp < _exitQueueNextUpdate) return (0, 0);
+  /// @inheritdoc IVaultState
+  function updateState(IKeeperRewards.HarvestParams calldata harvestParams) public override {
+    // fetch rewards and penalties
+    IKeeperRewards.HarvestDeltas memory harvestDeltas = _harvestAssets(harvestParams);
 
-    // SLOAD to memory
-    uint256 _queuedShares = queuedShares;
-    if (_queuedShares == 0) return (0, 0);
+    // process deltas since last update
+    _processHarvestDeltas(harvestDeltas);
 
-    // calculate the amount of assets that can be exited
-    uint256 _unclaimedAssets = unclaimedAssets;
-    unchecked {
-      // cannot underflow as _vaultAssets() >= _unclaimedAssets
-      exitedAssets = Math.min(_vaultAssets() - _unclaimedAssets, convertToAssets(_queuedShares));
+    // update exit queue
+    if (canUpdateExitQueue()) {
+      _updateExitQueue();
     }
-
-    // calculate the amount of shares that can be burned
-    burnedShares = convertToShares(exitedAssets);
-    if (burnedShares == 0 || exitedAssets == 0) return (0, 0);
-
-    unchecked {
-      // cannot underflow as queuedShares >= burnedShares
-      queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
-
-      // cannot overflow as it is capped with underlying asset total supply
-      unclaimedAssets = SafeCast.toUint96(_unclaimedAssets + exitedAssets);
-
-      // cannot overflow on human timescales
-      _exitQueueNextUpdate = uint64(block.timestamp + _exitQueueUpdateDelay);
-    }
-
-    // emit burn event
-    emit Transfer(address(this), address(0), burnedShares);
-
-    // push checkpoint so that exited assets could be claimed
-    _exitQueue.push(burnedShares, exitedAssets);
   }
 
   /**
    * @dev Internal function for harvesting Vaults' new assets
-   * @return The number of assets earned or lost
+   * @return deltas The assets' deltas since last harvest
    */
   function _harvestAssets(
     IKeeperRewards.HarvestParams calldata harvestParams
-  ) internal virtual returns (int256);
+  ) internal virtual returns (IKeeperRewards.HarvestDeltas memory deltas);
+
+  /**
+   * @dev Internal function for processing rewards and penalties
+   * @param deltas The number of assets earned or lost
+   */
+  function _processHarvestDeltas(IKeeperRewards.HarvestDeltas memory deltas) internal virtual {
+    int256 totalAssetsDelta = deltas.totalAssetsDelta;
+    if (totalAssetsDelta == 0) return;
+
+    // SLOAD to memory
+    uint256 newTotalAssets = _totalAssets;
+    if (totalAssetsDelta < 0) {
+      // add penalty to total assets
+      newTotalAssets -= uint256(-totalAssetsDelta);
+
+      // update state
+      _totalAssets = SafeCast.toUint128(newTotalAssets);
+      return;
+    }
+
+    // convert assets delta as it is positive
+    uint256 profitAssets = uint256(totalAssetsDelta);
+    newTotalAssets += profitAssets;
+
+    // update state
+    _totalAssets = SafeCast.toUint128(newTotalAssets);
+
+    // calculate admin fee recipient assets
+    uint256 feeRecipientAssets = Math.mulDiv(profitAssets, feePercent, _maxFeePercent);
+    if (feeRecipientAssets == 0) return;
+
+    // SLOAD to memory
+    uint256 totalShares = _totalShares;
+
+    // calculate fee recipient's shares
+    uint256 feeRecipientShares;
+    unchecked {
+      // cannot underflow as feePercent <= maxFeePercent
+      feeRecipientShares = _convertToShares(
+        feeRecipientAssets,
+        totalShares,
+        newTotalAssets - feeRecipientAssets,
+        Math.Rounding.Down
+      );
+    }
+    if (feeRecipientShares == 0) return;
+
+    // update state
+    _totalShares = SafeCast.toUint128(totalShares + feeRecipientShares);
+
+    // SLOAD to memory
+    address _feeRecipient = feeRecipient;
+
+    // mint shares to the fee recipient
+    unchecked {
+      // cannot underflow because the sum of all shares can't exceed the _totalShares
+      balanceOf[_feeRecipient] += feeRecipientShares;
+    }
+    emit Transfer(address(0), _feeRecipient, feeRecipientShares);
+  }
+
+  /**
+   * @dev Internal function that must be used to process exit queue
+   */
+  function _updateExitQueue() internal {
+    // SLOAD to memory
+    uint256 _queuedShares = queuedShares;
+    if (_queuedShares == 0) return;
+
+    // calculate the amount of assets that can be exited
+    uint256 _unclaimedAssets = unclaimedAssets;
+    uint256 exitedAssets = Math.min(
+      _vaultAssets() - _unclaimedAssets,
+      convertToAssets(_queuedShares)
+    );
+    if (exitedAssets == 0) return;
+
+    // calculate the amount of shares that can be burned
+    uint256 burnedShares = convertToShares(exitedAssets);
+    if (burnedShares == 0) return;
+
+    queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
+    unclaimedAssets = SafeCast.toUint96(_unclaimedAssets + exitedAssets);
+
+    unchecked {
+      // cannot overflow on human timescales
+      _exitQueueNextUpdate = uint64(block.timestamp + _exitQueueUpdateDelay);
+    }
+
+    // push checkpoint so that exited assets could be claimed
+    _exitQueue.push(burnedShares, exitedAssets);
+
+    // update state
+    _totalShares -= SafeCast.toUint128(burnedShares);
+    _totalAssets -= SafeCast.toUint128(exitedAssets);
+
+    // emit burn event
+    emit Transfer(address(this), address(0), burnedShares);
+  }
 
   /**
    * @dev This empty reserved space is put in place to allow future versions to add new
