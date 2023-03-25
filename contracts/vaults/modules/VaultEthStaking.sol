@@ -8,7 +8,6 @@ import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {IEthValidatorsRegistry} from '../../interfaces/IEthValidatorsRegistry.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
-import {IMevEscrow} from '../../interfaces/IMevEscrow.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultToken} from '../modules/VaultToken.sol';
 import {VaultState} from '../modules/VaultState.sol';
@@ -33,10 +32,6 @@ abstract contract VaultEthStaking is
 {
   // @inheritdoc IVaultEthStaking
   uint256 public constant override securityDeposit = 1e9;
-
-  /// @inheritdoc IVaultEthStaking
-  // slither-disable-next-line uninitialized-state
-  IMevEscrow public override mevEscrow;
 
   /// @inheritdoc IVaultEthStaking
   function deposit(
@@ -87,6 +82,7 @@ abstract contract VaultEthStaking is
     bytes calldata validator;
     bytes calldata publicKey;
     leaves = new bytes32[](indexes.length);
+    uint256 validatorDeposit = _validatorDeposit();
     bytes memory withdrawalCreds = withdrawalCredentials();
     for (uint256 i = 0; i < indexes.length; ) {
       unchecked {
@@ -99,7 +95,7 @@ abstract contract VaultEthStaking is
       );
       publicKey = validator[:48];
       // slither-disable-next-line arbitrary-send-eth
-      IEthValidatorsRegistry(validatorsRegistry).deposit{value: _validatorDeposit()}(
+      IEthValidatorsRegistry(validatorsRegistry).deposit{value: validatorDeposit}(
         publicKey,
         withdrawalCreds,
         validator[48:144],
@@ -125,13 +121,6 @@ abstract contract VaultEthStaking is
     return Address.sendValue(payable(receiver), assets);
   }
 
-  /// @inheritdoc VaultState
-  function _harvestAssets(
-    IKeeperRewards.HarvestParams calldata harvestParams
-  ) internal override returns (int256) {
-    return IKeeperRewards(keeper).harvest(harvestParams) + int256(mevEscrow.withdraw());
-  }
-
   /// @inheritdoc VaultValidators
   function _validatorDeposit() internal pure override returns (uint256) {
     return 32 ether;
@@ -139,12 +128,11 @@ abstract contract VaultEthStaking is
 
   /**
    * @dev Initializes the VaultEthStaking contract
-   * @param _mevEscrow The address of the MEV escrow
    */
-  function __VaultEthStaking_init(address _mevEscrow) internal onlyInitializing {
+  function __VaultEthStaking_init() internal onlyInitializing {
     __ReentrancyGuard_init();
-    mevEscrow = IMevEscrow(_mevEscrow);
 
+    // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
     if (msg.value < securityDeposit) revert InvalidSecurityDeposit();
     _deposit(address(this), msg.value, address(0));
   }

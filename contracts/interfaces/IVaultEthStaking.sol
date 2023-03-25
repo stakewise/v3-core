@@ -7,7 +7,6 @@ import {IVaultToken} from './IVaultToken.sol';
 import {IVaultValidators} from './IVaultValidators.sol';
 import {IVaultEnterExit} from './IVaultEnterExit.sol';
 import {IKeeperRewards} from './IKeeperRewards.sol';
-import {IMevEscrow} from './IMevEscrow.sol';
 
 /**
  * @title IVaultEthStaking
@@ -20,12 +19,6 @@ interface IVaultEthStaking is IVaultToken, IVaultState, IVaultValidators, IVault
    * @return The amount that is permanently deposited by the Vault creator to protect from the inflation attack
    */
   function securityDeposit() external view returns (uint256);
-
-  /**
-   * @notice The contract that accumulates MEV rewards
-   * @return The MEV escrow contract address
-   */
-  function mevEscrow() external view returns (IMevEscrow);
 
   /**
    * @notice Deposit ETH to the Vault
