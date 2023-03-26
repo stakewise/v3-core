@@ -6,7 +6,6 @@ import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {Ownable2StepUpgradeable} from '@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol';
 import {PausableUpgradeable} from '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IVaultMev} from '../interfaces/IVaultMev.sol';
@@ -155,7 +154,7 @@ abstract contract KeeperRewards is
   /// @inheritdoc IKeeperRewards
   function harvest(
     HarvestParams calldata params
-  ) external override returns (HarvestDeltas memory deltas) {
+  ) external override returns (int256 totalAssetsDelta, uint256 unlockedSharedMevReward) {
     if (!vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
 
     // SLOAD to memory
@@ -185,42 +184,29 @@ abstract contract KeeperRewards is
 
     // SLOAD to memory
     Reward memory lastReward = rewards[msg.sender];
-
     // check whether Vault's nonce is smaller that the current, otherwise it's already harvested
-    if (lastReward.nonce >= currentNonce) {
-      deltas = HarvestDeltas({totalAssetsDelta: 0, unlockedSharedMevReward: 0});
-      return deltas;
-    }
+    if (lastReward.nonce >= currentNonce) return (0, 0);
 
     // calculate total assets delta
-    deltas.totalAssetsDelta = params.reward - lastReward.assets;
+    totalAssetsDelta = params.reward - lastReward.assets;
 
     // update state
-    rewards[msg.sender] = Reward({assets: SafeCast.toInt192(params.reward), nonce: currentNonce});
+    rewards[msg.sender] = Reward({nonce: currentNonce, assets: params.reward});
 
     // check whether Vault has shared execution reward
     if (IVaultMev(msg.sender).mevEscrow() == _sharedMevEscrow) {
-      // SLOAD to memory
-      SharedMevReward memory lastSharedMevReward = sharedMevRewards[msg.sender];
-      if (lastSharedMevReward.nonce < currentNonce) {
-        // calculate execution assets reward
-        deltas.unlockedSharedMevReward = params.sharedMevReward - lastSharedMevReward.assets;
+      // calculate execution assets reward
+      unlockedSharedMevReward = params.sharedMevReward - sharedMevRewards[msg.sender].assets;
 
-        // update state
-        sharedMevRewards[msg.sender] = SharedMevReward({
-          assets: SafeCast.toUint192(params.sharedMevReward),
-          nonce: currentNonce
-        });
-      }
+      // update state
+      sharedMevRewards[msg.sender] = SharedMevReward({
+        nonce: currentNonce,
+        assets: params.sharedMevReward
+      });
     }
 
     // emit event
-    emit Harvested(
-      msg.sender,
-      params.rewardsRoot,
-      deltas.totalAssetsDelta,
-      deltas.unlockedSharedMevReward
-    );
+    emit Harvested(msg.sender, params.rewardsRoot, totalAssetsDelta, unlockedSharedMevReward);
   }
 
   /// @inheritdoc IKeeperRewards

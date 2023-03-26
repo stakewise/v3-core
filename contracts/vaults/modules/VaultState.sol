@@ -57,11 +57,9 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
 
   /// @inheritdoc IVaultState
   function updateState(IKeeperRewards.HarvestParams calldata harvestParams) public override {
-    // fetch rewards and penalties
-    IKeeperRewards.HarvestDeltas memory harvestDeltas = _harvestAssets(harvestParams);
-
-    // process deltas since last update
-    _processHarvestDeltas(harvestDeltas);
+    // process total assets delta  since last update
+    int256 totalAssetsDelta = _harvestAssets(harvestParams);
+    if (totalAssetsDelta != 0) _processTotalAssetsDelta(totalAssetsDelta);
 
     // update exit queue
     if (canUpdateExitQueue()) {
@@ -70,21 +68,10 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
   }
 
   /**
-   * @dev Internal function for harvesting Vaults' new assets
-   * @return deltas The assets' deltas since last harvest
-   */
-  function _harvestAssets(
-    IKeeperRewards.HarvestParams calldata harvestParams
-  ) internal virtual returns (IKeeperRewards.HarvestDeltas memory deltas);
-
-  /**
    * @dev Internal function for processing rewards and penalties
-   * @param deltas The number of assets earned or lost
+   * @param totalAssetsDelta The number of assets earned or lost
    */
-  function _processHarvestDeltas(IKeeperRewards.HarvestDeltas memory deltas) internal virtual {
-    int256 totalAssetsDelta = deltas.totalAssetsDelta;
-    if (totalAssetsDelta == 0) return;
-
+  function _processTotalAssetsDelta(int256 totalAssetsDelta) internal {
     // SLOAD to memory
     uint256 newTotalAssets = _totalAssets;
     if (totalAssetsDelta < 0) {
@@ -175,6 +162,14 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
     // emit burn event
     emit Transfer(address(this), address(0), burnedShares);
   }
+
+  /**
+   * @dev Internal function for harvesting Vaults' new assets
+   * @return The total assets delta after harvest
+   */
+  function _harvestAssets(
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) internal virtual returns (int256);
 
   /**
    * @dev This empty reserved space is put in place to allow future versions to add new

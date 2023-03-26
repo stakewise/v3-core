@@ -1,14 +1,15 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthVault, IKeeperRewards, Keeper, Oracles } from '../typechain-types'
+import { EthVault, IKeeperRewards, Keeper, Oracles, OwnMevEscrow } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { setBalance } from './shared/utils'
+import { increaseTime, setBalance } from './shared/utils'
 import { getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
 import { registerEthValidator } from './shared/validators'
+import { ONE_DAY } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -37,74 +38,136 @@ describe('EthVault - multicall', () => {
     ;({ createVault, keeper, oracles, validatorsRegistry, getSignatures } = await loadFixture(
       ethVaultFixture
     ))
-    vault = await createVault(admin, {
-      capacity,
-      validatorsRoot,
-      feePercent,
-      name,
-      symbol,
-      metadataIpfsHash,
-    })
+    vault = await createVault(
+      admin,
+      {
+        capacity,
+        validatorsRoot,
+        feePercent,
+        name,
+        symbol,
+        metadataIpfsHash,
+      },
+      true
+    )
   })
 
   it('can update state, redeem and queue for exit', async () => {
-    await vault.connect(sender).deposit(sender.address, referrer, { value: parseEther('32') })
+    const ownMevEscrow = await ethers.getContractFactory('OwnMevEscrow')
+    const mevEscrow = ownMevEscrow.attach(await vault.mevEscrow()) as OwnMevEscrow
 
     // collateralize vault
+    await vault.connect(sender).deposit(sender.address, referrer, { value: parseEther('32') })
     await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
-    await setBalance(await vault.mevEscrow(), parseEther('10'))
+    await setBalance(mevEscrow.address, parseEther('10'))
+
+    const userShares = await vault.balanceOf(sender.address)
 
     // update rewards root for the vault
     const vaultReward = parseEther('1')
     const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { reward: vaultReward, vault: vault.address },
+      { reward: vaultReward, sharedMevReward: 0, vault: vault.address },
     ])
 
     // retrieve redeemable shares after state update
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
       rewardsRoot: tree.root,
       reward: vaultReward,
-      proof: getRewardsRootProof(tree, { vault: vault.address, reward: vaultReward }),
+      sharedMevReward: 0,
+      proof: getRewardsRootProof(tree, {
+        vault: vault.address,
+        reward: vaultReward,
+        sharedMevReward: 0,
+      }),
     }
+
+    // fetch available assets and user assets after state update
     let calls: string[] = [
       vault.interface.encodeFunctionData('updateState', [harvestParams]),
-      vault.interface.encodeFunctionData('redeemableShares'),
+      vault.interface.encodeFunctionData('withdrawableAssets'),
+      vault.interface.encodeFunctionData('convertToAssets', [userShares]),
     ]
-    const result = await vault.callStatic.multicall(calls)
-    const redeemableShares = vault.interface.decodeFunctionResult('redeemableShares', result[1])[0]
+    let result = await vault.callStatic.multicall(calls)
+    const availableAssets = vault.interface.decodeFunctionResult('withdrawableAssets', result[1])[0]
+    const userAssets = vault.interface.decodeFunctionResult('convertToAssets', result[2])[0]
 
-    // retrieve withdrawable shares after
-    const totalShares = await vault.balanceOf(sender.address)
+    // calculate assets that can be withdrawn instantly
+    const withdrawAssets = availableAssets.gt(userAssets) ? userAssets : availableAssets
 
-    // update state, redeem and queue for exit
+    // calculate assets that must go to the exit queue
+    const exitQueueAssets = userAssets.sub(withdrawAssets)
+
+    // convert exit queue assets to shares
     calls = [
       vault.interface.encodeFunctionData('updateState', [harvestParams]),
-      vault.interface.encodeFunctionData('redeem', [
-        redeemableShares,
-        sender.address,
-        sender.address,
-      ]),
-      vault.interface.encodeFunctionData('enterExitQueue', [
-        totalShares.sub(redeemableShares),
-        sender.address,
-        sender.address,
-      ]),
+      vault.interface.encodeFunctionData('convertToShares', [exitQueueAssets]),
     ]
+    result = await vault.callStatic.multicall(calls)
+    const exitQueueShares = vault.interface.decodeFunctionResult('convertToShares', result[1])[0]
 
-    const receipt = await vault.connect(sender).multicall(calls)
-    await expect(receipt).to.emit(vault, 'StateUpdated')
+    calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
+
+    // add call for instant withdrawal
+    calls.push(
+      vault.interface.encodeFunctionData('withdraw', [
+        withdrawAssets,
+        sender.address,
+        sender.address,
+      ])
+    )
+
+    // add call for entering exit queue
+    calls.push(
+      vault.interface.encodeFunctionData('enterExitQueue', [
+        exitQueueShares,
+        sender.address,
+        sender.address,
+      ])
+    )
+
+    result = await vault.connect(sender).callStatic.multicall(calls)
+    const exitQueueCounter = vault.interface.decodeFunctionResult('enterExitQueue', result[2])[0]
+
+    let receipt = await vault.connect(sender).multicall(calls)
+    await expect(receipt).to.emit(keeper, 'Harvested')
+    await expect(receipt).to.emit(mevEscrow, 'Harvested')
     await expect(receipt).to.emit(vault, 'Withdraw')
     await expect(receipt).to.emit(vault, 'ExitQueueEntered')
+    await snapshotGasCost(receipt)
+
+    // wait for exit queue to complete and withdraw exited assets
+    const assetsDropped = await vault.convertToAssets(exitQueueShares)
+    await setBalance(vault.address, assetsDropped)
+    // wait for exit queue
+    await increaseTime(ONE_DAY)
+    calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
+    calls.push(vault.interface.encodeFunctionData('getCheckpointIndex', [exitQueueCounter]))
+    result = await vault.connect(sender).callStatic.multicall(calls)
+    const checkpointIndex = vault.interface.decodeFunctionResult('getCheckpointIndex', result[1])[0]
+
+    calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
+    calls.push(
+      vault.interface.encodeFunctionData('claimExitedAssets', [
+        sender.address,
+        exitQueueCounter,
+        checkpointIndex,
+      ])
+    )
+
+    receipt = await vault.connect(sender).multicall(calls)
+    await expect(receipt).to.emit(vault, 'ExitedAssetsClaimed').withArgs(
+      sender.address,
+      sender.address,
+      0,
+      exitQueueShares.sub(1), // rounding error
+      assetsDropped
+    )
     await snapshotGasCost(receipt)
 
     // reverts on error
     calls = [
       vault.interface.encodeFunctionData('updateState', [harvestParams]),
-      vault.interface.encodeFunctionData('redeem', [
-        totalShares.sub(redeemableShares),
-        sender.address,
-        sender.address,
-      ]),
+      vault.interface.encodeFunctionData('redeem', [userShares, sender.address, sender.address]),
     ]
     await expect(vault.connect(sender).multicall(calls)).reverted
   })

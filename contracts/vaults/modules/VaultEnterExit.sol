@@ -98,15 +98,12 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     // clean up current exit request
     delete _exitRequests[queueId];
 
-    if (requestedShares > claimedShares) {
+    uint256 leftShares = requestedShares - claimedShares;
+    // skip creating new position for the shares rounding error
+    if (leftShares > 1) {
       // update user's queue position
       newPositionCounter = positionCounter + claimedShares;
-      unchecked {
-        // cannot underflow as requestedShares > burnedShares
-        _exitRequests[keccak256(abi.encode(receiver, newPositionCounter))] =
-          requestedShares -
-          claimedShares;
-      }
+      _exitRequests[keccak256(abi.encode(receiver, newPositionCounter))] = leftShares;
     }
 
     // transfer assets to the receiver

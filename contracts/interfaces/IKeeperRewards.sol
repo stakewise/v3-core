@@ -97,19 +97,9 @@ interface IKeeperRewards {
    */
   struct HarvestParams {
     bytes32 rewardsRoot;
-    int256 reward;
-    uint256 sharedMevReward;
+    int160 reward;
+    uint160 sharedMevReward;
     bytes32[] proof;
-  }
-
-  /**
-   * @notice A struct containing harvesting deltas
-   * @param totalAssetsDelta The Vault total assets delta since last sync. Can be negative in case of penalty/slashing.
-   * @param unlockedSharedMevReward The Vault execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
-   */
-  struct HarvestDeltas {
-    int256 totalAssetsDelta;
-    uint256 unlockedSharedMevReward;
   }
 
   /**
@@ -224,7 +214,10 @@ interface IKeeperRewards {
   /**
    * @notice Harvest rewards. Can be called only by Vault.
    * @param params The struct containing rewards harvesting parameters
-   * @return deltas The harvest deltas
+   * @return totalAssetsDelta The total reward/penalty accumulated by the Vault since the last sync
+   * @return unlockedSharedMevReward The Vault execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
    */
-  function harvest(HarvestParams calldata params) external returns (HarvestDeltas memory deltas);
+  function harvest(
+    HarvestParams calldata params
+  ) external returns (int256 totalAssetsDelta, uint256 unlockedSharedMevReward);
 }

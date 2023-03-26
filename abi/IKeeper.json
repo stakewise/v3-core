@@ -274,14 +274,14 @@
             "type": "bytes32"
           },
           {
-            "internalType": "int256",
+            "internalType": "int160",
             "name": "reward",
-            "type": "int256"
+            "type": "int160"
           },
           {
-            "internalType": "uint256",
+            "internalType": "uint160",
             "name": "sharedMevReward",
-            "type": "uint256"
+            "type": "uint160"
           },
           {
             "internalType": "bytes32[]",
@@ -297,21 +297,14 @@
     "name": "harvest",
     "outputs": [
       {
-        "components": [
-          {
-            "internalType": "int256",
-            "name": "totalAssetsDelta",
-            "type": "int256"
-          },
-          {
-            "internalType": "uint256",
-            "name": "unlockedSharedMevReward",
-            "type": "uint256"
-          }
-        ],
-        "internalType": "struct IKeeperRewards.HarvestDeltas",
-        "name": "deltas",
-        "type": "tuple"
+        "internalType": "int256",
+        "name": "totalAssetsDelta",
+        "type": "int256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "unlockedSharedMevReward",
+        "type": "uint256"
       }
     ],
     "stateMutability": "nonpayable",

@@ -204,15 +204,15 @@
         "type": "address"
       },
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "uint256",
-        "name": "prevPositionCounter",
+        "name": "newPositionCounter",
         "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "newPositionCounter",
+        "name": "withdrawnShares",
         "type": "uint256"
       },
       {
@@ -280,19 +280,6 @@
       }
     ],
     "name": "OperatorUpdated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "int256",
-        "name": "assetsDelta",
-        "type": "int256"
-      }
-    ],
-    "name": "StateUpdated",
     "type": "event"
   },
   {
@@ -553,6 +540,19 @@
   },
   {
     "inputs": [],
+    "name": "canUpdateExitQueue",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "capacity",
     "outputs": [
       {
@@ -587,6 +587,11 @@
       {
         "internalType": "uint256",
         "name": "newPositionCounter",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "claimedShares",
         "type": "uint256"
       },
       {
@@ -1267,14 +1272,14 @@
             "type": "bytes32"
           },
           {
-            "internalType": "int256",
+            "internalType": "int160",
             "name": "reward",
-            "type": "int256"
+            "type": "int160"
           },
           {
-            "internalType": "uint256",
+            "internalType": "uint160",
             "name": "sharedMevReward",
-            "type": "uint256"
+            "type": "uint160"
           },
           {
             "internalType": "bytes32[]",
@@ -1312,14 +1317,14 @@
             "type": "bytes32"
           },
           {
-            "internalType": "int256",
+            "internalType": "int160",
             "name": "reward",
-            "type": "int256"
+            "type": "int160"
           },
           {
-            "internalType": "uint256",
+            "internalType": "uint160",
             "name": "sharedMevReward",
-            "type": "uint256"
+            "type": "uint160"
           },
           {
             "internalType": "bytes32[]",
