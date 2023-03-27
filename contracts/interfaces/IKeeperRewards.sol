@@ -202,16 +202,6 @@ interface IKeeperRewards {
   function setRewardsDelay(uint64 _rewardsDelay) external;
 
   /**
-   * @notice Pause new rewards submission and validators registration. Used by owner to emergency stop malicious oracles.
-   */
-  function pause() external;
-
-  /**
-   * @notice Unpause new rewards submission and validators registration. Can be called only by owner.
-   */
-  function unpause() external;
-
-  /**
    * @notice Harvest rewards. Can be called only by Vault.
    * @param params The struct containing rewards harvesting parameters
    * @return totalAssetsDelta The total reward/penalty accumulated by the Vault since the last sync

@@ -1,32 +1,32 @@
 import { ethers } from 'hardhat'
 import { ContractFactory, Wallet } from 'ethers'
-import { VaultMevEscrow } from '../typechain-types'
+import { OwnMevEscrow } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 import { parseEther } from 'ethers/lib/utils'
 
-describe('VaultMevEscrow', () => {
-  let vaultMevEscrowFactory: ContractFactory
+describe('OwnMevEscrow', () => {
+  let ownMevEscrowFactory: ContractFactory
   let vault: Wallet, other: Wallet
 
   before(async () => {
     ;[vault, other] = await (ethers as any).getSigners()
-    vaultMevEscrowFactory = await ethers.getContractFactory('VaultMevEscrow')
+    ownMevEscrowFactory = await ethers.getContractFactory('OwnMevEscrow')
   })
 
   it('vault deployment gas', async () => {
-    const tx = await vaultMevEscrowFactory.deploy(vault.address)
+    const tx = await ownMevEscrowFactory.deploy(vault.address)
     await snapshotGasCost(tx.deployTransaction)
   })
 
   it('only vault can withdraw assets', async () => {
-    const mevEscrow = (await vaultMevEscrowFactory.deploy(vault.address)) as VaultMevEscrow
-    await expect(mevEscrow.connect(other).withdraw()).to.be.revertedWith('WithdrawalFailed')
+    const mevEscrow = (await ownMevEscrowFactory.deploy(vault.address)) as OwnMevEscrow
+    await expect(mevEscrow.connect(other).harvest()).to.be.revertedWith('HarvestFailed')
   })
 
   it('emits event on transfers', async () => {
     const value = parseEther('1')
-    const mevEscrow = (await vaultMevEscrowFactory.deploy(vault.address)) as VaultMevEscrow
+    const mevEscrow = (await ownMevEscrowFactory.deploy(vault.address)) as OwnMevEscrow
 
     await expect(
       other.sendTransaction({

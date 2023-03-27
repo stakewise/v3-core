@@ -4,7 +4,6 @@ pragma solidity =0.8.19;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {Ownable2StepUpgradeable} from '@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol';
-import {PausableUpgradeable} from '@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
@@ -17,12 +16,7 @@ import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
  * @author StakeWise
  * @notice Defines the functionality for updating Vaults' rewards
  */
-abstract contract KeeperRewards is
-  Initializable,
-  Ownable2StepUpgradeable,
-  PausableUpgradeable,
-  IKeeperRewards
-{
+abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeeperRewards {
   bytes32 internal constant _rewardsRootTypeHash =
     keccak256(
       'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint64 updateTimestamp,uint64 nonce)'
@@ -76,7 +70,7 @@ abstract contract KeeperRewards is
   }
 
   /// @inheritdoc IKeeperRewards
-  function setRewardsRoot(RewardsRootUpdateParams calldata params) external override whenNotPaused {
+  function setRewardsRoot(RewardsRootUpdateParams calldata params) external override {
     if (!canUpdateRewards()) revert TooEarlyUpdate();
 
     // SLOAD to memory
@@ -214,16 +208,6 @@ abstract contract KeeperRewards is
     _setRewardsDelay(_rewardsDelay);
   }
 
-  /// @inheritdoc IKeeperRewards
-  function pause() external override onlyOwner {
-    _pause();
-  }
-
-  /// @inheritdoc IKeeperRewards
-  function unpause() external override onlyOwner {
-    _unpause();
-  }
-
   /**
    * @notice Internal function for updating rewards delay
    * @param _rewardsDelay The new rewards update delay
@@ -253,7 +237,6 @@ abstract contract KeeperRewards is
    */
   function __KeeperRewards_init(address _owner, uint64 _rewardsDelay) internal onlyInitializing {
     _transferOwnership(_owner);
-    __Pausable_init();
     _setRewardsDelay(_rewardsDelay);
 
     // set rewardsNonce to 1 so that vaults collateralized

@@ -13,7 +13,13 @@ import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { PANIC_CODES, SECURITY_DEPOSIT, ZERO_ADDRESS, ZERO_BYTES32 } from './shared/constants'
+import {
+  MAX_UINT256,
+  PANIC_CODES,
+  SECURITY_DEPOSIT,
+  ZERO_ADDRESS,
+  ZERO_BYTES32,
+} from './shared/constants'
 import { setBalance } from './shared/utils'
 import { collateralizeEthVault, getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
 
@@ -29,7 +35,7 @@ describe('EthVault - state', () => {
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
-  let holder: Wallet, admin: Wallet, dao: Wallet
+  let holder: Wallet, admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault,
     keeper: Keeper,
     oracles: Oracles,
@@ -38,16 +44,24 @@ describe('EthVault - state', () => {
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
+  let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createVaultMock']
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
   before('create fixture loader', async () => {
-    ;[holder, admin, dao] = await (ethers as any).getSigners()
+    ;[holder, admin, dao, other] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([dao])
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createVault, keeper, oracles, validatorsRegistry, sharedMevEscrow, getSignatures } =
-      await loadFixture(ethVaultFixture))
+    ;({
+      createVault,
+      createVaultMock,
+      keeper,
+      oracles,
+      validatorsRegistry,
+      sharedMevEscrow,
+      getSignatures,
+    } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
       validatorsRoot,
@@ -111,6 +125,59 @@ describe('EthVault - state', () => {
         }),
       })
     ).revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+  })
+
+  it('is not affected by inflation attack', async () => {
+    const vault = await createVaultMock(
+      admin,
+      {
+        capacity: MAX_UINT256,
+        validatorsRoot,
+        feePercent: 0,
+        name,
+        symbol,
+        metadataIpfsHash,
+      },
+      true
+    )
+    const securityDeposit = BigNumber.from('1000000000')
+    await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: 1 })
+    await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+    await vault._setTotalAssets(1)
+    expect(await vault.totalAssets()).to.eq(1)
+    expect(await vault.totalSupply()).to.eq(securityDeposit.add(1))
+
+    // attacker drops a lot of eth as a reward
+    const burnedAssets = parseEther('1000')
+    await setBalance(await vault.mevEscrow(), burnedAssets)
+
+    // state is updated
+    const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+      { vault: vault.address, reward: 0, sharedMevReward: 1 },
+    ])
+    await vault.updateState({
+      rewardsRoot: tree.root,
+      reward: 0,
+      sharedMevReward: 1,
+      proof: getRewardsRootProof(tree, {
+        vault: vault.address,
+        reward: 0,
+        sharedMevReward: 1,
+      }),
+    })
+
+    // small amount of shares own a lot of assets
+    expect(await vault.totalAssets()).to.eq(burnedAssets.add(1))
+    expect(await vault.totalSupply()).to.eq(securityDeposit.add(1))
+
+    // user deposits
+    const userAssets = parseEther('10')
+    await vault.connect(holder).deposit(holder.address, ZERO_ADDRESS, { value: userAssets })
+
+    // user lost ~ 10 gwei due to the inflation above
+    expect(await vault.convertToAssets(await vault.balanceOf(holder.address))).to.eq(
+      BigNumber.from('9999999990099009910')
+    )
   })
 
   it('only vault can harvest', async () => {

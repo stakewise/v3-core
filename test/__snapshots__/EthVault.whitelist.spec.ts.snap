@@ -3,7 +3,7 @@
 exports[`EthVault - whitelist deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 76002,
+  "gasUsed": 75975,
 }
 `;
 

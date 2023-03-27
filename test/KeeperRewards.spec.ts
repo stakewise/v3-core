@@ -131,11 +131,6 @@ describe('KeeperRewards', () => {
       ).to.be.revertedWith('TooEarlyUpdate')
     })
 
-    it('fails when paused', async () => {
-      await keeper.connect(owner).pause()
-      await expect(keeper.setRewardsRoot(rewardsRootParams)).to.be.revertedWith('Pausable: paused')
-    })
-
     it('succeeds', async () => {
       expect(await keeper.lastRewardsTimestamp()).to.eq(0)
       expect(await keeper.canUpdateRewards()).to.eq(true)

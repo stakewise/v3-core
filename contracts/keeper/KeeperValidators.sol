@@ -50,7 +50,7 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
   }
 
   /// @inheritdoc IKeeperValidators
-  function approveValidators(ApprovalParams calldata params) external override whenNotPaused {
+  function approveValidators(ApprovalParams calldata params) external override {
     // verify oracles approved registration for the current validators registry contract state
     if (validatorsRegistry.get_deposit_root() != params.validatorsRegistryRoot) {
       revert InvalidValidatorsRegistryRoot();
@@ -86,7 +86,7 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
     address vault,
     string calldata exitSignaturesIpfsHash,
     bytes calldata oraclesSignatures
-  ) external override whenNotPaused {
+  ) external override {
     if (!(vaultsRegistry.vaults(vault) && isCollateralized(vault))) revert InvalidVault();
 
     // SLOAD to memory
