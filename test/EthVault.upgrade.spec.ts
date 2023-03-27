@@ -1,7 +1,7 @@
 import { ethers, upgrades, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
 import { defaultAbiCoder, parseEther } from 'ethers/lib/utils'
-import { EthVault, EthVaultV2Mock, VaultsRegistry, SharedMevEscrow } from '../typechain-types'
+import { EthVault, EthVaultV2Mock, VaultsRegistry } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'

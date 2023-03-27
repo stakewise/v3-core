@@ -148,10 +148,10 @@ describe('EthVault - settings', () => {
 
     it('cannot update when not harvested', async () => {
       await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { vault: vault.address, reward: 1, sharedMevReward: 0 },
+        { vault: vault.address, reward: 1, unlockedMevReward: 0 },
       ])
       await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { vault: vault.address, reward: 2, sharedMevReward: 0 },
+        { vault: vault.address, reward: 2, unlockedMevReward: 0 },
       ])
       await expect(
         vault.connect(admin).setFeeRecipient(newFeeRecipient.address)

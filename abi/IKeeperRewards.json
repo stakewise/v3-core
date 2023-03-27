@@ -43,7 +43,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "unlockedSharedMevReward",
+        "name": "unlockedMevDelta",
         "type": "uint256"
       }
     ],
@@ -154,7 +154,7 @@
           },
           {
             "internalType": "uint160",
-            "name": "sharedMevReward",
+            "name": "unlockedMevReward",
             "type": "uint160"
           },
           {
@@ -177,7 +177,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "unlockedSharedMevReward",
+        "name": "unlockedMevDelta",
         "type": "uint256"
       }
     ],
@@ -273,7 +273,7 @@
     "outputs": [
       {
         "internalType": "int192",
-        "name": "reward",
+        "name": "assets",
         "type": "int192"
       },
       {
@@ -380,11 +380,11 @@
         "type": "address"
       }
     ],
-    "name": "sharedMevRewards",
+    "name": "unlockedMevRewards",
     "outputs": [
       {
         "internalType": "uint192",
-        "name": "sharedMevReward",
+        "name": "assets",
         "type": "uint192"
       },
       {

@@ -88,7 +88,7 @@ describe('EthVault - withdraw', () => {
     harvestParams = {
       rewardsRoot: root,
       reward: 0,
-      sharedMevReward: 0,
+      unlockedMevReward: 0,
       proof,
     }
 
@@ -120,10 +120,10 @@ describe('EthVault - withdraw', () => {
     it('fails for not harvested vault', async () => {
       await vault.updateState(harvestParams)
       await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { vault: vault.address, reward: 1, sharedMevReward: 0 },
+        { vault: vault.address, reward: 1, unlockedMevReward: 0 },
       ])
       await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { vault: vault.address, reward: 2, sharedMevReward: 0 },
+        { vault: vault.address, reward: 2, unlockedMevReward: 0 },
       ])
       await expect(
         vault.connect(holder).redeem(holderShares, receiver.address, holder.address)
@@ -321,17 +321,17 @@ describe('EthVault - withdraw', () => {
       const totalAssets = await vault.totalAssets()
       const penalty = totalAssets.sub(totalAssets.mul(2))
       const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { vault: vault.address, reward: penalty, sharedMevReward: 0 },
+        { vault: vault.address, reward: penalty, unlockedMevReward: 0 },
       ])
       await expect(
         vault.updateState({
           rewardsRoot: tree.root,
           reward: penalty,
-          sharedMevReward: 0,
+          unlockedMevReward: 0,
           proof: getRewardsRootProof(tree, {
             vault: vault.address,
             reward: penalty,
-            sharedMevReward: 0,
+            unlockedMevReward: 0,
           }),
         })
       ).to.not.emit(exitQueue, 'CheckpointCreated')
@@ -393,12 +393,12 @@ describe('EthVault - withdraw', () => {
 
     // rewards tree updated
     const rewardsTree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward: 0, sharedMevReward: 0 },
+      { vault: vault.address, reward: 0, unlockedMevReward: 0 },
     ])
     const proof = getRewardsRootProof(rewardsTree, {
       vault: vault.address,
       reward: 0,
-      sharedMevReward: 0,
+      unlockedMevReward: 0,
     })
 
     // create checkpoints every day for 10 years
@@ -409,7 +409,7 @@ describe('EthVault - withdraw', () => {
         vault.updateState({
           rewardsRoot: rewardsTree.root,
           reward: 0,
-          sharedMevReward: 0,
+          unlockedMevReward: 0,
           proof,
         })
       ).to.emit(exitQueue, 'CheckpointCreated')
@@ -736,18 +736,18 @@ describe('EthVault - withdraw', () => {
     vaultLiquidAssets += 1800
     totalUnlockedMevReward += 1800
     let tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward: totalReward, sharedMevReward: totalUnlockedMevReward },
+      { vault: vault.address, reward: totalReward, unlockedMevReward: totalUnlockedMevReward },
     ])
     let proof = getRewardsRootProof(tree, {
       vault: vault.address,
       reward: totalReward,
-      sharedMevReward: totalUnlockedMevReward,
+      unlockedMevReward: totalUnlockedMevReward,
     })
     await setBalance(sharedMevEscrow.address, BigNumber.from(1800))
     await vault.updateState({
       rewardsRoot: tree.root,
       reward: totalReward,
-      sharedMevReward: totalUnlockedMevReward,
+      unlockedMevReward: totalUnlockedMevReward,
       proof,
     })
     aliceAssets += 1000
@@ -788,17 +788,17 @@ describe('EthVault - withdraw', () => {
     totalUnlockedMevReward += 1800
     await setBalance(sharedMevEscrow.address, BigNumber.from(1800))
     tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward: totalReward, sharedMevReward: totalUnlockedMevReward },
+      { vault: vault.address, reward: totalReward, unlockedMevReward: totalUnlockedMevReward },
     ])
     proof = getRewardsRootProof(tree, {
       vault: vault.address,
       reward: totalReward,
-      sharedMevReward: totalUnlockedMevReward,
+      unlockedMevReward: totalUnlockedMevReward,
     })
     await vault.updateState({
       rewardsRoot: tree.root,
       reward: totalReward,
-      sharedMevReward: totalUnlockedMevReward,
+      unlockedMevReward: totalUnlockedMevReward,
       proof,
     })
 
@@ -875,7 +875,7 @@ describe('EthVault - withdraw', () => {
       vault.updateState({
         rewardsRoot: tree.root,
         reward: totalReward,
-        sharedMevReward: totalUnlockedMevReward,
+        unlockedMevReward: totalUnlockedMevReward,
         proof,
       })
     )
@@ -896,17 +896,17 @@ describe('EthVault - withdraw', () => {
     totalUnlockedMevReward += 3000
 
     tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward: totalReward, sharedMevReward: totalUnlockedMevReward },
+      { vault: vault.address, reward: totalReward, unlockedMevReward: totalUnlockedMevReward },
     ])
     await setBalance(sharedMevEscrow.address, BigNumber.from(3000))
     await vault.updateState({
       rewardsRoot: tree.root,
       reward: totalReward,
-      sharedMevReward: totalUnlockedMevReward,
+      unlockedMevReward: totalUnlockedMevReward,
       proof: getRewardsRootProof(tree, {
         vault: vault.address,
         reward: totalReward,
-        sharedMevReward: totalUnlockedMevReward,
+        unlockedMevReward: totalUnlockedMevReward,
       }),
     })
 
@@ -951,7 +951,7 @@ describe('EthVault - withdraw', () => {
       vault.updateState({
         rewardsRoot: tree.root,
         reward: totalReward,
-        sharedMevReward: totalUnlockedMevReward,
+        unlockedMevReward: totalUnlockedMevReward,
         proof,
       })
     )
@@ -986,7 +986,7 @@ describe('EthVault - withdraw', () => {
       vault.updateState({
         rewardsRoot: tree.root,
         reward: totalReward,
-        sharedMevReward: totalUnlockedMevReward,
+        unlockedMevReward: totalUnlockedMevReward,
         proof,
       })
     ).to.emit(exitQueue, 'CheckpointCreated')

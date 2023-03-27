@@ -860,7 +860,7 @@
           },
           {
             "internalType": "uint160",
-            "name": "sharedMevReward",
+            "name": "unlockedMevReward",
             "type": "uint160"
           },
           {

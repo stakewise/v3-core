@@ -7,27 +7,27 @@ exports[`EthVaultFactory predicts vault addresses 2`] = `5187`;
 exports[`EthVaultFactory private vault deployment gas with own escrow 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 679211,
+  "gasUsed": 679255,
 }
 `;
 
 exports[`EthVaultFactory private vault deployment gas with shared escrow 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 519902,
+  "gasUsed": 519946,
 }
 `;
 
 exports[`EthVaultFactory public vault deployment gas with own escrow 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 630927,
+  "gasUsed": 630971,
 }
 `;
 
 exports[`EthVaultFactory public vault deployment gas with shared escrow 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 471618,
+  "gasUsed": 471662,
 }
 `;

@@ -59,7 +59,7 @@ describe('KeeperRewards', () => {
       })
       vaultReward = {
         reward: parseEther('5'),
-        sharedMevReward: parseEther('1'),
+        unlockedMevReward: parseEther('1'),
         vault: vault.address,
       }
       const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles)
@@ -97,7 +97,7 @@ describe('KeeperRewards', () => {
 
       const newVaultReward = {
         reward: parseEther('3'),
-        sharedMevReward: parseEther('2'),
+        unlockedMevReward: parseEther('2'),
         vault: vault.address,
       }
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles)
@@ -116,7 +116,7 @@ describe('KeeperRewards', () => {
       await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
       const newVaultReward = {
         reward: parseEther('5'),
-        sharedMevReward: parseEther('1'),
+        unlockedMevReward: parseEther('1'),
         vault: vault.address,
       }
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1680255895, 2)
@@ -154,7 +154,7 @@ describe('KeeperRewards', () => {
       // check keeps previous rewards root
       const newVaultReward = {
         reward: parseEther('3'),
-        sharedMevReward: parseEther('2'),
+        unlockedMevReward: parseEther('2'),
         vault: vault.address,
       }
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1670256000, 2)
@@ -229,7 +229,7 @@ describe('KeeperRewards', () => {
       // update rewards first time
       let newVaultReward = {
         reward: parseEther('3'),
-        sharedMevReward: parseEther('0.5'),
+        unlockedMevReward: parseEther('0.5'),
         vault: vault.address,
       }
       let newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1670258895)
@@ -248,7 +248,7 @@ describe('KeeperRewards', () => {
       const newTimestamp = newRewardsRoot.updateTimestamp + 1
       newVaultReward = {
         reward: parseEther('4'),
-        sharedMevReward: parseEther('2'),
+        unlockedMevReward: parseEther('2'),
         vault: vault.address,
       }
       newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, newTimestamp, 2)
@@ -285,7 +285,7 @@ describe('KeeperRewards', () => {
       )
       const vaultReward = {
         reward: parseEther('5'),
-        sharedMevReward: 0,
+        unlockedMevReward: 0,
         vault: ownMevVault.address,
       }
       const vaultRewards = [vaultReward]
@@ -304,7 +304,7 @@ describe('KeeperRewards', () => {
         )
         vaultRewards.push({
           reward: parseEther(i.toString()),
-          sharedMevReward: 0,
+          unlockedMevReward: 0,
           vault: vlt.address,
         })
       }
@@ -319,7 +319,7 @@ describe('KeeperRewards', () => {
       harvestParams = {
         rewardsRoot: rewardsRoot.root,
         reward: vaultReward.reward,
-        sharedMevReward: vaultReward.sharedMevReward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
         proof: getRewardsRootProof(rewardsRoot.tree, vaultReward),
       }
     })
@@ -347,7 +347,7 @@ describe('KeeperRewards', () => {
       ).to.be.revertedWith('InvalidRewardsRoot')
     })
 
-    it('ignores shared mev reward', async () => {
+    it('ignores unlocked mev reward', async () => {
       const sharedMevEscrowBalance = parseEther('1')
       await setBalance(await sharedMevEscrow.address, sharedMevEscrowBalance)
       await increaseTime(REWARDS_DELAY)
@@ -356,7 +356,7 @@ describe('KeeperRewards', () => {
       const vaultReward = {
         reward: parseEther('10'),
         vault: ownMevVault.address,
-        sharedMevReward: sharedMevEscrowBalance,
+        unlockedMevReward: sharedMevEscrowBalance,
       }
       const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles, 1670255995, 2)
       await keeper.connect(oracle).setRewardsRoot({
@@ -368,7 +368,7 @@ describe('KeeperRewards', () => {
       const harvestParams = {
         rewardsRoot: rewardsRoot.root,
         reward: vaultReward.reward,
-        sharedMevReward: vaultReward.sharedMevReward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
         proof: getRewardsRootProof(rewardsRoot.tree, vaultReward),
       }
 
@@ -389,16 +389,16 @@ describe('KeeperRewards', () => {
           ownMevVault.address,
           harvestParams.rewardsRoot,
           harvestParams.reward,
-          harvestParams.sharedMevReward
+          harvestParams.unlockedMevReward
         )
 
       let rewards = await keeper.rewards(ownMevVault.address)
       expect(rewards.nonce).to.equal(2)
       expect(rewards.assets).to.equal(harvestParams.reward)
 
-      let sharedMevRewards = await keeper.sharedMevRewards(ownMevVault.address)
-      expect(sharedMevRewards.nonce).to.equal(0)
-      expect(sharedMevRewards.assets).to.equal(0)
+      let unlockedMevRewards = await keeper.unlockedMevRewards(ownMevVault.address)
+      expect(unlockedMevRewards.nonce).to.equal(0)
+      expect(unlockedMevRewards.assets).to.equal(0)
 
       expect(await keeper.isCollateralized(ownMevVault.address)).to.equal(true)
       expect(await keeper.canHarvest(ownMevVault.address)).to.equal(false)
@@ -413,9 +413,9 @@ describe('KeeperRewards', () => {
       expect(rewards.nonce).to.equal(2)
       expect(rewards.assets).to.equal(harvestParams.reward)
 
-      sharedMevRewards = await keeper.sharedMevRewards(ownMevVault.address)
-      expect(sharedMevRewards.nonce).to.equal(0)
-      expect(sharedMevRewards.assets).to.equal(0)
+      unlockedMevRewards = await keeper.unlockedMevRewards(ownMevVault.address)
+      expect(unlockedMevRewards.nonce).to.equal(0)
+      expect(unlockedMevRewards.assets).to.equal(0)
 
       expect(await keeper.isCollateralized(ownMevVault.address)).to.equal(true)
       expect(await keeper.canHarvest(ownMevVault.address)).to.equal(false)
@@ -431,7 +431,7 @@ describe('KeeperRewards', () => {
       const vaultReward = {
         reward: parseEther('10'),
         vault: ownMevVault.address,
-        sharedMevReward: 0,
+        unlockedMevReward: 0,
       }
       const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles, 1670255995, 2)
       await keeper.connect(oracle).setRewardsRoot({
@@ -443,7 +443,7 @@ describe('KeeperRewards', () => {
       const currHarvestParams = {
         rewardsRoot: rewardsRoot.root,
         reward: vaultReward.reward,
-        sharedMevReward: 0,
+        unlockedMevReward: 0,
         proof: getRewardsRootProof(rewardsRoot.tree, vaultReward),
       }
 
@@ -514,7 +514,7 @@ describe('KeeperRewards', () => {
       )
       const vaultReward = {
         reward: parseEther('5'),
-        sharedMevReward: parseEther('2'),
+        unlockedMevReward: parseEther('2'),
         vault: sharedMevVault.address,
       }
       const vaultRewards = [vaultReward]
@@ -534,7 +534,7 @@ describe('KeeperRewards', () => {
         const amount = parseEther(i.toString())
         vaultRewards.push({
           reward: amount,
-          sharedMevReward: amount,
+          unlockedMevReward: amount,
           vault: vlt.address,
         })
       }
@@ -549,19 +549,19 @@ describe('KeeperRewards', () => {
       harvestParams = {
         rewardsRoot: rewardsRoot.root,
         reward: vaultReward.reward,
-        sharedMevReward: vaultReward.sharedMevReward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
         proof: getRewardsRootProof(rewardsRoot.tree, vaultReward),
       }
-      await setBalance(sharedMevEscrow.address, harvestParams.sharedMevReward)
+      await setBalance(sharedMevEscrow.address, harvestParams.unlockedMevReward)
     })
 
     it('only vault can harvest', async () => {
       await expect(keeper.harvest(harvestParams)).to.be.revertedWith('AccessDenied')
     })
 
-    it('fails for invalid shared MEV reward', async () => {
+    it('fails for invalid unlocked MEV reward', async () => {
       await expect(
-        sharedMevVault.updateState({ ...harvestParams, sharedMevReward: 0 })
+        sharedMevVault.updateState({ ...harvestParams, unlockedMevReward: 0 })
       ).to.be.revertedWith('InvalidProof')
     })
 
@@ -586,20 +586,20 @@ describe('KeeperRewards', () => {
           sharedMevVault.address,
           harvestParams.rewardsRoot,
           harvestParams.reward,
-          harvestParams.sharedMevReward
+          harvestParams.unlockedMevReward
         )
       expect(await waffle.provider.getBalance(sharedMevEscrow.address)).to.equal(0)
       await expect(receipt)
         .to.emit(sharedMevEscrow, 'Harvested')
-        .withArgs(sharedMevVault.address, harvestParams.sharedMevReward)
+        .withArgs(sharedMevVault.address, harvestParams.unlockedMevReward)
 
       let rewards = await keeper.rewards(sharedMevVault.address)
       expect(rewards.nonce).to.equal(2)
       expect(rewards.assets).to.equal(harvestParams.reward)
 
-      let sharedMevRewards = await keeper.sharedMevRewards(sharedMevVault.address)
-      expect(sharedMevRewards.nonce).to.equal(2)
-      expect(sharedMevRewards.assets).to.equal(harvestParams.sharedMevReward)
+      let unlockedMevRewards = await keeper.unlockedMevRewards(sharedMevVault.address)
+      expect(unlockedMevRewards.nonce).to.equal(2)
+      expect(unlockedMevRewards.assets).to.equal(harvestParams.unlockedMevReward)
 
       expect(await keeper.isCollateralized(sharedMevVault.address)).to.equal(true)
       expect(await keeper.canHarvest(sharedMevVault.address)).to.equal(false)
@@ -615,9 +615,9 @@ describe('KeeperRewards', () => {
       expect(rewards.nonce).to.equal(2)
       expect(rewards.assets).to.equal(harvestParams.reward)
 
-      sharedMevRewards = await keeper.sharedMevRewards(sharedMevVault.address)
-      expect(sharedMevRewards.nonce).to.equal(2)
-      expect(sharedMevRewards.assets).to.equal(harvestParams.sharedMevReward)
+      unlockedMevRewards = await keeper.unlockedMevRewards(sharedMevVault.address)
+      expect(unlockedMevRewards.nonce).to.equal(2)
+      expect(unlockedMevRewards.assets).to.equal(harvestParams.unlockedMevReward)
 
       expect(await keeper.isCollateralized(sharedMevVault.address)).to.equal(true)
       expect(await keeper.canHarvest(sharedMevVault.address)).to.equal(false)
@@ -633,9 +633,9 @@ describe('KeeperRewards', () => {
       const vaultReward = {
         reward: parseEther('10'),
         vault: sharedMevVault.address,
-        sharedMevReward: parseEther('4'),
+        unlockedMevReward: parseEther('4'),
       }
-      await setBalance(sharedMevEscrow.address, vaultReward.sharedMevReward)
+      await setBalance(sharedMevEscrow.address, vaultReward.unlockedMevReward)
       const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles, 1670255995, 2)
       await keeper.connect(oracle).setRewardsRoot({
         rewardsRoot: rewardsRoot.root,
@@ -646,7 +646,7 @@ describe('KeeperRewards', () => {
       const currHarvestParams = {
         rewardsRoot: rewardsRoot.root,
         reward: vaultReward.reward,
-        sharedMevReward: vaultReward.sharedMevReward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
         proof: getRewardsRootProof(rewardsRoot.tree, vaultReward),
       }
 
@@ -657,12 +657,12 @@ describe('KeeperRewards', () => {
           sharedMevVault.address,
           prevHarvestParams.rewardsRoot,
           prevHarvestParams.reward,
-          prevHarvestParams.sharedMevReward
+          prevHarvestParams.unlockedMevReward
         )
       expect(await waffle.provider.getBalance(sharedMevEscrow.address)).to.equal(parseEther('2'))
       await expect(receipt)
         .to.emit(sharedMevEscrow, 'Harvested')
-        .withArgs(sharedMevVault.address, prevHarvestParams.sharedMevReward)
+        .withArgs(sharedMevVault.address, prevHarvestParams.unlockedMevReward)
 
       let rewards = await keeper.rewards(sharedMevVault.address)
       expect(rewards.nonce).to.equal(2)
@@ -674,8 +674,8 @@ describe('KeeperRewards', () => {
       await snapshotGasCost(receipt)
 
       receipt = await sharedMevVault.updateState(currHarvestParams)
-      const sharedMevDelta = currHarvestParams.sharedMevReward.sub(
-        prevHarvestParams.sharedMevReward
+      const sharedMevDelta = currHarvestParams.unlockedMevReward.sub(
+        prevHarvestParams.unlockedMevReward
       )
       await expect(receipt)
         .to.emit(keeper, 'Harvested')

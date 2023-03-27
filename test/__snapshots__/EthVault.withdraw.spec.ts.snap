@@ -47,21 +47,21 @@ exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`
 exports[`EthVault - withdraw redeem & withdraw redeem transfers assets to receiver 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 66427,
+  "gasUsed": 66449,
 }
 `;
 
 exports[`EthVault - withdraw redeem & withdraw reduces allowance for sender other than owner 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 67093,
+  "gasUsed": 67115,
 }
 `;
 
 exports[`EthVault - withdraw redeem & withdraw withdraw transfers assets to receiver 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 66471,
+  "gasUsed": 66493,
 }
 `;
 

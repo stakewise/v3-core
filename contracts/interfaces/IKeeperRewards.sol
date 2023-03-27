@@ -38,13 +38,13 @@ interface IKeeperRewards {
    * @param vault The address of the Vault
    * @param rewardsRoot The rewards merkle tree root
    * @param totalAssetsDelta The Vault total assets delta since last sync. Can be negative in case of penalty/slashing.
-   * @param unlockedSharedMevReward The Vault execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
+   * @param unlockedMevDelta The Vault execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
    */
   event Harvested(
     address indexed vault,
     bytes32 indexed rewardsRoot,
     int256 totalAssetsDelta,
-    uint256 unlockedSharedMevReward
+    uint256 unlockedMevDelta
   );
 
   /**
@@ -65,11 +65,11 @@ interface IKeeperRewards {
   }
 
   /**
-   * @notice A struct containing the last synced Vault's cumulative execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
+   * @notice A struct containing the last unlocked Vault's cumulative execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
    * @param assets The shared MEV Vault's cumulative execution reward that can be withdrawn
    * @param nonce The nonce of the last sync
    */
-  struct SharedMevReward {
+  struct UnlockedMevReward {
     uint192 assets;
     uint64 nonce;
   }
@@ -92,13 +92,13 @@ interface IKeeperRewards {
    * @notice A struct containing parameters for harvesting rewards. Can only be called by Vault.
    * @param rewardsRoot The rewards merkle root
    * @param reward The Vault cumulative reward earned since the start. Can be negative in case of penalty/slashing.
-   * @param sharedMevReward The Vault cumulative execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
+   * @param unlockedMevReward The Vault cumulative execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
    * @param proof The proof to verify that Vault's reward is correct
    */
   struct HarvestParams {
     bytes32 rewardsRoot;
     int160 reward;
-    uint160 sharedMevReward;
+    uint160 unlockedMevReward;
     bytes32[] proof;
   }
 
@@ -147,20 +147,18 @@ interface IKeeperRewards {
   /**
    * @notice Get last synced Vault cumulative reward
    * @param vault The address of the Vault
-   * @return reward The last synced reward assets
+   * @return assets The last synced reward assets
    * @return nonce The last synced reward nonce
    */
-  function rewards(address vault) external view returns (int192 reward, uint64 nonce);
+  function rewards(address vault) external view returns (int192 assets, uint64 nonce);
 
   /**
-   * @notice Get last synced shared MEV Vault cumulative withdrawable reward
+   * @notice Get last unlocked shared MEV Vault cumulative reward
    * @param vault The address of the Vault
-   * @return sharedMevReward The last synced reward assets
+   * @return assets The last synced reward assets
    * @return nonce The last synced reward nonce
    */
-  function sharedMevRewards(
-    address vault
-  ) external view returns (uint192 sharedMevReward, uint64 nonce);
+  function unlockedMevRewards(address vault) external view returns (uint192 assets, uint64 nonce);
 
   /**
    * @notice Checks whether Vault must be harvested
@@ -205,9 +203,9 @@ interface IKeeperRewards {
    * @notice Harvest rewards. Can be called only by Vault.
    * @param params The struct containing rewards harvesting parameters
    * @return totalAssetsDelta The total reward/penalty accumulated by the Vault since the last sync
-   * @return unlockedSharedMevReward The Vault execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
+   * @return unlockedMevDelta The Vault execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
    */
   function harvest(
     HarvestParams calldata params
-  ) external returns (int256 totalAssetsDelta, uint256 unlockedSharedMevReward);
+  ) external returns (int256 totalAssetsDelta, uint256 unlockedMevDelta);
 }

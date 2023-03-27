@@ -73,20 +73,20 @@ Object {
 exports[`KeeperRewards set rewards delay succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 32725,
+  "gasUsed": 32747,
 }
 `;
 
 exports[`KeeperRewards set rewards root succeeds 1`] = `
 Object {
   "calldataByteLength": 740,
-  "gasUsed": 112730,
+  "gasUsed": 112752,
 }
 `;
 
 exports[`KeeperRewards set rewards root succeeds 2`] = `
 Object {
   "calldataByteLength": 740,
-  "gasUsed": 115506,
+  "gasUsed": 115528,
 }
 `;

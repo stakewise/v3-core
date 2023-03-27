@@ -66,18 +66,18 @@ describe('EthVault - multicall', () => {
     // update rewards root for the vault
     const vaultReward = parseEther('1')
     const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { reward: vaultReward, sharedMevReward: 0, vault: vault.address },
+      { reward: vaultReward, unlockedMevReward: 0, vault: vault.address },
     ])
 
     // retrieve redeemable shares after state update
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
       rewardsRoot: tree.root,
       reward: vaultReward,
-      sharedMevReward: 0,
+      unlockedMevReward: 0,
       proof: getRewardsRootProof(tree, {
         vault: vault.address,
         reward: vaultReward,
-        sharedMevReward: 0,
+        unlockedMevReward: 0,
       }),
     }
 

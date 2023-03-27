@@ -116,16 +116,16 @@ describe('EthVault - whitelist', () => {
       await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
       const vaultReward = parseEther('1')
       const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { reward: vaultReward, sharedMevReward: 0, vault: vault.address },
+        { reward: vaultReward, unlockedMevReward: 0, vault: vault.address },
       ])
 
       const harvestParams: IKeeperRewards.HarvestParamsStruct = {
         rewardsRoot: tree.root,
         reward: vaultReward,
-        sharedMevReward: 0,
+        unlockedMevReward: 0,
         proof: getRewardsRootProof(tree, {
           vault: vault.address,
-          sharedMevReward: 0,
+          unlockedMevReward: 0,
           reward: vaultReward,
         }),
       }

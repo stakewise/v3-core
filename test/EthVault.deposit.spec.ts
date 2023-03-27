@@ -142,10 +142,10 @@ describe('EthVault - deposit', () => {
       await vault.connect(other).deposit(other.address, referrer, { value: parseEther('32') })
       await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
       await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { reward: parseEther('5'), sharedMevReward: 0, vault: vault.address },
+        { reward: parseEther('5'), unlockedMevReward: 0, vault: vault.address },
       ])
       await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { reward: parseEther('10'), sharedMevReward: 0, vault: vault.address },
+        { reward: parseEther('10'), unlockedMevReward: 0, vault: vault.address },
       ])
       await expect(
         vault.connect(sender).deposit(receiver.address, referrer, { value: parseEther('10') })
@@ -161,21 +161,21 @@ describe('EthVault - deposit', () => {
 
       let vaultReward = parseEther('10')
       await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { reward: vaultReward, sharedMevReward: vaultReward, vault: vault.address },
+        { reward: vaultReward, unlockedMevReward: vaultReward, vault: vault.address },
       ])
 
       vaultReward = vaultReward.add(parseEther('1'))
       const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-        { reward: vaultReward, sharedMevReward: vaultReward, vault: vault.address },
+        { reward: vaultReward, unlockedMevReward: vaultReward, vault: vault.address },
       ])
 
       const harvestParams: IKeeperRewards.HarvestParamsStruct = {
         rewardsRoot: tree.root,
         reward: vaultReward,
-        sharedMevReward: vaultReward,
+        unlockedMevReward: vaultReward,
         proof: getRewardsRootProof(tree, {
           vault: vault.address,
-          sharedMevReward: vaultReward,
+          unlockedMevReward: vaultReward,
           reward: vaultReward,
         }),
       }

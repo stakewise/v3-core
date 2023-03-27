@@ -59,11 +59,13 @@ contract EthVaultFactory is IEthVaultFactory {
     // create vault proxy
     bytes32 salt = keccak256(abi.encode(msg.sender, nonce));
 
+    // slither-disable-start reentrancy-eth
     if (isPrivate) {
       vault = address(new ERC1967Proxy{salt: salt}(privateVaultImpl, ''));
     } else {
       vault = address(new ERC1967Proxy{salt: salt}(publicVaultImpl, ''));
     }
+    // slither-disable-end reentrancy-eth
 
     // create MEV escrow contract
     address mevEscrow;

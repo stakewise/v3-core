@@ -23,6 +23,7 @@ contract SharedMevEscrow is ISharedMevEscrow {
     if (!_vaultsRegistry.vaults(msg.sender)) revert HarvestFailed();
 
     emit Harvested(msg.sender, amount);
+    // slither-disable-next-line arbitrary-send-eth
     (bool success, ) = payable(msg.sender).call{value: amount}('');
     if (!success) revert HarvestFailed();
   }

@@ -43,7 +43,7 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
   mapping(address => Reward) public override rewards;
 
   /// @inheritdoc IKeeperRewards
-  mapping(address => SharedMevReward) public override sharedMevRewards;
+  mapping(address => UnlockedMevReward) public override unlockedMevRewards;
 
   /// @inheritdoc IKeeperRewards
   uint64 public override rewardsNonce;
@@ -148,7 +148,7 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
   /// @inheritdoc IKeeperRewards
   function harvest(
     HarvestParams calldata params
-  ) external override returns (int256 totalAssetsDelta, uint256 unlockedSharedMevReward) {
+  ) external override returns (int256 totalAssetsDelta, uint256 unlockedMevDelta) {
     if (!vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
 
     // SLOAD to memory
@@ -169,7 +169,7 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
         params.proof,
         params.rewardsRoot,
         keccak256(
-          bytes.concat(keccak256(abi.encode(msg.sender, params.reward, params.sharedMevReward)))
+          bytes.concat(keccak256(abi.encode(msg.sender, params.reward, params.unlockedMevReward)))
         )
       )
     ) {
@@ -187,20 +187,20 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
     // update state
     rewards[msg.sender] = Reward({nonce: currentNonce, assets: params.reward});
 
-    // check whether Vault has shared execution reward
+    // check whether Vault has unlocked execution reward
     if (IVaultMev(msg.sender).mevEscrow() == _sharedMevEscrow) {
       // calculate execution assets reward
-      unlockedSharedMevReward = params.sharedMevReward - sharedMevRewards[msg.sender].assets;
+      unlockedMevDelta = params.unlockedMevReward - unlockedMevRewards[msg.sender].assets;
 
       // update state
-      sharedMevRewards[msg.sender] = SharedMevReward({
+      unlockedMevRewards[msg.sender] = UnlockedMevReward({
         nonce: currentNonce,
-        assets: params.sharedMevReward
+        assets: params.unlockedMevReward
       });
     }
 
     // emit event
-    emit Harvested(msg.sender, params.rewardsRoot, totalAssetsDelta, unlockedSharedMevReward);
+    emit Harvested(msg.sender, params.rewardsRoot, totalAssetsDelta, unlockedMevDelta);
   }
 
   /// @inheritdoc IKeeperRewards
