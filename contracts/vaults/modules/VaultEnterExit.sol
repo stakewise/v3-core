@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.18;
+pragma solidity =0.8.19;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
@@ -25,7 +25,8 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     address receiver,
     address owner
   ) external override returns (uint256 shares) {
-    shares = _convertToShares(assets, Math.Rounding.Up);
+    // calculate amount of shares to burn
+    shares = _convertToShares(assets, _totalShares, _totalAssets, Math.Rounding.Up);
     _withdraw(receiver, owner, assets, shares);
   }
 
@@ -45,72 +46,76 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     uint256 shares,
     address receiver,
     address owner
-  ) external override returns (uint256 exitQueueId) {
+  ) external override returns (uint256 positionCounter) {
     if (shares == 0) revert InvalidSharesAmount();
     if (!IKeeperRewards(keeper).isCollateralized(address(this))) revert NotCollateralized();
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
 
-    // calculate new exit queue ID
-    exitQueueId = _exitQueue.getSharesCounter() + _queuedShares;
+    // calculate position counter
+    positionCounter = _exitQueue.getSharesCounter() + _queuedShares;
+
+    // add to the exit requests
+    _exitRequests[keccak256(abi.encode(receiver, positionCounter))] = shares;
+
+    // lock tokens in the Vault
+    if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
+    // reverts if owner does not have enough shares
+    balanceOf[owner] -= shares;
 
     unchecked {
       // cannot overflow as it is capped with _totalShares
       queuedShares = SafeCast.toUint96(_queuedShares + shares);
     }
 
-    // add to the exit requests
-    _exitRequests[keccak256(abi.encode(receiver, exitQueueId))] = shares;
-
-    // lock tokens in the Vault
-    if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
-    balanceOf[owner] -= shares;
-
     emit Transfer(owner, address(this), shares);
-    emit ExitQueueEntered(msg.sender, receiver, owner, exitQueueId, shares);
+    emit ExitQueueEntered(msg.sender, receiver, owner, positionCounter, shares);
   }
 
   /// @inheritdoc IVaultEnterExit
   function claimExitedAssets(
     address receiver,
-    uint256 exitQueueId,
+    uint256 positionCounter,
     uint256 checkpointIndex
-  ) external override returns (uint256 newExitQueueId, uint256 claimedAssets) {
-    bytes32 queueId = keccak256(abi.encode(receiver, exitQueueId));
+  )
+    external
+    override
+    returns (uint256 newPositionCounter, uint256 claimedShares, uint256 claimedAssets)
+  {
+    bytes32 queueId = keccak256(abi.encode(receiver, positionCounter));
     uint256 requestedShares = _exitRequests[queueId];
 
     // calculate exited shares and assets
-    uint256 burnedShares;
-    (burnedShares, claimedAssets) = _exitQueue.calculateExitedAssets(
+    (claimedShares, claimedAssets) = _exitQueue.calculateExitedAssets(
       checkpointIndex,
-      exitQueueId,
+      positionCounter,
       requestedShares
     );
     // nothing to claim
-    if (burnedShares == 0) return (exitQueueId, claimedAssets);
+    if (claimedShares == 0) return (positionCounter, claimedShares, claimedAssets);
 
     // clean up current exit request
     delete _exitRequests[queueId];
 
-    if (requestedShares > burnedShares) {
+    uint256 leftShares = requestedShares - claimedShares;
+    // skip creating new position for the shares rounding error
+    if (leftShares > 1) {
       // update user's queue position
-      newExitQueueId = exitQueueId + burnedShares;
-      unchecked {
-        // cannot underflow as requestedShares > burnedShares
-        _exitRequests[keccak256(abi.encode(receiver, newExitQueueId))] =
-          requestedShares -
-          burnedShares;
-      }
+      newPositionCounter = positionCounter + claimedShares;
+      _exitRequests[keccak256(abi.encode(receiver, newPositionCounter))] = leftShares;
     }
 
-    unchecked {
-      // cannot underflow as unclaimedAssets >= claimedAssets
-      unclaimedAssets -= SafeCast.toUint96(claimedAssets);
-    }
-
+    // transfer assets to the receiver
+    unclaimedAssets -= SafeCast.toUint96(claimedAssets);
     _transferVaultAssets(receiver, claimedAssets);
-    emit ExitedAssetsClaimed(msg.sender, receiver, exitQueueId, newExitQueueId, claimedAssets);
+    emit ExitedAssetsClaimed(
+      msg.sender,
+      receiver,
+      newPositionCounter,
+      claimedShares,
+      claimedAssets
+    );
   }
 
   /**

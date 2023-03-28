@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.18;
+pragma solidity =0.8.19;
 
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
@@ -13,8 +13,9 @@ contract EthVaultV2Mock is EthVault {
   constructor(
     address _keeper,
     address _vaultsRegistry,
-    address _validatorsRegistry
-  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry) {}
+    address _validatorsRegistry,
+    address sharedMevEscrow
+  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, sharedMevEscrow) {}
 
   function initialize(bytes calldata data) external payable override reinitializer(2) {
     (newVar) = abi.decode(data, (uint128));

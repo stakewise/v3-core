@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.18;
+pragma solidity =0.8.19;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
@@ -24,13 +24,15 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param sharedMevEscrow The address of the shared MEV escrow
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     address _keeper,
     address _vaultsRegistry,
-    address _validatorsRegistry
-  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry) {}
+    address _validatorsRegistry,
+    address sharedMevEscrow
+  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, sharedMevEscrow) {}
 
   /// @inheritdoc IEthVault
   function initialize(

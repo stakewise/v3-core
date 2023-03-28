@@ -36,6 +36,7 @@ describe('EthVault - upgrade', () => {
       createVault,
       vaultsRegistry: registry,
       validatorsRegistry,
+      sharedMevEscrow,
       keeper,
     } = await loadFixture(ethVaultFixture)
     vaultsRegistry = registry
@@ -50,7 +51,12 @@ describe('EthVault - upgrade', () => {
     const ethVaultMock = await ethers.getContractFactory('EthVaultV2Mock')
     newImpl = (await upgrades.deployImplementation(ethVaultMock, {
       unsafeAllow: ['delegatecall'],
-      constructorArgs: [keeper.address, registry.address, validatorsRegistry.address],
+      constructorArgs: [
+        keeper.address,
+        registry.address,
+        validatorsRegistry.address,
+        sharedMevEscrow.address,
+      ],
     })) as string
     currImpl = await vault.implementation()
     callData = defaultAbiCoder.encode(['uint128'], [100])

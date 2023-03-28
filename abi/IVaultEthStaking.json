@@ -165,7 +165,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       },
       {
@@ -194,15 +194,15 @@
         "type": "address"
       },
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "uint256",
-        "name": "prevExitQueueId",
+        "name": "newPositionCounter",
         "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "newExitQueueId",
+        "name": "withdrawnShares",
         "type": "uint256"
       },
       {
@@ -270,19 +270,6 @@
       }
     ],
     "name": "OperatorUpdated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "int256",
-        "name": "assetsDelta",
-        "type": "int256"
-      }
-    ],
-    "name": "StateUpdated",
     "type": "event"
   },
   {
@@ -474,6 +461,19 @@
   },
   {
     "inputs": [],
+    "name": "canUpdateExitQueue",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "capacity",
     "outputs": [
       {
@@ -494,7 +494,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       },
       {
@@ -507,7 +507,12 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "newExitQueueId",
+        "name": "newPositionCounter",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "claimedShares",
         "type": "uint256"
       },
       {
@@ -616,7 +621,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       }
     ],
@@ -653,7 +658,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       }
     ],
@@ -674,19 +679,6 @@
     "outputs": [
       {
         "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "mevEscrow",
-    "outputs": [
-      {
-        "internalType": "contract IMevEscrow",
         "name": "",
         "type": "address"
       }
@@ -822,19 +814,6 @@
       }
     ],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "redeemableShares",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1112,6 +1091,11 @@
             "type": "int160"
           },
           {
+            "internalType": "uint160",
+            "name": "unlockedMevReward",
+            "type": "uint160"
+          },
+          {
             "internalType": "bytes32[]",
             "name": "proof",
             "type": "bytes32[]"
@@ -1150,6 +1134,11 @@
             "internalType": "int160",
             "name": "reward",
             "type": "int160"
+          },
+          {
+            "internalType": "uint160",
+            "name": "unlockedMevReward",
+            "type": "uint160"
           },
           {
             "internalType": "bytes32[]",

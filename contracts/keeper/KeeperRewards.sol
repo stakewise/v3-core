@@ -1,24 +1,29 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.18;
+pragma solidity =0.8.19;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {Ownable2StepUpgradeable} from '@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
+import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
+import {IVaultMev} from '../interfaces/IVaultMev.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 
 /**
  * @title KeeperRewards
  * @author StakeWise
- * @notice Defines the functionality for updating Vaults' consensus rewards
+ * @notice Defines the functionality for updating Vaults' rewards
  */
 abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeeperRewards {
   bytes32 internal constant _rewardsRootTypeHash =
     keccak256(
-      'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint64 updateTimestamp,uint96 nonce)'
+      'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint64 updateTimestamp,uint64 nonce)'
     );
+
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  address private immutable _sharedMevEscrow;
 
   /// @inheritdoc IKeeperRewards
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -35,10 +40,13 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
   bytes32 public override rewardsRoot;
 
   /// @inheritdoc IKeeperRewards
-  mapping(address => RewardSync) public override rewards;
+  mapping(address => Reward) public override rewards;
 
   /// @inheritdoc IKeeperRewards
-  uint96 public override rewardsNonce;
+  mapping(address => UnlockedMevReward) public override unlockedMevRewards;
+
+  /// @inheritdoc IKeeperRewards
+  uint64 public override rewardsNonce;
 
   /// @inheritdoc IKeeperRewards
   uint64 public override lastRewardsTimestamp;
@@ -52,11 +60,13 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param _oracles The address of the Oracles contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
+   * @param sharedMevEscrow The address of the shared MEV escrow contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(IOracles _oracles, IVaultsRegistry _vaultsRegistry) {
+  constructor(IOracles _oracles, IVaultsRegistry _vaultsRegistry, address sharedMevEscrow) {
     oracles = _oracles;
     vaultsRegistry = _vaultsRegistry;
+    _sharedMevEscrow = sharedMevEscrow;
   }
 
   /// @inheritdoc IKeeperRewards
@@ -70,7 +80,7 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
     }
 
     // SLOAD to memory
-    uint96 nonce = rewardsNonce;
+    uint64 nonce = rewardsNonce;
 
     // verify minimal number of oracles approved the new merkle root
     oracles.verifyMinSignatures(
@@ -105,46 +115,52 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
 
   /// @inheritdoc IKeeperRewards
   function canUpdateRewards() public view override returns (bool) {
+    // SLOAD to memory
+    uint256 _lastRewardsTimestamp = lastRewardsTimestamp;
     unchecked {
       // cannot overflow as lastRewardsTimestamp & rewardsDelay are uint64
-      return lastRewardsTimestamp + rewardsDelay < block.timestamp;
+      return _lastRewardsTimestamp + rewardsDelay < block.timestamp;
     }
   }
 
   /// @inheritdoc IKeeperRewards
   function isHarvestRequired(address vault) external view override returns (bool) {
     // vault is considered harvested in case it does not have any validators (nonce = 0)
-    // or it is up to 1 sync behind
-    uint96 nonce = rewards[vault].nonce;
+    // or it is up to 1 rewards update behind
+    uint256 nonce = rewards[vault].nonce;
     unchecked {
+      // cannot overflow as nonce is uint64
       return nonce != 0 && nonce + 1 < rewardsNonce;
     }
   }
 
   /// @inheritdoc IKeeperRewards
   function canHarvest(address vault) external view override returns (bool) {
-    uint96 nonce = rewards[vault].nonce;
-    unchecked {
-      return nonce != 0 && nonce < rewardsNonce;
-    }
+    uint256 nonce = rewards[vault].nonce;
+    return nonce != 0 && nonce < rewardsNonce;
   }
 
   /// @inheritdoc IKeeperRewards
-  function isCollateralized(address vault) external view override returns (bool) {
+  function isCollateralized(address vault) public view override returns (bool) {
     return rewards[vault].nonce != 0;
   }
 
   /// @inheritdoc IKeeperRewards
-  function harvest(HarvestParams calldata params) external override returns (int256 periodReward) {
+  function harvest(
+    HarvestParams calldata params
+  ) external override returns (int256 totalAssetsDelta, uint256 unlockedMevDelta) {
     if (!vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
 
     // SLOAD to memory
-    uint96 currentNonce = rewardsNonce;
+    uint64 currentNonce = rewardsNonce;
 
     // allow harvest for the past two updates
     if (params.rewardsRoot != rewardsRoot) {
       if (params.rewardsRoot != prevRewardsRoot) revert InvalidRewardsRoot();
-      currentNonce -= 1;
+      unchecked {
+        // cannot underflow as after first merkle root update nonce will be "2"
+        currentNonce -= 1;
+      }
     }
 
     // verify the proof
@@ -152,27 +168,39 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
       !MerkleProof.verifyCalldata(
         params.proof,
         params.rewardsRoot,
-        keccak256(bytes.concat(keccak256(abi.encode(msg.sender, params.reward))))
+        keccak256(
+          bytes.concat(keccak256(abi.encode(msg.sender, params.reward, params.unlockedMevReward)))
+        )
       )
     ) {
       revert InvalidProof();
     }
 
     // SLOAD to memory
-    RewardSync memory lastRewardSync = rewards[msg.sender];
+    Reward memory lastReward = rewards[msg.sender];
     // check whether Vault's nonce is smaller that the current, otherwise it's already harvested
-    if (lastRewardSync.nonce >= currentNonce) return 0;
+    if (lastReward.nonce >= currentNonce) return (0, 0);
+
+    // calculate total assets delta
+    totalAssetsDelta = params.reward - lastReward.assets;
 
     // update state
-    rewards[msg.sender] = RewardSync({nonce: currentNonce, reward: params.reward});
+    rewards[msg.sender] = Reward({nonce: currentNonce, assets: params.reward});
+
+    // check whether Vault has unlocked execution reward
+    if (IVaultMev(msg.sender).mevEscrow() == _sharedMevEscrow) {
+      // calculate execution assets reward
+      unlockedMevDelta = params.unlockedMevReward - unlockedMevRewards[msg.sender].assets;
+
+      // update state
+      unlockedMevRewards[msg.sender] = UnlockedMevReward({
+        nonce: currentNonce,
+        assets: params.unlockedMevReward
+      });
+    }
 
     // emit event
-    emit Harvested(msg.sender, params.rewardsRoot, params.reward);
-
-    unchecked {
-      // cannot underflow
-      return params.reward - lastRewardSync.reward;
-    }
+    emit Harvested(msg.sender, params.rewardsRoot, totalAssetsDelta, unlockedMevDelta);
   }
 
   /// @inheritdoc IKeeperRewards
@@ -197,9 +225,9 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
    * @param vault The address of the Vault
    */
   function _collateralize(address vault) internal {
-    if (rewards[vault].nonce == 0) {
-      rewards[vault] = RewardSync({nonce: rewardsNonce, reward: 0});
-    }
+    // vault is already collateralized
+    if (rewards[vault].nonce != 0) return;
+    rewards[vault] = Reward({nonce: rewardsNonce, assets: 0});
   }
 
   /**

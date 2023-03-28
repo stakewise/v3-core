@@ -36,9 +36,15 @@
       },
       {
         "indexed": false,
-        "internalType": "int160",
-        "name": "reward",
-        "type": "int160"
+        "internalType": "int256",
+        "name": "totalAssetsDelta",
+        "type": "int256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "unlockedMevDelta",
+        "type": "uint256"
       }
     ],
     "name": "Harvested",
@@ -86,9 +92,9 @@
       },
       {
         "indexed": false,
-        "internalType": "uint96",
+        "internalType": "uint64",
         "name": "nonce",
-        "type": "uint96"
+        "type": "uint64"
       },
       {
         "indexed": false,
@@ -147,6 +153,11 @@
             "type": "int160"
           },
           {
+            "internalType": "uint160",
+            "name": "unlockedMevReward",
+            "type": "uint160"
+          },
+          {
             "internalType": "bytes32[]",
             "name": "proof",
             "type": "bytes32[]"
@@ -161,8 +172,13 @@
     "outputs": [
       {
         "internalType": "int256",
-        "name": "periodReward",
+        "name": "totalAssetsDelta",
         "type": "int256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "unlockedMevDelta",
+        "type": "uint256"
       }
     ],
     "stateMutability": "nonpayable",
@@ -256,14 +272,14 @@
     "name": "rewards",
     "outputs": [
       {
-        "internalType": "uint96",
-        "name": "nonce",
-        "type": "uint96"
+        "internalType": "int192",
+        "name": "assets",
+        "type": "int192"
       },
       {
-        "internalType": "int160",
-        "name": "reward",
-        "type": "int160"
+        "internalType": "uint64",
+        "name": "nonce",
+        "type": "uint64"
       }
     ],
     "stateMutability": "view",
@@ -287,9 +303,9 @@
     "name": "rewardsNonce",
     "outputs": [
       {
-        "internalType": "uint96",
+        "internalType": "uint64",
         "name": "",
-        "type": "uint96"
+        "type": "uint64"
       }
     ],
     "stateMutability": "view",
@@ -354,6 +370,30 @@
     "name": "setRewardsRoot",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      }
+    ],
+    "name": "unlockedMevRewards",
+    "outputs": [
+      {
+        "internalType": "uint192",
+        "name": "assets",
+        "type": "uint192"
+      },
+      {
+        "internalType": "uint64",
+        "name": "nonce",
+        "type": "uint64"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

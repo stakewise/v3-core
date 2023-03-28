@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.18;
+pragma solidity =0.8.19;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
@@ -20,8 +20,9 @@ contract EthVaultMock is EthVault {
   constructor(
     address _keeper,
     address _vaultsRegistry,
-    address _validatorsRegistry
-  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry) {}
+    address _validatorsRegistry,
+    address sharedMevEscrow
+  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, sharedMevEscrow) {}
 
   function mockDeposit(address receiver, uint256 assets) external returns (uint256 shares) {
     // calculate amount of shares to mint
@@ -48,6 +49,10 @@ contract EthVaultMock is EthVault {
 
   function _setTotalAssets(uint128 value) external {
     _totalAssets = value;
+  }
+
+  function _setTotalShares(uint128 value) external {
+    _totalShares = value;
   }
 
   function resetSecurityDeposit() external {

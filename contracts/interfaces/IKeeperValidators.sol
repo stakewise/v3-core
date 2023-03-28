@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.18;
+pragma solidity =0.8.19;
 
 import {IValidatorsRegistry} from './IValidatorsRegistry.sol';
 
@@ -12,6 +12,7 @@ import {IValidatorsRegistry} from './IValidatorsRegistry.sol';
 interface IKeeperValidators {
   // Custom errors
   error InvalidValidatorsRegistryRoot();
+  error InvalidVault();
 
   /**
    * @notice Event emitted on validators approval
@@ -28,10 +29,31 @@ interface IKeeperValidators {
   );
 
   /**
+   * @notice Event emitted on exit signatures update
+   * @param caller The address of the function caller
+   * @param vault The address of the Vault
+   * @param nonce The nonce used for verifying Oracles' signatures
+   * @param exitSignaturesIpfsHash The IPFS hash with the validators' exit signatures
+   */
+  event ExitSignaturesUpdated(
+    address indexed caller,
+    address indexed vault,
+    uint256 nonce,
+    string exitSignaturesIpfsHash
+  );
+
+  /**
    * @notice Validators Registry Address
    * @return The address of the beacon chain validators registry contract
    */
   function validatorsRegistry() external view returns (IValidatorsRegistry);
+
+  /**
+   * @notice Get nonce for the next vault exit signatures update
+   * @param vault The address of the Vault to get the nonce for
+   * @return The nonce of the Vault for updating signatures
+   */
+  function exitSignaturesNonces(address vault) external view returns (uint256);
 
   /**
    * @notice Struct for approving registration of one or more validators
@@ -52,4 +74,16 @@ interface IKeeperValidators {
    * @param params The parameters for approving validators registration
    */
   function approveValidators(ApprovalParams calldata params) external;
+
+  /**
+   * @notice Function for updating exit signatures for every hard fork
+   * @param vault The address of the Vault to update signatures for
+   * @param exitSignaturesIpfsHash The IPFS hash with the validators' exit signatures
+   * @param oraclesSignatures The concatenation of Oracles' signatures
+   */
+  function updateExitSignatures(
+    address vault,
+    string calldata exitSignaturesIpfsHash,
+    bytes calldata oraclesSignatures
+  ) external;
 }

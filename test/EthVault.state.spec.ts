@@ -1,12 +1,25 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { Keeper, EthVault, ExitQueue, Oracles } from '../typechain-types'
+import {
+  Keeper,
+  EthVault,
+  ExitQueue,
+  Oracles,
+  SharedMevEscrow,
+  OwnMevEscrow,
+} from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { PANIC_CODES, SECURITY_DEPOSIT, ZERO_ADDRESS, ZERO_BYTES32 } from './shared/constants'
+import {
+  MAX_UINT256,
+  PANIC_CODES,
+  SECURITY_DEPOSIT,
+  ZERO_ADDRESS,
+  ZERO_BYTES32,
+} from './shared/constants'
 import { setBalance } from './shared/utils'
 import { collateralizeEthVault, getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
 
@@ -22,22 +35,33 @@ describe('EthVault - state', () => {
   const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
-  let holder: Wallet, admin: Wallet, dao: Wallet
-  let vault: EthVault, keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
+  let holder: Wallet, admin: Wallet, dao: Wallet, other: Wallet
+  let vault: EthVault,
+    keeper: Keeper,
+    oracles: Oracles,
+    sharedMevEscrow: SharedMevEscrow,
+    validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
+  let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createVaultMock']
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
   before('create fixture loader', async () => {
-    ;[holder, admin, dao] = await (ethers as any).getSigners()
+    ;[holder, admin, dao, other] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([dao])
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createVault, keeper, oracles, validatorsRegistry, getSignatures } = await loadFixture(
-      ethVaultFixture
-    ))
+    ;({
+      createVault,
+      createVaultMock,
+      keeper,
+      oracles,
+      validatorsRegistry,
+      sharedMevEscrow,
+      getSignatures,
+    } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
       validatorsRoot,
@@ -51,27 +75,38 @@ describe('EthVault - state', () => {
 
   it('does not fail with zero assets delta', async () => {
     const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward: 0 },
+      { vault: vault.address, unlockedMevReward: 0, reward: 0 },
     ])
-    const proof = getRewardsRootProof(tree, { vault: vault.address, reward: 0 })
-    await expect(vault.updateState({ rewardsRoot: tree.root, reward: 0, proof })).to.not.emit(
-      vault,
-      'StateUpdated'
-    )
+    const proof = getRewardsRootProof(tree, {
+      vault: vault.address,
+      unlockedMevReward: 0,
+      reward: 0,
+    })
+    const receipt = await vault.updateState({
+      rewardsRoot: tree.root,
+      reward: 0,
+      unlockedMevReward: 0,
+      proof,
+    })
+    await expect(receipt).to.emit(keeper, 'Harvested').withArgs(vault.address, tree.root, 0, 0)
+    await expect(receipt).to.not.emit(sharedMevEscrow, 'Harvested')
   })
 
   it('reverts when overflow', async () => {
     const reward = BigNumber.from(2).pow(160).sub(1).div(2)
     const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward },
+      { vault: vault.address, reward, unlockedMevReward: reward },
     ])
+    await setBalance(sharedMevEscrow.address, reward)
     await expect(
       vault.updateState({
         rewardsRoot: tree.root,
         reward,
+        unlockedMevReward: reward,
         proof: getRewardsRootProof(tree, {
           vault: vault.address,
           reward,
+          unlockedMevReward: reward,
         }),
       })
     ).revertedWith("SafeCast: value doesn't fit in 128 bits")
@@ -80,79 +115,172 @@ describe('EthVault - state', () => {
   it('reverts when underflow', async () => {
     const reward = parseEther('-2')
     const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward },
+      { vault: vault.address, reward, unlockedMevReward: 0 },
     ])
     await expect(
       vault.updateState({
         rewardsRoot: tree.root,
         reward,
+        unlockedMevReward: 0,
         proof: getRewardsRootProof(tree, {
           vault: vault.address,
           reward,
+          unlockedMevReward: 0,
         }),
       })
     ).revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
   })
 
-  it('only vault can harvest', async () => {
-    await expect(keeper.harvest({ rewardsRoot: ZERO_BYTES32, reward: 0, proof: [] })).revertedWith(
-      'AccessDenied'
+  it('is not affected by inflation attack', async () => {
+    const vault = await createVaultMock(
+      admin,
+      {
+        capacity: MAX_UINT256,
+        validatorsRoot,
+        feePercent: 0,
+        name,
+        symbol,
+        metadataIpfsHash,
+      },
+      true
     )
+    const securityDeposit = BigNumber.from('1000000000')
+    await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: 1 })
+    await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+    await vault._setTotalAssets(1)
+    expect(await vault.totalAssets()).to.eq(1)
+    expect(await vault.totalSupply()).to.eq(securityDeposit.add(1))
+
+    // attacker drops a lot of eth as a reward
+    const burnedAssets = parseEther('1000')
+    await setBalance(await vault.mevEscrow(), burnedAssets)
+
+    // state is updated
+    const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+      { vault: vault.address, reward: 0, unlockedMevReward: 1 },
+    ])
+    await vault.updateState({
+      rewardsRoot: tree.root,
+      reward: 0,
+      unlockedMevReward: 1,
+      proof: getRewardsRootProof(tree, {
+        vault: vault.address,
+        reward: 0,
+        unlockedMevReward: 1,
+      }),
+    })
+
+    // small amount of shares own a lot of assets
+    expect(await vault.totalAssets()).to.eq(burnedAssets.add(1))
+    expect(await vault.totalSupply()).to.eq(securityDeposit.add(1))
+
+    // user deposits
+    const userAssets = parseEther('10')
+    await vault.connect(holder).deposit(holder.address, ZERO_ADDRESS, { value: userAssets })
+
+    // user lost ~ 10 gwei due to the inflation above
+    expect(await vault.convertToAssets(await vault.balanceOf(holder.address))).to.eq(
+      BigNumber.from('9999999990099009910')
+    )
+  })
+
+  it('only vault can harvest', async () => {
+    await expect(
+      keeper.harvest({ rewardsRoot: ZERO_BYTES32, reward: 0, unlockedMevReward: 0, proof: [] })
+    ).revertedWith('AccessDenied')
   })
 
   it('applies penalty when delta is below zero', async () => {
     const penalty = parseEther('-0.5')
     const rewardMevEscrow = parseEther('0.3')
-    const reward = penalty.add(rewardMevEscrow)
     await setBalance(await vault.mevEscrow(), rewardMevEscrow)
     const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward: penalty },
+      { vault: vault.address, reward: penalty, unlockedMevReward: rewardMevEscrow },
     ])
-    const proof = getRewardsRootProof(tree, { vault: vault.address, reward: penalty })
+    const proof = getRewardsRootProof(tree, {
+      vault: vault.address,
+      reward: penalty,
+      unlockedMevReward: rewardMevEscrow,
+    })
 
     const totalSupplyBefore = await vault.totalSupply()
     const totalAssetsBefore = await vault.totalAssets()
-    const receipt = await vault.updateState({ rewardsRoot: tree.root, reward: penalty, proof })
+    const receipt = await vault.updateState({
+      rewardsRoot: tree.root,
+      reward: penalty,
+      unlockedMevReward: rewardMevEscrow,
+      proof,
+    })
 
-    await expect(receipt).emit(vault, 'StateUpdated').withArgs(reward)
+    await expect(receipt)
+      .emit(keeper, 'Harvested')
+      .withArgs(vault.address, tree.root, penalty, rewardMevEscrow)
+    await expect(receipt)
+      .emit(sharedMevEscrow, 'Harvested')
+      .withArgs(vault.address, rewardMevEscrow)
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
       rewardMevEscrow.add(holderAssets).add(SECURITY_DEPOSIT)
     )
     expect(await vault.totalSupply()).to.be.eq(totalSupplyBefore)
-    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore.add(reward))
+    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore.add(penalty))
     await snapshotGasCost(receipt)
   })
 
   it('allocates fee to recipient when delta is above zero', async () => {
+    // create vault with own mev escrow
+    const vault = await createVault(
+      admin,
+      {
+        capacity,
+        validatorsRoot,
+        feePercent,
+        name,
+        symbol,
+        metadataIpfsHash,
+      },
+      true
+    )
+    await vault.connect(holder).deposit(holder.address, ZERO_ADDRESS, { value: holderAssets })
+    const ownMevEscrow = await ethers.getContractFactory('OwnMevEscrow')
+    const mevEscrow = ownMevEscrow.attach(await vault.mevEscrow()) as OwnMevEscrow
+
     const rewardValidators = parseEther('0.5')
     const rewardMevEscrow = parseEther('0.5')
     const operatorReward = parseEther('0.1')
     const reward = rewardValidators.add(rewardMevEscrow)
 
-    const mevEscrow = await vault.mevEscrow()
-    await setBalance(mevEscrow, rewardMevEscrow)
+    await setBalance(mevEscrow.address, rewardMevEscrow)
     const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
       {
         vault: vault.address,
         reward: rewardValidators,
+        unlockedMevReward: 0,
       },
     ])
-    const proof = getRewardsRootProof(tree, { vault: vault.address, reward: rewardValidators })
+    const proof = getRewardsRootProof(tree, {
+      vault: vault.address,
+      reward: rewardValidators,
+      unlockedMevReward: 0,
+    })
 
     const totalSupplyBefore = await vault.totalSupply()
     const totalAssetsBefore = await vault.totalAssets()
     const receipt = await vault.updateState({
       rewardsRoot: tree.root,
       reward: rewardValidators,
+      unlockedMevReward: 0,
       proof,
     })
 
     const operatorShares = await vault.balanceOf(admin.address)
     expect(await vault.convertToAssets(operatorShares)).to.be.eq(operatorReward.sub(2)) // rounding error
     expect(await vault.convertToShares(operatorReward)).to.be.eq(operatorShares)
-    expect(await waffle.provider.getBalance(mevEscrow)).to.be.eq(0)
+    expect(await waffle.provider.getBalance(mevEscrow.address)).to.be.eq(0)
 
-    await expect(receipt).emit(vault, 'StateUpdated').withArgs(reward)
+    await expect(receipt)
+      .emit(keeper, 'Harvested')
+      .withArgs(vault.address, tree.root, rewardValidators, 0)
+    await expect(receipt).emit(ownMevEscrow, 'Harvested').withArgs(rewardMevEscrow)
     await expect(receipt)
       .emit(vault, 'Transfer')
       .withArgs(ZERO_ADDRESS, admin.address, operatorShares)
@@ -174,35 +302,45 @@ describe('EthVault - state', () => {
     const totalAssetsBefore = await vault.totalAssets()
 
     const rewardValidators = parseEther('0.5')
-    const rewardMevEscrow = parseEther('0.5')
-    const reward = rewardValidators.add(rewardMevEscrow)
-    const mevEscrow = await vault.mevEscrow()
-    await setBalance(mevEscrow, rewardMevEscrow)
+    const unlockedMevReward = parseEther('0.5')
+    const reward = rewardValidators.add(unlockedMevReward)
+    await setBalance(sharedMevEscrow.address, unlockedMevReward)
     const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
       {
         vault: vault.address,
-        reward: rewardValidators,
+        reward,
+        unlockedMevReward,
       },
     ])
-    const proof = getRewardsRootProof(tree, { vault: vault.address, reward: rewardValidators })
+    const proof = getRewardsRootProof(tree, {
+      vault: vault.address,
+      reward,
+      unlockedMevReward,
+    })
 
     const receipt = await vault.updateState({
       rewardsRoot: tree.root,
-      reward: rewardValidators,
+      reward,
+      unlockedMevReward,
       proof,
     })
     const operatorShares = await vault.balanceOf(admin.address)
-    expect(await waffle.provider.getBalance(mevEscrow)).to.be.eq(0)
+    expect(await waffle.provider.getBalance(sharedMevEscrow.address)).to.be.eq(0)
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
-      rewardMevEscrow.add(holderAssets).add(SECURITY_DEPOSIT)
+      unlockedMevReward.add(holderAssets).add(SECURITY_DEPOSIT)
     )
-    await expect(receipt).emit(vault, 'StateUpdated').withArgs(reward)
+    await expect(receipt)
+      .emit(keeper, 'Harvested')
+      .withArgs(vault.address, tree.root, reward, unlockedMevReward)
+    await expect(receipt)
+      .emit(sharedMevEscrow, 'Harvested')
+      .withArgs(vault.address, unlockedMevReward)
     await expect(receipt).emit(exitQueue, 'CheckpointCreated')
 
     let totalSupplyAfter = totalSupplyBefore.add(operatorShares)
     let totalAssetsAfter = totalAssetsBefore.add(reward)
 
-    const unclaimedAssets = holderAssets.add(rewardMevEscrow).add(SECURITY_DEPOSIT)
+    const unclaimedAssets = holderAssets.add(unlockedMevReward).add(SECURITY_DEPOSIT)
     expect(await vault.unclaimedAssets()).to.eq(unclaimedAssets)
     const burnedShares = unclaimedAssets.mul(totalSupplyAfter).div(totalAssetsAfter)
 
