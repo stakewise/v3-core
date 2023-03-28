@@ -42,7 +42,7 @@ Object {
 }
 `;
 
-exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`] = `30149`;
+exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`] = `29948`;
 
 exports[`EthVault - withdraw redeem & withdraw redeem transfers assets to receiver 1`] = `
 Object {
@@ -68,13 +68,13 @@ Object {
 exports[`EthVault - withdraw update exit queue adds checkpoint 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 98053,
+  "gasUsed": 97936,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue for not all the queued shares 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 98049,
+  "gasUsed": 97932,
 }
 `;

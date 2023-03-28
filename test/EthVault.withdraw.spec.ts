@@ -295,7 +295,6 @@ describe('EthVault - withdraw', () => {
 
   describe('update exit queue', () => {
     let exitQueue: ExitQueue
-    const startCheckpointId = validatorDeposit
 
     beforeEach(async () => {
       const exitQueueFactory = await ethers.getContractFactory('ExitQueue')
@@ -345,7 +344,7 @@ describe('EthVault - withdraw', () => {
       const receipt = await vault.updateState(harvestParams)
       await expect(receipt)
         .to.emit(exitQueue, 'CheckpointCreated')
-        .withArgs(startCheckpointId.add(halfHolderShares), halfHolderAssets)
+        .withArgs(halfHolderShares, halfHolderAssets)
       expect(await waffle.provider.getBalance(vault.address)).to.be.eq(halfHolderAssets)
       expect(await vault.queuedShares()).to.be.eq(halfHolderShares)
       expect(await vault.getCheckpointIndex(validatorDeposit)).to.be.eq(1)
@@ -357,7 +356,7 @@ describe('EthVault - withdraw', () => {
       const receipt = await vault.updateState(harvestParams)
       await expect(receipt)
         .to.emit(exitQueue, 'CheckpointCreated')
-        .withArgs(startCheckpointId.add(holderShares), holderAssets)
+        .withArgs(holderShares, holderAssets)
       expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
         holderAssets.add(SECURITY_DEPOSIT)
       )
@@ -518,14 +517,14 @@ describe('EthVault - withdraw', () => {
       await setBalance(vault.address, halfHolderAssets)
       await expect(vault.updateState(harvestParams))
         .to.emit(exitQueue, 'CheckpointCreated')
-        .withArgs(validatorDeposit.add(halfHolderShares), halfHolderAssets)
+        .withArgs(halfHolderShares, halfHolderAssets)
       const checkpointIndex = await vault.getCheckpointIndex(positionCounter)
 
       await increaseTime(ONE_DAY)
       await setBalance(vault.address, holderAssets)
       await expect(vault.updateState(harvestParams))
         .to.emit(exitQueue, 'CheckpointCreated')
-        .withArgs(validatorDeposit.add(holderShares), halfHolderAssets)
+        .withArgs(halfHolderShares, halfHolderAssets)
 
       const receipt = await vault
         .connect(holder)
@@ -550,7 +549,7 @@ describe('EthVault - withdraw', () => {
       await setBalance(vault.address, halfHolderAssets)
       await expect(vault.updateState(harvestParams))
         .to.emit(exitQueue, 'CheckpointCreated')
-        .withArgs(validatorDeposit.add(halfHolderShares), halfHolderAssets)
+        .withArgs(halfHolderShares, halfHolderAssets)
       const checkpointIndex = await vault.getCheckpointIndex(positionCounter)
       let receipt = await vault
         .connect(holder)
@@ -577,7 +576,7 @@ describe('EthVault - withdraw', () => {
       await setBalance(vault.address, halfHolderAssets)
       await expect(vault.updateState(harvestParams))
         .to.emit(exitQueue, 'CheckpointCreated')
-        .withArgs(validatorDeposit.add(holderShares), halfHolderAssets)
+        .withArgs(halfHolderShares, halfHolderAssets)
 
       const newCheckpointIndex = await vault.getCheckpointIndex(newPositionCounter)
       receipt = await vault
@@ -625,7 +624,7 @@ describe('EthVault - withdraw', () => {
       await increaseTime(ONE_DAY)
       await expect(vault.connect(other).updateState(harvestParams))
         .to.emit(exitQueue, 'CheckpointCreated')
-        .withArgs(user2PositionCounter.add(assets), assets.mul(2))
+        .withArgs(shares.mul(2), assets.mul(2))
 
       let receipt = await vault
         .connect(other)
@@ -880,7 +879,7 @@ describe('EthVault - withdraw', () => {
       })
     )
       .to.emit(exitQueue, 'CheckpointCreated')
-      .withArgs(validatorDeposit.add(1427), 2600)
+      .withArgs(1427, 2600)
 
     totalAssets -= 2600
     totalSupply -= 1427
@@ -956,7 +955,7 @@ describe('EthVault - withdraw', () => {
       })
     )
       .to.emit(exitQueue, 'CheckpointCreated')
-      .withArgs(validatorDeposit.add(2487), 3000)
+      .withArgs(1060, 3000)
 
     totalAssets -= 3000
     totalSupply -= 1060

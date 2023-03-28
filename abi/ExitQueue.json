@@ -4,15 +4,15 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "uint160",
-        "name": "sharesCounter",
-        "type": "uint160"
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
       },
       {
         "indexed": false,
-        "internalType": "uint96",
-        "name": "exitedAssets",
-        "type": "uint96"
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
       }
     ],
     "name": "CheckpointCreated",

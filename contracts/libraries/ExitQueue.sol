@@ -35,10 +35,10 @@ library ExitQueue {
 
   /**
    * @notice Event emitted on checkpoint creation
-   * @param sharesCounter The cumulative number of burned shares
-   * @param exitedAssets The amount of exited assets
+   * @param shares The number of burned shares
+   * @param assets The amount of exited assets
    */
-  event CheckpointCreated(uint160 sharesCounter, uint96 exitedAssets);
+  event CheckpointCreated(uint256 shares, uint256 assets);
 
   /**
    * @notice Get the current burned shares counter
@@ -168,7 +168,7 @@ library ExitQueue {
       exitedAssets: SafeCast.toUint96(assets)
     });
     self.checkpoints.push(checkpoint);
-    emit CheckpointCreated(checkpoint.sharesCounter, checkpoint.exitedAssets);
+    emit CheckpointCreated(shares, assets);
   }
 
   function _unsafeAccess(
