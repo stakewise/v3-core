@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.18;
+pragma solidity =0.8.19;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
@@ -43,12 +43,12 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
 
   /// @inheritdoc IVaultToken
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
-    return _convertToShares(assets, Math.Rounding.Down);
+    return _convertToShares(assets, _totalShares, _totalAssets, Math.Rounding.Down);
   }
 
   /// @inheritdoc IVaultToken
   function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
-    return _convertToAssets(shares, Math.Rounding.Down);
+    return _convertToAssets(shares, _totalShares, _totalAssets, Math.Rounding.Down);
   }
 
   /**
@@ -61,7 +61,7 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
    * @dev Internal function for transferring assets from the Vault to the receiver
    * @dev IMPORTANT: because control is transferred to the receiver, care must be
    *    taken to not create reentrancy vulnerabilities. The Vault must follow the checks-effects-interactions pattern:
-   *    https://docs.soliditylang.org/en/v0.8.18/security-considerations.html#use-the-checks-effects-interactions-pattern
+   *    https://docs.soliditylang.org/en/v0.8.19/security-considerations.html#use-the-checks-effects-interactions-pattern
    * @param receiver The address that will receive the assets
    * @param assets The number of assets to transfer
    */
@@ -72,15 +72,16 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
    */
   function _convertToShares(
     uint256 assets,
+    uint256 totalShares,
+    uint256 totalAssets_,
     Math.Rounding rounding
-  ) internal view returns (uint256 shares) {
-    uint256 totalShares = _totalShares;
-    // Will revert if assets > 0, totalShares > 0 and _totalAssets = 0.
+  ) internal pure returns (uint256 shares) {
+    // Will revert if assets > 0, totalShares > 0 and totalAssets = 0.
     // That corresponds to a case where any asset would represent an infinite amount of shares.
     return
       (assets == 0 || totalShares == 0)
         ? assets
-        : Math.mulDiv(assets, totalShares, _totalAssets, rounding);
+        : Math.mulDiv(assets, totalShares, totalAssets_, rounding);
   }
 
   /**
@@ -88,10 +89,11 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
    */
   function _convertToAssets(
     uint256 shares,
+    uint256 totalShares,
+    uint256 totalAssets_,
     Math.Rounding rounding
-  ) internal view returns (uint256) {
-    uint256 totalShares = _totalShares;
-    return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares, rounding);
+  ) internal pure returns (uint256) {
+    return (totalShares == 0) ? shares : Math.mulDiv(shares, totalAssets_, totalShares, rounding);
   }
 
   /**
@@ -105,7 +107,7 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
     string memory _symbol,
     uint256 capacity_
   ) internal onlyInitializing {
-    if (bytes(_name).length > 30 || bytes(_symbol).length > 20) revert InvalidTokenMeta();
+    if (bytes(_name).length > 30 || bytes(_symbol).length > 10) revert InvalidTokenMeta();
 
     // initialize ERC20Permit
     __ERC20Upgradeable_init(_name, _symbol);

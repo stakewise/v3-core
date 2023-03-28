@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.18;
+pragma solidity =0.8.19;
 
 import {Create2} from '@openzeppelin/contracts/utils/Create2.sol';
 import {ERC1967Proxy} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IVaultsRegistry} from '../../interfaces/IVaultsRegistry.sol';
-import {VaultMevEscrow} from './mev/VaultMevEscrow.sol';
+import {OwnMevEscrow} from './mev/OwnMevEscrow.sol';
 
 /**
  * @title EthVaultFactory
@@ -51,25 +51,27 @@ contract EthVaultFactory is IEthVaultFactory {
   /// @inheritdoc IEthVaultFactory
   function createVault(
     VaultParams calldata params,
-    bool isPrivate
+    bool isPrivate,
+    bool isOwnMevEscrow
   ) external payable override returns (address vault) {
     uint256 nonce = nonces[msg.sender];
-    unchecked {
-      // cannot realistically overflow
-      nonces[msg.sender] = nonce + 1;
-    }
 
     // create vault proxy
     bytes32 salt = keccak256(abi.encode(msg.sender, nonce));
 
+    // slither-disable-start reentrancy-eth
     if (isPrivate) {
       vault = address(new ERC1967Proxy{salt: salt}(privateVaultImpl, ''));
     } else {
       vault = address(new ERC1967Proxy{salt: salt}(publicVaultImpl, ''));
     }
+    // slither-disable-end reentrancy-eth
 
     // create MEV escrow contract
-    address mevEscrow = address(new VaultMevEscrow{salt: salt}(vault));
+    address mevEscrow;
+    if (isOwnMevEscrow) {
+      mevEscrow = address(new OwnMevEscrow{salt: salt}(vault));
+    }
 
     // initialize vault
     IEthVault(vault).initialize{value: msg.value}(
@@ -90,6 +92,9 @@ contract EthVaultFactory is IEthVaultFactory {
     // add vault to the registry
     _vaultsRegistry.addVault(vault);
 
+    // update nonce
+    nonces[msg.sender] = nonce + 1;
+
     emit VaultCreated(
       msg.sender,
       vault,
@@ -106,16 +111,16 @@ contract EthVaultFactory is IEthVaultFactory {
   function computeAddresses(
     address deployer,
     bool isPrivate
-  ) public view override returns (address vault, address mevEscrow) {
+  ) public view override returns (address vault, address ownMevEscrow) {
     bytes32 nonce = keccak256(abi.encode(deployer, nonces[deployer]));
     if (isPrivate) {
       vault = Create2.computeAddress(nonce, _privateVaultCreateHash);
     } else {
       vault = Create2.computeAddress(nonce, _publicVaultCreateHash);
     }
-    mevEscrow = Create2.computeAddress(
+    ownMevEscrow = Create2.computeAddress(
       nonce,
-      keccak256(abi.encodePacked(type(VaultMevEscrow).creationCode, abi.encode(vault)))
+      keccak256(abi.encodePacked(type(OwnMevEscrow).creationCode, abi.encode(vault)))
     );
   }
 }

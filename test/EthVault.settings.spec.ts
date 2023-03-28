@@ -147,8 +147,12 @@ describe('EthVault - settings', () => {
     })
 
     it('cannot update when not harvested', async () => {
-      await updateRewardsRoot(keeper, oracles, getSignatures, [{ vault: vault.address, reward: 1 }])
-      await updateRewardsRoot(keeper, oracles, getSignatures, [{ vault: vault.address, reward: 2 }])
+      await updateRewardsRoot(keeper, oracles, getSignatures, [
+        { vault: vault.address, reward: 1, unlockedMevReward: 0 },
+      ])
+      await updateRewardsRoot(keeper, oracles, getSignatures, [
+        { vault: vault.address, reward: 2, unlockedMevReward: 0 },
+      ])
       await expect(
         vault.connect(admin).setFeeRecipient(newFeeRecipient.address)
       ).to.be.revertedWith('NotHarvested')

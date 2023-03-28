@@ -13,6 +13,7 @@ import {
   VaultsRegistry,
   Oracles,
   Keeper,
+  SharedMevEscrow,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
 import {
@@ -31,6 +32,13 @@ export const createValidatorsRegistry = async function (): Promise<Contract> {
 export const createVaultsRegistry = async function (owner: Wallet): Promise<VaultsRegistry> {
   const factory = await ethers.getContractFactory('VaultsRegistry')
   return (await factory.deploy(owner.address)) as VaultsRegistry
+}
+
+export const createSharedMevEscrow = async function (
+  vaultsRegistry: VaultsRegistry
+): Promise<SharedMevEscrow> {
+  const factory = await ethers.getContractFactory('SharedMevEscrow')
+  return (await factory.deploy(vaultsRegistry.address)) as SharedMevEscrow
 }
 
 export const createOracles = async function (
@@ -52,12 +60,18 @@ export const createKeeper = async function (
   owner: Wallet,
   oracles: Oracles,
   vaultsRegistry: VaultsRegistry,
-  validatorsRegistry: Contract
+  validatorsRegistry: Contract,
+  sharedMevEscrow: SharedMevEscrow
 ): Promise<Keeper> {
   const factory = await ethers.getContractFactory('Keeper')
   const instance = await upgrades.deployProxy(factory, [owner.address, REWARDS_DELAY], {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [oracles.address, vaultsRegistry.address, validatorsRegistry.address],
+    constructorArgs: [
+      oracles.address,
+      vaultsRegistry.address,
+      validatorsRegistry.address,
+      sharedMevEscrow.address,
+    ],
   })
   return (await instance.deployed()) as Keeper
 }
@@ -65,18 +79,29 @@ export const createKeeper = async function (
 export const createEthVaultFactory = async function (
   keeper: Keeper,
   vaultsRegistry: VaultsRegistry,
+  sharedMevEscrow: SharedMevEscrow,
   validatorsRegistry: Contract
 ): Promise<EthVaultFactory> {
   const ethVault = await ethers.getContractFactory('EthVault')
   const ethVaultImpl = await upgrades.deployImplementation(ethVault, {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [keeper.address, vaultsRegistry.address, validatorsRegistry.address],
+    constructorArgs: [
+      keeper.address,
+      vaultsRegistry.address,
+      validatorsRegistry.address,
+      sharedMevEscrow.address,
+    ],
   })
 
   const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
   const ethPrivateVaultImpl = await upgrades.deployImplementation(ethPrivateVault, {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [keeper.address, vaultsRegistry.address, validatorsRegistry.address],
+    constructorArgs: [
+      keeper.address,
+      vaultsRegistry.address,
+      validatorsRegistry.address,
+      sharedMevEscrow.address,
+    ],
   })
 
   const factory = await ethers.getContractFactory('EthVaultFactory')
@@ -90,18 +115,29 @@ export const createEthVaultFactory = async function (
 export const createEthVaultMockFactory = async function (
   keeper: Keeper,
   vaultsRegistry: VaultsRegistry,
+  sharedMevEscrow: SharedMevEscrow,
   validatorsRegistry: Contract
 ): Promise<EthVaultFactory> {
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
   const ethVaultMockImpl = await upgrades.deployImplementation(ethVaultMock, {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [keeper.address, vaultsRegistry.address, validatorsRegistry.address],
+    constructorArgs: [
+      keeper.address,
+      vaultsRegistry.address,
+      validatorsRegistry.address,
+      sharedMevEscrow.address,
+    ],
   })
 
   const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
   const ethPrivateVaultImpl = await upgrades.deployImplementation(ethPrivateVault, {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [keeper.address, vaultsRegistry.address, validatorsRegistry.address],
+    constructorArgs: [
+      keeper.address,
+      vaultsRegistry.address,
+      validatorsRegistry.address,
+      sharedMevEscrow.address,
+    ],
   })
 
   const factory = await ethers.getContractFactory('EthVaultFactory')
@@ -116,27 +152,34 @@ interface EthVaultFixture {
   vaultsRegistry: VaultsRegistry
   oracles: Oracles
   keeper: Keeper
+  sharedMevEscrow: SharedMevEscrow
   validatorsRegistry: Contract
   ethVaultFactory: EthVaultFactory
   getSignatures: (typedData: any, count?: number) => Buffer
 
-  createVault(admin: Wallet, vaultParams: IEthVaultFactory.VaultParamsStruct): Promise<EthVault>
+  createVault(
+    admin: Wallet,
+    vaultParams: IEthVaultFactory.VaultParamsStruct,
+    isOwnMevEscrow?: boolean
+  ): Promise<EthVault>
 
   createPrivateVault(
     admin: Wallet,
-    vaultParams: IEthVaultFactory.VaultParamsStruct
+    vaultParams: IEthVaultFactory.VaultParamsStruct,
+    isOwnMevEscrow?: boolean
   ): Promise<EthPrivateVault>
 
   createVaultMock(
     admin: Wallet,
-    vaultParams: IEthVaultFactory.VaultParamsStruct
+    vaultParams: IEthVaultFactory.VaultParamsStruct,
+    isOwnMevEscrow?: boolean
   ): Promise<EthVaultMock>
 }
 
 export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   dao,
 ]): Promise<EthVaultFixture> {
-  const registry = await createVaultsRegistry(dao)
+  const vaultsRegistry = await createVaultsRegistry(dao)
   const validatorsRegistry = await createValidatorsRegistry()
 
   const sortedOracles = ORACLES.sort((oracle1, oracle2) => {
@@ -150,51 +193,72 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     REQUIRED_ORACLES,
     ORACLES_CONFIG
   )
-  const keeper = await createKeeper(dao, oracles, registry, validatorsRegistry)
-  const ethVaultFactory = await createEthVaultFactory(keeper, registry, validatorsRegistry)
-  await registry.connect(dao).addFactory(ethVaultFactory.address)
+  const sharedMevEscrow = await createSharedMevEscrow(vaultsRegistry)
+  const keeper = await createKeeper(
+    dao,
+    oracles,
+    vaultsRegistry,
+    validatorsRegistry,
+    sharedMevEscrow
+  )
+  const ethVaultFactory = await createEthVaultFactory(
+    keeper,
+    vaultsRegistry,
+    sharedMevEscrow,
+    validatorsRegistry
+  )
+  await vaultsRegistry.connect(dao).addFactory(ethVaultFactory.address)
 
-  const ethVaultMockFactory = await createEthVaultMockFactory(keeper, registry, validatorsRegistry)
-  await registry.connect(dao).addFactory(ethVaultMockFactory.address)
+  const ethVaultMockFactory = await createEthVaultMockFactory(
+    keeper,
+    vaultsRegistry,
+    sharedMevEscrow,
+    validatorsRegistry
+  )
+  await vaultsRegistry.connect(dao).addFactory(ethVaultMockFactory.address)
 
   const ethVault = await ethers.getContractFactory('EthVault')
   const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
   return {
-    vaultsRegistry: registry,
+    vaultsRegistry,
+    sharedMevEscrow,
     oracles,
     keeper,
     validatorsRegistry,
     ethVaultFactory,
     createVault: async (
       admin: Wallet,
-      vaultParams: IEthVaultFactory.VaultParamsStruct
+      vaultParams: IEthVaultFactory.VaultParamsStruct,
+      isOwnMevEscrow = false
     ): Promise<EthVault> => {
       const tx = await ethVaultFactory
         .connect(admin)
-        .createVault(vaultParams, false, { value: SECURITY_DEPOSIT })
+        .createVault(vaultParams, false, isOwnMevEscrow, { value: SECURITY_DEPOSIT })
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethVault.attach(vaultAddress) as EthVault
     },
     createPrivateVault: async (
       admin: Wallet,
-      vaultParams: IEthVaultFactory.VaultParamsStruct
+      vaultParams: IEthVaultFactory.VaultParamsStruct,
+      isOwnMevEscrow = false
     ): Promise<EthPrivateVault> => {
       const tx = await ethVaultFactory
         .connect(admin)
-        .createVault(vaultParams, true, { value: SECURITY_DEPOSIT })
+        .createVault(vaultParams, true, isOwnMevEscrow, { value: SECURITY_DEPOSIT })
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethPrivateVault.attach(vaultAddress) as EthPrivateVault
     },
     createVaultMock: async (
       admin: Wallet,
-      vaultParams: IEthVaultFactory.VaultParamsStruct
+      vaultParams: IEthVaultFactory.VaultParamsStruct,
+      isOwnMevEscrow = false
     ): Promise<EthVaultMock> => {
       const tx = await ethVaultMockFactory
         .connect(admin)
-        .createVault(vaultParams, false, { value: SECURITY_DEPOSIT })
+        .createVault(vaultParams, false, isOwnMevEscrow, { value: SECURITY_DEPOSIT })
       const receipt = await tx.wait()
       const vaultAddress = receipt.events?.[receipt.events.length - 1].args?.vault as string
       return ethVaultMock.attach(vaultAddress) as EthVaultMock

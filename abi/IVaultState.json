@@ -116,19 +116,6 @@
     "anonymous": false,
     "inputs": [
       {
-        "indexed": false,
-        "internalType": "int256",
-        "name": "assetsDelta",
-        "type": "int256"
-      }
-    ],
-    "name": "StateUpdated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
         "indexed": true,
         "internalType": "address",
         "name": "from",
@@ -245,6 +232,19 @@
   },
   {
     "inputs": [],
+    "name": "canUpdateExitQueue",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "capacity",
     "outputs": [
       {
@@ -337,7 +337,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "exitQueueId",
+        "name": "positionCounter",
         "type": "uint256"
       }
     ],
@@ -448,19 +448,6 @@
         "internalType": "uint96",
         "name": "",
         "type": "uint96"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "redeemableShares",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -610,6 +597,11 @@
             "internalType": "int160",
             "name": "reward",
             "type": "int160"
+          },
+          {
+            "internalType": "uint160",
+            "name": "unlockedMevReward",
+            "type": "uint160"
           },
           {
             "internalType": "bytes32[]",

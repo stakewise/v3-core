@@ -49,7 +49,7 @@ export const KeeperRewardsSig = [
   { name: 'rewardsRoot', type: 'bytes32' },
   { name: 'rewardsIpfsHash', type: 'bytes32' },
   { name: 'updateTimestamp', type: 'uint64' },
-  { name: 'nonce', type: 'uint96' },
+  { name: 'nonce', type: 'uint64' },
 ]
 
 export const KeeperValidatorsSig = [
@@ -57,4 +57,10 @@ export const KeeperValidatorsSig = [
   { name: 'vault', type: 'address' },
   { name: 'validators', type: 'bytes32' },
   { name: 'exitSignaturesIpfsHash', type: 'bytes32' },
+]
+
+export const KeeperUpdateExitSignaturesSig = [
+  { name: 'vault', type: 'address' },
+  { name: 'exitSignaturesIpfsHash', type: 'bytes32' },
+  { name: 'nonce', type: 'uint256' },
 ]
