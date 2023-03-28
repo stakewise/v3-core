@@ -9,6 +9,7 @@ import {
   EthVaultFactory__factory,
   Oracles__factory,
   VaultsRegistry__factory,
+  SharedMevEscrow__factory,
 } from '../typechain-types'
 import { deployContract } from '../helpers/utils'
 import { NETWORKS } from '../helpers/constants'
@@ -16,8 +17,8 @@ import { NetworkConfig } from '../helpers/types'
 
 const DEPLOYMENTS_DIR = 'deployments'
 const FEE_DATA = {
-  maxFeePerGas: '100000000000',
-  maxPriorityFeePerGas: '5000000000',
+  maxFeePerGas: '364053996066',
+  maxPriorityFeePerGas: '305657672',
 }
 
 task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (taskArgs, hre) => {
@@ -48,12 +49,22 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   )
   console.log('Oracles deployed at', oracles.address)
 
+  const sharedMevEscrow = await deployContract(
+    new SharedMevEscrow__factory(deployer).deploy(vaultsRegistry.address)
+  )
+  console.log('SharedMevEscrow deployed at', sharedMevEscrow.address)
+
   const keeper = await upgrades.deployProxy(
     new Keeper__factory(deployer),
     [networkConfig.governor, networkConfig.rewardsDelay],
     {
       unsafeAllow: ['delegatecall'],
-      constructorArgs: [oracles.address, vaultsRegistry.address, networkConfig.validatorsRegistry],
+      constructorArgs: [
+        oracles.address,
+        vaultsRegistry.address,
+        networkConfig.validatorsRegistry,
+        sharedMevEscrow.address,
+      ],
     }
   )
   await keeper.deployed()
@@ -61,13 +72,23 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
 
   const publicVaultImpl = await upgrades.deployImplementation(new EthVault__factory(deployer), {
     unsafeAllow: ['delegatecall'],
-    constructorArgs: [keeper.address, vaultsRegistry.address, networkConfig.validatorsRegistry],
+    constructorArgs: [
+      keeper.address,
+      vaultsRegistry.address,
+      networkConfig.validatorsRegistry,
+      sharedMevEscrow.address,
+    ],
   })
   const privateVaultImpl = await upgrades.deployImplementation(
     new EthPrivateVault__factory(deployer),
     {
       unsafeAllow: ['delegatecall'],
-      constructorArgs: [keeper.address, vaultsRegistry.address, networkConfig.validatorsRegistry],
+      constructorArgs: [
+        keeper.address,
+        vaultsRegistry.address,
+        networkConfig.validatorsRegistry,
+        sharedMevEscrow.address,
+      ],
     }
   )
   const ethVaultFactory = await deployContract(
@@ -85,6 +106,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     Oracles: oracles.address,
     Keeper: keeper.address,
     EthVaultFactory: ethVaultFactory.address,
+    SharedMevEscrow: sharedMevEscrow.address,
   }
   const json = JSON.stringify(addresses, null, 2)
   const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`
