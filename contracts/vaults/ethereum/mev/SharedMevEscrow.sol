@@ -20,12 +20,12 @@ contract SharedMevEscrow is ISharedMevEscrow {
   }
 
   /// @inheritdoc ISharedMevEscrow
-  function harvest(uint256 amount) external override {
+  function harvest(uint256 assets) external override {
     if (!_vaultsRegistry.vaults(msg.sender)) revert HarvestFailed();
 
-    emit Harvested(msg.sender, amount);
+    emit Harvested(msg.sender, assets);
     // slither-disable-next-line arbitrary-send-eth
-    IVaultEthStaking(msg.sender).receiveFromMevEscrow{value: amount}();
+    IVaultEthStaking(msg.sender).receiveFromMevEscrow{value: assets}();
   }
 
   /**
