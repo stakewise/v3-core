@@ -10,7 +10,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "amount",
+        "name": "assets",
         "type": "uint256"
       }
     ],
@@ -23,7 +23,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "amount",
+        "name": "assets",
         "type": "uint256"
       }
     ],
