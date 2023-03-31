@@ -14,7 +14,7 @@ Object {
 }
 `;
 
-exports[`EthVault - deposit full vault: assets & shares deposit with fallback 1`] = `
+exports[`EthVault - deposit full vault: assets & shares deposit through receive fallback function 1`] = `
 Object {
   "calldataByteLength": 4,
   "gasUsed": 81083,
