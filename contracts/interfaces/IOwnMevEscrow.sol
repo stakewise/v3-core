@@ -12,15 +12,15 @@ interface IOwnMevEscrow {
 
   /**
    * @notice Event emitted on received MEV
-   * @param amount The amount of MEV received
+   * @param assets The amount of MEV assets received
    */
-  event MevReceived(uint256 amount);
+  event MevReceived(uint256 assets);
 
   /**
    * @notice Event emitted on harvest
-   * @param amount The amount of assets withdrawn
+   * @param assets The amount of assets withdrawn
    */
-  event Harvested(uint256 amount);
+  event Harvested(uint256 assets);
 
   /**
    * @notice Vault address
