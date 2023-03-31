@@ -3,6 +3,7 @@
 pragma solidity =0.8.19;
 
 import {IOwnMevEscrow} from '../../../interfaces/IOwnMevEscrow.sol';
+import {IVaultEthStaking} from '../../../interfaces/IVaultEthStaking.sol';
 
 /**
  * @title OwnMevEscrow
@@ -25,8 +26,8 @@ contract OwnMevEscrow is IOwnMevEscrow {
     if (assets == 0) return 0;
 
     emit Harvested(assets);
-    (bool success, ) = vault.call{value: assets}('');
-    if (!success) revert HarvestFailed();
+    // slither-disable-next-line arbitrary-send-eth
+    IVaultEthStaking(msg.sender).receiveFromMevEscrow{value: assets}();
   }
 
   /**

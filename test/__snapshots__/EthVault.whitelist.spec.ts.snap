@@ -3,14 +3,14 @@
 exports[`EthVault - whitelist deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 75997,
+  "gasUsed": 76019,
 }
 `;
 
 exports[`EthVault - whitelist set whitelister admin can update whitelister 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 36518,
+  "gasUsed": 36540,
 }
 `;
 
@@ -31,7 +31,7 @@ Object {
 exports[`EthVault - whitelist whitelist root admin can update root 1`] = `
 Object {
   "calldataByteLength": 164,
-  "gasUsed": 55609,
+  "gasUsed": 55631,
 }
 `;
 

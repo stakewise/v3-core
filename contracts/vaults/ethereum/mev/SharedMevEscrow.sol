@@ -4,6 +4,7 @@ pragma solidity =0.8.19;
 
 import {ISharedMevEscrow} from '../../../interfaces/ISharedMevEscrow.sol';
 import {IVaultsRegistry} from '../../../interfaces/IVaultsRegistry.sol';
+import {IVaultEthStaking} from '../../../interfaces/IVaultEthStaking.sol';
 
 /**
  * @title SharedMevEscrow
@@ -24,8 +25,7 @@ contract SharedMevEscrow is ISharedMevEscrow {
 
     emit Harvested(msg.sender, amount);
     // slither-disable-next-line arbitrary-send-eth
-    (bool success, ) = payable(msg.sender).call{value: amount}('');
-    if (!success) revert HarvestFailed();
+    IVaultEthStaking(msg.sender).receiveFromMevEscrow{value: amount}();
   }
 
   /**

@@ -155,13 +155,9 @@ describe('EthVault - multicall', () => {
     )
 
     receipt = await vault.connect(sender).multicall(calls)
-    await expect(receipt).to.emit(vault, 'ExitedAssetsClaimed').withArgs(
-      sender.address,
-      sender.address,
-      0,
-      exitQueueShares.sub(1), // rounding error
-      assetsDropped
-    )
+    await expect(receipt)
+      .to.emit(vault, 'ExitedAssetsClaimed')
+      .withArgs(sender.address, sender.address, exitQueueCounter, 0, assetsDropped)
     await snapshotGasCost(receipt)
 
     // reverts on error

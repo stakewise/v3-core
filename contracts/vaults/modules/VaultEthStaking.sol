@@ -12,6 +12,7 @@ import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultToken} from '../modules/VaultToken.sol';
 import {VaultState} from '../modules/VaultState.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
+import {VaultMev} from '../modules/VaultMev.sol';
 
 // Custom errors
 error InvalidSecurityDeposit();
@@ -28,6 +29,7 @@ abstract contract VaultEthStaking is
   VaultState,
   VaultValidators,
   VaultEnterExit,
+  VaultMev,
   IVaultEthStaking
 {
   // @inheritdoc IVaultEthStaking
@@ -52,9 +54,16 @@ abstract contract VaultEthStaking is
   }
 
   /**
-   * @dev Function for receiving validator withdrawals
+   * @dev Function for depositing using fallback function
    */
-  receive() external payable {}
+  receive() external payable {
+    _deposit(msg.sender, msg.value, address(0));
+  }
+
+  /// @inheritdoc IVaultEthStaking
+  function receiveFromMevEscrow() external payable override {
+    if (msg.sender != mevEscrow()) revert AccessDenied();
+  }
 
   /// @inheritdoc VaultValidators
   function _registerSingleValidator(bytes calldata validator) internal override {
