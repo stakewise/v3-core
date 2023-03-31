@@ -69,15 +69,15 @@ interface IVaultEnterExit is IVaultImmutables, IVaultToken, IVaultState {
    * @notice Event emitted on claim of the exited assets
    * @param caller The address that called the function
    * @param receiver The address that has received withdrawn assets
+   * @param prevPositionCounter The exit queue counter received after the `enterExitQueue` call
    * @param newPositionCounter The new exit queue counter in case not all the shares were withdrawn. Otherwise 0.
-   * @param withdrawnShares The total number of shares withdrawn
    * @param withdrawnAssets The total number of assets withdrawn
    */
   event ExitedAssetsClaimed(
     address indexed caller,
     address indexed receiver,
+    uint256 prevPositionCounter,
     uint256 newPositionCounter,
-    uint256 withdrawnShares,
     uint256 withdrawnAssets
   );
 

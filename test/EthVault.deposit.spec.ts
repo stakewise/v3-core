@@ -8,7 +8,6 @@ import {
   IKeeperRewards,
   Keeper,
   Oracles,
-  ExitQueue,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
@@ -153,9 +152,6 @@ describe('EthVault - deposit', () => {
     })
 
     it('update state and deposit', async () => {
-      const exitQueueFactory = await ethers.getContractFactory('ExitQueue')
-      const exitQueue = exitQueueFactory.attach(vault.address) as ExitQueue
-
       await vault.connect(other).deposit(other.address, referrer, { value: parseEther('32') })
       await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
 
@@ -191,7 +187,7 @@ describe('EthVault - deposit', () => {
       await expect(receipt).to.emit(vault, 'Deposit')
       await expect(receipt).to.emit(keeper, 'Harvested')
       await expect(receipt).to.emit(mevEscrow, 'Harvested')
-      await expect(receipt).to.emit(exitQueue, 'CheckpointCreated')
+      await expect(receipt).to.emit(vault, 'CheckpointCreated')
       await snapshotGasCost(receipt)
     })
 

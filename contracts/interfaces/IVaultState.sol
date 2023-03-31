@@ -17,6 +17,13 @@ interface IVaultState is IVaultImmutables, IVaultToken, IVaultFee {
   error InsufficientAssets();
 
   /**
+   * @notice Event emitted on checkpoint creation
+   * @param shares The number of burned shares
+   * @param assets The amount of exited assets
+   */
+  event CheckpointCreated(uint256 shares, uint256 assets);
+
+  /**
    * @notice Total assets available in the Vault. They can be staked or withdrawn.
    * @return The total amount of withdrawable assets
    */

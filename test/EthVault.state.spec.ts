@@ -1,14 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import {
-  Keeper,
-  EthVault,
-  ExitQueue,
-  Oracles,
-  SharedMevEscrow,
-  OwnMevEscrow,
-} from '../typechain-types'
+import { Keeper, EthVault, Oracles, SharedMevEscrow, OwnMevEscrow } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -94,19 +87,20 @@ describe('EthVault - state', () => {
 
   it('reverts when overflow', async () => {
     const reward = BigNumber.from(2).pow(160).sub(1).div(2)
+    const unlockedMevReward = BigNumber.from(2).pow(160).sub(1)
     const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward, unlockedMevReward: reward },
+      { vault: vault.address, reward, unlockedMevReward },
     ])
-    await setBalance(sharedMevEscrow.address, reward)
+    await setBalance(sharedMevEscrow.address, unlockedMevReward)
     await expect(
       vault.updateState({
         rewardsRoot: tree.root,
         reward,
-        unlockedMevReward: reward,
+        unlockedMevReward,
         proof: getRewardsRootProof(tree, {
           vault: vault.address,
           reward,
-          unlockedMevReward: reward,
+          unlockedMevReward,
         }),
       })
     ).revertedWith("SafeCast: value doesn't fit in 128 bits")
@@ -188,6 +182,10 @@ describe('EthVault - state', () => {
     await expect(
       keeper.harvest({ rewardsRoot: ZERO_BYTES32, reward: 0, unlockedMevReward: 0, proof: [] })
     ).revertedWith('AccessDenied')
+  })
+
+  it('only mev escrow can send ether', async () => {
+    await expect(vault.connect(other).receiveFromMevEscrow()).revertedWith('AccessDenied')
   })
 
   it('applies penalty when delta is below zero', async () => {
@@ -293,8 +291,6 @@ describe('EthVault - state', () => {
   })
 
   it('updates exit queue', async () => {
-    const exitQueueFactory = await ethers.getContractFactory('ExitQueue')
-    const exitQueue = exitQueueFactory.attach(vault.address) as ExitQueue
     await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
     await vault.connect(holder).enterExitQueue(holderShares, holder.address, holder.address)
 
@@ -335,7 +331,7 @@ describe('EthVault - state', () => {
     await expect(receipt)
       .emit(sharedMevEscrow, 'Harvested')
       .withArgs(vault.address, unlockedMevReward)
-    await expect(receipt).emit(exitQueue, 'CheckpointCreated')
+    await expect(receipt).emit(vault, 'CheckpointCreated')
 
     let totalSupplyAfter = totalSupplyBefore.add(operatorShares)
     let totalAssetsAfter = totalAssetsBefore.add(reward)

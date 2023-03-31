@@ -33,7 +33,7 @@ export function createVaultRewardsRoot(
 ): RewardsRoot {
   const tree = StandardMerkleTree.of(
     rewards.map((r) => [r.vault, r.reward, r.unlockedMevReward]),
-    ['address', 'int256', 'uint256']
+    ['address', 'int160', 'uint160']
   ) as RewardsTree
 
   const treeRoot = tree.root

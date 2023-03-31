@@ -1,33 +1,33 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`EthVaultFactory predicts vault addresses 1`] = `5199`;
+exports[`EthVaultFactory predicts vault addresses 1`] = `5118`;
 
-exports[`EthVaultFactory predicts vault addresses 2`] = `5187`;
+exports[`EthVaultFactory predicts vault addresses 2`] = `5106`;
 
 exports[`EthVaultFactory private vault deployment gas with own escrow 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 679255,
+  "gasUsed": 672371,
 }
 `;
 
 exports[`EthVaultFactory private vault deployment gas with shared escrow 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 519946,
+  "gasUsed": 520078,
 }
 `;
 
 exports[`EthVaultFactory public vault deployment gas with own escrow 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 630971,
+  "gasUsed": 624087,
 }
 `;
 
 exports[`EthVaultFactory public vault deployment gas with shared escrow 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 471662,
+  "gasUsed": 471794,
 }
 `;

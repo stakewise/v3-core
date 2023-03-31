@@ -17,14 +17,14 @@ Object {
 exports[`KeeperValidators register single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 1412,
-  "gasUsed": 367484,
+  "gasUsed": 367506,
 }
 `;
 
 exports[`KeeperValidators register single validator succeeds 2`] = `
 Object {
   "calldataByteLength": 1412,
-  "gasUsed": 311876,
+  "gasUsed": 311898,
 }
 `;
 
