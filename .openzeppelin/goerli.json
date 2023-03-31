@@ -2,15 +2,15 @@
   "manifestVersion": "3.2",
   "proxies": [
     {
-      "address": "0x913Dd0fC0059A1948da0F22E8BD505c9440CE0ee",
-      "txHash": "0x1273573b5bace880d0462938c290805f02039c94c3a851fc78279af46b89635e",
+      "address": "0xB1Fe38dBaBE5C17828656722a536D3D83b6fecD5",
+      "txHash": "0x20555a2d9d04b91e61b5dda59e75c671f051d7e91e61dca44ab0989884c9356d",
       "kind": "uups"
     }
   ],
   "impls": {
-    "3a44dac089ebf2c3d0f02e88ab48e1efdfc7282078b6f349c34dfb8cca4d9bd8": {
-      "address": "0xC4774CdE97480f9BF14f0903106209197151cBa5",
-      "txHash": "0xe1d25a924e58181d42df73c9599e6331121d4cce42b34bfaaf09ddab9a143f7c",
+    "24424273ba2eff03e3213558cdf285f588baa18dfbe07feea002f6736804a0c7": {
+      "address": "0x0d5A371C0E210551104F3d80Af383Aa1F283562b",
+      "txHash": "0x4a22663360fdb33b9d4d60d4982bbf759bb0b928e503851a03e231be6e355452",
       "layout": {
         "solcVersion": "0.8.19",
         "storage": [
@@ -260,9 +260,9 @@
         }
       }
     },
-    "f5833f5403b843c1409b046bae274a43774b5a1ab3d5cb9289c8b346fdf5ea97": {
-      "address": "0x65208617586d1506c6B8F5B3FE60c3a93cFaF9ca",
-      "txHash": "0x383b1e2c391dde7451015ce56f3027ab52b00d7af50a3302ac1d461d89be8d5f",
+    "cc1f54856ff0d0b7ac5c589d4f7f6e59082e80754048d319510b16d5dfdc6569": {
+      "address": "0x2E976979856d75a37e7Ea2eEC8373B868720817C",
+      "txHash": "0x75af355cf029b09f0c9c5243a1f4b23e867d9fdc8e8512ba3c58edc1a7979b8c",
       "layout": {
         "solcVersion": "0.8.19",
         "storage": [
@@ -666,9 +666,9 @@
         }
       }
     },
-    "c3846013ae6b5296a3573bcc2a2ab1ebbe5b5b99572fc8c55bb40e9e10a9e311": {
-      "address": "0xa52a5a6070A449EEEb358a380Dd5978A88497eb7",
-      "txHash": "0x2a4a8eba937b35d357af794fab3f9a4a087bbcf5de7cf62312946a7502aa9dde",
+    "f87e1ea479dc2fcd97b3cf7457333968150c56c42a0fca8b735bdfcdf23d75c0": {
+      "address": "0x108C608d037d69FD85875B2BB15F7f5CaDb96F8B",
+      "txHash": "0x34c61a97e5e09e944ce3cd8f2b04d203bf32a8fcc925145b99804108a60caac5",
       "layout": {
         "solcVersion": "0.8.19",
         "storage": [
