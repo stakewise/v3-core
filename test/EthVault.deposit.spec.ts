@@ -209,5 +209,31 @@ describe('EthVault - deposit', () => {
         .withArgs(sender.address, receiver.address, amount, expectedShares, referrer)
       await snapshotGasCost(receipt)
     })
+
+    it('deposit through receive fallback function', async () => {
+      const depositorMockFactory = await ethers.getContractFactory('DepositorMock')
+      const depositorMock = await depositorMockFactory.deploy(vault.address)
+
+      const amount = parseEther('100')
+      const expectedShares = parseEther('100')
+      expect(await vault.convertToShares(amount)).to.eq(expectedShares)
+
+      const receipt = await depositorMock.connect(sender).depositToVault({ value: amount })
+      expect(await vault.balanceOf(depositorMock.address)).to.eq(expectedShares)
+
+      await expect(receipt)
+        .to.emit(vault, 'Transfer')
+        .withArgs(ZERO_ADDRESS, depositorMock.address, expectedShares)
+      await expect(receipt)
+        .to.emit(vault, 'Deposit')
+        .withArgs(
+          depositorMock.address,
+          depositorMock.address,
+          amount,
+          expectedShares,
+          ZERO_ADDRESS
+        )
+      await snapshotGasCost(receipt)
+    })
   })
 })
