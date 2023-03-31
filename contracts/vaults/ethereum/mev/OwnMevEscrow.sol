@@ -26,6 +26,7 @@ contract OwnMevEscrow is IOwnMevEscrow {
     if (assets == 0) return 0;
 
     emit Harvested(assets);
+    // slither-disable-next-line arbitrary-send-eth
     IVaultEthStaking(msg.sender).receiveFromMevEscrow{value: assets}();
   }
 
