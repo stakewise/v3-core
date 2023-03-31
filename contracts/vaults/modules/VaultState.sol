@@ -154,6 +154,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
 
     // push checkpoint so that exited assets could be claimed
     _exitQueue.push(burnedShares, exitedAssets);
+    emit CheckpointCreated(burnedShares, exitedAssets);
 
     // update state
     _totalShares -= SafeCast.toUint128(burnedShares);

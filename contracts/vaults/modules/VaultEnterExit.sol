@@ -112,8 +112,8 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     emit ExitedAssetsClaimed(
       msg.sender,
       receiver,
+      positionCounter,
       newPositionCounter,
-      claimedShares,
       claimedAssets
     );
   }

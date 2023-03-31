@@ -3,70 +3,70 @@
 exports[`KeeperRewards harvest (own escrow) succeeds for latest rewards root 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 116347,
+  "gasUsed": 116324,
 }
 `;
 
 exports[`KeeperRewards harvest (own escrow) succeeds for latest rewards root 2`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 59551,
+  "gasUsed": 59528,
 }
 `;
 
 exports[`KeeperRewards harvest (own escrow) succeeds for previous rewards root 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 118517,
+  "gasUsed": 118494,
 }
 `;
 
 exports[`KeeperRewards harvest (own escrow) succeeds for previous rewards root 2`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 79888,
+  "gasUsed": 79877,
 }
 `;
 
 exports[`KeeperRewards harvest (own escrow) succeeds for previous rewards root 3`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 61721,
+  "gasUsed": 61698,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for latest rewards root 1`] = `
 Object {
   "calldataByteLength": 324,
-  "gasUsed": 149563,
+  "gasUsed": 150530,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for latest rewards root 2`] = `
 Object {
   "calldataByteLength": 324,
-  "gasUsed": 57069,
+  "gasUsed": 57129,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for previous rewards root 1`] = `
 Object {
   "calldataByteLength": 324,
-  "gasUsed": 151733,
+  "gasUsed": 152700,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for previous rewards root 2`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 95307,
+  "gasUsed": 96214,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for previous rewards root 3`] = `
 Object {
   "calldataByteLength": 324,
-  "gasUsed": 59239,
+  "gasUsed": 59299,
 }
 `;
 
@@ -80,13 +80,13 @@ Object {
 exports[`KeeperRewards set rewards root succeeds 1`] = `
 Object {
   "calldataByteLength": 740,
-  "gasUsed": 112752,
+  "gasUsed": 112740,
 }
 `;
 
 exports[`KeeperRewards set rewards root succeeds 2`] = `
 Object {
   "calldataByteLength": 740,
-  "gasUsed": 115528,
+  "gasUsed": 115516,
 }
 `;

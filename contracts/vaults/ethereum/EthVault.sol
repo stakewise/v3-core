@@ -33,8 +33,8 @@ contract EthVault is
   VaultState,
   VaultValidators,
   VaultEnterExit,
-  VaultEthStaking,
   VaultMev,
+  VaultEthStaking,
   Multicall,
   IEthVault
 {
