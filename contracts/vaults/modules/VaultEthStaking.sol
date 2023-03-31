@@ -54,7 +54,7 @@ abstract contract VaultEthStaking is
   }
 
   /**
-   * @dev Function for depositing using transfer function
+   * @dev Function for depositing using fallback function
    */
   receive() external payable {
     _deposit(msg.sender, msg.value, address(0));
