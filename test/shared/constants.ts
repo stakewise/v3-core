@@ -15,17 +15,17 @@ export const ONE_DAY = 86400
 
 export const REWARDS_DELAY = ONE_DAY / 2
 export const ORACLES = [
-  Buffer.from('c2bc8560ffcc278ded2efffaccfc4ce08b2a3a867eb744cec45732603e30ebf7', 'hex'),
-  Buffer.from('aff434fa2127355afdf265af1ba7e1d1384ffca4b7c2a8b7b9e04d23e316f395', 'hex'),
-  Buffer.from('cdb517b473daa98584897f3d224453ec4b1ed574ad98697a0e910103599903d6', 'hex'),
-  Buffer.from('f6e9186ab80c4e210edf231708353727cfd65a0211fa483e144cd5bf72913a3b', 'hex'),
-  Buffer.from('d44d4b9d464979a765d668ed9c83150048b6cb6be363ebec5b4e929d1513f126', 'hex'),
-  Buffer.from('1d523e07453be2a5ad304e7fb950713a6021bbcbe5bd8c19b15033a419abea67', 'hex'),
-  Buffer.from('6b64cbac8e5a12f78bd984b99df2c1a1984665017068531ccf9fe7b35bacb518', 'hex'),
-  Buffer.from('16594b5022a199029ae2614b1906c03ffc8b0fc1f2a1efb5836275a1e52f611a', 'hex'),
-  Buffer.from('27bad568920a145813ff66b73360c84f221043e1861fcfdf43f9d150e84202ea', 'hex'),
-  Buffer.from('06087f518d2c684d1a2a3523fe358f3fdc45dfe560cf7a7ccb8ba01da7786796', 'hex'),
-  Buffer.from('3999c56744678c5cb451df5eadf2846b92aa158b6d5eda55775f27064c6e880a', 'hex'),
+  Buffer.from('09936ee85420ff724d4d002f4bb5988de94b2eae57e195b36225b9dba32f7664', 'hex'),
+  Buffer.from('b11591afda00283445b9929c18ad8982955232b8e06c722d9b64ba695db64ade', 'hex'),
+  Buffer.from('45b13360c7f02d323923ec2485624f230307755623629981116d2d8fb82cf949', 'hex'),
+  Buffer.from('c734442412898762acf7c7f962da3d90c402b840afed440c7bc1559bd1a9ee9c', 'hex'),
+  Buffer.from('a7ad4044c5ed7d39b592149b900a7283b9e5096f234d90ca80294beaaf8baa79', 'hex'),
+  Buffer.from('f423949710a91e7e77dab910164345f7c3052d6804dae0b5abf364969981f8a5', 'hex'),
+  Buffer.from('2b264f4651ee4be0ff9e827c78625e125f462a9f521c4fcfab4872330145b991', 'hex'),
+  Buffer.from('a6b4d72b19066409389143027bb67d1a452fdcbe24a011f7012bd27d7c59787d', 'hex'),
+  Buffer.from('f6223f230023a2e83f491eca4006c853c72acdf1fb0564fecaf3fef0fb8609f8', 'hex'),
+  Buffer.from('b1bd9296c882de61d16495e59e8a4f56dc77c5397cf47c94912eae0a32c07f7c', 'hex'),
+  Buffer.from('4f3ccc266b31bfe6545c286ff44b5d310f3406aaf2a9dd60b22baf0a8340fe0c', 'hex'),
 ]
 export const REQUIRED_ORACLES = 6
 export const ORACLES_CONFIG = 'QmbwQ6zFEWs1SjLPGk4NNJqn4wduVe6dK3xyte2iG59Uru'

@@ -29,9 +29,6 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   uint256 public override capacity;
 
   /// @inheritdoc IOsToken
-  address public override feeRecipient;
-
-  /// @inheritdoc IOsToken
   uint16 public override feePercent;
 
   /// @inheritdoc IOsToken
@@ -60,7 +57,6 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
    * @param _keeper The address of the Keeper contract
    * @param _controller The address of the Controller contract
    * @param _owner The address of the contract owner
-   * @param _feeRecipient The address of the fee recipient
    * @param _feePercent The fee percent applied on the rewards
    * @param _capacity The amount after which the osToken stops accepting deposits
    * @param _name The name of the ERC20 token
@@ -70,7 +66,6 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     address _keeper,
     address _controller,
     address _owner,
-    address _feeRecipient,
     uint16 _feePercent,
     uint256 _capacity,
     string memory _name,
@@ -78,7 +73,6 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   ) ERC20(_name, _symbol) Ownable2Step() {
     keeper = _keeper;
     controller = _controller;
-    setFeeRecipient(_feeRecipient);
     setFeePercent(_feePercent);
     setCapacity(_capacity);
     _transferOwnership(_owner);
@@ -112,7 +106,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   }
 
   /// @inheritdoc IOsToken
-  function deposit(
+  function mintShares(
     address receiver,
     uint256 assets
   ) external override onlyController returns (uint256 shares) {
@@ -124,11 +118,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     // calculate amount of shares to mint
     shares = convertToShares(assets);
 
-    uint256 totalAssetsAfter;
-    unchecked {
-      // cannot overflow as it is capped with underlying asset total supply
-      totalAssetsAfter = _totalAssets + assets;
-    }
+    uint256 totalAssetsAfter = _totalAssets + assets;
     if (totalAssetsAfter > capacity) revert CapacityExceeded();
 
     // update counters
@@ -137,16 +127,16 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
     unchecked {
       // cannot overflow because the sum of all user
-      // balances can't exceed the max uint256 value
+      // balances can't exceed total shares
       balanceOf[receiver] += shares;
     }
 
     emit Transfer(address(0), receiver, shares);
-    emit Deposit(receiver, assets, shares);
+    emit Mint(receiver, assets, shares);
   }
 
   /// @inheritdoc IOsToken
-  function redeem(
+  function burnShares(
     address owner,
     uint256 shares
   ) external override onlyController returns (uint256 assets) {
@@ -156,7 +146,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     // reduce allowance
     if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
 
-    // calculate amount of assets redeemed
+    // calculate amount of assets to burn
     assets = convertToAssets(shares);
 
     // burn shares
@@ -171,7 +161,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     }
 
     emit Transfer(owner, address(0), shares);
-    emit Redeem(owner, assets, shares);
+    emit Burn(owner, assets, shares);
   }
 
   /// @inheritdoc IOsToken
@@ -188,17 +178,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     emit CapacityUpdated(msg.sender, _capacity);
   }
 
-  /// @inheritdoc IOsToken
-  function setFeeRecipient(address _feeRecipient) public override onlyOwner {
-    if (_feeRecipient == address(0)) revert InvalidRecipient();
-    // pull reward to the current fee recipient
-    _updateState();
-
-    // update fee recipient address
-    feeRecipient = _feeRecipient;
-    emit FeeRecipientUpdated(msg.sender, _feeRecipient);
-  }
-
+  /// TODO: add delay
   /// @inheritdoc IOsToken
   function setFeePercent(uint16 _feePercent) public override onlyOwner {
     if (_feePercent > _maxFeePercent) revert InvalidFeePercent();
@@ -216,49 +196,10 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   function _updateState() internal {
     // calculate rewards
     uint256 profitAccrued = _unclaimedAssets();
-    if (profitAccrued == 0) {
-      // cannot overflow on human timescales
-      lastUpdateTimestamp = uint64(block.timestamp);
-      // emit event
-      emit StateUpdated(0);
+    if (profitAccrued > 0) {
+      // update total assets
+      _totalAssets += SafeCast.toUint128(profitAccrued);
     }
-
-    // SLOAD to memory
-    uint256 totalSharesAfter = _totalShares;
-    uint256 totalAssetsAfter = _totalAssets + profitAccrued;
-    uint256 _feePercent = feePercent;
-
-    if (_feePercent > 0) {
-      // calculate fee recipient's shares
-      uint256 feeRecipientAssets = Math.mulDiv(profitAccrued, _feePercent, _maxFeePercent);
-
-      uint256 feeRecipientShares;
-      unchecked {
-        // Will revert if totalAssetsAfter - feeRecipientAssets = 0.
-        // That corresponds to a case where any asset would represent an infinite amount of shares.
-        // cannot underflow as feePercent <= maxFeePercent
-        feeRecipientShares = Math.mulDiv(
-          feeRecipientAssets,
-          totalSharesAfter,
-          totalAssetsAfter - feeRecipientAssets
-        );
-      }
-
-      if (feeRecipientShares > 0) {
-        // SLOAD to memory
-        address _feeRecipient = feeRecipient;
-        // mint shares to the fee recipient
-        totalSharesAfter += feeRecipientShares;
-        unchecked {
-          // cannot underflow because the sum of all shares can't exceed the _totalShares
-          balanceOf[_feeRecipient] += feeRecipientShares;
-        }
-        emit Transfer(address(0), _feeRecipient, feeRecipientShares);
-      }
-    }
-
-    _totalShares = SafeCast.toUint128(totalSharesAfter);
-    _totalAssets = SafeCast.toUint128(totalAssetsAfter);
 
     // cannot overflow on human timescales
     lastUpdateTimestamp = uint64(block.timestamp);
@@ -279,6 +220,12 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     }
 
     // calculate rewards
-    return Math.mulDiv(rewardPerSecond * _totalAssets, timeElapsed, _wad);
+    uint256 profitAccrued = Math.mulDiv(rewardPerSecond * _totalAssets, timeElapsed, _wad);
+    if (profitAccrued == 0) return 0;
+
+    unchecked {
+      // cannot underflow as feePercent <= _maxFeePercent
+      return profitAccrued - Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
+    }
   }
 }

@@ -1,7 +1,7 @@
 import { ethers, upgrades } from 'hardhat'
 import { Fixture } from 'ethereum-waffle'
 import { Contract, Wallet } from 'ethers'
-import { arrayify } from 'ethers/lib/utils'
+import { arrayify, hexlify } from 'ethers/lib/utils'
 import { signTypedData, SignTypedDataVersion } from '@metamask/eth-sig-util'
 import EthereumWallet from 'ethereumjs-wallet'
 import {

@@ -31,9 +31,15 @@ contract VaultsRegistry is Ownable2Step, IVaultsRegistry {
 
   /// @inheritdoc IVaultsRegistry
   function addVault(address vault) external override {
-    if (!factories[msg.sender]) revert AccessDenied();
+    if (!factories[msg.sender] && msg.sender != owner()) revert AccessDenied();
     vaults[vault] = true;
     emit VaultAdded(msg.sender, vault);
+  }
+
+  /// @inheritdoc IVaultsRegistry
+  function removeVault(address vault) external override onlyOwner {
+    vaults[vault] = false;
+    emit VaultRemoved(msg.sender, vault);
   }
 
   /// @inheritdoc IVaultsRegistry

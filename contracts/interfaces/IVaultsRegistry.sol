@@ -14,11 +14,18 @@ interface IVaultsRegistry {
   error AlreadyRemoved();
 
   /**
-   * @notice Event emitted on a Vault addition
-   * @param factory The address of the factory that has added the Vault
+   * @notice Event emitted on a Vault addition. Can only be called by owner or approved factory.
+   * @param caller The address of function caller
    * @param vault The address of the added Vault
    */
-  event VaultAdded(address indexed factory, address indexed vault);
+  event VaultAdded(address indexed caller, address indexed vault);
+
+  /**
+   * @notice Event emitted on a Vault removal. Can only be called by owner.
+   * @param caller The address of function caller
+   * @param vault The address of the added Vault
+   */
+  event VaultRemoved(address indexed caller, address indexed vault);
 
   /**
    * @notice Event emitted on adding Vault implementation contract
@@ -70,6 +77,12 @@ interface IVaultsRegistry {
    * @param vault The address of the Vault to add
    */
   function addVault(address vault) external;
+
+  /**
+   * @notice Function for removing Vault from the registry. Can only be called by the whitelisted Factory.
+   * @param vault The address of the Vault to add
+   */
+  function removeVault(address vault) external;
 
   /**
    * @notice Function for adding Vault implementation contract

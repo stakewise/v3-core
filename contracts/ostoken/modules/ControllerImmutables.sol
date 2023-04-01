@@ -2,38 +2,37 @@
 
 pragma solidity =0.8.18;
 
-import {IControllerImmutables} from '../../interfaces/IControllerImmutables.sol';
+import {IKeeper} from '../../interfaces/IKeeper.sol';
+import {IOsToken} from '../../interfaces/IOsToken.sol';
+import {IVaultsRegistry} from '../../interfaces/IVaultsRegistry.sol';
 
 /**
  * @title ControllerImmutables
  * @author StakeWise
  * @notice Defines the OsToken controller common immutable variables
  */
-abstract contract ControllerImmutables is IControllerImmutables {
-  /// @inheritdoc IControllerImmutables
+abstract contract ControllerImmutables {
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  address public immutable override keeper;
+  IKeeper internal immutable _keeper;
 
-  /// @inheritdoc IControllerImmutables
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  address public immutable override vaultsRegistry;
+  IVaultsRegistry internal immutable _vaultsRegistry;
 
-  /// @inheritdoc IControllerImmutables
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  address public immutable override osToken;
+  IOsToken internal immutable _osToken;
 
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _keeper The address of the Keeper contract
-   * @param _vaultsRegistry The address of the VaultsRegistry contract
-   * @param _osToken The address of the OsToken contract
+   * @param keeper The address of the Keeper contract
+   * @param vaultsRegistry The address of the VaultsRegistry contract
+   * @param osToken The address of the OsToken contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address _keeper, address _vaultsRegistry, address _osToken) {
-    keeper = _keeper;
-    vaultsRegistry = _vaultsRegistry;
-    osToken = _osToken;
+  constructor(address keeper, address vaultsRegistry, address osToken) {
+    _keeper = IKeeper(keeper);
+    _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
+    _osToken = IOsToken(osToken);
   }
 }

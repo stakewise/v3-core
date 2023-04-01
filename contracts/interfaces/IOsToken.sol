@@ -14,22 +14,23 @@ interface IOsToken is IERC20Permit {
   error AccessDenied();
   error CapacityExceeded();
   error InvalidFeePercent();
+  error InvalidRecipient();
 
   /**
-   * @notice Event emitted on deposit
+   * @notice Event emitted on minting shares
    * @param receiver The address that received the shares
-   * @param assets The number of assets provided by the caller
+   * @param assets The number of assets collateralized
    * @param shares The number of tokens the owner received
    */
-  event Deposit(address indexed receiver, uint256 assets, uint256 shares);
+  event Mint(address indexed receiver, uint256 assets, uint256 shares);
 
   /**
-   * @notice Event emitted on redeem
+   * @notice Event emitted on burning shares
    * @param owner The address that owns the shares
-   * @param assets The total number of assets redeemed
+   * @param assets The total number of assets withdrawn
    * @param shares The total number of shares burned
    */
-  event Redeem(address indexed owner, uint256 assets, uint256 shares);
+  event Burn(address indexed owner, uint256 assets, uint256 shares);
 
   /**
    * @notice Event emitted on reward per second update
@@ -40,16 +41,9 @@ interface IOsToken is IERC20Permit {
   /**
    * @notice Event emitted on capacity update
    * @param caller The address that called the function
-   * @param capacity The amount after which the osToken stops accepting deposits
+   * @param capacity The amount after which the OsToken stops accepting deposits
    */
   event CapacityUpdated(address indexed caller, uint256 capacity);
-
-  /**
-   * @notice Event emitted on fee recipient update
-   * @param caller The address that called the function
-   * @param feeRecipient The new fee recipient address
-   */
-  event FeeRecipientUpdated(address indexed caller, address feeRecipient);
 
   /**
    * @notice Event emitted on fee percent update
@@ -77,20 +71,14 @@ interface IOsToken is IERC20Permit {
   function controller() external view returns (address);
 
   /**
-   * @notice The osToken capacity
-   * @return The amount after which the osToken stops accepting deposits
+   * @notice The OsToken capacity
+   * @return The amount after which the OsToken stops accepting deposits
    */
   function capacity() external view returns (uint256);
 
   /**
-   * @notice The fee recipient address
-   * @return The address of the osToken fee recipient
-   */
-  function feeRecipient() external view returns (address);
-
-  /**
    * @notice The fee percent (multiplied by 100)
-   * @return The fee percent applied by the osToken on the rewards
+   * @return The fee percent applied by the OsToken on the rewards
    */
   function feePercent() external view returns (uint16);
 
@@ -107,38 +95,38 @@ interface IOsToken is IERC20Permit {
   function lastUpdateTimestamp() external view returns (uint64);
 
   /**
-   * @notice Total assets controlled by the osToken
-   * @return The total amount of the underlying asset that is "managed" by osToken
+   * @notice Total assets controlled by the OsToken
+   * @return The total amount of the underlying asset that is "managed" by OsToken
    */
   function totalAssets() external view returns (uint256);
 
   /**
    * @notice Converts shares to assets
    * @param assets The amount of assets to convert to shares
-   * @return shares The amount of shares that the osToken would exchange for the amount of assets provided
+   * @return shares The amount of shares that the OsToken would exchange for the amount of assets provided
    */
   function convertToShares(uint256 assets) external view returns (uint256 shares);
 
   /**
    * @notice Converts assets to shares
    * @param shares The amount of shares to convert to assets
-   * @return assets The amount of assets that the osToken would exchange for the amount of shares provided
+   * @return assets The amount of assets that the OsToken would exchange for the amount of shares provided
    */
   function convertToAssets(uint256 shares) external view returns (uint256 assets);
 
   /**
-   * @notice Mint shares for the provided assets. Can only be called by the Controller.
-   * @param assets The amount of assets provided
+   * @notice Mint shares for the collateralized assets. Can only be called by the Controller.
+   * @param assets The amount of assets collateralized
    * @return shares The amount of shares minted
    */
-  function deposit(address receiver, uint256 assets) external returns (uint256 shares);
+  function mintShares(address receiver, uint256 assets) external returns (uint256 shares);
 
   /**
-   * @notice Redeem shares. Can only be called by the Controller.
+   * @notice Burn shares for withdrawn assets. Can only be called by the Controller.
    * @param shares The amount of shares to burn
-   * @return assets The amount of assets redeemed
+   * @return assets The amount of assets withdrawn
    */
-  function redeem(address owner, uint256 shares) external returns (uint256 assets);
+  function burnShares(address owner, uint256 shares) external returns (uint256 assets);
 
   /**
    * @notice Update reward per second. Can only be called by the Keeper.
@@ -148,15 +136,9 @@ interface IOsToken is IERC20Permit {
 
   /**
    * @notice Update capacity. Can only be called by the owner.
-   * @param _capacity The amount after which the osToken stops accepting deposits
+   * @param _capacity The amount after which the OsToken stops accepting deposits
    */
   function setCapacity(uint256 _capacity) external;
-
-  /**
-   * @notice Update fee recipient. Can only be called by the owner.
-   * @param _feeRecipient The new fee recipient address
-   */
-  function setFeeRecipient(address _feeRecipient) external;
 
   /**
    * @notice Update fee percent. Can only be called by the owner. Cannot be larger than 10 000 (100%).
