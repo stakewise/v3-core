@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.18;
+pragma solidity =0.8.19;
 
 import {IERC20Permit} from './IERC20Permit.sol';
 
@@ -15,6 +15,7 @@ interface IOsToken is IERC20Permit {
   error CapacityExceeded();
   error InvalidFeePercent();
   error InvalidRecipient();
+  error InvalidTreasury();
 
   /**
    * @notice Event emitted on minting shares
@@ -46,6 +47,13 @@ interface IOsToken is IERC20Permit {
   event CapacityUpdated(address indexed caller, uint256 capacity);
 
   /**
+   * @notice Event emitted on treasury address update
+   * @param caller The address that called the function
+   * @param treasury The new treasury address
+   */
+  event TreasuryUpdated(address indexed caller, address indexed treasury);
+
+  /**
    * @notice Event emitted on fee percent update
    * @param caller The address that called the function
    * @param feePercent The new fee percent
@@ -59,28 +67,22 @@ interface IOsToken is IERC20Permit {
   event StateUpdated(uint256 profitAccrued);
 
   /**
-   * @notice The Keeper address
-   * @return The address of the Keeper contract
-   */
-  function keeper() external view returns (address);
-
-  /**
-   * @notice The Controller address
-   * @return The address of the Controller contract
-   */
-  function controller() external view returns (address);
-
-  /**
    * @notice The OsToken capacity
    * @return The amount after which the OsToken stops accepting deposits
    */
   function capacity() external view returns (uint256);
 
   /**
+   * @notice The DAO treasury address that receives OsToken fees
+   * @return The address of the treasury
+   */
+  function treasury() external view returns (address);
+
+  /**
    * @notice The fee percent (multiplied by 100)
    * @return The fee percent applied by the OsToken on the rewards
    */
-  function feePercent() external view returns (uint16);
+  function feePercent() external view returns (uint64);
 
   /**
    * @notice The reward per second per asset
@@ -89,10 +91,10 @@ interface IOsToken is IERC20Permit {
   function rewardPerSecond() external view returns (uint192);
 
   /**
-   * @notice The last update timestamp
-   * @return The timestamp when total assets were updated last time
+   * @notice The cumulative fee per asset used for position fee calculation
+   * @return The cumulative fee per asset
    */
-  function lastUpdateTimestamp() external view returns (uint64);
+  function cumulativeFeePerAsset() external view returns (uint192);
 
   /**
    * @notice Total assets controlled by the OsToken
@@ -115,6 +117,11 @@ interface IOsToken is IERC20Permit {
   function convertToAssets(uint256 shares) external view returns (uint256 assets);
 
   /**
+   * @notice Updates rewards and treasury fee checkpoint for the OsToken
+   */
+  function updateState() external;
+
+  /**
    * @notice Mint shares for the collateralized assets. Can only be called by the Controller.
    * @param assets The amount of assets collateralized
    * @return shares The amount of shares minted
@@ -133,6 +140,12 @@ interface IOsToken is IERC20Permit {
    * @param _rewardPerSecond The new reward per second
    */
   function setRewardPerSecond(uint192 _rewardPerSecond) external;
+
+  /**
+   * @notice Update treasury address. Can only be called by the owner.
+   * @param _treasury The new treasury address
+   */
+  function setTreasury(address _treasury) external;
 
   /**
    * @notice Update capacity. Can only be called by the owner.

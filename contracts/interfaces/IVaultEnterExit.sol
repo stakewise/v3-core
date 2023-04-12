@@ -16,6 +16,9 @@ interface IVaultEnterExit is IVaultImmutables, IVaultToken, IVaultState {
   error CapacityExceeded();
   error InvalidSharesAmount();
   error NotCollateralized();
+  error InvalidRecipient();
+  error InvalidAssets();
+  error InvalidShares();
 
   /**
    * @notice Event emitted on deposit
@@ -95,6 +98,21 @@ interface IVaultEnterExit is IVaultImmutables, IVaultToken, IVaultState {
   ) external returns (uint256 positionCounter);
 
   /**
+   * @notice Redeems assets from the Vault by utilising what has not been staked yet and locks the rest to the exit queue
+   * @param shares The number of shares to burn
+   * @param receiver The address that will receive assets
+   * @param owner The address that owns the shares
+   * @return withdrawnAssets The number of assets withdrawn
+   * @return withdrawnShares The number of shares withdrawn
+   * @return positionCounter The exit queue counter assigned to the position
+   */
+  function redeemAndEnterExitQueue(
+    uint256 shares,
+    address receiver,
+    address owner
+  ) external returns (uint256 withdrawnAssets, uint256 withdrawnShares, uint256 positionCounter);
+
+  /**
    * @notice Claims assets that were withdrawn by the Vault. It can be called only after the `enterExitQueue` call.
    * @param receiver The address that will receive assets. Must be the same as specified during the `enterExitQueue` function call.
    * @param positionCounter The exit queue counter received after the `enterExitQueue` call
@@ -121,17 +139,4 @@ interface IVaultEnterExit is IVaultImmutables, IVaultToken, IVaultState {
     address receiver,
     address owner
   ) external returns (uint256 assets);
-
-  /**
-   * @notice Withdraws assets from the Vault by utilising what has not been staked yet
-   * @param assets The number of assets to withdraw
-   * @param receiver The address that will receive assets
-   * @param owner The address that owns the shares
-   * @return shares The number of shares burned
-   */
-  function withdraw(
-    uint256 assets,
-    address receiver,
-    address owner
-  ) external returns (uint256 shares);
 }

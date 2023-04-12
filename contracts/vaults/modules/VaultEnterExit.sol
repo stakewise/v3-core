@@ -20,17 +20,6 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IVaultEnterExit
-  function withdraw(
-    uint256 assets,
-    address receiver,
-    address owner
-  ) external override returns (uint256 shares) {
-    // calculate amount of shares to burn
-    shares = _convertToShares(assets, _totalShares, _totalAssets, Math.Rounding.Up);
-    _withdraw(receiver, owner, assets, shares);
-  }
-
-  /// @inheritdoc IVaultEnterExit
   function redeem(
     uint256 shares,
     address receiver,
@@ -46,9 +35,10 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     uint256 shares,
     address receiver,
     address owner
-  ) external override returns (uint256 positionCounter) {
+  ) public override returns (uint256 positionCounter) {
     if (shares == 0) revert InvalidSharesAmount();
     if (!IKeeperRewards(keeper).isCollateralized(address(this))) revert NotCollateralized();
+    if (receiver == address(0)) revert InvalidRecipient();
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
@@ -71,6 +61,30 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
 
     emit Transfer(owner, address(this), shares);
     emit ExitQueueEntered(msg.sender, receiver, owner, positionCounter, shares);
+  }
+
+  /// @inheritdoc IVaultEnterExit
+  function redeemAndEnterExitQueue(
+    uint256 shares,
+    address receiver,
+    address owner
+  )
+    external
+    override
+    returns (uint256 withdrawnAssets, uint256 withdrawnShares, uint256 positionCounter)
+  {
+    withdrawnAssets = Math.min(withdrawableAssets(), convertToAssets(shares));
+    if (withdrawnAssets > 0) {
+      withdrawnShares = convertToShares(withdrawnAssets);
+      unchecked {
+        // cannot overflow as shares >= withdrawnShares
+        shares -= withdrawnShares;
+      }
+      _withdraw(receiver, owner, withdrawnAssets, withdrawnShares);
+    }
+    if (shares > 0) {
+      positionCounter = enterExitQueue(shares, receiver, owner);
+    }
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -131,6 +145,7 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     address referrer
   ) internal returns (uint256 shares) {
     if (to == address(0)) revert ZeroAddress();
+    if (assets == 0) revert InvalidAssets();
     if (IKeeperRewards(keeper).isHarvestRequired(address(this))) revert NotHarvested();
 
     uint256 totalAssetsAfter;
@@ -166,6 +181,9 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
    */
   function _withdraw(address receiver, address owner, uint256 assets, uint256 shares) internal {
     if (IKeeperRewards(keeper).isHarvestRequired(address(this))) revert NotHarvested();
+    if (receiver == address(0)) revert InvalidRecipient();
+    if (assets == 0) revert InvalidAssets();
+    if (shares == 0) revert InvalidShares();
 
     // reverts in case there are not enough withdrawable assets
     if (assets > withdrawableAssets()) revert InsufficientAssets();

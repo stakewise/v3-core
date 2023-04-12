@@ -54,7 +54,7 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
     address receiver,
     address referrer
   ) public payable override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
-    if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver])) revert AccessDenied();
+    if (!whitelistedAccounts[msg.sender]) revert AccessDenied();
     return super.deposit(receiver, referrer);
   }
 }

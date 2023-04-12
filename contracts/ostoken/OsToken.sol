@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.18;
+pragma solidity =0.8.19;
 
 import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
-import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
 import {IOsToken} from '../interfaces/IOsToken.sol';
 import {ERC20} from '../base/ERC20.sol';
 
@@ -19,62 +18,67 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   uint256 private constant _wad = 1e18;
   uint256 private constant _maxFeePercent = 10_000; // @dev 100.00 %
 
-  /// @inheritdoc IOsToken
-  address public immutable override keeper;
-
-  /// @inheritdoc IOsToken
-  address public immutable override controller;
+  address private immutable _keeper;
+  address private immutable _controller;
 
   /// @inheritdoc IOsToken
   uint256 public override capacity;
 
   /// @inheritdoc IOsToken
-  uint16 public override feePercent;
+  address public override treasury;
+
+  /// @inheritdoc IOsToken
+  uint64 public override feePercent;
 
   /// @inheritdoc IOsToken
   uint192 public override rewardPerSecond;
 
   /// @inheritdoc IOsToken
-  uint64 public override lastUpdateTimestamp;
+  uint192 public override cumulativeFeePerAsset;
+
+  uint64 private _lastUpdateTimestamp;
 
   uint128 private _totalShares;
   uint128 private _totalAssets;
 
   /// @dev Prevents calling a function from anyone except Keeper
   modifier onlyKeeper() {
-    if (msg.sender != keeper) revert AccessDenied();
+    if (msg.sender != _keeper) revert AccessDenied();
     _;
   }
 
   /// @dev Prevents calling a function from anyone except Controller
   modifier onlyController() {
-    if (msg.sender != controller) revert AccessDenied();
+    if (msg.sender != _controller) revert AccessDenied();
     _;
   }
 
   /**
    * @dev Constructor
-   * @param _keeper The address of the Keeper contract
-   * @param _controller The address of the Controller contract
+   * @param keeper The address of the Keeper contract
+   * @param controller The address of the Controller contract
    * @param _owner The address of the contract owner
+   * @param _treasury The address of the DAO treasury
    * @param _feePercent The fee percent applied on the rewards
    * @param _capacity The amount after which the osToken stops accepting deposits
    * @param _name The name of the ERC20 token
    * @param _symbol The symbol of the ERC20 token
    */
   constructor(
-    address _keeper,
-    address _controller,
+    address keeper,
+    address controller,
     address _owner,
+    address _treasury,
     uint16 _feePercent,
     uint256 _capacity,
     string memory _name,
     string memory _symbol
   ) ERC20(_name, _symbol) Ownable2Step() {
-    keeper = _keeper;
-    controller = _controller;
-    setFeePercent(_feePercent);
+    _keeper = keeper;
+    _controller = controller;
+    setTreasury(_treasury);
     setCapacity(_capacity);
+    setFeePercent(_feePercent);
     _transferOwnership(_owner);
   }
 
@@ -90,19 +94,12 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
-    // SLOAD to memory
-    uint256 totalShares = _totalShares;
-    // Will revert if assets > 0, totalShares > 0 and totalAssets = 0.
-    // That corresponds to a case where any asset would represent an infinite amount of shares.
-    return
-      (assets == 0 || totalShares == 0) ? assets : Math.mulDiv(assets, totalShares, totalAssets());
+    return _convertToShares(assets, _totalShares, _totalAssets, Math.Rounding.Down);
   }
 
   /// @inheritdoc IOsToken
   function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
-    // SLOAD to memory
-    uint256 totalShares = _totalShares;
-    return (totalShares == 0) ? shares : Math.mulDiv(shares, totalAssets(), totalShares);
+    return _convertToAssets(shares, _totalShares, _totalAssets, Math.Rounding.Down);
   }
 
   /// @inheritdoc IOsToken
@@ -113,7 +110,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     if (receiver == address(0)) revert InvalidRecipient();
 
     // pull accumulated rewards
-    _updateState();
+    updateState();
 
     // calculate amount of shares to mint
     shares = convertToShares(assets);
@@ -141,10 +138,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     uint256 shares
   ) external override onlyController returns (uint256 assets) {
     // pull accumulated rewards
-    _updateState();
-
-    // reduce allowance
-    if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
+    updateState();
 
     // calculate amount of assets to burn
     assets = convertToAssets(shares);
@@ -166,7 +160,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function setRewardPerSecond(uint192 _rewardPerSecond) external override onlyKeeper {
-    _updateState();
+    updateState();
     rewardPerSecond = _rewardPerSecond;
     emit RewardPerSecondUpdated(_rewardPerSecond);
   }
@@ -178,34 +172,108 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     emit CapacityUpdated(msg.sender, _capacity);
   }
 
-  /// TODO: add delay
+  /// @inheritdoc IOsToken
+  function setTreasury(address _treasury) public override onlyOwner {
+    if (_treasury == address(0)) revert InvalidTreasury();
+
+    // update DAO treasury address
+    treasury = _treasury;
+    emit TreasuryUpdated(msg.sender, _treasury);
+  }
+
   /// @inheritdoc IOsToken
   function setFeePercent(uint16 _feePercent) public override onlyOwner {
     if (_feePercent > _maxFeePercent) revert InvalidFeePercent();
     // pull reward with the current fee percent
-    _updateState();
+    updateState();
 
     // update fee percent
     feePercent = _feePercent;
     emit FeePercentUpdated(msg.sender, _feePercent);
   }
 
-  /**
-   * @dev Internal function for updating state
-   */
-  function _updateState() internal {
+  /// @inheritdoc IOsToken
+  function updateState() public override {
     // calculate rewards
     uint256 profitAccrued = _unclaimedAssets();
-    if (profitAccrued > 0) {
-      // update total assets
-      _totalAssets += SafeCast.toUint128(profitAccrued);
+    if (profitAccrued == 0) {
+      // no profit accrued
+      _lastUpdateTimestamp = uint64(block.timestamp);
+      return;
     }
 
-    // cannot overflow on human timescales
-    lastUpdateTimestamp = uint64(block.timestamp);
+    // calculate treasury assets
+    uint256 newTotalAssets = _totalAssets + profitAccrued;
+    uint256 treasuryAssets = Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
+    if (treasuryAssets == 0) {
+      // no treasury assets
+      _lastUpdateTimestamp = uint64(block.timestamp);
+      _totalAssets = SafeCast.toUint128(newTotalAssets);
+      return;
+    }
 
-    // emit event
-    emit StateUpdated(profitAccrued);
+    // calculate new cumulative fee per asset
+    uint256 newTotalAssetsWithoutTreasury;
+    unchecked {
+      // cannot underflow because newTotalAssets >= treasuryAssets
+      newTotalAssetsWithoutTreasury = newTotalAssets - treasuryAssets;
+    }
+
+    // SLOAD to memory
+    uint256 totalShares = _totalShares;
+    uint256 treasuryShares = _convertToShares(
+      treasuryAssets,
+      totalShares,
+      newTotalAssetsWithoutTreasury,
+      Math.Rounding.Down
+    );
+
+    // SLOAD to memory
+    address _treasury = treasury;
+
+    // mint shares to the fee recipient
+    unchecked {
+      // cannot underflow because the sum of all shares can't exceed the _totalShares
+      balanceOf[_treasury] += treasuryShares;
+    }
+    emit Transfer(address(0), _treasury, treasuryShares);
+
+    // update state
+    cumulativeFeePerAsset += SafeCast.toUint192(
+      Math.mulDiv(treasuryAssets, _wad, newTotalAssetsWithoutTreasury)
+    );
+    _lastUpdateTimestamp = uint64(block.timestamp);
+    _totalAssets = SafeCast.toUint128(newTotalAssets);
+    _totalShares = SafeCast.toUint128(totalShares + treasuryShares);
+  }
+
+  /**
+   * @dev Internal conversion function (from assets to shares) with support for rounding direction.
+   */
+  function _convertToShares(
+    uint256 assets,
+    uint256 totalShares,
+    uint256 totalAssets_,
+    Math.Rounding rounding
+  ) internal pure returns (uint256 shares) {
+    // Will revert if assets > 0, totalShares > 0 and totalAssets = 0.
+    // That corresponds to a case where any asset would represent an infinite amount of shares.
+    return
+      (assets == 0 || totalShares == 0)
+        ? assets
+        : Math.mulDiv(assets, totalShares, totalAssets_, rounding);
+  }
+
+  /**
+   * @dev Internal conversion function (from shares to assets) with support for rounding direction.
+   */
+  function _convertToAssets(
+    uint256 shares,
+    uint256 totalShares,
+    uint256 totalAssets_,
+    Math.Rounding rounding
+  ) internal pure returns (uint256) {
+    return (totalShares == 0) ? shares : Math.mulDiv(shares, totalAssets_, totalShares, rounding);
   }
 
   /**
@@ -216,16 +284,9 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     uint256 timeElapsed;
     unchecked {
       // cannot realistically underflow
-      timeElapsed = block.timestamp - lastUpdateTimestamp;
+      timeElapsed = block.timestamp - _lastUpdateTimestamp;
     }
-
-    // calculate rewards
-    uint256 profitAccrued = Math.mulDiv(rewardPerSecond * _totalAssets, timeElapsed, _wad);
-    if (profitAccrued == 0) return 0;
-
-    unchecked {
-      // cannot underflow as feePercent <= _maxFeePercent
-      return profitAccrued - Math.mulDiv(profitAccrued, feePercent, _maxFeePercent);
-    }
+    if (timeElapsed == 0) return 0;
+    return Math.mulDiv(rewardPerSecond * _totalAssets, timeElapsed, _wad);
   }
 }
