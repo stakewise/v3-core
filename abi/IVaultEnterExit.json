@@ -16,6 +16,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidAssets",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidCapacity",
     "type": "error"
   },
@@ -31,22 +36,22 @@
   },
   {
     "inputs": [],
+    "name": "InvalidRecipient",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidShares",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidSharesAmount",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "InvalidTokenMeta",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "NotCollateralized",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "NotHarvested",
     "type": "error"
   },
   {
@@ -604,19 +609,6 @@
   },
   {
     "inputs": [],
-    "name": "keeper",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "name",
     "outputs": [
       {
@@ -851,19 +843,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "unclaimedAssets",
-    "outputs": [
-      {
-        "internalType": "uint96",
-        "name": "",
-        "type": "uint96"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "components": [
@@ -896,32 +875,6 @@
     "name": "updateState",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "validatorsRegistry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "vaultsRegistry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {

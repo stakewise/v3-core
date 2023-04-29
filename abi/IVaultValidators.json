@@ -46,11 +46,6 @@
   },
   {
     "inputs": [],
-    "name": "NotHarvested",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "PermitDeadlineExpired",
     "type": "error"
   },
@@ -439,19 +434,6 @@
   },
   {
     "inputs": [],
-    "name": "keeper",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "name",
     "outputs": [
       {
@@ -786,19 +768,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "unclaimedAssets",
-    "outputs": [
-      {
-        "internalType": "uint96",
-        "name": "",
-        "type": "uint96"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "components": [
@@ -848,19 +817,6 @@
   },
   {
     "inputs": [],
-    "name": "validatorsRegistry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "validatorsRoot",
     "outputs": [
       {
@@ -874,38 +830,12 @@
   },
   {
     "inputs": [],
-    "name": "vaultsRegistry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "withdrawableAssets",
     "outputs": [
       {
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "withdrawalCredentials",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
       }
     ],
     "stateMutability": "view",

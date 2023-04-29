@@ -16,6 +16,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidAssets",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidCapacity",
     "type": "error"
   },
@@ -32,6 +37,21 @@
   {
     "inputs": [],
     "name": "InvalidProof",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRecipient",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidSecurityDeposit",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidShares",
     "type": "error"
   },
   {
@@ -56,22 +76,17 @@
   },
   {
     "inputs": [],
-    "name": "NotCollateralized",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "NotHarvested",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "PermitDeadlineExpired",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "PermitInvalidSigner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UpgradeFailed",
     "type": "error"
   },
   {
@@ -720,19 +735,6 @@
   },
   {
     "inputs": [],
-    "name": "keeper",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "mevEscrow",
     "outputs": [
       {
@@ -1004,19 +1006,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "securityDeposit",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -1161,19 +1150,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "unclaimedAssets",
-    "outputs": [
-      {
-        "internalType": "uint96",
-        "name": "",
-        "type": "uint96"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "components": [
@@ -1274,19 +1250,6 @@
   },
   {
     "inputs": [],
-    "name": "validatorsRegistry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "validatorsRoot",
     "outputs": [
       {
@@ -1309,19 +1272,6 @@
       }
     ],
     "stateMutability": "pure",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "vaultsRegistry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1374,19 +1324,6 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "withdrawalCredentials",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
       }
     ],
     "stateMutability": "view",
