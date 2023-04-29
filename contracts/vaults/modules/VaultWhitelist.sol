@@ -17,9 +17,6 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
   address public override whitelister;
 
   /// @inheritdoc IVaultWhitelist
-  bytes32 public override whitelistRoot;
-
-  /// @inheritdoc IVaultWhitelist
   mapping(address => bool) public override whitelistedAccounts;
 
   /// @dev Prevents calling a function from anyone except Vault's whitelister
@@ -34,30 +31,6 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
   }
 
   /// @inheritdoc IVaultWhitelist
-  function joinWhitelist(address account, bytes32[] calldata proof) external {
-    // SLOAD to memory
-    if (
-      !MerkleProof.verifyCalldata(
-        proof,
-        whitelistRoot,
-        keccak256(bytes.concat(keccak256(abi.encode(account))))
-      )
-    ) {
-      revert InvalidWhitelistProof();
-    }
-    _updateWhitelist(account, true);
-  }
-
-  /// @inheritdoc IVaultWhitelist
-  function setWhitelistRoot(
-    bytes32 _whitelistRoot,
-    string calldata whitelistIpfsHash
-  ) external override onlyWhitelister {
-    whitelistRoot = _whitelistRoot;
-    emit WhitelistRootUpdated(msg.sender, _whitelistRoot, whitelistIpfsHash);
-  }
-
-  /// @inheritdoc IVaultWhitelist
   function setWhitelister(address _whitelister) external override onlyAdmin {
     _setWhitelister(_whitelister);
   }
@@ -67,7 +40,7 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
    * @param account The address of the account to update
    * @param approved Defines whether account is added to the whitelist or removed
    */
-  function _updateWhitelist(address account, bool approved) internal {
+  function _updateWhitelist(address account, bool approved) private {
     if (whitelistedAccounts[account] == approved) revert WhitelistAlreadyUpdated();
     whitelistedAccounts[account] = approved;
     emit WhitelistUpdated(msg.sender, account, approved);
@@ -77,7 +50,7 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
    * @dev Internal function for updating the whitelister externally or from the initializer
    * @param _whitelister The address of the new whitelister
    */
-  function _setWhitelister(address _whitelister) internal {
+  function _setWhitelister(address _whitelister) private {
     // update whitelister address
     whitelister = _whitelister;
     emit WhitelisterUpdated(msg.sender, _whitelister);

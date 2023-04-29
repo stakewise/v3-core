@@ -4,7 +4,6 @@ pragma solidity =0.8.19;
 
 import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
-import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 
 /**
  * @title VaultsRegistry

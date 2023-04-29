@@ -3,14 +3,13 @@
 pragma solidity =0.8.19;
 
 import './IERC20Permit.sol';
-import {IVaultImmutables} from './IVaultImmutables.sol';
 
 /**
  * @title IVaultToken
  * @author StakeWise
  * @notice Defines the interface for the VaultToken contract
  */
-interface IVaultToken is IVaultImmutables, IERC20Permit {
+interface IVaultToken is IERC20Permit {
   // Custom errors
   error InvalidCapacity();
   error InvalidTokenMeta();

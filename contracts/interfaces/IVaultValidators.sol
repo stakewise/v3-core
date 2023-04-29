@@ -3,7 +3,6 @@
 pragma solidity =0.8.19;
 
 import {IKeeperValidators} from './IKeeperValidators.sol';
-import {IVaultImmutables} from './IVaultImmutables.sol';
 import {IVaultAdmin} from './IVaultAdmin.sol';
 import {IVaultState} from './IVaultState.sol';
 
@@ -12,7 +11,7 @@ import {IVaultState} from './IVaultState.sol';
  * @author StakeWise
  * @notice Defines the interface for VaultValidators contract
  */
-interface IVaultValidators is IVaultImmutables, IVaultAdmin, IVaultState {
+interface IVaultValidators is IVaultAdmin, IVaultState {
   // Custom errors
   error InvalidValidator();
   error InvalidValidators();
@@ -55,12 +54,6 @@ interface IVaultValidators is IVaultImmutables, IVaultAdmin, IVaultState {
    * @return The index of the next validator to register with the current validators root
    */
   function validatorIndex() external view returns (uint256);
-
-  /**
-   * @notice Withdrawal Credentials
-   * @return The credentials used for the validators withdrawals
-   */
-  function withdrawalCredentials() external view returns (bytes memory);
 
   /**
    * @notice Function for registering single validator

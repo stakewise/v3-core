@@ -35,7 +35,6 @@ interface IEthVaultFactory {
   /**
    * @notice A struct containing a Vault creation parameters
    * @param capacity The Vault stops accepting deposits after exceeding the capacity
-   * @param validatorsRoot The validators merkle tree root
    * @param feePercent The fee percent that is charged by the Vault
    * @param name The name of the ERC20 token
    * @param symbol The symbol of the ERC20 token
@@ -43,7 +42,6 @@ interface IEthVaultFactory {
    */
   struct VaultParams {
     uint256 capacity;
-    bytes32 validatorsRoot;
     uint16 feePercent;
     string name;
     string symbol;

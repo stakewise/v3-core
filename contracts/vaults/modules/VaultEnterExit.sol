@@ -35,10 +35,35 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     uint256 shares,
     address receiver,
     address owner
-  ) external override returns (uint256 assets) {
+  ) external override onlyHarvested returns (uint256 assets) {
+    if (shares == 0) revert InvalidShares();
+    if (receiver == address(0)) revert InvalidRecipient();
+
     // calculate amount of assets to burn
     assets = convertToAssets(shares);
-    _withdraw(receiver, owner, assets, shares);
+
+    // reverts in case there are not enough withdrawable assets
+    if (assets > withdrawableAssets()) revert InsufficientAssets();
+
+    // reduce allowance
+    if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
+
+    // burn shares
+    balanceOf[owner] -= shares;
+
+    // update counters
+    unchecked {
+      // cannot underflow because the sum of all shares can't exceed the _totalShares
+      _totalShares -= SafeCast.toUint128(shares);
+      // cannot underflow because the sum of all assets can't exceed the _totalAssets
+      _totalAssets -= SafeCast.toUint128(assets);
+    }
+
+    // transfer assets to the receiver
+    _transferVaultAssets(receiver, assets);
+
+    emit Transfer(owner, address(0), shares);
+    emit Withdraw(msg.sender, receiver, owner, assets, shares);
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -46,9 +71,9 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     uint256 shares,
     address receiver,
     address owner
-  ) external override returns (uint256 positionCounter) {
+  ) external override onlyCollateralized returns (uint256 positionCounter) {
     if (shares == 0) revert InvalidSharesAmount();
-    if (!IKeeperRewards(keeper).isCollateralized(address(this))) revert NotCollateralized();
+    if (receiver == address(0)) revert InvalidRecipient();
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
@@ -107,7 +132,7 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     }
 
     // transfer assets to the receiver
-    unclaimedAssets -= SafeCast.toUint96(claimedAssets);
+    _unclaimedAssets -= SafeCast.toUint96(claimedAssets);
     _transferVaultAssets(receiver, claimedAssets);
     emit ExitedAssetsClaimed(
       msg.sender,
@@ -129,9 +154,9 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     address to,
     uint256 assets,
     address referrer
-  ) internal returns (uint256 shares) {
+  ) internal onlyHarvested returns (uint256 shares) {
     if (to == address(0)) revert ZeroAddress();
-    if (IKeeperRewards(keeper).isHarvestRequired(address(this))) revert NotHarvested();
+    if (assets == 0) revert InvalidAssets();
 
     uint256 totalAssetsAfter;
     unchecked {

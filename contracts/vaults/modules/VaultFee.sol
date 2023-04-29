@@ -31,8 +31,7 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
    * @dev Internal function for updating the fee recipient externally or from the initializer
    * @param _feeRecipient The address of the new fee recipient
    */
-  function _setFeeRecipient(address _feeRecipient) internal {
-    if (IKeeperRewards(keeper).isHarvestRequired(address(this))) revert NotHarvested();
+  function _setFeeRecipient(address _feeRecipient) private onlyHarvested {
     if (_feeRecipient == address(0)) revert InvalidFeeRecipient();
 
     // update fee recipient address

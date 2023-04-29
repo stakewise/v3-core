@@ -20,15 +20,13 @@ import {VaultFee} from './VaultFee.sol';
 abstract contract VaultState is VaultImmutables, Initializable, VaultToken, VaultFee, IVaultState {
   using ExitQueue for ExitQueue.History;
 
-  uint256 internal constant _exitQueueUpdateDelay = 1 days;
+  uint256 private constant _exitQueueUpdateDelay = 1 days;
 
   /// @inheritdoc IVaultState
   uint96 public override queuedShares;
 
-  /// @inheritdoc IVaultState
-  uint96 public override unclaimedAssets;
-
-  uint64 internal _exitQueueNextUpdate;
+  uint96 internal _unclaimedAssets;
+  uint64 private _exitQueueNextUpdate;
 
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
@@ -39,7 +37,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
     unchecked {
       // calculate assets that are reserved by users who queued for exit
       // cannot overflow as it is capped with underlying asset total supply
-      uint256 reservedAssets = convertToAssets(queuedShares) + unclaimedAssets;
+      uint256 reservedAssets = convertToAssets(queuedShares) + _unclaimedAssets;
       return vaultAssets > reservedAssets ? vaultAssets - reservedAssets : 0;
     }
   }
@@ -71,7 +69,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
    * @dev Internal function for processing rewards and penalties
    * @param totalAssetsDelta The number of assets earned or lost
    */
-  function _processTotalAssetsDelta(int256 totalAssetsDelta) internal {
+  function _processTotalAssetsDelta(int256 totalAssetsDelta) private {
     // SLOAD to memory
     uint256 newTotalAssets = _totalAssets;
     if (totalAssetsDelta < 0) {
@@ -127,15 +125,15 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
   /**
    * @dev Internal function that must be used to process exit queue
    */
-  function _updateExitQueue() internal {
+  function _updateExitQueue() private {
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
     if (_queuedShares == 0) return;
 
     // calculate the amount of assets that can be exited
-    uint256 _unclaimedAssets = unclaimedAssets;
+    uint256 unclaimedAssets = _unclaimedAssets;
     uint256 exitedAssets = Math.min(
-      _vaultAssets() - _unclaimedAssets,
+      _vaultAssets() - unclaimedAssets,
       convertToAssets(_queuedShares)
     );
     if (exitedAssets == 0) return;
@@ -145,7 +143,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
     if (burnedShares == 0) return;
 
     queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
-    unclaimedAssets = SafeCast.toUint96(_unclaimedAssets + exitedAssets);
+    _unclaimedAssets = SafeCast.toUint96(unclaimedAssets + exitedAssets);
 
     unchecked {
       // cannot overflow on human timescales

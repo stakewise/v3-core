@@ -78,7 +78,6 @@ contract EthVaultFactory is IEthVaultFactory {
       abi.encode(
         IEthVault.EthVaultInitParams({
           capacity: params.capacity,
-          validatorsRoot: params.validatorsRoot,
           admin: msg.sender,
           mevEscrow: mevEscrow,
           feePercent: params.feePercent,
