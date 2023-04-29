@@ -22,18 +22,18 @@ contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IK
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _oracles The address of the Oracles contract
-   * @param _vaultsRegistry The address of the VaultsRegistry contract
-   * @param _validatorsRegistry The address of the beacon chain validators registry contract
    * @param sharedMevEscrow The address of the shared MEV escrow contract
+   * @param oracles The address of the Oracles contract
+   * @param vaultsRegistry The address of the VaultsRegistry contract
+   * @param validatorsRegistry The address of the beacon chain validators registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    IOracles _oracles,
-    IVaultsRegistry _vaultsRegistry,
-    IValidatorsRegistry _validatorsRegistry,
-    address sharedMevEscrow
-  ) KeeperValidators(_oracles, _vaultsRegistry, _validatorsRegistry, sharedMevEscrow) {
+    address sharedMevEscrow,
+    IOracles oracles,
+    IVaultsRegistry vaultsRegistry,
+    IValidatorsRegistry validatorsRegistry
+  ) KeeperValidators(sharedMevEscrow, oracles, vaultsRegistry, validatorsRegistry) {
     // disable initializers for the implementation contract
     _disableInitializers();
   }
