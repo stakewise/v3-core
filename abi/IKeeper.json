@@ -120,7 +120,7 @@
         "type": "address"
       },
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "bytes32",
         "name": "rewardsRoot",
         "type": "bytes32"
