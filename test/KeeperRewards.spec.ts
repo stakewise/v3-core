@@ -18,7 +18,6 @@ describe('KeeperRewards', () => {
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
-  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -45,13 +44,12 @@ describe('KeeperRewards', () => {
 
   describe('set rewards root', () => {
     let vaultReward: VaultReward
-    let rewardsRootParams: IKeeperRewards.RewardsRootUpdateParamsStruct
+    let rewardsRootParams: IKeeperRewards.RewardsUpdateParamsStruct
     let vault: EthVault
 
     beforeEach(async () => {
       vault = await createVault(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -73,14 +71,14 @@ describe('KeeperRewards', () => {
 
     it('fails with invalid root', async () => {
       await expect(
-        keeper.connect(oracle).setRewardsRoot({ ...rewardsRootParams, rewardsRoot: ZERO_BYTES32 })
+        keeper.connect(oracle).updateRewards({ ...rewardsRootParams, rewardsRoot: ZERO_BYTES32 })
       ).to.be.revertedWith('InvalidRewardsRoot')
 
       // check can't set to previous rewards root
-      await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
+      await keeper.connect(oracle).updateRewards(rewardsRootParams)
       await increaseTime(REWARDS_DELAY)
       await expect(
-        keeper.connect(oracle).setRewardsRoot({ ...rewardsRootParams, rewardsRoot: ZERO_BYTES32 })
+        keeper.connect(oracle).updateRewards({ ...rewardsRootParams, rewardsRoot: ZERO_BYTES32 })
       ).to.be.revertedWith('InvalidRewardsRoot')
     })
 
@@ -88,12 +86,12 @@ describe('KeeperRewards', () => {
       await expect(
         keeper
           .connect(oracle)
-          .setRewardsRoot({ ...rewardsRootParams, rewardsIpfsHash: ZERO_BYTES32 })
+          .updateRewards({ ...rewardsRootParams, rewardsIpfsHash: ZERO_BYTES32 })
       ).to.be.revertedWith('InvalidOracle')
     })
 
     it('fails with invalid nonce', async () => {
-      await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
+      await keeper.connect(oracle).updateRewards(rewardsRootParams)
 
       const newVaultReward = {
         reward: parseEther('3'),
@@ -103,7 +101,7 @@ describe('KeeperRewards', () => {
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles)
       await increaseTime(REWARDS_DELAY)
       await expect(
-        keeper.connect(oracle).setRewardsRoot({
+        keeper.connect(oracle).updateRewards({
           rewardsRoot: newRewardsRoot.root,
           rewardsIpfsHash: newRewardsRoot.ipfsHash,
           updateTimestamp: newRewardsRoot.updateTimestamp,
@@ -113,7 +111,7 @@ describe('KeeperRewards', () => {
     })
 
     it('fails if too early', async () => {
-      await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
+      await keeper.connect(oracle).updateRewards(rewardsRootParams)
       const newVaultReward = {
         reward: parseEther('5'),
         unlockedMevReward: parseEther('1'),
@@ -122,7 +120,7 @@ describe('KeeperRewards', () => {
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1680255895, 2)
       expect(await keeper.canUpdateRewards()).to.eq(false)
       await expect(
-        keeper.connect(oracle).setRewardsRoot({
+        keeper.connect(oracle).updateRewards({
           rewardsRoot: newRewardsRoot.root,
           rewardsIpfsHash: newRewardsRoot.ipfsHash,
           updateTimestamp: newRewardsRoot.updateTimestamp,
@@ -134,9 +132,9 @@ describe('KeeperRewards', () => {
     it('succeeds', async () => {
       expect(await keeper.lastRewardsTimestamp()).to.eq(0)
       expect(await keeper.canUpdateRewards()).to.eq(true)
-      let receipt = await keeper.connect(oracle).setRewardsRoot(rewardsRootParams)
+      let receipt = await keeper.connect(oracle).updateRewards(rewardsRootParams)
       await expect(receipt)
-        .to.emit(keeper, 'RewardsRootUpdated')
+        .to.emit(keeper, 'RewardsUpdated')
         .withArgs(
           oracle.address,
           rewardsRootParams.rewardsRoot,
@@ -159,14 +157,14 @@ describe('KeeperRewards', () => {
       }
       const newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1670256000, 2)
       await increaseTime(REWARDS_DELAY)
-      receipt = await keeper.connect(oracle).setRewardsRoot({
+      receipt = await keeper.connect(oracle).updateRewards({
         rewardsRoot: newRewardsRoot.root,
         rewardsIpfsHash: newRewardsRoot.ipfsHash,
         updateTimestamp: newRewardsRoot.updateTimestamp,
         signatures: getSignatures(newRewardsRoot.signingData),
       })
       await expect(receipt)
-        .to.emit(keeper, 'RewardsRootUpdated')
+        .to.emit(keeper, 'RewardsUpdated')
         .withArgs(
           oracle.address,
           newRewardsRoot.root,
@@ -202,7 +200,6 @@ describe('KeeperRewards', () => {
     beforeEach(async () => {
       vault = await createVault(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -233,7 +230,7 @@ describe('KeeperRewards', () => {
         vault: vault.address,
       }
       let newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, 1670258895)
-      await keeper.connect(oracle).setRewardsRoot({
+      await keeper.connect(oracle).updateRewards({
         rewardsRoot: newRewardsRoot.root,
         rewardsIpfsHash: newRewardsRoot.ipfsHash,
         updateTimestamp: newRewardsRoot.updateTimestamp,
@@ -253,7 +250,7 @@ describe('KeeperRewards', () => {
       }
       newRewardsRoot = createVaultRewardsRoot([newVaultReward], oracles, newTimestamp, 2)
       await increaseTime(REWARDS_DELAY)
-      await keeper.connect(oracle).setRewardsRoot({
+      await keeper.connect(oracle).updateRewards({
         rewardsRoot: newRewardsRoot.root,
         rewardsIpfsHash: newRewardsRoot.ipfsHash,
         updateTimestamp: newRewardsRoot.updateTimestamp,
@@ -275,7 +272,6 @@ describe('KeeperRewards', () => {
         admin,
         {
           capacity,
-          validatorsRoot,
           feePercent,
           name,
           symbol,
@@ -294,7 +290,6 @@ describe('KeeperRewards', () => {
           admin,
           {
             capacity,
-            validatorsRoot,
             feePercent,
             name,
             symbol,
@@ -310,7 +305,7 @@ describe('KeeperRewards', () => {
       }
 
       const rewardsRoot = createVaultRewardsRoot(vaultRewards, oracles)
-      await keeper.connect(oracle).setRewardsRoot({
+      await keeper.connect(oracle).updateRewards({
         rewardsRoot: rewardsRoot.root,
         updateTimestamp: rewardsRoot.updateTimestamp,
         rewardsIpfsHash: rewardsRoot.ipfsHash,
@@ -359,7 +354,7 @@ describe('KeeperRewards', () => {
         unlockedMevReward: sharedMevEscrowBalance,
       }
       const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles, 1670255995, 2)
-      await keeper.connect(oracle).setRewardsRoot({
+      await keeper.connect(oracle).updateRewards({
         rewardsRoot: rewardsRoot.root,
         updateTimestamp: rewardsRoot.updateTimestamp,
         rewardsIpfsHash: rewardsRoot.ipfsHash,
@@ -434,7 +429,7 @@ describe('KeeperRewards', () => {
         unlockedMevReward: 0,
       }
       const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles, 1670255995, 2)
-      await keeper.connect(oracle).setRewardsRoot({
+      await keeper.connect(oracle).updateRewards({
         rewardsRoot: rewardsRoot.root,
         updateTimestamp: rewardsRoot.updateTimestamp,
         rewardsIpfsHash: rewardsRoot.ipfsHash,
@@ -504,7 +499,6 @@ describe('KeeperRewards', () => {
         admin,
         {
           capacity,
-          validatorsRoot,
           feePercent,
           name,
           symbol,
@@ -523,7 +517,6 @@ describe('KeeperRewards', () => {
           admin,
           {
             capacity,
-            validatorsRoot,
             feePercent,
             name,
             symbol,
@@ -540,7 +533,7 @@ describe('KeeperRewards', () => {
       }
 
       const rewardsRoot = createVaultRewardsRoot(vaultRewards, oracles)
-      await keeper.connect(oracle).setRewardsRoot({
+      await keeper.connect(oracle).updateRewards({
         rewardsRoot: rewardsRoot.root,
         updateTimestamp: rewardsRoot.updateTimestamp,
         rewardsIpfsHash: rewardsRoot.ipfsHash,
@@ -637,7 +630,7 @@ describe('KeeperRewards', () => {
       }
       await setBalance(sharedMevEscrow.address, vaultReward.unlockedMevReward)
       const rewardsRoot = createVaultRewardsRoot([vaultReward], oracles, 1670255995, 2)
-      await keeper.connect(oracle).setRewardsRoot({
+      await keeper.connect(oracle).updateRewards({
         rewardsRoot: rewardsRoot.root,
         updateTimestamp: rewardsRoot.updateTimestamp,
         rewardsIpfsHash: rewardsRoot.ipfsHash,

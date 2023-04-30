@@ -24,7 +24,6 @@ describe('EthVault - token', () => {
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
-  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const initialSupply = 1000
 
@@ -43,7 +42,6 @@ describe('EthVault - token', () => {
     ;({ createVault } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
-      validatorsRoot,
       feePercent,
       name,
       symbol,
@@ -70,7 +68,6 @@ describe('EthVault - token', () => {
     await expect(
       createVault(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name: 'a'.repeat(31),
         symbol,
@@ -83,7 +80,6 @@ describe('EthVault - token', () => {
     await expect(
       createVault(admin, {
         capacity: 0,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -96,7 +92,6 @@ describe('EthVault - token', () => {
     await expect(
       createVault(admin, {
         capacity: parseEther('31'),
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -109,7 +104,6 @@ describe('EthVault - token', () => {
     await expect(
       createVault(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol: 'a'.repeat(21),

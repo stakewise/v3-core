@@ -14,7 +14,7 @@ import {
   ZERO_BYTES32,
 } from './shared/constants'
 import { setBalance } from './shared/utils'
-import { collateralizeEthVault, getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
+import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -25,7 +25,6 @@ describe('EthVault - state', () => {
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
-  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   let holder: Wallet, admin: Wallet, dao: Wallet, other: Wallet
@@ -57,7 +56,6 @@ describe('EthVault - state', () => {
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
-      validatorsRoot,
       feePercent,
       name,
       symbol,
@@ -67,7 +65,7 @@ describe('EthVault - state', () => {
   })
 
   it('does not fail with zero assets delta', async () => {
-    const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    const tree = await updateRewards(keeper, oracles, getSignatures, [
       { vault: vault.address, unlockedMevReward: 0, reward: 0 },
     ])
     const proof = getRewardsRootProof(tree, {
@@ -88,7 +86,7 @@ describe('EthVault - state', () => {
   it('reverts when overflow', async () => {
     const reward = BigNumber.from(2).pow(160).sub(1).div(2)
     const unlockedMevReward = BigNumber.from(2).pow(160).sub(1)
-    const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    const tree = await updateRewards(keeper, oracles, getSignatures, [
       { vault: vault.address, reward, unlockedMevReward },
     ])
     await setBalance(sharedMevEscrow.address, unlockedMevReward)
@@ -108,7 +106,7 @@ describe('EthVault - state', () => {
 
   it('reverts when underflow', async () => {
     const reward = parseEther('-2')
-    const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    const tree = await updateRewards(keeper, oracles, getSignatures, [
       { vault: vault.address, reward, unlockedMevReward: 0 },
     ])
     await expect(
@@ -130,7 +128,6 @@ describe('EthVault - state', () => {
       admin,
       {
         capacity: MAX_UINT256,
-        validatorsRoot,
         feePercent: 0,
         name,
         symbol,
@@ -150,7 +147,7 @@ describe('EthVault - state', () => {
     await setBalance(await vault.mevEscrow(), burnedAssets)
 
     // state is updated
-    const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    const tree = await updateRewards(keeper, oracles, getSignatures, [
       { vault: vault.address, reward: 0, unlockedMevReward: 1 },
     ])
     await vault.updateState({
@@ -192,7 +189,7 @@ describe('EthVault - state', () => {
     const penalty = parseEther('-0.5')
     const rewardMevEscrow = parseEther('0.3')
     await setBalance(await vault.mevEscrow(), rewardMevEscrow)
-    const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    const tree = await updateRewards(keeper, oracles, getSignatures, [
       { vault: vault.address, reward: penalty, unlockedMevReward: rewardMevEscrow },
     ])
     const proof = getRewardsRootProof(tree, {
@@ -230,7 +227,6 @@ describe('EthVault - state', () => {
       admin,
       {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -248,7 +244,7 @@ describe('EthVault - state', () => {
     const reward = rewardValidators.add(rewardMevEscrow)
 
     await setBalance(mevEscrow.address, rewardMevEscrow)
-    const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    const tree = await updateRewards(keeper, oracles, getSignatures, [
       {
         vault: vault.address,
         reward: rewardValidators,
@@ -301,7 +297,7 @@ describe('EthVault - state', () => {
     const unlockedMevReward = parseEther('0.5')
     const reward = rewardValidators.add(unlockedMevReward)
     await setBalance(sharedMevEscrow.address, unlockedMevReward)
-    const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    const tree = await updateRewards(keeper, oracles, getSignatures, [
       {
         vault: vault.address,
         reward,
@@ -337,7 +333,6 @@ describe('EthVault - state', () => {
     let totalAssetsAfter = totalAssetsBefore.add(reward)
 
     const unclaimedAssets = holderAssets.add(unlockedMevReward).add(SECURITY_DEPOSIT)
-    expect(await vault.unclaimedAssets()).to.eq(unclaimedAssets)
     const burnedShares = unclaimedAssets.mul(totalSupplyAfter).div(totalAssetsAfter)
 
     totalSupplyAfter = totalSupplyAfter.sub(burnedShares)
@@ -345,7 +340,6 @@ describe('EthVault - state', () => {
 
     expect(await vault.totalSupply()).to.be.eq(totalSupplyAfter)
     expect(await vault.totalAssets()).to.be.eq(totalAssetsAfter)
-    expect(await vault.unclaimedAssets()).to.be.eq(unclaimedAssets)
     await snapshotGasCost(receipt)
   })
 })

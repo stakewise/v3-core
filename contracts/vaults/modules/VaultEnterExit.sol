@@ -20,39 +20,6 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IVaultEnterExit
-  function withdraw(
-    uint256 assets,
-    address receiver,
-    address owner
-  ) external override onlyHarvested returns (uint256 shares) {
-    // calculate amount of shares to burn
-    shares = _convertToShares(assets, _totalShares, _totalAssets, Math.Rounding.Up);
-
-    // reverts in case there are not enough withdrawable assets
-    if (assets > withdrawableAssets()) revert InsufficientAssets();
-
-    // reduce allowance
-    if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
-
-    // burn shares
-    balanceOf[owner] -= shares;
-
-    // update counters
-    unchecked {
-      // cannot underflow because the sum of all shares can't exceed the _totalShares
-      _totalShares -= SafeCast.toUint128(shares);
-      // cannot underflow because the sum of all assets can't exceed the _totalAssets
-      _totalAssets -= SafeCast.toUint128(assets);
-    }
-
-    // transfer assets to the receiver
-    _transferVaultAssets(receiver, assets);
-
-    emit Transfer(owner, address(0), shares);
-    emit Withdraw(msg.sender, receiver, owner, assets, shares);
-  }
-
-  /// @inheritdoc IVaultEnterExit
   function redeem(
     uint256 shares,
     address receiver,

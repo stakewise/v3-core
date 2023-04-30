@@ -60,11 +60,7 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
    * @param vaultsRegistry The address of the VaultsRegistry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(
-    address sharedMevEscrow,
-    IOracles oracles,
-    IVaultsRegistry vaultsRegistry
-  ) {
+  constructor(address sharedMevEscrow, IOracles oracles, IVaultsRegistry vaultsRegistry) {
     _sharedMevEscrow = sharedMevEscrow;
     _oracles = oracles;
     _vaultsRegistry = vaultsRegistry;

@@ -21,7 +21,7 @@ import {
   ZERO_ADDRESS,
 } from './shared/constants'
 import { increaseTime, setBalance } from './shared/utils'
-import { collateralizeEthVault, getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
+import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
 import { registerEthValidator } from './shared/validators'
 
 const createFixtureLoader = waffle.createFixtureLoader
@@ -33,7 +33,6 @@ describe('EthVault - withdraw', () => {
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const referrer = '0x' + '1'.repeat(40)
-  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const holderShares = parseEther('1')
   const holderAssets = parseEther('1')
@@ -68,7 +67,6 @@ describe('EthVault - withdraw', () => {
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
-      validatorsRoot,
       feePercent,
       name,
       symbol,
@@ -94,7 +92,7 @@ describe('EthVault - withdraw', () => {
     await vault.connect(holder).deposit(holder.address, referrer, { value: holderAssets })
   })
 
-  describe('redeem & withdraw', () => {
+  describe('redeem', () => {
     it('fails with not enough balance', async () => {
       await setBalance(vault.address, BigNumber.from(0))
       await expect(
@@ -116,12 +114,20 @@ describe('EthVault - withdraw', () => {
       ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
     })
 
+    it('fails for zero address receiver', async () => {
+      const newBalance = holderShares.add(1)
+      await setBalance(vault.address, newBalance)
+      await expect(
+        vault.connect(holder).redeem(newBalance, ZERO_ADDRESS, holder.address)
+      ).to.be.revertedWith('InvalidRecipient')
+    })
+
     it('fails for not harvested vault', async () => {
       await vault.updateState(harvestParams)
-      await updateRewardsRoot(keeper, oracles, getSignatures, [
+      await updateRewards(keeper, oracles, getSignatures, [
         { vault: vault.address, reward: 1, unlockedMevReward: 0 },
       ])
-      await updateRewardsRoot(keeper, oracles, getSignatures, [
+      await updateRewards(keeper, oracles, getSignatures, [
         { vault: vault.address, reward: 2, unlockedMevReward: 0 },
       ])
       await expect(
@@ -143,7 +149,6 @@ describe('EthVault - withdraw', () => {
     it('does not overflow', async () => {
       const vault: EthVaultMock = await createVaultMock(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -187,40 +192,10 @@ describe('EthVault - withdraw', () => {
       await snapshotGasCost(receipt)
     })
 
-    it('withdraw transfers assets to receiver', async () => {
-      const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
-      const receipt = await vault
-        .connect(holder)
-        .withdraw(holderAssets, receiver.address, holder.address)
-      await expect(receipt)
-        .to.emit(vault, 'Withdraw')
-        .withArgs(holder.address, receiver.address, holder.address, holderAssets, holderShares)
-      await expect(receipt)
-        .to.emit(vault, 'Transfer')
-        .withArgs(holder.address, ZERO_ADDRESS, holderShares)
-
-      expect(await vault.totalAssets()).to.be.eq(SECURITY_DEPOSIT)
-      expect(await vault.totalSupply()).to.be.eq(SECURITY_DEPOSIT)
-      expect(await vault.balanceOf(holder.address)).to.be.eq(0)
-      expect(await waffle.provider.getBalance(vault.address)).to.be.eq(SECURITY_DEPOSIT)
-      expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
-        receiverBalanceBefore.add(holderAssets)
-      )
-
-      await snapshotGasCost(receipt)
-    })
-
-    it('does not fail with 0 shares', async () => {
-      const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
-      await vault.connect(holder).redeem(0, receiver.address, holder.address)
-
-      expect(await vault.totalAssets()).to.be.eq(holderAssets.add(SECURITY_DEPOSIT))
-      expect(await vault.totalSupply()).to.be.eq(holderShares.add(SECURITY_DEPOSIT))
-      expect(await vault.balanceOf(holder.address)).to.be.eq(holderAssets)
-      expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
-        holderAssets.add(SECURITY_DEPOSIT)
-      )
-      expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(receiverBalanceBefore)
+    it('fails with 0 shares', async () => {
+      await expect(
+        vault.connect(holder).redeem(0, receiver.address, holder.address)
+      ).to.be.revertedWith('InvalidShares')
     })
   })
 
@@ -231,10 +206,15 @@ describe('EthVault - withdraw', () => {
       ).to.be.revertedWith('InvalidSharesAmount')
     })
 
+    it('fails for zero address receiver', async () => {
+      await expect(
+        vault.connect(holder).enterExitQueue(0, ZERO_ADDRESS, holder.address)
+      ).to.be.revertedWith('InvalidRecipient')
+    })
+
     it('fails for not collateralized', async () => {
       const newVault = await createVault(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -314,7 +294,7 @@ describe('EthVault - withdraw', () => {
     it('skips with 0 burned assets', async () => {
       const totalAssets = await vault.totalAssets()
       const penalty = totalAssets.sub(totalAssets.mul(2))
-      const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+      const tree = await updateRewards(keeper, oracles, getSignatures, [
         { vault: vault.address, reward: penalty, unlockedMevReward: 0 },
       ])
       await expect(
@@ -365,7 +345,6 @@ describe('EthVault - withdraw', () => {
   it('get checkpoint index works with many checkpoints', async () => {
     const vault: EthVaultMock = await createVaultMock(admin, {
       capacity,
-      validatorsRoot,
       feePercent,
       name,
       symbol,
@@ -382,7 +361,7 @@ describe('EthVault - withdraw', () => {
     await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
 
     // rewards tree updated
-    const rewardsTree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    const rewardsTree = await updateRewards(keeper, oracles, getSignatures, [
       { vault: vault.address, reward: 0, unlockedMevReward: 0 },
     ])
     const proof = getRewardsRootProof(rewardsTree, {
@@ -650,7 +629,6 @@ describe('EthVault - withdraw', () => {
   it('multiple deposits and withdrawals', async () => {
     const vault = await createVaultMock(admin, {
       capacity,
-      validatorsRoot,
       feePercent: 0,
       name,
       symbol,
@@ -688,7 +666,6 @@ describe('EthVault - withdraw', () => {
       expect(await waffle.provider.getBalance(vault.address)).to.be.eq(vaultLiquidAssets)
       expect(await vault.totalAssets()).to.be.eq(totalAssets)
       expect(await vault.queuedShares()).to.be.eq(queuedShares)
-      expect(await vault.unclaimedAssets()).to.be.eq(unclaimedAssets)
     }
 
     // 1. Alice deposits 2000 ETH (mints 2000 shares)
@@ -720,7 +697,7 @@ describe('EthVault - withdraw', () => {
     totalReward += 3000
     vaultLiquidAssets += 1800
     totalUnlockedMevReward += 1800
-    let tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    let tree = await updateRewards(keeper, oracles, getSignatures, [
       { vault: vault.address, reward: totalReward, unlockedMevReward: totalUnlockedMevReward },
     ])
     let proof = getRewardsRootProof(tree, {
@@ -772,7 +749,7 @@ describe('EthVault - withdraw', () => {
     vaultLiquidAssets += 1800
     totalUnlockedMevReward += 1800
     await setBalance(sharedMevEscrow.address, BigNumber.from(1800))
-    tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    tree = await updateRewards(keeper, oracles, getSignatures, [
       { vault: vault.address, reward: totalReward, unlockedMevReward: totalUnlockedMevReward },
     ])
     proof = getRewardsRootProof(tree, {
@@ -805,8 +782,8 @@ describe('EthVault - withdraw', () => {
 
     await checkVaultState()
 
-    // 8. Bob withdraws 2929 assets (1608 shares)
-    const receipt = await vault.connect(bob).withdraw(2929, bob.address, bob.address)
+    // 8. Bob withdraws 1608 assets (2929 shares)
+    const receipt = await vault.connect(bob).redeem(1608, bob.address, bob.address)
     await expect(receipt).to.emit(vault, 'Transfer').withArgs(bob.address, ZERO_ADDRESS, 1608)
 
     bobShares -= 1608
@@ -880,7 +857,7 @@ describe('EthVault - withdraw', () => {
     vaultLiquidAssets += 3000
     totalUnlockedMevReward += 3000
 
-    tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    tree = await updateRewards(keeper, oracles, getSignatures, [
       { vault: vault.address, reward: totalReward, unlockedMevReward: totalUnlockedMevReward },
     ])
     await setBalance(sharedMevEscrow.address, BigNumber.from(3000))
@@ -993,7 +970,6 @@ describe('EthVault - withdraw', () => {
       .to.emit(vault, 'ExitedAssetsClaimed')
       .withArgs(bob.address, bob.address, bobPositionCounter, 0, 11214)
 
-    unclaimedAssets -= 11214
     vaultLiquidAssets -= 11214
     await checkVaultState()
 
@@ -1008,7 +984,6 @@ describe('EthVault - withdraw', () => {
       .to.emit(vault, 'ExitedAssetsClaimed')
       .withArgs(alice.address, alice.address, alicePositionCounter, 0, 2828)
     //
-    unclaimedAssets -= 2828
     vaultLiquidAssets -= 2828
     await checkVaultState()
 
@@ -1020,7 +995,6 @@ describe('EthVault - withdraw', () => {
     totalAssets = 0
     totalSupply = 0
     queuedShares = 0
-    unclaimedAssets = 2
     vaultLiquidAssets = 2
     await checkVaultState()
   })

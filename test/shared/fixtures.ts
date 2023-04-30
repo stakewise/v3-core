@@ -67,10 +67,10 @@ export const createKeeper = async function (
   const instance = await upgrades.deployProxy(factory, [owner.address, REWARDS_DELAY], {
     unsafeAllow: ['delegatecall'],
     constructorArgs: [
+      sharedMevEscrow.address,
       oracles.address,
       vaultsRegistry.address,
       validatorsRegistry.address,
-      sharedMevEscrow.address,
     ],
   })
   return (await instance.deployed()) as Keeper
