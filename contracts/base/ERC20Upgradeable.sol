@@ -60,6 +60,21 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
     return true;
   }
 
+  /// @inheritdoc IERC20Permit
+  function increaseAllowance(address spender, uint256 addedValue) external override returns (bool) {
+    approve(spender, allowance[msg.sender][spender] + addedValue);
+    return true;
+  }
+
+  /// @inheritdoc IERC20Permit
+  function decreaseAllowance(
+    address spender,
+    uint256 subtractedValue
+  ) external override returns (bool) {
+    approve(spender, allowance[msg.sender][spender] - subtractedValue);
+    return true;
+  }
+
   /// @inheritdoc IERC20
   function transfer(address to, uint256 amount) public override returns (bool) {
     _transfer(msg.sender, to, amount);

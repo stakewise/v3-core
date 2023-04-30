@@ -51,21 +51,6 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
     return _convertToAssets(shares, _totalShares, _totalAssets, Math.Rounding.Down);
   }
 
-  /// @inheritdoc IVaultToken
-  function increaseAllowance(address spender, uint256 addedValue) external override returns (bool) {
-    approve(spender, allowance[msg.sender][spender] + addedValue);
-    return true;
-  }
-
-  /// @inheritdoc IVaultToken
-  function decreaseAllowance(
-    address spender,
-    uint256 subtractedValue
-  ) external override returns (bool) {
-    approve(spender, allowance[msg.sender][spender] - subtractedValue);
-    return true;
-  }
-
   /**
    * @dev Internal function for retrieving the total assets stored in the Vault
    * @return The total amount of assets stored in the Vault

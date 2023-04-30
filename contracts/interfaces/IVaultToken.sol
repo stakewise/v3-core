@@ -39,20 +39,4 @@ interface IVaultToken is IERC20Permit {
    * @return assets The amount of assets that the Vault would exchange for the amount of shares provided
    */
   function convertToAssets(uint256 shares) external view returns (uint256 assets);
-
-  /**
-   * @notice Increases the allowance granted to `spender` by the caller
-   * @param spender The address which will spend the assets
-   * @param addedValue The amount of assets to increase the allowance by
-   * @return True if successful
-   */
-  function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
-
-  /**
-   * @notice Decreases the allowance granted to `spender` by the caller
-   * @param spender The address which will spend the assets
-   * @param subtractedValue The amount of assets to decrease the allowance by
-   * @return True if successful
-   */
-  function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool);
 }

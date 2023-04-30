@@ -49,4 +49,20 @@ interface IERC20Permit is IERC20 {
    * @return The nonce of the owner
    */
   function nonces(address owner) external view returns (uint256);
+
+  /**
+   * @notice Increases the allowance granted to `spender` by the caller
+   * @param spender The address which will spend the assets
+   * @param addedValue The amount of assets to increase the allowance by
+   * @return True if successful
+   */
+  function increaseAllowance(address spender, uint256 addedValue) external returns (bool);
+
+  /**
+   * @notice Decreases the allowance granted to `spender` by the caller
+   * @param spender The address which will spend the assets
+   * @param subtractedValue The amount of assets to decrease the allowance by
+   * @return True if successful
+   */
+  function decreaseAllowance(address spender, uint256 subtractedValue) external returns (bool);
 }
