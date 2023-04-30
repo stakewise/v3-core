@@ -38,7 +38,7 @@ Object {
 exports[`KeeperRewards harvest (shared escrow) succeeds for latest rewards root 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 149698,
+  "gasUsed": 149720,
 }
 `;
 
@@ -52,14 +52,14 @@ Object {
 exports[`KeeperRewards harvest (shared escrow) succeeds for previous rewards root 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 151868,
+  "gasUsed": 151890,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for previous rewards root 2`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 96142,
+  "gasUsed": 96164,
 }
 `;
 
