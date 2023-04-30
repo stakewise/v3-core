@@ -80,13 +80,13 @@ Object {
 exports[`KeeperRewards set rewards root succeeds 1`] = `
 Object {
   "calldataByteLength": 740,
-  "gasUsed": 115101,
+  "gasUsed": 115208,
 }
 `;
 
 exports[`KeeperRewards set rewards root succeeds 2`] = `
 Object {
   "calldataByteLength": 740,
-  "gasUsed": 117913,
+  "gasUsed": 118020,
 }
 `;

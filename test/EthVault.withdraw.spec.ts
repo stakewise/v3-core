@@ -208,7 +208,7 @@ describe('EthVault - withdraw', () => {
 
     it('fails for zero address receiver', async () => {
       await expect(
-        vault.connect(holder).enterExitQueue(0, ZERO_ADDRESS, holder.address)
+        vault.connect(holder).enterExitQueue(holderShares, ZERO_ADDRESS, holder.address)
       ).to.be.revertedWith('InvalidRecipient')
     })
 
