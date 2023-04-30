@@ -388,9 +388,11 @@ describe('EthVault - token', () => {
 
           describe('when there was no approved amount before', () => {
             it('approves the requested amount', async () => {
-              await vault.connect(initialHolder).increaseAllowance(spender.address, amount)
-
+              const receipt = await vault
+                .connect(initialHolder)
+                .increaseAllowance(spender.address, amount)
               expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(amount)
+              await snapshotGasCost(receipt)
             })
           })
 
@@ -400,11 +402,13 @@ describe('EthVault - token', () => {
             })
 
             it('increases the spender allowance adding the requested amount', async () => {
-              await vault.connect(initialHolder).increaseAllowance(spender.address, amount)
-
+              const receipt = await vault
+                .connect(initialHolder)
+                .increaseAllowance(spender.address, amount)
               expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(
                 amount + 1
               )
+              await snapshotGasCost(receipt)
             })
           })
         })
@@ -438,19 +442,21 @@ describe('EthVault - token', () => {
             })
 
             it('emits an approval event', async () => {
-              await expect(
-                vault.connect(initialHolder).decreaseAllowance(spender.address, approvedAmount)
-              )
+              const receipt = await vault
+                .connect(initialHolder)
+                .decreaseAllowance(spender.address, approvedAmount)
+              await expect(receipt)
                 .to.emit(vault, 'Approval')
                 .withArgs(initialHolder.address, spender.address, 0)
+              await snapshotGasCost(receipt)
             })
 
             it('decreases the spender allowance subtracting the requested amount', async () => {
-              await vault
+              const receipt = await vault
                 .connect(initialHolder)
                 .decreaseAllowance(spender.address, approvedAmount - 1)
-
               expect(await vault.allowance(initialHolder.address, spender.address)).to.eq('1')
+              await snapshotGasCost(receipt)
             })
 
             it('sets the allowance to zero when all allowance is removed', async () => {
