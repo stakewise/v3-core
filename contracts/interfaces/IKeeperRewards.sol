@@ -24,7 +24,7 @@ interface IKeeperRewards {
    */
   event RewardsUpdated(
     address indexed caller,
-    bytes32 rewardsRoot,
+    bytes32 indexed rewardsRoot,
     uint64 updateTimestamp,
     uint64 nonce,
     string rewardsIpfsHash
