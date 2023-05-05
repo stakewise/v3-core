@@ -6,11 +6,6 @@
   },
   {
     "inputs": [],
-    "name": "InvalidWhitelistProof",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "WhitelistAlreadyUpdated",
     "type": "error"
   },
@@ -31,31 +26,6 @@
       }
     ],
     "name": "MetadataUpdated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "caller",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "whitelistIpfsHash",
-        "type": "string"
-      }
-    ],
-    "name": "WhitelistRootUpdated",
     "type": "event"
   },
   {
@@ -118,48 +88,12 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
-      }
-    ],
-    "name": "joinWhitelist",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "string",
         "name": "metadataIpfsHash",
         "type": "string"
       }
     ],
     "name": "setMetadata",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "_whitelistRoot",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "string",
-        "name": "whitelistIpfsHash",
-        "type": "string"
-      }
-    ],
-    "name": "setWhitelistRoot",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -193,19 +127,6 @@
     "name": "updateWhitelist",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "whitelistRoot",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {

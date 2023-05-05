@@ -2,7 +2,6 @@
 
 pragma solidity =0.8.19;
 
-import {IVaultImmutables} from './IVaultImmutables.sol';
 import {IVaultToken} from './IVaultToken.sol';
 import {IVaultState} from './IVaultState.sol';
 
@@ -11,11 +10,13 @@ import {IVaultState} from './IVaultState.sol';
  * @author StakeWise
  * @notice Defines the interface for the VaultEnterExit contract
  */
-interface IVaultEnterExit is IVaultImmutables, IVaultToken, IVaultState {
+interface IVaultEnterExit is IVaultToken, IVaultState {
   // Custom errors
   error CapacityExceeded();
   error InvalidSharesAmount();
-  error NotCollateralized();
+  error InvalidRecipient();
+  error InvalidAssets();
+  error InvalidShares();
 
   /**
    * @notice Event emitted on deposit
@@ -121,17 +122,4 @@ interface IVaultEnterExit is IVaultImmutables, IVaultToken, IVaultState {
     address receiver,
     address owner
   ) external returns (uint256 assets);
-
-  /**
-   * @notice Withdraws assets from the Vault by utilising what has not been staked yet
-   * @param assets The number of assets to withdraw
-   * @param receiver The address that will receive assets
-   * @param owner The address that owns the shares
-   * @return shares The number of shares burned
-   */
-  function withdraw(
-    uint256 assets,
-    address receiver,
-    address owner
-  ) external returns (uint256 shares);
 }

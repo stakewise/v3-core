@@ -7,7 +7,7 @@ import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ZERO_ADDRESS } from './shared/constants'
-import { collateralizeEthVault, updateRewardsRoot } from './shared/rewards'
+import { collateralizeEthVault, updateRewards } from './shared/rewards'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -16,7 +16,6 @@ describe('EthVault - settings', () => {
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
-  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -41,7 +40,6 @@ describe('EthVault - settings', () => {
       await expect(
         createVault(admin, {
           capacity,
-          validatorsRoot,
           feePercent: 10001,
           name,
           symbol,
@@ -58,7 +56,6 @@ describe('EthVault - settings', () => {
     beforeEach('deploy vault', async () => {
       vault = await createVault(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -89,7 +86,6 @@ describe('EthVault - settings', () => {
     beforeEach('deploy vault', async () => {
       vault = await createVault(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -125,7 +121,6 @@ describe('EthVault - settings', () => {
     beforeEach('deploy vault', async () => {
       vault = await createVault(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -147,10 +142,10 @@ describe('EthVault - settings', () => {
     })
 
     it('cannot update when not harvested', async () => {
-      await updateRewardsRoot(keeper, oracles, getSignatures, [
+      await updateRewards(keeper, oracles, getSignatures, [
         { vault: vault.address, reward: 1, unlockedMevReward: 0 },
       ])
-      await updateRewardsRoot(keeper, oracles, getSignatures, [
+      await updateRewards(keeper, oracles, getSignatures, [
         { vault: vault.address, reward: 2, unlockedMevReward: 0 },
       ])
       await expect(
@@ -176,7 +171,6 @@ describe('EthVault - settings', () => {
     beforeEach('deploy vault', async () => {
       vault = await createVault(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol,

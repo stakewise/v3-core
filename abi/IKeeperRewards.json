@@ -103,7 +103,7 @@
         "type": "string"
       }
     ],
-    "name": "RewardsRootUpdated",
+    "name": "RewardsUpdated",
     "type": "event"
   },
   {
@@ -237,19 +237,6 @@
   },
   {
     "inputs": [],
-    "name": "oracles",
-    "outputs": [
-      {
-        "internalType": "contract IOracles",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "prevRewardsRoot",
     "outputs": [
       {
@@ -290,9 +277,9 @@
     "name": "rewardsDelay",
     "outputs": [
       {
-        "internalType": "uint64",
+        "internalType": "uint256",
         "name": "",
-        "type": "uint64"
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -340,41 +327,6 @@
   {
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "bytes32",
-            "name": "rewardsRoot",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "uint64",
-            "name": "updateTimestamp",
-            "type": "uint64"
-          },
-          {
-            "internalType": "string",
-            "name": "rewardsIpfsHash",
-            "type": "string"
-          },
-          {
-            "internalType": "bytes",
-            "name": "signatures",
-            "type": "bytes"
-          }
-        ],
-        "internalType": "struct IKeeperRewards.RewardsRootUpdateParams",
-        "name": "params",
-        "type": "tuple"
-      }
-    ],
-    "name": "setRewardsRoot",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "address",
         "name": "vault",
         "type": "address"
@@ -397,16 +349,38 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "vaultsRegistry",
-    "outputs": [
+    "inputs": [
       {
-        "internalType": "contract IVaultsRegistry",
-        "name": "",
-        "type": "address"
+        "components": [
+          {
+            "internalType": "bytes32",
+            "name": "rewardsRoot",
+            "type": "bytes32"
+          },
+          {
+            "internalType": "uint64",
+            "name": "updateTimestamp",
+            "type": "uint64"
+          },
+          {
+            "internalType": "string",
+            "name": "rewardsIpfsHash",
+            "type": "string"
+          },
+          {
+            "internalType": "bytes",
+            "name": "signatures",
+            "type": "bytes"
+          }
+        ],
+        "internalType": "struct IKeeperRewards.RewardsUpdateParams",
+        "name": "params",
+        "type": "tuple"
       }
     ],
-    "stateMutability": "view",
+    "name": "updateRewards",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   }
 ]

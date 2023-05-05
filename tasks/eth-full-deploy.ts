@@ -60,10 +60,10 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     {
       unsafeAllow: ['delegatecall'],
       constructorArgs: [
+        sharedMevEscrow.address,
         oracles.address,
         vaultsRegistry.address,
         networkConfig.validatorsRegistry,
-        sharedMevEscrow.address,
       ],
     }
   )

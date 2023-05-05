@@ -7,7 +7,7 @@ import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { increaseTime, setBalance } from './shared/utils'
-import { getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
+import { getRewardsRootProof, updateRewards } from './shared/rewards'
 import { registerEthValidator } from './shared/validators'
 import { ONE_DAY } from './shared/constants'
 
@@ -19,7 +19,6 @@ describe('EthVault - multicall', () => {
   const referrer = '0x' + '1'.repeat(40)
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
-  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
 
   let sender: Wallet, admin: Wallet, dao: Wallet
@@ -42,7 +41,6 @@ describe('EthVault - multicall', () => {
       admin,
       {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -65,7 +63,7 @@ describe('EthVault - multicall', () => {
 
     // update rewards root for the vault
     const vaultReward = parseEther('1')
-    const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+    const tree = await updateRewards(keeper, oracles, getSignatures, [
       { reward: vaultReward, unlockedMevReward: 0, vault: vault.address },
     ])
 
@@ -101,19 +99,17 @@ describe('EthVault - multicall', () => {
     calls = [
       vault.interface.encodeFunctionData('updateState', [harvestParams]),
       vault.interface.encodeFunctionData('convertToShares', [exitQueueAssets]),
+      vault.interface.encodeFunctionData('convertToShares', [withdrawAssets]),
     ]
     result = await vault.callStatic.multicall(calls)
     const exitQueueShares = vault.interface.decodeFunctionResult('convertToShares', result[1])[0]
+    const withdrawShares = vault.interface.decodeFunctionResult('convertToShares', result[2])[0]
 
     calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
 
     // add call for instant withdrawal
     calls.push(
-      vault.interface.encodeFunctionData('withdraw', [
-        withdrawAssets,
-        sender.address,
-        sender.address,
-      ])
+      vault.interface.encodeFunctionData('redeem', [withdrawShares, sender.address, sender.address])
     )
 
     // add call for entering exit queue
@@ -172,7 +168,7 @@ describe('EthVault - multicall', () => {
     const amount = parseEther('1')
     const calls: string[] = [
       vault.interface.encodeFunctionData('deposit', [sender.address, referrer]),
-      vault.interface.encodeFunctionData('withdraw', [amount, sender.address, sender.address]),
+      vault.interface.encodeFunctionData('redeem', [amount, sender.address, sender.address]),
     ]
     await expect(vault.connect(sender).multicall(calls)).reverted
   })

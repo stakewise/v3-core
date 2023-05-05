@@ -32,7 +32,7 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
   }
 
   /// @inheritdoc IERC20
-  function totalSupply() external view returns (uint256) {
+  function totalSupply() external view override returns (uint256) {
     return _totalShares;
   }
 

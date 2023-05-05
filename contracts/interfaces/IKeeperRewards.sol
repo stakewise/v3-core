@@ -2,9 +2,6 @@
 
 pragma solidity =0.8.19;
 
-import {IOracles} from './IOracles.sol';
-import {IVaultsRegistry} from './IVaultsRegistry.sol';
-
 /**
  * @title IKeeperRewards
  * @author StakeWise
@@ -18,14 +15,14 @@ interface IKeeperRewards {
   error TooEarlyUpdate();
 
   /**
-   * @notice Event emitted on rewards root update
+   * @notice Event emitted on rewards update
    * @param caller The address of the function caller
    * @param rewardsRoot The new rewards merkle tree root
    * @param updateTimestamp The update timestamp used for rewards calculation
    * @param nonce The nonce used for verifying signatures
    * @param rewardsIpfsHash The new rewards IPFS hash
    */
-  event RewardsRootUpdated(
+  event RewardsUpdated(
     address indexed caller,
     bytes32 indexed rewardsRoot,
     uint64 updateTimestamp,
@@ -75,13 +72,13 @@ interface IKeeperRewards {
   }
 
   /**
-   * @notice A struct containing parameters for rewards merkle tree root update
+   * @notice A struct containing parameters for rewards update
    * @param rewardsRoot The new rewards merkle root
    * @param updateTimestamp The update timestamp used for rewards calculation
    * @param rewardsIpfsHash The new IPFS hash with all the Vaults' rewards for the new root
    * @param signatures The concatenation of the Oracles' signatures
    */
-  struct RewardsRootUpdateParams {
+  struct RewardsUpdateParams {
     bytes32 rewardsRoot;
     uint64 updateTimestamp;
     string rewardsIpfsHash;
@@ -101,18 +98,6 @@ interface IKeeperRewards {
     uint160 unlockedMevReward;
     bytes32[] proof;
   }
-
-  /**
-   * @notice Oracles Address
-   * @return The address of the Oracles contract
-   */
-  function oracles() external view returns (IOracles);
-
-  /**
-   * @notice Vaults Registry Address
-   * @return The address of the Vaults Registry contract
-   */
-  function vaultsRegistry() external view returns (IVaultsRegistry);
 
   /**
    * @notice Previous Rewards Root
@@ -142,7 +127,7 @@ interface IKeeperRewards {
    * @notice The rewards delay
    * @return The delay between rewards updates
    */
-  function rewardsDelay() external view returns (uint64);
+  function rewardsDelay() external view returns (uint256);
 
   /**
    * @notice Get last synced Vault cumulative reward
@@ -188,10 +173,10 @@ interface IKeeperRewards {
   function isCollateralized(address vault) external view returns (bool);
 
   /**
-   * @notice Update rewards merkle tree root. Can be called only by oracle.
-   * @param params The struct containing rewards root update parameters
+   * @notice Update rewards data
+   * @param params The struct containing rewards update parameters
    */
-  function setRewardsRoot(RewardsRootUpdateParams calldata params) external;
+  function updateRewards(RewardsUpdateParams calldata params) external;
 
   /**
    * @notice Update rewards delay. Can only be called by the owner.

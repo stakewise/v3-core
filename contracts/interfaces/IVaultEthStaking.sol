@@ -21,11 +21,8 @@ interface IVaultEthStaking is
   IVaultEnterExit,
   IVaultMev
 {
-  /**
-   * @notice Security deposit amount
-   * @return The amount that is permanently deposited by the Vault creator to protect from the inflation attack
-   */
-  function securityDeposit() external view returns (uint256);
+  // Custom errors
+  error InvalidSecurityDeposit();
 
   /**
    * @notice Deposit ETH to the Vault

@@ -93,11 +93,6 @@
             "type": "uint256"
           },
           {
-            "internalType": "bytes32",
-            "name": "validatorsRoot",
-            "type": "bytes32"
-          },
-          {
             "internalType": "uint16",
             "name": "feePercent",
             "type": "uint16"

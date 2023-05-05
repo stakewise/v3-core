@@ -15,10 +15,7 @@ import {VaultImmutables} from './VaultImmutables.sol';
  * @notice Defines the versioning functionality for the Vault
  */
 abstract contract VaultVersion is VaultImmutables, Versioned, VaultAdmin, IVaultVersion {
-  bytes4 internal constant _initSelector = bytes4(keccak256('initialize(bytes)'));
-
-  // Custom errors
-  error UpgradeFailed();
+  bytes4 private constant _initSelector = bytes4(keccak256('initialize(bytes)'));
 
   /// @inheritdoc UUPSUpgradeable
   function upgradeTo(address) external view override onlyProxy {
@@ -41,7 +38,7 @@ abstract contract VaultVersion is VaultImmutables, Versioned, VaultAdmin, IVault
       newImplementation == address(0) ||
       _getImplementation() == newImplementation ||
       IVaultVersion(newImplementation).vaultId() != vaultId() ||
-      !IVaultsRegistry(vaultsRegistry).vaultImpls(newImplementation)
+      !IVaultsRegistry(_vaultsRegistry).vaultImpls(newImplementation)
     ) {
       revert UpgradeFailed();
     }

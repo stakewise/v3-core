@@ -16,6 +16,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidAssets",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidCapacity",
     "type": "error"
   },
@@ -32,6 +37,21 @@
   {
     "inputs": [],
     "name": "InvalidProof",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRecipient",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidSecurityDeposit",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidShares",
     "type": "error"
   },
   {
@@ -56,27 +76,17 @@
   },
   {
     "inputs": [],
-    "name": "InvalidWhitelistProof",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "NotCollateralized",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "NotHarvested",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "PermitDeadlineExpired",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "PermitInvalidSigner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UpgradeFailed",
     "type": "error"
   },
   {
@@ -356,31 +366,6 @@
       }
     ],
     "name": "ValidatorsRootUpdated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "caller",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "root",
-        "type": "bytes32"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "whitelistIpfsHash",
-        "type": "string"
-      }
-    ],
-    "name": "WhitelistRootUpdated",
     "type": "event"
   },
   {
@@ -677,6 +662,30 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "spender",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "subtractedValue",
+        "type": "uint256"
+      }
+    ],
+    "name": "decreaseAllowance",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "receiver",
         "type": "address"
       },
@@ -787,6 +796,30 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "spender",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "addedValue",
+        "type": "uint256"
+      }
+    ],
+    "name": "increaseAllowance",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "bytes",
         "name": "params",
         "type": "bytes"
@@ -795,37 +828,6 @@
     "name": "initialize",
     "outputs": [],
     "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "account",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
-      }
-    ],
-    "name": "joinWhitelist",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "keeper",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1101,19 +1103,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "securityDeposit",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "address",
@@ -1161,24 +1150,6 @@
       }
     ],
     "name": "setValidatorsRoot",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "_whitelistRoot",
-        "type": "bytes32"
-      },
-      {
-        "internalType": "string",
-        "name": "whitelistIpfsHash",
-        "type": "string"
-      }
-    ],
-    "name": "setWhitelistRoot",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1286,19 +1257,6 @@
       }
     ],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "unclaimedAssets",
-    "outputs": [
-      {
-        "internalType": "uint96",
-        "name": "",
-        "type": "uint96"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -1420,19 +1378,6 @@
   },
   {
     "inputs": [],
-    "name": "validatorsRegistry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "validatorsRoot",
     "outputs": [
       {
@@ -1459,38 +1404,12 @@
   },
   {
     "inputs": [],
-    "name": "vaultsRegistry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "version",
     "outputs": [
       {
         "internalType": "uint8",
         "name": "",
         "type": "uint8"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "whitelistRoot",
-    "outputs": [
-      {
-        "internalType": "bytes32",
-        "name": "",
-        "type": "bytes32"
       }
     ],
     "stateMutability": "view",
@@ -1529,35 +1448,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "assets",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "receiver",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      }
-    ],
-    "name": "withdraw",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "shares",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "withdrawableAssets",
     "outputs": [
@@ -1565,19 +1455,6 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "withdrawalCredentials",
-    "outputs": [
-      {
-        "internalType": "bytes",
-        "name": "",
-        "type": "bytes"
       }
     ],
     "stateMutability": "view",

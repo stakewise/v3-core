@@ -5,6 +5,11 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "UpgradeFailed",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -51,19 +56,6 @@
   },
   {
     "inputs": [],
-    "name": "keeper",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "proxiableUUID",
     "outputs": [
       {
@@ -90,19 +82,6 @@
   },
   {
     "inputs": [],
-    "name": "validatorsRegistry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "vaultId",
     "outputs": [
       {
@@ -112,19 +91,6 @@
       }
     ],
     "stateMutability": "pure",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "vaultsRegistry",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {

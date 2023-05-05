@@ -3,7 +3,6 @@
 pragma solidity =0.8.19;
 
 import {IKeeperRewards} from './IKeeperRewards.sol';
-import {IVaultImmutables} from './IVaultImmutables.sol';
 import {IVaultToken} from './IVaultToken.sol';
 import {IVaultFee} from './IVaultFee.sol';
 
@@ -12,7 +11,7 @@ import {IVaultFee} from './IVaultFee.sol';
  * @author StakeWise
  * @notice Defines the interface for the VaultState contract
  */
-interface IVaultState is IVaultImmutables, IVaultToken, IVaultFee {
+interface IVaultState is IVaultToken, IVaultFee {
   // Custom errors
   error InsufficientAssets();
 
@@ -34,12 +33,6 @@ interface IVaultState is IVaultImmutables, IVaultToken, IVaultFee {
    * @return The total number of shares queued for exit
    */
   function queuedShares() external view returns (uint96);
-
-  /**
-   * @notice Unclaimed Assets
-   * @return The total number of assets that were withdrawn, but not claimed yet
-   */
-  function unclaimedAssets() external view returns (uint96);
 
   /**
    * @notice Check whether exit queue can be updated

@@ -6,7 +6,6 @@ import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {Ownable2StepUpgradeable} from '@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
-import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IVaultMev} from '../interfaces/IVaultMev.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
@@ -17,7 +16,7 @@ import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
  * @notice Defines the functionality for updating Vaults' rewards
  */
 abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeeperRewards {
-  bytes32 internal constant _rewardsRootTypeHash =
+  bytes32 private constant _rewardsUpdateTypeHash =
     keccak256(
       'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint64 updateTimestamp,uint64 nonce)'
     );
@@ -25,19 +24,11 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address private immutable _sharedMevEscrow;
 
-  /// @inheritdoc IKeeperRewards
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IOracles public immutable override oracles;
+  IOracles internal immutable _oracles;
 
-  /// @inheritdoc IKeeperRewards
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IVaultsRegistry public immutable override vaultsRegistry;
-
-  /// @inheritdoc IKeeperRewards
-  bytes32 public override prevRewardsRoot;
-
-  /// @inheritdoc IKeeperRewards
-  bytes32 public override rewardsRoot;
+  IVaultsRegistry internal immutable _vaultsRegistry;
 
   /// @inheritdoc IKeeperRewards
   mapping(address => Reward) public override rewards;
@@ -46,31 +37,37 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
   mapping(address => UnlockedMevReward) public override unlockedMevRewards;
 
   /// @inheritdoc IKeeperRewards
-  uint64 public override rewardsNonce;
+  uint256 public override rewardsDelay;
+
+  /// @inheritdoc IKeeperRewards
+  bytes32 public override prevRewardsRoot;
+
+  /// @inheritdoc IKeeperRewards
+  bytes32 public override rewardsRoot;
 
   /// @inheritdoc IKeeperRewards
   uint64 public override lastRewardsTimestamp;
 
   /// @inheritdoc IKeeperRewards
-  uint64 public override rewardsDelay;
+  uint64 public override rewardsNonce;
 
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _oracles The address of the Oracles contract
-   * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param sharedMevEscrow The address of the shared MEV escrow contract
+   * @param oracles The address of the Oracles contract
+   * @param vaultsRegistry The address of the VaultsRegistry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(IOracles _oracles, IVaultsRegistry _vaultsRegistry, address sharedMevEscrow) {
-    oracles = _oracles;
-    vaultsRegistry = _vaultsRegistry;
+  constructor(address sharedMevEscrow, IOracles oracles, IVaultsRegistry vaultsRegistry) {
     _sharedMevEscrow = sharedMevEscrow;
+    _oracles = oracles;
+    _vaultsRegistry = vaultsRegistry;
   }
 
   /// @inheritdoc IKeeperRewards
-  function setRewardsRoot(RewardsRootUpdateParams calldata params) external override {
+  function updateRewards(RewardsUpdateParams calldata params) external override {
     if (!canUpdateRewards()) revert TooEarlyUpdate();
 
     // SLOAD to memory
@@ -82,11 +79,11 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
     // SLOAD to memory
     uint64 nonce = rewardsNonce;
 
-    // verify minimal number of oracles approved the new merkle root
-    oracles.verifyMinSignatures(
+    // verify minimal number of oracles approved the new rewards update
+    _oracles.verifyMinSignatures(
       keccak256(
         abi.encode(
-          _rewardsRootTypeHash,
+          _rewardsUpdateTypeHash,
           params.rewardsRoot,
           keccak256(bytes(params.rewardsIpfsHash)),
           params.updateTimestamp,
@@ -99,12 +96,11 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
     // update state
     prevRewardsRoot = currRewardsRoot;
     rewardsRoot = params.rewardsRoot;
-    rewardsNonce = nonce + 1;
-
     // cannot overflow on human timescales
     lastRewardsTimestamp = uint64(block.timestamp);
+    rewardsNonce = nonce + 1;
 
-    emit RewardsRootUpdated(
+    emit RewardsUpdated(
       msg.sender,
       params.rewardsRoot,
       params.updateTimestamp,
@@ -149,7 +145,7 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
   function harvest(
     HarvestParams calldata params
   ) external override returns (int256 totalAssetsDelta, uint256 unlockedMevDelta) {
-    if (!vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
+    if (!_vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
 
     // SLOAD to memory
     uint64 currentNonce = rewardsNonce;
@@ -240,7 +236,7 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
     _setRewardsDelay(_rewardsDelay);
 
     // set rewardsNonce to 1 so that vaults collateralized
-    // before first rewards root update will not have 0 nonce
+    // before first rewards update will not have 0 nonce
     rewardsNonce = 1;
   }
 

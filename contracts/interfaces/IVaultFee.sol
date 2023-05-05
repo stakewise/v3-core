@@ -2,7 +2,6 @@
 
 pragma solidity =0.8.19;
 
-import {IVaultImmutables} from './IVaultImmutables.sol';
 import {IVaultAdmin} from './IVaultAdmin.sol';
 
 /**
@@ -10,11 +9,10 @@ import {IVaultAdmin} from './IVaultAdmin.sol';
  * @author StakeWise
  * @notice Defines the interface for the VaultFee contract
  */
-interface IVaultFee is IVaultImmutables, IVaultAdmin {
+interface IVaultFee is IVaultAdmin {
   // Custom errors
   error InvalidFeeRecipient();
   error InvalidFeePercent();
-  error NotHarvested();
 
   /**
    * @notice Event emitted on validator registration

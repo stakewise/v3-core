@@ -5,7 +5,10 @@ pragma solidity =0.8.19;
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
+import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
+import {IERC20} from '../../interfaces/IERC20.sol';
+import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
 import {Multicall} from '../../base/Multicall.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultAdmin} from '../modules/VaultAdmin.sol';
@@ -71,7 +74,7 @@ contract EthVault is
     __VaultAdmin_init(params.admin, params.metadataIpfsHash);
     // fee recipient is initially set to admin address
     __VaultFee_init(params.admin, params.feePercent);
-    __VaultValidators_init(params.validatorsRoot);
+    __VaultValidators_init();
     __VaultEthStaking_init();
     __VaultMev_init(params.mevEscrow);
   }

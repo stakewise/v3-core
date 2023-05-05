@@ -14,7 +14,7 @@ import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { PANIC_CODES, SECURITY_DEPOSIT, ZERO_ADDRESS } from './shared/constants'
-import { getRewardsRootProof, updateRewardsRoot } from './shared/rewards'
+import { getRewardsRootProof, updateRewards } from './shared/rewards'
 import { registerEthValidator } from './shared/validators'
 import { setBalance } from './shared/utils'
 
@@ -26,7 +26,6 @@ describe('EthVault - deposit', () => {
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
-  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const referrer = '0x' + '1'.repeat(40)
   let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Wallet, other: Wallet
@@ -58,7 +57,6 @@ describe('EthVault - deposit', () => {
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
-      validatorsRoot,
       feePercent,
       name,
       symbol,
@@ -102,7 +100,6 @@ describe('EthVault - deposit', () => {
     beforeEach(async () => {
       ethVaultMock = await createVaultMock(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -140,10 +137,10 @@ describe('EthVault - deposit', () => {
     it('fails when not harvested', async () => {
       await vault.connect(other).deposit(other.address, referrer, { value: parseEther('32') })
       await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
-      await updateRewardsRoot(keeper, oracles, getSignatures, [
+      await updateRewards(keeper, oracles, getSignatures, [
         { reward: parseEther('5'), unlockedMevReward: 0, vault: vault.address },
       ])
-      await updateRewardsRoot(keeper, oracles, getSignatures, [
+      await updateRewards(keeper, oracles, getSignatures, [
         { reward: parseEther('10'), unlockedMevReward: 0, vault: vault.address },
       ])
       await expect(
@@ -156,12 +153,12 @@ describe('EthVault - deposit', () => {
       await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
 
       let vaultReward = parseEther('10')
-      await updateRewardsRoot(keeper, oracles, getSignatures, [
+      await updateRewards(keeper, oracles, getSignatures, [
         { reward: vaultReward, unlockedMevReward: vaultReward, vault: vault.address },
       ])
 
       vaultReward = vaultReward.add(parseEther('1'))
-      const tree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+      const tree = await updateRewards(keeper, oracles, getSignatures, [
         { reward: vaultReward, unlockedMevReward: vaultReward, vault: vault.address },
       ])
 
