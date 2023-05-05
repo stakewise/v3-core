@@ -16,8 +16,8 @@ import {VaultState} from '../modules/VaultState.sol';
  */
 abstract contract VaultMev is Initializable, VaultState, IVaultMev {
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  address internal immutable _sharedMevEscrow;
-  address internal _ownMevEscrow;
+  address private immutable _sharedMevEscrow;
+  address private _ownMevEscrow;
 
   /**
    * @dev Constructor
@@ -41,7 +41,7 @@ abstract contract VaultMev is Initializable, VaultState, IVaultMev {
   function _harvestAssets(
     IKeeperRewards.HarvestParams calldata harvestParams
   ) internal override returns (int256) {
-    (int256 totalAssetsDelta, uint256 unlockedMevDelta) = IKeeperRewards(keeper).harvest(
+    (int256 totalAssetsDelta, uint256 unlockedMevDelta) = IKeeperRewards(_keeper).harvest(
       harvestParams
     );
 

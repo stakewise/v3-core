@@ -3,7 +3,6 @@
 pragma solidity =0.8.19;
 
 import {IVersioned} from './IVersioned.sol';
-import {IVaultImmutables} from './IVaultImmutables.sol';
 import {IVaultAdmin} from './IVaultAdmin.sol';
 
 /**
@@ -11,7 +10,10 @@ import {IVaultAdmin} from './IVaultAdmin.sol';
  * @author StakeWise
  * @notice Defines the interface for VaultVersion contract
  */
-interface IVaultVersion is IVaultImmutables, IVersioned, IVaultAdmin {
+interface IVaultVersion is IVersioned, IVaultAdmin {
+  // Custom errors
+  error UpgradeFailed();
+
   /**
    * @notice Vault Unique Identifier
    * @return The unique identifier of the Vault

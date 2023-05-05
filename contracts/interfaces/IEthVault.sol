@@ -2,14 +2,14 @@
 
 pragma solidity =0.8.19;
 
-import {IVaultAdmin} from './IVaultAdmin.sol';
-import {IVaultEnterExit} from './IVaultEnterExit.sol';
-import {IVaultFee} from './IVaultFee.sol';
-import {IVaultImmutables} from './IVaultImmutables.sol';
-import {IVaultState} from './IVaultState.sol';
 import {IVaultToken} from './IVaultToken.sol';
-import {IVaultValidators} from './IVaultValidators.sol';
+import {IVaultAdmin} from './IVaultAdmin.sol';
 import {IVaultVersion} from './IVaultVersion.sol';
+import {IVaultFee} from './IVaultFee.sol';
+import {IVaultState} from './IVaultState.sol';
+import {IVaultValidators} from './IVaultValidators.sol';
+import {IVaultEnterExit} from './IVaultEnterExit.sol';
+import {IVaultMev} from './IVaultMev.sol';
 import {IVaultEthStaking} from './IVaultEthStaking.sol';
 import {IMulticall} from './IMulticall.sol';
 
@@ -19,7 +19,6 @@ import {IMulticall} from './IMulticall.sol';
  * @notice Defines the interface for the EthVault contract
  */
 interface IEthVault is
-  IVaultImmutables,
   IVaultToken,
   IVaultAdmin,
   IVaultVersion,
@@ -27,13 +26,13 @@ interface IEthVault is
   IVaultState,
   IVaultValidators,
   IVaultEnterExit,
+  IVaultMev,
   IVaultEthStaking,
   IMulticall
 {
   /**
    * @dev Struct for initializing the EthVault contract
    * @param capacity The Vault stops accepting deposits after exceeding the capacity
-   * @param validatorsRoot The validators Merkle tree root
    * @param admin The address of the Vault admin
    * @param mevEscrow The address of the MEV escrow
    * @param feePercent The fee percent that is charged by the Vault
@@ -43,7 +42,6 @@ interface IEthVault is
    */
   struct EthVaultInitParams {
     uint256 capacity;
-    bytes32 validatorsRoot;
     address admin;
     address mevEscrow;
     uint16 feePercent;

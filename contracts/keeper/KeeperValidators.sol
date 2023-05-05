@@ -15,17 +15,16 @@ import {KeeperRewards} from './KeeperRewards.sol';
  * @notice Defines the functionality for approving validators' registrations and updating exit signatures
  */
 abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValidators {
-  bytes32 internal constant _registerValidatorsTypeHash =
+  bytes32 private constant _registerValidatorsTypeHash =
     keccak256(
       'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes32 validators,bytes32 exitSignaturesIpfsHash)'
     );
 
-  bytes32 internal constant _updateExitSigTypeHash =
+  bytes32 private constant _updateExitSigTypeHash =
     keccak256('KeeperValidators(address vault,bytes32 exitSignaturesIpfsHash,uint256 nonce)');
 
-  /// @inheritdoc IKeeperValidators
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IValidatorsRegistry public immutable override validatorsRegistry;
+  IValidatorsRegistry private immutable _validatorsRegistry;
 
   /// @inheritdoc IKeeperValidators
   mapping(address => uint256) public override exitSignaturesNonces;
@@ -34,31 +33,31 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _oracles The address of the Oracles contract
-   * @param _vaultsRegistry The address of the VaultsRegistry contract
-   * @param _validatorsRegistry The address of the beacon chain validators registry contract
    * @param sharedMevEscrow The address of the shared MEV escrow contract
+   * @param oracles The address of the Oracles contract
+   * @param vaultsRegistry The address of the VaultsRegistry contract
+   * @param validatorsRegistry The address of the beacon chain validators registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    IOracles _oracles,
-    IVaultsRegistry _vaultsRegistry,
-    IValidatorsRegistry _validatorsRegistry,
-    address sharedMevEscrow
-  ) KeeperRewards(_oracles, _vaultsRegistry, sharedMevEscrow) {
-    validatorsRegistry = _validatorsRegistry;
+    address sharedMevEscrow,
+    IOracles oracles,
+    IVaultsRegistry vaultsRegistry,
+    IValidatorsRegistry validatorsRegistry
+  ) KeeperRewards(sharedMevEscrow, oracles, vaultsRegistry) {
+    _validatorsRegistry = validatorsRegistry;
   }
 
   /// @inheritdoc IKeeperValidators
   function approveValidators(ApprovalParams calldata params) external override {
     // verify oracles approved registration for the current validators registry contract state
-    if (validatorsRegistry.get_deposit_root() != params.validatorsRegistryRoot) {
+    if (_validatorsRegistry.get_deposit_root() != params.validatorsRegistryRoot) {
       revert InvalidValidatorsRegistryRoot();
     }
-    if (!vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
+    if (!_vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
 
     // verify all oracles approved registration
-    oracles.verifyAllSignatures(
+    _oracles.verifyAllSignatures(
       keccak256(
         abi.encode(
           _registerValidatorsTypeHash,
@@ -87,13 +86,13 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
     string calldata exitSignaturesIpfsHash,
     bytes calldata oraclesSignatures
   ) external override {
-    if (!(vaultsRegistry.vaults(vault) && isCollateralized(vault))) revert InvalidVault();
+    if (!(_vaultsRegistry.vaults(vault) && isCollateralized(vault))) revert InvalidVault();
 
     // SLOAD to memory
     uint256 nonce = exitSignaturesNonces[vault];
 
     // verify all oracles approved update
-    oracles.verifyAllSignatures(
+    _oracles.verifyAllSignatures(
       keccak256(
         abi.encode(_updateExitSigTypeHash, vault, keccak256(bytes(exitSignaturesIpfsHash)), nonce)
       ),

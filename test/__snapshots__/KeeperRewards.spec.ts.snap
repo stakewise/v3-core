@@ -3,90 +3,90 @@
 exports[`KeeperRewards harvest (own escrow) succeeds for latest rewards root 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 116324,
+  "gasUsed": 116293,
 }
 `;
 
 exports[`KeeperRewards harvest (own escrow) succeeds for latest rewards root 2`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 59528,
+  "gasUsed": 59519,
 }
 `;
 
 exports[`KeeperRewards harvest (own escrow) succeeds for previous rewards root 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 118494,
+  "gasUsed": 118463,
 }
 `;
 
 exports[`KeeperRewards harvest (own escrow) succeeds for previous rewards root 2`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 79877,
+  "gasUsed": 79861,
 }
 `;
 
 exports[`KeeperRewards harvest (own escrow) succeeds for previous rewards root 3`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 61698,
+  "gasUsed": 61689,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for latest rewards root 1`] = `
 Object {
-  "calldataByteLength": 324,
-  "gasUsed": 150530,
+  "calldataByteLength": 292,
+  "gasUsed": 149720,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for latest rewards root 2`] = `
 Object {
-  "calldataByteLength": 324,
-  "gasUsed": 57129,
+  "calldataByteLength": 292,
+  "gasUsed": 56363,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for previous rewards root 1`] = `
 Object {
-  "calldataByteLength": 324,
-  "gasUsed": 152700,
+  "calldataByteLength": 292,
+  "gasUsed": 151890,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for previous rewards root 2`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 96214,
+  "gasUsed": 96164,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for previous rewards root 3`] = `
 Object {
-  "calldataByteLength": 324,
-  "gasUsed": 59299,
+  "calldataByteLength": 292,
+  "gasUsed": 58533,
 }
 `;
 
 exports[`KeeperRewards set rewards delay succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 32747,
+  "gasUsed": 32615,
 }
 `;
 
 exports[`KeeperRewards set rewards root succeeds 1`] = `
 Object {
   "calldataByteLength": 740,
-  "gasUsed": 112740,
+  "gasUsed": 115208,
 }
 `;
 
 exports[`KeeperRewards set rewards root succeeds 2`] = `
 Object {
   "calldataByteLength": 740,
-  "gasUsed": 115516,
+  "gasUsed": 118020,
 }
 `;

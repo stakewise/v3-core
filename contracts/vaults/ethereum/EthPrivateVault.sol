@@ -57,4 +57,12 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
     if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver])) revert AccessDenied();
     return super.deposit(receiver, referrer);
   }
+
+  /**
+   * @dev Function for depositing using fallback function
+   */
+  receive() external payable override {
+    if (!whitelistedAccounts[msg.sender]) revert AccessDenied();
+    _deposit(msg.sender, msg.value, address(0));
+  }
 }

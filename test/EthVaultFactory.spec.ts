@@ -1,11 +1,10 @@
 import { ethers, waffle } from 'hardhat'
-import { Contract, Wallet } from 'ethers'
+import { Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
 import {
   EthVault,
   EthPrivateVault,
   EthVaultFactory,
-  Keeper,
   VaultsRegistry,
   SharedMevEscrow,
   EthVaultFactoryMock,
@@ -24,23 +23,17 @@ describe('EthVaultFactory', () => {
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
-  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   const initParams = {
     capacity,
-    validatorsRoot,
     feePercent,
     name,
     symbol,
     metadataIpfsHash,
   }
   let admin: Wallet, owner: Wallet
-  let factory: EthVaultFactory,
-    vaultsRegistry: VaultsRegistry,
-    keeper: Keeper,
-    sharedMevEscrow: SharedMevEscrow,
-    validatorsRegistry: Contract
+  let factory: EthVaultFactory, vaultsRegistry: VaultsRegistry, sharedMevEscrow: SharedMevEscrow
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
@@ -55,8 +48,6 @@ describe('EthVaultFactory', () => {
     ;({
       ethVaultFactory: factory,
       vaultsRegistry,
-      keeper,
-      validatorsRegistry,
       createVault,
       createPrivateVault,
       sharedMevEscrow,
@@ -182,11 +173,6 @@ describe('EthVaultFactory', () => {
 
         expect(await vaultsRegistry.vaults(vaultAddress)).to.be.eq(true)
 
-        // VaultImmutables
-        expect(await vault.keeper()).to.be.eq(keeper.address)
-        expect(await vault.vaultsRegistry()).to.be.eq(vaultsRegistry.address)
-        expect(await vault.validatorsRegistry()).to.be.eq(validatorsRegistry.address)
-
         // VaultToken
         expect(await vault.name()).to.be.eq(name)
         expect(await vault.symbol()).to.be.eq(symbol)
@@ -214,12 +200,6 @@ describe('EthVaultFactory', () => {
         await expect(tx)
           .to.emit(vault, 'FeeRecipientUpdated')
           .withArgs(factory.address, admin.address)
-
-        // VaultValidators
-        expect(await vault.validatorsRoot()).to.be.eq(validatorsRoot)
-        await expect(tx)
-          .to.emit(vault, 'ValidatorsRootUpdated')
-          .withArgs(factory.address, validatorsRoot)
 
         // VaultMev
         expect(await vault.mevEscrow()).to.be.eq(mevEscrowAddress)

@@ -39,11 +39,6 @@ abstract contract VaultValidators is
   }
 
   /// @inheritdoc IVaultValidators
-  function withdrawalCredentials() public view override returns (bytes memory) {
-    return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
-  }
-
-  /// @inheritdoc IVaultValidators
   function operator() public view override returns (address) {
     // SLOAD to memory
     address operator_ = _operator;
@@ -57,7 +52,7 @@ abstract contract VaultValidators is
     bytes32[] calldata proof
   ) external override {
     // get approval from oracles
-    IKeeperValidators(keeper).approveValidators(keeperParams);
+    IKeeperValidators(_keeper).approveValidators(keeperParams);
 
     // check enough withdrawable assets
     if (withdrawableAssets() < _validatorDeposit()) revert InsufficientAssets();
@@ -97,7 +92,7 @@ abstract contract VaultValidators is
     bytes32[] calldata proof
   ) external override {
     // get approval from oracles
-    IKeeperValidators(keeper).approveValidators(keeperParams);
+    IKeeperValidators(_keeper).approveValidators(keeperParams);
 
     // check enough withdrawable assets
     uint256 validatorsCount = keeperParams.validators.length / _validatorLength;
@@ -152,11 +147,19 @@ abstract contract VaultValidators is
    * @dev Internal function for updating the validators root externally or from the initializer
    * @param _validatorsRoot The new validators merkle tree root
    */
-  function _setValidatorsRoot(bytes32 _validatorsRoot) internal {
+  function _setValidatorsRoot(bytes32 _validatorsRoot) private {
     validatorsRoot = _validatorsRoot;
     // reset validator index on every root update
     validatorIndex = 0;
     emit ValidatorsRootUpdated(msg.sender, _validatorsRoot);
+  }
+
+  /**
+   * @dev Internal function for calculating Vault withdrawal credentials
+   * @return The credentials used for the validators withdrawals
+   */
+  function _withdrawalCredentials() internal view returns (bytes memory) {
+    return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
   }
 
   /**
@@ -184,11 +187,9 @@ abstract contract VaultValidators is
   /**
    * @dev Initializes the VaultValidators contract
    * @dev NB! This initializer must be called after VaultToken initializer
-   * @param _validatorsRoot The validators merkle tree root
    */
-  function __VaultValidators_init(bytes32 _validatorsRoot) internal onlyInitializing {
+  function __VaultValidators_init() internal view onlyInitializing {
     if (capacity() < _validatorDeposit()) revert InvalidCapacity();
-    _setValidatorsRoot(_validatorsRoot);
   }
 
   /**

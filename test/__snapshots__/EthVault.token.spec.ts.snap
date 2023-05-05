@@ -1,50 +1,92 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`EthVault - token approve decrease allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount decreases the spender allowance subtracting the requested amount 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 34648,
+}
+`;
+
+exports[`EthVault - token approve decrease allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount emits an approval event 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 29848,
+}
+`;
+
+exports[`EthVault - token approve decrease allowance when the spender is not the zero address when the sender has enough balance when the spender had an approved amount decreases the spender allowance subtracting the requested amount 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 34648,
+}
+`;
+
+exports[`EthVault - token approve decrease allowance when the spender is not the zero address when the sender has enough balance when the spender had an approved amount emits an approval event 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 29848,
+}
+`;
+
+exports[`EthVault - token approve increase allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount increases the spender allowance adding the requested amount 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 34208,
+}
+`;
+
+exports[`EthVault - token approve increase allowance when the spender is not the zero address when the sender does not have enough balance when there was no approved amount before approves the requested amount 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 51308,
+}
+`;
+
 exports[`EthVault - token approve when the sender has enough balance when the spender had an approved amount approves the requested amount and replaces the previous one 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 33720,
+  "gasUsed": 33759,
 }
 `;
 
 exports[`EthVault - token approve when the sender has enough balance when there was no approved amount before approves the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 50820,
+  "gasUsed": 50859,
 }
 `;
 
 exports[`EthVault - token permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 82475,
+  "gasUsed": 82365,
 }
 `;
 
 exports[`EthVault - token transfer from when the spender has enough allowance when the token owner has enough balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 52415,
+  "gasUsed": 52393,
 }
 `;
 
 exports[`EthVault - token transfer from when the spender has unlimited allowance does not decrease the spender allowance 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 58890,
+  "gasUsed": 58868,
 }
 `;
 
 exports[`EthVault - token transfer when the sender transfers all balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 51980,
+  "gasUsed": 51936,
 }
 `;
 
 exports[`EthVault - token transfer when the sender transfers zero tokens transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 34056,
+  "gasUsed": 34012,
 }
 `;

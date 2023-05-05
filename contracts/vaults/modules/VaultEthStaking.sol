@@ -14,9 +14,6 @@ import {VaultState} from '../modules/VaultState.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
 import {VaultMev} from '../modules/VaultMev.sol';
 
-// Custom errors
-error InvalidSecurityDeposit();
-
 /**
  * @title VaultEthStaking
  * @author StakeWise
@@ -32,8 +29,7 @@ abstract contract VaultEthStaking is
   VaultMev,
   IVaultEthStaking
 {
-  // @inheritdoc IVaultEthStaking
-  uint256 public constant override securityDeposit = 1e9;
+  uint256 private constant _securityDeposit = 1e9;
 
   /// @inheritdoc IVaultEthStaking
   function deposit(
@@ -56,7 +52,7 @@ abstract contract VaultEthStaking is
   /**
    * @dev Function for depositing using fallback function
    */
-  receive() external payable {
+  receive() external payable virtual {
     _deposit(msg.sender, msg.value, address(0));
   }
 
@@ -68,9 +64,9 @@ abstract contract VaultEthStaking is
   /// @inheritdoc VaultValidators
   function _registerSingleValidator(bytes calldata validator) internal override {
     bytes calldata publicKey = validator[:48];
-    IEthValidatorsRegistry(validatorsRegistry).deposit{value: _validatorDeposit()}(
+    IEthValidatorsRegistry(_validatorsRegistry).deposit{value: _validatorDeposit()}(
       publicKey,
-      withdrawalCredentials(),
+      _withdrawalCredentials(),
       validator[48:144],
       bytes32(validator[144:_validatorLength])
     );
@@ -92,7 +88,7 @@ abstract contract VaultEthStaking is
     bytes calldata publicKey;
     leaves = new bytes32[](indexes.length);
     uint256 validatorDeposit = _validatorDeposit();
-    bytes memory withdrawalCreds = withdrawalCredentials();
+    bytes memory withdrawalCreds = _withdrawalCredentials();
     for (uint256 i = 0; i < indexes.length; ) {
       unchecked {
         // cannot realistically overflow
@@ -104,7 +100,7 @@ abstract contract VaultEthStaking is
       );
       publicKey = validator[:48];
       // slither-disable-next-line arbitrary-send-eth
-      IEthValidatorsRegistry(validatorsRegistry).deposit{value: validatorDeposit}(
+      IEthValidatorsRegistry(_validatorsRegistry).deposit{value: validatorDeposit}(
         publicKey,
         withdrawalCreds,
         validator[48:144],
@@ -142,7 +138,7 @@ abstract contract VaultEthStaking is
     __ReentrancyGuard_init();
 
     // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
-    if (msg.value < securityDeposit) revert InvalidSecurityDeposit();
+    if (msg.value < _securityDeposit) revert InvalidSecurityDeposit();
     _deposit(address(this), msg.value, address(0));
   }
 

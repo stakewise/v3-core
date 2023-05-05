@@ -14,7 +14,6 @@ describe('EthVault - upgrade', () => {
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
-  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   let admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault
@@ -42,7 +41,6 @@ describe('EthVault - upgrade', () => {
     vaultsRegistry = registry
     vault = await createVault(admin, {
       capacity,
-      validatorsRoot,
       feePercent,
       name,
       symbol,

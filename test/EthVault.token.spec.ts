@@ -24,7 +24,6 @@ describe('EthVault - token', () => {
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
-  const validatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const initialSupply = 1000
 
@@ -43,7 +42,6 @@ describe('EthVault - token', () => {
     ;({ createVault } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
-      validatorsRoot,
       feePercent,
       name,
       symbol,
@@ -70,7 +68,6 @@ describe('EthVault - token', () => {
     await expect(
       createVault(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name: 'a'.repeat(31),
         symbol,
@@ -83,7 +80,6 @@ describe('EthVault - token', () => {
     await expect(
       createVault(admin, {
         capacity: 0,
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -96,7 +92,6 @@ describe('EthVault - token', () => {
     await expect(
       createVault(admin, {
         capacity: parseEther('31'),
-        validatorsRoot,
         feePercent,
         name,
         symbol,
@@ -109,7 +104,6 @@ describe('EthVault - token', () => {
     await expect(
       createVault(admin, {
         capacity,
-        validatorsRoot,
         feePercent,
         name,
         symbol: 'a'.repeat(21),
@@ -347,6 +341,157 @@ describe('EthVault - token', () => {
           await vault.connect(initialHolder).approve(spender.address, amount)
 
           expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(amount)
+        })
+      })
+    })
+
+    describe('increase allowance', () => {
+      const amount = initialSupply
+
+      describe('when the spender is not the zero address', () => {
+        describe('when the sender has enough balance', () => {
+          it('emits an approval event', async () => {
+            await expect(vault.connect(initialHolder).increaseAllowance(spender.address, amount))
+              .to.emit(vault, 'Approval')
+              .withArgs(initialHolder.address, spender.address, amount)
+          })
+
+          describe('when there was no approved amount before', () => {
+            it('approves the requested amount', async () => {
+              await vault.connect(initialHolder).increaseAllowance(spender.address, amount)
+              expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(amount)
+            })
+          })
+
+          describe('when the spender had an approved amount', () => {
+            beforeEach(async () => {
+              await vault.connect(initialHolder).approve(spender.address, 1)
+            })
+
+            it('increases the spender allowance adding the requested amount', async () => {
+              await vault.connect(initialHolder).increaseAllowance(spender.address, amount)
+              expect(await vault.allowance(initialHolder.address, spender.address)).to.be.eq(
+                amount + 1
+              )
+            })
+          })
+        })
+
+        describe('when the sender does not have enough balance', () => {
+          const amount = initialSupply + 1
+
+          it('emits an approval event', async () => {
+            await expect(vault.connect(initialHolder).increaseAllowance(spender.address, amount))
+              .to.emit(vault, 'Approval')
+              .withArgs(initialHolder.address, spender.address, amount)
+          })
+
+          describe('when there was no approved amount before', () => {
+            it('approves the requested amount', async () => {
+              const receipt = await vault
+                .connect(initialHolder)
+                .increaseAllowance(spender.address, amount)
+              expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(amount)
+              await snapshotGasCost(receipt)
+            })
+          })
+
+          describe('when the spender had an approved amount', () => {
+            beforeEach(async () => {
+              await vault.connect(initialHolder).approve(spender.address, 1)
+            })
+
+            it('increases the spender allowance adding the requested amount', async () => {
+              const receipt = await vault
+                .connect(initialHolder)
+                .increaseAllowance(spender.address, amount)
+              expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(
+                amount + 1
+              )
+              await snapshotGasCost(receipt)
+            })
+          })
+        })
+      })
+
+      describe('when the spender is the zero address', () => {
+        it('reverts', async () => {
+          await expect(
+            vault.connect(initialHolder).increaseAllowance(ZERO_ADDRESS, amount)
+          ).to.be.revertedWith('ZeroAddress')
+        })
+      })
+    })
+
+    describe('decrease allowance', () => {
+      describe('when the spender is not the zero address', () => {
+        function shouldDecreaseApproval(amount) {
+          describe('when there was no approved amount before', () => {
+            it('reverts', async () => {
+              await expect(
+                vault.connect(initialHolder).decreaseAllowance(spender.address, amount)
+              ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+            })
+          })
+
+          describe('when the spender had an approved amount', () => {
+            const approvedAmount = amount
+
+            beforeEach(async () => {
+              await vault.connect(initialHolder).approve(spender.address, approvedAmount)
+            })
+
+            it('emits an approval event', async () => {
+              const receipt = await vault
+                .connect(initialHolder)
+                .decreaseAllowance(spender.address, approvedAmount)
+              await expect(receipt)
+                .to.emit(vault, 'Approval')
+                .withArgs(initialHolder.address, spender.address, 0)
+              await snapshotGasCost(receipt)
+            })
+
+            it('decreases the spender allowance subtracting the requested amount', async () => {
+              const receipt = await vault
+                .connect(initialHolder)
+                .decreaseAllowance(spender.address, approvedAmount - 1)
+              expect(await vault.allowance(initialHolder.address, spender.address)).to.eq('1')
+              await snapshotGasCost(receipt)
+            })
+
+            it('sets the allowance to zero when all allowance is removed', async () => {
+              await vault.connect(initialHolder).decreaseAllowance(spender.address, approvedAmount)
+              expect(await vault.allowance(initialHolder.address, spender.address)).to.eq('0')
+            })
+
+            it('reverts when more than the full allowance is removed', async () => {
+              await expect(
+                vault.connect(initialHolder).decreaseAllowance(spender.address, approvedAmount + 1)
+              ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+            })
+          })
+        }
+
+        describe('when the sender has enough balance', () => {
+          const amount = initialSupply
+          shouldDecreaseApproval(amount)
+        })
+
+        describe('when the sender does not have enough balance', () => {
+          const amount = initialSupply + 1
+
+          shouldDecreaseApproval(amount)
+        })
+      })
+
+      describe('when the spender is the zero address', () => {
+        const amount = initialSupply
+        const spender = ZERO_ADDRESS
+
+        it('reverts', async () => {
+          await expect(
+            vault.connect(initialHolder).decreaseAllowance(spender, amount)
+          ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
         })
       })
     })

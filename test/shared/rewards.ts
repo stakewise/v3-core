@@ -64,7 +64,7 @@ export function createVaultRewardsRoot(
   }
 }
 
-export async function updateRewardsRoot(
+export async function updateRewards(
   keeper: Keeper,
   oracles: Oracles,
   getSignatures: (typedData: any, count?: number) => Buffer,
@@ -73,7 +73,7 @@ export async function updateRewardsRoot(
   const rewardsNonce = await keeper.rewardsNonce()
   const rewardsRoot = createVaultRewardsRoot(rewards, oracles, 1670257866, rewardsNonce.toNumber())
   await increaseTime(REWARDS_DELAY)
-  await keeper.setRewardsRoot({
+  await keeper.updateRewards({
     rewardsRoot: rewardsRoot.root,
     updateTimestamp: rewardsRoot.updateTimestamp,
     rewardsIpfsHash: rewardsRoot.ipfsHash,
@@ -101,7 +101,7 @@ export async function collateralizeEthVault(
   await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
 
   // update rewards tree
-  const rewardsTree = await updateRewardsRoot(keeper, oracles, getSignatures, [
+  const rewardsTree = await updateRewards(keeper, oracles, getSignatures, [
     { vault: vault.address, reward: 0, unlockedMevReward: 0 },
   ])
   const proof = getRewardsRootProof(rewardsTree, {

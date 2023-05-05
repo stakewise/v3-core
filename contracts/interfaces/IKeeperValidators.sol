@@ -2,8 +2,6 @@
 
 pragma solidity =0.8.19;
 
-import {IValidatorsRegistry} from './IValidatorsRegistry.sol';
-
 /**
  * @title IKeeperValidators
  * @author StakeWise
@@ -41,12 +39,6 @@ interface IKeeperValidators {
     uint256 nonce,
     string exitSignaturesIpfsHash
   );
-
-  /**
-   * @notice Validators Registry Address
-   * @return The address of the beacon chain validators registry contract
-   */
-  function validatorsRegistry() external view returns (IValidatorsRegistry);
 
   /**
    * @notice Get nonce for the next vault exit signatures update
