@@ -8,6 +8,7 @@ import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
 import {IKeeper} from '../interfaces/IKeeper.sol';
+import {IOsToken} from '../interfaces/IOsToken.sol';
 import {Versioned} from '../base/Versioned.sol';
 import {KeeperValidators} from './KeeperValidators.sol';
 import {KeeperRewards} from './KeeperRewards.sol';
@@ -25,6 +26,7 @@ contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IK
    * @param sharedMevEscrow The address of the shared MEV escrow contract
    * @param oracles The address of the Oracles contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
+   * @param osToken The address of the OsToken contract
    * @param validatorsRegistry The address of the beacon chain validators registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -32,8 +34,9 @@ contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IK
     address sharedMevEscrow,
     IOracles oracles,
     IVaultsRegistry vaultsRegistry,
+    IOsToken osToken,
     IValidatorsRegistry validatorsRegistry
-  ) KeeperValidators(sharedMevEscrow, oracles, vaultsRegistry, validatorsRegistry) {
+  ) KeeperValidators(sharedMevEscrow, oracles, vaultsRegistry, osToken, validatorsRegistry) {
     // disable initializers for the implementation contract
     _disableInitializers();
   }

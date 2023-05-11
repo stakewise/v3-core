@@ -6,7 +6,22 @@
   },
   {
     "inputs": [],
+    "name": "CapacityExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "HealthFactorNotViolated",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InsufficientAssets",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidAssets",
     "type": "error"
   },
   {
@@ -26,7 +41,27 @@
   },
   {
     "inputs": [],
-    "name": "InvalidProof",
+    "name": "InvalidRecipient",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRedeemMaxHealthFactor",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRedeemStartHealthFactor",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidShares",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidSharesAmount",
     "type": "error"
   },
   {
@@ -36,12 +71,7 @@
   },
   {
     "inputs": [],
-    "name": "InvalidValidator",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidValidators",
+    "name": "LowLtv",
     "type": "error"
   },
   {
@@ -52,6 +82,16 @@
   {
     "inputs": [],
     "name": "PermitInvalidSigner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ReceivedAssetsExceedDeposit",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RedeemHookFailed",
     "type": "error"
   },
   {
@@ -115,6 +155,117 @@
       {
         "indexed": true,
         "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      }
+    ],
+    "name": "Deposit",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "positionCounter",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      }
+    ],
+    "name": "ExitQueueEntered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "prevPositionCounter",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "newPositionCounter",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "withdrawnAssets",
+        "type": "uint256"
+      }
+    ],
+    "name": "ExitedAssetsClaimed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
         "name": "feeRecipient",
         "type": "address"
       }
@@ -151,13 +302,155 @@
         "type": "address"
       },
       {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      }
+    ],
+    "name": "OsTokenBurned",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
-        "name": "operator",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "coveredShares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "receivedAssets",
+        "type": "uint256"
+      }
+    ],
+    "name": "OsTokenLiquidated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "referrer",
         "type": "address"
       }
     ],
-    "name": "OperatorUpdated",
+    "name": "OsTokenMinted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      }
+    ],
+    "name": "OsTokenRedeemed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      }
+    ],
+    "name": "Redeem",
     "type": "event"
   },
   {
@@ -183,38 +476,6 @@
       }
     ],
     "name": "Transfer",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "bytes",
-        "name": "publicKey",
-        "type": "bytes"
-      }
-    ],
-    "name": "ValidatorRegistered",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "caller",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "bytes32",
-        "name": "validatorsRoot",
-        "type": "bytes32"
-      }
-    ],
-    "name": "ValidatorsRootUpdated",
     "type": "event"
   },
   {
@@ -311,6 +572,25 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint128",
+        "name": "osTokenShares",
+        "type": "uint128"
+      }
+    ],
+    "name": "burnOsToken",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "canUpdateExitQueue",
     "outputs": [
@@ -334,6 +614,45 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "positionCounter",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "checkpointIndex",
+        "type": "uint256"
+      }
+    ],
+    "name": "claimExitedAssets",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "newPositionCounter",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "claimedShares",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "claimedAssets",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -412,6 +731,35 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      }
+    ],
+    "name": "enterExitQueue",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "positionCounter",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "feePercent",
     "outputs": [
@@ -481,6 +829,78 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "osTokenShares",
+        "type": "uint256"
+      }
+    ],
+    "name": "liquidateOsToken",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "receivedAssets",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "lockedAssets",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      }
+    ],
+    "name": "mintOsToken",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "name",
     "outputs": [
@@ -513,13 +933,19 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "operator",
-    "outputs": [
+    "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "user",
         "type": "address"
+      }
+    ],
+    "name": "osTokenPositions",
+    "outputs": [
+      {
+        "internalType": "uint128",
+        "name": "shares",
+        "type": "uint128"
       }
     ],
     "stateMutability": "view",
@@ -584,90 +1010,82 @@
   {
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "bytes32",
-            "name": "validatorsRegistryRoot",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes",
-            "name": "validators",
-            "type": "bytes"
-          },
-          {
-            "internalType": "bytes",
-            "name": "signatures",
-            "type": "bytes"
-          },
-          {
-            "internalType": "string",
-            "name": "exitSignaturesIpfsHash",
-            "type": "string"
-          }
-        ],
-        "internalType": "struct IKeeperValidators.ApprovalParams",
-        "name": "keeperParams",
-        "type": "tuple"
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
       },
       {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
       }
     ],
-    "name": "registerValidator",
-    "outputs": [],
+    "name": "redeem",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
   {
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "bytes32",
-            "name": "validatorsRegistryRoot",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "bytes",
-            "name": "validators",
-            "type": "bytes"
-          },
-          {
-            "internalType": "bytes",
-            "name": "signatures",
-            "type": "bytes"
-          },
-          {
-            "internalType": "string",
-            "name": "exitSignaturesIpfsHash",
-            "type": "string"
-          }
-        ],
-        "internalType": "struct IKeeperValidators.ApprovalParams",
-        "name": "keeperParams",
-        "type": "tuple"
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
       },
       {
-        "internalType": "uint256[]",
-        "name": "indexes",
-        "type": "uint256[]"
-      },
-      {
-        "internalType": "bool[]",
-        "name": "proofFlags",
-        "type": "bool[]"
-      },
-      {
-        "internalType": "bytes32[]",
-        "name": "proof",
-        "type": "bytes32[]"
+        "internalType": "uint256",
+        "name": "osTokenShares",
+        "type": "uint256"
       }
     ],
-    "name": "registerValidators",
-    "outputs": [],
+    "name": "redeemOsToken",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "hook",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes",
+        "name": "params",
+        "type": "bytes"
+      }
+    ],
+    "name": "redeemWithHook",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -693,32 +1111,6 @@
       }
     ],
     "name": "setMetadata",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "_operator",
-        "type": "address"
-      }
-    ],
-    "name": "setOperator",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "bytes32",
-        "name": "validatorsRoot",
-        "type": "bytes32"
-      }
-    ],
-    "name": "setValidatorsRoot",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

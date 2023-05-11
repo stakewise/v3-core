@@ -127,6 +127,12 @@
       },
       {
         "indexed": false,
+        "internalType": "uint128",
+        "name": "avgRewardPerSecond",
+        "type": "uint128"
+      },
+      {
+        "indexed": false,
         "internalType": "uint64",
         "name": "updateTimestamp",
         "type": "uint64"
@@ -211,6 +217,19 @@
     "name": "approveValidators",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "avgRewardPerSecond",
+    "outputs": [
+      {
+        "internalType": "uint128",
+        "name": "",
+        "type": "uint128"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -549,6 +568,11 @@
             "internalType": "bytes32",
             "name": "rewardsRoot",
             "type": "bytes32"
+          },
+          {
+            "internalType": "uint128",
+            "name": "avgRewardPerSecond",
+            "type": "uint128"
           },
           {
             "internalType": "uint64",

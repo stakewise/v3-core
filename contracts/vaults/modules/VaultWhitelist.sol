@@ -3,7 +3,6 @@
 pragma solidity =0.8.19;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IVaultWhitelist} from '../../interfaces/IVaultWhitelist.sol';
 import {VaultAdmin} from './VaultAdmin.sol';
 
@@ -19,19 +18,15 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
   /// @inheritdoc IVaultWhitelist
   mapping(address => bool) public override whitelistedAccounts;
 
-  /// @dev Prevents calling a function from anyone except Vault's whitelister
-  modifier onlyWhitelister() {
-    if (msg.sender != whitelister) revert AccessDenied();
-    _;
-  }
-
   /// @inheritdoc IVaultWhitelist
-  function updateWhitelist(address account, bool approved) external override onlyWhitelister {
+  function updateWhitelist(address account, bool approved) external override {
+    if (msg.sender != whitelister) revert AccessDenied();
     _updateWhitelist(account, approved);
   }
 
   /// @inheritdoc IVaultWhitelist
-  function setWhitelister(address _whitelister) external override onlyAdmin {
+  function setWhitelister(address _whitelister) external override {
+    _checkAdmin();
     _setWhitelister(_whitelister);
   }
 

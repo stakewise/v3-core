@@ -24,6 +24,8 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param osToken The address of the OsToken contract
+   * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -31,8 +33,12 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address osToken,
+    address osTokenConfig,
     address sharedMevEscrow
-  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, sharedMevEscrow) {}
+  )
+    EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, osToken, osTokenConfig, sharedMevEscrow)
+  {}
 
   /// @inheritdoc IEthVault
   function initialize(

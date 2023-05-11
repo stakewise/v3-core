@@ -23,18 +23,6 @@ abstract contract VaultImmutables {
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address internal immutable _validatorsRegistry;
 
-  /// @dev Prevents calling a function if the vault is not harvested
-  modifier onlyHarvested() {
-    checkHarvested();
-    _;
-  }
-
-  /// @dev Prevents calling a function if the vault is not collateralized
-  modifier onlyCollateralized() {
-    checkCollateralized();
-    _;
-  }
-
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -51,18 +39,16 @@ abstract contract VaultImmutables {
   }
 
   /**
-   * @dev Private method is used instead of inlining into modifier because modifiers are copied into each method,
-   *      and this would result in the bytecode of each method being larger.
+   * @dev Internal method for checking whether the vault is harvested
    */
-  function checkHarvested() private view {
+  function _checkHarvested() internal view {
     if (IKeeperRewards(_keeper).isHarvestRequired(address(this))) revert NotHarvested();
   }
 
   /**
-   * @dev Private method is used instead of inlining into modifier because modifiers are copied into each method,
-   *      and this would result in the bytecode of each method being larger.
+   * @dev Internal method for checking whether the vault is collateralized
    */
-  function checkCollateralized() private view {
+  function _checkCollateralized() internal view {
     if (!IKeeperRewards(_keeper).isCollateralized(address(this))) revert NotCollateralized();
   }
 }

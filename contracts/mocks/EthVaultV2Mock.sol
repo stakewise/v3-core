@@ -14,8 +14,12 @@ contract EthVaultV2Mock is EthVault {
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address osToken,
+    address osTokenConfig,
     address sharedMevEscrow
-  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, sharedMevEscrow) {}
+  )
+    EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, osToken, osTokenConfig, sharedMevEscrow)
+  {}
 
   function initialize(bytes calldata data) external payable override reinitializer(2) {
     (newVar) = abi.decode(data, (uint128));

@@ -11,7 +11,7 @@ import { increaseTime, setBalance } from './utils'
 
 export type RewardsTree = StandardMerkleTree<[string, BigNumberish, BigNumberish]>
 
-export type RewardsRoot = {
+export type RewardsUpdate = {
   root: string
   ipfsHash: string
   updateTimestamp: number
@@ -30,7 +30,7 @@ export function createVaultRewardsRoot(
   oracles: Oracles,
   updateTimestamp = 1670255895,
   nonce = 1
-): RewardsRoot {
+): RewardsUpdate {
   const tree = StandardMerkleTree.of(
     rewards.map((r) => [r.vault, r.reward, r.unlockedMevReward]),
     ['address', 'int160', 'uint160']

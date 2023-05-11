@@ -7,6 +7,7 @@ import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IKeeperValidators} from '../interfaces/IKeeperValidators.sol';
+import {IOsToken} from '../interfaces/IOsToken.sol';
 import {KeeperRewards} from './KeeperRewards.sol';
 
 /**
@@ -36,6 +37,7 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
    * @param sharedMevEscrow The address of the shared MEV escrow contract
    * @param oracles The address of the Oracles contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
+   * @param osToken The address of the OsToken contract
    * @param validatorsRegistry The address of the beacon chain validators registry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -43,8 +45,9 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
     address sharedMevEscrow,
     IOracles oracles,
     IVaultsRegistry vaultsRegistry,
+    IOsToken osToken,
     IValidatorsRegistry validatorsRegistry
-  ) KeeperRewards(sharedMevEscrow, oracles, vaultsRegistry) {
+  ) KeeperRewards(sharedMevEscrow, oracles, vaultsRegistry, osToken) {
     _validatorsRegistry = validatorsRegistry;
   }
 

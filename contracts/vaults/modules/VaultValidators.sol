@@ -24,19 +24,9 @@ abstract contract VaultValidators is
 {
   uint256 internal constant _validatorLength = 176;
 
-  /// @inheritdoc IVaultValidators
-  bytes32 public override validatorsRoot;
-
-  /// @inheritdoc IVaultValidators
-  uint256 public override validatorIndex;
-
+  uint256 internal _validatorIndex;
+  bytes32 private _validatorsRoot;
   address private _operator;
-
-  /// @dev Prevents calling a function from anyone except Vault's operator
-  modifier onlyOperator() {
-    if (msg.sender != operator()) revert AccessDenied();
-    _;
-  }
 
   /// @inheritdoc IVaultValidators
   function operator() public view override returns (address) {
@@ -61,13 +51,13 @@ abstract contract VaultValidators is
     if (keeperParams.validators.length != _validatorLength) revert InvalidValidator();
 
     // SLOAD to memory
-    uint256 currentIndex = validatorIndex;
+    uint256 currentIndex = _validatorIndex;
 
     // check matches merkle root and next validator index
     if (
       !MerkleProof.verifyCalldata(
         proof,
-        validatorsRoot,
+        _validatorsRoot,
         keccak256(bytes.concat(keccak256(abi.encode(keeperParams.validators, currentIndex))))
       )
     ) {
@@ -80,7 +70,7 @@ abstract contract VaultValidators is
     // increment index for the next validator
     unchecked {
       // cannot realistically overflow
-      validatorIndex = currentIndex + 1;
+      _validatorIndex = currentIndex + 1;
     }
   }
 
@@ -116,7 +106,7 @@ abstract contract VaultValidators is
       !MerkleProof.multiProofVerifyCalldata(
         proof,
         proofFlags,
-        validatorsRoot,
+        _validatorsRoot,
         _registerMultipleValidators(keeperParams.validators, indexes)
       )
     ) {
@@ -126,12 +116,13 @@ abstract contract VaultValidators is
     // increment index for the next validator
     unchecked {
       // cannot realistically overflow
-      validatorIndex += validatorsCount;
+      _validatorIndex += validatorsCount;
     }
   }
 
   /// @inheritdoc IVaultValidators
-  function setOperator(address operator_) external override onlyAdmin {
+  function setOperator(address operator_) external override {
+    _checkAdmin();
     if (operator_ == address(0)) revert ZeroAddress();
     // update operator address
     _operator = operator_;
@@ -139,19 +130,20 @@ abstract contract VaultValidators is
   }
 
   /// @inheritdoc IVaultValidators
-  function setValidatorsRoot(bytes32 _validatorsRoot) external override onlyOperator {
-    _setValidatorsRoot(_validatorsRoot);
+  function setValidatorsRoot(bytes32 validatorsRoot) external override {
+    if (msg.sender != operator()) revert AccessDenied();
+    _setValidatorsRoot(validatorsRoot);
   }
 
   /**
    * @dev Internal function for updating the validators root externally or from the initializer
-   * @param _validatorsRoot The new validators merkle tree root
+   * @param validatorsRoot The new validators merkle tree root
    */
-  function _setValidatorsRoot(bytes32 _validatorsRoot) private {
-    validatorsRoot = _validatorsRoot;
+  function _setValidatorsRoot(bytes32 validatorsRoot) private {
+    _validatorsRoot = validatorsRoot;
     // reset validator index on every root update
-    validatorIndex = 0;
-    emit ValidatorsRootUpdated(msg.sender, _validatorsRoot);
+    _validatorIndex = 0;
+    emit ValidatorsRootUpdated(msg.sender, validatorsRoot);
   }
 
   /**

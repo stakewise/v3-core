@@ -23,10 +23,14 @@ contract EthVaultMock is EthVault {
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address osToken,
+    address osTokenConfig,
     address sharedMevEscrow
-  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, sharedMevEscrow) {}
+  )
+    EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, osToken, osTokenConfig, sharedMevEscrow)
+  {}
 
-  function mockDeposit(address receiver, uint256 assets) external returns (uint256 shares) {
+  function mockDeposit(uint256 assets) external returns (uint256 shares) {
     // calculate amount of shares to mint
     shares = convertToShares(assets);
 
@@ -36,11 +40,11 @@ contract EthVaultMock is EthVault {
     unchecked {
       // Cannot overflow because the sum of all user
       // balances can't exceed the max uint256 value
-      balanceOf[receiver] += shares;
+      balanceOf[msg.sender] += shares;
     }
 
-    emit Transfer(address(0), receiver, shares);
-    emit Deposit(msg.sender, receiver, assets, shares, address(0));
+    emit Transfer(address(0), msg.sender, shares);
+    emit Deposit(msg.sender, msg.sender, assets, shares, address(0));
   }
 
   function getGasCostOfGetCheckpointIndex(uint256 exitQueueId) external view returns (uint256) {

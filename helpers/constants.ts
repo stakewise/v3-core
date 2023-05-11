@@ -1,4 +1,6 @@
 import { NetworkConfig, Networks } from './types'
+import { BigNumberish } from 'ethers'
+import { parseEther } from 'ethers/lib/utils'
 
 export const NETWORKS: {
   [network in Networks]: NetworkConfig
@@ -24,6 +26,16 @@ export const NETWORKS: {
     requiredOracles: 6,
     rewardsDelay: 12 * 60 * 60,
     oraclesConfigIpfsHash: 'QmZHT64Aauy8quU3nvsUoRp7cSmQQCmPD1fHhPuP3JMTHL',
+    treasury: '0x1867c96601bc5fE24F685d112314B8F3Fe228D5A',
+    osTokenFeePercent: 500,
+    osTokenCapacity: parseEther('1000000'),
+    osTokenName: 'SW Staked ETH',
+    osTokenSymbol: 'osETH',
+    osTokenLiqThreshold: 9200,
+    osTokenLiqBonus: 10100,
+    osTokenLtv: 9000,
+    osTokenRedeemStartHf: parseEther('1.01'),
+    osTokenRedeemMaxHf: parseEther('1.02'),
   },
   [Networks.gnosis]: {
     url: process.env.GNOSIS_RPC_URL || '',
@@ -34,6 +46,16 @@ export const NETWORKS: {
     requiredOracles: 6,
     rewardsDelay: 12 * 60 * 60,
     oraclesConfigIpfsHash: '',
+    treasury: '0x8737f638E9af54e89ed9E1234dbC68B115CD169e',
+    osTokenFeePercent: 1000,
+    osTokenCapacity: parseEther('1000000'),
+    osTokenName: 'SW Staked GNO',
+    osTokenSymbol: 'osGNO',
+    osTokenLiqThreshold: 9200,
+    osTokenLiqBonus: 10100,
+    osTokenLtv: 9000,
+    osTokenRedeemStartHf: parseEther('1.01'),
+    osTokenRedeemMaxHf: parseEther('1.02'),
   },
   [Networks.mainnet]: {
     url: process.env.MAINNET_RPC_URL || '',
@@ -44,5 +66,15 @@ export const NETWORKS: {
     rewardsDelay: 12 * 60 * 60,
     requiredOracles: 6,
     oraclesConfigIpfsHash: '',
+    treasury: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
+    osTokenFeePercent: 500,
+    osTokenCapacity: parseEther('1000000'),
+    osTokenName: 'SW Staked ETH',
+    osTokenSymbol: 'osETH',
+    osTokenLiqThreshold: 9200,
+    osTokenLiqBonus: 10100,
+    osTokenLtv: 9000,
+    osTokenRedeemStartHf: parseEther('1.01'),
+    osTokenRedeemMaxHf: parseEther('1.02'),
   },
 }

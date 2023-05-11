@@ -80,7 +80,7 @@ abstract contract VaultEthStaking is
     uint256[] calldata indexes
   ) internal override returns (bytes32[] memory leaves) {
     // SLOAD to memory
-    uint256 currentValIndex = validatorIndex;
+    uint256 currentValIndex = _validatorIndex;
 
     uint256 startIndex;
     uint256 endIndex;

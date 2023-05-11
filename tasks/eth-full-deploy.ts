@@ -10,10 +10,13 @@ import {
   Oracles__factory,
   VaultsRegistry__factory,
   SharedMevEscrow__factory,
+  OsToken__factory,
+  OsTokenConfig__factory,
 } from '../typechain-types'
 import { deployContract } from '../helpers/utils'
 import { NETWORKS } from '../helpers/constants'
 import { NetworkConfig } from '../helpers/types'
+import { getContractAddress } from 'ethers/lib/utils'
 
 const DEPLOYMENTS_DIR = 'deployments'
 const FEE_DATA = {
@@ -54,6 +57,24 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   )
   console.log('SharedMevEscrow deployed at', sharedMevEscrow.address)
 
+  const keeperCalculatedAddress = getContractAddress({
+    from: deployer.address,
+    nonce: (await deployer.getTransactionCount()) + 2,
+  })
+  const osToken = await deployContract(
+    new OsToken__factory(deployer).deploy(
+      keeperCalculatedAddress,
+      vaultsRegistry.address,
+      networkConfig.governor,
+      networkConfig.treasury,
+      networkConfig.osTokenFeePercent,
+      networkConfig.osTokenCapacity,
+      networkConfig.osTokenName,
+      networkConfig.osTokenSymbol
+    )
+  )
+  console.log('OsToken deployed at', osToken.address)
+
   const keeper = await upgrades.deployProxy(
     new Keeper__factory(deployer),
     [networkConfig.governor, networkConfig.rewardsDelay],
@@ -63,12 +84,28 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
         sharedMevEscrow.address,
         oracles.address,
         vaultsRegistry.address,
+        osToken.address,
         networkConfig.validatorsRegistry,
       ],
     }
   )
   await keeper.deployed()
+  if (keeper.address !== keeperCalculatedAddress) {
+    throw new Error('Keeper address mismatch')
+  }
   console.log('Keeper deployed at', keeper.address)
+
+  const osTokenConfig = await deployContract(
+    new OsTokenConfig__factory(deployer).deploy(
+      networkConfig.governor,
+      networkConfig.osTokenRedeemStartHf,
+      networkConfig.osTokenRedeemMaxHf,
+      networkConfig.osTokenLiqThreshold,
+      networkConfig.osTokenLiqBonus,
+      networkConfig.osTokenLtv
+    )
+  )
+  console.log('OsTokenConfig deployed at', osTokenConfig.address)
 
   const publicVaultImpl = await upgrades.deployImplementation(new EthVault__factory(deployer), {
     unsafeAllow: ['delegatecall'],
@@ -76,6 +113,8 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       keeper.address,
       vaultsRegistry.address,
       networkConfig.validatorsRegistry,
+      osToken.address,
+      osTokenConfig.address,
       sharedMevEscrow.address,
     ],
   })
@@ -87,6 +126,8 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
         keeper.address,
         vaultsRegistry.address,
         networkConfig.validatorsRegistry,
+        osToken.address,
+        osTokenConfig.address,
         sharedMevEscrow.address,
       ],
     }
@@ -107,6 +148,8 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     Keeper: keeper.address,
     EthVaultFactory: ethVaultFactory.address,
     SharedMevEscrow: sharedMevEscrow.address,
+    OsToken: osToken.address,
+    OsTokenConfig: osTokenConfig.address,
   }
   const json = JSON.stringify(addresses, null, 2)
   const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`

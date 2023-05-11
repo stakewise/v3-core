@@ -18,6 +18,7 @@ import {VaultImmutables} from '../modules/VaultImmutables.sol';
 import {VaultToken} from '../modules/VaultToken.sol';
 import {VaultState} from '../modules/VaultState.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
+import {VaultOsToken} from '../modules/VaultOsToken.sol';
 import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
 import {VaultMev} from '../modules/VaultMev.sol';
 
@@ -36,6 +37,7 @@ contract EthVault is
   VaultState,
   VaultValidators,
   VaultEnterExit,
+  VaultOsToken,
   VaultMev,
   VaultEthStaking,
   Multicall,
@@ -48,6 +50,8 @@ contract EthVault is
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param osToken The address of the OsToken contract
+   * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -55,14 +59,59 @@ contract EthVault is
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address osToken,
+    address osTokenConfig,
     address sharedMevEscrow
-  ) VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry) VaultMev(sharedMevEscrow) {
+  )
+    VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
+    VaultOsToken(osToken, osTokenConfig)
+    VaultMev(sharedMevEscrow)
+  {
     _disableInitializers();
   }
 
   /// @inheritdoc IEthVault
   function initialize(bytes calldata params) external payable virtual override initializer {
     __EthVault_init(abi.decode(params, (EthVaultInitParams)));
+  }
+
+  /// @inheritdoc IVaultEnterExit
+  function redeem(
+    uint256 shares,
+    address receiver,
+    address owner
+  ) public override(IVaultEnterExit, VaultEnterExit, VaultOsToken) returns (uint256 assets) {
+    return super.redeem(shares, receiver, owner);
+  }
+
+  /// @inheritdoc IVaultEnterExit
+  function enterExitQueue(
+    uint256 shares,
+    address receiver,
+    address owner
+  )
+    public
+    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+    returns (uint256 positionCounter)
+  {
+    return super.enterExitQueue(shares, receiver, owner);
+  }
+
+  /// @inheritdoc IERC20
+  function transfer(
+    address to,
+    uint256 amount
+  ) public override(IERC20, ERC20Upgradeable, VaultOsToken) returns (bool) {
+    return super.transfer(to, amount);
+  }
+
+  /// @inheritdoc IERC20
+  function transferFrom(
+    address from,
+    address to,
+    uint256 amount
+  ) public override(IERC20, ERC20Upgradeable, VaultOsToken) returns (bool) {
+    return super.transferFrom(from, to, amount);
   }
 
   /**

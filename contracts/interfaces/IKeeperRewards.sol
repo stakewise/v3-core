@@ -18,6 +18,7 @@ interface IKeeperRewards {
    * @notice Event emitted on rewards update
    * @param caller The address of the function caller
    * @param rewardsRoot The new rewards merkle tree root
+   * @param avgRewardPerSecond The new average reward per second
    * @param updateTimestamp The update timestamp used for rewards calculation
    * @param nonce The nonce used for verifying signatures
    * @param rewardsIpfsHash The new rewards IPFS hash
@@ -25,6 +26,7 @@ interface IKeeperRewards {
   event RewardsUpdated(
     address indexed caller,
     bytes32 indexed rewardsRoot,
+    uint128 avgRewardPerSecond,
     uint64 updateTimestamp,
     uint64 nonce,
     string rewardsIpfsHash
@@ -74,12 +76,14 @@ interface IKeeperRewards {
   /**
    * @notice A struct containing parameters for rewards update
    * @param rewardsRoot The new rewards merkle root
+   * @param avgRewardPerSecond The new average reward per second
    * @param updateTimestamp The update timestamp used for rewards calculation
    * @param rewardsIpfsHash The new IPFS hash with all the Vaults' rewards for the new root
    * @param signatures The concatenation of the Oracles' signatures
    */
   struct RewardsUpdateParams {
     bytes32 rewardsRoot;
+    uint128 avgRewardPerSecond;
     uint64 updateTimestamp;
     string rewardsIpfsHash;
     bytes signatures;
@@ -98,6 +102,12 @@ interface IKeeperRewards {
     uint160 unlockedMevReward;
     bytes32[] proof;
   }
+
+  /**
+   * @notice The average reward per second
+   * @return The average reward earned by Vault user per second
+   */
+  function avgRewardPerSecond() external view returns (uint128);
 
   /**
    * @notice Previous Rewards Root

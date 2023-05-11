@@ -9,20 +9,24 @@ import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IVaultMev} from '../interfaces/IVaultMev.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
+import {IOsToken} from '../interfaces/IOsToken.sol';
 
 /**
  * @title KeeperRewards
  * @author StakeWise
- * @notice Defines the functionality for updating Vaults' rewards
+ * @notice Defines the functionality for updating Vaults' and OsToken rewards
  */
 abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeeperRewards {
   bytes32 private constant _rewardsUpdateTypeHash =
     keccak256(
-      'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint64 updateTimestamp,uint64 nonce)'
+      'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint128 avgRewardPerSecond,uint64 updateTimestamp,uint64 nonce)'
     );
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address private immutable _sharedMevEscrow;
+
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  IOsToken private immutable _osToken;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IOracles internal immutable _oracles;
@@ -46,6 +50,9 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
   bytes32 public override rewardsRoot;
 
   /// @inheritdoc IKeeperRewards
+  uint128 public override avgRewardPerSecond;
+
+  /// @inheritdoc IKeeperRewards
   uint64 public override lastRewardsTimestamp;
 
   /// @inheritdoc IKeeperRewards
@@ -58,12 +65,19 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
    * @param sharedMevEscrow The address of the shared MEV escrow contract
    * @param oracles The address of the Oracles contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
+   * @param osToken The address of the OsToken contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address sharedMevEscrow, IOracles oracles, IVaultsRegistry vaultsRegistry) {
+  constructor(
+    address sharedMevEscrow,
+    IOracles oracles,
+    IVaultsRegistry vaultsRegistry,
+    IOsToken osToken
+  ) {
     _sharedMevEscrow = sharedMevEscrow;
     _oracles = oracles;
     _vaultsRegistry = vaultsRegistry;
+    _osToken = osToken;
   }
 
   /// @inheritdoc IKeeperRewards
@@ -86,6 +100,7 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
           _rewardsUpdateTypeHash,
           params.rewardsRoot,
           keccak256(bytes(params.rewardsIpfsHash)),
+          params.avgRewardPerSecond,
           params.updateTimestamp,
           nonce
         )
@@ -93,9 +108,13 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
       params.signatures
     );
 
+    // update osToken state
+    _osToken.updateState();
+
     // update state
     prevRewardsRoot = currRewardsRoot;
     rewardsRoot = params.rewardsRoot;
+    avgRewardPerSecond = params.avgRewardPerSecond;
     // cannot overflow on human timescales
     lastRewardsTimestamp = uint64(block.timestamp);
     rewardsNonce = nonce + 1;
@@ -103,6 +122,7 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
     emit RewardsUpdated(
       msg.sender,
       params.rewardsRoot,
+      params.avgRewardPerSecond,
       params.updateTimestamp,
       nonce,
       params.rewardsIpfsHash

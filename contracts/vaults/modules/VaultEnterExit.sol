@@ -24,7 +24,8 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     uint256 shares,
     address receiver,
     address owner
-  ) external override onlyHarvested returns (uint256 assets) {
+  ) public virtual override returns (uint256 assets) {
+    _checkHarvested();
     if (shares == 0) revert InvalidShares();
     if (receiver == address(0)) revert InvalidRecipient();
 
@@ -52,7 +53,7 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     _transferVaultAssets(receiver, assets);
 
     emit Transfer(owner, address(0), shares);
-    emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    emit Redeem(msg.sender, receiver, owner, assets, shares);
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -60,7 +61,8 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     uint256 shares,
     address receiver,
     address owner
-  ) external override onlyCollateralized returns (uint256 positionCounter) {
+  ) public virtual override returns (uint256 positionCounter) {
+    _checkCollateralized();
     if (shares == 0) revert InvalidSharesAmount();
     if (receiver == address(0)) revert InvalidRecipient();
 
@@ -143,7 +145,8 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     address to,
     uint256 assets,
     address referrer
-  ) internal onlyHarvested returns (uint256 shares) {
+  ) internal returns (uint256 shares) {
+    _checkHarvested();
     if (to == address(0)) revert ZeroAddress();
     if (assets == 0) revert InvalidAssets();
 

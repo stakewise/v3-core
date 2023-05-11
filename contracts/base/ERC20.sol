@@ -2,16 +2,15 @@
 
 pragma solidity =0.8.19;
 
-import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
 
 /**
- * @title ERC20 Upgradeable
+ * @title ERC20
  * @author StakeWise
  * @notice Modern and gas efficient ERC20 + EIP-2612 implementation
  */
-abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
+abstract contract ERC20 is IERC20Permit {
   bytes32 private constant _permitTypeHash =
     keccak256('Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)');
 
@@ -33,21 +32,21 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
   /// @inheritdoc IERC20Permit
   mapping(address => uint256) public override nonces;
 
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   uint256 private immutable _initialChainId;
 
-  bytes32 private _initialDomainSeparator;
+  bytes32 private immutable _initialDomainSeparator;
 
   /**
    * @dev Constructor
-   * @dev Since the immutable variable value is stored in the bytecode,
-   *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
+   * @param _name The name of the ERC20 token
+   * @param _symbol The symbol of the ERC20 token
    */
-  /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor() {
-    // disable initializers for the implementation contract
-    _disableInitializers();
+  constructor(string memory _name, string memory _symbol) {
+    name = _name;
+    symbol = _symbol;
+
     _initialChainId = block.chainid;
+    _initialDomainSeparator = _computeDomainSeparator();
   }
 
   /// @inheritdoc IERC20
@@ -76,17 +75,13 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
   }
 
   /// @inheritdoc IERC20
-  function transfer(address to, uint256 amount) public virtual override returns (bool) {
+  function transfer(address to, uint256 amount) public override returns (bool) {
     _transfer(msg.sender, to, amount);
     return true;
   }
 
   /// @inheritdoc IERC20
-  function transferFrom(
-    address from,
-    address to,
-    uint256 amount
-  ) public virtual override returns (bool) {
+  function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
     _spendAllowance(from, msg.sender, amount);
     _transfer(from, to, amount);
 
@@ -158,7 +153,7 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
    * @dev Moves `amount` of tokens from `from` to `to`.
    * Emits a {Transfer} event.
    */
-  function _transfer(address from, address to, uint256 amount) internal {
+  function _transfer(address from, address to, uint256 amount) private {
     if (from == address(0) || to == address(0)) revert ZeroAddress();
     balanceOf[from] -= amount;
 
@@ -182,28 +177,4 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
 
     if (allowed != type(uint256).max) allowance[owner][spender] = allowed - amount;
   }
-
-  /**
-   * @dev Initializes the ERC20Upgradeable contract
-   * @param _name The name of the ERC20 token
-   * @param _symbol The symbol of the ERC20 token
-   */
-  function __ERC20Upgradeable_init(
-    string memory _name,
-    string memory _symbol
-  ) internal onlyInitializing {
-    // initialize ERC20
-    name = _name;
-    symbol = _symbol;
-
-    // initialize EIP-2612
-    _initialDomainSeparator = _computeDomainSeparator();
-  }
-
-  /**
-   * @dev This empty reserved space is put in place to allow future versions to add new
-   * variables without shifting down storage in the inheritance chain.
-   * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-   */
-  uint256[50] private __gap;
 }

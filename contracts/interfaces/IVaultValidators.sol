@@ -38,22 +38,10 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   event ValidatorsRootUpdated(address indexed caller, bytes32 indexed validatorsRoot);
 
   /**
-   * @notice The Vault validators root
-   * @return The merkle tree root to use for verifying validators deposit data
-   */
-  function validatorsRoot() external view returns (bytes32);
-
-  /**
    * @notice The Vault operator address
    * @return The address that can update validators merkle tree root
    */
   function operator() external view returns (address);
-
-  /**
-   * @notice The Vault validator index
-   * @return The index of the next validator to register with the current validators root
-   */
-  function validatorIndex() external view returns (uint256);
 
   /**
    * @notice Function for registering single validator
@@ -87,7 +75,7 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
 
   /**
    * @notice Function for updating the validators merkle tree root. Can only be called by the operator.
-   * @param _validatorsRoot The new validators merkle tree root
+   * @param validatorsRoot The new validators merkle tree root
    */
-  function setValidatorsRoot(bytes32 _validatorsRoot) external;
+  function setValidatorsRoot(bytes32 validatorsRoot) external;
 }

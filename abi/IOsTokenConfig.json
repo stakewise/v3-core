@@ -1,0 +1,157 @@
+[
+  {
+    "inputs": [],
+    "name": "InvalidLiqBonusPercent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLiqThresholdPercent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLtvPercent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRedeemStartHealthFactor",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "redeemStartHealthFactor",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "redeemMaxHealthFactor",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "liqThresholdPercent",
+        "type": "uint16"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "liqBonusPercent",
+        "type": "uint16"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "ltvPercent",
+        "type": "uint16"
+      }
+    ],
+    "name": "OsTokenConfigUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "liqBonusPercent",
+    "outputs": [
+      {
+        "internalType": "uint16",
+        "name": "",
+        "type": "uint16"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "liqThresholdPercent",
+    "outputs": [
+      {
+        "internalType": "uint16",
+        "name": "",
+        "type": "uint16"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ltvPercent",
+    "outputs": [
+      {
+        "internalType": "uint16",
+        "name": "",
+        "type": "uint16"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "redeemMaxHealthFactor",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "redeemStartHealthFactor",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_redeemStartHealthFactor",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_redeemMaxHealthFactor",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint16",
+        "name": "_liqThresholdPercent",
+        "type": "uint16"
+      },
+      {
+        "internalType": "uint16",
+        "name": "_liqBonusPercent",
+        "type": "uint16"
+      },
+      {
+        "internalType": "uint16",
+        "name": "_ltvPercent",
+        "type": "uint16"
+      }
+    ],
+    "name": "updateConfig",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

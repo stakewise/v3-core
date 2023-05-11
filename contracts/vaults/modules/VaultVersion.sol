@@ -33,7 +33,8 @@ abstract contract VaultVersion is VaultImmutables, Versioned, VaultAdmin, IVault
   }
 
   /// @inheritdoc UUPSUpgradeable
-  function _authorizeUpgrade(address newImplementation) internal view override onlyAdmin {
+  function _authorizeUpgrade(address newImplementation) internal view override {
+    _checkAdmin();
     if (
       newImplementation == address(0) ||
       _getImplementation() == newImplementation ||

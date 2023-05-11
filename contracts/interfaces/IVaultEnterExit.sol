@@ -35,14 +35,14 @@ interface IVaultEnterExit is IVaultToken, IVaultState {
   );
 
   /**
-   * @notice Event emitted on withdraw
-   * @param caller The address that called the withdraw function
-   * @param receiver The address that will receive withdrawn assets
+   * @notice Event emitted on redeem
+   * @param caller The address that called the function
+   * @param receiver The address that received withdrawn assets
    * @param owner The address that owns the shares
    * @param assets The total number of withdrawn assets
    * @param shares The total number of withdrawn shares
    */
-  event Withdraw(
+  event Redeem(
     address indexed caller,
     address indexed receiver,
     address indexed owner,

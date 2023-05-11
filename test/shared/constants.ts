@@ -1,4 +1,5 @@
 import { BigNumber } from 'ethers'
+import { parseEther } from 'ethers/lib/utils'
 
 export const PANIC_CODES = {
   ARITHMETIC_UNDER_OR_OVERFLOW: 'panic code 0x11',
@@ -29,6 +30,17 @@ export const ORACLES = [
 ]
 export const REQUIRED_ORACLES = 6
 export const ORACLES_CONFIG = 'QmbwQ6zFEWs1SjLPGk4NNJqn4wduVe6dK3xyte2iG59Uru'
+export const OSTOKEN_FEE = 500 // 5%
+export const OSTOKEN_CAPACITY = parseEther('10000000')
+export const OSTOKEN_NAME = 'SW Staked ETH'
+export const OSTOKEN_SYMBOL = 'osETH'
+
+export const OSTOKEN_LIQ_THRESHOLD = 9200 // 92%
+export const OSTOKEN_LIQ_BONUS = 10100 // 101%
+export const OSTOKEN_LTV = 9000 // 90%
+
+export const OSTOKEN_REDEEM_START_HF = parseEther('1.01')
+export const OSTOKEN_REDEEM_MAX_HF = parseEther('1.02')
 
 export const EIP712Domain = [
   { name: 'name', type: 'string' },
