@@ -107,7 +107,7 @@ interface IVaultEnterExit is IVaultToken, IVaultState {
    * @notice Claims assets that were withdrawn by the Vault. It can be called only after the `enterExitQueue` call.
    * @param receiver The address that will receive assets. Must be the same as specified during the `enterExitQueue` function call.
    * @param positionTicket The exit queue ticket received after the `enterExitQueue` call
-   * @param exitQueueIndex The exit que index at which the shares were burned. It can be looked up by calling `getExitQueueIndex`.
+   * @param exitQueueIndex The exit queue index at which the shares were burned. It can be looked up by calling `getExitQueueIndex`.
    * @return newPositionTicket The new exit queue ticket in case not all the shares were burned. Otherwise 0.
    * @return claimedShares The number of shares claimed
    * @return claimedAssets The number of assets claimed

@@ -73,7 +73,7 @@ library ExitQueue {
    * @notice Calculates burned shares and exited assets
    * @param self An array containing checkpoints
    * @param checkpointIdx The index of the checkpoint to start calculating from
-   * @param positionTicket The position to start calculating exited assets from
+   * @param positionTicket The position ticket to start calculating exited assets from
    * @param positionShares The number of shares to calculate assets for
    * @return burnedShares The number of shares burned
    * @return exitedAssets The number of assets exited
