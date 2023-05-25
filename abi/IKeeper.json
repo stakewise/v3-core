@@ -6,6 +6,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidAvgRewardPerSecond",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidProof",
     "type": "error"
   },
@@ -127,9 +132,9 @@
       },
       {
         "indexed": false,
-        "internalType": "uint128",
+        "internalType": "uint256",
         "name": "avgRewardPerSecond",
-        "type": "uint128"
+        "type": "uint256"
       },
       {
         "indexed": false,
@@ -217,19 +222,6 @@
     "name": "approveValidators",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "avgRewardPerSecond",
-    "outputs": [
-      {
-        "internalType": "uint128",
-        "name": "",
-        "type": "uint128"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -570,9 +562,9 @@
             "type": "bytes32"
           },
           {
-            "internalType": "uint128",
+            "internalType": "uint256",
             "name": "avgRewardPerSecond",
-            "type": "uint128"
+            "type": "uint256"
           },
           {
             "internalType": "uint64",
@@ -610,7 +602,7 @@
         "type": "uint8"
       }
     ],
-    "stateMutability": "view",
+    "stateMutability": "pure",
     "type": "function"
   }
 ]

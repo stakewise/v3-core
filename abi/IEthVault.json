@@ -125,6 +125,11 @@
     "type": "error"
   },
   {
+    "inputs": [],
+    "name": "ZeroPositionShares",
+    "type": "error"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -979,25 +984,6 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      }
-    ],
-    "name": "lockedAssets",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "assets",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [],
     "name": "mevEscrow",
     "outputs": [
@@ -1623,7 +1609,7 @@
         "type": "uint8"
       }
     ],
-    "stateMutability": "view",
+    "stateMutability": "pure",
     "type": "function"
   },
   {

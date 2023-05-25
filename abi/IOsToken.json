@@ -78,6 +78,19 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "avgRewardPerSecond",
+        "type": "uint256"
+      }
+    ],
+    "name": "AvgRewardPerSecondUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
         "name": "vault",
@@ -275,6 +288,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "avgRewardPerSecond",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -420,6 +446,13 @@
   },
   {
     "inputs": [],
+    "name": "enterEmergency",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "feePercent",
     "outputs": [
       {
@@ -550,6 +583,19 @@
       }
     ],
     "name": "permit",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "_avgRewardPerSecond",
+        "type": "uint256"
+      }
+    ],
+    "name": "setAvgRewardPerSecond",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
