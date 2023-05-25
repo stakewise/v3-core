@@ -209,7 +209,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "positionCounter",
+        "name": "positionTicket",
         "type": "uint256"
       },
       {
@@ -240,13 +240,13 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "prevPositionCounter",
+        "name": "prevPositionTicket",
         "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "newPositionCounter",
+        "name": "newPositionTicket",
         "type": "uint256"
       },
       {
@@ -630,12 +630,12 @@
       },
       {
         "internalType": "uint256",
-        "name": "positionCounter",
+        "name": "positionTicket",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "checkpointIndex",
+        "name": "exitQueueIndex",
         "type": "uint256"
       }
     ],
@@ -643,7 +643,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "newPositionCounter",
+        "name": "newPositionTicket",
         "type": "uint256"
       },
       {
@@ -757,7 +757,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "positionCounter",
+        "name": "positionTicket",
         "type": "uint256"
       }
     ],
@@ -794,11 +794,11 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "positionCounter",
+        "name": "positionTicket",
         "type": "uint256"
       }
     ],
-    "name": "getCheckpointIndex",
+    "name": "getExitQueueIndex",
     "outputs": [
       {
         "internalType": "int256",

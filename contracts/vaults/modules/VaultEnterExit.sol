@@ -20,6 +20,12 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IVaultEnterExit
+  function getExitQueueIndex(uint256 positionTicket) external view override returns (int256) {
+    uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionTicket);
+    return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
+  }
+
+  /// @inheritdoc IVaultEnterExit
   function redeem(
     uint256 shares,
     address receiver,
@@ -61,7 +67,7 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     uint256 shares,
     address receiver,
     address owner
-  ) public virtual override returns (uint256 positionCounter) {
+  ) public virtual override returns (uint256 positionTicket) {
     _checkCollateralized();
     if (shares == 0) revert InvalidSharesAmount();
     if (receiver == address(0)) revert InvalidRecipient();
@@ -69,11 +75,11 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
 
-    // calculate position counter
-    positionCounter = _exitQueue.getSharesCounter() + _queuedShares;
+    // calculate position ticket
+    positionTicket = _exitQueue.getLatestTotalTickets() + _queuedShares;
 
     // add to the exit requests
-    _exitRequests[keccak256(abi.encode(receiver, positionCounter))] = shares;
+    _exitRequests[keccak256(abi.encode(receiver, positionTicket))] = shares;
 
     // lock tokens in the Vault
     if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
@@ -86,30 +92,30 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     }
 
     emit Transfer(owner, address(this), shares);
-    emit ExitQueueEntered(msg.sender, receiver, owner, positionCounter, shares);
+    emit ExitQueueEntered(msg.sender, receiver, owner, positionTicket, shares);
   }
 
   /// @inheritdoc IVaultEnterExit
   function claimExitedAssets(
     address receiver,
-    uint256 positionCounter,
-    uint256 checkpointIndex
+    uint256 positionTicket,
+    uint256 exitQueueIndex
   )
     external
     override
-    returns (uint256 newPositionCounter, uint256 claimedShares, uint256 claimedAssets)
+    returns (uint256 newPositionTicket, uint256 claimedShares, uint256 claimedAssets)
   {
-    bytes32 queueId = keccak256(abi.encode(receiver, positionCounter));
+    bytes32 queueId = keccak256(abi.encode(receiver, positionTicket));
     uint256 requestedShares = _exitRequests[queueId];
 
     // calculate exited shares and assets
     (claimedShares, claimedAssets) = _exitQueue.calculateExitedAssets(
-      checkpointIndex,
-      positionCounter,
+      exitQueueIndex,
+      positionTicket,
       requestedShares
     );
     // nothing to claim
-    if (claimedShares == 0) return (positionCounter, claimedShares, claimedAssets);
+    if (claimedShares == 0) return (positionTicket, claimedShares, claimedAssets);
 
     // clean up current exit request
     delete _exitRequests[queueId];
@@ -118,8 +124,8 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     // skip creating new position for the shares rounding error
     if (leftShares > 1) {
       // update user's queue position
-      newPositionCounter = positionCounter + claimedShares;
-      _exitRequests[keccak256(abi.encode(receiver, newPositionCounter))] = leftShares;
+      newPositionTicket = positionTicket + claimedShares;
+      _exitRequests[keccak256(abi.encode(receiver, newPositionTicket))] = leftShares;
     }
 
     // transfer assets to the receiver
@@ -128,8 +134,8 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     emit ExitedAssetsClaimed(
       msg.sender,
       receiver,
-      positionCounter,
-      newPositionCounter,
+      positionTicket,
+      newPositionTicket,
       claimedAssets
     );
   }

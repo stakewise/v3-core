@@ -4,6 +4,7 @@ pragma solidity =0.8.19;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
+import {IVersioned} from '../../interfaces/IVersioned.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
 import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
@@ -131,5 +132,10 @@ contract EthVault is
   /// @inheritdoc VaultVersion
   function vaultId() public pure virtual override(IVaultVersion, VaultVersion) returns (bytes32) {
     return keccak256('EthVault');
+  }
+
+  /// @inheritdoc IVersioned
+  function version() public pure virtual override(IVersioned, VaultVersion) returns (uint8) {
+    return 1;
   }
 }

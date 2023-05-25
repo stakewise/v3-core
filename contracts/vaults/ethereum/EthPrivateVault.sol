@@ -6,6 +6,7 @@ import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IEthPrivateVault} from '../../interfaces/IEthPrivateVault.sol';
 import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
+import {IVersioned} from '../../interfaces/IVersioned.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
 import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
 import {VaultWhitelist} from '../modules/VaultWhitelist.sol';
@@ -53,6 +54,11 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
   /// @inheritdoc IVaultVersion
   function vaultId() public pure virtual override(EthVault, IVaultVersion) returns (bytes32) {
     return keccak256('EthPrivateVault');
+  }
+
+  /// @inheritdoc IVersioned
+  function version() public pure virtual override(EthVault, IVersioned) returns (uint8) {
+    return 1;
   }
 
   /// @inheritdoc IVaultEthStaking

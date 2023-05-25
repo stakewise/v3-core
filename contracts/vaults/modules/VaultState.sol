@@ -43,12 +43,6 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
   }
 
   /// @inheritdoc IVaultState
-  function getCheckpointIndex(uint256 positionCounter) external view override returns (int256) {
-    uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionCounter);
-    return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
-  }
-
-  /// @inheritdoc IVaultState
   function canUpdateExitQueue() public view override returns (bool) {
     return block.timestamp >= _exitQueueNextUpdate;
   }

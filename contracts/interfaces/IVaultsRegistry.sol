@@ -12,6 +12,7 @@ interface IVaultsRegistry {
   error AccessDenied();
   error AlreadyAdded();
   error AlreadyRemoved();
+  error UnsupportedImplementation();
 
   /**
    * @notice Event emitted on a Vault addition

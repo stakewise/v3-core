@@ -26,14 +26,14 @@ abstract contract VaultValidators is
 
   uint256 internal _validatorIndex;
   bytes32 private _validatorsRoot;
-  address private _operator;
+  address private _keysManager;
 
   /// @inheritdoc IVaultValidators
-  function operator() public view override returns (address) {
+  function keysManager() public view override returns (address) {
     // SLOAD to memory
-    address operator_ = _operator;
-    // if operator is not set, use admin address
-    return operator_ == address(0) ? admin : operator_;
+    address keysManager_ = _keysManager;
+    // if keysManager is not set, use admin address
+    return keysManager_ == address(0) ? admin : keysManager_;
   }
 
   /// @inheritdoc IVaultValidators
@@ -121,17 +121,17 @@ abstract contract VaultValidators is
   }
 
   /// @inheritdoc IVaultValidators
-  function setOperator(address operator_) external override {
+  function setKeysManager(address keysManager_) external override {
     _checkAdmin();
-    if (operator_ == address(0)) revert ZeroAddress();
-    // update operator address
-    _operator = operator_;
-    emit OperatorUpdated(msg.sender, operator_);
+    if (keysManager_ == address(0)) revert ZeroAddress();
+    // update keysManager address
+    _keysManager = keysManager_;
+    emit KeysManagerUpdated(msg.sender, keysManager_);
   }
 
   /// @inheritdoc IVaultValidators
   function setValidatorsRoot(bytes32 validatorsRoot) external override {
-    if (msg.sender != operator()) revert AccessDenied();
+    if (msg.sender != keysManager()) revert AccessDenied();
     _setValidatorsRoot(validatorsRoot);
   }
 

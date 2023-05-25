@@ -24,11 +24,11 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   event ValidatorRegistered(bytes publicKey);
 
   /**
-   * @notice Event emitted on operator address update
+   * @notice Event emitted on keys manager address update
    * @param caller The address of the function caller
-   * @param operator The address of the new operator
+   * @param keysManager The address of the new keys manager
    */
-  event OperatorUpdated(address indexed caller, address indexed operator);
+  event KeysManagerUpdated(address indexed caller, address indexed keysManager);
 
   /**
    * @notice Event emitted on validators merkle tree root update
@@ -38,10 +38,10 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   event ValidatorsRootUpdated(address indexed caller, bytes32 indexed validatorsRoot);
 
   /**
-   * @notice The Vault operator address
+   * @notice The Vault keys manager address
    * @return The address that can update validators merkle tree root
    */
-  function operator() external view returns (address);
+  function keysManager() external view returns (address);
 
   /**
    * @notice Function for registering single validator
@@ -68,13 +68,13 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   ) external;
 
   /**
-   * @notice Function for updating the operator. Can only be called by the admin.
-   * @param _operator The new operator address
+   * @notice Function for updating the keys manager. Can only be called by the admin.
+   * @param _keysManager The new keys manager address
    */
-  function setOperator(address _operator) external;
+  function setKeysManager(address _keysManager) external;
 
   /**
-   * @notice Function for updating the validators merkle tree root. Can only be called by the operator.
+   * @notice Function for updating the validators merkle tree root. Can only be called by the keys manager.
    * @param validatorsRoot The new validators merkle tree root
    */
   function setValidatorsRoot(bytes32 validatorsRoot) external;

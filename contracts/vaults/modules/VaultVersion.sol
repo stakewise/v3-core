@@ -4,6 +4,7 @@ pragma solidity =0.8.19;
 
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {IVaultsRegistry} from '../../interfaces/IVaultsRegistry.sol';
+import {IVersioned} from '../../interfaces/IVersioned.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
 import {Versioned} from '../../base/Versioned.sol';
 import {VaultAdmin} from './VaultAdmin.sol';
@@ -18,7 +19,7 @@ abstract contract VaultVersion is VaultImmutables, Versioned, VaultAdmin, IVault
   bytes4 private constant _initSelector = bytes4(keccak256('initialize(bytes)'));
 
   /// @inheritdoc UUPSUpgradeable
-  function upgradeTo(address) external view override onlyProxy {
+  function upgradeTo(address) public view override onlyProxy {
     // disable upgrades without the call
     revert UpgradeFailed();
   }
@@ -27,7 +28,7 @@ abstract contract VaultVersion is VaultImmutables, Versioned, VaultAdmin, IVault
   function upgradeToAndCall(
     address newImplementation,
     bytes memory data
-  ) external payable override onlyProxy {
+  ) public payable override onlyProxy {
     _authorizeUpgrade(newImplementation);
     _upgradeToAndCallUUPS(newImplementation, abi.encodeWithSelector(_initSelector, data), true);
   }
@@ -37,9 +38,10 @@ abstract contract VaultVersion is VaultImmutables, Versioned, VaultAdmin, IVault
     _checkAdmin();
     if (
       newImplementation == address(0) ||
-      _getImplementation() == newImplementation ||
-      IVaultVersion(newImplementation).vaultId() != vaultId() ||
-      !IVaultsRegistry(_vaultsRegistry).vaultImpls(newImplementation)
+      _getImplementation() == newImplementation || // cannot reinit the same implementation
+      IVaultVersion(newImplementation).vaultId() != vaultId() || // vault must be of the same type
+      IVaultVersion(newImplementation).version() != version() + 1 || // vault cannot skip versions between
+      !IVaultsRegistry(_vaultsRegistry).vaultImpls(newImplementation) // new implementation must be registered
     ) {
       revert UpgradeFailed();
     }
@@ -47,6 +49,9 @@ abstract contract VaultVersion is VaultImmutables, Versioned, VaultAdmin, IVault
 
   /// @inheritdoc IVaultVersion
   function vaultId() public pure virtual override returns (bytes32);
+
+  /// @inheritdoc IVersioned
+  function version() public pure virtual override returns (uint8);
 
   /**
    * @dev This empty reserved space is put in place to allow future versions to add new
