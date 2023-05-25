@@ -24,6 +24,7 @@ describe('EthVault - upgrade', () => {
   let callData: string
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
+  let fixture
 
   before('create fixture loader', async () => {
     ;[dao, admin, other] = await (ethers as any).getSigners()
@@ -31,34 +32,31 @@ describe('EthVault - upgrade', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    const {
-      createVault,
-      vaultsRegistry: registry,
-      validatorsRegistry,
-      sharedMevEscrow,
-      keeper,
-    } = await loadFixture(ethVaultFixture)
-    vaultsRegistry = registry
-    vault = await createVault(admin, {
+    fixture = await loadFixture(ethVaultFixture)
+    vaultsRegistry = fixture.vaultsRegistry
+    vault = await fixture.createVault(admin, {
       capacity,
       feePercent,
       name,
       symbol,
       metadataIpfsHash,
     })
+
     const ethVaultMock = await ethers.getContractFactory('EthVaultV2Mock')
     newImpl = (await upgrades.deployImplementation(ethVaultMock, {
       unsafeAllow: ['delegatecall'],
       constructorArgs: [
-        keeper.address,
-        registry.address,
-        validatorsRegistry.address,
-        sharedMevEscrow.address,
+        fixture.keeper.address,
+        vaultsRegistry.address,
+        fixture.validatorsRegistry.address,
+        fixture.osToken.address,
+        fixture.osTokenConfig.address,
+        fixture.sharedMevEscrow.address,
       ],
     })) as string
     currImpl = await vault.implementation()
     callData = defaultAbiCoder.encode(['uint128'], [100])
-    await registry.connect(dao).addVaultImpl(newImpl)
+    await vaultsRegistry.connect(dao).addVaultImpl(newImpl)
     updatedVault = (await ethVaultMock.attach(vault.address)) as EthVaultV2Mock
   })
 
@@ -96,13 +94,45 @@ describe('EthVault - upgrade', () => {
     expect(await vault.version()).to.be.eq(1)
   })
 
-  it('fails for invalid implementation', async () => {
-    const factory = await ethers.getContractFactory('EthVaultV2InvalidMock')
-    const invalidImpl = await factory.deploy()
-    await vaultsRegistry.connect(dao).addVaultImpl(invalidImpl.address)
-    await expect(
-      vault.connect(admin).upgradeToAndCall(invalidImpl.address, callData)
-    ).to.revertedWith('UpgradeFailed')
+  it('fails for implementation with different vault id', async () => {
+    const ethVaultMock = await ethers.getContractFactory('EthPrivateVaultV2Mock')
+    const newImpl = (await upgrades.deployImplementation(ethVaultMock, {
+      unsafeAllow: ['delegatecall'],
+      constructorArgs: [
+        fixture.keeper.address,
+        vaultsRegistry.address,
+        fixture.validatorsRegistry.address,
+        fixture.osToken.address,
+        fixture.osTokenConfig.address,
+        fixture.sharedMevEscrow.address,
+      ],
+    })) as string
+    callData = defaultAbiCoder.encode(['uint128'], [100])
+    await vaultsRegistry.connect(dao).addVaultImpl(newImpl)
+    await expect(vault.connect(admin).upgradeToAndCall(newImpl, callData)).to.revertedWith(
+      'UpgradeFailed'
+    )
+    expect(await vault.version()).to.be.eq(1)
+  })
+
+  it('fails for implementation with too high version', async () => {
+    const ethVaultMock = await ethers.getContractFactory('EthVaultV3Mock')
+    const newImpl = (await upgrades.deployImplementation(ethVaultMock, {
+      unsafeAllow: ['delegatecall'],
+      constructorArgs: [
+        fixture.keeper.address,
+        vaultsRegistry.address,
+        fixture.validatorsRegistry.address,
+        fixture.osToken.address,
+        fixture.osTokenConfig.address,
+        fixture.sharedMevEscrow.address,
+      ],
+    })) as string
+    callData = defaultAbiCoder.encode(['uint128'], [100])
+    await vaultsRegistry.connect(dao).addVaultImpl(newImpl)
+    await expect(vault.connect(admin).upgradeToAndCall(newImpl, callData)).to.revertedWith(
+      'UpgradeFailed'
+    )
     expect(await vault.version()).to.be.eq(1)
   })
 

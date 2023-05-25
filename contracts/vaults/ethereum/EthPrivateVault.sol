@@ -44,7 +44,7 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
   /// @inheritdoc IEthVault
   function initialize(
     bytes calldata params
-  ) external payable override(IEthVault, EthVault) initializer {
+  ) external payable virtual override(IEthVault, EthVault) initializer {
     EthVaultInitParams memory initParams = abi.decode(params, (EthVaultInitParams));
     __EthVault_init(initParams);
     // whitelister is initially set to admin address

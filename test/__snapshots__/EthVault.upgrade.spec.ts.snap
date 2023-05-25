@@ -3,6 +3,6 @@
 exports[`EthVault - upgrade works with valid call data 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 77606,
+  "gasUsed": 79355,
 }
 `;

@@ -30,9 +30,9 @@ contract EthVaultMock is EthVault {
     EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, osToken, osTokenConfig, sharedMevEscrow)
   {}
 
-  function getGasCostOfGetCheckpointIndex(uint256 exitQueueId) external view returns (uint256) {
+  function getGasCostOfGetExitQueueIndex(uint256 positionTicket) external view returns (uint256) {
     uint256 gasBefore = gasleft();
-    _exitQueue.getCheckpointIndex(exitQueueId);
+    _exitQueue.getCheckpointIndex(positionTicket);
     return gasBefore - gasleft();
   }
 

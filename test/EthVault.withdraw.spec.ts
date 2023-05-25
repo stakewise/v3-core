@@ -175,7 +175,7 @@ describe('EthVault - withdraw', () => {
         .connect(holder)
         .redeem(holderShares, receiver.address, holder.address)
       await expect(receipt)
-        .to.emit(vault, 'Withdraw')
+        .to.emit(vault, 'Redeem')
         .withArgs(holder.address, receiver.address, holder.address, holderAssets, holderShares)
       await expect(receipt)
         .to.emit(vault, 'Transfer')
@@ -322,7 +322,7 @@ describe('EthVault - withdraw', () => {
         .withArgs(halfHolderShares, halfHolderAssets)
       expect(await waffle.provider.getBalance(vault.address)).to.be.eq(halfHolderAssets)
       expect(await vault.queuedShares()).to.be.eq(halfHolderShares)
-      expect(await vault.getCheckpointIndex(validatorDeposit)).to.be.eq(1)
+      expect(await vault.getExitQueueIndex(validatorDeposit)).to.be.eq(1)
 
       await snapshotGasCost(receipt)
     })
@@ -333,7 +333,7 @@ describe('EthVault - withdraw', () => {
       expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
         holderAssets.add(SECURITY_DEPOSIT)
       )
-      expect(await vault.getCheckpointIndex(0)).to.be.eq(0)
+      expect(await vault.getExitQueueIndex(0)).to.be.eq(0)
       expect(await vault.totalSupply()).to.be.eq(SECURITY_DEPOSIT)
       expect(await vault.totalAssets()).to.be.eq(SECURITY_DEPOSIT)
       expect(await vault.queuedShares()).to.be.eq(0)
@@ -355,7 +355,7 @@ describe('EthVault - withdraw', () => {
     await vault.connect(holder).deposit(holder.address, referrer, { value: validatorDeposit })
     await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
 
-    const positionCounter = await vault
+    const positionTicket = await vault
       .connect(holder)
       .callStatic.enterExitQueue(holderShares, receiver.address, holder.address)
     await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
@@ -383,15 +383,15 @@ describe('EthVault - withdraw', () => {
         })
       ).to.emit(vault, 'CheckpointCreated')
     }
-    await snapshotGasCost(await vault.getGasCostOfGetCheckpointIndex(positionCounter))
+    await snapshotGasCost(await vault.getGasCostOfGetExitQueueIndex(positionTicket))
   })
 
   describe('claim exited assets', () => {
     let receiverBalanceBefore: BigNumber
-    let positionCounter
+    let positionTicket
 
     beforeEach(async () => {
-      positionCounter = await vault
+      positionTicket = await vault
         .connect(holder)
         .callStatic.enterExitQueue(holderShares, receiver.address, holder.address)
       await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
@@ -400,26 +400,26 @@ describe('EthVault - withdraw', () => {
 
     it('returns zero with no queued shares', async () => {
       await vault.updateState(harvestParams)
-      const checkpointIndex = await vault.getCheckpointIndex(positionCounter)
+      const checkpointIndex = await vault.getExitQueueIndex(positionTicket)
       const result = await vault.callStatic.claimExitedAssets(
         other.address,
-        positionCounter,
+        positionTicket,
         checkpointIndex
       )
-      expect(result.newPositionCounter).to.be.eq(positionCounter)
+      expect(result.newPositionTicket).to.be.eq(positionTicket)
       expect(result.claimedAssets).to.be.eq(0)
       await expect(
-        vault.connect(other).claimExitedAssets(other.address, positionCounter, checkpointIndex)
+        vault.connect(other).claimExitedAssets(other.address, positionTicket, checkpointIndex)
       ).to.not.emit(vault, 'ExitedAssetsClaimed')
     })
 
     it('returns -1 for unknown checkpoint index', async () => {
-      expect(await vault.getCheckpointIndex(validatorDeposit)).to.be.eq(-1)
+      expect(await vault.getExitQueueIndex(validatorDeposit)).to.be.eq(-1)
     })
 
     it('returns 0 with checkpoint index larger than checkpoints array', async () => {
-      const result = await vault.callStatic.claimExitedAssets(receiver.address, positionCounter, 1)
-      expect(result.newPositionCounter).to.be.eq(validatorDeposit)
+      const result = await vault.callStatic.claimExitedAssets(receiver.address, positionTicket, 1)
+      expect(result.newPositionTicket).to.be.eq(validatorDeposit)
       expect(result.claimedAssets).to.be.eq(0)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(receiverBalanceBefore)
       expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
@@ -429,45 +429,45 @@ describe('EthVault - withdraw', () => {
 
     it('fails with invalid checkpoint index', async () => {
       await vault.updateState(harvestParams)
-      const checkpointIndex = await vault.getCheckpointIndex(positionCounter)
+      const checkpointIndex = await vault.getExitQueueIndex(positionTicket)
 
       await vault.connect(holder).deposit(holder.address, referrer, { value: holderAssets.mul(2) })
-      const positionCounter2 = await vault
+      const positionTicket2 = await vault
         .connect(holder)
         .callStatic.enterExitQueue(holderShares, receiver.address, holder.address)
       await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
-      // checkpointIndex is lower than positionCounter
+      // checkpointIndex is lower than positionTicket
       await expect(
-        vault.connect(holder).claimExitedAssets(receiver.address, positionCounter2, checkpointIndex)
+        vault.connect(holder).claimExitedAssets(receiver.address, positionTicket2, checkpointIndex)
       ).to.be.revertedWith('InvalidCheckpointIndex')
       await increaseTime(ONE_DAY)
       await vault.updateState(harvestParams)
 
-      const positionCounter3 = await vault
+      const positionTicket3 = await vault
         .connect(holder)
         .callStatic.enterExitQueue(holderShares, receiver.address, holder.address)
       await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
       await increaseTime(ONE_DAY)
       await vault.updateState(harvestParams)
-      const checkpointIndexThree = await vault.getCheckpointIndex(positionCounter3)
-      // checkpointIndex is higher than positionCounter
+      const checkpointIndexThree = await vault.getExitQueueIndex(positionTicket3)
+      // checkpointIndex is higher than positionTicket
       await expect(
         vault
           .connect(holder)
-          .claimExitedAssets(receiver.address, positionCounter, checkpointIndexThree)
+          .claimExitedAssets(receiver.address, positionTicket, checkpointIndexThree)
       ).to.be.revertedWith('InvalidCheckpointIndex')
     })
 
     it('for single user in single checkpoint', async () => {
       await vault.updateState(harvestParams)
-      const checkpointIndex = await vault.getCheckpointIndex(positionCounter)
+      const checkpointIndex = await vault.getExitQueueIndex(positionTicket)
 
       const receipt = await vault
         .connect(holder)
-        .claimExitedAssets(receiver.address, positionCounter, checkpointIndex)
+        .claimExitedAssets(receiver.address, positionTicket, checkpointIndex)
       await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holder.address, receiver.address, positionCounter, 0, holderAssets)
+        .withArgs(holder.address, receiver.address, positionTicket, 0, holderAssets)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
         receiverBalanceBefore.add(holderAssets)
       )
@@ -485,7 +485,7 @@ describe('EthVault - withdraw', () => {
       await expect(vault.updateState(harvestParams))
         .to.emit(vault, 'CheckpointCreated')
         .withArgs(halfHolderShares, halfHolderAssets)
-      const checkpointIndex = await vault.getCheckpointIndex(positionCounter)
+      const checkpointIndex = await vault.getExitQueueIndex(positionTicket)
 
       await increaseTime(ONE_DAY)
       await setBalance(vault.address, holderAssets)
@@ -495,11 +495,11 @@ describe('EthVault - withdraw', () => {
 
       const receipt = await vault
         .connect(holder)
-        .claimExitedAssets(receiver.address, positionCounter, checkpointIndex)
+        .claimExitedAssets(receiver.address, positionTicket, checkpointIndex)
 
       await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holder.address, receiver.address, positionCounter, 0, holderAssets)
+        .withArgs(holder.address, receiver.address, positionTicket, 0, holderAssets)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
         receiverBalanceBefore.add(holderAssets)
       )
@@ -517,19 +517,19 @@ describe('EthVault - withdraw', () => {
       await expect(vault.updateState(harvestParams))
         .to.emit(vault, 'CheckpointCreated')
         .withArgs(halfHolderShares, halfHolderAssets)
-      const checkpointIndex = await vault.getCheckpointIndex(positionCounter)
+      const checkpointIndex = await vault.getExitQueueIndex(positionTicket)
       let receipt = await vault
         .connect(holder)
-        .claimExitedAssets(receiver.address, positionCounter, checkpointIndex)
+        .claimExitedAssets(receiver.address, positionTicket, checkpointIndex)
 
-      const newPositionCounter = validatorDeposit.add(halfHolderShares)
+      const newPositionTicket = validatorDeposit.add(halfHolderShares)
       await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
         .withArgs(
           holder.address,
           receiver.address,
-          positionCounter,
-          newPositionCounter,
+          positionTicket,
+          newPositionTicket,
           halfHolderAssets
         )
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
@@ -545,13 +545,13 @@ describe('EthVault - withdraw', () => {
         .to.emit(vault, 'CheckpointCreated')
         .withArgs(halfHolderShares, halfHolderAssets)
 
-      const newCheckpointIndex = await vault.getCheckpointIndex(newPositionCounter)
+      const newCheckpointIndex = await vault.getExitQueueIndex(newPositionTicket)
       receipt = await vault
         .connect(holder)
-        .claimExitedAssets(receiver.address, newPositionCounter, newCheckpointIndex)
+        .claimExitedAssets(receiver.address, newPositionTicket, newCheckpointIndex)
       await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holder.address, receiver.address, newPositionCounter, 0, halfHolderAssets)
+        .withArgs(holder.address, receiver.address, newPositionTicket, 0, halfHolderAssets)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
         receiverBalanceBefore.add(holderAssets)
       )
@@ -563,10 +563,10 @@ describe('EthVault - withdraw', () => {
     it('for multiple users in single checkpoint', async () => {
       // harvests the previous queued position
       await vault.updateState(harvestParams)
-      const checkpointIndex = await vault.getCheckpointIndex(positionCounter)
+      const checkpointIndex = await vault.getExitQueueIndex(positionTicket)
       await vault
         .connect(holder)
-        .claimExitedAssets(receiver.address, positionCounter, checkpointIndex)
+        .claimExitedAssets(receiver.address, positionTicket, checkpointIndex)
 
       const shares = holderShares
       const assets = holderAssets
@@ -576,13 +576,13 @@ describe('EthVault - withdraw', () => {
       await vault.connect(user1).deposit(user1.address, referrer, { value: assets })
       await vault.connect(user2).deposit(user2.address, referrer, { value: assets })
 
-      const user1PositionCounter = await vault
+      const user1PositionTicket = await vault
         .connect(user1)
         .callStatic.enterExitQueue(shares, user1.address, user1.address)
       await vault.connect(user1).enterExitQueue(shares, user1.address, user1.address)
       const user1BalanceBefore = await waffle.provider.getBalance(user1.address)
 
-      const user2PositionCounter = await vault
+      const user2PositionTicket = await vault
         .connect(user2)
         .callStatic.enterExitQueue(shares, user2.address, user2.address)
       await vault.connect(user2).enterExitQueue(shares, user2.address, user2.address)
@@ -597,12 +597,12 @@ describe('EthVault - withdraw', () => {
         .connect(other)
         .claimExitedAssets(
           user2.address,
-          user2PositionCounter,
-          await vault.getCheckpointIndex(user2PositionCounter)
+          user2PositionTicket,
+          await vault.getExitQueueIndex(user2PositionTicket)
         )
       await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(other.address, user2.address, user2PositionCounter, 0, assets)
+        .withArgs(other.address, user2.address, user2PositionTicket, 0, assets)
       expect(await waffle.provider.getBalance(user2.address)).to.be.eq(
         user2BalanceBefore.add(assets)
       )
@@ -611,12 +611,12 @@ describe('EthVault - withdraw', () => {
         .connect(other)
         .claimExitedAssets(
           user1.address,
-          user1PositionCounter,
-          await vault.getCheckpointIndex(user1PositionCounter)
+          user1PositionTicket,
+          await vault.getExitQueueIndex(user1PositionTicket)
         )
       await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(other.address, user1.address, user1PositionCounter, 0, assets)
+        .withArgs(other.address, user1.address, user1PositionTicket, 0, assets)
       expect(await waffle.provider.getBalance(user1.address)).to.be.eq(
         user1BalanceBefore.add(assets)
       )
@@ -651,7 +651,7 @@ describe('EthVault - withdraw', () => {
     let totalSupply = 0
     let queuedShares = 0
     let unclaimedAssets = 0
-    let latestPositionCounter = validatorDeposit
+    let latestPositionTicket = validatorDeposit
     let vaultLiquidAssets = 0
     let totalReward = 0
     let totalUnlockedMevReward = 0
@@ -801,34 +801,34 @@ describe('EthVault - withdraw', () => {
     await checkVaultState()
 
     // 10. Alice enters exit queue with 1000 shares
-    let alicePositionCounter = await vault
+    let alicePositionTicket = await vault
       .connect(alice)
       .callStatic.enterExitQueue(1000, alice.address, alice.address)
     await expect(vault.connect(alice).enterExitQueue(1000, alice.address, alice.address))
       .to.emit(vault, 'ExitQueueEntered')
-      .withArgs(alice.address, alice.address, alice.address, alicePositionCounter, 1000)
+      .withArgs(alice.address, alice.address, alice.address, alicePositionTicket, 1000)
 
     aliceShares -= 1000
     aliceAssets -= 1822
     queuedShares += 1000
-    expect(alicePositionCounter).to.eq(latestPositionCounter)
-    latestPositionCounter = validatorDeposit.add(1000)
+    expect(alicePositionTicket).to.eq(latestPositionTicket)
+    latestPositionTicket = validatorDeposit.add(1000)
 
     await checkVaultState()
 
     // 11. Bob enters exit queue with 4391 shares
-    let bobPositionCounter = await vault
+    let bobPositionTicket = await vault
       .connect(bob)
       .callStatic.enterExitQueue(4391, bob.address, bob.address)
     await expect(vault.connect(bob).enterExitQueue(4391, bob.address, bob.address))
       .to.emit(vault, 'ExitQueueEntered')
-      .withArgs(bob.address, bob.address, bob.address, bobPositionCounter, 4391)
+      .withArgs(bob.address, bob.address, bob.address, bobPositionTicket, 4391)
 
     bobShares -= 4391
     bobAssets -= 7999
     queuedShares += 4391
-    expect(bobPositionCounter).to.eq(latestPositionCounter)
-    latestPositionCounter = latestPositionCounter.add(4391)
+    expect(bobPositionTicket).to.eq(latestPositionTicket)
+    latestPositionTicket = latestPositionTicket.add(4391)
 
     await checkVaultState()
 
@@ -878,28 +878,26 @@ describe('EthVault - withdraw', () => {
     await checkVaultState()
 
     // 14. Bob claims exited assets
-    let bobCheckpointIdx = await vault.getCheckpointIndex(bobPositionCounter)
+    let bobCheckpointIdx = await vault.getExitQueueIndex(bobPositionTicket)
     await expect(
-      vault.connect(bob).claimExitedAssets(bob.address, bobPositionCounter, bobCheckpointIdx)
+      vault.connect(bob).claimExitedAssets(bob.address, bobPositionTicket, bobCheckpointIdx)
     )
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(bob.address, bob.address, bobPositionCounter, bobPositionCounter.add(427), 777)
+      .withArgs(bob.address, bob.address, bobPositionTicket, bobPositionTicket.add(427), 777)
 
-    bobPositionCounter = bobPositionCounter.add(427)
+    bobPositionTicket = bobPositionTicket.add(427)
     vaultLiquidAssets -= 777
     unclaimedAssets -= 777
     expect(bobCheckpointIdx).to.eq(1)
     await checkVaultState()
 
     // 15. Alice claims exited assets
-    let aliceCheckpointIdx = await vault.getCheckpointIndex(alicePositionCounter)
+    let aliceCheckpointIdx = await vault.getExitQueueIndex(alicePositionTicket)
     await expect(
-      vault
-        .connect(alice)
-        .claimExitedAssets(alice.address, alicePositionCounter, aliceCheckpointIdx)
+      vault.connect(alice).claimExitedAssets(alice.address, alicePositionTicket, aliceCheckpointIdx)
     )
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(alice.address, alice.address, alicePositionCounter, 0, 1822)
+      .withArgs(alice.address, alice.address, alicePositionTicket, 0, 1822)
 
     vaultLiquidAssets -= 1822
     unclaimedAssets -= 1822
@@ -927,18 +925,18 @@ describe('EthVault - withdraw', () => {
     await checkVaultState()
 
     // 17. Alice enters exit queue with 1000 shares
-    alicePositionCounter = await vault
+    alicePositionTicket = await vault
       .connect(alice)
       .callStatic.enterExitQueue(1000, alice.address, alice.address)
     await expect(vault.connect(alice).enterExitQueue(1000, alice.address, alice.address))
       .to.emit(vault, 'ExitQueueEntered')
-      .withArgs(alice.address, alice.address, alice.address, alicePositionCounter, 1000)
+      .withArgs(alice.address, alice.address, alice.address, alicePositionTicket, 1000)
 
-    expect(alicePositionCounter).to.be.eq(latestPositionCounter)
+    expect(alicePositionTicket).to.be.eq(latestPositionTicket)
     queuedShares += 1000
     aliceShares -= 1000
     aliceAssets -= 2828
-    latestPositionCounter = latestPositionCounter.add(1000)
+    latestPositionTicket = latestPositionTicket.add(1000)
     await checkVaultState()
 
     // 18. Withdrawal of all the assets arrives
@@ -962,27 +960,25 @@ describe('EthVault - withdraw', () => {
     await checkVaultState()
 
     // 19. Bob claims exited assets
-    bobCheckpointIdx = await vault.getCheckpointIndex(bobPositionCounter)
+    bobCheckpointIdx = await vault.getExitQueueIndex(bobPositionTicket)
     expect(bobCheckpointIdx).to.eq(2)
     await expect(
-      vault.connect(bob).claimExitedAssets(bob.address, bobPositionCounter, bobCheckpointIdx)
+      vault.connect(bob).claimExitedAssets(bob.address, bobPositionTicket, bobCheckpointIdx)
     )
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(bob.address, bob.address, bobPositionCounter, 0, 11214)
+      .withArgs(bob.address, bob.address, bobPositionTicket, 0, 11214)
 
     vaultLiquidAssets -= 11214
     await checkVaultState()
 
     // 20. Alice claims exited assets
-    aliceCheckpointIdx = await vault.getCheckpointIndex(alicePositionCounter)
+    aliceCheckpointIdx = await vault.getExitQueueIndex(alicePositionTicket)
     expect(aliceCheckpointIdx).to.eq(3)
     await expect(
-      vault
-        .connect(alice)
-        .claimExitedAssets(alice.address, alicePositionCounter, aliceCheckpointIdx)
+      vault.connect(alice).claimExitedAssets(alice.address, alicePositionTicket, aliceCheckpointIdx)
     )
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(alice.address, alice.address, alicePositionCounter, 0, 2828)
+      .withArgs(alice.address, alice.address, alicePositionTicket, 0, 2828)
     //
     vaultLiquidAssets -= 2828
     await checkVaultState()
