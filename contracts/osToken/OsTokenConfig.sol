@@ -75,7 +75,7 @@ contract OsTokenConfig is Ownable2Step, IOsTokenConfig {
 
     // validate liquidation bonus percent
     if (
-      _liqBonusPercent <= _maxPercent ||
+      _liqBonusPercent < _maxPercent ||
       Math.mulDiv(_liqThresholdPercent, _liqBonusPercent, _maxPercent) > _maxPercent
     ) {
       revert InvalidLiqBonusPercent();

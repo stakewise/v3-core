@@ -1,0 +1,8 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`OsTokenConfig owner can update config 1`] = `
+Object {
+  "calldataByteLength": 164,
+  "gasUsed": 42048,
+}
+`;
