@@ -41,6 +41,7 @@ export const OSTOKEN_LTV = 9000 // 90%
 
 export const OSTOKEN_REDEEM_START_HF = parseEther('1.01')
 export const OSTOKEN_REDEEM_MAX_HF = parseEther('1.02')
+export const MAX_AVG_REWARD_PER_SECOND = BigNumber.from('6341958396') // 20% APY
 
 export const EIP712Domain = [
   { name: 'name', type: 'string' },
@@ -60,6 +61,7 @@ export const PermitSig = [
 export const KeeperRewardsSig = [
   { name: 'rewardsRoot', type: 'bytes32' },
   { name: 'rewardsIpfsHash', type: 'bytes32' },
+  { name: 'avgRewardPerSecond', type: 'uint256' },
   { name: 'updateTimestamp', type: 'uint64' },
   { name: 'nonce', type: 'uint64' },
 ]

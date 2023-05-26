@@ -13,6 +13,7 @@ interface IKeeperRewards {
   error InvalidProof();
   error AccessDenied();
   error TooEarlyUpdate();
+  error InvalidAvgRewardPerSecond();
 
   /**
    * @notice Event emitted on rewards update
@@ -26,7 +27,7 @@ interface IKeeperRewards {
   event RewardsUpdated(
     address indexed caller,
     bytes32 indexed rewardsRoot,
-    uint128 avgRewardPerSecond,
+    uint256 avgRewardPerSecond,
     uint64 updateTimestamp,
     uint64 nonce,
     string rewardsIpfsHash
@@ -83,7 +84,7 @@ interface IKeeperRewards {
    */
   struct RewardsUpdateParams {
     bytes32 rewardsRoot;
-    uint128 avgRewardPerSecond;
+    uint256 avgRewardPerSecond;
     uint64 updateTimestamp;
     string rewardsIpfsHash;
     bytes signatures;
@@ -102,12 +103,6 @@ interface IKeeperRewards {
     uint160 unlockedMevReward;
     bytes32[] proof;
   }
-
-  /**
-   * @notice The average reward per second
-   * @return The average reward earned by Vault user per second
-   */
-  function avgRewardPerSecond() external view returns (uint128);
 
   /**
    * @notice Previous Rewards Root

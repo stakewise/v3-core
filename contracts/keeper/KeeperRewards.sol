@@ -19,8 +19,11 @@ import {IOsToken} from '../interfaces/IOsToken.sol';
 abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeeperRewards {
   bytes32 private constant _rewardsUpdateTypeHash =
     keccak256(
-      'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint128 avgRewardPerSecond,uint64 updateTimestamp,uint64 nonce)'
+      'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint256 avgRewardPerSecond,uint64 updateTimestamp,uint64 nonce)'
     );
+
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  uint256 private immutable _maxAvgRewardPerSecond;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address private immutable _sharedMevEscrow;
@@ -50,9 +53,6 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
   bytes32 public override rewardsRoot;
 
   /// @inheritdoc IKeeperRewards
-  uint128 public override avgRewardPerSecond;
-
-  /// @inheritdoc IKeeperRewards
   uint64 public override lastRewardsTimestamp;
 
   /// @inheritdoc IKeeperRewards
@@ -66,23 +66,27 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
    * @param oracles The address of the Oracles contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
    * @param osToken The address of the OsToken contract
+   * @param maxAvgRewardPerSecond The maximum possible average reward per second
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     address sharedMevEscrow,
     IOracles oracles,
     IVaultsRegistry vaultsRegistry,
-    IOsToken osToken
+    IOsToken osToken,
+    uint256 maxAvgRewardPerSecond
   ) {
     _sharedMevEscrow = sharedMevEscrow;
     _oracles = oracles;
     _vaultsRegistry = vaultsRegistry;
     _osToken = osToken;
+    _maxAvgRewardPerSecond = maxAvgRewardPerSecond;
   }
 
   /// @inheritdoc IKeeperRewards
   function updateRewards(RewardsUpdateParams calldata params) external override {
     if (!canUpdateRewards()) revert TooEarlyUpdate();
+    if (params.avgRewardPerSecond > _maxAvgRewardPerSecond) revert InvalidAvgRewardPerSecond();
 
     // SLOAD to memory
     bytes32 currRewardsRoot = rewardsRoot;
@@ -108,16 +112,14 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
       params.signatures
     );
 
-    // update osToken state
-    _osToken.updateState();
-
     // update state
     prevRewardsRoot = currRewardsRoot;
     rewardsRoot = params.rewardsRoot;
-    avgRewardPerSecond = params.avgRewardPerSecond;
     // cannot overflow on human timescales
     lastRewardsTimestamp = uint64(block.timestamp);
     rewardsNonce = nonce + 1;
+
+    _osToken.setAvgRewardPerSecond(params.avgRewardPerSecond);
 
     emit RewardsUpdated(
       msg.sender,

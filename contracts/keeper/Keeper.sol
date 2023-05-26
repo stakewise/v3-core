@@ -4,6 +4,7 @@ pragma solidity =0.8.19;
 
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import {IVersioned} from '../interfaces/IVersioned.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
@@ -19,6 +20,9 @@ import {KeeperRewards} from './KeeperRewards.sol';
  * @notice Defines the functionality for updating Vaults' rewards and approving validators registrations
  */
 contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IKeeper {
+  /// @inheritdoc IVersioned
+  uint8 public constant override version = 1;
+
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -28,6 +32,7 @@ contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IK
    * @param vaultsRegistry The address of the VaultsRegistry contract
    * @param osToken The address of the OsToken contract
    * @param validatorsRegistry The address of the beacon chain validators registry contract
+   * @param maxAvgRewardPerSecond The maximum possible average reward per second
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
@@ -35,8 +40,18 @@ contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IK
     IOracles oracles,
     IVaultsRegistry vaultsRegistry,
     IOsToken osToken,
-    IValidatorsRegistry validatorsRegistry
-  ) KeeperValidators(sharedMevEscrow, oracles, vaultsRegistry, osToken, validatorsRegistry) {
+    IValidatorsRegistry validatorsRegistry,
+    uint256 maxAvgRewardPerSecond
+  )
+    KeeperValidators(
+      sharedMevEscrow,
+      oracles,
+      vaultsRegistry,
+      osToken,
+      validatorsRegistry,
+      maxAvgRewardPerSecond
+    )
+  {
     // disable initializers for the implementation contract
     _disableInitializers();
   }

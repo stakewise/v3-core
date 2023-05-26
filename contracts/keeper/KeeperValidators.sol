@@ -39,6 +39,7 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
    * @param vaultsRegistry The address of the VaultsRegistry contract
    * @param osToken The address of the OsToken contract
    * @param validatorsRegistry The address of the beacon chain validators registry contract
+   * @param maxAvgRewardPerSecond The maximum possible average reward per second
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
@@ -46,8 +47,9 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
     IOracles oracles,
     IVaultsRegistry vaultsRegistry,
     IOsToken osToken,
-    IValidatorsRegistry validatorsRegistry
-  ) KeeperRewards(sharedMevEscrow, oracles, vaultsRegistry, osToken) {
+    IValidatorsRegistry validatorsRegistry,
+    uint256 maxAvgRewardPerSecond
+  ) KeeperRewards(sharedMevEscrow, oracles, vaultsRegistry, osToken, maxAvgRewardPerSecond) {
     _validatorsRegistry = validatorsRegistry;
   }
 

@@ -5,34 +5,35 @@ import { arrayify, getContractAddress } from 'ethers/lib/utils'
 import { signTypedData, SignTypedDataVersion } from '@metamask/eth-sig-util'
 import EthereumWallet from 'ethereumjs-wallet'
 import {
-  EthVault,
   EthPrivateVault,
-  IEthVaultFactory,
+  EthVault,
   EthVaultFactory,
   EthVaultMock,
-  VaultsRegistry,
-  Oracles,
+  IEthVaultFactory,
   Keeper,
-  SharedMevEscrow,
+  Oracles,
   OsToken,
   OsTokenConfig,
+  SharedMevEscrow,
+  VaultsRegistry,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
 import {
-  REQUIRED_ORACLES,
+  MAX_AVG_REWARD_PER_SECOND,
   ORACLES,
   ORACLES_CONFIG,
-  SECURITY_DEPOSIT,
-  REWARDS_DELAY,
-  OSTOKEN_FEE,
-  OSTOKEN_NAME,
-  OSTOKEN_SYMBOL,
   OSTOKEN_CAPACITY,
-  OSTOKEN_LIQ_THRESHOLD,
+  OSTOKEN_FEE,
   OSTOKEN_LIQ_BONUS,
+  OSTOKEN_LIQ_THRESHOLD,
   OSTOKEN_LTV,
-  OSTOKEN_REDEEM_START_HF,
+  OSTOKEN_NAME,
   OSTOKEN_REDEEM_MAX_HF,
+  OSTOKEN_REDEEM_START_HF,
+  OSTOKEN_SYMBOL,
+  REQUIRED_ORACLES,
+  REWARDS_DELAY,
+  SECURITY_DEPOSIT,
 } from './constants'
 
 export const createValidatorsRegistry = async function (): Promise<Contract> {
@@ -115,7 +116,8 @@ export const createKeeper = async function (
   vaultsRegistry: VaultsRegistry,
   osToken: OsToken,
   validatorsRegistry: Contract,
-  sharedMevEscrow: SharedMevEscrow
+  sharedMevEscrow: SharedMevEscrow,
+  maxAvgRewardPerSecond: BigNumberish
 ): Promise<Keeper> {
   const factory = await ethers.getContractFactory('Keeper')
   const instance = await upgrades.deployProxy(factory, [owner.address, REWARDS_DELAY], {
@@ -126,12 +128,14 @@ export const createKeeper = async function (
       vaultsRegistry.address,
       osToken.address,
       validatorsRegistry.address,
+      maxAvgRewardPerSecond,
     ],
   })
   return (await instance.deployed()) as Keeper
 }
 
 export const createEthVaultFactory = async function (
+  vaultsRegistryOwner: Wallet,
   keeper: Keeper,
   vaultsRegistry: VaultsRegistry,
   sharedMevEscrow: SharedMevEscrow,
@@ -151,6 +155,7 @@ export const createEthVaultFactory = async function (
       sharedMevEscrow.address,
     ],
   })
+  await vaultsRegistry.connect(vaultsRegistryOwner).addVaultImpl(ethVaultImpl as string)
 
   const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
   const ethPrivateVaultImpl = await upgrades.deployImplementation(ethPrivateVault, {
@@ -164,16 +169,20 @@ export const createEthVaultFactory = async function (
       sharedMevEscrow.address,
     ],
   })
+  await vaultsRegistry.connect(vaultsRegistryOwner).addVaultImpl(ethPrivateVaultImpl as string)
 
   const factory = await ethers.getContractFactory('EthVaultFactory')
-  return (await factory.deploy(
+  const ethVaultFactory = (await factory.deploy(
     ethVaultImpl,
     ethPrivateVaultImpl,
     vaultsRegistry.address
   )) as EthVaultFactory
+  await vaultsRegistry.connect(vaultsRegistryOwner).addFactory(ethVaultFactory.address)
+  return ethVaultFactory
 }
 
 export const createEthVaultMockFactory = async function (
+  vaultsRegistryOwner: Wallet,
   keeper: Keeper,
   vaultsRegistry: VaultsRegistry,
   sharedMevEscrow: SharedMevEscrow,
@@ -193,6 +202,7 @@ export const createEthVaultMockFactory = async function (
       sharedMevEscrow.address,
     ],
   })
+  await vaultsRegistry.connect(vaultsRegistryOwner).addVaultImpl(ethVaultMockImpl as string)
 
   const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
   const ethPrivateVaultImpl = await upgrades.deployImplementation(ethPrivateVault, {
@@ -208,11 +218,13 @@ export const createEthVaultMockFactory = async function (
   })
 
   const factory = await ethers.getContractFactory('EthVaultFactory')
-  return (await factory.deploy(
+  const ethVaultFactory = (await factory.deploy(
     ethVaultMockImpl,
     ethPrivateVaultImpl,
     vaultsRegistry.address
   )) as EthVaultFactory
+  await vaultsRegistry.connect(vaultsRegistryOwner).addFactory(ethVaultFactory.address)
+  return ethVaultFactory
 }
 
 interface EthVaultFixture {
@@ -290,7 +302,8 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     vaultsRegistry,
     osToken,
     validatorsRegistry,
-    sharedMevEscrow
+    sharedMevEscrow,
+    MAX_AVG_REWARD_PER_SECOND
   )
 
   // 5. verify keeper address
@@ -308,6 +321,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   )
 
   const ethVaultFactory = await createEthVaultFactory(
+    dao,
     keeper,
     vaultsRegistry,
     sharedMevEscrow,
@@ -315,9 +329,9 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     osToken,
     osTokenConfig
   )
-  await vaultsRegistry.connect(dao).addFactory(ethVaultFactory.address)
 
   const ethVaultMockFactory = await createEthVaultMockFactory(
+    dao,
     keeper,
     vaultsRegistry,
     sharedMevEscrow,
@@ -325,7 +339,6 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     osToken,
     osTokenConfig
   )
-  await vaultsRegistry.connect(dao).addFactory(ethVaultMockFactory.address)
 
   const ethVault = await ethers.getContractFactory('EthVault')
   const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
