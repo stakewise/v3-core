@@ -178,19 +178,26 @@ describe('Oracles', () => {
 
     beforeEach(async () => {
       const updateTimestamp = 1670256410
+      const avgRewardPerSecond = 1585489599
       signData = {
-        primaryType: 'BaseKeeper',
-        types: { EIP712Domain, BaseKeeper: KeeperRewardsSig },
+        primaryType: 'KeeperRewards',
+        types: { EIP712Domain, KeeperRewards: KeeperRewardsSig },
         domain: {
           name: 'Oracles',
           version: '1',
           chainId: network.config.chainId,
           verifyingContract: oracles.address,
         },
-        message: { rewardsRoot, rewardsIpfsHash, updateTimestamp, nonce },
+        message: {
+          rewardsRoot,
+          rewardsIpfsHash,
+          updateTimestamp,
+          avgRewardPerSecond,
+          nonce,
+        },
       }
       verifyData = TypedDataUtils.hashStruct(
-        'BaseKeeper',
+        'KeeperRewards',
         signData.message,
         signData.types,
         SignTypedDataVersion.V4
