@@ -3,118 +3,118 @@
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount decreases the spender allowance subtracting the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 29554,
+  "gasUsed": 29549,
 }
 `;
 
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount emits an approval event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 24754,
+  "gasUsed": 24749,
 }
 `;
 
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender has enough balance when the spender had an approved amount decreases the spender allowance subtracting the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 29554,
+  "gasUsed": 29549,
 }
 `;
 
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender has enough balance when the spender had an approved amount emits an approval event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 24754,
+  "gasUsed": 24749,
 }
 `;
 
 exports[`OsToken approve increase allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount increases the spender allowance adding the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 29246,
+  "gasUsed": 29241,
 }
 `;
 
 exports[`OsToken approve increase allowance when the spender is not the zero address when the sender does not have enough balance when there was no approved amount before approves the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 46346,
+  "gasUsed": 46341,
 }
 `;
 
 exports[`OsToken approve when the sender has enough balance when the spender had an approved amount approves the requested amount and replaces the previous one 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 28911,
+  "gasUsed": 28906,
 }
 `;
 
 exports[`OsToken approve when the sender has enough balance when there was no approved amount before approves the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 46011,
+  "gasUsed": 46006,
 }
 `;
 
 exports[`OsToken capacity owner can change 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 25230,
+  "gasUsed": 25229,
 }
 `;
 
 exports[`OsToken fee percent owner can change 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 69112,
+  "gasUsed": 69104,
 }
 `;
 
 exports[`OsToken permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 74666,
+  "gasUsed": 74664,
 }
 `;
 
 exports[`OsToken transfer from when the spender has enough allowance when the token owner has enough balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 47485,
+  "gasUsed": 47479,
 }
 `;
 
 exports[`OsToken transfer from when the spender has unlimited allowance does not decrease the spender allowance 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 53963,
+  "gasUsed": 53957,
 }
 `;
 
 exports[`OsToken transfer when the sender transfers all balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 46854,
+  "gasUsed": 46848,
 }
 `;
 
 exports[`OsToken transfer when the sender transfers zero tokens transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 28930,
+  "gasUsed": 28924,
 }
 `;
 
 exports[`OsToken treasury owner can change 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 27951,
+  "gasUsed": 27950,
 }
 `;
 
 exports[`OsToken vault implementation owner can change 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 26490,
+  "gasUsed": 26489,
 }
 `;
