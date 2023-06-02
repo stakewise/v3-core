@@ -1,0 +1,197 @@
+[
+  {
+    "inputs": [],
+    "name": "InvalidLiqBonusPercent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLiqThresholdPercent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLtvPercent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRedeemFromLtvPercent",
+    "type": "error"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "redeemFromLtvPercent",
+        "type": "uint16"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "redeemToLtvPercent",
+        "type": "uint16"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "liqThresholdPercent",
+        "type": "uint16"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "liqBonusPercent",
+        "type": "uint16"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint16",
+        "name": "ltvPercent",
+        "type": "uint16"
+      }
+    ],
+    "name": "OsTokenConfigUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "getConfig",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "liqBonusPercent",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "liqThresholdPercent",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ltvPercent",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "redeemFromLtvPercent",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "redeemToLtvPercent",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "components": [
+          {
+            "internalType": "uint16",
+            "name": "redeemFromLtvPercent",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "redeemToLtvPercent",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "liqThresholdPercent",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "liqBonusPercent",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "ltvPercent",
+            "type": "uint16"
+          }
+        ],
+        "internalType": "struct IOsTokenConfig.Config",
+        "name": "config",
+        "type": "tuple"
+      }
+    ],
+    "name": "updateConfig",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

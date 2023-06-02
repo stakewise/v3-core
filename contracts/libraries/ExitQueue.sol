@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
@@ -17,11 +17,11 @@ error InvalidCheckpointValue();
 library ExitQueue {
   /**
    * @notice A struct containing checkpoint data
-   * @param sharesCounter The cumulative number of burned shares
+   * @param totalTickets The cumulative number of tickets (shares) exited
    * @param exitedAssets The number of assets that exited in this checkpoint
    */
   struct Checkpoint {
-    uint160 sharesCounter;
+    uint160 totalTickets;
     uint96 exitedAssets;
   }
 
@@ -34,33 +34,33 @@ library ExitQueue {
   }
 
   /**
-   * @notice Get the current burned shares counter
+   * @notice Get the latest checkpoint total tickets
    * @param self An array containing checkpoints
-   * @return The current shares counter or zero if there are no checkpoints
+   * @return The current total tickets or zero if there are no checkpoints
    */
-  function getSharesCounter(History storage self) internal view returns (uint256) {
+  function getLatestTotalTickets(History storage self) internal view returns (uint256) {
     uint256 pos = self.checkpoints.length;
     unchecked {
       // cannot underflow as subtraction happens in case pos > 0
-      return pos == 0 ? 0 : _unsafeAccess(self.checkpoints, pos - 1).sharesCounter;
+      return pos == 0 ? 0 : _unsafeAccess(self.checkpoints, pos - 1).totalTickets;
     }
   }
 
   /**
-   * @notice Get checkpoint index for the burned shares counter
+   * @notice Get checkpoint index for the burned shares
    * @param self An array containing checkpoints
-   * @param positionCounter The position counter to search the closest checkpoint for
+   * @param positionTicket The position ticket to search the closest checkpoint for
    * @return The checkpoint index or the length of checkpoints array in case there is no such
    */
   function getCheckpointIndex(
     History storage self,
-    uint256 positionCounter
+    uint256 positionTicket
   ) internal view returns (uint256) {
     uint256 high = self.checkpoints.length;
     uint256 low;
     while (low < high) {
       uint256 mid = Math.average(low, high);
-      if (_unsafeAccess(self.checkpoints, mid).sharesCounter > positionCounter) {
+      if (_unsafeAccess(self.checkpoints, mid).totalTickets > positionTicket) {
         high = mid;
       } else {
         low = mid + 1;
@@ -73,7 +73,7 @@ library ExitQueue {
    * @notice Calculates burned shares and exited assets
    * @param self An array containing checkpoints
    * @param checkpointIdx The index of the checkpoint to start calculating from
-   * @param positionCounter The shares counter to start calculating exited assets from
+   * @param positionTicket The position ticket to start calculating exited assets from
    * @param positionShares The number of shares to calculate assets for
    * @return burnedShares The number of shares burned
    * @return exitedAssets The number of assets exited
@@ -81,36 +81,37 @@ library ExitQueue {
   function calculateExitedAssets(
     History storage self,
     uint256 checkpointIdx,
-    uint256 positionCounter,
+    uint256 positionTicket,
     uint256 positionShares
   ) internal view returns (uint256 burnedShares, uint256 exitedAssets) {
     uint256 length = self.checkpoints.length;
     // there are no exited assets for such checkpoint index or no shares to burn
     if (checkpointIdx >= length || positionShares == 0) return (0, 0);
 
-    // previous shares counter for calculating how much shares were burned for the period
-    uint256 prevCheckpointCounter;
+    // previous total tickets for calculating how much shares were burned for the period
+    uint256 prevTotalTickets;
     unchecked {
       // cannot underflow as subtraction happens in case checkpointIdx > 0
-      prevCheckpointCounter = checkpointIdx == 0
+      prevTotalTickets = checkpointIdx == 0
         ? 0
-        : _unsafeAccess(self.checkpoints, checkpointIdx - 1).sharesCounter;
+        : _unsafeAccess(self.checkpoints, checkpointIdx - 1).totalTickets;
     }
 
-    // current shares counter for calculating assets per burned share
+    // current total tickets for calculating assets per burned share
     // can be used with _unsafeAccess as checkpointIdx < length
     Checkpoint memory checkpoint = _unsafeAccess(self.checkpoints, checkpointIdx);
-    uint256 checkpointCounter = checkpoint.sharesCounter;
+    uint256 currTotalTickets = checkpoint.totalTickets;
     uint256 checkpointAssets = checkpoint.exitedAssets;
-    if (positionCounter < prevCheckpointCounter || checkpointCounter <= positionCounter) {
+    // check whether position ticket is in [prevTotalTickets, currTotalTickets) range
+    if (positionTicket < prevTotalTickets || currTotalTickets <= positionTicket) {
       revert InvalidCheckpointIndex();
     }
 
     // calculate amount of available shares that will be updated while iterating over checkpoints
     uint256 availableShares;
     unchecked {
-      // cannot underflow as positionCounter < checkpointCounter
-      availableShares = checkpointCounter - positionCounter;
+      // cannot underflow as positionTicket < currTotalTickets
+      availableShares = currTotalTickets - positionTicket;
     }
 
     // accumulate assets until the number of required shares is collected
@@ -118,8 +119,8 @@ library ExitQueue {
     uint256 sharesDelta;
     while (true) {
       unchecked {
-        // cannot underflow as prevCheckpointCounter <= positionCounter
-        checkpointShares = checkpointCounter - prevCheckpointCounter;
+        // cannot underflow as prevTotalTickets <= positionTicket
+        checkpointShares = currTotalTickets - prevTotalTickets;
         // cannot underflow as positionShares > burnedShares while in the loop
         sharesDelta = Math.min(availableShares, positionShares - burnedShares);
 
@@ -135,15 +136,15 @@ library ExitQueue {
       }
 
       // take next checkpoint
-      prevCheckpointCounter = checkpointCounter;
+      prevTotalTickets = currTotalTickets;
       // can use _unsafeAccess as checkpointIdx < length is checked above
       checkpoint = _unsafeAccess(self.checkpoints, checkpointIdx);
-      checkpointCounter = checkpoint.sharesCounter;
+      currTotalTickets = checkpoint.totalTickets;
       checkpointAssets = checkpoint.exitedAssets;
 
       unchecked {
-        // cannot underflow as every next checkpoint counter is larger than previous
-        availableShares = checkpointCounter - prevCheckpointCounter;
+        // cannot underflow as every next checkpoint total tickets is larger than previous
+        availableShares = currTotalTickets - prevTotalTickets;
       }
     }
   }
@@ -151,13 +152,13 @@ library ExitQueue {
   /**
    * @notice Pushes a new checkpoint onto a History
    * @param self An array containing checkpoints
-   * @param shares The number of shares to add to the latest shares counter
+   * @param shares The number of shares to add to the latest checkpoint
    * @param assets The number of assets that were exited for this checkpoint
    */
   function push(History storage self, uint256 shares, uint256 assets) internal {
     if (shares == 0 || assets == 0) revert InvalidCheckpointValue();
     Checkpoint memory checkpoint = Checkpoint({
-      sharesCounter: SafeCast.toUint160(getSharesCounter(self) + shares),
+      totalTickets: SafeCast.toUint160(getLatestTotalTickets(self) + shares),
       exitedAssets: SafeCast.toUint96(assets)
     });
     self.checkpoints.push(checkpoint);

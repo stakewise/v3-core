@@ -374,25 +374,6 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "positionCounter",
-        "type": "uint256"
-      }
-    ],
-    "name": "getCheckpointIndex",
-    "outputs": [
-      {
-        "internalType": "int256",
-        "name": "",
-        "type": "int256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "address",
         "name": "spender",
         "type": "address"

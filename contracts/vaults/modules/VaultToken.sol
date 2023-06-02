@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
@@ -61,7 +61,7 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
    * @dev Internal function for transferring assets from the Vault to the receiver
    * @dev IMPORTANT: because control is transferred to the receiver, care must be
    *    taken to not create reentrancy vulnerabilities. The Vault must follow the checks-effects-interactions pattern:
-   *    https://docs.soliditylang.org/en/v0.8.19/security-considerations.html#use-the-checks-effects-interactions-pattern
+   *    https://docs.soliditylang.org/en/v0.8.20/security-considerations.html#use-the-checks-effects-interactions-pattern
    * @param receiver The address that will receive the assets
    * @param assets The number of assets to transfer
    */
@@ -94,6 +94,27 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
     Math.Rounding rounding
   ) internal pure returns (uint256) {
     return (totalShares == 0) ? shares : Math.mulDiv(shares, totalAssets_, totalShares, rounding);
+  }
+
+  /**
+   * @dev Internal function for burning owner shares
+   * @param owner The address of the owner whose shares to burn
+   * @param shares The number of shares to burn
+   * @param assets The number of assets to burn
+   */
+  function _burnShares(address owner, uint256 shares, uint256 assets) internal {
+    // burn shares
+    balanceOf[owner] -= shares;
+
+    // update counters
+    unchecked {
+      // cannot underflow because the sum of all shares can't exceed the _totalShares
+      _totalShares -= SafeCast.toUint128(shares);
+      // cannot underflow because the sum of all assets can't exceed the _totalAssets
+      _totalAssets -= SafeCast.toUint128(assets);
+    }
+
+    emit Transfer(owner, address(0), shares);
   }
 
   /**

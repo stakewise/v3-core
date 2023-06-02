@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
@@ -30,7 +30,8 @@ contract VaultsRegistry is Ownable2Step, IVaultsRegistry {
 
   /// @inheritdoc IVaultsRegistry
   function addVault(address vault) external override {
-    if (!factories[msg.sender]) revert AccessDenied();
+    if (!factories[msg.sender] && msg.sender != owner()) revert AccessDenied();
+
     vaults[vault] = true;
     emit VaultAdded(msg.sender, vault);
   }

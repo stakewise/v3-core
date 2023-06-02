@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
@@ -30,20 +30,14 @@ abstract contract VaultValidators is
   /// @inheritdoc IVaultValidators
   uint256 public override validatorIndex;
 
-  address private _operator;
-
-  /// @dev Prevents calling a function from anyone except Vault's operator
-  modifier onlyOperator() {
-    if (msg.sender != operator()) revert AccessDenied();
-    _;
-  }
+  address private _keysManager;
 
   /// @inheritdoc IVaultValidators
-  function operator() public view override returns (address) {
+  function keysManager() public view override returns (address) {
     // SLOAD to memory
-    address operator_ = _operator;
-    // if operator is not set, use admin address
-    return operator_ == address(0) ? admin : operator_;
+    address keysManager_ = _keysManager;
+    // if keysManager is not set, use admin address
+    return keysManager_ == address(0) ? admin : keysManager_;
   }
 
   /// @inheritdoc IVaultValidators
@@ -131,15 +125,17 @@ abstract contract VaultValidators is
   }
 
   /// @inheritdoc IVaultValidators
-  function setOperator(address operator_) external override onlyAdmin {
-    if (operator_ == address(0)) revert ZeroAddress();
-    // update operator address
-    _operator = operator_;
-    emit OperatorUpdated(msg.sender, operator_);
+  function setKeysManager(address keysManager_) external override {
+    _checkAdmin();
+    if (keysManager_ == address(0)) revert ZeroAddress();
+    // update keysManager address
+    _keysManager = keysManager_;
+    emit KeysManagerUpdated(msg.sender, keysManager_);
   }
 
   /// @inheritdoc IVaultValidators
-  function setValidatorsRoot(bytes32 _validatorsRoot) external override onlyOperator {
+  function setValidatorsRoot(bytes32 _validatorsRoot) external override {
+    if (msg.sender != keysManager()) revert AccessDenied();
     _setValidatorsRoot(_validatorsRoot);
   }
 

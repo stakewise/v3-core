@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
@@ -12,7 +12,7 @@ import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
  * @notice Modern and gas efficient ERC20 + EIP-2612 implementation
  */
 abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
-  bytes32 internal constant _permitTypeHash =
+  bytes32 private constant _permitTypeHash =
     keccak256('Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)');
 
   /// @inheritdoc IERC20
@@ -76,13 +76,17 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
   }
 
   /// @inheritdoc IERC20
-  function transfer(address to, uint256 amount) public override returns (bool) {
+  function transfer(address to, uint256 amount) public virtual override returns (bool) {
     _transfer(msg.sender, to, amount);
     return true;
   }
 
   /// @inheritdoc IERC20
-  function transferFrom(address from, address to, uint256 amount) public override returns (bool) {
+  function transferFrom(
+    address from,
+    address to,
+    uint256 amount
+  ) public virtual override returns (bool) {
     _spendAllowance(from, msg.sender, amount);
     _transfer(from, to, amount);
 

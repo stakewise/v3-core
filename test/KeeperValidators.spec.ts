@@ -5,7 +5,7 @@ import { Keeper, EthVault, Oracles, IKeeperValidators } from '../typechain-types
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ORACLES, REWARDS_DELAY, ZERO_ADDRESS } from './shared/constants'
+import { ORACLES, ZERO_ADDRESS } from './shared/constants'
 import {
   createEthValidatorsData,
   getEthValidatorsSigningData,
@@ -62,9 +62,7 @@ describe('KeeperValidators', () => {
   })
 
   it('fails to initialize', async () => {
-    await expect(keeper.initialize(owner.address, REWARDS_DELAY)).revertedWith(
-      'Initializable: contract is already initialized'
-    )
+    await expect(keeper.initialize()).revertedWith('Initializable: contract is already initialized')
   })
 
   describe('register single validator', () => {

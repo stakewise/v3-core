@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IVaultAdmin} from '../../interfaces/IVaultAdmin.sol';
@@ -14,14 +14,9 @@ abstract contract VaultAdmin is Initializable, IVaultAdmin {
   /// @inheritdoc IVaultAdmin
   address public override admin;
 
-  /// @dev Prevents calling a function from anyone except Vault's admin
-  modifier onlyAdmin() {
-    if (msg.sender != admin) revert AccessDenied();
-    _;
-  }
-
   /// @inheritdoc IVaultAdmin
-  function setMetadata(string calldata metadataIpfsHash) external override onlyAdmin {
+  function setMetadata(string calldata metadataIpfsHash) external override {
+    _checkAdmin();
     emit MetadataUpdated(msg.sender, metadataIpfsHash);
   }
 
@@ -35,6 +30,13 @@ abstract contract VaultAdmin is Initializable, IVaultAdmin {
   ) internal onlyInitializing {
     admin = _admin;
     emit MetadataUpdated(msg.sender, metadataIpfsHash);
+  }
+
+  /**
+   * @dev Internal method for checking whether the caller is admin
+   */
+  function _checkAdmin() internal view {
+    if (msg.sender != admin) revert AccessDenied();
   }
 
   /**

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {IKeeperValidators} from './IKeeperValidators.sol';
 import {IKeeperRewards} from './IKeeperRewards.sol';
@@ -13,9 +13,13 @@ import {IVersioned} from './IVersioned.sol';
  */
 interface IKeeper is IVersioned, IKeeperRewards, IKeeperValidators {
   /**
-   * @notice Initializes the Keeper contract
-   * @param _owner The address of the Keeper owner
-   * @param _rewardsDelay The rewards update delay
+   * @notice DAO contract
+   * @return The address of the DAO contract
    */
-  function initialize(address _owner, uint64 _rewardsDelay) external;
+  function dao() external view returns (address);
+
+  /**
+   * @notice Initializes the Keeper contract
+   */
+  function initialize() external;
 }

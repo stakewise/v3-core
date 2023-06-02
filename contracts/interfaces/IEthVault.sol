@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {IVaultToken} from './IVaultToken.sol';
 import {IVaultAdmin} from './IVaultAdmin.sol';
@@ -9,6 +9,7 @@ import {IVaultFee} from './IVaultFee.sol';
 import {IVaultState} from './IVaultState.sol';
 import {IVaultValidators} from './IVaultValidators.sol';
 import {IVaultEnterExit} from './IVaultEnterExit.sol';
+import {IVaultOsToken} from './IVaultOsToken.sol';
 import {IVaultMev} from './IVaultMev.sol';
 import {IVaultEthStaking} from './IVaultEthStaking.sol';
 import {IMulticall} from './IMulticall.sol';
@@ -26,6 +27,7 @@ interface IEthVault is
   IVaultState,
   IVaultValidators,
   IVaultEnterExit,
+  IVaultOsToken,
   IVaultMev,
   IVaultEthStaking,
   IMulticall

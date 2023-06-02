@@ -132,13 +132,13 @@
         "type": "address"
       },
       {
-        "indexed": false,
-        "internalType": "string",
-        "name": "metadataIpfsHash",
-        "type": "string"
+        "indexed": true,
+        "internalType": "address",
+        "name": "keysManager",
+        "type": "address"
       }
     ],
-    "name": "MetadataUpdated",
+    "name": "KeysManagerUpdated",
     "type": "event"
   },
   {
@@ -151,13 +151,13 @@
         "type": "address"
       },
       {
-        "indexed": true,
-        "internalType": "address",
-        "name": "operator",
-        "type": "address"
+        "indexed": false,
+        "internalType": "string",
+        "name": "metadataIpfsHash",
+        "type": "string"
       }
     ],
-    "name": "OperatorUpdated",
+    "name": "MetadataUpdated",
     "type": "event"
   },
   {
@@ -440,25 +440,6 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "positionCounter",
-        "type": "uint256"
-      }
-    ],
-    "name": "getCheckpointIndex",
-    "outputs": [
-      {
-        "internalType": "int256",
-        "name": "",
-        "type": "int256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "address",
         "name": "spender",
         "type": "address"
@@ -478,6 +459,19 @@
       }
     ],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "keysManager",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -507,19 +501,6 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "operator",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -687,12 +668,12 @@
   {
     "inputs": [
       {
-        "internalType": "string",
-        "name": "metadataIpfsHash",
-        "type": "string"
+        "internalType": "address",
+        "name": "_keysManager",
+        "type": "address"
       }
     ],
-    "name": "setMetadata",
+    "name": "setKeysManager",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -700,12 +681,12 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "_operator",
-        "type": "address"
+        "internalType": "string",
+        "name": "metadataIpfsHash",
+        "type": "string"
       }
     ],
-    "name": "setOperator",
+    "name": "setMetadata",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

@@ -1,27 +1,39 @@
 import { ethers, upgrades } from 'hardhat'
 import { Fixture } from 'ethereum-waffle'
-import { Contract, Wallet } from 'ethers'
-import { arrayify } from 'ethers/lib/utils'
+import { BigNumberish, Contract, Wallet } from 'ethers'
+import { arrayify, getContractAddress } from 'ethers/lib/utils'
 import { signTypedData, SignTypedDataVersion } from '@metamask/eth-sig-util'
 import EthereumWallet from 'ethereumjs-wallet'
 import {
-  EthVault,
   EthPrivateVault,
-  IEthVaultFactory,
+  EthVault,
   EthVaultFactory,
   EthVaultMock,
-  VaultsRegistry,
-  Oracles,
+  IEthVaultFactory,
   Keeper,
+  Oracles,
+  OsToken,
+  OsTokenConfig,
   SharedMevEscrow,
+  VaultsRegistry,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
 import {
-  REQUIRED_ORACLES,
+  MAX_AVG_REWARD_PER_SECOND,
   ORACLES,
   ORACLES_CONFIG,
-  SECURITY_DEPOSIT,
+  OSTOKEN_CAPACITY,
+  OSTOKEN_FEE,
+  OSTOKEN_LIQ_BONUS,
+  OSTOKEN_LIQ_THRESHOLD,
+  OSTOKEN_LTV,
+  OSTOKEN_NAME,
+  OSTOKEN_REDEEM_TO_LTV,
+  OSTOKEN_REDEEM_FROM_LTV,
+  OSTOKEN_SYMBOL,
+  REQUIRED_ORACLES,
   REWARDS_DELAY,
+  SECURITY_DEPOSIT,
 } from './constants'
 
 export const createValidatorsRegistry = async function (): Promise<Contract> {
@@ -56,31 +68,81 @@ export const createOracles = async function (
   )) as Oracles
 }
 
+export const createOsToken = async function (
+  keeperAddress: string,
+  vaultsRegistry: VaultsRegistry,
+  owner: Wallet,
+  treasury: Wallet,
+  feePercent: BigNumberish,
+  capacity: BigNumberish,
+  name: string,
+  symbol: string
+): Promise<OsToken> {
+  const factory = await ethers.getContractFactory('OsToken')
+  return (await factory.deploy(
+    keeperAddress,
+    vaultsRegistry.address,
+    owner.address,
+    treasury.address,
+    feePercent,
+    capacity,
+    name,
+    symbol
+  )) as OsToken
+}
+
+export const createOsTokenConfig = async function (
+  owner: Wallet,
+  redeemFromLtvPercent: BigNumberish,
+  redeemToLtvPercent: BigNumberish,
+  liqThresholdPercent: BigNumberish,
+  liqBonusPercent: BigNumberish,
+  ltvPercent: BigNumberish
+): Promise<OsTokenConfig> {
+  const factory = await ethers.getContractFactory('OsTokenConfig')
+  return (await factory.deploy(owner.address, {
+    redeemFromLtvPercent,
+    redeemToLtvPercent,
+    liqThresholdPercent,
+    liqBonusPercent,
+    ltvPercent,
+  })) as OsTokenConfig
+}
+
 export const createKeeper = async function (
   owner: Wallet,
   oracles: Oracles,
   vaultsRegistry: VaultsRegistry,
+  osToken: OsToken,
   validatorsRegistry: Contract,
-  sharedMevEscrow: SharedMevEscrow
+  sharedMevEscrow: SharedMevEscrow,
+  maxAvgRewardPerSecond: BigNumberish
 ): Promise<Keeper> {
   const factory = await ethers.getContractFactory('Keeper')
-  const instance = await upgrades.deployProxy(factory, [owner.address, REWARDS_DELAY], {
+  const instance = await upgrades.deployProxy(factory, [], {
     unsafeAllow: ['delegatecall'],
     constructorArgs: [
       sharedMevEscrow.address,
       oracles.address,
       vaultsRegistry.address,
+      osToken.address,
       validatorsRegistry.address,
+      owner.address,
+      REWARDS_DELAY,
+      maxAvgRewardPerSecond,
     ],
   })
   return (await instance.deployed()) as Keeper
 }
 
 export const createEthVaultFactory = async function (
+  vaultsRegistryOwner: Wallet,
   keeper: Keeper,
   vaultsRegistry: VaultsRegistry,
   sharedMevEscrow: SharedMevEscrow,
-  validatorsRegistry: Contract
+  validatorsRegistry: Contract,
+  osToken: OsToken,
+  osTokenConfig: OsTokenConfig
 ): Promise<EthVaultFactory> {
   const ethVault = await ethers.getContractFactory('EthVault')
   const ethVaultImpl = await upgrades.deployImplementation(ethVault, {
@@ -89,9 +151,12 @@ export const createEthVaultFactory = async function (
       keeper.address,
       vaultsRegistry.address,
       validatorsRegistry.address,
+      osToken.address,
+      osTokenConfig.address,
       sharedMevEscrow.address,
     ],
   })
+  await vaultsRegistry.connect(vaultsRegistryOwner).addVaultImpl(ethVaultImpl as string)
 
   const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
   const ethPrivateVaultImpl = await upgrades.deployImplementation(ethPrivateVault, {
@@ -100,23 +165,31 @@ export const createEthVaultFactory = async function (
       keeper.address,
       vaultsRegistry.address,
       validatorsRegistry.address,
+      osToken.address,
+      osTokenConfig.address,
       sharedMevEscrow.address,
     ],
   })
+  await vaultsRegistry.connect(vaultsRegistryOwner).addVaultImpl(ethPrivateVaultImpl as string)
 
   const factory = await ethers.getContractFactory('EthVaultFactory')
-  return (await factory.deploy(
+  const ethVaultFactory = (await factory.deploy(
     ethVaultImpl,
     ethPrivateVaultImpl,
     vaultsRegistry.address
   )) as EthVaultFactory
+  await vaultsRegistry.connect(vaultsRegistryOwner).addFactory(ethVaultFactory.address)
+  return ethVaultFactory
 }
 
 export const createEthVaultMockFactory = async function (
+  vaultsRegistryOwner: Wallet,
   keeper: Keeper,
   vaultsRegistry: VaultsRegistry,
   sharedMevEscrow: SharedMevEscrow,
-  validatorsRegistry: Contract
+  validatorsRegistry: Contract,
+  osToken: OsToken,
+  osTokenConfig: OsTokenConfig
 ): Promise<EthVaultFactory> {
   const ethVaultMock = await ethers.getContractFactory('EthVaultMock')
   const ethVaultMockImpl = await upgrades.deployImplementation(ethVaultMock, {
@@ -125,9 +198,12 @@ export const createEthVaultMockFactory = async function (
       keeper.address,
       vaultsRegistry.address,
       validatorsRegistry.address,
+      osToken.address,
+      osTokenConfig.address,
       sharedMevEscrow.address,
     ],
   })
+  await vaultsRegistry.connect(vaultsRegistryOwner).addVaultImpl(ethVaultMockImpl as string)
 
   const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
   const ethPrivateVaultImpl = await upgrades.deployImplementation(ethPrivateVault, {
@@ -136,16 +212,20 @@ export const createEthVaultMockFactory = async function (
       keeper.address,
       vaultsRegistry.address,
       validatorsRegistry.address,
+      osToken.address,
+      osTokenConfig.address,
       sharedMevEscrow.address,
     ],
   })
 
   const factory = await ethers.getContractFactory('EthVaultFactory')
-  return (await factory.deploy(
+  const ethVaultFactory = (await factory.deploy(
     ethVaultMockImpl,
     ethPrivateVaultImpl,
     vaultsRegistry.address
   )) as EthVaultFactory
+  await vaultsRegistry.connect(vaultsRegistryOwner).addFactory(ethVaultFactory.address)
+  return ethVaultFactory
 }
 
 interface EthVaultFixture {
@@ -155,6 +235,8 @@ interface EthVaultFixture {
   sharedMevEscrow: SharedMevEscrow
   validatorsRegistry: Contract
   ethVaultFactory: EthVaultFactory
+  osToken: OsToken
+  osTokenConfig: OsTokenConfig
   getSignatures: (typedData: any, count?: number) => Buffer
 
   createVault(
@@ -194,28 +276,70 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     ORACLES_CONFIG
   )
   const sharedMevEscrow = await createSharedMevEscrow(vaultsRegistry)
+
+  // 2. calc keeper address
+  const [_deployer] = await ethers.getSigners()
+  const _keeperAddress = getContractAddress({
+    from: _deployer.address,
+    nonce: (await _deployer.getTransactionCount()) + 2,
+  })
+
+  // 3. deploy ostoken
+  const osToken = await createOsToken(
+    _keeperAddress,
+    vaultsRegistry,
+    dao,
+    dao,
+    OSTOKEN_FEE,
+    OSTOKEN_CAPACITY,
+    OSTOKEN_NAME,
+    OSTOKEN_SYMBOL
+  )
+
+  // 4. deploy keeper
   const keeper = await createKeeper(
     dao,
     oracles,
     vaultsRegistry,
+    osToken,
     validatorsRegistry,
-    sharedMevEscrow
+    sharedMevEscrow,
+    MAX_AVG_REWARD_PER_SECOND
   )
+
+  // 5. verify keeper address
+  if (_keeperAddress != keeper.address) {
+    throw new Error('Invalid calculated Keeper address')
+  }
+
+  const osTokenConfig = await createOsTokenConfig(
+    dao,
+    OSTOKEN_REDEEM_FROM_LTV,
+    OSTOKEN_REDEEM_TO_LTV,
+    OSTOKEN_LIQ_THRESHOLD,
+    OSTOKEN_LIQ_BONUS,
+    OSTOKEN_LTV
+  )
+
   const ethVaultFactory = await createEthVaultFactory(
+    dao,
     keeper,
     vaultsRegistry,
     sharedMevEscrow,
-    validatorsRegistry
+    validatorsRegistry,
+    osToken,
+    osTokenConfig
   )
-  await vaultsRegistry.connect(dao).addFactory(ethVaultFactory.address)
 
   const ethVaultMockFactory = await createEthVaultMockFactory(
+    dao,
     keeper,
     vaultsRegistry,
     sharedMevEscrow,
-    validatorsRegistry
+    validatorsRegistry,
+    osToken,
+    osTokenConfig
   )
-  await vaultsRegistry.connect(dao).addFactory(ethVaultMockFactory.address)
 
   const ethVault = await ethers.getContractFactory('EthVault')
   const ethPrivateVault = await ethers.getContractFactory('EthPrivateVault')
@@ -227,6 +351,8 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     keeper,
     validatorsRegistry,
     ethVaultFactory,
+    osToken,
+    osTokenConfig,
     createVault: async (
       admin: Wallet,
       vaultParams: IEthVaultFactory.VaultParamsStruct,

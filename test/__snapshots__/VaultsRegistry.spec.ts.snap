@@ -1,36 +1,36 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`VaultsRegistry factory can add vault 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 47528,
-}
-`;
-
 exports[`VaultsRegistry owner can add factory 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 47328,
+  "gasUsed": 47326,
+}
+`;
+
+exports[`VaultsRegistry owner can add vault 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 49685,
 }
 `;
 
 exports[`VaultsRegistry owner can register implementation contract 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 47487,
+  "gasUsed": 47497,
 }
 `;
 
 exports[`VaultsRegistry owner can remove factory 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 25491,
+  "gasUsed": 25489,
 }
 `;
 
 exports[`VaultsRegistry owner can remove implementation 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 25430,
+  "gasUsed": 25440,
 }
 `;
