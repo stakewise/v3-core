@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
@@ -20,11 +20,18 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IVaultEnterExit
+  function getExitQueueIndex(uint256 positionTicket) external view override returns (int256) {
+    uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionTicket);
+    return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
+  }
+
+  /// @inheritdoc IVaultEnterExit
   function redeem(
     uint256 shares,
     address receiver,
     address owner
-  ) external override onlyHarvested returns (uint256 assets) {
+  ) public virtual override returns (uint256 assets) {
+    _checkHarvested();
     if (shares == 0) revert InvalidShares();
     if (receiver == address(0)) revert InvalidRecipient();
 
@@ -37,22 +44,13 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     // reduce allowance
     if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
 
-    // burn shares
-    balanceOf[owner] -= shares;
-
-    // update counters
-    unchecked {
-      // cannot underflow because the sum of all shares can't exceed the _totalShares
-      _totalShares -= SafeCast.toUint128(shares);
-      // cannot underflow because the sum of all assets can't exceed the _totalAssets
-      _totalAssets -= SafeCast.toUint128(assets);
-    }
+    // burn owner shares
+    _burnShares(owner, shares, assets);
 
     // transfer assets to the receiver
     _transferVaultAssets(receiver, assets);
 
-    emit Transfer(owner, address(0), shares);
-    emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    emit Redeem(msg.sender, receiver, owner, assets, shares);
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -60,18 +58,19 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     uint256 shares,
     address receiver,
     address owner
-  ) external override onlyCollateralized returns (uint256 positionCounter) {
+  ) public virtual override returns (uint256 positionTicket) {
+    _checkCollateralized();
     if (shares == 0) revert InvalidSharesAmount();
     if (receiver == address(0)) revert InvalidRecipient();
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
 
-    // calculate position counter
-    positionCounter = _exitQueue.getSharesCounter() + _queuedShares;
+    // calculate position ticket
+    positionTicket = _exitQueue.getLatestTotalTickets() + _queuedShares;
 
     // add to the exit requests
-    _exitRequests[keccak256(abi.encode(receiver, positionCounter))] = shares;
+    _exitRequests[keccak256(abi.encode(receiver, positionTicket))] = shares;
 
     // lock tokens in the Vault
     if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
@@ -84,30 +83,30 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     }
 
     emit Transfer(owner, address(this), shares);
-    emit ExitQueueEntered(msg.sender, receiver, owner, positionCounter, shares);
+    emit ExitQueueEntered(msg.sender, receiver, owner, positionTicket, shares);
   }
 
   /// @inheritdoc IVaultEnterExit
   function claimExitedAssets(
     address receiver,
-    uint256 positionCounter,
-    uint256 checkpointIndex
+    uint256 positionTicket,
+    uint256 exitQueueIndex
   )
     external
     override
-    returns (uint256 newPositionCounter, uint256 claimedShares, uint256 claimedAssets)
+    returns (uint256 newPositionTicket, uint256 claimedShares, uint256 claimedAssets)
   {
-    bytes32 queueId = keccak256(abi.encode(receiver, positionCounter));
+    bytes32 queueId = keccak256(abi.encode(receiver, positionTicket));
     uint256 requestedShares = _exitRequests[queueId];
 
     // calculate exited shares and assets
     (claimedShares, claimedAssets) = _exitQueue.calculateExitedAssets(
-      checkpointIndex,
-      positionCounter,
+      exitQueueIndex,
+      positionTicket,
       requestedShares
     );
     // nothing to claim
-    if (claimedShares == 0) return (positionCounter, claimedShares, claimedAssets);
+    if (claimedShares == 0) return (positionTicket, claimedShares, claimedAssets);
 
     // clean up current exit request
     delete _exitRequests[queueId];
@@ -116,8 +115,8 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     // skip creating new position for the shares rounding error
     if (leftShares > 1) {
       // update user's queue position
-      newPositionCounter = positionCounter + claimedShares;
-      _exitRequests[keccak256(abi.encode(receiver, newPositionCounter))] = leftShares;
+      newPositionTicket = positionTicket + claimedShares;
+      _exitRequests[keccak256(abi.encode(receiver, newPositionTicket))] = leftShares;
     }
 
     // transfer assets to the receiver
@@ -126,8 +125,8 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     emit ExitedAssetsClaimed(
       msg.sender,
       receiver,
-      positionCounter,
-      newPositionCounter,
+      positionTicket,
+      newPositionTicket,
       claimedAssets
     );
   }
@@ -143,7 +142,8 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     address to,
     uint256 assets,
     address referrer
-  ) internal onlyHarvested returns (uint256 shares) {
+  ) internal returns (uint256 shares) {
+    _checkHarvested();
     if (to == address(0)) revert ZeroAddress();
     if (assets == 0) revert InvalidAssets();
 

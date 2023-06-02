@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
@@ -40,12 +40,6 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
       uint256 reservedAssets = convertToAssets(queuedShares) + _unclaimedAssets;
       return vaultAssets > reservedAssets ? vaultAssets - reservedAssets : 0;
     }
-  }
-
-  /// @inheritdoc IVaultState
-  function getCheckpointIndex(uint256 positionCounter) external view override returns (int256) {
-    uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionCounter);
-    return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
   }
 
   /// @inheritdoc IVaultState

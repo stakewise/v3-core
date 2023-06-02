@@ -11,6 +11,11 @@
   },
   {
     "inputs": [],
+    "name": "HealthFactorNotViolated",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InsufficientAssets",
     "type": "error"
   },
@@ -36,7 +41,27 @@
   },
   {
     "inputs": [],
+    "name": "InvalidHealthFactor",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLtv",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidPosition",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidProof",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidReceivedAssets",
     "type": "error"
   },
   {
@@ -76,12 +101,22 @@
   },
   {
     "inputs": [],
+    "name": "LowLtv",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "PermitDeadlineExpired",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "PermitInvalidSigner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RedemptionExceeded",
     "type": "error"
   },
   {
@@ -204,7 +239,7 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "positionCounter",
+        "name": "positionTicket",
         "type": "uint256"
       },
       {
@@ -235,13 +270,13 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "prevPositionCounter",
+        "name": "prevPositionTicket",
         "type": "uint256"
       },
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "newPositionCounter",
+        "name": "newPositionTicket",
         "type": "uint256"
       },
       {
@@ -283,6 +318,25 @@
         "type": "address"
       },
       {
+        "indexed": true,
+        "internalType": "address",
+        "name": "keysManager",
+        "type": "address"
+      }
+    ],
+    "name": "KeysManagerUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
         "indexed": false,
         "internalType": "string",
         "name": "metadataIpfsHash",
@@ -302,13 +356,167 @@
         "type": "address"
       },
       {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      }
+    ],
+    "name": "OsTokenBurned",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
-        "name": "operator",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "coveredShares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "receivedAssets",
+        "type": "uint256"
+      }
+    ],
+    "name": "OsTokenLiquidated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "referrer",
         "type": "address"
       }
     ],
-    "name": "OperatorUpdated",
+    "name": "OsTokenMinted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      }
+    ],
+    "name": "OsTokenRedeemed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      }
+    ],
+    "name": "Redeem",
     "type": "event"
   },
   {
@@ -413,43 +621,6 @@
     "type": "event"
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "caller",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "receiver",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "assets",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "shares",
-        "type": "uint256"
-      }
-    ],
-    "name": "Withdraw",
-    "type": "event"
-  },
-  {
     "inputs": [],
     "name": "DOMAIN_SEPARATOR",
     "outputs": [
@@ -543,6 +714,25 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "uint128",
+        "name": "osTokenShares",
+        "type": "uint128"
+      }
+    ],
+    "name": "burnOsToken",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "canUpdateExitQueue",
     "outputs": [
@@ -577,12 +767,12 @@
       },
       {
         "internalType": "uint256",
-        "name": "positionCounter",
+        "name": "positionTicket",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "checkpointIndex",
+        "name": "exitQueueIndex",
         "type": "uint256"
       }
     ],
@@ -590,7 +780,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "newPositionCounter",
+        "name": "newPositionTicket",
         "type": "uint256"
       },
       {
@@ -728,7 +918,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "positionCounter",
+        "name": "positionTicket",
         "type": "uint256"
       }
     ],
@@ -765,11 +955,11 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "positionCounter",
+        "name": "positionTicket",
         "type": "uint256"
       }
     ],
-    "name": "getCheckpointIndex",
+    "name": "getExitQueueIndex",
     "outputs": [
       {
         "internalType": "int256",
@@ -832,6 +1022,48 @@
   },
   {
     "inputs": [],
+    "name": "keysManager",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "osTokenShares",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "liquidateOsToken",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "receivedAssets",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "mevEscrow",
     "outputs": [
       {
@@ -841,6 +1073,35 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "referrer",
+        "type": "address"
+      }
+    ],
+    "name": "mintOsToken",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {
@@ -895,13 +1156,19 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "operator",
-    "outputs": [
+    "inputs": [
       {
         "internalType": "address",
-        "name": "",
+        "name": "user",
         "type": "address"
+      }
+    ],
+    "name": "osTokenPositions",
+    "outputs": [
+      {
+        "internalType": "uint128",
+        "name": "shares",
+        "type": "uint128"
       }
     ],
     "stateMutability": "view",
@@ -1015,6 +1282,35 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "osTokenShares",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      }
+    ],
+    "name": "redeemOsToken",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "receivedAssets",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "components": [
           {
             "internalType": "bytes32",
@@ -1118,12 +1414,12 @@
   {
     "inputs": [
       {
-        "internalType": "string",
-        "name": "metadataIpfsHash",
-        "type": "string"
+        "internalType": "address",
+        "name": "_keysManager",
+        "type": "address"
       }
     ],
-    "name": "setMetadata",
+    "name": "setKeysManager",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1131,12 +1427,12 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "_operator",
-        "type": "address"
+        "internalType": "string",
+        "name": "metadataIpfsHash",
+        "type": "string"
       }
     ],
-    "name": "setOperator",
+    "name": "setMetadata",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1412,7 +1708,7 @@
         "type": "uint8"
       }
     ],
-    "stateMutability": "view",
+    "stateMutability": "pure",
     "type": "function"
   },
   {

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 /**
  * @title IVaultsRegistry
@@ -12,6 +12,7 @@ interface IVaultsRegistry {
   error AccessDenied();
   error AlreadyAdded();
   error AlreadyRemoved();
+  error UnsupportedImplementation();
 
   /**
    * @notice Event emitted on a Vault addition

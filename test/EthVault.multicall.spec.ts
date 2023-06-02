@@ -122,12 +122,12 @@ describe('EthVault - multicall', () => {
     )
 
     result = await vault.connect(sender).callStatic.multicall(calls)
-    const exitQueueCounter = vault.interface.decodeFunctionResult('enterExitQueue', result[2])[0]
+    const queueTicket = vault.interface.decodeFunctionResult('enterExitQueue', result[2])[0]
 
     let receipt = await vault.connect(sender).multicall(calls)
     await expect(receipt).to.emit(keeper, 'Harvested')
     await expect(receipt).to.emit(mevEscrow, 'Harvested')
-    await expect(receipt).to.emit(vault, 'Withdraw')
+    await expect(receipt).to.emit(vault, 'Redeem')
     await expect(receipt).to.emit(vault, 'ExitQueueEntered')
     await snapshotGasCost(receipt)
 
@@ -137,15 +137,15 @@ describe('EthVault - multicall', () => {
     // wait for exit queue
     await increaseTime(ONE_DAY)
     calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
-    calls.push(vault.interface.encodeFunctionData('getCheckpointIndex', [exitQueueCounter]))
+    calls.push(vault.interface.encodeFunctionData('getExitQueueIndex', [queueTicket]))
     result = await vault.connect(sender).callStatic.multicall(calls)
-    const checkpointIndex = vault.interface.decodeFunctionResult('getCheckpointIndex', result[1])[0]
+    const checkpointIndex = vault.interface.decodeFunctionResult('getExitQueueIndex', result[1])[0]
 
     calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
     calls.push(
       vault.interface.encodeFunctionData('claimExitedAssets', [
         sender.address,
-        exitQueueCounter,
+        queueTicket,
         checkpointIndex,
       ])
     )
@@ -153,7 +153,7 @@ describe('EthVault - multicall', () => {
     receipt = await vault.connect(sender).multicall(calls)
     await expect(receipt)
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(sender.address, sender.address, exitQueueCounter, 0, assetsDropped)
+      .withArgs(sender.address, sender.address, queueTicket, 0, assetsDropped)
     await snapshotGasCost(receipt)
 
     // reverts on error

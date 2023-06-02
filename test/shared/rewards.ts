@@ -4,17 +4,25 @@ import { parseEther, toUtf8Bytes } from 'ethers/lib/utils'
 import keccak256 from 'keccak256'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { Keeper, EthVault, Oracles } from '../../typechain-types'
-import { EIP712Domain, KeeperRewardsSig, ONE_DAY, REWARDS_DELAY, ZERO_ADDRESS } from './constants'
+import {
+  EIP712Domain,
+  KeeperRewardsSig,
+  MAX_AVG_REWARD_PER_SECOND,
+  ONE_DAY,
+  REWARDS_DELAY,
+  ZERO_ADDRESS,
+} from './constants'
 import { Buffer } from 'buffer'
 import { registerEthValidator } from './validators'
 import { increaseTime, setBalance } from './utils'
 
 export type RewardsTree = StandardMerkleTree<[string, BigNumberish, BigNumberish]>
 
-export type RewardsRoot = {
+export type RewardsUpdate = {
   root: string
   ipfsHash: string
-  updateTimestamp: number
+  updateTimestamp: BigNumberish
+  avgRewardPerSecond: BigNumberish
   tree: RewardsTree
   signingData: any
 }
@@ -25,12 +33,15 @@ export type VaultReward = {
   unlockedMevReward: BigNumberish
 }
 
-export function createVaultRewardsRoot(
+function randomIntFromInterval(min, max): number {
+  return Math.floor(Math.random() * (max - min + 1) + min)
+}
+
+export function getKeeperRewardsUpdateData(
   rewards: VaultReward[],
   oracles: Oracles,
-  updateTimestamp = 1670255895,
-  nonce = 1
-): RewardsRoot {
+  { nonce = 1, updateTimestamp = '1670255895', avgRewardPerSecond = '1585489600' } = {}
+): RewardsUpdate {
   const tree = StandardMerkleTree.of(
     rewards.map((r) => [r.vault, r.reward, r.unlockedMevReward]),
     ['address', 'int160', 'uint160']
@@ -44,6 +55,7 @@ export function createVaultRewardsRoot(
     root: treeRoot,
     ipfsHash,
     updateTimestamp,
+    avgRewardPerSecond,
     tree,
     signingData: {
       primaryType: 'KeeperRewards',
@@ -57,6 +69,7 @@ export function createVaultRewardsRoot(
       message: {
         rewardsRoot: treeRoot,
         rewardsIpfsHash: keccak256(Buffer.from(toUtf8Bytes(ipfsHash))),
+        avgRewardPerSecond,
         updateTimestamp,
         nonce,
       },
@@ -68,18 +81,23 @@ export async function updateRewards(
   keeper: Keeper,
   oracles: Oracles,
   getSignatures: (typedData: any, count?: number) => Buffer,
-  rewards: VaultReward[]
+  rewards: VaultReward[],
+  avgRewardPerSecond: number = randomIntFromInterval(1, MAX_AVG_REWARD_PER_SECOND)
 ): Promise<RewardsTree> {
   const rewardsNonce = await keeper.rewardsNonce()
-  const rewardsRoot = createVaultRewardsRoot(rewards, oracles, 1670257866, rewardsNonce.toNumber())
+  const rewardsUpdate = getKeeperRewardsUpdateData(rewards, oracles, {
+    nonce: rewardsNonce.toNumber(),
+    avgRewardPerSecond,
+  })
   await increaseTime(REWARDS_DELAY)
   await keeper.updateRewards({
-    rewardsRoot: rewardsRoot.root,
-    updateTimestamp: rewardsRoot.updateTimestamp,
-    rewardsIpfsHash: rewardsRoot.ipfsHash,
-    signatures: getSignatures(rewardsRoot.signingData),
+    rewardsRoot: rewardsUpdate.root,
+    avgRewardPerSecond: rewardsUpdate.avgRewardPerSecond,
+    updateTimestamp: rewardsUpdate.updateTimestamp,
+    rewardsIpfsHash: rewardsUpdate.ipfsHash,
+    signatures: getSignatures(rewardsUpdate.signingData),
   })
-  return rewardsRoot.tree
+  return rewardsUpdate.tree
 }
 
 export function getRewardsRootProof(tree: RewardsTree, vaultReward: VaultReward): string[] {
@@ -111,7 +129,7 @@ export async function collateralizeEthVault(
   })
 
   // exit validator
-  const exitQueueId = await vault
+  const positionTicket = await vault
     .connect(admin)
     .callStatic.enterExitQueue(validatorDeposit, admin.address, admin.address)
   await vault.connect(admin).enterExitQueue(validatorDeposit, admin.address, admin.address)
@@ -120,8 +138,8 @@ export async function collateralizeEthVault(
   await vault.updateState({ rewardsRoot: rewardsTree.root, reward: 0, unlockedMevReward: 0, proof })
 
   // claim exited assets
-  const checkpointIndex = await vault.getCheckpointIndex(exitQueueId)
-  vault.connect(admin).claimExitedAssets(admin.address, exitQueueId, checkpointIndex)
+  const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
+  vault.connect(admin).claimExitedAssets(admin.address, positionTicket, exitQueueIndex)
 
   await increaseTime(ONE_DAY)
   await setBalance(vault.address, balanceBefore)

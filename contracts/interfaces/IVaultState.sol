@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {IKeeperRewards} from './IKeeperRewards.sol';
 import {IVaultToken} from './IVaultToken.sol';
@@ -39,14 +39,6 @@ interface IVaultState is IVaultToken, IVaultFee {
    * @return `true` if exit queue can be updated, `false` otherwise
    */
   function canUpdateExitQueue() external view returns (bool);
-
-  /**
-   * @notice Get the checkpoint index to claim exited assets from
-   * @param positionCounter The exit queue counter to get the checkpoint index for
-   * @return The checkpoint index that should be used to claim exited assets.
-   *         Returns -1 in case such index does not exist.
-   */
-  function getCheckpointIndex(uint256 positionCounter) external view returns (int256);
 
   /**
    * @notice Updates the total amount of assets in the Vault and its exit queue

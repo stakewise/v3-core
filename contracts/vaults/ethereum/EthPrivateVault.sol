@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IEthPrivateVault} from '../../interfaces/IEthPrivateVault.sol';
 import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
+import {IVersioned} from '../../interfaces/IVersioned.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
 import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
 import {VaultWhitelist} from '../modules/VaultWhitelist.sol';
@@ -24,6 +25,8 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param osToken The address of the OsToken contract
+   * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -31,13 +34,17 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address osToken,
+    address osTokenConfig,
     address sharedMevEscrow
-  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, sharedMevEscrow) {}
+  )
+    EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, osToken, osTokenConfig, sharedMevEscrow)
+  {}
 
   /// @inheritdoc IEthVault
   function initialize(
     bytes calldata params
-  ) external payable override(IEthVault, EthVault) initializer {
+  ) external payable virtual override(IEthVault, EthVault) initializer {
     EthVaultInitParams memory initParams = abi.decode(params, (EthVaultInitParams));
     __EthVault_init(initParams);
     // whitelister is initially set to admin address
@@ -47,6 +54,11 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
   /// @inheritdoc IVaultVersion
   function vaultId() public pure virtual override(EthVault, IVaultVersion) returns (bytes32) {
     return keccak256('EthPrivateVault');
+  }
+
+  /// @inheritdoc IVersioned
+  function version() public pure virtual override(EthVault, IVersioned) returns (uint8) {
+    return 1;
   }
 
   /// @inheritdoc IVaultEthStaking

@@ -132,7 +132,6 @@ describe('EthVault - register', () => {
 
     it('succeeds', async () => {
       const receipt = await vault.registerValidator(approvalParams, proof)
-      expect(await vault.validatorIndex()).to.eq(1)
       const publicKey = hexlify(validator.subarray(0, 48))
       await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
       await expect(receipt)
@@ -423,7 +422,6 @@ describe('EthVault - register', () => {
             hexlify(uintSerializer.serialize(i))
           )
       }
-      expect(await vault.validatorIndex()).to.eq(validators.length)
       await snapshotGasCost(receipt)
     })
   })

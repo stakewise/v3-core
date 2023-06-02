@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {IVaultAdmin} from './IVaultAdmin.sol';
 
@@ -15,7 +15,7 @@ interface IVaultFee is IVaultAdmin {
   error InvalidFeePercent();
 
   /**
-   * @notice Event emitted on validator registration
+   * @notice Event emitted on fee recipient update
    * @param caller The address of the function caller
    * @param feeRecipient The address of the new fee recipient
    */
@@ -28,7 +28,7 @@ interface IVaultFee is IVaultAdmin {
   function feeRecipient() external view returns (address);
 
   /**
-   * @notice The Vault's fee percent
+   * @notice The Vault's fee percent in BPS
    * @return The fee percent applied by the Vault on the rewards
    */
   function feePercent() external view returns (uint16);

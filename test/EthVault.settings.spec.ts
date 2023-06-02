@@ -21,11 +21,11 @@ describe('EthVault - settings', () => {
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
-  let admin: Wallet, owner: Wallet, operator: Wallet, other: Wallet, newFeeRecipient: Wallet
+  let admin: Wallet, owner: Wallet, keysManager: Wallet, other: Wallet, newFeeRecipient: Wallet
   let keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
 
   before('create fixture loader', async () => {
-    ;[admin, owner, operator, other, newFeeRecipient] = await (ethers as any).getSigners()
+    ;[admin, owner, keysManager, other, newFeeRecipient] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([owner])
   })
 
@@ -61,26 +61,25 @@ describe('EthVault - settings', () => {
         symbol,
         metadataIpfsHash,
       })
-      await vault.connect(admin).setOperator(operator.address)
+      await vault.connect(admin).setKeysManager(keysManager.address)
     })
 
-    it('only operator can update', async () => {
+    it('onlykeys manager can update', async () => {
       await expect(vault.connect(admin).setValidatorsRoot(newValidatorsRoot)).to.be.revertedWith(
         'AccessDenied'
       )
     })
 
     it('can update', async () => {
-      const receipt = await vault.connect(operator).setValidatorsRoot(newValidatorsRoot)
+      const receipt = await vault.connect(keysManager).setValidatorsRoot(newValidatorsRoot)
       await expect(receipt)
         .to.emit(vault, 'ValidatorsRootUpdated')
-        .withArgs(operator.address, newValidatorsRoot)
-      expect(await vault.validatorsRoot()).to.be.eq(newValidatorsRoot)
+        .withArgs(keysManager.address, newValidatorsRoot)
       await snapshotGasCost(receipt)
     })
   })
 
-  describe('operator', () => {
+  describe('keys manager', () => {
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
@@ -94,23 +93,25 @@ describe('EthVault - settings', () => {
     })
 
     it('cannot be updated by anyone', async () => {
-      await expect(vault.connect(other).setOperator(operator.address)).to.be.revertedWith(
+      await expect(vault.connect(other).setKeysManager(keysManager.address)).to.be.revertedWith(
         'AccessDenied'
       )
     })
 
     it('cannot set to zero address', async () => {
-      await expect(vault.connect(admin).setOperator(ZERO_ADDRESS)).to.be.revertedWith('ZeroAddress')
+      await expect(vault.connect(admin).setKeysManager(ZERO_ADDRESS)).to.be.revertedWith(
+        'ZeroAddress'
+      )
     })
 
     it('can be updated by admin', async () => {
       // initially equals to admin
-      expect(await vault.operator()).to.be.eq(admin.address)
-      const receipt = await vault.connect(admin).setOperator(operator.address)
+      expect(await vault.keysManager()).to.be.eq(admin.address)
+      const receipt = await vault.connect(admin).setKeysManager(keysManager.address)
       await expect(receipt)
-        .to.emit(vault, 'OperatorUpdated')
-        .withArgs(admin.address, operator.address)
-      expect(await vault.operator()).to.be.eq(operator.address)
+        .to.emit(vault, 'KeysManagerUpdated')
+        .withArgs(admin.address, keysManager.address)
+      expect(await vault.keysManager()).to.be.eq(keysManager.address)
       await snapshotGasCost(receipt)
     })
   })

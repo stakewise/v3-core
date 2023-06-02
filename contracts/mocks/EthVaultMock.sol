@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
@@ -23,29 +23,16 @@ contract EthVaultMock is EthVault {
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address osToken,
+    address osTokenConfig,
     address sharedMevEscrow
-  ) EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, sharedMevEscrow) {}
+  )
+    EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, osToken, osTokenConfig, sharedMevEscrow)
+  {}
 
-  function mockDeposit(address receiver, uint256 assets) external returns (uint256 shares) {
-    // calculate amount of shares to mint
-    shares = convertToShares(assets);
-
-    // update counters
-    _totalShares += SafeCast.toUint128(shares);
-
-    unchecked {
-      // Cannot overflow because the sum of all user
-      // balances can't exceed the max uint256 value
-      balanceOf[receiver] += shares;
-    }
-
-    emit Transfer(address(0), receiver, shares);
-    emit Deposit(msg.sender, receiver, assets, shares, address(0));
-  }
-
-  function getGasCostOfGetCheckpointIndex(uint256 exitQueueId) external view returns (uint256) {
+  function getGasCostOfGetExitQueueIndex(uint256 positionTicket) external view returns (uint256) {
     uint256 gasBefore = gasleft();
-    _exitQueue.getCheckpointIndex(exitQueueId);
+    _exitQueue.getCheckpointIndex(positionTicket);
     return gasBefore - gasleft();
   }
 

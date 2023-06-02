@@ -1,4 +1,5 @@
 import { BigNumber } from 'ethers'
+import { parseEther } from 'ethers/lib/utils'
 
 export const PANIC_CODES = {
   ARITHMETIC_UNDER_OR_OVERFLOW: 'panic code 0x11',
@@ -8,6 +9,7 @@ export const PANIC_CODES = {
 
 export const SECURITY_DEPOSIT = 1000000000
 export const MAX_UINT256 = BigNumber.from(2).pow(256).sub(1)
+export const MAX_UINT16 = BigNumber.from(2).pow(16).sub(1)
 export const MAX_UINT128 = BigNumber.from(2).pow(128).sub(1)
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 export const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -29,6 +31,18 @@ export const ORACLES = [
 ]
 export const REQUIRED_ORACLES = 6
 export const ORACLES_CONFIG = 'QmbwQ6zFEWs1SjLPGk4NNJqn4wduVe6dK3xyte2iG59Uru'
+export const OSTOKEN_FEE = 500 // 5%
+export const OSTOKEN_CAPACITY = parseEther('10000000')
+export const OSTOKEN_NAME = 'SW Staked ETH'
+export const OSTOKEN_SYMBOL = 'osETH'
+
+export const OSTOKEN_LIQ_THRESHOLD = 9200 // 92%
+export const OSTOKEN_LIQ_BONUS = 10100 // 101%
+export const OSTOKEN_LTV = 9000 // 90%
+
+export const OSTOKEN_REDEEM_FROM_LTV = 9150 // 92%
+export const OSTOKEN_REDEEM_TO_LTV = 9000 // 90%
+export const MAX_AVG_REWARD_PER_SECOND = BigNumber.from('6341958396') // 20% APY
 
 export const EIP712Domain = [
   { name: 'name', type: 'string' },
@@ -48,6 +62,7 @@ export const PermitSig = [
 export const KeeperRewardsSig = [
   { name: 'rewardsRoot', type: 'bytes32' },
   { name: 'rewardsIpfsHash', type: 'bytes32' },
+  { name: 'avgRewardPerSecond', type: 'uint256' },
   { name: 'updateTimestamp', type: 'uint64' },
   { name: 'nonce', type: 'uint64' },
 ]

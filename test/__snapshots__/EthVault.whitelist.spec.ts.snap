@@ -3,34 +3,34 @@
 exports[`EthVault - whitelist deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 75890,
+  "gasUsed": 75957,
 }
 `;
 
 exports[`EthVault - whitelist deposit deposit through receive fallback can be called by whitelisted sender 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 83263,
+  "gasUsed": 83230,
 }
 `;
 
 exports[`EthVault - whitelist set whitelister admin can update whitelister 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 36364,
+  "gasUsed": 36492,
 }
 `;
 
 exports[`EthVault - whitelist whitelist can be updated by whitelister 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 53149,
+  "gasUsed": 53168,
 }
 `;
 
 exports[`EthVault - whitelist whitelist can be updated by whitelister 2`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 31237,
+  "gasUsed": 31256,
 }
 `;

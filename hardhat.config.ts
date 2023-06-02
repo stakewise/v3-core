@@ -50,7 +50,7 @@ const config: HardhatUserConfig = {
   solidity: {
     compilers: [
       {
-        version: '0.8.19',
+        version: '0.8.20',
         settings: {
           viaIR: !IS_COVERAGE,
           optimizer: {
@@ -69,7 +69,6 @@ const config: HardhatUserConfig = {
     gnosis: getCommonNetworkConfig(Networks.gnosis),
     mainnet: getCommonNetworkConfig(Networks.mainnet),
     hardhat: {
-      hardfork: 'merge',
       blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,
       gas: DEFAULT_BLOCK_GAS_LIMIT,
       gasPrice: 8000000000,

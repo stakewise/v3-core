@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.19;
+pragma solidity =0.8.20;
 
 /**
  * @title IKeeperRewards
@@ -13,11 +13,13 @@ interface IKeeperRewards {
   error InvalidProof();
   error AccessDenied();
   error TooEarlyUpdate();
+  error InvalidAvgRewardPerSecond();
 
   /**
    * @notice Event emitted on rewards update
    * @param caller The address of the function caller
    * @param rewardsRoot The new rewards merkle tree root
+   * @param avgRewardPerSecond The new average reward per second
    * @param updateTimestamp The update timestamp used for rewards calculation
    * @param nonce The nonce used for verifying signatures
    * @param rewardsIpfsHash The new rewards IPFS hash
@@ -25,6 +27,7 @@ interface IKeeperRewards {
   event RewardsUpdated(
     address indexed caller,
     bytes32 indexed rewardsRoot,
+    uint256 avgRewardPerSecond,
     uint64 updateTimestamp,
     uint64 nonce,
     string rewardsIpfsHash
@@ -43,13 +46,6 @@ interface IKeeperRewards {
     int256 totalAssetsDelta,
     uint256 unlockedMevDelta
   );
-
-  /**
-   * @notice Event emitted on the update of rewards delay
-   * @param caller The address of the function caller
-   * @param rewardsDelay The new rewards update delay
-   */
-  event RewardsDelayUpdated(address indexed caller, uint64 rewardsDelay);
 
   /**
    * @notice A struct containing the last synced Vault's cumulative reward
@@ -74,12 +70,14 @@ interface IKeeperRewards {
   /**
    * @notice A struct containing parameters for rewards update
    * @param rewardsRoot The new rewards merkle root
+   * @param avgRewardPerSecond The new average reward per second
    * @param updateTimestamp The update timestamp used for rewards calculation
    * @param rewardsIpfsHash The new IPFS hash with all the Vaults' rewards for the new root
    * @param signatures The concatenation of the Oracles' signatures
    */
   struct RewardsUpdateParams {
     bytes32 rewardsRoot;
+    uint256 avgRewardPerSecond;
     uint64 updateTimestamp;
     string rewardsIpfsHash;
     bytes signatures;
@@ -125,7 +123,7 @@ interface IKeeperRewards {
 
   /**
    * @notice The rewards delay
-   * @return The delay between rewards updates
+   * @return The delay in seconds between rewards updates
    */
   function rewardsDelay() external view returns (uint256);
 
@@ -177,12 +175,6 @@ interface IKeeperRewards {
    * @param params The struct containing rewards update parameters
    */
   function updateRewards(RewardsUpdateParams calldata params) external;
-
-  /**
-   * @notice Update rewards delay. Can only be called by the owner.
-   * @param _rewardsDelay The new rewards update delay
-   */
-  function setRewardsDelay(uint64 _rewardsDelay) external;
 
   /**
    * @notice Harvest rewards. Can be called only by Vault.
