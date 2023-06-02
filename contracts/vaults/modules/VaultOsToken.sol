@@ -185,7 +185,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
     uint256 osTokenShares,
     bool isLiquidation
   ) private returns (uint256 receivedAssets) {
-    if (receiver == address(0)) revert InvalidRecipient();
+    if (receiver == address(0)) revert ZeroAddress();
     _checkHarvested();
 
     // update osToken state for gas efficiency

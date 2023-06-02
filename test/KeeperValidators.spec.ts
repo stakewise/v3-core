@@ -61,10 +61,6 @@ describe('KeeperValidators', () => {
     await vault.connect(admin).setValidatorsRoot(validatorsData.root)
   })
 
-  it('fails to initialize', async () => {
-    await expect(keeper.initialize()).revertedWith('Initializable: contract is already initialized')
-  })
-
   describe('register single validator', () => {
     let validator: Buffer
     let proof: string[]

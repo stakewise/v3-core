@@ -4,7 +4,6 @@ export type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 export enum Networks {
   mainnet = 'mainnet',
   goerli = 'goerli',
-  gnosis = 'gnosis',
 }
 
 export type NetworkConfig = {
@@ -14,19 +13,24 @@ export type NetworkConfig = {
   governor: string
   validatorsRegistry: string
 
+  // Keeper
   oracles: string[]
   requiredOracles: number
   rewardsDelay: number
   oraclesConfigIpfsHash: string
+  maxAvgRewardPerSecond: BigNumberish
 
+  // OsToken
   treasury: string
   osTokenFeePercent: number
   osTokenCapacity: BigNumberish
   osTokenName: string
   osTokenSymbol: string
-  osTokenLiqThreshold: number
-  osTokenLiqBonus: number
-  osTokenLtv: number
-  osTokenRedeemStartHf: BigNumberish
-  osTokenRedeemMaxHf: BigNumberish
+
+  // OsTokenConfig
+  redeemFromLtvPercent: number
+  redeemToLtvPercent: number
+  liqThresholdPercent: number
+  liqBonusPercent: number
+  ltvPercent: number
 }

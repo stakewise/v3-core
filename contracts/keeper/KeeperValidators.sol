@@ -2,7 +2,6 @@
 
 pragma solidity =0.8.20;
 
-import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IKeeperValidators} from '../interfaces/IKeeperValidators.sol';
 import {KeeperRewards} from './KeeperRewards.sol';
@@ -12,7 +11,7 @@ import {KeeperRewards} from './KeeperRewards.sol';
  * @author StakeWise
  * @notice Defines the functionality for approving validators' registrations and updating exit signatures
  */
-abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValidators {
+abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
   bytes32 private constant _registerValidatorsTypeHash =
     keccak256(
       'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes32 validators,bytes32 exitSignaturesIpfsHash)'
@@ -95,11 +94,4 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
     // emit event
     emit ExitSignaturesUpdated(msg.sender, vault, nonce, exitSignaturesIpfsHash);
   }
-
-  /**
-   * @dev This empty reserved space is put in place to allow future versions to add new
-   * variables without shifting down storage in the inheritance chain.
-   * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-   */
-  uint256[50] private __gap;
 }

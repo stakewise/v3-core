@@ -42,13 +42,6 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   )
   console.log('VaultsRegistry deployed at', vaultsRegistry.address)
 
-  await verify(
-    hre,
-    vaultsRegistry.address,
-    [networkConfig.governor],
-    'contracts/vaults/VaultsRegistry.sol:VaultsRegistry'
-  )
-
   const oracles = await deployContract(
     new Oracles__factory(deployer).deploy(
       networkConfig.governor,
@@ -59,33 +52,14 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   )
   console.log('Oracles deployed at', oracles.address)
 
-  await verify(
-    hre,
-    oracles.address,
-    [
-      networkConfig.governor,
-      networkConfig.oracles,
-      networkConfig.requiredOracles,
-      networkConfig.oraclesConfigIpfsHash,
-    ],
-    'contracts/keeper/Oracles.sol:Oracles'
-  )
-
   const sharedMevEscrow = await deployContract(
     new SharedMevEscrow__factory(deployer).deploy(vaultsRegistry.address)
   )
   console.log('SharedMevEscrow deployed at', sharedMevEscrow.address)
 
-  await verify(
-    hre,
-    sharedMevEscrow.address,
-    [vaultsRegistry.address],
-    'contracts/vaults/ethereum/mev/SharedMevEscrow.sol:SharedMevEscrow'
-  )
-
   const keeperCalculatedAddress = getContractAddress({
     from: deployer.address,
-    nonce: (await deployer.getTransactionCount()) + 2,
+    nonce: (await deployer.getTransactionCount()) + 1,
   })
   const osToken = await deployContract(
     new OsToken__factory(deployer).deploy(
@@ -101,80 +75,32 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   )
   console.log('OsToken deployed at', osToken.address)
 
-  await verify(
-    hre,
-    osToken.address,
-    [
-      '0x996461A815191bDE7FAdb7ABAbA9053cd6969CAA',
-      vaultsRegistry.address,
-      networkConfig.governor,
-      networkConfig.treasury,
-      networkConfig.osTokenFeePercent,
-      networkConfig.osTokenCapacity,
-      networkConfig.osTokenName,
-      networkConfig.osTokenSymbol,
-    ],
-    'contracts/osToken/OsToken.sol:OsToken'
-  )
-
-  const keeper = await upgrades.deployProxy(
-    new Keeper__factory(deployer),
-    [networkConfig.governor, networkConfig.rewardsDelay],
-    {
-      unsafeAllow: ['delegatecall'],
-      constructorArgs: [
-        sharedMevEscrow.address,
-        oracles.address,
-        vaultsRegistry.address,
-        osToken.address,
-        networkConfig.validatorsRegistry,
-      ],
-    }
-  )
-  await keeper.deployed()
-  if (keeper.address !== keeperCalculatedAddress) {
-    throw new Error('Keeper address mismatch')
-  }
-  console.log('Keeper deployed at', keeper.address)
-
-  await verify(
-    hre,
-    await new Keeper__factory(deployer).attach(keeper.address).implementation(),
-    [
+  const keeper = await deployContract(
+    new Keeper__factory(deployer).deploy(
       sharedMevEscrow.address,
       oracles.address,
       vaultsRegistry.address,
       osToken.address,
       networkConfig.validatorsRegistry,
-    ],
-    'contracts/keeper/Keeper.sol:Keeper'
-  )
-
-  const osTokenConfig = await deployContract(
-    new OsTokenConfig__factory(deployer).deploy(
-      networkConfig.governor,
-      networkConfig.osTokenRedeemStartHf,
-      networkConfig.osTokenRedeemMaxHf,
-      networkConfig.osTokenLiqThreshold,
-      networkConfig.osTokenLiqBonus,
-      networkConfig.osTokenLtv
+      networkConfig.rewardsDelay,
+      networkConfig.maxAvgRewardPerSecond
     )
   )
-  console.log('OsTokenConfig deployed at', osTokenConfig.address)
+  if (keeper.address !== keeperCalculatedAddress) {
+    throw new Error('Keeper address mismatch')
+  }
+  console.log('Keeper deployed at', keeper.address)
 
-  await verify(
-    hre,
-    osTokenConfig.address,
-    [
-      networkConfig.governor,
-      networkConfig.osTokenRedeemStartHf,
-      networkConfig.osTokenRedeemMaxHf,
-      networkConfig.osTokenLiqThreshold,
-      networkConfig.osTokenLiqBonus,
-      networkConfig.osTokenLtv,
-    ],
-    'contracts/osToken/OsTokenConfig.sol:OsTokenConfig'
+  const osTokenConfig = await deployContract(
+    new OsTokenConfig__factory(deployer).deploy(networkConfig.governor, {
+      redeemFromLtvPercent: networkConfig.redeemFromLtvPercent,
+      redeemToLtvPercent: networkConfig.redeemToLtvPercent,
+      liqThresholdPercent: networkConfig.liqThresholdPercent,
+      liqBonusPercent: networkConfig.liqBonusPercent,
+      ltvPercent: networkConfig.ltvPercent,
+    })
   )
+  console.log('OsTokenConfig deployed at', osTokenConfig.address)
 
   const publicVaultImpl = await upgrades.deployImplementation(new EthVault__factory(deployer), {
     unsafeAllow: ['delegatecall'],
@@ -187,20 +113,6 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       sharedMevEscrow.address,
     ],
   })
-
-  await verify(
-    hre,
-    publicVaultImpl as string,
-    [
-      keeper.address,
-      vaultsRegistry.address,
-      networkConfig.validatorsRegistry,
-      osToken.address,
-      osTokenConfig.address,
-      sharedMevEscrow.address,
-    ],
-    'contracts/vaults/ethereum/EthVault.sol:EthVault'
-  )
 
   const privateVaultImpl = await upgrades.deployImplementation(
     new EthPrivateVault__factory(deployer),
@@ -217,6 +129,102 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     }
   )
 
+  const ethVaultFactory = await deployContract(
+    new EthVaultFactory__factory(deployer).deploy(
+      publicVaultImpl as string,
+      privateVaultImpl as string,
+      vaultsRegistry.address
+    )
+  )
+  console.log('EthVaultFactory deployed at', ethVaultFactory.address)
+
+  await verify(
+    hre,
+    vaultsRegistry.address,
+    [networkConfig.governor],
+    'contracts/vaults/VaultsRegistry.sol:VaultsRegistry'
+  )
+
+  await verify(
+    hre,
+    oracles.address,
+    [
+      networkConfig.governor,
+      networkConfig.oracles,
+      networkConfig.requiredOracles,
+      networkConfig.oraclesConfigIpfsHash,
+    ],
+    'contracts/keeper/Oracles.sol:Oracles'
+  )
+
+  await verify(
+    hre,
+    sharedMevEscrow.address,
+    [vaultsRegistry.address],
+    'contracts/vaults/ethereum/mev/SharedMevEscrow.sol:SharedMevEscrow'
+  )
+
+  await verify(
+    hre,
+    osToken.address,
+    [
+      keeperCalculatedAddress,
+      vaultsRegistry.address,
+      networkConfig.governor,
+      networkConfig.treasury,
+      networkConfig.osTokenFeePercent,
+      networkConfig.osTokenCapacity,
+      networkConfig.osTokenName,
+      networkConfig.osTokenSymbol,
+    ],
+    'contracts/osToken/OsToken.sol:OsToken'
+  )
+
+  await verify(
+    hre,
+    keeper.address,
+    [
+      sharedMevEscrow.address,
+      oracles.address,
+      vaultsRegistry.address,
+      osToken.address,
+      networkConfig.validatorsRegistry,
+      networkConfig.rewardsDelay,
+      networkConfig.maxAvgRewardPerSecond,
+    ],
+    'contracts/keeper/Keeper.sol:Keeper'
+  )
+
+  await verify(
+    hre,
+    osTokenConfig.address,
+    [
+      networkConfig.governor,
+      {
+        redeemFromLtvPercent: networkConfig.redeemFromLtvPercent,
+        redeemToLtvPercent: networkConfig.redeemToLtvPercent,
+        liqThresholdPercent: networkConfig.liqThresholdPercent,
+        liqBonusPercent: networkConfig.liqBonusPercent,
+        ltvPercent: networkConfig.ltvPercent,
+      },
+    ],
+    'contracts/osToken/OsTokenConfig.sol:OsTokenConfig'
+  )
+
+  await verify(
+    hre,
+    publicVaultImpl as string,
+    [
+      keeper.address,
+      vaultsRegistry.address,
+      networkConfig.validatorsRegistry,
+      osToken.address,
+      osTokenConfig.address,
+      sharedMevEscrow.address,
+    ],
+    'contracts/vaults/ethereum/EthVault.sol:EthVault'
+  )
+
   await verify(
     hre,
     privateVaultImpl as string,
@@ -230,15 +238,6 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     ],
     'contracts/vaults/ethereum/EthPrivateVault.sol:EthPrivateVault'
   )
-
-  const ethVaultFactory = await deployContract(
-    new EthVaultFactory__factory(deployer).deploy(
-      publicVaultImpl as string,
-      privateVaultImpl as string,
-      vaultsRegistry.address
-    )
-  )
-  console.log('EthVaultFactory deployed at', ethVaultFactory.address)
 
   await verify(
     hre,

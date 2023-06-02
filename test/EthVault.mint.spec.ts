@@ -79,7 +79,7 @@ describe('EthVault - mint', () => {
   it('cannot mint osTokens to zero address', async () => {
     await expect(
       vault.connect(sender).mintOsToken(ZERO_ADDRESS, osTokenAssets, ZERO_ADDRESS)
-    ).to.be.revertedWith('InvalidRecipient')
+    ).to.be.revertedWith('ZeroAddress')
   })
 
   it('cannot mint zero osToken assets', async () => {

@@ -94,7 +94,7 @@ describe('OsToken', () => {
 
     it('cannot set to zero address', async () => {
       await expect(osToken.connect(owner).setTreasury(ZERO_ADDRESS)).to.be.revertedWith(
-        'InvalidTreasury'
+        'ZeroAddress'
       )
     })
 
@@ -139,7 +139,7 @@ describe('OsToken', () => {
     it('cannot set to zero address', async () => {
       await expect(
         osToken.connect(owner).setVaultImplementation(ZERO_ADDRESS, false)
-      ).to.be.revertedWith('InvalidImplementation')
+      ).to.be.revertedWith('ZeroAddress')
     })
 
     it('owner can change', async () => {
@@ -148,6 +148,25 @@ describe('OsToken', () => {
         .to.emit(osToken, 'VaultImplementationUpdated')
         .withArgs(vaultImpl, false)
       expect(await osToken.vaultImplementations(vaultImpl)).to.eq(false)
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('keeper', () => {
+    it('not owner cannot change', async () => {
+      await expect(osToken.connect(initialHolder).setKeeper(owner.address)).to.be.revertedWith(
+        'Ownable: caller is not the owner'
+      )
+    })
+
+    it('cannot set to zero address', async () => {
+      await expect(osToken.connect(owner).setKeeper(ZERO_ADDRESS)).to.be.revertedWith('ZeroAddress')
+    })
+
+    it('owner can change', async () => {
+      const receipt = await osToken.connect(owner).setKeeper(owner.address)
+      await expect(receipt).to.emit(osToken, 'KeeperUpdated').withArgs(owner.address)
+      expect(await osToken.keeper()).to.eq(owner.address)
       await snapshotGasCost(receipt)
     })
   })

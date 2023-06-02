@@ -41,11 +41,6 @@
   },
   {
     "inputs": [],
-    "name": "InvalidRecipient",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidSecurityDeposit",
     "type": "error"
   },
