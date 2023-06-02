@@ -3,7 +3,6 @@
 pragma solidity =0.8.19;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {Ownable2StepUpgradeable} from '@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IVaultMev} from '../interfaces/IVaultMev.sol';
@@ -16,7 +15,7 @@ import {IOsToken} from '../interfaces/IOsToken.sol';
  * @author StakeWise
  * @notice Defines the functionality for updating Vaults' and OsToken rewards
  */
-abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeeperRewards {
+abstract contract KeeperRewards is Initializable, IKeeperRewards {
   bytes32 private constant _rewardsUpdateTypeHash =
     keccak256(
       'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint256 avgRewardPerSecond,uint64 updateTimestamp,uint64 nonce)'
@@ -38,13 +37,14 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
   IVaultsRegistry internal immutable _vaultsRegistry;
 
   /// @inheritdoc IKeeperRewards
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  uint256 public immutable override rewardsDelay;
+
+  /// @inheritdoc IKeeperRewards
   mapping(address => Reward) public override rewards;
 
   /// @inheritdoc IKeeperRewards
   mapping(address => UnlockedMevReward) public override unlockedMevRewards;
-
-  /// @inheritdoc IKeeperRewards
-  uint256 public override rewardsDelay;
 
   /// @inheritdoc IKeeperRewards
   bytes32 public override prevRewardsRoot;
@@ -66,6 +66,7 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
    * @param oracles The address of the Oracles contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
    * @param osToken The address of the OsToken contract
+   * @param _rewardsDelay The delay in seconds between rewards updates
    * @param maxAvgRewardPerSecond The maximum possible average reward per second
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -74,12 +75,14 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
     IOracles oracles,
     IVaultsRegistry vaultsRegistry,
     IOsToken osToken,
+    uint256 _rewardsDelay,
     uint256 maxAvgRewardPerSecond
   ) {
     _sharedMevEscrow = sharedMevEscrow;
     _oracles = oracles;
     _vaultsRegistry = vaultsRegistry;
     _osToken = osToken;
+    rewardsDelay = _rewardsDelay;
     _maxAvgRewardPerSecond = maxAvgRewardPerSecond;
   }
 
@@ -221,23 +224,6 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
     emit Harvested(msg.sender, params.rewardsRoot, totalAssetsDelta, unlockedMevDelta);
   }
 
-  /// @inheritdoc IKeeperRewards
-  function setRewardsDelay(uint64 _rewardsDelay) external override onlyOwner {
-    _setRewardsDelay(_rewardsDelay);
-  }
-
-  /**
-   * @notice Internal function for updating rewards delay
-   * @param _rewardsDelay The new rewards update delay
-   */
-  function _setRewardsDelay(uint64 _rewardsDelay) internal {
-    // update state
-    rewardsDelay = _rewardsDelay;
-
-    // emit event
-    emit RewardsDelayUpdated(msg.sender, _rewardsDelay);
-  }
-
   /**
    * @dev Collateralize Vault so that it must be harvested in future reward updates
    * @param vault The address of the Vault
@@ -250,13 +236,8 @@ abstract contract KeeperRewards is Initializable, Ownable2StepUpgradeable, IKeep
 
   /**
    * @notice Initializes the KeeperRewards contract
-   * @param _owner The address of the owner
-   * @param _rewardsDelay The rewards update delay
    */
-  function __KeeperRewards_init(address _owner, uint64 _rewardsDelay) internal onlyInitializing {
-    _transferOwnership(_owner);
-    _setRewardsDelay(_rewardsDelay);
-
+  function __KeeperRewards_init() internal onlyInitializing {
     // set rewardsNonce to 1 so that vaults collateralized
     // before first rewards update will not have 0 nonce
     rewardsNonce = 1;

@@ -3,28 +3,28 @@
 exports[`EthVault - token approve decrease allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount decreases the spender allowance subtracting the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 34714,
+  "gasUsed": 34758,
 }
 `;
 
 exports[`EthVault - token approve decrease allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount emits an approval event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 29914,
+  "gasUsed": 29958,
 }
 `;
 
 exports[`EthVault - token approve decrease allowance when the spender is not the zero address when the sender has enough balance when the spender had an approved amount decreases the spender allowance subtracting the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 34714,
+  "gasUsed": 34758,
 }
 `;
 
 exports[`EthVault - token approve decrease allowance when the spender is not the zero address when the sender has enough balance when the spender had an approved amount emits an approval event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 29914,
+  "gasUsed": 29958,
 }
 `;
 
@@ -59,34 +59,34 @@ Object {
 exports[`EthVault - token permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 82501,
+  "gasUsed": 82523,
 }
 `;
 
 exports[`EthVault - token transfer from when the spender has enough allowance when the token owner has enough balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 54932,
+  "gasUsed": 54913,
 }
 `;
 
 exports[`EthVault - token transfer from when the spender has unlimited allowance does not decrease the spender allowance 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 61407,
+  "gasUsed": 61388,
 }
 `;
 
 exports[`EthVault - token transfer when the sender transfers all balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 54474,
+  "gasUsed": 54521,
 }
 `;
 
 exports[`EthVault - token transfer when the sender transfers zero tokens transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 36550,
+  "gasUsed": 36597,
 }
 `;

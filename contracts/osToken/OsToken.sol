@@ -7,8 +7,8 @@ import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IOsToken} from '../interfaces/IOsToken.sol';
-import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
+import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {ERC20} from '../base/ERC20.sol';
 
 /**
@@ -20,11 +20,17 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   uint256 private constant _wad = 1e18;
   uint256 private constant _maxFeePercent = 10_000; // @dev 100.00 %
 
-  IKeeperRewards private immutable _keeper;
+  address private immutable _keeper;
   IVaultsRegistry private immutable _vaultsRegistry;
 
   /// @inheritdoc IOsToken
   uint256 public override capacity;
+
+  /// @inheritdoc IOsToken
+  uint256 public override avgRewardPerSecond;
+
+  /// @inheritdoc IOsToken
+  mapping(address => bool) public override vaultImplementations;
 
   /// @inheritdoc IOsToken
   address public override treasury;
@@ -59,7 +65,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     string memory _name,
     string memory _symbol
   ) ERC20(_name, _symbol) Ownable2Step() {
-    _keeper = IKeeperRewards(keeper);
+    _keeper = keeper;
     _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
     _lastUpdateTimestamp = uint64(block.timestamp);
 
@@ -97,8 +103,10 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   function mintShares(address receiver, uint256 assets) external override returns (uint256 shares) {
     if (receiver == address(0)) revert InvalidRecipient();
     if (assets == 0) revert InvalidAssets();
-    // TODO: consider adding vault version check
-    if (!_vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
+    if (
+      !(_vaultsRegistry.vaults(msg.sender) &&
+        vaultImplementations[IVaultVersion(msg.sender).implementation()])
+    ) revert AccessDenied();
 
     // pull accumulated rewards
     updateState();
@@ -174,6 +182,26 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     // update fee percent
     feePercent = _feePercent;
     emit FeePercentUpdated(_feePercent);
+  }
+
+  /// @inheritdoc IOsToken
+  function setVaultImplementation(
+    address implementation,
+    bool isSupported
+  ) external override onlyOwner {
+    if (implementation == address(0)) revert InvalidImplementation();
+
+    vaultImplementations[implementation] = isSupported;
+    emit VaultImplementationUpdated(implementation, isSupported);
+  }
+
+  /// @inheritdoc IOsToken
+  function setAvgRewardPerSecond(uint256 _avgRewardPerSecond) external override {
+    if (msg.sender != _keeper) revert AccessDenied();
+
+    updateState();
+    avgRewardPerSecond = _avgRewardPerSecond;
+    emit AvgRewardPerSecondUpdated(_avgRewardPerSecond);
   }
 
   /// @inheritdoc IOsToken
@@ -262,6 +290,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     _lastUpdateTimestamp = uint64(block.timestamp);
     _totalAssets = SafeCast.toUint128(newTotalAssets);
     _totalShares = SafeCast.toUint128(totalShares + treasuryShares);
+    emit StateUpdated(profitAccrued, treasuryShares, treasuryAssets);
   }
 
   /**
@@ -304,6 +333,6 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
       timeElapsed = block.timestamp - _lastUpdateTimestamp;
     }
     if (timeElapsed == 0) return 0;
-    return Math.mulDiv(_keeper.avgRewardPerSecond() * _totalAssets, timeElapsed, _wad);
+    return Math.mulDiv(avgRewardPerSecond * _totalAssets, timeElapsed, _wad);
   }
 }

@@ -9,6 +9,7 @@ export const PANIC_CODES = {
 
 export const SECURITY_DEPOSIT = 1000000000
 export const MAX_UINT256 = BigNumber.from(2).pow(256).sub(1)
+export const MAX_UINT16 = BigNumber.from(2).pow(16).sub(1)
 export const MAX_UINT128 = BigNumber.from(2).pow(128).sub(1)
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 export const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000'
@@ -39,8 +40,8 @@ export const OSTOKEN_LIQ_THRESHOLD = 9200 // 92%
 export const OSTOKEN_LIQ_BONUS = 10100 // 101%
 export const OSTOKEN_LTV = 9000 // 90%
 
-export const OSTOKEN_REDEEM_START_HF = parseEther('1.01')
-export const OSTOKEN_REDEEM_MAX_HF = parseEther('1.02')
+export const OSTOKEN_REDEEM_FROM_LTV = 9150 // 92%
+export const OSTOKEN_REDEEM_TO_LTV = 9000 // 90%
 export const MAX_AVG_REWARD_PER_SECOND = BigNumber.from('6341958396') // 20% APY
 
 export const EIP712Domain = [

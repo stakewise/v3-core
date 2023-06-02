@@ -4,7 +4,6 @@ pragma solidity =0.8.19;
 
 import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
-import {IVersioned} from '../interfaces/IVersioned.sol';
 
 /**
  * @title VaultsRegistry
@@ -32,7 +31,6 @@ contract VaultsRegistry is Ownable2Step, IVaultsRegistry {
   /// @inheritdoc IVaultsRegistry
   function addVault(address vault) external override {
     if (!factories[msg.sender] && msg.sender != owner()) revert AccessDenied();
-    if (!vaultImpls[IVersioned(vault).implementation()]) revert UnsupportedImplementation();
 
     vaults[vault] = true;
     emit VaultAdded(msg.sender, vault);

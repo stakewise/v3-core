@@ -695,7 +695,7 @@
     "inputs": [
       {
         "internalType": "bytes32",
-        "name": "validatorsRoot",
+        "name": "_validatorsRoot",
         "type": "bytes32"
       }
     ],
@@ -829,6 +829,32 @@
     "name": "updateState",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "validatorIndex",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "validatorsRoot",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {

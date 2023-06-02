@@ -28,8 +28,8 @@ import {
   OSTOKEN_LIQ_THRESHOLD,
   OSTOKEN_LTV,
   OSTOKEN_NAME,
-  OSTOKEN_REDEEM_MAX_HF,
-  OSTOKEN_REDEEM_START_HF,
+  OSTOKEN_REDEEM_TO_LTV,
+  OSTOKEN_REDEEM_FROM_LTV,
   OSTOKEN_SYMBOL,
   REQUIRED_ORACLES,
   REWARDS_DELAY,
@@ -93,21 +93,20 @@ export const createOsToken = async function (
 
 export const createOsTokenConfig = async function (
   owner: Wallet,
-  redeemStartHealthFactor: BigNumberish,
-  redeemMaxHealthFactor: BigNumberish,
-  osTokenLiqThreshold: BigNumberish,
-  osTokenLiqBonus: BigNumberish,
-  osTokenLtv: BigNumberish
+  redeemFromLtvPercent: BigNumberish,
+  redeemToLtvPercent: BigNumberish,
+  liqThresholdPercent: BigNumberish,
+  liqBonusPercent: BigNumberish,
+  ltvPercent: BigNumberish
 ): Promise<OsTokenConfig> {
   const factory = await ethers.getContractFactory('OsTokenConfig')
-  return (await factory.deploy(
-    owner.address,
-    redeemStartHealthFactor,
-    redeemMaxHealthFactor,
-    osTokenLiqThreshold,
-    osTokenLiqBonus,
-    osTokenLtv
-  )) as OsTokenConfig
+  return (await factory.deploy(owner.address, {
+    redeemFromLtvPercent,
+    redeemToLtvPercent,
+    liqThresholdPercent,
+    liqBonusPercent,
+    ltvPercent,
+  })) as OsTokenConfig
 }
 
 export const createKeeper = async function (
@@ -120,7 +119,7 @@ export const createKeeper = async function (
   maxAvgRewardPerSecond: BigNumberish
 ): Promise<Keeper> {
   const factory = await ethers.getContractFactory('Keeper')
-  const instance = await upgrades.deployProxy(factory, [owner.address, REWARDS_DELAY], {
+  const instance = await upgrades.deployProxy(factory, [], {
     unsafeAllow: ['delegatecall'],
     constructorArgs: [
       sharedMevEscrow.address,
@@ -128,6 +127,8 @@ export const createKeeper = async function (
       vaultsRegistry.address,
       osToken.address,
       validatorsRegistry.address,
+      owner.address,
+      REWARDS_DELAY,
       maxAvgRewardPerSecond,
     ],
   })
@@ -313,8 +314,8 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
 
   const osTokenConfig = await createOsTokenConfig(
     dao,
-    OSTOKEN_REDEEM_START_HF,
-    OSTOKEN_REDEEM_MAX_HF,
+    OSTOKEN_REDEEM_FROM_LTV,
+    OSTOKEN_REDEEM_TO_LTV,
     OSTOKEN_LIQ_THRESHOLD,
     OSTOKEN_LIQ_BONUS,
     OSTOKEN_LTV

@@ -44,21 +44,12 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     // reduce allowance
     if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
 
-    // burn shares
-    balanceOf[owner] -= shares;
-
-    // update counters
-    unchecked {
-      // cannot underflow because the sum of all shares can't exceed the _totalShares
-      _totalShares -= SafeCast.toUint128(shares);
-      // cannot underflow because the sum of all assets can't exceed the _totalAssets
-      _totalAssets -= SafeCast.toUint128(assets);
-    }
+    // burn owner shares
+    _burnShares(owner, shares, assets);
 
     // transfer assets to the receiver
     _transferVaultAssets(receiver, assets);
 
-    emit Transfer(owner, address(0), shares);
     emit Redeem(msg.sender, receiver, owner, assets, shares);
   }
 

@@ -41,17 +41,27 @@
   },
   {
     "inputs": [],
+    "name": "InvalidHealthFactor",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLtv",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidPosition",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidReceivedAssets",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidRecipient",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidRedeemMaxHealthFactor",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidRedeemStartHealthFactor",
     "type": "error"
   },
   {
@@ -86,22 +96,12 @@
   },
   {
     "inputs": [],
-    "name": "ReceivedAssetsExceedDeposit",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "RedeemHookFailed",
+    "name": "RedemptionExceeded",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "ZeroAddress",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "ZeroPositionShares",
     "type": "error"
   },
   {
@@ -339,6 +339,12 @@
       },
       {
         "indexed": false,
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": false,
         "internalType": "uint256",
         "name": "coveredShares",
         "type": "uint256"
@@ -403,6 +409,12 @@
         "indexed": true,
         "internalType": "address",
         "name": "user",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "receiver",
         "type": "address"
       },
       {
@@ -836,14 +848,19 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
         "internalType": "uint256",
         "name": "osTokenShares",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
       }
     ],
     "name": "liquidateOsToken",
@@ -1025,50 +1042,26 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "user",
-        "type": "address"
-      },
-      {
         "internalType": "uint256",
         "name": "osTokenShares",
         "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "owner",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
       }
     ],
     "name": "redeemOsToken",
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "assets",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "shares",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "hook",
-        "type": "address"
-      },
-      {
-        "internalType": "bytes",
-        "name": "params",
-        "type": "bytes"
-      }
-    ],
-    "name": "redeemWithHook",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "assets",
+        "name": "receivedAssets",
         "type": "uint256"
       }
     ],

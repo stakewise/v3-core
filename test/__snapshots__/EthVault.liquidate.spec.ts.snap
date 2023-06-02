@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthVault - liquidate calculates liquidation correctly 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 105942,
+}
+`;
+
+exports[`EthVault - liquidate can liquidate 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 108598,
+}
+`;

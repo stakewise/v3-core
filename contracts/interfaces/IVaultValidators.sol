@@ -44,6 +44,18 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   function keysManager() external view returns (address);
 
   /**
+   * @notice The Vault validators root
+   * @return The merkle tree root to use for verifying validators deposit data
+   */
+  function validatorsRoot() external view returns (bytes32);
+
+  /**
+   * @notice The Vault validator index
+   * @return The index of the next validator to be registered in the current deposit data file
+   */
+  function validatorIndex() external view returns (uint256);
+
+  /**
    * @notice Function for registering single validator
    * @param keeperParams The parameters for getting approval from Keeper oracles
    * @param proof The proof used to verify that the validator is part of the validators merkle tree
@@ -75,7 +87,7 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
 
   /**
    * @notice Function for updating the validators merkle tree root. Can only be called by the keys manager.
-   * @param validatorsRoot The new validators merkle tree root
+   * @param _validatorsRoot The new validators merkle tree root
    */
-  function setValidatorsRoot(bytes32 validatorsRoot) external;
+  function setValidatorsRoot(bytes32 _validatorsRoot) external;
 }

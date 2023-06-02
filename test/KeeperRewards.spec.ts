@@ -225,21 +225,6 @@ describe('KeeperRewards', () => {
     })
   })
 
-  describe('set rewards delay', () => {
-    it('fails if not owner', async () => {
-      await expect(keeper.connect(admin.address).setRewardsDelay(REWARDS_DELAY)).to.be.reverted
-    })
-
-    it('succeeds', async () => {
-      const receipt = await keeper.connect(owner).setRewardsDelay(REWARDS_DELAY)
-      await expect(receipt)
-        .to.emit(keeper, 'RewardsDelayUpdated')
-        .withArgs(owner.address, REWARDS_DELAY)
-      expect(await keeper.rewardsDelay()).to.eq(REWARDS_DELAY)
-      await snapshotGasCost(receipt)
-    })
-  })
-
   describe('is harvest required', () => {
     let vault: EthVault
 
@@ -779,12 +764,10 @@ describe('KeeperRewards', () => {
   })
 
   describe('upgrade', () => {
-    it('fails for not an owner', async () => {
-      await expect(keeper.connect(sender).upgradeTo(keeper.address)).to.revertedWith(
-        'Ownable: caller is not the owner'
-      )
+    it('fails for not DAO', async () => {
+      await expect(keeper.connect(sender).upgradeTo(keeper.address)).to.revertedWith('AccessDenied')
     })
-    it('succeeds for owner', async () => {
+    it('succeeds for DAO', async () => {
       await expect(keeper.connect(owner).upgradeTo(keeper.address)).to.revertedWith(
         'ERC1967Upgrade: new implementation is not UUPS'
       )

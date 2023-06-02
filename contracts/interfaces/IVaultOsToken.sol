@@ -13,10 +13,11 @@ import {IVaultEnterExit} from './IVaultEnterExit.sol';
 interface IVaultOsToken is IVaultToken, IVaultEnterExit {
   // Custom errors
   error HealthFactorNotViolated();
-  error InvalidRedeemStartHealthFactor();
-  error InvalidRedeemMaxHealthFactor();
-  error ReceivedAssetsExceedDeposit();
-  error RedeemHookFailed();
+  error InvalidHealthFactor();
+  error InvalidLtv();
+  error RedemptionExceeded();
+  error InvalidReceivedAssets();
+  error InvalidPosition();
   error LowLtv();
 
   /**
@@ -47,12 +48,14 @@ interface IVaultOsToken is IVaultToken, IVaultEnterExit {
    * @notice Event emitted on osToken position liquidation
    * @param caller The address of the function caller
    * @param user The address of the user liquidated
+   * @param receiver The address of the receiver of the liquidated assets
    * @param coveredShares The amount of covered shares
    * @param receivedAssets The amount of assets received
    */
   event OsTokenLiquidated(
     address indexed caller,
     address indexed user,
+    address receiver,
     uint256 coveredShares,
     uint256 receivedAssets
   );
@@ -61,39 +64,39 @@ interface IVaultOsToken is IVaultToken, IVaultEnterExit {
    * @notice Event emitted on osToken position redemption
    * @param caller The address of the function caller
    * @param user The address of the position owner to redeem from
+   * @param receiver The address of the receiver of the redeemed assets
    * @param shares The amount of shares to redeem
    * @param assets The amount of assets received
    */
   event OsTokenRedeemed(
     address indexed caller,
     address indexed user,
+    address receiver,
     uint256 shares,
     uint256 assets
   );
 
+  /**
+   * @notice Struct of osToken position
+   * @param shares The total number of minted osToken shares. Will increase based on the treasury fee.
+   * @param cumulativeFeePerShare The cumulative fee per share
+   */
   struct OsTokenPosition {
     uint128 shares;
     uint128 cumulativeFeePerShare;
   }
 
   /**
-   * @notice Get osToken position for the user
+   * @notice Get total amount of minted osToken shares
    * @param user The address of the user
    * @return shares The number of minted osToken shares
    */
   function osTokenPositions(address user) external view returns (uint128 shares);
 
   /**
-   * @notice Get the number of locked assets for the user
-   * @param user The address of the user
-   * @return assets The number of locked assets
-   */
-  function lockedAssets(address user) external view returns (uint256 assets);
-
-  /**
    * @notice Mints OsToken shares
-   * @param receiver The address of the receiver
-   * @param assets The number of OsToken assets to mint
+   * @param receiver The address that will receive the minted OsToken shares
+   * @param assets The number of assets to calculate the number of OsToken shares to mint
    * @param referrer The address of the referrer
    * @return shares The number of OsToken shares minted to the receiver
    */
@@ -111,35 +114,29 @@ interface IVaultOsToken is IVaultToken, IVaultEnterExit {
   function burnOsToken(uint128 osTokenShares) external returns (uint256 assets);
 
   /**
-   * @notice Liquidates a user position and returns the number of received assets. Can only be executor by the liquidator.
-   * @param user The address of the user to liquidate the position for
+   * @notice Liquidates a user position and returns the number of received assets.
+   *         Can only be called when health factor is below 1.
    * @param osTokenShares The number of shares to cover
+   * @param owner The address of the position owner to liquidate
+   * @param receiver The address of the receiver of the liquidated assets
    * @return receivedAssets The number of assets received
    */
   function liquidateOsToken(
-    address user,
-    uint256 osTokenShares
+    uint256 osTokenShares,
+    address owner,
+    address receiver
   ) external returns (uint256 receivedAssets);
 
   /**
-   * @notice Redeems osToken shares for assets. Can only be called by the redeemer.
-   * @param user The address of the user to redeem the shares for
+   * @notice Redeems osToken shares for assets. Can only be called when health factor is above redeemFromHealthFactor.
    * @param osTokenShares The number of osToken shares to redeem
-   * @return assets The number of assets received
+   * @param owner The address of the position owner to redeem from
+   * @param receiver The address of the receiver of the redeemed assets
+   * @return receivedAssets The number of assets received
    */
-  function redeemOsToken(address user, uint256 osTokenShares) external returns (uint256 assets);
-
-  /**
-   * @notice Redeems assets from the Vault by utilising what has not been staked yet with the hook call.
-             The hook can be used to buy osToken shares from the market and call redeemOsToken or liquidateOsToken.
-   * @param shares The number of shares to burn
-   * @param hook The hook that receives the assets in advance and must have required amount of shares
-   * @param params The additional parameters to pass to the hook
-   * @return assets The number of assets withdrawn
-   */
-  function redeemWithHook(
-    uint256 shares,
-    address hook,
-    bytes calldata params
-  ) external returns (uint256 assets);
+  function redeemOsToken(
+    uint256 osTokenShares,
+    address owner,
+    address receiver
+  ) external returns (uint256 receivedAssets);
 }

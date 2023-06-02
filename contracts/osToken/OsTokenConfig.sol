@@ -14,91 +14,94 @@ import {IOsTokenConfig} from '../interfaces/IOsTokenConfig.sol';
 contract OsTokenConfig is Ownable2Step, IOsTokenConfig {
   uint256 private constant _maxPercent = 10_000; // @dev 100.00 %
 
-  /// @inheritdoc IOsTokenConfig
-  uint256 public override redeemStartHealthFactor;
-
-  /// @inheritdoc IOsTokenConfig
-  uint256 public override redeemMaxHealthFactor;
-
-  /// @inheritdoc IOsTokenConfig
-  uint16 public override liqThresholdPercent;
-
-  /// @inheritdoc IOsTokenConfig
-  uint16 public override liqBonusPercent;
-
-  /// @inheritdoc IOsTokenConfig
-  uint16 public override ltvPercent;
+  Config private _config;
 
   /**
    * @dev Constructor
    * @param _owner The address of the contract owner
-   * @param _redeemStartHealthFactor The redeem start health factor
-   * @param _redeemMaxHealthFactor The redeem max health factor
-   * @param _liqThresholdPercent The liquidation threshold percent
-   * @param _liqBonusPercent The liquidation bonus percent
-   * @param _ltvPercent The loan-to-value percent
+   * @param config The OsToken configuration
    */
-  constructor(
-    address _owner,
-    uint256 _redeemStartHealthFactor,
-    uint256 _redeemMaxHealthFactor,
-    uint16 _liqThresholdPercent,
-    uint16 _liqBonusPercent,
-    uint16 _ltvPercent
-  ) Ownable2Step() {
-    updateConfig(
-      _redeemStartHealthFactor,
-      _redeemMaxHealthFactor,
-      _liqThresholdPercent,
-      _liqBonusPercent,
-      _ltvPercent
-    );
+  constructor(address _owner, Config memory config) Ownable2Step() {
+    updateConfig(config);
     transferOwnership(_owner);
   }
 
   /// @inheritdoc IOsTokenConfig
-  function updateConfig(
-    uint256 _redeemStartHealthFactor,
-    uint256 _redeemMaxHealthFactor,
-    uint16 _liqThresholdPercent,
-    uint16 _liqBonusPercent,
-    uint16 _ltvPercent
-  ) public override onlyOwner {
-    if (_redeemStartHealthFactor > _redeemMaxHealthFactor) {
-      revert InvalidRedeemStartHealthFactor();
+  function redeemFromLtvPercent() external view override returns (uint256) {
+    return _config.redeemFromLtvPercent;
+  }
+
+  /// @inheritdoc IOsTokenConfig
+  function redeemToLtvPercent() external view override returns (uint256) {
+    return _config.redeemToLtvPercent;
+  }
+
+  /// @inheritdoc IOsTokenConfig
+  function liqThresholdPercent() external view override returns (uint256) {
+    return _config.liqThresholdPercent;
+  }
+
+  /// @inheritdoc IOsTokenConfig
+  function ltvPercent() external view override returns (uint256) {
+    return _config.ltvPercent;
+  }
+
+  /// @inheritdoc IOsTokenConfig
+  function liqBonusPercent() external view override returns (uint256) {
+    return _config.liqBonusPercent;
+  }
+
+  /// @inheritdoc IOsTokenConfig
+  function getConfig()
+    external
+    view
+    override
+    returns (uint256, uint256, uint256, uint256, uint256)
+  {
+    Config memory config = _config;
+    return (
+      config.redeemFromLtvPercent,
+      config.redeemToLtvPercent,
+      config.liqThresholdPercent,
+      config.liqBonusPercent,
+      config.ltvPercent
+    );
+  }
+
+  /// @inheritdoc IOsTokenConfig
+  function updateConfig(Config memory config) public override onlyOwner {
+    // validate redemption LTV percents
+    if (config.redeemFromLtvPercent < config.redeemToLtvPercent) {
+      revert InvalidRedeemFromLtvPercent();
     }
 
     // validate liquidation threshold percent
-    if (_liqThresholdPercent == 0 || _liqThresholdPercent >= _maxPercent) {
+    if (config.liqThresholdPercent == 0 || config.liqThresholdPercent >= _maxPercent) {
       revert InvalidLiqThresholdPercent();
     }
 
     // validate liquidation bonus percent
     if (
-      _liqBonusPercent < _maxPercent ||
-      Math.mulDiv(_liqThresholdPercent, _liqBonusPercent, _maxPercent) > _maxPercent
+      config.liqBonusPercent < _maxPercent ||
+      Math.mulDiv(config.liqThresholdPercent, config.liqBonusPercent, _maxPercent) > _maxPercent
     ) {
       revert InvalidLiqBonusPercent();
     }
 
     // validate loan-to-value percent
-    if (_ltvPercent == 0 || _ltvPercent > _liqThresholdPercent) {
+    if (config.ltvPercent == 0 || config.ltvPercent > config.liqThresholdPercent) {
       revert InvalidLtvPercent();
     }
 
     // update state
-    redeemStartHealthFactor = _redeemStartHealthFactor;
-    redeemMaxHealthFactor = _redeemMaxHealthFactor;
-    liqThresholdPercent = _liqThresholdPercent;
-    liqBonusPercent = _liqBonusPercent;
-    ltvPercent = _ltvPercent;
+    _config = config;
 
     emit OsTokenConfigUpdated(
-      _redeemStartHealthFactor,
-      _redeemMaxHealthFactor,
-      _liqThresholdPercent,
-      _liqBonusPercent,
-      _ltvPercent
+      config.redeemFromLtvPercent,
+      config.redeemToLtvPercent,
+      config.liqThresholdPercent,
+      config.liqBonusPercent,
+      config.ltvPercent
     );
   }
 }

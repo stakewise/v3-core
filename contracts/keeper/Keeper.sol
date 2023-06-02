@@ -23,6 +23,10 @@ contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IK
   /// @inheritdoc IVersioned
   uint8 public constant override version = 1;
 
+  /// @inheritdoc IKeeper
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  address public immutable override dao;
+
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -32,6 +36,8 @@ contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IK
    * @param vaultsRegistry The address of the VaultsRegistry contract
    * @param osToken The address of the OsToken contract
    * @param validatorsRegistry The address of the beacon chain validators registry contract
+   * @param _dao The address of the DAO contract
+   * @param _rewardsDelay The delay in seconds between rewards updates
    * @param maxAvgRewardPerSecond The maximum possible average reward per second
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -41,26 +47,32 @@ contract Keeper is Initializable, Versioned, KeeperRewards, KeeperValidators, IK
     IVaultsRegistry vaultsRegistry,
     IOsToken osToken,
     IValidatorsRegistry validatorsRegistry,
+    address _dao,
+    uint256 _rewardsDelay,
     uint256 maxAvgRewardPerSecond
   )
-    KeeperValidators(
+    KeeperRewards(
       sharedMevEscrow,
       oracles,
       vaultsRegistry,
       osToken,
-      validatorsRegistry,
+      _rewardsDelay,
       maxAvgRewardPerSecond
     )
+    KeeperValidators(validatorsRegistry)
   {
+    dao = _dao;
     // disable initializers for the implementation contract
     _disableInitializers();
   }
 
   /// @inheritdoc IKeeper
-  function initialize(address _owner, uint64 _rewardsDelay) external override initializer {
-    __KeeperRewards_init(_owner, _rewardsDelay);
+  function initialize() external override initializer {
+    __KeeperRewards_init();
   }
 
   /// @inheritdoc UUPSUpgradeable
-  function _authorizeUpgrade(address) internal override onlyOwner {}
+  function _authorizeUpgrade(address) internal view override {
+    if (msg.sender != dao) revert AccessDenied();
+  }
 }

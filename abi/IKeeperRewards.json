@@ -65,25 +65,6 @@
         "type": "address"
       },
       {
-        "indexed": false,
-        "internalType": "uint64",
-        "name": "rewardsDelay",
-        "type": "uint64"
-      }
-    ],
-    "name": "RewardsDelayUpdated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "caller",
-        "type": "address"
-      },
-      {
         "indexed": true,
         "internalType": "bytes32",
         "name": "rewardsRoot",
@@ -320,19 +301,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint64",
-        "name": "_rewardsDelay",
-        "type": "uint64"
-      }
-    ],
-    "name": "setRewardsDelay",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

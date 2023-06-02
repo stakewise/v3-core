@@ -48,13 +48,6 @@ interface IKeeperRewards {
   );
 
   /**
-   * @notice Event emitted on the update of rewards delay
-   * @param caller The address of the function caller
-   * @param rewardsDelay The new rewards update delay
-   */
-  event RewardsDelayUpdated(address indexed caller, uint64 rewardsDelay);
-
-  /**
    * @notice A struct containing the last synced Vault's cumulative reward
    * @param assets The Vault cumulative reward earned since the start. Can be negative in case of penalty/slashing.
    * @param nonce The nonce of the last sync
@@ -130,7 +123,7 @@ interface IKeeperRewards {
 
   /**
    * @notice The rewards delay
-   * @return The delay between rewards updates
+   * @return The delay in seconds between rewards updates
    */
   function rewardsDelay() external view returns (uint256);
 
@@ -182,12 +175,6 @@ interface IKeeperRewards {
    * @param params The struct containing rewards update parameters
    */
   function updateRewards(RewardsUpdateParams calldata params) external;
-
-  /**
-   * @notice Update rewards delay. Can only be called by the owner.
-   * @param _rewardsDelay The new rewards update delay
-   */
-  function setRewardsDelay(uint64 _rewardsDelay) external;
 
   /**
    * @notice Harvest rewards. Can be called only by Vault.

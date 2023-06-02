@@ -24,8 +24,12 @@ abstract contract VaultValidators is
 {
   uint256 internal constant _validatorLength = 176;
 
-  uint256 internal _validatorIndex;
-  bytes32 private _validatorsRoot;
+  /// @inheritdoc IVaultValidators
+  bytes32 public override validatorsRoot;
+
+  /// @inheritdoc IVaultValidators
+  uint256 public override validatorIndex;
+
   address private _keysManager;
 
   /// @inheritdoc IVaultValidators
@@ -51,13 +55,13 @@ abstract contract VaultValidators is
     if (keeperParams.validators.length != _validatorLength) revert InvalidValidator();
 
     // SLOAD to memory
-    uint256 currentIndex = _validatorIndex;
+    uint256 currentIndex = validatorIndex;
 
     // check matches merkle root and next validator index
     if (
       !MerkleProof.verifyCalldata(
         proof,
-        _validatorsRoot,
+        validatorsRoot,
         keccak256(bytes.concat(keccak256(abi.encode(keeperParams.validators, currentIndex))))
       )
     ) {
@@ -70,7 +74,7 @@ abstract contract VaultValidators is
     // increment index for the next validator
     unchecked {
       // cannot realistically overflow
-      _validatorIndex = currentIndex + 1;
+      validatorIndex = currentIndex + 1;
     }
   }
 
@@ -106,7 +110,7 @@ abstract contract VaultValidators is
       !MerkleProof.multiProofVerifyCalldata(
         proof,
         proofFlags,
-        _validatorsRoot,
+        validatorsRoot,
         _registerMultipleValidators(keeperParams.validators, indexes)
       )
     ) {
@@ -116,7 +120,7 @@ abstract contract VaultValidators is
     // increment index for the next validator
     unchecked {
       // cannot realistically overflow
-      _validatorIndex += validatorsCount;
+      validatorIndex += validatorsCount;
     }
   }
 
@@ -130,20 +134,20 @@ abstract contract VaultValidators is
   }
 
   /// @inheritdoc IVaultValidators
-  function setValidatorsRoot(bytes32 validatorsRoot) external override {
+  function setValidatorsRoot(bytes32 _validatorsRoot) external override {
     if (msg.sender != keysManager()) revert AccessDenied();
-    _setValidatorsRoot(validatorsRoot);
+    _setValidatorsRoot(_validatorsRoot);
   }
 
   /**
    * @dev Internal function for updating the validators root externally or from the initializer
-   * @param validatorsRoot The new validators merkle tree root
+   * @param _validatorsRoot The new validators merkle tree root
    */
-  function _setValidatorsRoot(bytes32 validatorsRoot) private {
-    _validatorsRoot = validatorsRoot;
+  function _setValidatorsRoot(bytes32 _validatorsRoot) private {
+    validatorsRoot = _validatorsRoot;
     // reset validator index on every root update
-    _validatorIndex = 0;
-    emit ValidatorsRootUpdated(msg.sender, validatorsRoot);
+    validatorIndex = 0;
+    emit ValidatorsRootUpdated(msg.sender, _validatorsRoot);
   }
 
   /**

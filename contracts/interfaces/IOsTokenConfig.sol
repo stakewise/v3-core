@@ -12,67 +12,83 @@ interface IOsTokenConfig {
   error InvalidLtvPercent();
   error InvalidLiqBonusPercent();
   error InvalidLiqThresholdPercent();
-  error InvalidRedeemStartHealthFactor();
+  error InvalidRedeemFromLtvPercent();
 
   /**
    * @notice Emitted when OsToken minting and liquidating configuration values are updated
-   * @param redeemStartHealthFactor The new redeem start health factor value
-   * @param redeemMaxHealthFactor The new redeem max health factor value
+   * @param redeemFromLtvPercent The LTV allowed to redeem from
+   * @param redeemToLtvPercent The LTV to redeem up to
    * @param liqThresholdPercent The new liquidation threshold percent value
    * @param liqBonusPercent The new liquidation bonus percent value
    * @param ltvPercent The new loan-to-value (LTV) percent value
    */
   event OsTokenConfigUpdated(
-    uint256 redeemStartHealthFactor,
-    uint256 redeemMaxHealthFactor,
+    uint16 redeemFromLtvPercent,
+    uint16 redeemToLtvPercent,
     uint16 liqThresholdPercent,
     uint16 liqBonusPercent,
     uint16 ltvPercent
   );
 
   /**
-   * @notice The osToken redemptions start when position health factor drops below this value
-   * @return The redemption start health factor value
+   * @notice The OsToken minting and liquidating configuration values
+   * @param redeemFromLtvPercent The osToken redemptions are allowed when position LTV goes above this value
+   * @param redeemToLtvPercent The osToken redeemed value cannot decrease LTV below this value
+   * @param liqThresholdPercent The liquidation threshold percent used to calculate health factor for OsToken position
+   * @param liqBonusPercent The minimal bonus percent that liquidator earns on OsToken position liquidation
+   * @param ltvPercent The percent used to calculate how much user can mint OsToken shares
    */
-  function redeemStartHealthFactor() external view returns (uint256);
+  struct Config {
+    uint16 redeemFromLtvPercent;
+    uint16 redeemToLtvPercent;
+    uint16 liqThresholdPercent;
+    uint16 liqBonusPercent;
+    uint16 ltvPercent;
+  }
 
   /**
-   * @notice The osToken redeemed value cannot rise health factor above this value
-   * @return The redemption max health factor value
+   * @notice The osToken redemptions are allowed when position LTV goes above this value
+   * @return The minimal LTV before redemption start
    */
-  function redeemMaxHealthFactor() external view returns (uint256);
+  function redeemFromLtvPercent() external view returns (uint256);
+
+  /**
+   * @notice The osToken redeemed value cannot decrease LTV below this value
+   * @return The maximal LTV after the redemption
+   */
+  function redeemToLtvPercent() external view returns (uint256);
 
   /**
    * @notice The liquidation threshold percent used to calculate health factor for OsToken position
    * @return The liquidation threshold percent value
    */
-  function liqThresholdPercent() external view returns (uint16);
+  function liqThresholdPercent() external view returns (uint256);
 
   /**
    * @notice The minimal bonus percent that liquidator earns on OsToken position liquidation
    * @return The minimal liquidation bonus percent value
    */
-  function liqBonusPercent() external view returns (uint16);
+  function liqBonusPercent() external view returns (uint256);
 
   /**
    * @notice The percent used to calculate how much user can mint OsToken shares
    * @return The loan-to-value (LTV) percent value
    */
-  function ltvPercent() external view returns (uint16);
+  function ltvPercent() external view returns (uint256);
 
   /**
-   * @notice Updates OsToken minting and liquidating configuration values
-   * @param _redeemStartHealthFactor The new redeem start health factor value
-   * @param _redeemMaxHealthFactor The new redeem max health factor value
-   * @param _liqThresholdPercent The new liquidation threshold percent value
-   * @param _liqBonusPercent The new minimal liquidation bonus percent value
-   * @param _ltvPercent The new loan-to-value (LTV) percent value
+   * @notice Returns the OsToken minting and liquidating configuration values
+   * @return redeemFromLtvPercent The LTV allowed to redeem from
+   * @return redeemToLtvPercent The LTV to redeem up to
+   * @return liqThresholdPercent The liquidation threshold percent value
+   * @return liqBonusPercent The liquidation bonus percent value
+   * @return ltvPercent The loan-to-value (LTV) percent value
    */
-  function updateConfig(
-    uint256 _redeemStartHealthFactor,
-    uint256 _redeemMaxHealthFactor,
-    uint16 _liqThresholdPercent,
-    uint16 _liqBonusPercent,
-    uint16 _ltvPercent
-  ) external;
+  function getConfig() external view returns (uint256, uint256, uint256, uint256, uint256);
+
+  /**
+   * @notice Updates the OsToken minting and liquidating configuration values. Can only be called by the owner.
+   * @param config The new OsToken configuration
+   */
+  function updateConfig(Config memory config) external;
 }

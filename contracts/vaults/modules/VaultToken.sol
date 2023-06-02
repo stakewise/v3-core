@@ -97,6 +97,27 @@ abstract contract VaultToken is VaultImmutables, Initializable, ERC20Upgradeable
   }
 
   /**
+   * @dev Internal function for burning owner shares
+   * @param owner The address of the owner whose shares to burn
+   * @param shares The number of shares to burn
+   * @param assets The number of assets to burn
+   */
+  function _burnShares(address owner, uint256 shares, uint256 assets) internal {
+    // burn shares
+    balanceOf[owner] -= shares;
+
+    // update counters
+    unchecked {
+      // cannot underflow because the sum of all shares can't exceed the _totalShares
+      _totalShares -= SafeCast.toUint128(shares);
+      // cannot underflow because the sum of all assets can't exceed the _totalAssets
+      _totalAssets -= SafeCast.toUint128(assets);
+    }
+
+    emit Transfer(owner, address(0), shares);
+  }
+
+  /**
    * @dev Initializes the VaultToken contract
    * @param _name The name of the ERC20 token
    * @param _symbol The symbol of the ERC20 token

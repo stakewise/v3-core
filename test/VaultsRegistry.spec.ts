@@ -26,7 +26,7 @@ describe('VaultsRegistry', () => {
   let loadFixture: ReturnType<typeof createFixtureLoader>
   let vaultsRegistry: VaultsRegistry
   let ethVaultFactory: EthVaultFactory
-  let currVaultImpl: string, newVaultImpl: string
+  let newVaultImpl: string
 
   before('create fixture loader', async () => {
     ;[owner, admin] = await (ethers as any).getSigners()
@@ -50,14 +50,6 @@ describe('VaultsRegistry', () => {
         fixture.sharedMevEscrow.address,
       ],
     })) as string
-
-    const tx = await ethVaultFactory
-      .connect(admin)
-      .createVault(vaultParams, false, false, { value: SECURITY_DEPOSIT })
-    const receipt = await tx.wait()
-    const vaultAddress = extractVaultAddress(receipt)
-    const ethVault = await ethers.getContractFactory('EthVault')
-    currVaultImpl = await ethVault.attach(vaultAddress).implementation()
   })
 
   it('fails to add a vault if not a factory or owner', async () => {
@@ -87,15 +79,6 @@ describe('VaultsRegistry', () => {
       .withArgs(owner.address, newVaultImpl)
     expect(await vaultsRegistry.vaults(newVaultImpl)).to.be.eq(true)
     await snapshotGasCost(receipt)
-  })
-
-  it('fails to add vault with not registered implementation', async () => {
-    await vaultsRegistry.connect(owner).removeVaultImpl(currVaultImpl)
-    await expect(
-      ethVaultFactory
-        .connect(admin)
-        .createVault(vaultParams, false, false, { value: SECURITY_DEPOSIT })
-    ).revertedWith('UnsupportedImplementation')
   })
 
   it('not owner cannot register vault implementation contract', async () => {

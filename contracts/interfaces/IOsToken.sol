@@ -18,6 +18,7 @@ interface IOsToken is IERC20Permit {
   error InvalidAssets();
   error InvalidShares();
   error InvalidTreasury();
+  error InvalidImplementation();
 
   /**
    * @notice Event emitted on minting shares
@@ -38,6 +39,14 @@ interface IOsToken is IERC20Permit {
   event Burn(address indexed vault, address indexed owner, uint256 assets, uint256 shares);
 
   /**
+   * @notice Event emitted on state update
+   * @param profitAccrued The profit accrued since the last update
+   * @param treasuryShares The number of shares minted for the treasury
+   * @param treasuryAssets The number of assets minted for the treasury
+   */
+  event StateUpdated(uint256 profitAccrued, uint256 treasuryShares, uint256 treasuryAssets);
+
+  /**
    * @notice Event emitted on capacity update
    * @param capacity The amount after which the OsToken stops accepting deposits
    */
@@ -56,10 +65,17 @@ interface IOsToken is IERC20Permit {
   event FeePercentUpdated(uint16 feePercent);
 
   /**
-   * @notice Event emitted on state update
-   * @param profitAccrued The profit accrued since the last update
+   * @notice Event emitted on average reward per second update
+   * @param avgRewardPerSecond The new average reward per second
    */
-  event StateUpdated(uint256 profitAccrued);
+  event AvgRewardPerSecondUpdated(uint256 avgRewardPerSecond);
+
+  /**
+   * @notice Event emitted on vault implementation update
+   * @param implementation The vault implementation address
+   * @param isSupported Whether the implementation can mint osToken
+   */
+  event VaultImplementationUpdated(address indexed implementation, bool isSupported);
 
   /**
    * @notice The OsToken capacity
@@ -78,6 +94,19 @@ interface IOsToken is IERC20Permit {
    * @return The fee percent applied by the OsToken on the rewards
    */
   function feePercent() external view returns (uint64);
+
+  /**
+   * @notice Checks whether Vault implementation address is supported for minting osToken
+   * @param implementation The address of the Vault implementation
+   * @return isSupported Returns `true` if the implementation is supported, `false` otherwise
+   */
+  function vaultImplementations(address implementation) external view returns (bool isSupported);
+
+  /**
+   * @notice The average reward per second used to mint OsToken rewards
+   * @return The average reward per second earned by the Vaults
+   */
+  function avgRewardPerSecond() external view returns (uint256);
 
   /**
    * @notice The fee per share used for calculating the fee for every position
@@ -141,4 +170,17 @@ interface IOsToken is IERC20Permit {
    * @param _feePercent The new fee percent
    */
   function setFeePercent(uint16 _feePercent) external;
+
+  /**
+   * @notice Enable/disable osToken minting for specific vault implementation. Can only be called by the owner.
+   * @param implementation The address of the Vault implementation
+   * @param isSupported Whether the implementation can mint osToken
+   */
+  function setVaultImplementation(address implementation, bool isSupported) external;
+
+  /**
+   * @notice Updates average reward per second. Can only be called by the keeper.
+   * @param _avgRewardPerSecond The new average reward per second
+   */
+  function setAvgRewardPerSecond(uint256 _avgRewardPerSecond) external;
 }

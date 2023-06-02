@@ -4,10 +4,7 @@ pragma solidity =0.8.19;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
-import {IOracles} from '../interfaces/IOracles.sol';
-import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IKeeperValidators} from '../interfaces/IKeeperValidators.sol';
-import {IOsToken} from '../interfaces/IOsToken.sol';
 import {KeeperRewards} from './KeeperRewards.sol';
 
 /**
@@ -34,22 +31,10 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param sharedMevEscrow The address of the shared MEV escrow contract
-   * @param oracles The address of the Oracles contract
-   * @param vaultsRegistry The address of the VaultsRegistry contract
-   * @param osToken The address of the OsToken contract
    * @param validatorsRegistry The address of the beacon chain validators registry contract
-   * @param maxAvgRewardPerSecond The maximum possible average reward per second
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(
-    address sharedMevEscrow,
-    IOracles oracles,
-    IVaultsRegistry vaultsRegistry,
-    IOsToken osToken,
-    IValidatorsRegistry validatorsRegistry,
-    uint256 maxAvgRewardPerSecond
-  ) KeeperRewards(sharedMevEscrow, oracles, vaultsRegistry, osToken, maxAvgRewardPerSecond) {
+  constructor(IValidatorsRegistry validatorsRegistry) {
     _validatorsRegistry = validatorsRegistry;
   }
 

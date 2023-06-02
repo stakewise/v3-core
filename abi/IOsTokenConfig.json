@@ -16,7 +16,7 @@
   },
   {
     "inputs": [],
-    "name": "InvalidRedeemStartHealthFactor",
+    "name": "InvalidRedeemFromLtvPercent",
     "type": "error"
   },
   {
@@ -24,15 +24,15 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "redeemStartHealthFactor",
-        "type": "uint256"
+        "internalType": "uint16",
+        "name": "redeemFromLtvPercent",
+        "type": "uint16"
       },
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "redeemMaxHealthFactor",
-        "type": "uint256"
+        "internalType": "uint16",
+        "name": "redeemToLtvPercent",
+        "type": "uint16"
       },
       {
         "indexed": false,
@@ -58,46 +58,40 @@
   },
   {
     "inputs": [],
+    "name": "getConfig",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "liqBonusPercent",
-    "outputs": [
-      {
-        "internalType": "uint16",
-        "name": "",
-        "type": "uint16"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "liqThresholdPercent",
-    "outputs": [
-      {
-        "internalType": "uint16",
-        "name": "",
-        "type": "uint16"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "ltvPercent",
-    "outputs": [
-      {
-        "internalType": "uint16",
-        "name": "",
-        "type": "uint16"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "redeemMaxHealthFactor",
     "outputs": [
       {
         "internalType": "uint256",
@@ -110,7 +104,46 @@
   },
   {
     "inputs": [],
-    "name": "redeemStartHealthFactor",
+    "name": "liqThresholdPercent",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "ltvPercent",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "redeemFromLtvPercent",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "redeemToLtvPercent",
     "outputs": [
       {
         "internalType": "uint256",
@@ -124,29 +157,36 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "_redeemStartHealthFactor",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_redeemMaxHealthFactor",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint16",
-        "name": "_liqThresholdPercent",
-        "type": "uint16"
-      },
-      {
-        "internalType": "uint16",
-        "name": "_liqBonusPercent",
-        "type": "uint16"
-      },
-      {
-        "internalType": "uint16",
-        "name": "_ltvPercent",
-        "type": "uint16"
+        "components": [
+          {
+            "internalType": "uint16",
+            "name": "redeemFromLtvPercent",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "redeemToLtvPercent",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "liqThresholdPercent",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "liqBonusPercent",
+            "type": "uint16"
+          },
+          {
+            "internalType": "uint16",
+            "name": "ltvPercent",
+            "type": "uint16"
+          }
+        ],
+        "internalType": "struct IOsTokenConfig.Config",
+        "name": "config",
+        "type": "tuple"
       }
     ],
     "name": "updateConfig",
