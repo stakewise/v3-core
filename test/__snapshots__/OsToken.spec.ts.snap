@@ -63,6 +63,13 @@ Object {
 }
 `;
 
+exports[`OsToken fee percent owner can change 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 69112,
+}
+`;
+
 exports[`OsToken permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
