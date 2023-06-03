@@ -144,6 +144,27 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   )
   console.log('PriceOracle deployed at', priceOracle.address)
 
+  // Save the addresses
+  const addresses = {
+    VaultsRegistry: vaultsRegistry.address,
+    Oracles: oracles.address,
+    Keeper: keeper.address,
+    EthVaultFactory: ethVaultFactory.address,
+    SharedMevEscrow: sharedMevEscrow.address,
+    OsToken: osToken.address,
+    OsTokenConfig: osTokenConfig.address,
+    PriceOracle: priceOracle.address,
+  }
+  const json = JSON.stringify(addresses, null, 2)
+  const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`
+
+  if (!fs.existsSync(DEPLOYMENTS_DIR)) {
+    fs.mkdirSync(DEPLOYMENTS_DIR)
+  }
+
+  fs.writeFileSync(fileName, json, 'utf-8')
+  console.log('Saved to', fileName)
+
   await verify(
     hre,
     vaultsRegistry.address,
@@ -258,25 +279,4 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     [osToken.address],
     'contracts/osToken/PriceOracle.sol:PriceOracle'
   )
-
-  // Save the addresses
-  const addresses = {
-    VaultsRegistry: vaultsRegistry.address,
-    Oracles: oracles.address,
-    Keeper: keeper.address,
-    EthVaultFactory: ethVaultFactory.address,
-    SharedMevEscrow: sharedMevEscrow.address,
-    OsToken: osToken.address,
-    OsTokenConfig: osTokenConfig.address,
-    PriceOracle: priceOracle.address,
-  }
-  const json = JSON.stringify(addresses, null, 2)
-  const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`
-
-  if (!fs.existsSync(DEPLOYMENTS_DIR)) {
-    fs.mkdirSync(DEPLOYMENTS_DIR)
-  }
-
-  fs.writeFileSync(fileName, json, 'utf-8')
-  console.log('Saved to', fileName)
 })
