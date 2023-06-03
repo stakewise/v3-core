@@ -2,9 +2,9 @@
   "manifestVersion": "3.2",
   "proxies": [],
   "impls": {
-    "9c5516ab172d556b5f15a5b6d2e1d0c436ae4ace103fb4f4689abe86cec95f40": {
-      "address": "0xe08D7Ee86c5eEd04F6d00F939ac09ED5743e8aB0",
-      "txHash": "0x104a60520a2139b9d7be1d1585ccf51050ed8d477d18bedfd3cb396350566973",
+    "ee48eaa5e276791ee19f2a6f492254a4f85f6113a971b4e247c30611f6eb8d1a": {
+      "address": "0x4130e4f8E2B605d78F2ea3148E391271C4eBa670",
+      "txHash": "0x4fd821399c50be45816728d2dbff228f9c5f3cc572911f6e799e02e5948f5ebc",
       "layout": {
         "solcVersion": "0.8.20",
         "storage": [
@@ -221,7 +221,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "412",
-            "type": "t_struct(History)10374_storage",
+            "type": "t_struct(History)10389_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:31"
           },
@@ -285,7 +285,7 @@
             "label": "_positions",
             "offset": 0,
             "slot": "567",
-            "type": "t_mapping(t_address,t_struct(OsTokenPosition)8856_storage)",
+            "type": "t_mapping(t_address,t_struct(OsTokenPosition)8868_storage)",
             "contract": "VaultOsToken",
             "src": "contracts/vaults/modules/VaultOsToken.sol:33"
           },
@@ -327,7 +327,7 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_array(t_struct(Checkpoint)10368_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)10383_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -351,7 +351,7 @@
             "label": "mapping(address => mapping(address => uint256))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(OsTokenPosition)8856_storage)": {
+          "t_mapping(t_address,t_struct(OsTokenPosition)8868_storage)": {
             "label": "mapping(address => struct IVaultOsToken.OsTokenPosition)",
             "numberOfBytes": "32"
           },
@@ -367,7 +367,7 @@
             "label": "string",
             "numberOfBytes": "32"
           },
-          "t_struct(Checkpoint)10368_storage": {
+          "t_struct(Checkpoint)10383_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -385,19 +385,19 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)10374_storage": {
+          "t_struct(History)10389_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)10368_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)10383_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(OsTokenPosition)8856_storage": {
+          "t_struct(OsTokenPosition)8868_storage": {
             "label": "struct IVaultOsToken.OsTokenPosition",
             "members": [
               {
@@ -446,9 +446,9 @@
         }
       }
     },
-    "9a5ec2211c2b0fcb534a4ec6601119afd0ffbe4da1e71f2386ace027dff0c19f": {
-      "address": "0x91845c7193FD1c6D0Cda8c751D88b5A5C5e66286",
-      "txHash": "0x48ed42c3ebc0f23a36f6f912a68d22e40fe4e8a02d64a89b2bd2247798e7d466",
+    "d307229fed8d16a3da6d75dbd9c0105b4298b0029e70dd0c8e893f6de3acfc88": {
+      "address": "0xCC0525D88e9EDA0eA89635A65bE854b6bB91a0EC",
+      "txHash": "0xb9f75e79f4a187ab17b5712b8c9eaf36b87c5f5c2bb36271c64b96fe1f88ab92",
       "layout": {
         "solcVersion": "0.8.20",
         "storage": [
@@ -665,7 +665,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "412",
-            "type": "t_struct(History)10374_storage",
+            "type": "t_struct(History)10389_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:31"
           },
@@ -729,7 +729,7 @@
             "label": "_positions",
             "offset": 0,
             "slot": "567",
-            "type": "t_mapping(t_address,t_struct(OsTokenPosition)8856_storage)",
+            "type": "t_mapping(t_address,t_struct(OsTokenPosition)8868_storage)",
             "contract": "VaultOsToken",
             "src": "contracts/vaults/modules/VaultOsToken.sol:33"
           },
@@ -795,7 +795,7 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_array(t_struct(Checkpoint)10368_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)10383_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -823,7 +823,7 @@
             "label": "mapping(address => mapping(address => uint256))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(OsTokenPosition)8856_storage)": {
+          "t_mapping(t_address,t_struct(OsTokenPosition)8868_storage)": {
             "label": "mapping(address => struct IVaultOsToken.OsTokenPosition)",
             "numberOfBytes": "32"
           },
@@ -839,7 +839,7 @@
             "label": "string",
             "numberOfBytes": "32"
           },
-          "t_struct(Checkpoint)10368_storage": {
+          "t_struct(Checkpoint)10383_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -857,19 +857,19 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)10374_storage": {
+          "t_struct(History)10389_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)10368_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)10383_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(OsTokenPosition)8856_storage": {
+          "t_struct(OsTokenPosition)8868_storage": {
             "label": "struct IVaultOsToken.OsTokenPosition",
             "members": [
               {

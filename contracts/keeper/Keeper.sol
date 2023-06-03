@@ -6,6 +6,7 @@ import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
 import {IOsToken} from '../interfaces/IOsToken.sol';
+import {IKeeper} from '../interfaces/IKeeper.sol';
 import {KeeperValidators} from './KeeperValidators.sol';
 import {KeeperRewards} from './KeeperRewards.sol';
 
@@ -14,7 +15,7 @@ import {KeeperRewards} from './KeeperRewards.sol';
  * @author StakeWise
  * @notice Defines the functionality for updating Vaults' rewards and approving validators registrations
  */
-contract Keeper is KeeperRewards, KeeperValidators {
+contract Keeper is KeeperRewards, KeeperValidators, IKeeper {
   /**
    * @dev Constructor
    * @param sharedMevEscrow The address of the shared MEV escrow contract
