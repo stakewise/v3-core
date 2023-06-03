@@ -2,22 +2,8 @@
 
 pragma solidity =0.8.20;
 
-interface IChainlinkAggregator {
-  /**
-   * @notice Reads the current answer from aggregator delegated to
-   * @return The price of a unit
-   */
-  function latestAnswer() external view returns (int256);
-}
-
-interface IOsToken {
-  /**
-   * @notice Converts assets to shares
-   * @param shares The amount of shares to convert to assets
-   * @return assets The amount of assets that the OsToken would exchange for the amount of shares provided
-   */
-  function convertToAssets(uint256 shares) external view returns (uint256 assets);
-}
+import {IChainlinkAggregator} from '../interfaces/IChainlinkAggregator.sol';
+import {IOsToken} from '../interfaces/IOsToken.sol';
 
 /**
  * @title PriceOracle
