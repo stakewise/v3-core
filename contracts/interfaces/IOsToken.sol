@@ -14,11 +14,8 @@ interface IOsToken is IERC20Permit {
   error AccessDenied();
   error CapacityExceeded();
   error InvalidFeePercent();
-  error InvalidRecipient();
   error InvalidAssets();
   error InvalidShares();
-  error InvalidTreasury();
-  error InvalidImplementation();
 
   /**
    * @notice Event emitted on minting shares
@@ -71,6 +68,12 @@ interface IOsToken is IERC20Permit {
   event AvgRewardPerSecondUpdated(uint256 avgRewardPerSecond);
 
   /**
+   * @notice Event emitted on keeper address update
+   * @param keeper The new keeper address
+   */
+  event KeeperUpdated(address keeper);
+
+  /**
    * @notice Event emitted on vault implementation update
    * @param implementation The vault implementation address
    * @param isSupported Whether the implementation can mint osToken
@@ -94,6 +97,12 @@ interface IOsToken is IERC20Permit {
    * @return The fee percent applied by the OsToken on the rewards
    */
   function feePercent() external view returns (uint64);
+
+  /**
+   * @notice The address that can update avgRewardPerSecond
+   * @return The address of the keeper contract
+   */
+  function keeper() external view returns (address);
 
   /**
    * @notice Checks whether Vault implementation address is supported for minting osToken
@@ -170,6 +179,12 @@ interface IOsToken is IERC20Permit {
    * @param _feePercent The new fee percent
    */
   function setFeePercent(uint16 _feePercent) external;
+
+  /**
+   * @notice Update keeper address. Can only be called by the owner.
+   * @param _keeper The new keeper address
+   */
+  function setKeeper(address _keeper) external;
 
   /**
    * @notice Enable/disable osToken minting for specific vault implementation. Can only be called by the owner.

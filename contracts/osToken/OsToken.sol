@@ -20,8 +20,10 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   uint256 private constant _wad = 1e18;
   uint256 private constant _maxFeePercent = 10_000; // @dev 100.00 %
 
-  address private immutable _keeper;
   IVaultsRegistry private immutable _vaultsRegistry;
+
+  /// @inheritdoc IOsToken
+  address public override keeper;
 
   /// @inheritdoc IOsToken
   uint256 public override capacity;
@@ -46,7 +48,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /**
    * @dev Constructor
-   * @param keeper The address of the Keeper contract
+   * @param _keeper The address of the Keeper contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
    * @param _owner The address of the contract owner
    * @param _treasury The address of the DAO treasury
@@ -56,7 +58,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
    * @param _symbol The symbol of the ERC20 token
    */
   constructor(
-    address keeper,
+    address _keeper,
     address vaultsRegistry,
     address _owner,
     address _treasury,
@@ -65,7 +67,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     string memory _name,
     string memory _symbol
   ) ERC20(_name, _symbol) Ownable2Step() {
-    _keeper = keeper;
+    keeper = _keeper;
     _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
     _lastUpdateTimestamp = uint64(block.timestamp);
 
@@ -101,7 +103,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function mintShares(address receiver, uint256 assets) external override returns (uint256 shares) {
-    if (receiver == address(0)) revert InvalidRecipient();
+    if (receiver == address(0)) revert ZeroAddress();
     if (assets == 0) revert InvalidAssets();
     if (
       !(_vaultsRegistry.vaults(msg.sender) &&
@@ -166,7 +168,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function setTreasury(address _treasury) public override onlyOwner {
-    if (_treasury == address(0)) revert InvalidTreasury();
+    if (_treasury == address(0)) revert ZeroAddress();
 
     // update DAO treasury address
     treasury = _treasury;
@@ -189,7 +191,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     address implementation,
     bool isSupported
   ) external override onlyOwner {
-    if (implementation == address(0)) revert InvalidImplementation();
+    if (implementation == address(0)) revert ZeroAddress();
 
     vaultImplementations[implementation] = isSupported;
     emit VaultImplementationUpdated(implementation, isSupported);
@@ -197,11 +199,19 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function setAvgRewardPerSecond(uint256 _avgRewardPerSecond) external override {
-    if (msg.sender != _keeper) revert AccessDenied();
+    if (msg.sender != keeper) revert AccessDenied();
 
     updateState();
     avgRewardPerSecond = _avgRewardPerSecond;
     emit AvgRewardPerSecondUpdated(_avgRewardPerSecond);
+  }
+
+  /// @inheritdoc IOsToken
+  function setKeeper(address _keeper) external override onlyOwner {
+    if (_keeper == address(0)) revert ZeroAddress();
+
+    keeper = _keeper;
+    emit KeeperUpdated(_keeper);
   }
 
   /// @inheritdoc IOsToken

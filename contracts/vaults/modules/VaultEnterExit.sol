@@ -33,7 +33,7 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
   ) public virtual override returns (uint256 assets) {
     _checkHarvested();
     if (shares == 0) revert InvalidShares();
-    if (receiver == address(0)) revert InvalidRecipient();
+    if (receiver == address(0)) revert ZeroAddress();
 
     // calculate amount of assets to burn
     assets = convertToAssets(shares);
@@ -61,7 +61,7 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
   ) public virtual override returns (uint256 positionTicket) {
     _checkCollateralized();
     if (shares == 0) revert InvalidSharesAmount();
-    if (receiver == address(0)) revert InvalidRecipient();
+    if (receiver == address(0)) revert ZeroAddress();
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;

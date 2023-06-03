@@ -36,11 +36,6 @@
   },
   {
     "inputs": [],
-    "name": "InvalidRecipient",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidShares",
     "type": "error"
   },

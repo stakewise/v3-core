@@ -119,7 +119,7 @@ describe('EthVault - withdraw', () => {
       await setBalance(vault.address, newBalance)
       await expect(
         vault.connect(holder).redeem(newBalance, ZERO_ADDRESS, holder.address)
-      ).to.be.revertedWith('InvalidRecipient')
+      ).to.be.revertedWith('ZeroAddress')
     })
 
     it('fails for not harvested vault', async () => {
@@ -209,7 +209,7 @@ describe('EthVault - withdraw', () => {
     it('fails for zero address receiver', async () => {
       await expect(
         vault.connect(holder).enterExitQueue(holderShares, ZERO_ADDRESS, holder.address)
-      ).to.be.revertedWith('InvalidRecipient')
+      ).to.be.revertedWith('ZeroAddress')
     })
 
     it('fails for not collateralized', async () => {

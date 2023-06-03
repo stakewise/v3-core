@@ -1,5 +1,5 @@
 import { NetworkConfig, Networks } from './types'
-import { BigNumberish } from 'ethers'
+import { BigNumber } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
 
 export const NETWORKS: {
@@ -8,8 +8,11 @@ export const NETWORKS: {
   [Networks.goerli]: {
     url: process.env.GOERLI_RPC_URL || '',
     chainId: 5,
+
     governor: '0x1867c96601bc5fE24F685d112314B8F3Fe228D5A',
     validatorsRegistry: '0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b',
+
+    // Keeper
     oracles: [
       '0xf1a2f8E2FaE384566Fe10f9a960f52fe4a103737',
       '0xF1091485531122c2cd0Beb6fD998FBCcCf42b38C',
@@ -25,56 +28,47 @@ export const NETWORKS: {
     ],
     requiredOracles: 6,
     rewardsDelay: 12 * 60 * 60,
-    oraclesConfigIpfsHash: 'QmZHT64Aauy8quU3nvsUoRp7cSmQQCmPD1fHhPuP3JMTHL',
+    maxAvgRewardPerSecond: BigNumber.from('6341958397'), // 20% APY
+    oraclesConfigIpfsHash: 'QmWdHy2xj9wBzqAqE3SioR7DU6QMceBPrHzseQ2iE78WYJ',
+
+    // OsToken
     treasury: '0x1867c96601bc5fE24F685d112314B8F3Fe228D5A',
     osTokenFeePercent: 500,
     osTokenCapacity: parseEther('1000000'),
     osTokenName: 'SW Staked ETH',
     osTokenSymbol: 'osETH',
-    osTokenLiqThreshold: 9200,
-    osTokenLiqBonus: 10100,
-    osTokenLtv: 9000,
-    osTokenRedeemStartHf: parseEther('1.01'),
-    osTokenRedeemMaxHf: parseEther('1.02'),
-  },
-  [Networks.gnosis]: {
-    url: process.env.GNOSIS_RPC_URL || '',
-    chainId: 100,
-    governor: '0x8737f638E9af54e89ed9E1234dbC68B115CD169e',
-    validatorsRegistry: '0x0B98057eA310F4d31F2a452B414647007d1645d9',
-    oracles: [], // TODO: update with oracles' addresses
-    requiredOracles: 6,
-    rewardsDelay: 12 * 60 * 60,
-    oraclesConfigIpfsHash: '',
-    treasury: '0x8737f638E9af54e89ed9E1234dbC68B115CD169e',
-    osTokenFeePercent: 1000,
-    osTokenCapacity: parseEther('1000000'),
-    osTokenName: 'SW Staked GNO',
-    osTokenSymbol: 'osGNO',
-    osTokenLiqThreshold: 9200,
-    osTokenLiqBonus: 10100,
-    osTokenLtv: 9000,
-    osTokenRedeemStartHf: parseEther('1.01'),
-    osTokenRedeemMaxHf: parseEther('1.02'),
+    redeemFromLtvPercent: 9150, // 91.5%
+    redeemToLtvPercent: 9000, // 90%
+    liqThresholdPercent: 9200, // 92%
+    liqBonusPercent: 10100, // 101%
+    ltvPercent: 9000, // 90%
   },
   [Networks.mainnet]: {
     url: process.env.MAINNET_RPC_URL || '',
     chainId: 1,
+
     governor: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
     validatorsRegistry: '0x00000000219ab540356cBB839Cbe05303d7705Fa',
+
+    // Keeper
     oracles: [], // TODO: update with oracles' addresses
     rewardsDelay: 12 * 60 * 60,
     requiredOracles: 6,
+    maxAvgRewardPerSecond: BigNumber.from('6341958397'), // 20% APY
     oraclesConfigIpfsHash: '',
+
+    // OsToken
     treasury: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
     osTokenFeePercent: 500,
     osTokenCapacity: parseEther('1000000'),
     osTokenName: 'SW Staked ETH',
     osTokenSymbol: 'osETH',
-    osTokenLiqThreshold: 9200,
-    osTokenLiqBonus: 10100,
-    osTokenLtv: 9000,
-    osTokenRedeemStartHf: parseEther('1.01'),
-    osTokenRedeemMaxHf: parseEther('1.02'),
+
+    // OsTokenConfig
+    redeemFromLtvPercent: 9150, // 91.5%
+    redeemToLtvPercent: 9000, // 90%
+    liqThresholdPercent: 9200, // 92%
+    liqBonusPercent: 10100, // 101%
+    ltvPercent: 9000, // 90%
   },
 }

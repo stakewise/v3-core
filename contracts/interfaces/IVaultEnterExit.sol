@@ -14,7 +14,6 @@ interface IVaultEnterExit is IVaultToken, IVaultState {
   // Custom errors
   error CapacityExceeded();
   error InvalidSharesAmount();
-  error InvalidRecipient();
   error InvalidAssets();
   error InvalidShares();
 

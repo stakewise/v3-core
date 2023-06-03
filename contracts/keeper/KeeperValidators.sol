@@ -2,7 +2,6 @@
 
 pragma solidity =0.8.20;
 
-import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IKeeperValidators} from '../interfaces/IKeeperValidators.sol';
 import {KeeperRewards} from './KeeperRewards.sol';
@@ -12,7 +11,7 @@ import {KeeperRewards} from './KeeperRewards.sol';
  * @author StakeWise
  * @notice Defines the functionality for approving validators' registrations and updating exit signatures
  */
-abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValidators {
+abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
   bytes32 private constant _registerValidatorsTypeHash =
     keccak256(
       'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes32 validators,bytes32 exitSignaturesIpfsHash)'
@@ -21,7 +20,6 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
   bytes32 private constant _updateExitSigTypeHash =
     keccak256('KeeperValidators(address vault,bytes32 exitSignaturesIpfsHash,uint256 nonce)');
 
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IValidatorsRegistry private immutable _validatorsRegistry;
 
   /// @inheritdoc IKeeperValidators
@@ -29,11 +27,8 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
 
   /**
    * @dev Constructor
-   * @dev Since the immutable variable value is stored in the bytecode,
-   *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param validatorsRegistry The address of the beacon chain validators registry contract
    */
-  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(IValidatorsRegistry validatorsRegistry) {
     _validatorsRegistry = validatorsRegistry;
   }
@@ -95,11 +90,4 @@ abstract contract KeeperValidators is Initializable, KeeperRewards, IKeeperValid
     // emit event
     emit ExitSignaturesUpdated(msg.sender, vault, nonce, exitSignaturesIpfsHash);
   }
-
-  /**
-   * @dev This empty reserved space is put in place to allow future versions to add new
-   * variables without shifting down storage in the inheritance chain.
-   * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-   */
-  uint256[50] private __gap;
 }

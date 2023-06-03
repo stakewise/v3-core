@@ -21,22 +21,7 @@
   },
   {
     "inputs": [],
-    "name": "InvalidImplementation",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidRecipient",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidShares",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidTreasury",
     "type": "error"
   },
   {
@@ -147,6 +132,19 @@
       }
     ],
     "name": "FeePercentUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "keeper",
+        "type": "address"
+      }
+    ],
+    "name": "KeeperUpdated",
     "type": "event"
   },
   {
@@ -518,6 +516,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "keeper",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -651,6 +662,19 @@
       }
     ],
     "name": "setFeePercent",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_keeper",
+        "type": "address"
+      }
+    ],
+    "name": "setKeeper",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

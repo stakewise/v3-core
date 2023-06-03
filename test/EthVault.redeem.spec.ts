@@ -78,7 +78,7 @@ describe('EthVault - redeem osToken', () => {
   it('cannot redeem osTokens to zero receiver', async () => {
     await expect(
       vault.connect(redeemer).redeemOsToken(redeemedShares, owner.address, ZERO_ADDRESS)
-    ).to.be.revertedWith('InvalidRecipient')
+    ).to.be.revertedWith('ZeroAddress')
   })
 
   it('cannot redeem osTokens from not harvested vault', async () => {
