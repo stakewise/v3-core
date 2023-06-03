@@ -16,6 +16,7 @@ import {
   OsTokenConfig,
   SharedMevEscrow,
   VaultsRegistry,
+  PriceOracle,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
 import {
@@ -51,6 +52,11 @@ export const createSharedMevEscrow = async function (
 ): Promise<SharedMevEscrow> {
   const factory = await ethers.getContractFactory('SharedMevEscrow')
   return (await factory.deploy(vaultsRegistry.address)) as SharedMevEscrow
+}
+
+export const createPriceOracle = async function (osToken: OsToken): Promise<PriceOracle> {
+  const factory = await ethers.getContractFactory('PriceOracle')
+  return (await factory.deploy(osToken.address)) as PriceOracle
 }
 
 export const createOracles = async function (

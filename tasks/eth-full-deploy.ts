@@ -12,6 +12,7 @@ import {
   SharedMevEscrow__factory,
   OsToken__factory,
   OsTokenConfig__factory,
+  PriceOracle__factory,
 } from '../typechain-types'
 import { deployContract, verify } from '../helpers/utils'
 import { NETWORKS } from '../helpers/constants'
@@ -138,6 +139,11 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   )
   console.log('EthVaultFactory deployed at', ethVaultFactory.address)
 
+  const priceOracle = await deployContract(
+    new PriceOracle__factory(deployer).deploy(osToken.address)
+  )
+  console.log('PriceOracle deployed at', priceOracle.address)
+
   await verify(
     hre,
     vaultsRegistry.address,
@@ -246,6 +252,13 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     'contracts/vaults/ethereum/EthVaultFactory.sol:EthVaultFactory'
   )
 
+  await verify(
+    hre,
+    priceOracle.address,
+    [osToken.address],
+    'contracts/osToken/PriceOracle.sol:PriceOracle'
+  )
+
   // Save the addresses
   const addresses = {
     VaultsRegistry: vaultsRegistry.address,
@@ -255,6 +268,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     SharedMevEscrow: sharedMevEscrow.address,
     OsToken: osToken.address,
     OsTokenConfig: osTokenConfig.address,
+    PriceOracle: priceOracle.address,
   }
   const json = JSON.stringify(addresses, null, 2)
   const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`
