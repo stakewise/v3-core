@@ -762,15 +762,4 @@ describe('KeeperRewards', () => {
       await snapshotGasCost(receipt)
     })
   })
-
-  describe('upgrade', () => {
-    it('fails for not DAO', async () => {
-      await expect(keeper.connect(sender).upgradeTo(keeper.address)).to.revertedWith('AccessDenied')
-    })
-    it('succeeds for DAO', async () => {
-      await expect(keeper.connect(owner).upgradeTo(keeper.address)).to.revertedWith(
-        'ERC1967Upgrade: new implementation is not UUPS'
-      )
-    })
-  })
 })

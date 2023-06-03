@@ -77,7 +77,7 @@ describe('EthVault - liquidate', () => {
   it('cannot liquidate osTokens to zero receiver', async () => {
     await expect(
       vault.connect(liquidator).liquidateOsToken(osTokenShares, owner.address, ZERO_ADDRESS)
-    ).to.be.revertedWith('InvalidRecipient')
+    ).to.be.revertedWith('ZeroAddress')
   })
 
   it('cannot liquidate osTokens from not harvested vault', async () => {

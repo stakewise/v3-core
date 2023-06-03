@@ -2,7 +2,6 @@
 
 pragma solidity =0.8.20;
 
-import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IVaultMev} from '../interfaces/IVaultMev.sol';
@@ -15,29 +14,23 @@ import {IOsToken} from '../interfaces/IOsToken.sol';
  * @author StakeWise
  * @notice Defines the functionality for updating Vaults' and OsToken rewards
  */
-abstract contract KeeperRewards is Initializable, IKeeperRewards {
+abstract contract KeeperRewards is IKeeperRewards {
   bytes32 private constant _rewardsUpdateTypeHash =
     keccak256(
       'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint256 avgRewardPerSecond,uint64 updateTimestamp,uint64 nonce)'
     );
 
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   uint256 private immutable _maxAvgRewardPerSecond;
 
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address private immutable _sharedMevEscrow;
 
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IOsToken private immutable _osToken;
 
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IOracles internal immutable _oracles;
 
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IVaultsRegistry internal immutable _vaultsRegistry;
 
   /// @inheritdoc IKeeperRewards
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   uint256 public immutable override rewardsDelay;
 
   /// @inheritdoc IKeeperRewards
@@ -60,8 +53,6 @@ abstract contract KeeperRewards is Initializable, IKeeperRewards {
 
   /**
    * @dev Constructor
-   * @dev Since the immutable variable value is stored in the bytecode,
-   *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param sharedMevEscrow The address of the shared MEV escrow contract
    * @param oracles The address of the Oracles contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
@@ -69,7 +60,6 @@ abstract contract KeeperRewards is Initializable, IKeeperRewards {
    * @param _rewardsDelay The delay in seconds between rewards updates
    * @param maxAvgRewardPerSecond The maximum possible average reward per second
    */
-  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     address sharedMevEscrow,
     IOracles oracles,
@@ -84,6 +74,10 @@ abstract contract KeeperRewards is Initializable, IKeeperRewards {
     _osToken = osToken;
     rewardsDelay = _rewardsDelay;
     _maxAvgRewardPerSecond = maxAvgRewardPerSecond;
+
+    // set rewardsNonce to 1 so that vaults collateralized
+    // before first rewards update will not have 0 nonce
+    rewardsNonce = 1;
   }
 
   /// @inheritdoc IKeeperRewards
@@ -233,20 +227,4 @@ abstract contract KeeperRewards is Initializable, IKeeperRewards {
     if (rewards[vault].nonce != 0) return;
     rewards[vault] = Reward({nonce: rewardsNonce, assets: 0});
   }
-
-  /**
-   * @notice Initializes the KeeperRewards contract
-   */
-  function __KeeperRewards_init() internal onlyInitializing {
-    // set rewardsNonce to 1 so that vaults collateralized
-    // before first rewards update will not have 0 nonce
-    rewardsNonce = 1;
-  }
-
-  /**
-   * @dev This empty reserved space is put in place to allow future versions to add new
-   * variables without shifting down storage in the inheritance chain.
-   * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
-   */
-  uint256[50] private __gap;
 }

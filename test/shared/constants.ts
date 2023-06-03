@@ -40,9 +40,9 @@ export const OSTOKEN_LIQ_THRESHOLD = 9200 // 92%
 export const OSTOKEN_LIQ_BONUS = 10100 // 101%
 export const OSTOKEN_LTV = 9000 // 90%
 
-export const OSTOKEN_REDEEM_FROM_LTV = 9150 // 92%
+export const OSTOKEN_REDEEM_FROM_LTV = 9150 // 91.5%
 export const OSTOKEN_REDEEM_TO_LTV = 9000 // 90%
-export const MAX_AVG_REWARD_PER_SECOND = BigNumber.from('6341958396') // 20% APY
+export const MAX_AVG_REWARD_PER_SECOND = BigNumber.from('6341958397') // 20% APY
 
 export const EIP712Domain = [
   { name: 'name', type: 'string' },

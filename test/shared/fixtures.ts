@@ -16,6 +16,7 @@ import {
   OsTokenConfig,
   SharedMevEscrow,
   VaultsRegistry,
+  PriceOracle,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
 import {
@@ -51,6 +52,11 @@ export const createSharedMevEscrow = async function (
 ): Promise<SharedMevEscrow> {
   const factory = await ethers.getContractFactory('SharedMevEscrow')
   return (await factory.deploy(vaultsRegistry.address)) as SharedMevEscrow
+}
+
+export const createPriceOracle = async function (osToken: OsToken): Promise<PriceOracle> {
+  const factory = await ethers.getContractFactory('PriceOracle')
+  return (await factory.deploy(osToken.address)) as PriceOracle
 }
 
 export const createOracles = async function (
@@ -110,7 +116,6 @@ export const createOsTokenConfig = async function (
 }
 
 export const createKeeper = async function (
-  owner: Wallet,
   oracles: Oracles,
   vaultsRegistry: VaultsRegistry,
   osToken: OsToken,
@@ -119,20 +124,15 @@ export const createKeeper = async function (
   maxAvgRewardPerSecond: BigNumberish
 ): Promise<Keeper> {
   const factory = await ethers.getContractFactory('Keeper')
-  const instance = await upgrades.deployProxy(factory, [], {
-    unsafeAllow: ['delegatecall'],
-    constructorArgs: [
-      sharedMevEscrow.address,
-      oracles.address,
-      vaultsRegistry.address,
-      osToken.address,
-      validatorsRegistry.address,
-      owner.address,
-      REWARDS_DELAY,
-      maxAvgRewardPerSecond,
-    ],
-  })
-  return (await instance.deployed()) as Keeper
+  return (await factory.deploy(
+    sharedMevEscrow.address,
+    oracles.address,
+    vaultsRegistry.address,
+    osToken.address,
+    validatorsRegistry.address,
+    REWARDS_DELAY,
+    maxAvgRewardPerSecond
+  )) as Keeper
 }
 
 export const createEthVaultFactory = async function (
@@ -281,7 +281,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   const [_deployer] = await ethers.getSigners()
   const _keeperAddress = getContractAddress({
     from: _deployer.address,
-    nonce: (await _deployer.getTransactionCount()) + 2,
+    nonce: (await _deployer.getTransactionCount()) + 1,
   })
 
   // 3. deploy ostoken
@@ -298,7 +298,6 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
 
   // 4. deploy keeper
   const keeper = await createKeeper(
-    dao,
     oracles,
     vaultsRegistry,
     osToken,

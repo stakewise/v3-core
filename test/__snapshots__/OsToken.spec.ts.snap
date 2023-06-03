@@ -3,28 +3,28 @@
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount decreases the spender allowance subtracting the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 29549,
+  "gasUsed": 29571,
 }
 `;
 
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount emits an approval event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 24749,
+  "gasUsed": 24771,
 }
 `;
 
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender has enough balance when the spender had an approved amount decreases the spender allowance subtracting the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 29549,
+  "gasUsed": 29571,
 }
 `;
 
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender has enough balance when the spender had an approved amount emits an approval event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 24749,
+  "gasUsed": 24771,
 }
 `;
 
@@ -59,7 +59,7 @@ Object {
 exports[`OsToken capacity owner can change 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 25229,
+  "gasUsed": 25251,
 }
 `;
 
@@ -70,10 +70,17 @@ Object {
 }
 `;
 
+exports[`OsToken keeper owner can change 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 30273,
+}
+`;
+
 exports[`OsToken permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 74664,
+  "gasUsed": 74696,
 }
 `;
 
@@ -94,27 +101,27 @@ Object {
 exports[`OsToken transfer when the sender transfers all balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 46848,
+  "gasUsed": 46870,
 }
 `;
 
 exports[`OsToken transfer when the sender transfers zero tokens transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 28924,
+  "gasUsed": 28946,
 }
 `;
 
 exports[`OsToken treasury owner can change 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 27950,
+  "gasUsed": 27994,
 }
 `;
 
 exports[`OsToken vault implementation owner can change 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 26489,
+  "gasUsed": 26521,
 }
 `;

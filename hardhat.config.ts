@@ -66,7 +66,6 @@ const config: HardhatUserConfig = {
   },
   networks: {
     goerli: getCommonNetworkConfig(Networks.goerli),
-    gnosis: getCommonNetworkConfig(Networks.gnosis),
     mainnet: getCommonNetworkConfig(Networks.mainnet),
     hardhat: {
       blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,
