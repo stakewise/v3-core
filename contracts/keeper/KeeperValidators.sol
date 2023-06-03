@@ -20,7 +20,6 @@ abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
   bytes32 private constant _updateExitSigTypeHash =
     keccak256('KeeperValidators(address vault,bytes32 exitSignaturesIpfsHash,uint256 nonce)');
 
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IValidatorsRegistry private immutable _validatorsRegistry;
 
   /// @inheritdoc IKeeperValidators
@@ -28,11 +27,8 @@ abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
 
   /**
    * @dev Constructor
-   * @dev Since the immutable variable value is stored in the bytecode,
-   *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param validatorsRegistry The address of the beacon chain validators registry contract
    */
-  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(IValidatorsRegistry validatorsRegistry) {
     _validatorsRegistry = validatorsRegistry;
   }

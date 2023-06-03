@@ -60,7 +60,6 @@ abstract contract KeeperRewards is IKeeperRewards {
    * @param _rewardsDelay The delay in seconds between rewards updates
    * @param maxAvgRewardPerSecond The maximum possible average reward per second
    */
-  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     address sharedMevEscrow,
     IOracles oracles,
