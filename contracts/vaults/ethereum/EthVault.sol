@@ -31,13 +31,13 @@ import {VaultMev} from '../modules/VaultMev.sol';
 contract EthVault is
   VaultImmutables,
   Initializable,
-  VaultToken,
   VaultAdmin,
   VaultVersion,
   VaultFee,
   VaultState,
   VaultValidators,
   VaultEnterExit,
+  VaultToken,
   VaultOsToken,
   VaultMev,
   VaultEthStaking,
@@ -79,31 +79,37 @@ contract EthVault is
   /// @inheritdoc IVaultEnterExit
   function redeem(
     uint256 shares,
-    address receiver,
-    address owner
-  ) public override(IVaultEnterExit, VaultEnterExit, VaultOsToken) returns (uint256 assets) {
-    return super.redeem(shares, receiver, owner);
+    address receiver
+  )
+    public
+    virtual
+    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+    returns (uint256 assets)
+  {
+    return super.redeem(shares, receiver);
   }
 
   /// @inheritdoc IVaultEnterExit
   function enterExitQueue(
     uint256 shares,
-    address receiver,
-    address owner
+    address receiver
   )
     public
-    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+    virtual
+    override(IVaultEnterExit, VaultEnterExit, VaultToken, VaultOsToken)
     returns (uint256 positionCounter)
   {
-    return super.enterExitQueue(shares, receiver, owner);
+    return super.enterExitQueue(shares, receiver);
   }
 
   /// @inheritdoc IERC20
   function transfer(
     address to,
     uint256 amount
-  ) public override(IERC20, ERC20Upgradeable, VaultOsToken) returns (bool) {
-    return super.transfer(to, amount);
+  ) public virtual override(IERC20, ERC20Upgradeable) returns (bool) {
+    bool success = super.transfer(to, amount);
+    _checkOsTokenPosition(msg.sender);
+    return success;
   }
 
   /// @inheritdoc IERC20
@@ -111,8 +117,45 @@ contract EthVault is
     address from,
     address to,
     uint256 amount
-  ) public override(IERC20, ERC20Upgradeable, VaultOsToken) returns (bool) {
-    return super.transferFrom(from, to, amount);
+  ) public virtual override(IERC20, ERC20Upgradeable) returns (bool) {
+    bool success = super.transferFrom(from, to, amount);
+    _checkOsTokenPosition(from);
+    return success;
+  }
+
+  /// @inheritdoc VaultState
+  function _updateExitQueue()
+    internal
+    virtual
+    override(VaultState, VaultToken)
+    returns (uint256 burnedShares)
+  {
+    return super._updateExitQueue();
+  }
+
+  /// @inheritdoc VaultState
+  function _mintShares(
+    address owner,
+    uint256 shares
+  ) internal virtual override(VaultState, VaultToken) {
+    super._mintShares(owner, shares);
+  }
+
+  /// @inheritdoc VaultState
+  function _burnShares(
+    address owner,
+    uint256 shares
+  ) internal virtual override(VaultState, VaultToken) {
+    super._burnShares(owner, shares);
+  }
+
+  /// @inheritdoc VaultEnterExit
+  function _deposit(
+    address to,
+    uint256 assets,
+    address referrer
+  ) internal virtual override(VaultEnterExit, VaultToken) returns (uint256 shares) {
+    shares = super._deposit(to, assets, referrer);
   }
 
   /**
@@ -120,13 +163,14 @@ contract EthVault is
    * @param params The decoded parameters for initializing the EthVault contract
    */
   function __EthVault_init(EthVaultInitParams memory params) internal onlyInitializing {
-    __VaultToken_init(params.name, params.symbol, params.capacity);
     __VaultAdmin_init(params.admin, params.metadataIpfsHash);
     // fee recipient is initially set to admin address
     __VaultFee_init(params.admin, params.feePercent);
+    __VaultState_init(params.capacity);
     __VaultValidators_init();
-    __VaultEthStaking_init();
+    __VaultToken_init(params.name, params.symbol);
     __VaultMev_init(params.mevEscrow);
+    __VaultEthStaking_init();
   }
 
   /// @inheritdoc VaultVersion

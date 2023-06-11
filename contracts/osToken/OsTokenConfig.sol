@@ -4,6 +4,7 @@ pragma solidity =0.8.20;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
+import {Errors} from '../libraries/Errors.sol';
 import {IOsTokenConfig} from '../interfaces/IOsTokenConfig.sol';
 
 /**
@@ -72,12 +73,12 @@ contract OsTokenConfig is Ownable2Step, IOsTokenConfig {
   function updateConfig(Config memory config) public override onlyOwner {
     // validate redemption LTV percents
     if (config.redeemFromLtvPercent < config.redeemToLtvPercent) {
-      revert InvalidRedeemFromLtvPercent();
+      revert Errors.InvalidRedeemFromLtvPercent();
     }
 
     // validate liquidation threshold percent
     if (config.liqThresholdPercent == 0 || config.liqThresholdPercent >= _maxPercent) {
-      revert InvalidLiqThresholdPercent();
+      revert Errors.InvalidLiqThresholdPercent();
     }
 
     // validate liquidation bonus percent
@@ -85,12 +86,12 @@ contract OsTokenConfig is Ownable2Step, IOsTokenConfig {
       config.liqBonusPercent < _maxPercent ||
       Math.mulDiv(config.liqThresholdPercent, config.liqBonusPercent, _maxPercent) > _maxPercent
     ) {
-      revert InvalidLiqBonusPercent();
+      revert Errors.InvalidLiqBonusPercent();
     }
 
     // validate loan-to-value percent
     if (config.ltvPercent == 0 || config.ltvPercent > config.liqThresholdPercent) {
-      revert InvalidLtvPercent();
+      revert Errors.InvalidLtvPercent();
     }
 
     // update state

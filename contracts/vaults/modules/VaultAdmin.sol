@@ -4,6 +4,7 @@ pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IVaultAdmin} from '../../interfaces/IVaultAdmin.sol';
+import {Errors} from '../../libraries/Errors.sol';
 
 /**
  * @title VaultAdmin
@@ -36,7 +37,7 @@ abstract contract VaultAdmin is Initializable, IVaultAdmin {
    * @dev Internal method for checking whether the caller is admin
    */
   function _checkAdmin() internal view {
-    if (msg.sender != admin) revert AccessDenied();
+    if (msg.sender != admin) revert Errors.AccessDenied();
   }
 
   /**

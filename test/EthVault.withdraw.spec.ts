@@ -95,31 +95,31 @@ describe('EthVault - withdraw', () => {
   describe('redeem', () => {
     it('fails with not enough balance', async () => {
       await setBalance(vault.address, BigNumber.from(0))
-      await expect(
-        vault.connect(holder).redeem(holderShares, receiver.address, holder.address)
-      ).to.be.revertedWith('InsufficientAssets')
+      await expect(vault.connect(holder).redeem(holderShares, receiver.address)).to.be.revertedWith(
+        'InsufficientAssets'
+      )
     })
 
     it('fails for sender other than owner without approval', async () => {
-      await expect(
-        vault.connect(other).redeem(holderShares, receiver.address, holder.address)
-      ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+      await expect(vault.connect(other).redeem(holderShares, receiver.address)).to.be.revertedWith(
+        PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW
+      )
     })
 
     it('fails for shares larger than balance', async () => {
       const newBalance = holderShares.add(1)
       await setBalance(vault.address, newBalance)
-      await expect(
-        vault.connect(holder).redeem(newBalance, receiver.address, holder.address)
-      ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+      await expect(vault.connect(holder).redeem(newBalance, receiver.address)).to.be.revertedWith(
+        PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW
+      )
     })
 
     it('fails for zero address receiver', async () => {
       const newBalance = holderShares.add(1)
       await setBalance(vault.address, newBalance)
-      await expect(
-        vault.connect(holder).redeem(newBalance, ZERO_ADDRESS, holder.address)
-      ).to.be.revertedWith('ZeroAddress')
+      await expect(vault.connect(holder).redeem(newBalance, ZERO_ADDRESS)).to.be.revertedWith(
+        'ZeroAddress'
+      )
     })
 
     it('fails for not harvested vault', async () => {
@@ -130,20 +130,9 @@ describe('EthVault - withdraw', () => {
       await updateRewards(keeper, oracles, getSignatures, [
         { vault: vault.address, reward: 2, unlockedMevReward: 0 },
       ])
-      await expect(
-        vault.connect(holder).redeem(holderShares, receiver.address, holder.address)
-      ).to.be.revertedWith('NotHarvested')
-    })
-
-    it('reduces allowance for sender other than owner', async () => {
-      await vault.connect(holder).approve(other.address, holderShares)
-      expect(await vault.allowance(holder.address, other.address)).to.be.eq(holderShares)
-      const receipt = await vault
-        .connect(other)
-        .redeem(holderShares, receiver.address, holder.address)
-      expect(await vault.allowance(holder.address, other.address)).to.be.eq(0)
-
-      await snapshotGasCost(receipt)
+      await expect(vault.connect(holder).redeem(holderShares, receiver.address)).to.be.revertedWith(
+        'NotHarvested'
+      )
     })
 
     it('does not overflow', async () => {
@@ -162,7 +151,7 @@ describe('EthVault - withdraw', () => {
       await setBalance(await vault.address, MAX_UINT128)
       await vault._setTotalAssets(MAX_UINT128)
 
-      await vault.connect(holder).redeem(holderShares, receiver.address, holder.address)
+      await vault.connect(holder).redeem(holderShares, receiver.address)
       expect(await vault.totalAssets()).to.be.eq(0)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
         receiverBalanceBefore.add(MAX_UINT128)
@@ -171,12 +160,10 @@ describe('EthVault - withdraw', () => {
 
     it('redeem transfers assets to receiver', async () => {
       const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
-      const receipt = await vault
-        .connect(holder)
-        .redeem(holderShares, receiver.address, holder.address)
+      const receipt = await vault.connect(holder).redeem(holderShares, receiver.address)
       await expect(receipt)
         .to.emit(vault, 'Redeem')
-        .withArgs(holder.address, receiver.address, holder.address, holderAssets, holderShares)
+        .withArgs(holder.address, receiver.address, holderAssets, holderShares)
       await expect(receipt)
         .to.emit(vault, 'Transfer')
         .withArgs(holder.address, ZERO_ADDRESS, holderShares)
@@ -193,22 +180,22 @@ describe('EthVault - withdraw', () => {
     })
 
     it('fails with 0 shares', async () => {
-      await expect(
-        vault.connect(holder).redeem(0, receiver.address, holder.address)
-      ).to.be.revertedWith('InvalidShares')
+      await expect(vault.connect(holder).redeem(0, receiver.address)).to.be.revertedWith(
+        'InvalidShares'
+      )
     })
   })
 
   describe('enter exit queue', () => {
     it('fails with 0 shares', async () => {
-      await expect(
-        vault.connect(holder).enterExitQueue(0, receiver.address, holder.address)
-      ).to.be.revertedWith('InvalidSharesAmount')
+      await expect(vault.connect(holder).enterExitQueue(0, receiver.address)).to.be.revertedWith(
+        'InvalidShares'
+      )
     })
 
     it('fails for zero address receiver', async () => {
       await expect(
-        vault.connect(holder).enterExitQueue(holderShares, ZERO_ADDRESS, holder.address)
+        vault.connect(holder).enterExitQueue(holderShares, ZERO_ADDRESS)
       ).to.be.revertedWith('ZeroAddress')
     })
 
@@ -222,31 +209,20 @@ describe('EthVault - withdraw', () => {
       })
       await newVault.connect(holder).deposit(holder.address, referrer, { value: holderAssets })
       await expect(
-        newVault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
+        newVault.connect(holder).enterExitQueue(holderShares, receiver.address)
       ).to.be.revertedWith('NotCollateralized')
     })
 
     it('fails for sender other than owner without approval', async () => {
       await expect(
-        vault.connect(other).enterExitQueue(holderShares, receiver.address, holder.address)
+        vault.connect(other).enterExitQueue(holderShares, receiver.address)
       ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
     })
 
     it('fails for shares larger than balance', async () => {
       await expect(
-        vault.connect(holder).enterExitQueue(holderShares.add(1), receiver.address, holder.address)
+        vault.connect(holder).enterExitQueue(holderShares.add(1), receiver.address)
       ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
-    })
-
-    it('reduces allowance for sender other than owner', async () => {
-      await vault.connect(holder).approve(other.address, holderShares)
-      expect(await vault.allowance(holder.address, other.address)).to.be.eq(holderShares)
-      const receipt = await vault
-        .connect(other)
-        .enterExitQueue(holderShares, receiver.address, holder.address)
-      expect(await vault.allowance(holder.address, other.address)).to.be.eq(0)
-
-      await snapshotGasCost(receipt)
     })
 
     it('locks tokens for the time of exit', async () => {
@@ -254,12 +230,10 @@ describe('EthVault - withdraw', () => {
       expect(await vault.balanceOf(holder.address)).to.be.eq(holderShares)
       expect(await vault.balanceOf(vault.address)).to.be.eq(SECURITY_DEPOSIT)
 
-      const receipt = await vault
-        .connect(holder)
-        .enterExitQueue(holderShares, receiver.address, holder.address)
+      const receipt = await vault.connect(holder).enterExitQueue(holderShares, receiver.address)
       await expect(receipt)
         .to.emit(vault, 'ExitQueueEntered')
-        .withArgs(holder.address, receiver.address, holder.address, validatorDeposit, holderShares)
+        .withArgs(holder.address, receiver.address, validatorDeposit, holderShares)
       await expect(receipt)
         .to.emit(vault, 'Transfer')
         .withArgs(holder.address, vault.address, holderShares)
@@ -274,13 +248,13 @@ describe('EthVault - withdraw', () => {
 
   describe('update exit queue', () => {
     beforeEach(async () => {
-      await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
+      await vault.connect(holder).enterExitQueue(holderShares, receiver.address)
     })
 
     it('skips if it is too early', async () => {
       await vault.updateState(harvestParams)
       await vault.connect(holder).deposit(holder.address, referrer, { value: holderAssets })
-      await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
+      await vault.connect(holder).enterExitQueue(holderShares, receiver.address)
       await expect(vault.updateState(harvestParams)).to.not.emit(vault, 'CheckpointCreated')
     })
 
@@ -357,8 +331,8 @@ describe('EthVault - withdraw', () => {
 
     const positionTicket = await vault
       .connect(holder)
-      .callStatic.enterExitQueue(holderShares, receiver.address, holder.address)
-    await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
+      .callStatic.enterExitQueue(holderShares, receiver.address)
+    await vault.connect(holder).enterExitQueue(holderShares, receiver.address)
 
     // rewards tree updated
     const rewardsTree = await updateRewards(keeper, oracles, getSignatures, [
@@ -393,8 +367,8 @@ describe('EthVault - withdraw', () => {
     beforeEach(async () => {
       positionTicket = await vault
         .connect(holder)
-        .callStatic.enterExitQueue(holderShares, receiver.address, holder.address)
-      await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
+        .callStatic.enterExitQueue(holderShares, receiver.address)
+      await vault.connect(holder).enterExitQueue(holderShares, receiver.address)
       receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
     })
 
@@ -434,8 +408,8 @@ describe('EthVault - withdraw', () => {
       await vault.connect(holder).deposit(holder.address, referrer, { value: holderAssets.mul(2) })
       const positionTicket2 = await vault
         .connect(holder)
-        .callStatic.enterExitQueue(holderShares, receiver.address, holder.address)
-      await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
+        .callStatic.enterExitQueue(holderShares, receiver.address)
+      await vault.connect(holder).enterExitQueue(holderShares, receiver.address)
       // checkpointIndex is lower than positionTicket
       await expect(
         vault.connect(holder).claimExitedAssets(receiver.address, positionTicket2, checkpointIndex)
@@ -445,8 +419,8 @@ describe('EthVault - withdraw', () => {
 
       const positionTicket3 = await vault
         .connect(holder)
-        .callStatic.enterExitQueue(holderShares, receiver.address, holder.address)
-      await vault.connect(holder).enterExitQueue(holderShares, receiver.address, holder.address)
+        .callStatic.enterExitQueue(holderShares, receiver.address)
+      await vault.connect(holder).enterExitQueue(holderShares, receiver.address)
       await increaseTime(ONE_DAY)
       await vault.updateState(harvestParams)
       const checkpointIndexThree = await vault.getExitQueueIndex(positionTicket3)
@@ -578,14 +552,14 @@ describe('EthVault - withdraw', () => {
 
       const user1PositionTicket = await vault
         .connect(user1)
-        .callStatic.enterExitQueue(shares, user1.address, user1.address)
-      await vault.connect(user1).enterExitQueue(shares, user1.address, user1.address)
+        .callStatic.enterExitQueue(shares, user1.address)
+      await vault.connect(user1).enterExitQueue(shares, user1.address)
       const user1BalanceBefore = await waffle.provider.getBalance(user1.address)
 
       const user2PositionTicket = await vault
         .connect(user2)
-        .callStatic.enterExitQueue(shares, user2.address, user2.address)
-      await vault.connect(user2).enterExitQueue(shares, user2.address, user2.address)
+        .callStatic.enterExitQueue(shares, user2.address)
+      await vault.connect(user2).enterExitQueue(shares, user2.address)
       const user2BalanceBefore = await waffle.provider.getBalance(user2.address)
 
       await increaseTime(ONE_DAY)
@@ -770,7 +744,7 @@ describe('EthVault - withdraw', () => {
     await checkVaultState()
 
     // 7. Alice redeems 1333 shares (2428 assets)
-    await expect(vault.connect(alice).redeem(1333, alice.address, alice.address))
+    await expect(vault.connect(alice).redeem(1333, alice.address))
       .to.emit(vault, 'Transfer')
       .withArgs(alice.address, ZERO_ADDRESS, 1333)
 
@@ -783,7 +757,7 @@ describe('EthVault - withdraw', () => {
     await checkVaultState()
 
     // 8. Bob withdraws 1608 assets (2929 shares)
-    const receipt = await vault.connect(bob).redeem(1608, bob.address, bob.address)
+    const receipt = await vault.connect(bob).redeem(1608, bob.address)
     await expect(receipt).to.emit(vault, 'Transfer').withArgs(bob.address, ZERO_ADDRESS, 1608)
 
     bobShares -= 1608
@@ -803,10 +777,10 @@ describe('EthVault - withdraw', () => {
     // 10. Alice enters exit queue with 1000 shares
     let alicePositionTicket = await vault
       .connect(alice)
-      .callStatic.enterExitQueue(1000, alice.address, alice.address)
-    await expect(vault.connect(alice).enterExitQueue(1000, alice.address, alice.address))
+      .callStatic.enterExitQueue(1000, alice.address)
+    await expect(vault.connect(alice).enterExitQueue(1000, alice.address))
       .to.emit(vault, 'ExitQueueEntered')
-      .withArgs(alice.address, alice.address, alice.address, alicePositionTicket, 1000)
+      .withArgs(alice.address, alice.address, alicePositionTicket, 1000)
 
     aliceShares -= 1000
     aliceAssets -= 1822
@@ -817,12 +791,10 @@ describe('EthVault - withdraw', () => {
     await checkVaultState()
 
     // 11. Bob enters exit queue with 4391 shares
-    let bobPositionTicket = await vault
-      .connect(bob)
-      .callStatic.enterExitQueue(4391, bob.address, bob.address)
-    await expect(vault.connect(bob).enterExitQueue(4391, bob.address, bob.address))
+    let bobPositionTicket = await vault.connect(bob).callStatic.enterExitQueue(4391, bob.address)
+    await expect(vault.connect(bob).enterExitQueue(4391, bob.address))
       .to.emit(vault, 'ExitQueueEntered')
-      .withArgs(bob.address, bob.address, bob.address, bobPositionTicket, 4391)
+      .withArgs(bob.address, bob.address, bobPositionTicket, 4391)
 
     bobShares -= 4391
     bobAssets -= 7999
@@ -925,12 +897,10 @@ describe('EthVault - withdraw', () => {
     await checkVaultState()
 
     // 17. Alice enters exit queue with 1000 shares
-    alicePositionTicket = await vault
-      .connect(alice)
-      .callStatic.enterExitQueue(1000, alice.address, alice.address)
-    await expect(vault.connect(alice).enterExitQueue(1000, alice.address, alice.address))
+    alicePositionTicket = await vault.connect(alice).callStatic.enterExitQueue(1000, alice.address)
+    await expect(vault.connect(alice).enterExitQueue(1000, alice.address))
       .to.emit(vault, 'ExitQueueEntered')
-      .withArgs(alice.address, alice.address, alice.address, alicePositionTicket, 1000)
+      .withArgs(alice.address, alice.address, alicePositionTicket, 1000)
 
     expect(alicePositionTicket).to.be.eq(latestPositionTicket)
     queuedShares += 1000

@@ -1,130 +1,5 @@
 [
   {
-    "inputs": [],
-    "name": "AccessDenied",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "CapacityExceeded",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "HealthFactorNotViolated",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InsufficientAssets",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidAssets",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidCapacity",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidFeePercent",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidFeeRecipient",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidHealthFactor",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidLtv",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidPosition",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidProof",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidReceivedAssets",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidSecurityDeposit",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidShares",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidSharesAmount",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidTokenMeta",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidValidator",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidValidators",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "LowLtv",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "PermitDeadlineExpired",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "PermitInvalidSigner",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "RedemptionExceeded",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "UpgradeFailed",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "ZeroAddress",
-    "type": "error"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {
@@ -180,7 +55,7 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "owner",
+        "name": "receiver",
         "type": "address"
       },
       {
@@ -211,19 +86,13 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "caller",
+        "name": "owner",
         "type": "address"
       },
       {
         "indexed": true,
         "internalType": "address",
         "name": "receiver",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
         "type": "address"
       },
       {
@@ -478,19 +347,13 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "caller",
+        "name": "owner",
         "type": "address"
       },
       {
         "indexed": true,
         "internalType": "address",
         "name": "receiver",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "owner",
         "type": "address"
       },
       {
@@ -853,11 +716,6 @@
         "internalType": "address",
         "name": "receiver",
         "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "owner",
-        "type": "address"
       }
     ],
     "name": "enterExitQueue",
@@ -1206,11 +1064,6 @@
       {
         "internalType": "address",
         "name": "receiver",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "owner",
         "type": "address"
       }
     ],

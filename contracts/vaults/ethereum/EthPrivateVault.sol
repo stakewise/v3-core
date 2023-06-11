@@ -8,6 +8,7 @@ import {IEthPrivateVault} from '../../interfaces/IEthPrivateVault.sol';
 import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
 import {IVersioned} from '../../interfaces/IVersioned.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
 import {VaultWhitelist} from '../modules/VaultWhitelist.sol';
 import {EthVault} from './EthVault.sol';
@@ -66,7 +67,8 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
     address receiver,
     address referrer
   ) public payable override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
-    if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver])) revert AccessDenied();
+    if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver]))
+      revert Errors.AccessDenied();
     return super.deposit(receiver, referrer);
   }
 
@@ -74,7 +76,7 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
    * @dev Function for depositing using fallback function
    */
   receive() external payable override {
-    if (!whitelistedAccounts[msg.sender]) revert AccessDenied();
+    if (!whitelistedAccounts[msg.sender]) revert Errors.AccessDenied();
     _deposit(msg.sender, msg.value, address(0));
   }
 }

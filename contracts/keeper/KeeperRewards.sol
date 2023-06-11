@@ -6,6 +6,7 @@ import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IVaultMev} from '../interfaces/IVaultMev.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
+import {Errors} from '../libraries/Errors.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IOsToken} from '../interfaces/IOsToken.sol';
 
@@ -82,13 +83,14 @@ abstract contract KeeperRewards is IKeeperRewards {
 
   /// @inheritdoc IKeeperRewards
   function updateRewards(RewardsUpdateParams calldata params) external override {
-    if (!canUpdateRewards()) revert TooEarlyUpdate();
-    if (params.avgRewardPerSecond > _maxAvgRewardPerSecond) revert InvalidAvgRewardPerSecond();
+    if (!canUpdateRewards()) revert Errors.TooEarlyUpdate();
+    if (params.avgRewardPerSecond > _maxAvgRewardPerSecond)
+      revert Errors.InvalidAvgRewardPerSecond();
 
     // SLOAD to memory
     bytes32 currRewardsRoot = rewardsRoot;
     if (currRewardsRoot == params.rewardsRoot || prevRewardsRoot == params.rewardsRoot) {
-      revert InvalidRewardsRoot();
+      revert Errors.InvalidRewardsRoot();
     }
 
     // SLOAD to memory
@@ -164,14 +166,14 @@ abstract contract KeeperRewards is IKeeperRewards {
   function harvest(
     HarvestParams calldata params
   ) external override returns (int256 totalAssetsDelta, uint256 unlockedMevDelta) {
-    if (!_vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
+    if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.AccessDenied();
 
     // SLOAD to memory
     uint64 currentNonce = rewardsNonce;
 
     // allow harvest for the past two updates
     if (params.rewardsRoot != rewardsRoot) {
-      if (params.rewardsRoot != prevRewardsRoot) revert InvalidRewardsRoot();
+      if (params.rewardsRoot != prevRewardsRoot) revert Errors.InvalidRewardsRoot();
       unchecked {
         // cannot underflow as after first merkle root update nonce will be "2"
         currentNonce -= 1;
@@ -188,7 +190,7 @@ abstract contract KeeperRewards is IKeeperRewards {
         )
       )
     ) {
-      revert InvalidProof();
+      revert Errors.InvalidProof();
     }
 
     // SLOAD to memory

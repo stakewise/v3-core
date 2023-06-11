@@ -10,14 +10,14 @@ Object {
 exports[`EthVault - settings keys manager can be updated by admin 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 53249,
+  "gasUsed": 53271,
 }
 `;
 
 exports[`EthVault - settings metadata IPFS hash only admin can update 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 32872,
+  "gasUsed": 32894,
 }
 `;
 

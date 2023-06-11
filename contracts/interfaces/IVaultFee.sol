@@ -10,10 +10,6 @@ import {IVaultAdmin} from './IVaultAdmin.sol';
  * @notice Defines the interface for the VaultFee contract
  */
 interface IVaultFee is IVaultAdmin {
-  // Custom errors
-  error InvalidFeeRecipient();
-  error InvalidFeePercent();
-
   /**
    * @notice Event emitted on fee recipient update
    * @param caller The address of the function caller

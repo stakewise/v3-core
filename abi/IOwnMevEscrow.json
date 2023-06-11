@@ -1,10 +1,5 @@
 [
   {
-    "inputs": [],
-    "name": "HarvestFailed",
-    "type": "error"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {

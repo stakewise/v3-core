@@ -63,13 +63,6 @@ Object {
 }
 `;
 
-exports[`OsToken fee percent owner can change 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 69104,
-}
-`;
-
 exports[`OsToken keeper owner can change 1`] = `
 Object {
   "calldataByteLength": 36,

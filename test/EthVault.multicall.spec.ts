@@ -108,17 +108,11 @@ describe('EthVault - multicall', () => {
     calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
 
     // add call for instant withdrawal
-    calls.push(
-      vault.interface.encodeFunctionData('redeem', [withdrawShares, sender.address, sender.address])
-    )
+    calls.push(vault.interface.encodeFunctionData('redeem', [withdrawShares, sender.address]))
 
     // add call for entering exit queue
     calls.push(
-      vault.interface.encodeFunctionData('enterExitQueue', [
-        exitQueueShares,
-        sender.address,
-        sender.address,
-      ])
+      vault.interface.encodeFunctionData('enterExitQueue', [exitQueueShares, sender.address])
     )
 
     result = await vault.connect(sender).callStatic.multicall(calls)
@@ -159,7 +153,7 @@ describe('EthVault - multicall', () => {
     // reverts on error
     calls = [
       vault.interface.encodeFunctionData('updateState', [harvestParams]),
-      vault.interface.encodeFunctionData('redeem', [userShares, sender.address, sender.address]),
+      vault.interface.encodeFunctionData('redeem', [userShares, sender.address]),
     ]
     await expect(vault.connect(sender).multicall(calls)).reverted
   })
@@ -168,7 +162,7 @@ describe('EthVault - multicall', () => {
     const amount = parseEther('1')
     const calls: string[] = [
       vault.interface.encodeFunctionData('deposit', [sender.address, referrer]),
-      vault.interface.encodeFunctionData('redeem', [amount, sender.address, sender.address]),
+      vault.interface.encodeFunctionData('redeem', [amount, sender.address]),
     ]
     await expect(vault.connect(sender).multicall(calls)).reverted
   })

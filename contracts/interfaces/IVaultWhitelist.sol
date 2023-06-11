@@ -10,9 +10,6 @@ import {IVaultAdmin} from './IVaultAdmin.sol';
  * @notice Defines the interface for the VaultWhitelist contract
  */
 interface IVaultWhitelist is IVaultAdmin {
-  /// Custom errors
-  error WhitelistAlreadyUpdated();
-
   /**
    * @notice Event emitted on whitelist update
    * @param caller The address of the function caller

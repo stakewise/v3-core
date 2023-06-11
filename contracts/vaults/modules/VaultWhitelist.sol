@@ -4,6 +4,7 @@ pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IVaultWhitelist} from '../../interfaces/IVaultWhitelist.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {VaultAdmin} from './VaultAdmin.sol';
 
 /**
@@ -20,7 +21,7 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
 
   /// @inheritdoc IVaultWhitelist
   function updateWhitelist(address account, bool approved) external override {
-    if (msg.sender != whitelister) revert AccessDenied();
+    if (msg.sender != whitelister) revert Errors.AccessDenied();
     _updateWhitelist(account, approved);
   }
 
@@ -36,7 +37,7 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
    * @param approved Defines whether account is added to the whitelist or removed
    */
   function _updateWhitelist(address account, bool approved) private {
-    if (whitelistedAccounts[account] == approved) revert WhitelistAlreadyUpdated();
+    if (whitelistedAccounts[account] == approved) revert Errors.WhitelistAlreadyUpdated();
     whitelistedAccounts[account] = approved;
     emit WhitelistUpdated(msg.sender, account, approved);
   }

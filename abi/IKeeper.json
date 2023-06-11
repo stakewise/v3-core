@@ -1,40 +1,5 @@
 [
   {
-    "inputs": [],
-    "name": "AccessDenied",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidAvgRewardPerSecond",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidProof",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidRewardsRoot",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidValidatorsRegistryRoot",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidVault",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "TooEarlyUpdate",
-    "type": "error"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {

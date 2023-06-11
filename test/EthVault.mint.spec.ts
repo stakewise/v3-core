@@ -147,16 +147,16 @@ describe('EthVault - mint', () => {
 
   it('cannot enter exit queue when LTV is violated', async () => {
     await vault.connect(sender).mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
-    await expect(
-      vault.connect(sender).enterExitQueue(assets, receiver.address, sender.address)
-    ).to.be.revertedWith('LowLtv')
+    await expect(vault.connect(sender).enterExitQueue(assets, receiver.address)).to.be.revertedWith(
+      'LowLtv'
+    )
   })
 
   it('cannot redeem when LTV is violated', async () => {
     await vault.connect(sender).mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
-    await expect(
-      vault.connect(sender).redeem(assets, receiver.address, sender.address)
-    ).to.be.revertedWith('LowLtv')
+    await expect(vault.connect(sender).redeem(assets, receiver.address)).to.be.revertedWith(
+      'LowLtv'
+    )
   })
 
   it('updates position accumulated fee', async () => {

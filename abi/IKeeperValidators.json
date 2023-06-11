@@ -1,15 +1,5 @@
 [
   {
-    "inputs": [],
-    "name": "InvalidValidatorsRegistryRoot",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidVault",
-    "type": "error"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {

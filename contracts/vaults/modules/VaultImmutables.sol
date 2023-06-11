@@ -3,6 +3,7 @@
 pragma solidity =0.8.20;
 
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
+import {Errors} from '../../libraries/Errors.sol';
 
 /**
  * @title VaultImmutables
@@ -10,10 +11,6 @@ import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
  * @notice Defines the Vault common immutable variables
  */
 abstract contract VaultImmutables {
-  // Custom errors
-  error NotHarvested();
-  error NotCollateralized();
-
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address internal immutable _keeper;
 
@@ -42,13 +39,13 @@ abstract contract VaultImmutables {
    * @dev Internal method for checking whether the vault is harvested
    */
   function _checkHarvested() internal view {
-    if (IKeeperRewards(_keeper).isHarvestRequired(address(this))) revert NotHarvested();
+    if (IKeeperRewards(_keeper).isHarvestRequired(address(this))) revert Errors.NotHarvested();
   }
 
   /**
    * @dev Internal method for checking whether the vault is collateralized
    */
   function _checkCollateralized() internal view {
-    if (!IKeeperRewards(_keeper).isCollateralized(address(this))) revert NotCollateralized();
+    if (!IKeeperRewards(_keeper).isCollateralized(address(this))) revert Errors.NotCollateralized();
   }
 }

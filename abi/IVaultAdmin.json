@@ -1,10 +1,5 @@
 [
   {
-    "inputs": [],
-    "name": "AccessDenied",
-    "type": "error"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {

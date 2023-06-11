@@ -8,13 +8,6 @@ pragma solidity =0.8.20;
  * @notice Defines the interface for the Oracles contract
  */
 interface IOracles {
-  // Custom errors
-  error NotEnoughSignatures();
-  error InvalidOracle();
-  error AlreadyAdded();
-  error AlreadyRemoved();
-  error InvalidRequiredOracles();
-
   /**
    * @notice Event emitted on the oracle addition
    * @param oracle The address of the added oracle

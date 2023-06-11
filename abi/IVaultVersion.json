@@ -1,15 +1,5 @@
 [
   {
-    "inputs": [],
-    "name": "AccessDenied",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "UpgradeFailed",
-    "type": "error"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {

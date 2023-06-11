@@ -5,6 +5,7 @@ pragma solidity =0.8.20;
 import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
+import {Errors} from '../libraries/Errors.sol';
 import {IOracles} from '../interfaces/IOracles.sol';
 
 /**
@@ -50,7 +51,7 @@ contract Oracles is Ownable2Step, EIP712, IOracles {
 
   /// @inheritdoc IOracles
   function addOracle(address oracle) public override onlyOwner {
-    if (isOracle[oracle]) revert AlreadyAdded();
+    if (isOracle[oracle]) revert Errors.AlreadyAdded();
 
     isOracle[oracle] = true;
     unchecked {
@@ -62,7 +63,7 @@ contract Oracles is Ownable2Step, EIP712, IOracles {
 
   /// @inheritdoc IOracles
   function removeOracle(address oracle) external override onlyOwner {
-    if (!isOracle[oracle]) revert AlreadyRemoved();
+    if (!isOracle[oracle]) revert Errors.AlreadyRemoved();
 
     // SLOAD to memory
     uint256 _totalOracles;
@@ -80,7 +81,8 @@ contract Oracles is Ownable2Step, EIP712, IOracles {
 
   /// @inheritdoc IOracles
   function setRequiredOracles(uint256 _requiredOracles) public override onlyOwner {
-    if (_requiredOracles == 0 || totalOracles < _requiredOracles) revert InvalidRequiredOracles();
+    if (_requiredOracles == 0 || totalOracles < _requiredOracles)
+      revert Errors.InvalidRequiredOracles();
     requiredOracles = _requiredOracles;
     emit RequiredOraclesUpdated(_requiredOracles);
   }
@@ -114,7 +116,8 @@ contract Oracles is Ownable2Step, EIP712, IOracles {
     // check whether enough signatures
     unchecked {
       // cannot realistically overflow
-      if (signatures.length < requiredSignatures * _signatureLength) revert NotEnoughSignatures();
+      if (signatures.length < requiredSignatures * _signatureLength)
+        revert Errors.NotEnoughSignatures();
     }
 
     bytes32 data = _hashTypedDataV4(message);
@@ -127,7 +130,7 @@ contract Oracles is Ownable2Step, EIP712, IOracles {
         currentOracle = ECDSA.recover(data, signatures[startIndex:startIndex + _signatureLength]);
       }
       // signatures must be sorted by oracles' addresses and not repeat
-      if (currentOracle <= lastOracle || !isOracle[currentOracle]) revert InvalidOracle();
+      if (currentOracle <= lastOracle || !isOracle[currentOracle]) revert Errors.InvalidOracle();
 
       // update last oracle
       lastOracle = currentOracle;

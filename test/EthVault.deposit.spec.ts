@@ -190,7 +190,7 @@ describe('EthVault - deposit', () => {
       }
       await setBalance(mevEscrow.address, vaultReward)
       await setBalance(await vault.address, parseEther('5'))
-      await vault.connect(other).enterExitQueue(parseEther('32'), other.address, other.address)
+      await vault.connect(other).enterExitQueue(parseEther('32'), other.address)
 
       const amount = parseEther('100')
       const receipt = await vault

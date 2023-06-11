@@ -288,7 +288,7 @@ describe('EthVault - state', () => {
 
   it('updates exit queue', async () => {
     await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
-    await vault.connect(holder).enterExitQueue(holderShares, holder.address, holder.address)
+    await vault.connect(holder).enterExitQueue(holderShares, holder.address)
 
     const totalSupplyBefore = await vault.totalSupply()
     const totalAssetsBefore = await vault.totalAssets()

@@ -5,6 +5,7 @@ pragma solidity =0.8.20;
 import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+import {Errors} from '../libraries/Errors.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IOsToken} from '../interfaces/IOsToken.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
@@ -103,12 +104,12 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function mintShares(address receiver, uint256 assets) external override returns (uint256 shares) {
-    if (receiver == address(0)) revert ZeroAddress();
-    if (assets == 0) revert InvalidAssets();
+    if (receiver == address(0)) revert Errors.ZeroAddress();
+    if (assets == 0) revert Errors.InvalidAssets();
     if (
       !(_vaultsRegistry.vaults(msg.sender) &&
         vaultImplementations[IVaultVersion(msg.sender).implementation()])
-    ) revert AccessDenied();
+    ) revert Errors.AccessDenied();
 
     // pull accumulated rewards
     updateState();
@@ -117,7 +118,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     shares = convertToShares(assets);
 
     uint256 totalAssetsAfter = _totalAssets + assets;
-    if (totalAssetsAfter > capacity) revert CapacityExceeded();
+    if (totalAssetsAfter > capacity) revert Errors.CapacityExceeded();
 
     // update counters
     _totalShares += SafeCast.toUint128(shares);
@@ -135,8 +136,8 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function burnShares(address owner, uint256 shares) external override returns (uint256 assets) {
-    if (shares == 0) revert InvalidShares();
-    if (!_vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
+    if (shares == 0) revert Errors.InvalidShares();
+    if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.AccessDenied();
 
     // pull accumulated rewards
     updateState();
@@ -168,7 +169,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function setTreasury(address _treasury) public override onlyOwner {
-    if (_treasury == address(0)) revert ZeroAddress();
+    if (_treasury == address(0)) revert Errors.ZeroAddress();
 
     // update DAO treasury address
     treasury = _treasury;
@@ -177,7 +178,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function setFeePercent(uint16 _feePercent) public override onlyOwner {
-    if (_feePercent > _maxFeePercent) revert InvalidFeePercent();
+    if (_feePercent > _maxFeePercent) revert Errors.InvalidFeePercent();
     // pull reward with the current fee percent
     updateState();
 
@@ -191,7 +192,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     address implementation,
     bool isSupported
   ) external override onlyOwner {
-    if (implementation == address(0)) revert ZeroAddress();
+    if (implementation == address(0)) revert Errors.ZeroAddress();
 
     vaultImplementations[implementation] = isSupported;
     emit VaultImplementationUpdated(implementation, isSupported);
@@ -199,7 +200,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function setAvgRewardPerSecond(uint256 _avgRewardPerSecond) external override {
-    if (msg.sender != keeper) revert AccessDenied();
+    if (msg.sender != keeper) revert Errors.AccessDenied();
 
     updateState();
     avgRewardPerSecond = _avgRewardPerSecond;
@@ -208,7 +209,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function setKeeper(address _keeper) external override onlyOwner {
-    if (_keeper == address(0)) revert ZeroAddress();
+    if (_keeper == address(0)) revert Errors.ZeroAddress();
 
     keeper = _keeper;
     emit KeeperUpdated(_keeper);

@@ -8,13 +8,6 @@ pragma solidity =0.8.20;
  * @notice Defines the interface for the Keeper contract rewards
  */
 interface IKeeperRewards {
-  // Custom errors
-  error InvalidRewardsRoot();
-  error InvalidProof();
-  error AccessDenied();
-  error TooEarlyUpdate();
-  error InvalidAvgRewardPerSecond();
-
   /**
    * @notice Event emitted on rewards update
    * @param caller The address of the function caller

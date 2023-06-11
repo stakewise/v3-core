@@ -3,71 +3,57 @@
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in multiple transactions 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 77417,
+  "gasUsed": 77390,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in multiple transactions 2`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 54841,
+  "gasUsed": 54814,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in single transaction 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 57693,
+  "gasUsed": 57673,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in single checkpoint 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 54841,
+  "gasUsed": 54814,
 }
 `;
 
 exports[`EthVault - withdraw enter exit queue locks tokens for the time of exit 1`] = `
 Object {
-  "calldataByteLength": 100,
-  "gasUsed": 72836,
+  "calldataByteLength": 68,
+  "gasUsed": 71972,
 }
 `;
 
-exports[`EthVault - withdraw enter exit queue reduces allowance for sender other than owner 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 73505,
-}
-`;
-
-exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`] = `29935`;
+exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`] = `30136`;
 
 exports[`EthVault - withdraw redeem redeem transfers assets to receiver 1`] = `
 Object {
-  "calldataByteLength": 100,
-  "gasUsed": 63834,
-}
-`;
-
-exports[`EthVault - withdraw redeem reduces allowance for sender other than owner 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 64503,
+  "calldataByteLength": 68,
+  "gasUsed": 62633,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue adds checkpoint 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 92961,
+  "gasUsed": 93008,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue for not all the queued shares 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 92957,
+  "gasUsed": 93004,
 }
 `;

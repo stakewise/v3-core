@@ -10,13 +10,6 @@ import {IERC20Permit} from './IERC20Permit.sol';
  * @notice Defines the interface for the OsToken contract
  */
 interface IOsToken is IERC20Permit {
-  // Custom errors
-  error AccessDenied();
-  error CapacityExceeded();
-  error InvalidFeePercent();
-  error InvalidAssets();
-  error InvalidShares();
-
   /**
    * @notice Event emitted on minting shares
    * @param vault The address of the Vault

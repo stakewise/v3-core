@@ -6,6 +6,7 @@ import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IKeeperValidators} from '../../interfaces/IKeeperValidators.sol';
 import {IVaultValidators} from '../../interfaces/IVaultValidators.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
 import {VaultAdmin} from './VaultAdmin.sol';
 import {VaultState} from './VaultState.sol';
@@ -45,14 +46,16 @@ abstract contract VaultValidators is
     IKeeperValidators.ApprovalParams calldata keeperParams,
     bytes32[] calldata proof
   ) external override {
+    _checkHarvested();
+
     // get approval from oracles
     IKeeperValidators(_keeper).approveValidators(keeperParams);
 
     // check enough withdrawable assets
-    if (withdrawableAssets() < _validatorDeposit()) revert InsufficientAssets();
+    if (withdrawableAssets() < _validatorDeposit()) revert Errors.InsufficientAssets();
 
     // check validator length is valid
-    if (keeperParams.validators.length != _validatorLength) revert InvalidValidator();
+    if (keeperParams.validators.length != _validatorLength) revert Errors.InvalidValidator();
 
     // SLOAD to memory
     uint256 currentIndex = validatorIndex;
@@ -65,7 +68,7 @@ abstract contract VaultValidators is
         keccak256(bytes.concat(keccak256(abi.encode(keeperParams.validators, currentIndex))))
       )
     ) {
-      revert InvalidProof();
+      revert Errors.InvalidProof();
     }
 
     // register validator
@@ -85,13 +88,15 @@ abstract contract VaultValidators is
     bool[] calldata proofFlags,
     bytes32[] calldata proof
   ) external override {
+    _checkHarvested();
+
     // get approval from oracles
     IKeeperValidators(_keeper).approveValidators(keeperParams);
 
     // check enough withdrawable assets
     uint256 validatorsCount = keeperParams.validators.length / _validatorLength;
     if (withdrawableAssets() < _validatorDeposit() * validatorsCount) {
-      revert InsufficientAssets();
+      revert Errors.InsufficientAssets();
     }
 
     // check validators length is valid
@@ -101,7 +106,7 @@ abstract contract VaultValidators is
         validatorsCount * _validatorLength != keeperParams.validators.length ||
         indexes.length != validatorsCount
       ) {
-        revert InvalidValidators();
+        revert Errors.InvalidValidators();
       }
     }
 
@@ -114,7 +119,7 @@ abstract contract VaultValidators is
         _registerMultipleValidators(keeperParams.validators, indexes)
       )
     ) {
-      revert InvalidProof();
+      revert Errors.InvalidProof();
     }
 
     // increment index for the next validator
@@ -127,7 +132,7 @@ abstract contract VaultValidators is
   /// @inheritdoc IVaultValidators
   function setKeysManager(address keysManager_) external override {
     _checkAdmin();
-    if (keysManager_ == address(0)) revert ZeroAddress();
+    if (keysManager_ == address(0)) revert Errors.ZeroAddress();
     // update keysManager address
     _keysManager = keysManager_;
     emit KeysManagerUpdated(msg.sender, keysManager_);
@@ -135,7 +140,7 @@ abstract contract VaultValidators is
 
   /// @inheritdoc IVaultValidators
   function setValidatorsRoot(bytes32 _validatorsRoot) external override {
-    if (msg.sender != keysManager()) revert AccessDenied();
+    if (msg.sender != keysManager()) revert Errors.AccessDenied();
     _setValidatorsRoot(_validatorsRoot);
   }
 
@@ -182,10 +187,10 @@ abstract contract VaultValidators is
 
   /**
    * @dev Initializes the VaultValidators contract
-   * @dev NB! This initializer must be called after VaultToken initializer
+   * @dev NB! This initializer must be called after VaultState initializer
    */
   function __VaultValidators_init() internal view onlyInitializing {
-    if (capacity() < _validatorDeposit()) revert InvalidCapacity();
+    if (capacity() < _validatorDeposit()) revert Errors.InvalidCapacity();
   }
 
   /**

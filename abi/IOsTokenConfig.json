@@ -1,25 +1,5 @@
 [
   {
-    "inputs": [],
-    "name": "InvalidLiqBonusPercent",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidLiqThresholdPercent",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidLtvPercent",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidRedeemFromLtvPercent",
-    "type": "error"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {

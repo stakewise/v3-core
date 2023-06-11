@@ -9,17 +9,17 @@ import {IOsToken} from '../../interfaces/IOsToken.sol';
 import {IOsTokenConfig} from '../../interfaces/IOsTokenConfig.sol';
 import {IVaultOsToken} from '../../interfaces/IVaultOsToken.sol';
 import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
-import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
-import {VaultToken} from './VaultToken.sol';
 import {VaultEnterExit} from './VaultEnterExit.sol';
+import {VaultState} from './VaultState.sol';
 
 /**
  * @title VaultOsToken
  * @author StakeWise
  * @notice Defines the functionality for minting OsToken
  */
-abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, IVaultOsToken {
+abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, IVaultOsToken {
   uint256 private constant _wad = 1e18;
   uint256 private constant _hfLiqThreshold = 1e18;
   uint256 private constant _maxPercent = 10_000; // @dev 100.00 %
@@ -78,12 +78,12 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
     // calculate and validate LTV
     if (
       Math.mulDiv(
-        convertToAssets(balanceOf[msg.sender]),
+        convertToAssets(_balances[msg.sender]),
         _osTokenConfig.ltvPercent(),
         _maxPercent
       ) < _osToken.convertToAssets(position.shares)
     ) {
-      revert LowLtv();
+      revert Errors.LowLtv();
     }
 
     // update state
@@ -100,7 +100,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
 
     // fetch user position
     OsTokenPosition memory position = _positions[msg.sender];
-    if (position.shares == 0) revert InvalidPosition();
+    if (position.shares == 0) revert Errors.InvalidPosition();
     _syncPositionFee(position);
 
     // update osToken position
@@ -134,42 +134,19 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
   /// @inheritdoc IVaultEnterExit
   function redeem(
     uint256 shares,
-    address receiver,
-    address owner
+    address receiver
   ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 assets) {
-    assets = super.redeem(shares, receiver, owner);
-    _checkPosition(owner);
+    assets = super.redeem(shares, receiver);
+    _checkOsTokenPosition(msg.sender);
   }
 
   /// @inheritdoc IVaultEnterExit
   function enterExitQueue(
     uint256 shares,
-    address receiver,
-    address owner
+    address receiver
   ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 positionCounter) {
-    positionCounter = super.enterExitQueue(shares, receiver, owner);
-    _checkPosition(owner);
-  }
-
-  /// @inheritdoc IERC20
-  function transfer(
-    address to,
-    uint256 amount
-  ) public virtual override(IERC20, ERC20Upgradeable) returns (bool) {
-    bool success = super.transfer(to, amount);
-    _checkPosition(msg.sender);
-    return success;
-  }
-
-  /// @inheritdoc IERC20
-  function transferFrom(
-    address from,
-    address to,
-    uint256 amount
-  ) public virtual override(IERC20, ERC20Upgradeable) returns (bool) {
-    bool success = super.transferFrom(from, to, amount);
-    _checkPosition(from);
-    return success;
+    positionCounter = super.enterExitQueue(shares, receiver);
+    _checkOsTokenPosition(msg.sender);
   }
 
   /**
@@ -178,6 +155,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
    * @param receiver The receiver of the assets
    * @param osTokenShares The amount of osToken shares to redeem or liquidate
    * @param isLiquidation Whether the liquidation or redemption is being performed
+   * @return receivedAssets The amount of assets received
    */
   function _redeemOsToken(
     address owner,
@@ -185,7 +163,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
     uint256 osTokenShares,
     bool isLiquidation
   ) private returns (uint256 receivedAssets) {
-    if (receiver == address(0)) revert ZeroAddress();
+    if (receiver == address(0)) revert Errors.ZeroAddress();
     _checkHarvested();
 
     // update osToken state for gas efficiency
@@ -193,7 +171,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
 
     // fetch user position
     OsTokenPosition memory position = _positions[owner];
-    if (position.shares == 0) revert InvalidPosition();
+    if (position.shares == 0) revert Errors.InvalidPosition();
     _syncPositionFee(position);
 
     // SLOAD to memory
@@ -218,9 +196,9 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
 
     {
       // check whether received assets are valid
-      uint256 depositedAssets = convertToAssets(balanceOf[owner]);
+      uint256 depositedAssets = convertToAssets(_balances[owner]);
       if (receivedAssets > depositedAssets || receivedAssets > withdrawableAssets()) {
-        revert InvalidReceivedAssets();
+        revert Errors.InvalidReceivedAssets();
       }
 
       uint256 mintedAssets = _osToken.convertToAssets(position.shares);
@@ -230,13 +208,13 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
           Math.mulDiv(depositedAssets * _wad, liqThresholdPercent, mintedAssets * _maxPercent) >=
           _hfLiqThreshold
         ) {
-          revert InvalidHealthFactor();
+          revert Errors.InvalidHealthFactor();
         }
       } else if (
         // check ltv violation in case of redemption
         Math.mulDiv(depositedAssets, redeemFromLtvPercent, _maxPercent) > mintedAssets
       ) {
-        revert InvalidLtv();
+        revert Errors.InvalidLtv();
       }
     }
 
@@ -248,15 +226,20 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
     _positions[owner] = position;
 
     // burn owner shares
-    _burnShares(owner, convertToShares(receivedAssets), receivedAssets);
+    _burnShares(owner, convertToShares(receivedAssets));
+
+    // update total assets
+    unchecked {
+      _totalAssets -= SafeCast.toUint128(receivedAssets);
+    }
 
     // check ltv violation in case of redemption
     if (
       !isLiquidation &&
-      Math.mulDiv(convertToAssets(balanceOf[owner]), redeemToLtvPercent, _maxPercent) >
+      Math.mulDiv(convertToAssets(_balances[owner]), redeemToLtvPercent, _maxPercent) >
       _osToken.convertToAssets(position.shares)
     ) {
-      revert RedemptionExceeded();
+      revert Errors.RedemptionExceeded();
     }
 
     // transfer assets to the receiver
@@ -285,7 +268,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
    * @notice Internal function for checking position validity. Reverts if it is invalid.
    * @param user The address of the user
    */
-  function _checkPosition(address user) private view {
+  function _checkOsTokenPosition(address user) internal view {
     // fetch user position
     OsTokenPosition memory position = _positions[user];
     if (position.shares == 0) return;
@@ -298,10 +281,10 @@ abstract contract VaultOsToken is VaultImmutables, VaultToken, VaultEnterExit, I
 
     // calculate and validate position LTV
     if (
-      Math.mulDiv(convertToAssets(balanceOf[user]), _osTokenConfig.ltvPercent(), _maxPercent) <
+      Math.mulDiv(convertToAssets(_balances[user]), _osTokenConfig.ltvPercent(), _maxPercent) <
       _osToken.convertToAssets(position.shares)
     ) {
-      revert LowLtv();
+      revert Errors.LowLtv();
     }
   }
 

@@ -8,10 +8,6 @@ pragma solidity =0.8.20;
  * @notice Defines the interface for the Keeper validators
  */
 interface IKeeperValidators {
-  // Custom errors
-  error InvalidValidatorsRegistryRoot();
-  error InvalidVault();
-
   /**
    * @notice Event emitted on validators approval
    * @param vault The address of the Vault

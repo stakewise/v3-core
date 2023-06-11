@@ -2,7 +2,6 @@
 
 pragma solidity =0.8.20;
 
-import {IVaultToken} from './IVaultToken.sol';
 import {IVaultState} from './IVaultState.sol';
 
 /**
@@ -10,24 +9,18 @@ import {IVaultState} from './IVaultState.sol';
  * @author StakeWise
  * @notice Defines the interface for the VaultEnterExit contract
  */
-interface IVaultEnterExit is IVaultToken, IVaultState {
-  // Custom errors
-  error CapacityExceeded();
-  error InvalidSharesAmount();
-  error InvalidAssets();
-  error InvalidShares();
-
+interface IVaultEnterExit is IVaultState {
   /**
    * @notice Event emitted on deposit
    * @param caller The address that called the deposit function
-   * @param owner The address that received the shares
+   * @param receiver The address that received the shares
    * @param assets The number of assets deposited by the caller
-   * @param shares The number of Vault tokens the owner received
+   * @param shares The number of shares received
    * @param referrer The address of the referrer
    */
   event Deposit(
     address indexed caller,
-    address indexed owner,
+    address indexed receiver,
     uint256 assets,
     uint256 shares,
     address referrer
@@ -35,32 +28,23 @@ interface IVaultEnterExit is IVaultToken, IVaultState {
 
   /**
    * @notice Event emitted on redeem
-   * @param caller The address that called the function
-   * @param receiver The address that received withdrawn assets
    * @param owner The address that owns the shares
+   * @param receiver The address that received withdrawn assets
    * @param assets The total number of withdrawn assets
    * @param shares The total number of withdrawn shares
    */
-  event Redeem(
-    address indexed caller,
-    address indexed receiver,
-    address indexed owner,
-    uint256 assets,
-    uint256 shares
-  );
+  event Redeem(address indexed owner, address indexed receiver, uint256 assets, uint256 shares);
 
   /**
    * @notice Event emitted on shares added to the exit queue
-   * @param caller The address that called the function
-   * @param receiver The address that will receive withdrawn assets
    * @param owner The address that owns the shares
+   * @param receiver The address that will receive withdrawn assets
    * @param positionTicket The exit queue ticket that was assigned to the position
    * @param shares The number of shares that queued for the exit
    */
   event ExitQueueEntered(
-    address indexed caller,
-    address indexed receiver,
     address indexed owner,
+    address indexed receiver,
     uint256 positionTicket,
     uint256 shares
   );
@@ -85,13 +69,11 @@ interface IVaultEnterExit is IVaultToken, IVaultState {
    * @notice Locks shares to the exit queue. The shares continue earning rewards until they will be burned by the Vault.
    * @param shares The number of shares to lock
    * @param receiver The address that will receive assets upon withdrawal
-   * @param owner The address that owns the shares
    * @return positionTicket The exit queue ticket assigned to the position
    */
   function enterExitQueue(
     uint256 shares,
-    address receiver,
-    address owner
+    address receiver
   ) external returns (uint256 positionTicket);
 
   /**
@@ -121,12 +103,7 @@ interface IVaultEnterExit is IVaultToken, IVaultState {
    * @notice Redeems assets from the Vault by utilising what has not been staked yet
    * @param shares The number of shares to burn
    * @param receiver The address that will receive assets
-   * @param owner The address that owns the shares
    * @return assets The number of assets withdrawn
    */
-  function redeem(
-    uint256 shares,
-    address receiver,
-    address owner
-  ) external returns (uint256 assets);
+  function redeem(uint256 shares, address receiver) external returns (uint256 assets);
 }

@@ -131,8 +131,8 @@ export async function collateralizeEthVault(
   // exit validator
   const positionTicket = await vault
     .connect(admin)
-    .callStatic.enterExitQueue(validatorDeposit, admin.address, admin.address)
-  await vault.connect(admin).enterExitQueue(validatorDeposit, admin.address, admin.address)
+    .callStatic.enterExitQueue(validatorDeposit, admin.address)
+  await vault.connect(admin).enterExitQueue(validatorDeposit, admin.address)
   await setBalance(vault.address, validatorDeposit)
 
   await vault.updateState({ rewardsRoot: rewardsTree.root, reward: 0, unlockedMevReward: 0, proof })

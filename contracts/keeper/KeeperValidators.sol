@@ -4,6 +4,7 @@ pragma solidity =0.8.20;
 
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IKeeperValidators} from '../interfaces/IKeeperValidators.sol';
+import {Errors} from '../libraries/Errors.sol';
 import {KeeperRewards} from './KeeperRewards.sol';
 
 /**
@@ -37,9 +38,9 @@ abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
   function approveValidators(ApprovalParams calldata params) external override {
     // verify oracles approved registration for the current validators registry contract state
     if (_validatorsRegistry.get_deposit_root() != params.validatorsRegistryRoot) {
-      revert InvalidValidatorsRegistryRoot();
+      revert Errors.InvalidValidatorsRegistryRoot();
     }
-    if (!_vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
+    if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.AccessDenied();
 
     // verify all oracles approved registration
     _oracles.verifyAllSignatures(
@@ -71,7 +72,7 @@ abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
     string calldata exitSignaturesIpfsHash,
     bytes calldata oraclesSignatures
   ) external override {
-    if (!(_vaultsRegistry.vaults(vault) && isCollateralized(vault))) revert InvalidVault();
+    if (!(_vaultsRegistry.vaults(vault) && isCollateralized(vault))) revert Errors.InvalidVault();
 
     // SLOAD to memory
     uint256 nonce = exitSignaturesNonces[vault];

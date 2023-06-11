@@ -37,7 +37,7 @@ describe('KeeperRewards', () => {
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
   let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
 
-  let sender: Wallet, owner: Wallet, admin: Wallet, oracle: Wallet
+  let owner: Wallet, admin: Wallet, oracle: Wallet
   let keeper: Keeper,
     oracles: Oracles,
     validatorsRegistry: Contract,
@@ -45,7 +45,7 @@ describe('KeeperRewards', () => {
     osToken: OsToken
 
   before('create fixture loader', async () => {
-    ;[sender, admin, owner] = await (ethers as any).getSigners()
+    ;[admin, owner] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([owner])
     oracle = new Wallet(ORACLES[0], await waffle.provider)
   })

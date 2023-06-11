@@ -8,8 +8,8 @@ import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {IEthValidatorsRegistry} from '../../interfaces/IEthValidatorsRegistry.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
-import {VaultToken} from '../modules/VaultToken.sol';
 import {VaultState} from '../modules/VaultState.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
 import {VaultMev} from '../modules/VaultMev.sol';
@@ -22,7 +22,6 @@ import {VaultMev} from '../modules/VaultMev.sol';
 abstract contract VaultEthStaking is
   Initializable,
   ReentrancyGuardUpgradeable,
-  VaultToken,
   VaultState,
   VaultValidators,
   VaultEnterExit,
@@ -58,7 +57,7 @@ abstract contract VaultEthStaking is
 
   /// @inheritdoc IVaultEthStaking
   function receiveFromMevEscrow() external payable override {
-    if (msg.sender != mevEscrow()) revert AccessDenied();
+    if (msg.sender != mevEscrow()) revert Errors.AccessDenied();
   }
 
   /// @inheritdoc VaultValidators
@@ -116,12 +115,12 @@ abstract contract VaultEthStaking is
     }
   }
 
-  /// @inheritdoc VaultToken
+  /// @inheritdoc VaultState
   function _vaultAssets() internal view override returns (uint256) {
     return address(this).balance;
   }
 
-  /// @inheritdoc VaultToken
+  /// @inheritdoc VaultEnterExit
   function _transferVaultAssets(address receiver, uint256 assets) internal override nonReentrant {
     return Address.sendValue(payable(receiver), assets);
   }
@@ -138,7 +137,7 @@ abstract contract VaultEthStaking is
     __ReentrancyGuard_init();
 
     // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
-    if (msg.value < _securityDeposit) revert InvalidSecurityDeposit();
+    if (msg.value < _securityDeposit) revert Errors.InvalidSecurityDeposit();
     _deposit(address(this), msg.value, address(0));
   }
 

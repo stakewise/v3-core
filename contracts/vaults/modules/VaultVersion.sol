@@ -3,9 +3,11 @@
 pragma solidity =0.8.20;
 
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
+import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IVaultsRegistry} from '../../interfaces/IVaultsRegistry.sol';
 import {IVersioned} from '../../interfaces/IVersioned.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {Versioned} from '../../base/Versioned.sol';
 import {VaultAdmin} from './VaultAdmin.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
@@ -15,13 +17,19 @@ import {VaultImmutables} from './VaultImmutables.sol';
  * @author StakeWise
  * @notice Defines the versioning functionality for the Vault
  */
-abstract contract VaultVersion is VaultImmutables, Versioned, VaultAdmin, IVaultVersion {
+abstract contract VaultVersion is
+  VaultImmutables,
+  Initializable,
+  Versioned,
+  VaultAdmin,
+  IVaultVersion
+{
   bytes4 private constant _initSelector = bytes4(keccak256('initialize(bytes)'));
 
   /// @inheritdoc UUPSUpgradeable
   function upgradeTo(address) public view override onlyProxy {
     // disable upgrades without the call
-    revert UpgradeFailed();
+    revert Errors.UpgradeFailed();
   }
 
   /// @inheritdoc UUPSUpgradeable
@@ -43,7 +51,7 @@ abstract contract VaultVersion is VaultImmutables, Versioned, VaultAdmin, IVault
       IVaultVersion(newImplementation).version() != version() + 1 || // vault cannot skip versions between
       !IVaultsRegistry(_vaultsRegistry).vaultImpls(newImplementation) // new implementation must be registered
     ) {
-      revert UpgradeFailed();
+      revert Errors.UpgradeFailed();
     }
   }
 

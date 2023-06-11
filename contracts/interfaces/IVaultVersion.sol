@@ -11,9 +11,6 @@ import {IVaultAdmin} from './IVaultAdmin.sol';
  * @notice Defines the interface for VaultVersion contract
  */
 interface IVaultVersion is IVersioned, IVaultAdmin {
-  // Custom errors
-  error UpgradeFailed();
-
   /**
    * @notice Vault Unique Identifier
    * @return The unique identifier of the Vault

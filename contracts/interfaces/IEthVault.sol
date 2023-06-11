@@ -20,13 +20,13 @@ import {IMulticall} from './IMulticall.sol';
  * @notice Defines the interface for the EthVault contract
  */
 interface IEthVault is
-  IVaultToken,
   IVaultAdmin,
   IVaultVersion,
   IVaultFee,
   IVaultState,
   IVaultValidators,
   IVaultEnterExit,
+  IVaultToken,
   IVaultOsToken,
   IVaultMev,
   IVaultEthStaking,
