@@ -63,6 +63,13 @@ Object {
 }
 `;
 
+exports[`OsToken fee percent owner can change 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 69104,
+}
+`;
+
 exports[`OsToken keeper owner can change 1`] = `
 Object {
   "calldataByteLength": 36,
@@ -73,7 +80,7 @@ Object {
 exports[`OsToken permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 74696,
+  "gasUsed": 74708,
 }
 `;
 
@@ -115,6 +122,6 @@ Object {
 exports[`OsToken vault implementation owner can change 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 26521,
+  "gasUsed": 26533,
 }
 `;
