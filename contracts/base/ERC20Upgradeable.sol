@@ -85,7 +85,10 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
     address to,
     uint256 amount
   ) public virtual override returns (bool) {
-    _spendAllowance(from, msg.sender, amount);
+    // Saves gas for limited approvals
+    uint256 allowed = allowance[from][msg.sender];
+    if (allowed != type(uint256).max) allowance[from][msg.sender] = allowed - amount;
+
     _transfer(from, to, amount);
 
     return true;
@@ -158,18 +161,6 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
    * Emits a {Transfer} event.
    */
   function _transfer(address from, address to, uint256 amount) internal virtual;
-
-  /**
-   * @dev Updates `owner`s allowance for `spender` based on spent `amount`.
-   * Does not update the allowance amount in case of infinite allowance.
-   * Revert if not enough allowance is available.
-   */
-  function _spendAllowance(address owner, address spender, uint256 amount) internal {
-    // Saves gas for limited approvals
-    uint256 allowed = allowance[owner][spender];
-
-    if (allowed != type(uint256).max) allowance[owner][spender] = allowed - amount;
-  }
 
   /**
    * @dev Initializes the ERC20Upgradeable contract

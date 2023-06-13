@@ -4,8 +4,8 @@ pragma solidity =0.8.20;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
-import {Errors} from '../libraries/Errors.sol';
 import {IOsTokenConfig} from '../interfaces/IOsTokenConfig.sol';
+import {Errors} from '../libraries/Errors.sol';
 
 /**
  * @title OsTokenConfig

@@ -66,7 +66,7 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
   function deposit(
     address receiver,
     address referrer
-  ) public payable override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
+  ) public payable virtual override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
     if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver]))
       revert Errors.AccessDenied();
     return super.deposit(receiver, referrer);
@@ -75,7 +75,7 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
   /**
    * @dev Function for depositing using fallback function
    */
-  receive() external payable override {
+  receive() external payable virtual override {
     if (!whitelistedAccounts[msg.sender]) revert Errors.AccessDenied();
     _deposit(msg.sender, msg.value, address(0));
   }
