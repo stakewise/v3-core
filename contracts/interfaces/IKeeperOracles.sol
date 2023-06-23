@@ -48,7 +48,7 @@ interface IKeeperOracles is IERC5267 {
   function addOracle(address oracle) external;
 
   /**
-   * @notice Function for removing oracle from the set. At least one oracle must be preserved.
+   * @notice Function for removing oracle from the set
    * @param oracle The address of the oracle to remove
    */
   function removeOracle(address oracle) external;

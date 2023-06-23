@@ -75,6 +75,7 @@ contract EthErc20Vault is
   function initialize(bytes calldata params) external payable virtual override initializer {
     __EthErc20Vault_init(
       IEthVaultFactory(msg.sender).vaultAdmin(),
+      IEthVaultFactory(msg.sender).ownMevEscrow(),
       abi.decode(params, (EthErc20VaultInitParams))
     );
   }
@@ -166,10 +167,12 @@ contract EthErc20Vault is
   /**
    * @dev Initializes the EthErc20Vault contract
    * @param admin The address of the admin of the Vault
+   * @param ownMevEscrow The address of the MEV escrow owned by the Vault. Zero address if shared MEV escrow is used.
    * @param params The decoded parameters for initializing the EthErc20Vault contract
    */
   function __EthErc20Vault_init(
     address admin,
+    address ownMevEscrow,
     EthErc20VaultInitParams memory params
   ) internal onlyInitializing {
     __VaultAdmin_init(admin, params.metadataIpfsHash);
@@ -177,7 +180,7 @@ contract EthErc20Vault is
     __VaultFee_init(admin, params.feePercent);
     __VaultState_init(params.capacity);
     __VaultValidators_init();
-    __VaultMev_init(IEthVaultFactory(msg.sender).ownMevEscrow());
+    __VaultMev_init(ownMevEscrow);
     __VaultToken_init(params.name, params.symbol);
     __VaultEthStaking_init();
   }

@@ -225,13 +225,15 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     position.shares -= SafeCast.toUint128(osTokenShares);
     _positions[owner] = position;
 
-    // burn owner shares
-    _burnShares(owner, convertToShares(receivedAssets));
+    uint256 sharesToBurn = convertToShares(receivedAssets);
 
     // update total assets
     unchecked {
       _totalAssets -= SafeCast.toUint128(receivedAssets);
     }
+
+    // burn owner shares
+    _burnShares(owner, sharesToBurn);
 
     // check ltv violation in case of redemption
     if (

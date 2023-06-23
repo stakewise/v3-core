@@ -9,10 +9,10 @@ import {IEthValidatorsRegistry} from '../../interfaces/IEthValidatorsRegistry.so
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
 import {Errors} from '../../libraries/Errors.sol';
-import {VaultValidators} from '../modules/VaultValidators.sol';
-import {VaultState} from '../modules/VaultState.sol';
-import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
-import {VaultMev} from '../modules/VaultMev.sol';
+import {VaultValidators} from './VaultValidators.sol';
+import {VaultState} from './VaultState.sol';
+import {VaultEnterExit} from './VaultEnterExit.sol';
+import {VaultMev} from './VaultMev.sol';
 
 /**
  * @title VaultEthStaking

@@ -55,7 +55,11 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
     bytes calldata params
   ) external payable virtual override(IEthErc20Vault, EthErc20Vault) initializer {
     address admin = IEthVaultFactory(msg.sender).vaultAdmin();
-    __EthErc20Vault_init(admin, abi.decode(params, (EthErc20VaultInitParams)));
+    __EthErc20Vault_init(
+      admin,
+      IEthVaultFactory(msg.sender).ownMevEscrow(),
+      abi.decode(params, (EthErc20VaultInitParams))
+    );
     // whitelister is initially set to admin address
     __VaultWhitelist_init(admin);
   }

@@ -66,7 +66,7 @@ describe('EthVaultFactory', () => {
     describe('EthVault', () => {
       it('public vault deployment with own escrow gas', async () => {
         await snapshotGasCost(
-          ethVaultFactory
+          await ethVaultFactory
             .connect(admin)
             .createVault(ethVaultInitParamsEncoded, true, { value: SECURITY_DEPOSIT })
         )
@@ -74,7 +74,7 @@ describe('EthVaultFactory', () => {
 
       it('public vault deployment with shared escrow gas', async () => {
         await snapshotGasCost(
-          ethVaultFactory
+          await ethVaultFactory
             .connect(admin)
             .createVault(ethVaultInitParamsEncoded, false, { value: SECURITY_DEPOSIT })
         )
@@ -82,7 +82,7 @@ describe('EthVaultFactory', () => {
 
       it('private vault deployment with own escrow gas', async () => {
         await snapshotGasCost(
-          ethPrivVaultFactory
+          await ethPrivVaultFactory
             .connect(admin)
             .createVault(ethVaultInitParamsEncoded, true, { value: SECURITY_DEPOSIT })
         )
@@ -90,7 +90,7 @@ describe('EthVaultFactory', () => {
 
       it('private vault deployment with shared escrow gas', async () => {
         await snapshotGasCost(
-          ethPrivVaultFactory
+          await ethPrivVaultFactory
             .connect(admin)
             .createVault(ethVaultInitParamsEncoded, false, { value: SECURITY_DEPOSIT })
         )
@@ -100,7 +100,7 @@ describe('EthVaultFactory', () => {
     describe('EthErc20Vault', () => {
       it('public vault deployment with own escrow gas', async () => {
         await snapshotGasCost(
-          ethErc20VaultFactory
+          await ethErc20VaultFactory
             .connect(admin)
             .createVault(ethErc20VaultInitParamsEncoded, true, { value: SECURITY_DEPOSIT })
         )
@@ -108,7 +108,7 @@ describe('EthVaultFactory', () => {
 
       it('public vault deployment with shared escrow gas', async () => {
         await snapshotGasCost(
-          ethErc20VaultFactory
+          await ethErc20VaultFactory
             .connect(admin)
             .createVault(ethErc20VaultInitParamsEncoded, false, { value: SECURITY_DEPOSIT })
         )
@@ -116,7 +116,7 @@ describe('EthVaultFactory', () => {
 
       it('private vault deployment with own escrow gas', async () => {
         await snapshotGasCost(
-          ethPrivErc20VaultFactory
+          await ethPrivErc20VaultFactory
             .connect(admin)
             .createVault(ethErc20VaultInitParamsEncoded, true, { value: SECURITY_DEPOSIT })
         )
@@ -124,7 +124,7 @@ describe('EthVaultFactory', () => {
 
       it('private vault deployment with shared escrow gas', async () => {
         await snapshotGasCost(
-          ethPrivErc20VaultFactory
+          await ethPrivErc20VaultFactory
             .connect(admin)
             .createVault(ethErc20VaultInitParamsEncoded, false, { value: SECURITY_DEPOSIT })
         )

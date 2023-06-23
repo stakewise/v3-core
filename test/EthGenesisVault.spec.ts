@@ -98,7 +98,7 @@ describe('EthGenesisVault', () => {
     expect(await poolEscrow.owner()).to.eq(vault.address)
   })
 
-  describe('migrate', async () => {
+  describe('migrate', () => {
     it('fails from not stakedEthToken', async () => {
       await expect(vault.connect(admin).migrate(admin.address, parseEther('1'))).to.be.revertedWith(
         'AccessDenied'

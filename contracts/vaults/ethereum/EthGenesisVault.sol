@@ -65,6 +65,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       params,
       (address, EthVaultInitParams)
     );
+    // use shared MEV escrow
     __EthVault_init(admin, address(0), initParams);
     // commit ownership transfer to the vault
     _poolEscrow.applyOwnershipTransfer();
