@@ -15,40 +15,16 @@
         "type": "address"
       },
       {
-        "indexed": true,
-        "internalType": "bool",
-        "name": "isPrivate",
-        "type": "bool"
-      },
-      {
         "indexed": false,
         "internalType": "address",
-        "name": "mevEscrow",
+        "name": "ownMevEscrow",
         "type": "address"
       },
       {
         "indexed": false,
-        "internalType": "uint256",
-        "name": "capacity",
-        "type": "uint256"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint16",
-        "name": "feePercent",
-        "type": "uint16"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "name",
-        "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "string",
-        "name": "symbol",
-        "type": "string"
+        "internalType": "bytes",
+        "name": "params",
+        "type": "bytes"
       }
     ],
     "name": "VaultCreated",
@@ -57,70 +33,9 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "deployer",
-        "type": "address"
-      },
-      {
-        "internalType": "bool",
-        "name": "isPrivate",
-        "type": "bool"
-      }
-    ],
-    "name": "computeAddresses",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "vault",
-        "type": "address"
-      },
-      {
-        "internalType": "address",
-        "name": "ownMevEscrow",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "components": [
-          {
-            "internalType": "uint256",
-            "name": "capacity",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint16",
-            "name": "feePercent",
-            "type": "uint16"
-          },
-          {
-            "internalType": "string",
-            "name": "name",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "symbol",
-            "type": "string"
-          },
-          {
-            "internalType": "string",
-            "name": "metadataIpfsHash",
-            "type": "string"
-          }
-        ],
-        "internalType": "struct IEthVaultFactory.VaultParams",
+        "internalType": "bytes",
         "name": "params",
-        "type": "tuple"
-      },
-      {
-        "internalType": "bool",
-        "name": "isPrivate",
-        "type": "bool"
+        "type": "bytes"
       },
       {
         "internalType": "bool",
@@ -140,27 +55,8 @@
     "type": "function"
   },
   {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "deployer",
-        "type": "address"
-      }
-    ],
-    "name": "nonces",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [],
-    "name": "privateVaultImpl",
+    "name": "implementation",
     "outputs": [
       {
         "internalType": "address",
@@ -173,7 +69,20 @@
   },
   {
     "inputs": [],
-    "name": "publicVaultImpl",
+    "name": "ownMevEscrow",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "vaultAdmin",
     "outputs": [
       {
         "internalType": "address",

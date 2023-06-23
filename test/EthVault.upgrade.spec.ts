@@ -12,8 +12,6 @@ const createFixtureLoader = waffle.createFixtureLoader
 describe('EthVault - upgrade', () => {
   const capacity = parseEther('1000')
   const feePercent = 1000
-  const name = 'SW ETH Vault'
-  const symbol = 'SW-ETH-1'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   let admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault
@@ -34,11 +32,9 @@ describe('EthVault - upgrade', () => {
   beforeEach('deploy fixture', async () => {
     fixture = await loadFixture(ethVaultFixture)
     vaultsRegistry = fixture.vaultsRegistry
-    vault = await fixture.createVault(admin, {
+    vault = await fixture.createEthVault(admin, {
       capacity,
       feePercent,
-      name,
-      symbol,
       metadataIpfsHash,
     })
 
@@ -95,7 +91,7 @@ describe('EthVault - upgrade', () => {
   })
 
   it('fails for implementation with different vault id', async () => {
-    const ethVaultMock = await ethers.getContractFactory('EthPrivateVaultV2Mock')
+    const ethVaultMock = await ethers.getContractFactory('EthPrivVaultV2Mock')
     const newImpl = (await upgrades.deployImplementation(ethVaultMock, {
       unsafeAllow: ['delegatecall'],
       constructorArgs: [

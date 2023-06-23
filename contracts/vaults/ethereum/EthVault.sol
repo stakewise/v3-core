@@ -3,20 +3,16 @@
 pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {Address} from '@openzeppelin/contracts/utils/Address.sol';
-import {IVersioned} from '../../interfaces/IVersioned.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
 import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
-import {IERC20} from '../../interfaces/IERC20.sol';
-import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
+import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
 import {Multicall} from '../../base/Multicall.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultAdmin} from '../modules/VaultAdmin.sol';
 import {VaultFee} from '../modules/VaultFee.sol';
 import {VaultVersion} from '../modules/VaultVersion.sol';
 import {VaultImmutables} from '../modules/VaultImmutables.sol';
-import {VaultToken} from '../modules/VaultToken.sol';
 import {VaultState} from '../modules/VaultState.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
 import {VaultOsToken} from '../modules/VaultOsToken.sol';
@@ -37,7 +33,6 @@ contract EthVault is
   VaultState,
   VaultValidators,
   VaultEnterExit,
-  VaultToken,
   VaultOsToken,
   VaultMev,
   VaultEthStaking,
@@ -73,7 +68,21 @@ contract EthVault is
 
   /// @inheritdoc IEthVault
   function initialize(bytes calldata params) external payable virtual override initializer {
-    __EthVault_init(abi.decode(params, (EthVaultInitParams)));
+    __EthVault_init(
+      IEthVaultFactory(msg.sender).vaultAdmin(),
+      IEthVaultFactory(msg.sender).ownMevEscrow(),
+      abi.decode(params, (EthVaultInitParams))
+    );
+  }
+
+  /// @inheritdoc IEthVault
+  function totalSupply() external view override returns (uint256) {
+    return _totalShares;
+  }
+
+  /// @inheritdoc IEthVault
+  function balanceOf(address account) external view returns (uint256) {
+    return _balances[account];
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -96,81 +105,10 @@ contract EthVault is
   )
     public
     virtual
-    override(IVaultEnterExit, VaultEnterExit, VaultToken, VaultOsToken)
-    returns (uint256 positionCounter)
+    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+    returns (uint256 positionTicket)
   {
     return super.enterExitQueue(shares, receiver);
-  }
-
-  /// @inheritdoc IERC20
-  function transfer(
-    address to,
-    uint256 amount
-  ) public virtual override(IERC20, ERC20Upgradeable) returns (bool) {
-    bool success = super.transfer(to, amount);
-    _checkOsTokenPosition(msg.sender);
-    return success;
-  }
-
-  /// @inheritdoc IERC20
-  function transferFrom(
-    address from,
-    address to,
-    uint256 amount
-  ) public virtual override(IERC20, ERC20Upgradeable) returns (bool) {
-    bool success = super.transferFrom(from, to, amount);
-    _checkOsTokenPosition(from);
-    return success;
-  }
-
-  /// @inheritdoc VaultState
-  function _updateExitQueue()
-    internal
-    virtual
-    override(VaultState, VaultToken)
-    returns (uint256 burnedShares)
-  {
-    return super._updateExitQueue();
-  }
-
-  /// @inheritdoc VaultState
-  function _mintShares(
-    address owner,
-    uint256 shares
-  ) internal virtual override(VaultState, VaultToken) {
-    super._mintShares(owner, shares);
-  }
-
-  /// @inheritdoc VaultState
-  function _burnShares(
-    address owner,
-    uint256 shares
-  ) internal virtual override(VaultState, VaultToken) {
-    super._burnShares(owner, shares);
-  }
-
-  /// @inheritdoc VaultEnterExit
-  function _deposit(
-    address to,
-    uint256 assets,
-    address referrer
-  ) internal virtual override(VaultEnterExit, VaultToken) returns (uint256 shares) {
-    shares = super._deposit(to, assets, referrer);
-  }
-
-  /**
-   * @dev Initializes the EthVault contract
-   * @param params The decoded parameters for initializing the EthVault contract
-   */
-  function __EthVault_init(EthVaultInitParams memory params) internal onlyInitializing {
-    __VaultAdmin_init(params.admin, params.metadataIpfsHash);
-    // fee recipient is initially set to admin address
-    __VaultFee_init(params.admin, params.feePercent);
-    __VaultState_init(params.capacity);
-    __VaultValidators_init();
-    __VaultToken_init(params.name, params.symbol);
-    __VaultMev_init(params.mevEscrow);
-    __VaultEthStaking_init();
   }
 
   /// @inheritdoc VaultVersion
@@ -178,8 +116,35 @@ contract EthVault is
     return keccak256('EthVault');
   }
 
-  /// @inheritdoc IVersioned
-  function version() public pure virtual override(IVersioned, VaultVersion) returns (uint8) {
+  /// @inheritdoc IVaultVersion
+  function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
     return 1;
   }
+
+  /**
+   * @dev Initializes the EthVault contract
+   * @param admin The address of the admin of the Vault
+   * @param ownMevEscrow The address of the MEV escrow owned by the Vault. Zero address if shared MEV escrow is used.
+   * @param params The decoded parameters for initializing the EthVault contract
+   */
+  function __EthVault_init(
+    address admin,
+    address ownMevEscrow,
+    EthVaultInitParams memory params
+  ) internal onlyInitializing {
+    __VaultAdmin_init(admin, params.metadataIpfsHash);
+    // fee recipient is initially set to admin address
+    __VaultFee_init(admin, params.feePercent);
+    __VaultState_init(params.capacity);
+    __VaultValidators_init();
+    __VaultMev_init(ownMevEscrow);
+    __VaultEthStaking_init();
+  }
+
+  /**
+   * @dev This empty reserved space is put in place to allow future versions to add new
+   * variables without shifting down storage in the inheritance chain.
+   * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+   */
+  uint256[50] private __gap;
 }

@@ -2,8 +2,6 @@
 
 pragma solidity =0.8.20;
 
-import {IVaultsRegistry} from './IVaultsRegistry.sol';
-
 /**
  * @title IEthVaultFactory
  * @author StakeWise
@@ -14,81 +12,42 @@ interface IEthVaultFactory {
    * @notice Event emitted on a Vault creation
    * @param admin The address of the Vault admin
    * @param vault The address of the created Vault
-   * @param isPrivate Defines whether the Vault is private or not
-   * @param mevEscrow The address of the MEV escrow contract. Zero address if shared MEV escrow is used.
-   * @param capacity The Vault stops accepting deposits after exceeding the capacity
-   * @param feePercent The fee percent that is charged by the Vault
-   * @param name The name of the ERC20 token
-   * @param symbol The symbol of the ERC20 token
+   * @param ownMevEscrow The address of the own MEV escrow contract. Zero address if shared MEV escrow is used.
+   * @param params The encoded parameters for initializing the Vault contract
    */
   event VaultCreated(
     address indexed admin,
     address indexed vault,
-    bool indexed isPrivate,
-    address mevEscrow,
-    uint256 capacity,
-    uint16 feePercent,
-    string name,
-    string symbol
+    address ownMevEscrow,
+    bytes params
   );
 
   /**
-   * @notice A struct containing a Vault creation parameters
-   * @param capacity The Vault stops accepting deposits after exceeding the capacity
-   * @param feePercent The fee percent that is charged by the Vault
-   * @param name The name of the ERC20 token
-   * @param symbol The symbol of the ERC20 token
-   * @param metadataIpfsHash The IPFS hash of the Vault's metadata file
+   * @notice The address of the Vault implementation contract used for proxy creation
+   * @return The address of the Vault implementation contract
    */
-  struct VaultParams {
-    uint256 capacity;
-    uint16 feePercent;
-    string name;
-    string symbol;
-    string metadataIpfsHash;
-  }
+  function implementation() external view returns (address);
 
   /**
-   * @notice Returns deployer's nonce
-   * @param deployer The address of the Vault deployer
-   * @return The nonce of the deployer that is used for the vault and fees escrow creation
+   * @notice The address of the own MEV escrow contract used for Vault creation
+   * @return The address of the MEV escrow contract
    */
-  function nonces(address deployer) external view returns (uint256);
+  function ownMevEscrow() external view returns (address);
 
   /**
-   * @notice Public Ethereum Vault implementation
-   * @return The address of the public Vault implementation contract
+   * @notice The address of the Vault admin used for Vault creation
+   * @return The address of the Vault admin
    */
-  function publicVaultImpl() external view returns (address);
-
-  /**
-   * @notice Private Ethereum Vault implementation
-   * @return The address of the private Vault implementation contract
-   */
-  function privateVaultImpl() external view returns (address);
+  function vaultAdmin() external view returns (address);
 
   /**
    * @notice Create Vault. Must transfer security deposit together with a call.
-   * @param params The Vault creation parameters
-   * @param isPrivate Defines whether the Vault is private or not
-   * @param isOwnMevEscrow Defines whether the Vault has its own MEV escrow
+   * @param params The encoded parameters for initializing the Vault contract
+   * @param isOwnMevEscrow Defines whether the Vault uses its own MEV escrow
    * @return vault The address of the created Vault
    */
   function createVault(
-    VaultParams calldata params,
-    bool isPrivate,
+    bytes calldata params,
     bool isOwnMevEscrow
   ) external payable returns (address vault);
-
-  /**
-   * @notice Compute Vault and MEV Escrow addresses
-   * @param deployer The address of the Vault deployer
-   * @param isPrivate Defines whether the Vault is private or not
-   * @return vault The address of the created Vault
-   * @return ownMevEscrow The address of the own MevEscrow
-   */
-  function computeAddresses(
-    address deployer,
-    bool isPrivate
-  ) external view returns (address vault, address ownMevEscrow);
 }

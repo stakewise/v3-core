@@ -2,12 +2,14 @@
 
 pragma solidity =0.8.20;
 
+import {IERC5267} from '@openzeppelin/contracts/interfaces/IERC5267.sol';
+
 /**
- * @title IOracles
+ * @title IKeeperOracles
  * @author StakeWise
- * @notice Defines the interface for the Oracles contract
+ * @notice Defines the interface for the KeeperOracles contract
  */
-interface IOracles {
+interface IKeeperOracles is IERC5267 {
   /**
    * @notice Event emitted on the oracle addition
    * @param oracle The address of the added oracle
@@ -27,12 +29,6 @@ interface IOracles {
   event ConfigUpdated(string configIpfsHash);
 
   /**
-   * @notice Event emitted on the required oracles number update
-   * @param requiredOracles The new number of required oracles
-   */
-  event RequiredOraclesUpdated(uint256 requiredOracles);
-
-  /**
    * @notice Function for verifying whether oracle is registered or not
    * @param oracle The address of the oracle to check
    * @return `true` for the registered oracle, `false` otherwise
@@ -44,12 +40,6 @@ interface IOracles {
    * @return The total number of oracles registered
    */
   function totalOracles() external view returns (uint256);
-
-  /**
-   * @notice Required Oracles
-   * @return The required number of oracles to pass the verification
-   */
-  function requiredOracles() external view returns (uint256);
 
   /**
    * @notice Function for adding oracle to the set
@@ -64,28 +54,8 @@ interface IOracles {
   function removeOracle(address oracle) external;
 
   /**
-   * @notice Function for updating the required number of signatures to pass the verification
-   * @param _requiredOracles The new number of required signatures. Cannot be zero or larger than total oracles.
-   */
-  function setRequiredOracles(uint256 _requiredOracles) external;
-
-  /**
    * @notice Function for updating the config IPFS hash
    * @param configIpfsHash The new config IPFS hash
    */
   function updateConfig(string calldata configIpfsHash) external;
-
-  /**
-   * @notice Function for verifying whether minimum number of oracles have signed the message
-   * @param message The message that was signed
-   * @param signatures The concatenation of the oracles' signatures. The signatures must be sorted by oracle address and not repeat.
-   */
-  function verifyMinSignatures(bytes32 message, bytes calldata signatures) external view;
-
-  /**
-   * @notice Function for verifying whether all the oracles have signed the message
-   * @param message The message that was signed
-   * @param signatures The concatenation of the oracles' signatures. The signatures must be sorted by oracle address and not repeat.
-   */
-  function verifyAllSignatures(bytes32 message, bytes calldata signatures) external view;
 }

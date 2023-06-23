@@ -6,50 +6,28 @@ import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 import {Errors} from '../libraries/Errors.sol';
-import {IOracles} from '../interfaces/IOracles.sol';
+import {IKeeperOracles} from '../interfaces/IKeeperOracles.sol';
 
 /**
- * @title Oracles
+ * @title KeeperOracles
  * @author StakeWise
  * @notice Defines the functionality for verifying signatures of the whitelisted off-chain oracles
  */
-contract Oracles is Ownable2Step, EIP712, IOracles {
+abstract contract KeeperOracles is Ownable2Step, EIP712, IKeeperOracles {
   uint256 internal constant _signatureLength = 65;
 
-  /// @inheritdoc IOracles
+  /// @inheritdoc IKeeperOracles
   mapping(address => bool) public override isOracle;
 
-  /// @inheritdoc IOracles
+  /// @inheritdoc IKeeperOracles
   uint256 public override totalOracles;
-
-  /// @inheritdoc IOracles
-  uint256 public override requiredOracles;
 
   /**
    * @dev Constructor
-   * @param owner_ The address of the contract owner
-   * @param initialOracles The addresses of the initial oracles
-   * @param initialRequiredOracles The number or required oracles for the verification
-   * @param configIpfsHash The IPFS hash of the config file
    */
-  constructor(
-    address owner_,
-    address[] memory initialOracles,
-    uint256 initialRequiredOracles,
-    string memory configIpfsHash
-  ) EIP712('Oracles', '1') {
-    for (uint256 i = 0; i < initialOracles.length; ) {
-      addOracle(initialOracles[i]);
-      unchecked {
-        ++i;
-      }
-    }
-    setRequiredOracles(initialRequiredOracles);
-    _transferOwnership(owner_);
-    emit ConfigUpdated(configIpfsHash);
-  }
+  constructor() Ownable2Step() EIP712('KeeperOracles', '1') {}
 
-  /// @inheritdoc IOracles
+  /// @inheritdoc IKeeperOracles
   function addOracle(address oracle) public override onlyOwner {
     if (isOracle[oracle]) revert Errors.AlreadyAdded();
 
@@ -61,7 +39,7 @@ contract Oracles is Ownable2Step, EIP712, IOracles {
     emit OracleAdded(oracle);
   }
 
-  /// @inheritdoc IOracles
+  /// @inheritdoc IKeeperOracles
   function removeOracle(address oracle) external override onlyOwner {
     if (!isOracle[oracle]) revert Errors.AlreadyRemoved();
 
@@ -74,32 +52,13 @@ contract Oracles is Ownable2Step, EIP712, IOracles {
 
     isOracle[oracle] = false;
     totalOracles = _totalOracles;
-    if (_totalOracles < requiredOracles) setRequiredOracles(_totalOracles);
 
     emit OracleRemoved(oracle);
   }
 
-  /// @inheritdoc IOracles
-  function setRequiredOracles(uint256 _requiredOracles) public override onlyOwner {
-    if (_requiredOracles == 0 || totalOracles < _requiredOracles)
-      revert Errors.InvalidRequiredOracles();
-    requiredOracles = _requiredOracles;
-    emit RequiredOraclesUpdated(_requiredOracles);
-  }
-
-  /// @inheritdoc IOracles
+  /// @inheritdoc IKeeperOracles
   function updateConfig(string calldata configIpfsHash) external override onlyOwner {
     emit ConfigUpdated(configIpfsHash);
-  }
-
-  /// @inheritdoc IOracles
-  function verifyMinSignatures(bytes32 message, bytes calldata signatures) external view override {
-    _verifySignatures(requiredOracles, message, signatures);
-  }
-
-  /// @inheritdoc IOracles
-  function verifyAllSignatures(bytes32 message, bytes calldata signatures) external view override {
-    _verifySignatures(totalOracles, message, signatures);
   }
 
   /**
@@ -136,7 +95,7 @@ contract Oracles is Ownable2Step, EIP712, IOracles {
       lastOracle = currentOracle;
 
       unchecked {
-        // cannot overflow as it's capped with requiredOracles
+        // cannot realistically overflow
         ++i;
         startIndex += _signatureLength;
       }

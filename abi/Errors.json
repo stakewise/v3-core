@@ -96,6 +96,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidOracles",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidPosition",
     "type": "error"
   },
@@ -112,11 +117,6 @@
   {
     "inputs": [],
     "name": "InvalidRedeemFromLtvPercent",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidRequiredOracles",
     "type": "error"
   },
   {

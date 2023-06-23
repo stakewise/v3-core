@@ -3,22 +3,23 @@
 pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {IEthVault} from '../../interfaces/IEthVault.sol';
-import {IEthPrivateVault} from '../../interfaces/IEthPrivateVault.sol';
+import {IEthErc20Vault} from '../../interfaces/IEthErc20Vault.sol';
+import {IEthPrivErc20Vault} from '../../interfaces/IEthPrivErc20Vault.sol';
 import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
-import {IVersioned} from '../../interfaces/IVersioned.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
+import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
 import {VaultWhitelist} from '../modules/VaultWhitelist.sol';
-import {EthVault} from './EthVault.sol';
+import {VaultVersion} from '../modules/VaultVersion.sol';
+import {EthErc20Vault} from './EthErc20Vault.sol';
 
 /**
- * @title EthPrivateVault
+ * @title EthPrivErc20Vault
  * @author StakeWise
- * @notice Defines the Ethereum staking Vault with whitelist
+ * @notice Defines the Ethereum staking Vault with whitelist and ERC-20 token
  */
-contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivateVault {
+contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEthPrivErc20Vault {
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -39,26 +40,33 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
     address osTokenConfig,
     address sharedMevEscrow
   )
-    EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, osToken, osTokenConfig, sharedMevEscrow)
+    EthErc20Vault(
+      _keeper,
+      _vaultsRegistry,
+      _validatorsRegistry,
+      osToken,
+      osTokenConfig,
+      sharedMevEscrow
+    )
   {}
 
-  /// @inheritdoc IEthVault
+  /// @inheritdoc IEthErc20Vault
   function initialize(
     bytes calldata params
-  ) external payable virtual override(IEthVault, EthVault) initializer {
-    EthVaultInitParams memory initParams = abi.decode(params, (EthVaultInitParams));
-    __EthVault_init(initParams);
+  ) external payable virtual override(IEthErc20Vault, EthErc20Vault) initializer {
+    address admin = IEthVaultFactory(msg.sender).vaultAdmin();
+    __EthErc20Vault_init(admin, abi.decode(params, (EthErc20VaultInitParams)));
     // whitelister is initially set to admin address
-    __VaultWhitelist_init(initParams.admin);
+    __VaultWhitelist_init(admin);
   }
 
   /// @inheritdoc IVaultVersion
-  function vaultId() public pure virtual override(EthVault, IVaultVersion) returns (bytes32) {
-    return keccak256('EthPrivateVault');
+  function vaultId() public pure virtual override(IVaultVersion, EthErc20Vault) returns (bytes32) {
+    return keccak256('EthPrivErc20Vault');
   }
 
-  /// @inheritdoc IVersioned
-  function version() public pure virtual override(EthVault, IVersioned) returns (uint8) {
+  /// @inheritdoc IVaultVersion
+  function version() public pure virtual override(IVaultVersion, EthErc20Vault) returns (uint8) {
     return 1;
   }
 
@@ -67,8 +75,9 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
     address receiver,
     address referrer
   ) public payable virtual override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
-    if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver]))
+    if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver])) {
       revert Errors.AccessDenied();
+    }
     return super.deposit(receiver, referrer);
   }
 
@@ -79,4 +88,11 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
     if (!whitelistedAccounts[msg.sender]) revert Errors.AccessDenied();
     _deposit(msg.sender, msg.value, address(0));
   }
+
+  /**
+   * @dev This empty reserved space is put in place to allow future versions to add new
+   * variables without shifting down storage in the inheritance chain.
+   * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+   */
+  uint256[50] private __gap;
 }

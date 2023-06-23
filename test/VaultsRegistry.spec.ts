@@ -1,24 +1,19 @@
 import { ethers, upgrades, waffle } from 'hardhat'
 import { Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthVaultFactory, IEthVaultFactory, VaultsRegistry } from '../typechain-types'
-import { ethVaultFixture } from './shared/fixtures'
+import { EthVaultFactory, VaultsRegistry } from '../typechain-types'
+import { encodeEthVaultInitParams, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { SECURITY_DEPOSIT, ZERO_ADDRESS } from './shared/constants'
+import { extractVaultAddress } from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
-function extractVaultAddress(receipt): string {
-  return receipt.events?.[receipt.events.length - 1].args?.vault
-}
-
 describe('VaultsRegistry', () => {
-  const vaultParams: IEthVaultFactory.VaultParamsStruct = {
+  const vaultParams = {
     capacity: parseEther('1000'),
     feePercent: 1000,
-    name: 'SW ETH Vault',
-    symbol: 'SW-ETH-1',
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
 
@@ -59,7 +54,7 @@ describe('VaultsRegistry', () => {
   it('factory can add vault', async () => {
     const tx = await ethVaultFactory
       .connect(admin)
-      .createVault(vaultParams, false, false, { value: SECURITY_DEPOSIT })
+      .createVault(encodeEthVaultInitParams(vaultParams), false, { value: SECURITY_DEPOSIT })
     const receipt = await tx.wait()
     const vaultAddress = extractVaultAddress(receipt)
 

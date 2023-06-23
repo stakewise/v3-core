@@ -17,8 +17,6 @@ describe('PriceOracle', () => {
   const vaultParams = {
     capacity: parseEther('1000'),
     feePercent: 1000,
-    name: 'SW ETH Vault',
-    symbol: 'SW-ETH-1',
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
   let sender: Wallet, admin: Wallet, dao: Wallet
@@ -33,25 +31,18 @@ describe('PriceOracle', () => {
 
   beforeEach('deploy fixture', async () => {
     const fixture = await loadFixture(ethVaultFixture)
-    vault = await fixture.createVault(admin, vaultParams)
+    vault = await fixture.createEthVault(admin, vaultParams)
 
     osToken = fixture.osToken
     priceOracle = await createPriceOracle(osToken)
     await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
 
     // collateralize vault
-    await collateralizeEthVault(
-      vault,
-      fixture.oracles,
-      fixture.keeper,
-      fixture.validatorsRegistry,
-      admin,
-      fixture.getSignatures
-    )
+    await collateralizeEthVault(vault, fixture.keeper, fixture.validatorsRegistry, admin)
     await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: shares })
 
     const reward = parseEther('1')
-    const tree = await updateRewards(fixture.keeper, fixture.oracles, fixture.getSignatures, [
+    const tree = await updateRewards(fixture.keeper, [
       { vault: vault.address, reward, unlockedMevReward },
     ])
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {

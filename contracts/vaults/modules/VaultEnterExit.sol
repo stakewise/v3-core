@@ -50,7 +50,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     // transfer assets to the receiver
     _transferVaultAssets(receiver, assets);
 
-    emit Redeem(msg.sender, receiver, assets, shares);
+    emit Redeemed(msg.sender, receiver, assets, shares);
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -151,13 +151,13 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     if (totalAssetsAfter > capacity()) revert Errors.CapacityExceeded();
 
     // calculate amount of shares to mint
-    shares = convertToShares(assets);
+    shares = _convertToShares(assets, Math.Rounding.Up);
 
     // update state
     _totalAssets = SafeCast.toUint128(totalAssetsAfter);
     _mintShares(to, shares);
 
-    emit Deposit(msg.sender, to, assets, shares, referrer);
+    emit Deposited(msg.sender, to, assets, shares, referrer);
   }
 
   /**

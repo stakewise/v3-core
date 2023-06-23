@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthGenesisVault migrate migrates from stakedEthToken 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 63532,
+}
+`;
+
+exports[`EthGenesisVault pulls assets on claim exited assets 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 108081,
+}
+`;
+
+exports[`EthGenesisVault pulls assets on multiple validators registration 1`] = `
+Object {
+  "calldataByteLength": 3620,
+  "gasUsed": 758063,
+}
+`;
+
+exports[`EthGenesisVault pulls assets on single validator registration 1`] = `
+Object {
+  "calldataByteLength": 1316,
+  "gasUsed": 393507,
+}
+`;

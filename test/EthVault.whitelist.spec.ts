@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthPrivateVault, Keeper, Oracles, IKeeperRewards } from '../typechain-types'
+import { EthPrivVault, Keeper, IKeeperRewards } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -14,16 +14,13 @@ const createFixtureLoader = waffle.createFixtureLoader
 describe('EthVault - whitelist', () => {
   const capacity = parseEther('1000')
   const feePercent = 1000
-  const name = 'SW ETH Vault'
-  const symbol = 'SW-ETH-1'
   const referrer = ZERO_ADDRESS
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   let dao: Wallet, sender: Wallet, whitelister: Wallet, admin: Wallet, other: Wallet
-  let vault: EthPrivateVault, keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
+  let vault: EthPrivVault, keeper: Keeper, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createPrivateVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createPrivateVault']
-  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
+  let createPrivateVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthPrivVault']
 
   before('create fixture loader', async () => {
     ;[dao, sender, whitelister, admin, other] = await (ethers as any).getSigners()
@@ -31,13 +28,14 @@ describe('EthVault - whitelist', () => {
   })
 
   beforeEach('deploy fixtures', async () => {
-    ;({ createPrivateVault, keeper, oracles, validatorsRegistry, getSignatures } =
-      await loadFixture(ethVaultFixture))
+    ;({
+      createEthPrivVault: createPrivateVault,
+      keeper,
+      validatorsRegistry,
+    } = await loadFixture(ethVaultFixture))
     vault = await createPrivateVault(admin, {
       capacity,
       feePercent,
-      name,
-      symbol,
       metadataIpfsHash,
     })
   })
@@ -110,9 +108,9 @@ describe('EthVault - whitelist', () => {
     })
 
     it('cannot update state and call', async () => {
-      await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       const vaultReward = parseEther('1')
-      const tree = await updateRewards(keeper, oracles, getSignatures, [
+      const tree = await updateRewards(keeper, [
         { reward: vaultReward, unlockedMevReward: 0, vault: vault.address },
       ])
 
@@ -146,10 +144,7 @@ describe('EthVault - whitelist', () => {
       expect(await vault.balanceOf(sender.address)).to.eq(amount)
 
       await expect(receipt)
-        .to.emit(vault, 'Transfer')
-        .withArgs(ZERO_ADDRESS, sender.address, amount)
-      await expect(receipt)
-        .to.emit(vault, 'Deposit')
+        .to.emit(vault, 'Deposited')
         .withArgs(sender.address, sender.address, amount, amount, referrer)
       await snapshotGasCost(receipt)
     })
@@ -178,10 +173,7 @@ describe('EthVault - whitelist', () => {
       expect(await vault.balanceOf(depositorMock.address)).to.eq(expectedShares)
 
       await expect(receipt)
-        .to.emit(vault, 'Transfer')
-        .withArgs(ZERO_ADDRESS, depositorMock.address, expectedShares)
-      await expect(receipt)
-        .to.emit(vault, 'Deposit')
+        .to.emit(vault, 'Deposited')
         .withArgs(
           depositorMock.address,
           depositorMock.address,

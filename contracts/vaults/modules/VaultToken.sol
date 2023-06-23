@@ -4,11 +4,9 @@ pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IERC20} from '../../interfaces/IERC20.sol';
-import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
 import {IVaultToken} from '../../interfaces/IVaultToken.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
-import {VaultEnterExit} from './VaultEnterExit.sol';
 import {VaultState} from './VaultState.sol';
 
 /**
@@ -16,13 +14,7 @@ import {VaultState} from './VaultState.sol';
  * @author StakeWise
  * @notice Defines the token functionality for the Vault
  */
-abstract contract VaultToken is
-  Initializable,
-  ERC20Upgradeable,
-  VaultState,
-  VaultEnterExit,
-  IVaultToken
-{
+abstract contract VaultToken is Initializable, ERC20Upgradeable, VaultState, IVaultToken {
   /// @inheritdoc IERC20
   function totalSupply() external view override returns (uint256) {
     return _totalShares;
@@ -31,25 +23,6 @@ abstract contract VaultToken is
   /// @inheritdoc IERC20
   function balanceOf(address account) external view returns (uint256) {
     return _balances[account];
-  }
-
-  /// @inheritdoc IVaultEnterExit
-  function enterExitQueue(
-    uint256 shares,
-    address receiver
-  ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 positionTicket) {
-    positionTicket = super.enterExitQueue(shares, receiver);
-    emit Transfer(msg.sender, address(this), shares);
-  }
-
-  /// @inheritdoc VaultEnterExit
-  function _deposit(
-    address to,
-    uint256 assets,
-    address referrer
-  ) internal virtual override returns (uint256 shares) {
-    shares = super._deposit(to, assets, referrer);
-    emit Transfer(address(0), to, shares);
   }
 
   /// @inheritdoc VaultState

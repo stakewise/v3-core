@@ -2,7 +2,6 @@
 
 pragma solidity =0.8.20;
 
-import {IVaultToken} from './IVaultToken.sol';
 import {IVaultAdmin} from './IVaultAdmin.sol';
 import {IVaultVersion} from './IVaultVersion.sol';
 import {IVaultFee} from './IVaultFee.sol';
@@ -26,7 +25,6 @@ interface IEthVault is
   IVaultState,
   IVaultValidators,
   IVaultEnterExit,
-  IVaultToken,
   IVaultOsToken,
   IVaultMev,
   IVaultEthStaking,
@@ -35,20 +33,12 @@ interface IEthVault is
   /**
    * @dev Struct for initializing the EthVault contract
    * @param capacity The Vault stops accepting deposits after exceeding the capacity
-   * @param admin The address of the Vault admin
-   * @param mevEscrow The address of the MEV escrow
    * @param feePercent The fee percent that is charged by the Vault
-   * @param name The name of the ERC20 token
-   * @param symbol The symbol of the ERC20 token
    * @param metadataIpfsHash The IPFS hash of the Vault's metadata file
    */
   struct EthVaultInitParams {
     uint256 capacity;
-    address admin;
-    address mevEscrow;
     uint16 feePercent;
-    string name;
-    string symbol;
     string metadataIpfsHash;
   }
 
@@ -57,4 +47,17 @@ interface IEthVault is
    * @param params The encoded parameters for initializing the EthVault contract
    */
   function initialize(bytes calldata params) external payable;
+
+  /**
+   * @notice Function for retrieving total shares
+   * @return The amount of shares in existence
+   */
+  function totalSupply() external view returns (uint256);
+
+  /**
+   * @notice Returns the balance of a user
+   * @param account The account for which to look up the number of shares it has, i.e. its balance
+   * @return The number of shares held by the account
+   */
+  function balanceOf(address account) external view returns (uint256);
 }

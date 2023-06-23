@@ -1,14 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import {
-  EthVault,
-  Keeper,
-  Oracles,
-  OsToken,
-  UnknownVaultMock,
-  VaultsRegistry,
-} from '../typechain-types'
+import { EthVault, Keeper, OsToken, UnknownVaultMock, VaultsRegistry } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -25,21 +18,17 @@ describe('EthVault - mint', () => {
   const vaultParams = {
     capacity: parseEther('1000'),
     feePercent: 1000,
-    name: 'SW ETH Vault',
-    symbol: 'SW-ETH-1',
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
   let sender: Wallet, receiver: Wallet, admin: Wallet, owner: Wallet
   let vault: EthVault,
     keeper: Keeper,
-    oracles: Oracles,
     vaultsRegistry: VaultsRegistry,
     osToken: OsToken,
     validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
-  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
   before('create fixture loader', async () => {
     ;[sender, receiver, owner, admin] = await (ethers as any).getSigners()
@@ -47,13 +36,18 @@ describe('EthVault - mint', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createVault, getSignatures, keeper, oracles, validatorsRegistry, osToken, vaultsRegistry } =
-      await loadFixture(ethVaultFixture))
+    ;({
+      createEthVault: createVault,
+      keeper,
+      validatorsRegistry,
+      osToken,
+      vaultsRegistry,
+    } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
     await osToken.connect(owner).setVaultImplementation(await vault.implementation(), true)
 
     // collateralize vault
-    await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: assets })
   })
 
@@ -65,10 +59,10 @@ describe('EthVault - mint', () => {
   })
 
   it('cannot mint osTokens from not harvested vault', async () => {
-    await updateRewards(keeper, oracles, getSignatures, [
+    await updateRewards(keeper, [
       { vault: vault.address, reward: parseEther('1'), unlockedMevReward: parseEther('0') },
     ])
-    await updateRewards(keeper, oracles, getSignatures, [
+    await updateRewards(keeper, [
       { vault: vault.address, reward: parseEther('1.2'), unlockedMevReward: parseEther('0') },
     ])
     await expect(
@@ -118,30 +112,6 @@ describe('EthVault - mint', () => {
   it('cannot mint osTokens when LTV is violated', async () => {
     await expect(
       vault.connect(sender).mintOsToken(receiver.address, assets, ZERO_ADDRESS)
-    ).to.be.revertedWith('LowLtv')
-  })
-
-  it('cannot transfer vault shares when unharvested', async () => {
-    await vault.connect(sender).mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
-    await updateRewards(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward: parseEther('1'), unlockedMevReward: parseEther('0') },
-    ])
-    await updateRewards(keeper, oracles, getSignatures, [
-      { vault: vault.address, reward: parseEther('1.2'), unlockedMevReward: parseEther('0') },
-    ])
-    await expect(
-      vault.connect(sender).transfer(receiver.address, osTokenAssets)
-    ).to.be.revertedWith('NotHarvested')
-  })
-
-  it('cannot transfer vault shares when LTV is violated', async () => {
-    await vault.connect(sender).mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
-    await expect(vault.connect(sender).transfer(receiver.address, assets)).to.be.revertedWith(
-      'LowLtv'
-    )
-    await vault.connect(sender).approve(receiver.address, assets)
-    await expect(
-      vault.connect(receiver).transferFrom(sender.address, receiver.address, assets)
     ).to.be.revertedWith('LowLtv')
   })
 

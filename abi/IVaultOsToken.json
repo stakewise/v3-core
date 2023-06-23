@@ -52,7 +52,7 @@
         "type": "address"
       }
     ],
-    "name": "Deposit",
+    "name": "Deposited",
     "type": "event"
   },
   {
@@ -325,7 +325,7 @@
         "type": "uint256"
       }
     ],
-    "name": "Redeem",
+    "name": "Redeemed",
     "type": "event"
   },
   {

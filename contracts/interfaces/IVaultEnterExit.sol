@@ -18,7 +18,7 @@ interface IVaultEnterExit is IVaultState {
    * @param shares The number of shares received
    * @param referrer The address of the referrer
    */
-  event Deposit(
+  event Deposited(
     address indexed caller,
     address indexed receiver,
     uint256 assets,
@@ -33,7 +33,7 @@ interface IVaultEnterExit is IVaultState {
    * @param assets The total number of withdrawn assets
    * @param shares The total number of withdrawn shares
    */
-  event Redeem(address indexed owner, address indexed receiver, uint256 assets, uint256 shares);
+  event Redeemed(address indexed owner, address indexed receiver, uint256 assets, uint256 shares);
 
   /**
    * @notice Event emitted on shares added to the exit queue

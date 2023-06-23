@@ -38,7 +38,7 @@ library Errors {
   error InvalidVault();
   error AlreadyAdded();
   error AlreadyRemoved();
-  error InvalidRequiredOracles();
+  error InvalidOracles();
   error NotEnoughSignatures();
   error InvalidOracle();
   error TooEarlyUpdate();

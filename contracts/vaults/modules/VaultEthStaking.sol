@@ -61,7 +61,7 @@ abstract contract VaultEthStaking is
   }
 
   /// @inheritdoc VaultValidators
-  function _registerSingleValidator(bytes calldata validator) internal override {
+  function _registerSingleValidator(bytes calldata validator) internal virtual override {
     bytes calldata publicKey = validator[:48];
     IEthValidatorsRegistry(_validatorsRegistry).deposit{value: _validatorDeposit()}(
       publicKey,
@@ -77,7 +77,7 @@ abstract contract VaultEthStaking is
   function _registerMultipleValidators(
     bytes calldata validators,
     uint256[] calldata indexes
-  ) internal override returns (bytes32[] memory leaves) {
+  ) internal virtual override returns (bytes32[] memory leaves) {
     // SLOAD to memory
     uint256 currentValIndex = validatorIndex;
 
@@ -116,12 +116,15 @@ abstract contract VaultEthStaking is
   }
 
   /// @inheritdoc VaultState
-  function _vaultAssets() internal view override returns (uint256) {
+  function _vaultAssets() internal view virtual override returns (uint256) {
     return address(this).balance;
   }
 
   /// @inheritdoc VaultEnterExit
-  function _transferVaultAssets(address receiver, uint256 assets) internal override nonReentrant {
+  function _transferVaultAssets(
+    address receiver,
+    uint256 assets
+  ) internal virtual override nonReentrant {
     return Address.sendValue(payable(receiver), assets);
   }
 

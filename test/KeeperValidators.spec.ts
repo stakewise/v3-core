@@ -1,21 +1,21 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
-import { Keeper, EthVault, Oracles, IKeeperValidators } from '../typechain-types'
+import { EthVault, IKeeperValidators, Keeper } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
-import { ethVaultFixture } from './shared/fixtures'
+import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ORACLES, ZERO_ADDRESS } from './shared/constants'
+import { ORACLES, VALIDATORS_MIN_ORACLES, ZERO_ADDRESS } from './shared/constants'
 import {
   createEthValidatorsData,
+  EthValidatorsData,
+  exitSignatureIpfsHashes,
+  getEthValidatorsExitSignaturesSigningData,
   getEthValidatorsSigningData,
   getValidatorProof,
   getValidatorsMultiProof,
   getWithdrawalCredentials,
   ValidatorsMultiProof,
-  EthValidatorsData,
-  exitSignatureIpfsHashes,
-  getEthValidatorsExitSignaturesSigningData,
 } from './shared/validators'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { collateralizeEthVault } from './shared/rewards'
@@ -25,18 +25,15 @@ const createFixtureLoader = waffle.createFixtureLoader
 describe('KeeperValidators', () => {
   const capacity = parseEther('1000')
   const feePercent = 1000
-  const name = 'SW ETH Vault'
-  const symbol = 'SW-ETH-1'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const referrer = ZERO_ADDRESS
   const depositAmount = parseEther('32')
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
-  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
   let sender: Wallet, owner: Wallet, admin: Wallet
-  let keeper: Keeper, oracles: Oracles, vault: EthVault, validatorsRegistry: Contract
+  let keeper: Keeper, vault: EthVault, validatorsRegistry: Contract
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
 
@@ -46,14 +43,14 @@ describe('KeeperValidators', () => {
   })
 
   beforeEach(async () => {
-    ;({ oracles, keeper, validatorsRegistry, createVault, getSignatures } = await loadFixture(
-      ethVaultFixture
-    ))
+    ;({
+      keeper,
+      validatorsRegistry,
+      createEthVault: createVault,
+    } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
       feePercent,
-      name,
-      symbol,
       metadataIpfsHash,
     })
     validatorsData = await createEthValidatorsData(vault)
@@ -75,14 +72,14 @@ describe('KeeperValidators', () => {
       signingData = getEthValidatorsSigningData(
         validator,
         exitSignatureIpfsHash,
-        oracles,
+        keeper,
         vault,
         validatorsRegistryRoot
       )
       approveParams = {
         validatorsRegistryRoot,
         validators: validator,
-        signatures: getSignatures(signingData, ORACLES.length),
+        signatures: getOraclesSignatures(signingData, ORACLES.length),
         exitSignaturesIpfsHash: exitSignatureIpfsHash,
       }
     })
@@ -109,7 +106,7 @@ describe('KeeperValidators', () => {
         vault.registerValidator(
           {
             ...approveParams,
-            signatures: getSignatures(signingData, ORACLES.length - 1),
+            signatures: getOraclesSignatures(signingData, VALIDATORS_MIN_ORACLES - 1),
           },
           proof
         )
@@ -175,11 +172,11 @@ describe('KeeperValidators', () => {
       const newSigningData = getEthValidatorsSigningData(
         newValidator,
         newExitSignatureIpfsHash,
-        oracles,
+        keeper,
         vault,
         newValidatorsRegistryRoot
       )
-      const newSignatures = getSignatures(newSigningData, ORACLES.length)
+      const newSignatures = getOraclesSignatures(newSigningData, ORACLES.length)
       receipt = await vault.registerValidator(
         {
           validatorsRegistryRoot: newValidatorsRegistryRoot,
@@ -220,14 +217,14 @@ describe('KeeperValidators', () => {
       signingData = getEthValidatorsSigningData(
         Buffer.concat(validators),
         exitSignaturesIpfsHash,
-        oracles,
+        keeper,
         vault,
         validatorsRegistryRoot
       )
       approveParams = {
         validatorsRegistryRoot,
         validators: hexlify(Buffer.concat(validators)),
-        signatures: getSignatures(signingData, ORACLES.length),
+        signatures: getOraclesSignatures(signingData, ORACLES.length),
         exitSignaturesIpfsHash,
       }
     })
@@ -255,7 +252,7 @@ describe('KeeperValidators', () => {
         vault.registerValidators(
           {
             ...approveParams,
-            signatures: getSignatures(signingData, ORACLES.length - 1),
+            signatures: getOraclesSignatures(signingData, VALIDATORS_MIN_ORACLES - 1),
           },
           indexes,
           proof.proofFlags,
@@ -287,11 +284,11 @@ describe('KeeperValidators', () => {
             validatorsRegistryRoot,
             validators: validators[1],
             exitSignaturesIpfsHash,
-            signatures: getSignatures(
+            signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 validators[1],
                 exitSignaturesIpfsHash,
-                oracles,
+                keeper,
                 vault,
                 validatorsRegistryRoot
               ),
@@ -349,11 +346,11 @@ describe('KeeperValidators', () => {
       const newSigningData = getEthValidatorsSigningData(
         validatorsConcat,
         approveParams.exitSignaturesIpfsHash as string,
-        oracles,
+        keeper,
         vault,
         newValidatorsRegistryRoot
       )
-      const newSignatures = getSignatures(newSigningData, ORACLES.length)
+      const newSignatures = getOraclesSignatures(newSigningData, ORACLES.length)
       receipt = await vault.registerValidators(
         {
           validatorsRegistryRoot: newValidatorsRegistryRoot,
@@ -383,12 +380,12 @@ describe('KeeperValidators', () => {
     beforeEach(async () => {
       exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       signingData = getEthValidatorsExitSignaturesSigningData(
-        oracles,
+        keeper,
         vault,
         exitSignaturesIpfsHash,
         0
       )
-      oraclesSignatures = getSignatures(signingData, ORACLES.length)
+      oraclesSignatures = getOraclesSignatures(signingData, ORACLES.length)
     })
 
     it('fails for invalid vault', async () => {
@@ -404,18 +401,18 @@ describe('KeeperValidators', () => {
     })
 
     it('fails for invalid signatures', async () => {
-      await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       await expect(
         keeper.updateExitSignatures(
           vault.address,
           exitSignaturesIpfsHash,
-          getSignatures(signingData, ORACLES.length - 1)
+          getOraclesSignatures(signingData, VALIDATORS_MIN_ORACLES - 1)
         )
       ).revertedWith('NotEnoughSignatures')
     })
 
     it('fails to submit update twice', async () => {
-      await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       await keeper.updateExitSignatures(vault.address, exitSignaturesIpfsHash, oraclesSignatures)
 
       await expect(
@@ -427,7 +424,7 @@ describe('KeeperValidators', () => {
       const nonce = await keeper.exitSignaturesNonces(vault.address)
       expect(nonce).to.eq(0)
 
-      await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
 
       const receipt = await keeper
         .connect(sender)
@@ -436,6 +433,31 @@ describe('KeeperValidators', () => {
         .to.emit(keeper, 'ExitSignaturesUpdated')
         .withArgs(sender.address, vault.address, nonce, exitSignaturesIpfsHash)
       expect(await keeper.exitSignaturesNonces(vault.address)).to.eq(nonce.add(1))
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('set validators rewards oracles', () => {
+    it('fails if not owner', async () => {
+      await expect(keeper.connect(sender).setValidatorsMinOracles(1)).revertedWith(
+        'Ownable: caller is not the owner'
+      )
+    })
+
+    it('fails with number larger than total oracles', async () => {
+      await expect(keeper.connect(owner).setValidatorsMinOracles(ORACLES.length + 1)).revertedWith(
+        'InvalidOracles'
+      )
+    })
+
+    it('fails with zero', async () => {
+      await expect(keeper.connect(owner).setValidatorsMinOracles(0)).revertedWith('InvalidOracles')
+    })
+
+    it('succeeds', async () => {
+      const receipt = await keeper.connect(owner).setValidatorsMinOracles(1)
+      await expect(receipt).to.emit(keeper, 'ValidatorsMinOraclesUpdated').withArgs(1)
+      expect(await keeper.validatorsMinOracles()).to.be.eq(1)
       await snapshotGasCost(receipt)
     })
   })
