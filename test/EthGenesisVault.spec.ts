@@ -41,7 +41,7 @@ describe('EthGenesisVault', () => {
 
     poolEscrow = await createPoolEscrow(stakedEthToken.address)
     const factory = await ethers.getContractFactory('EthGenesisVault')
-    const proxy = await upgrades.deployProxy(factory, {
+    const proxy = await upgrades.deployProxy(factory, [], {
       unsafeAllow: ['delegatecall'],
       initializer: false,
       constructorArgs: [

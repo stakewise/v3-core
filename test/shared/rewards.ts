@@ -136,7 +136,7 @@ export async function collateralizeEthVault(
 
   // claim exited assets
   const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
-  vault.connect(admin).claimExitedAssets(admin.address, positionTicket, exitQueueIndex)
+  await vault.connect(admin).claimExitedAssets(admin.address, positionTicket, exitQueueIndex)
 
   await increaseTime(ONE_DAY)
   await setBalance(vault.address, balanceBefore)
