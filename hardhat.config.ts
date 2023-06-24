@@ -78,6 +78,9 @@ const config: HardhatUserConfig = {
         accountsBalance: '1000000000000000000000000',
       },
     },
+    local: {
+      url: 'http://127.0.0.1:8545/',
+    },
   },
   mocha: {
     timeout: 100000000,

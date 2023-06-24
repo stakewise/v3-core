@@ -53,9 +53,9 @@ export const createPoolEscrow = async function (
   return (await factory.deploy(stakedEthTokenAddress)) as PoolEscrowMock
 }
 
-export const createVaultsRegistry = async function (owner: Wallet): Promise<VaultsRegistry> {
+export const createVaultsRegistry = async function (): Promise<VaultsRegistry> {
   const factory = await ethers.getContractFactory('VaultsRegistry')
-  return (await factory.deploy(owner.address)) as VaultsRegistry
+  return (await factory.deploy()) as VaultsRegistry
 }
 
 export const createSharedMevEscrow = async function (
@@ -73,7 +73,6 @@ export const createPriceOracle = async function (osToken: OsToken): Promise<Pric
 export const createOsToken = async function (
   keeperAddress: string,
   vaultsRegistry: VaultsRegistry,
-  owner: Wallet,
   treasury: Wallet,
   feePercent: BigNumberish,
   capacity: BigNumberish,
@@ -84,7 +83,6 @@ export const createOsToken = async function (
   return (await factory.deploy(
     keeperAddress,
     vaultsRegistry.address,
-    owner.address,
     treasury.address,
     feePercent,
     capacity,
@@ -112,7 +110,6 @@ export const createOsTokenConfig = async function (
 }
 
 export const createKeeper = async function (
-  owner: Wallet,
   initialOracles: string[],
   configIpfsHash: string,
   sharedMevEscrow: SharedMevEscrow,
@@ -140,8 +137,6 @@ export const createKeeper = async function (
   await keeper.updateConfig(configIpfsHash)
   await keeper.setRewardsMinOracles(rewardsMinOracles)
   await keeper.setValidatorsMinOracles(validatorsMinOracles)
-  await keeper.transferOwnership(owner.address)
-  await keeper.connect(owner).acceptOwnership()
   return keeper
 }
 
@@ -252,14 +247,9 @@ interface EthVaultFixture {
 export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   dao,
 ]): Promise<EthVaultFixture> {
-  const vaultsRegistry = await createVaultsRegistry(dao)
+  const vaultsRegistry = await createVaultsRegistry()
   const validatorsRegistry = await createValidatorsRegistry()
 
-  const sortedOracles = ORACLES.sort((oracle1, oracle2) => {
-    const oracle1Addr = new EthereumWallet(oracle1).getAddressString()
-    const oracle2Addr = new EthereumWallet(oracle2).getAddressString()
-    return oracle1Addr > oracle2Addr ? 1 : -1
-  })
   const sharedMevEscrow = await createSharedMevEscrow(vaultsRegistry)
 
   // 2. calc keeper address
@@ -274,7 +264,6 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     _keeperAddress,
     vaultsRegistry,
     dao,
-    dao,
     OSTOKEN_FEE,
     OSTOKEN_CAPACITY,
     OSTOKEN_NAME,
@@ -282,8 +271,12 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   )
 
   // 4. deploy keeper
+  const sortedOracles = ORACLES.sort((oracle1, oracle2) => {
+    const oracle1Addr = new EthereumWallet(oracle1).getAddressString()
+    const oracle2Addr = new EthereumWallet(oracle2).getAddressString()
+    return oracle1Addr > oracle2Addr ? 1 : -1
+  })
   const keeper = await createKeeper(
-    dao,
     sortedOracles.map((s) => new EthereumWallet(s).getAddressString()),
     ORACLES_CONFIG,
     sharedMevEscrow,
@@ -332,10 +325,18 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
       ],
     })) as string
     const vaultFactory = await createEthVaultFactory(vaultImpl, vaultsRegistry)
-    await vaultsRegistry.connect(dao).addFactory(vaultFactory.address)
-    await osToken.connect(dao).setVaultImplementation(vaultImpl, true)
+    await vaultsRegistry.addFactory(vaultFactory.address)
+    await osToken.setVaultImplementation(vaultImpl, true)
     factories.push(vaultFactory)
   }
+
+  // change ownership
+  await vaultsRegistry.transferOwnership(dao.address)
+  await vaultsRegistry.connect(dao).acceptOwnership()
+  await keeper.transferOwnership(dao.address)
+  await keeper.connect(dao).acceptOwnership()
+  await osToken.transferOwnership(dao.address)
+  await osToken.connect(dao).acceptOwnership()
 
   return {
     vaultsRegistry,

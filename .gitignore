@@ -41,3 +41,4 @@ coverage.json
 
 addresses.json
 /.openzeppelin/unknown-31337.json
+/deployments/local.json

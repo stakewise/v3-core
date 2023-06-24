@@ -51,7 +51,6 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
    * @dev Constructor
    * @param _keeper The address of the Keeper contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
-   * @param _owner The address of the contract owner
    * @param _treasury The address of the DAO treasury
    * @param _feePercent The fee percent applied on the rewards
    * @param _capacity The amount after which the osToken stops accepting deposits
@@ -61,7 +60,6 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   constructor(
     address _keeper,
     address vaultsRegistry,
-    address _owner,
     address _treasury,
     uint16 _feePercent,
     uint256 _capacity,
@@ -75,7 +73,6 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     setCapacity(_capacity);
     setTreasury(_treasury);
     setFeePercent(_feePercent);
-    _transferOwnership(_owner);
   }
 
   /// @inheritdoc IERC20
