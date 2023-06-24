@@ -64,6 +64,7 @@ describe('EthGenesisVault', () => {
       ),
       { value: SECURITY_DEPOSIT }
     )
+    await vault.connect(admin).acceptPoolEscrowOwnership()
     await expect(tx).to.emit(vault, 'MetadataUpdated').withArgs(dao.address, metadataIpfsHash)
     await expect(tx).to.emit(vault, 'FeeRecipientUpdated').withArgs(dao.address, admin.address)
     expect(await vault.mevEscrow()).to.be.eq(fixture.sharedMevEscrow.address)
@@ -96,6 +97,15 @@ describe('EthGenesisVault', () => {
 
   it('applies ownership transfer', async () => {
     expect(await poolEscrow.owner()).to.eq(vault.address)
+  })
+
+  it('apply ownership cannot be called second time', async () => {
+    await expect(vault.connect(other).acceptPoolEscrowOwnership()).to.be.revertedWith(
+      'AccessDenied'
+    )
+    await expect(vault.connect(admin).acceptPoolEscrowOwnership()).to.be.revertedWith(
+      'PoolEscrow: caller is not the future owner'
+    )
   })
 
   describe('migrate', () => {

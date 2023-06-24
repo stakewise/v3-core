@@ -11,6 +11,7 @@ export const NETWORKS: {
 
     governor: '0x1867c96601bc5fE24F685d112314B8F3Fe228D5A',
     validatorsRegistry: '0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b',
+    securityDeposit: 1000000000,
 
     // Keeper
     oracles: [
@@ -26,7 +27,8 @@ export const NETWORKS: {
       '0x9772Ef6AbC2Dfd879ebd88aeAA9Cf1e69a16fCF4',
       '0x18991d6F877eF0c0920BFF9B14D994D80d2E7B0c',
     ],
-    requiredOracles: 6,
+    rewardsMinOracles: 6,
+    validatorsMinOracles: 9,
     rewardsDelay: 12 * 60 * 60,
     maxAvgRewardPerSecond: BigNumber.from('6341958397'), // 20% APY
     oraclesConfigIpfsHash: 'QmWdHy2xj9wBzqAqE3SioR7DU6QMceBPrHzseQ2iE78WYJ',
@@ -42,6 +44,15 @@ export const NETWORKS: {
     liqThresholdPercent: 9200, // 92%
     liqBonusPercent: 10100, // 101%
     ltvPercent: 9000, // 90%
+
+    // GenesisEthVault
+    genesisVault: {
+      admin: '0x1867c96601bc5fE24F685d112314B8F3Fe228D5A',
+      poolEscrow: '0x040F15C6b5Bfc5F324eCaB5864C38D4e1EEF4218',
+      stakedEthToken: '0x221D9812823DBAb0F1fB40b0D294D9875980Ac19',
+      capacity: parseEther('1000000'),
+      feePercent: 500,
+    },
   },
   [Networks.mainnet]: {
     url: process.env.MAINNET_RPC_URL || '',
@@ -49,11 +60,13 @@ export const NETWORKS: {
 
     governor: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
     validatorsRegistry: '0x00000000219ab540356cBB839Cbe05303d7705Fa',
+    securityDeposit: 1000000000,
 
     // Keeper
     oracles: [], // TODO: update with oracles' addresses
     rewardsDelay: 12 * 60 * 60,
-    requiredOracles: 6,
+    rewardsMinOracles: 6,
+    validatorsMinOracles: 9,
     maxAvgRewardPerSecond: BigNumber.from('6341958397'), // 20% APY
     oraclesConfigIpfsHash: '',
 
@@ -70,5 +83,14 @@ export const NETWORKS: {
     liqThresholdPercent: 9200, // 92%
     liqBonusPercent: 10100, // 101%
     ltvPercent: 9000, // 90%
+
+    // GenesisEthVault
+    genesisVault: {
+      admin: '',
+      poolEscrow: '0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079',
+      stakedEthToken: '0xFe2e637202056d30016725477c5da089Ab0A043A',
+      capacity: parseEther('1000000'),
+      feePercent: 500,
+    },
   },
 }

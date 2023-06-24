@@ -3,7 +3,7 @@
 exports[`EthGenesisVault migrate migrates from stakedEthToken 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 63532,
+  "gasUsed": 63554,
 }
 `;
 
@@ -17,13 +17,13 @@ Object {
 exports[`EthGenesisVault pulls assets on multiple validators registration 1`] = `
 Object {
   "calldataByteLength": 3620,
-  "gasUsed": 758160,
+  "gasUsed": 757946,
 }
 `;
 
 exports[`EthGenesisVault pulls assets on single validator registration 1`] = `
 Object {
-  "calldataByteLength": 1284,
-  "gasUsed": 392715,
+  "calldataByteLength": 1316,
+  "gasUsed": 393573,
 }
 `;
