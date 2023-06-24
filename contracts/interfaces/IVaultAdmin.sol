@@ -8,9 +8,6 @@ pragma solidity =0.8.20;
  * @notice Defines the interface for the VaultAdmin contract
  */
 interface IVaultAdmin {
-  // Custom errors
-  error AccessDenied();
-
   /**
    * @notice Event emitted on metadata ipfs hash update
    * @param caller The address of the function caller

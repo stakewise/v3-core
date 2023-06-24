@@ -1,20 +1,5 @@
 [
   {
-    "inputs": [],
-    "name": "AccessDenied",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidFeePercent",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidFeeRecipient",
-    "type": "error"
-  },
-  {
     "anonymous": false,
     "inputs": [
       {

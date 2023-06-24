@@ -1,0 +1,217 @@
+[
+  {
+    "inputs": [],
+    "name": "AccessDenied",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "AlreadyAdded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "AlreadyRemoved",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "CapacityExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "HarvestFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InsufficientAssets",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidAssets",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidAvgRewardPerSecond",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidCapacity",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidCheckpointIndex",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidCheckpointValue",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidFeePercent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidFeeRecipient",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidHealthFactor",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLiqBonusPercent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLiqThresholdPercent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLtv",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidLtvPercent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidOracle",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidOracles",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidPosition",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidProof",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidReceivedAssets",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRedeemFromLtvPercent",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidRewardsRoot",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidSecurityDeposit",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidShares",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidTokenMeta",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidValidator",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidValidators",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidValidatorsRegistryRoot",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidVault",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "LowLtv",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotCollateralized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotEnoughSignatures",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NotHarvested",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PermitDeadlineExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "PermitInvalidSigner",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "RedemptionExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "TooEarlyUpdate",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "UpgradeFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "WhitelistAlreadyUpdated",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "ZeroAddress",
+    "type": "error"
+  }
+]

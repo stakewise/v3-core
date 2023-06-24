@@ -9,6 +9,14 @@ export const getSignatureFromTypedData = (privateKey: Buffer, data: any): ECDSAS
   return fromRpcSig(signature)
 }
 
+export const extractVaultAddress = (receipt: any): string => {
+  return receipt.events?.[receipt.events.length - 1].args?.vault as string
+}
+
+export const extractMevEscrowAddress = (receipt: any): string => {
+  return receipt.events?.[receipt.events.length - 1].args?.ownMevEscrow as string
+}
+
 export async function domainSeparator(name, version, chainId, verifyingContract) {
   return (
     '0x' +

@@ -8,12 +8,6 @@ pragma solidity =0.8.20;
  * @notice Defines the interface for the VaultsRegistry
  */
 interface IVaultsRegistry {
-  /// Custom errors
-  error AccessDenied();
-  error AlreadyAdded();
-  error AlreadyRemoved();
-  error UnsupportedImplementation();
-
   /**
    * @notice Event emitted on a Vault addition
    * @param factory The address of the factory that has added the Vault

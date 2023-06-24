@@ -2,7 +2,7 @@ import { ethers, network, waffle } from 'hardhat'
 import { BigNumber, Wallet } from 'ethers'
 import { arrayify, parseEther } from 'ethers/lib/utils'
 import EthereumWallet from 'ethereumjs-wallet'
-import { EthVault } from '../typechain-types'
+import { EthErc20Vault } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { expect } from './shared/expect'
 import {
@@ -27,11 +27,11 @@ describe('EthVault - token', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const initialSupply = 1000
 
-  let vault: EthVault
+  let vault: EthErc20Vault
   let admin: Wallet, dao: Wallet, initialHolder: Wallet, spender: Wallet, recipient: Wallet
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthErc20Vault']
 
   before('create fixture loader', async () => {
     ;[admin, dao, initialHolder, spender, recipient] = await (ethers as any).getSigners()
@@ -39,7 +39,7 @@ describe('EthVault - token', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createVault } = await loadFixture(ethVaultFixture))
+    ;({ createEthErc20Vault: createVault } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
       feePercent,
@@ -473,8 +473,7 @@ describe('EthVault - token', () => {
         }
 
         describe('when the sender has enough balance', () => {
-          const amount = initialSupply
-          shouldDecreaseApproval(amount)
+          shouldDecreaseApproval(initialSupply)
         })
 
         describe('when the sender does not have enough balance', () => {

@@ -8,8 +8,8 @@ import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IVaultState} from '../../interfaces/IVaultState.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {ExitQueue} from '../../libraries/ExitQueue.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
-import {VaultToken} from './VaultToken.sol';
 import {VaultFee} from './VaultFee.sol';
 
 /**
@@ -17,10 +17,13 @@ import {VaultFee} from './VaultFee.sol';
  * @author StakeWise
  * @notice Defines Vault's state manipulation
  */
-abstract contract VaultState is VaultImmutables, Initializable, VaultToken, VaultFee, IVaultState {
+abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVaultState {
   using ExitQueue for ExitQueue.History;
 
   uint256 private constant _exitQueueUpdateDelay = 1 days;
+
+  uint128 internal _totalShares;
+  uint128 internal _totalAssets;
 
   /// @inheritdoc IVaultState
   uint96 public override queuedShares;
@@ -30,6 +33,34 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
 
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
+  mapping(address => uint256) internal _balances;
+
+  uint256 private _capacity;
+
+  /// @inheritdoc IVaultState
+  function totalAssets() external view override returns (uint256) {
+    return _totalAssets;
+  }
+
+  /// @inheritdoc IVaultState
+  function convertToShares(uint256 assets) public view override returns (uint256 shares) {
+    return _convertToShares(assets, Math.Rounding.Down);
+  }
+
+  /// @inheritdoc IVaultState
+  function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
+    uint256 totalShares = _totalShares;
+    return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares);
+  }
+
+  /// @inheritdoc IVaultState
+  function capacity() public view override returns (uint256) {
+    // SLOAD to memory
+    uint256 capacity_ = _capacity;
+
+    // if capacity is not set, it is unlimited
+    return capacity_ == 0 ? type(uint256).max : capacity_;
+  }
 
   /// @inheritdoc IVaultState
   function withdrawableAssets() public view override returns (uint256) {
@@ -91,38 +122,30 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
 
     // calculate fee recipient's shares
     uint256 feeRecipientShares;
-    unchecked {
-      // cannot underflow as feePercent <= maxFeePercent
-      feeRecipientShares = _convertToShares(
-        feeRecipientAssets,
-        totalShares,
-        newTotalAssets - feeRecipientAssets,
-        Math.Rounding.Down
-      );
+    if (totalShares == 0) {
+      feeRecipientShares = feeRecipientAssets;
+    } else {
+      unchecked {
+        feeRecipientShares = Math.mulDiv(
+          feeRecipientAssets,
+          totalShares,
+          newTotalAssets - feeRecipientAssets
+        );
+      }
     }
-    if (feeRecipientShares == 0) return;
-
-    // update state
-    _totalShares = SafeCast.toUint128(totalShares + feeRecipientShares);
-
-    // SLOAD to memory
-    address _feeRecipient = feeRecipient;
 
     // mint shares to the fee recipient
-    unchecked {
-      // cannot underflow because the sum of all shares can't exceed the _totalShares
-      balanceOf[_feeRecipient] += feeRecipientShares;
-    }
-    emit Transfer(address(0), _feeRecipient, feeRecipientShares);
+    _mintShares(feeRecipient, feeRecipientShares);
   }
 
   /**
    * @dev Internal function that must be used to process exit queue
+   * @return burnedShares The total amount of burned shares
    */
-  function _updateExitQueue() private {
+  function _updateExitQueue() internal virtual returns (uint256 burnedShares) {
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
-    if (_queuedShares == 0) return;
+    if (_queuedShares == 0) return 0;
 
     // calculate the amount of assets that can be exited
     uint256 unclaimedAssets = _unclaimedAssets;
@@ -130,11 +153,11 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
       _vaultAssets() - unclaimedAssets,
       convertToAssets(_queuedShares)
     );
-    if (exitedAssets == 0) return;
+    if (exitedAssets == 0) return 0;
 
     // calculate the amount of shares that can be burned
-    uint256 burnedShares = convertToShares(exitedAssets);
-    if (burnedShares == 0) return;
+    burnedShares = convertToShares(exitedAssets);
+    if (burnedShares == 0) return 0;
 
     queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
     _unclaimedAssets = SafeCast.toUint96(unclaimedAssets + exitedAssets);
@@ -151,9 +174,55 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
     // update state
     _totalShares -= SafeCast.toUint128(burnedShares);
     _totalAssets -= SafeCast.toUint128(exitedAssets);
+  }
 
-    // emit burn event
-    emit Transfer(address(this), address(0), burnedShares);
+  /**
+   * @dev Internal function for minting shares
+   * @param owner The address of the owner to mint shares to
+   * @param shares The number of shares to mint
+   */
+  function _mintShares(address owner, uint256 shares) internal virtual {
+    // update total shares
+    _totalShares += SafeCast.toUint128(shares);
+
+    // mint shares
+    unchecked {
+      // cannot overflow because the sum of all user
+      // balances can't exceed the max uint256 value
+      _balances[owner] += shares;
+    }
+  }
+
+  /**
+   * @dev Internal function for burning shares
+   * @param owner The address of the owner to burn shares for
+   * @param shares The number of shares to burn
+   */
+  function _burnShares(address owner, uint256 shares) internal virtual {
+    // burn shares
+    _balances[owner] -= shares;
+
+    // update total shares
+    unchecked {
+      // cannot underflow because the sum of all shares can't exceed the _totalShares
+      _totalShares -= SafeCast.toUint128(shares);
+    }
+  }
+
+  /**
+   * @dev Internal conversion function (from assets to shares) with support for rounding direction.
+   */
+  function _convertToShares(
+    uint256 assets,
+    Math.Rounding rounding
+  ) internal view returns (uint256 shares) {
+    uint256 totalShares = _totalShares;
+    // Will revert if assets > 0, totalShares > 0 and _totalAssets = 0.
+    // That corresponds to a case where any asset would represent an infinite amount of shares.
+    return
+      (assets == 0 || totalShares == 0)
+        ? assets
+        : Math.mulDiv(assets, totalShares, _totalAssets, rounding);
   }
 
   /**
@@ -163,6 +232,22 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultToken, Vaul
   function _harvestAssets(
     IKeeperRewards.HarvestParams calldata harvestParams
   ) internal virtual returns (int256);
+
+  /**
+   * @dev Internal function for retrieving the total assets stored in the Vault
+   * @return The total amount of assets stored in the Vault
+   */
+  function _vaultAssets() internal view virtual returns (uint256);
+
+  /**
+   * @dev Initializes the VaultState contract
+   * @param capacity_ The amount after which the Vault stops accepting deposits
+   */
+  function __VaultState_init(uint256 capacity_) internal onlyInitializing {
+    if (capacity_ == 0) revert Errors.InvalidCapacity();
+    // skip setting capacity if it is unlimited
+    if (capacity_ != type(uint256).max) _capacity = capacity_;
+  }
 
   /**
    * @dev This empty reserved space is put in place to allow future versions to add new

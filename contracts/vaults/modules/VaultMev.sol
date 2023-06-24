@@ -7,7 +7,7 @@ import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {ISharedMevEscrow} from '../../interfaces/ISharedMevEscrow.sol';
 import {IOwnMevEscrow} from '../../interfaces/IOwnMevEscrow.sol';
 import {IVaultMev} from '../../interfaces/IVaultMev.sol';
-import {VaultState} from '../modules/VaultState.sol';
+import {VaultState} from './VaultState.sol';
 
 /**
  * @title VaultMev

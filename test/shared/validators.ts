@@ -2,17 +2,18 @@ import { ByteVectorType, ContainerType, Type, UintNumberType } from '@chainsafe/
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { network } from 'hardhat'
 import { Buffer } from 'buffer'
-import { BigNumber, BigNumberish, BytesLike, Contract, Wallet } from 'ethers'
+import { BigNumber, BigNumberish, BytesLike, Contract, ContractTransaction, Wallet } from 'ethers'
 import { arrayify, parseEther } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
 import keccak256 from 'keccak256'
-import { Keeper, EthVault, Oracles } from '../../typechain-types'
+import { Keeper, EthVault } from '../../typechain-types'
 import {
   EIP712Domain,
-  ORACLES,
   KeeperValidatorsSig,
   KeeperUpdateExitSignaturesSig,
+  VALIDATORS_MIN_ORACLES,
 } from './constants'
+import { getOraclesSignatures } from './fixtures'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -202,7 +203,7 @@ export async function createEthValidatorsData(vault: EthVault): Promise<EthValid
 export function getEthValidatorsSigningData(
   validators: Buffer,
   exitSignaturesIpfsHash: string,
-  oracles: Oracles,
+  keeper: Keeper,
   vault: EthVault,
   validatorsRegistryRoot: BytesLike
 ) {
@@ -210,10 +211,10 @@ export function getEthValidatorsSigningData(
     primaryType: 'KeeperValidators',
     types: { EIP712Domain, KeeperValidators: KeeperValidatorsSig },
     domain: {
-      name: 'Oracles',
+      name: 'KeeperOracles',
       version: '1',
       chainId: network.config.chainId,
-      verifyingContract: oracles.address,
+      verifyingContract: keeper.address,
     },
     message: {
       validatorsRegistryRoot,
@@ -225,7 +226,7 @@ export function getEthValidatorsSigningData(
 }
 
 export function getEthValidatorsExitSignaturesSigningData(
-  oracles: Oracles,
+  keeper: Keeper,
   vault: EthVault,
   exitSignaturesIpfsHash: string,
   nonce: BigNumberish
@@ -234,10 +235,10 @@ export function getEthValidatorsExitSignaturesSigningData(
     primaryType: 'KeeperValidators',
     types: { EIP712Domain, KeeperValidators: KeeperUpdateExitSignaturesSig },
     domain: {
-      name: 'Oracles',
+      name: 'KeeperOracles',
       version: '1',
       chainId: network.config.chainId,
-      verifyingContract: oracles.address,
+      verifyingContract: keeper.address,
     },
     message: {
       vault: vault.address,
@@ -269,12 +270,10 @@ export function getValidatorsMultiProof(
 
 export async function registerEthValidator(
   vault: EthVault,
-  oracles: Oracles,
   keeper: Keeper,
   validatorsRegistry: Contract,
-  admin: Wallet,
-  getSignatures: (typedData: any, count?: number) => Buffer
-) {
+  admin: Wallet
+): Promise<ContractTransaction> {
   const validatorsData = await createEthValidatorsData(vault)
   const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
   await vault.connect(admin).setValidatorsRoot(validatorsData.root)
@@ -283,13 +282,13 @@ export async function registerEthValidator(
   const signingData = getEthValidatorsSigningData(
     validator,
     exitSignatureIpfsHash,
-    oracles,
+    keeper,
     vault,
     validatorsRegistryRoot
   )
-  const signatures = getSignatures(signingData, ORACLES.length)
+  const signatures = getOraclesSignatures(signingData, VALIDATORS_MIN_ORACLES)
   const proof = getValidatorProof(validatorsData.tree, validator, 0)
-  await vault.registerValidator(
+  return await vault.registerValidator(
     {
       validatorsRegistryRoot,
       validators: validator,

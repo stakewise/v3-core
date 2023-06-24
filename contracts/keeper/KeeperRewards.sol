@@ -5,16 +5,17 @@ pragma solidity =0.8.20;
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IVaultMev} from '../interfaces/IVaultMev.sol';
-import {IOracles} from '../interfaces/IOracles.sol';
+import {Errors} from '../libraries/Errors.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IOsToken} from '../interfaces/IOsToken.sol';
+import {KeeperOracles} from './KeeperOracles.sol';
 
 /**
  * @title KeeperRewards
  * @author StakeWise
  * @notice Defines the functionality for updating Vaults' and OsToken rewards
  */
-abstract contract KeeperRewards is IKeeperRewards {
+abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
   bytes32 private constant _rewardsUpdateTypeHash =
     keccak256(
       'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint256 avgRewardPerSecond,uint64 updateTimestamp,uint64 nonce)'
@@ -25,8 +26,6 @@ abstract contract KeeperRewards is IKeeperRewards {
   address private immutable _sharedMevEscrow;
 
   IOsToken private immutable _osToken;
-
-  IOracles internal immutable _oracles;
 
   IVaultsRegistry internal immutable _vaultsRegistry;
 
@@ -46,6 +45,9 @@ abstract contract KeeperRewards is IKeeperRewards {
   bytes32 public override rewardsRoot;
 
   /// @inheritdoc IKeeperRewards
+  uint256 public override rewardsMinOracles;
+
+  /// @inheritdoc IKeeperRewards
   uint64 public override lastRewardsTimestamp;
 
   /// @inheritdoc IKeeperRewards
@@ -54,7 +56,6 @@ abstract contract KeeperRewards is IKeeperRewards {
   /**
    * @dev Constructor
    * @param sharedMevEscrow The address of the shared MEV escrow contract
-   * @param oracles The address of the Oracles contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
    * @param osToken The address of the OsToken contract
    * @param _rewardsDelay The delay in seconds between rewards updates
@@ -62,14 +63,12 @@ abstract contract KeeperRewards is IKeeperRewards {
    */
   constructor(
     address sharedMevEscrow,
-    IOracles oracles,
     IVaultsRegistry vaultsRegistry,
     IOsToken osToken,
     uint256 _rewardsDelay,
     uint256 maxAvgRewardPerSecond
   ) {
     _sharedMevEscrow = sharedMevEscrow;
-    _oracles = oracles;
     _vaultsRegistry = vaultsRegistry;
     _osToken = osToken;
     rewardsDelay = _rewardsDelay;
@@ -82,20 +81,22 @@ abstract contract KeeperRewards is IKeeperRewards {
 
   /// @inheritdoc IKeeperRewards
   function updateRewards(RewardsUpdateParams calldata params) external override {
-    if (!canUpdateRewards()) revert TooEarlyUpdate();
-    if (params.avgRewardPerSecond > _maxAvgRewardPerSecond) revert InvalidAvgRewardPerSecond();
+    if (!canUpdateRewards()) revert Errors.TooEarlyUpdate();
+    if (params.avgRewardPerSecond > _maxAvgRewardPerSecond)
+      revert Errors.InvalidAvgRewardPerSecond();
 
     // SLOAD to memory
     bytes32 currRewardsRoot = rewardsRoot;
     if (currRewardsRoot == params.rewardsRoot || prevRewardsRoot == params.rewardsRoot) {
-      revert InvalidRewardsRoot();
+      revert Errors.InvalidRewardsRoot();
     }
 
     // SLOAD to memory
     uint64 nonce = rewardsNonce;
 
-    // verify minimal number of oracles approved the new rewards update
-    _oracles.verifyMinSignatures(
+    // verify rewards update signatures
+    _verifySignatures(
+      rewardsMinOracles,
       keccak256(
         abi.encode(
           _rewardsUpdateTypeHash,
@@ -164,14 +165,14 @@ abstract contract KeeperRewards is IKeeperRewards {
   function harvest(
     HarvestParams calldata params
   ) external override returns (int256 totalAssetsDelta, uint256 unlockedMevDelta) {
-    if (!_vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
+    if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.AccessDenied();
 
     // SLOAD to memory
     uint64 currentNonce = rewardsNonce;
 
     // allow harvest for the past two updates
     if (params.rewardsRoot != rewardsRoot) {
-      if (params.rewardsRoot != prevRewardsRoot) revert InvalidRewardsRoot();
+      if (params.rewardsRoot != prevRewardsRoot) revert Errors.InvalidRewardsRoot();
       unchecked {
         // cannot underflow as after first merkle root update nonce will be "2"
         currentNonce -= 1;
@@ -188,7 +189,7 @@ abstract contract KeeperRewards is IKeeperRewards {
         )
       )
     ) {
-      revert InvalidProof();
+      revert Errors.InvalidProof();
     }
 
     // SLOAD to memory
@@ -216,6 +217,23 @@ abstract contract KeeperRewards is IKeeperRewards {
 
     // emit event
     emit Harvested(msg.sender, params.rewardsRoot, totalAssetsDelta, unlockedMevDelta);
+  }
+
+  /// @inheritdoc IKeeperRewards
+  function setRewardsMinOracles(uint256 _rewardsMinOracles) external override onlyOwner {
+    _setRewardsMinOracles(_rewardsMinOracles);
+  }
+
+  /**
+   * @dev Internal function for updating rewardsMinOracles
+   * @param _rewardsMinOracles The new value of rewardsMinOracles
+   */
+  function _setRewardsMinOracles(uint256 _rewardsMinOracles) private {
+    if (_rewardsMinOracles == 0 || totalOracles < _rewardsMinOracles) {
+      revert Errors.InvalidOracles();
+    }
+    rewardsMinOracles = _rewardsMinOracles;
+    emit RewardsMinOraclesUpdated(_rewardsMinOracles);
   }
 
   /**

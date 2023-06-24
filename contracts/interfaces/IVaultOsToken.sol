@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.20;
 
-import {IVaultToken} from './IVaultToken.sol';
+import {IVaultState} from './IVaultState.sol';
 import {IVaultEnterExit} from './IVaultEnterExit.sol';
 
 /**
@@ -10,16 +10,7 @@ import {IVaultEnterExit} from './IVaultEnterExit.sol';
  * @author StakeWise
  * @notice Defines the interface for the VaultOsToken contract
  */
-interface IVaultOsToken is IVaultToken, IVaultEnterExit {
-  // Custom errors
-  error HealthFactorNotViolated();
-  error InvalidHealthFactor();
-  error InvalidLtv();
-  error RedemptionExceeded();
-  error InvalidReceivedAssets();
-  error InvalidPosition();
-  error LowLtv();
-
+interface IVaultOsToken is IVaultState, IVaultEnterExit {
   /**
    * @notice Event emitted on minting osToken
    * @param caller The address of the function caller

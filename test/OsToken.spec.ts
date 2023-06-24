@@ -44,24 +44,15 @@ describe('OsToken', () => {
     const vaultParams = {
       capacity: parseEther('1000'),
       feePercent: 1000,
-      name: 'SW ETH Vault',
-      symbol: 'SW-ETH-1',
       metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
     }
     osToken = fixture.osToken
-    const vault = await fixture.createVault(admin, vaultParams)
+    const vault = await fixture.createEthVault(admin, vaultParams)
     vaultImpl = await vault.implementation()
     await osToken.connect(owner).setVaultImplementation(vaultImpl, true)
 
     // collateralize vault
-    await collateralizeEthVault(
-      vault,
-      fixture.oracles,
-      fixture.keeper,
-      fixture.validatorsRegistry,
-      admin,
-      fixture.getSignatures
-    )
+    await collateralizeEthVault(vault, fixture.keeper, fixture.validatorsRegistry, admin)
     await vault
       .connect(initialHolder)
       .deposit(initialHolder.address, ZERO_ADDRESS, { value: assets })
@@ -558,8 +549,7 @@ describe('OsToken', () => {
         }
 
         describe('when the sender has enough balance', () => {
-          const amount = initialSupply
-          shouldDecreaseApproval(amount)
+          shouldDecreaseApproval(initialSupply)
         })
 
         describe('when the sender does not have enough balance', () => {

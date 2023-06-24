@@ -8,11 +8,11 @@ import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {IEthValidatorsRegistry} from '../../interfaces/IEthValidatorsRegistry.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
-import {VaultValidators} from '../modules/VaultValidators.sol';
-import {VaultToken} from '../modules/VaultToken.sol';
-import {VaultState} from '../modules/VaultState.sol';
-import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
-import {VaultMev} from '../modules/VaultMev.sol';
+import {Errors} from '../../libraries/Errors.sol';
+import {VaultValidators} from './VaultValidators.sol';
+import {VaultState} from './VaultState.sol';
+import {VaultEnterExit} from './VaultEnterExit.sol';
+import {VaultMev} from './VaultMev.sol';
 
 /**
  * @title VaultEthStaking
@@ -22,7 +22,6 @@ import {VaultMev} from '../modules/VaultMev.sol';
 abstract contract VaultEthStaking is
   Initializable,
   ReentrancyGuardUpgradeable,
-  VaultToken,
   VaultState,
   VaultValidators,
   VaultEnterExit,
@@ -58,11 +57,11 @@ abstract contract VaultEthStaking is
 
   /// @inheritdoc IVaultEthStaking
   function receiveFromMevEscrow() external payable override {
-    if (msg.sender != mevEscrow()) revert AccessDenied();
+    if (msg.sender != mevEscrow()) revert Errors.AccessDenied();
   }
 
   /// @inheritdoc VaultValidators
-  function _registerSingleValidator(bytes calldata validator) internal override {
+  function _registerSingleValidator(bytes calldata validator) internal virtual override {
     bytes calldata publicKey = validator[:48];
     IEthValidatorsRegistry(_validatorsRegistry).deposit{value: _validatorDeposit()}(
       publicKey,
@@ -78,7 +77,7 @@ abstract contract VaultEthStaking is
   function _registerMultipleValidators(
     bytes calldata validators,
     uint256[] calldata indexes
-  ) internal override returns (bytes32[] memory leaves) {
+  ) internal virtual override returns (bytes32[] memory leaves) {
     // SLOAD to memory
     uint256 currentValIndex = validatorIndex;
 
@@ -116,13 +115,16 @@ abstract contract VaultEthStaking is
     }
   }
 
-  /// @inheritdoc VaultToken
-  function _vaultAssets() internal view override returns (uint256) {
+  /// @inheritdoc VaultState
+  function _vaultAssets() internal view virtual override returns (uint256) {
     return address(this).balance;
   }
 
-  /// @inheritdoc VaultToken
-  function _transferVaultAssets(address receiver, uint256 assets) internal override nonReentrant {
+  /// @inheritdoc VaultEnterExit
+  function _transferVaultAssets(
+    address receiver,
+    uint256 assets
+  ) internal virtual override nonReentrant {
     return Address.sendValue(payable(receiver), assets);
   }
 
@@ -138,7 +140,7 @@ abstract contract VaultEthStaking is
     __ReentrancyGuard_init();
 
     // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
-    if (msg.value < _securityDeposit) revert InvalidSecurityDeposit();
+    if (msg.value < _securityDeposit) revert Errors.InvalidSecurityDeposit();
     _deposit(address(this), msg.value, address(0));
   }
 

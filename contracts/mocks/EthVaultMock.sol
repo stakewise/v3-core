@@ -45,7 +45,7 @@ contract EthVaultMock is EthVault {
   }
 
   function resetSecurityDeposit() external {
-    balanceOf[address(this)] -= _securityDeposit;
+    _balances[address(this)] -= _securityDeposit;
     _totalShares -= SafeCast.toUint128(_securityDeposit);
     _totalAssets -= SafeCast.toUint128(_securityDeposit);
     _transferVaultAssets(address(0), _securityDeposit);

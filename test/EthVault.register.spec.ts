@@ -3,7 +3,7 @@ import { Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
 import { UintNumberType } from '@chainsafe/ssz'
 import { ThenArg } from '../helpers/types'
-import { Keeper, EthVault, Oracles, IKeeperValidators } from '../typechain-types'
+import { Keeper, EthVault, IKeeperValidators } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 import { setBalance } from './shared/utils'
@@ -18,8 +18,8 @@ import {
   getWithdrawalCredentials,
   ValidatorsMultiProof,
 } from './shared/validators'
-import { ethVaultFixture } from './shared/fixtures'
-import { MAX_UINT256, ORACLES, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
+import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
+import { MAX_UINT256, PANIC_CODES, VALIDATORS_MIN_ORACLES, ZERO_ADDRESS } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const gwei = 1000000000
@@ -29,17 +29,14 @@ describe('EthVault - register', () => {
   const validatorDeposit = parseEther('32')
   const capacity = MAX_UINT256
   const feePercent = 1000
-  const name = 'SW ETH Vault'
-  const symbol = 'SW-ETH-1'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   let admin: Wallet, dao: Wallet, other: Wallet
-  let vault: EthVault, keeper: Keeper, validatorsRegistry: Contract, oracles: Oracles
+  let vault: EthVault, keeper: Keeper, validatorsRegistry: Contract
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
-  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
   before('create fixture loader', async () => {
     ;[admin, dao, other] = await (ethers as any).getSigners()
@@ -47,15 +44,15 @@ describe('EthVault - register', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ validatorsRegistry, createVault, getSignatures, oracles, keeper } = await loadFixture(
-      ethVaultFixture
-    ))
+    ;({
+      validatorsRegistry,
+      createEthVault: createVault,
+      keeper,
+    } = await loadFixture(ethVaultFixture))
 
     vault = await createVault(admin, {
       capacity,
       feePercent,
-      name,
-      symbol,
       metadataIpfsHash,
     })
     validatorsData = await createEthValidatorsData(vault)
@@ -73,15 +70,15 @@ describe('EthVault - register', () => {
       validator = validatorsData.validators[0]
       proof = getValidatorProof(validatorsData.tree, validator, 0)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
-      const signatures = getSignatures(
+      const signatures = getOraclesSignatures(
         getEthValidatorsSigningData(
           validator,
           exitSignaturesIpfsHash,
-          oracles,
+          keeper,
           vault,
           validatorsRegistryRoot
         ),
-        ORACLES.length
+        VALIDATORS_MIN_ORACLES
       )
       approvalParams = {
         validatorsRegistryRoot,
@@ -113,15 +110,15 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: appendDepositData(validator, validatorDeposit, vault.address),
-            signatures: getSignatures(
+            signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidator,
                 exitSignaturesIpfsHash,
-                oracles,
+                keeper,
                 vault,
                 validatorsRegistryRoot
               ),
-              ORACLES.length
+              VALIDATORS_MIN_ORACLES
             ),
             exitSignaturesIpfsHash,
           },
@@ -163,15 +160,15 @@ describe('EthVault - register', () => {
       const sortedVals = multiProof.leaves.map((v) => v[0])
       indexes = validators.map((v) => sortedVals.indexOf(v))
       await setBalance(vault.address, validatorDeposit.mul(validators.length))
-      signatures = getSignatures(
+      signatures = getOraclesSignatures(
         getEthValidatorsSigningData(
           Buffer.concat(validators),
           exitSignaturesIpfsHash,
-          oracles,
+          keeper,
           vault,
           validatorsRegistryRoot
         ),
-        ORACLES.length
+        VALIDATORS_MIN_ORACLES
       )
       approvalParams = {
         validatorsRegistryRoot,
@@ -195,15 +192,15 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: Buffer.from(''),
-            signatures: getSignatures(
+            signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 Buffer.from(''),
                 exitSignaturesIpfsHash,
-                oracles,
+                keeper,
                 vault,
                 validatorsRegistryRoot
               ),
-              ORACLES.length
+              VALIDATORS_MIN_ORACLES
             ),
             exitSignaturesIpfsHash,
           },
@@ -231,15 +228,15 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: invalidValidatorsConcat,
-            signatures: getSignatures(
+            signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidatorsConcat,
                 exitSignaturesIpfsHash,
-                oracles,
+                keeper,
                 vault,
                 validatorsRegistryRoot
               ),
-              ORACLES.length
+              VALIDATORS_MIN_ORACLES
             ),
             exitSignaturesIpfsHash,
           },
@@ -264,15 +261,15 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: invalidValidatorsConcat,
-            signatures: getSignatures(
+            signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidatorsConcat,
                 exitSignaturesIpfsHash,
-                oracles,
+                keeper,
                 vault,
                 validatorsRegistryRoot
               ),
-              ORACLES.length
+              VALIDATORS_MIN_ORACLES
             ),
             exitSignaturesIpfsHash,
           },
@@ -297,15 +294,15 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: invalidValidatorsConcat,
-            signatures: getSignatures(
+            signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidatorsConcat,
                 exitSignaturesIpfsHash,
-                oracles,
+                keeper,
                 vault,
                 validatorsRegistryRoot
               ),
-              ORACLES.length
+              VALIDATORS_MIN_ORACLES
             ),
             exitSignaturesIpfsHash,
           },
@@ -381,15 +378,15 @@ describe('EthVault - register', () => {
             {
               validatorsRegistryRoot,
               validators: invalidValidators[i],
-              signatures: getSignatures(
+              signatures: getOraclesSignatures(
                 getEthValidatorsSigningData(
                   invalidValidators[i],
                   exitSignaturesIpfsHash,
-                  oracles,
+                  keeper,
                   vault,
                   validatorsRegistryRoot
                 ),
-                ORACLES.length
+                VALIDATORS_MIN_ORACLES
               ),
               exitSignaturesIpfsHash,
             },
