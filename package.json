@@ -20,8 +20,9 @@
     "test:gas": "npm run compile && TRACK_GAS=true hardhat test",
     "coverage": "COVERAGE=true npm run compile && COVERAGE=true hardhat coverage",
     "precommit": "lint-staged",
+    "node": "hardhat node",
     "full-deploy:goerli": "hardhat eth-full-deploy --network goerli",
-    "whitelist-factory:goerli": "hardhat whitelist-factory --network goerli"
+    "full-deploy:local": "hardhat eth-full-deploy-local --network local"
   },
   "repository": {
     "type": "git",

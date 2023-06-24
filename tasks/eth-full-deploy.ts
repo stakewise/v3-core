@@ -230,6 +230,21 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const ethGenesisVaultImpl = await ethGenesisVault.implementation()
   await osToken.setVaultImplementation(ethGenesisVaultImpl, true)
   console.log(`Added EthGenesisVault implementation to OsToken`)
+  await verify(
+    hre,
+    ethGenesisVault.address,
+    [
+      keeper.address,
+      vaultsRegistry.address,
+      networkConfig.validatorsRegistry,
+      osToken.address,
+      osTokenConfig.address,
+      sharedMevEscrow.address,
+      networkConfig.genesisVault.poolEscrow,
+      networkConfig.genesisVault.stakedEthToken,
+    ],
+    'contracts/vaults/ethereum/EthGenesisVault.sol:EthGenesisVault'
+  )
 
   const priceOracle = await deployContract(
     new PriceOracle__factory(deployer).deploy(osToken.address)
@@ -251,10 +266,11 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const addresses = {
     VaultsRegistry: vaultsRegistry.address,
     Keeper: keeper.address,
-    ethVaultFactory: factories[0],
-    ethPrivVaultFactory: factories[1],
-    ethErc20VaultFactory: factories[2],
-    ethPrivErc20VaultFactory: factories[3],
+    GenesisEthVault: ethGenesisVault.address,
+    EthVaultFactory: factories[0],
+    EthPrivVaultFactory: factories[1],
+    EthErc20VaultFactory: factories[2],
+    EthPrivErc20VaultFactory: factories[3],
     SharedMevEscrow: sharedMevEscrow.address,
     OsToken: osToken.address,
     OsTokenConfig: osTokenConfig.address,
