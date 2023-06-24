@@ -33,6 +33,32 @@ the `contracts/interfaces` directory.
    npm run quick-test
    ```
 
+## Deploy locally
+
+1. Install dependencies:
+
+   ```shell script
+   npm install
+   ```
+
+2. Compile contracts:
+
+   ```shell script
+   npm run compile
+   ```
+
+3. Start local hardhat node in a separate terminal:
+
+   ```shell script
+   npm run node
+   ```
+
+4. Deploy contracts:
+
+   ```shell script
+   npm run full-deploy:local
+   ```
+
 ## Contributing
 
 Development of the project happens in the open on GitHub, and we are grateful to the community for contributing bug

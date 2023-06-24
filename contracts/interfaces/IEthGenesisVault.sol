@@ -25,4 +25,9 @@ interface IEthGenesisVault is IEthVault {
    * @return shares The amount of shares minted
    */
   function migrate(address receiver, uint256 assets) external returns (uint256 shares);
+
+  /**
+   * @notice Function for accepting PoolEscrow contract ownership. Can only be called once by the admin.
+   */
+  function acceptPoolEscrowOwnership() external;
 }

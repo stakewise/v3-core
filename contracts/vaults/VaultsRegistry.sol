@@ -23,11 +23,8 @@ contract VaultsRegistry is Ownable2Step, IVaultsRegistry {
 
   /**
    * @dev Constructor
-   * @param _owner The address of the registry owner
    */
-  constructor(address _owner) {
-    _transferOwnership(_owner);
-  }
+  constructor() Ownable2Step() {}
 
   /// @inheritdoc IVaultsRegistry
   function addVault(address vault) external override {

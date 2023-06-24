@@ -12,10 +12,12 @@ export type NetworkConfig = {
 
   governor: string
   validatorsRegistry: string
+  securityDeposit: BigNumberish
 
   // Keeper
   oracles: string[]
-  requiredOracles: number
+  rewardsMinOracles: number
+  validatorsMinOracles: number
   rewardsDelay: number
   oraclesConfigIpfsHash: string
   maxAvgRewardPerSecond: BigNumberish
@@ -33,4 +35,13 @@ export type NetworkConfig = {
   liqThresholdPercent: number
   liqBonusPercent: number
   ltvPercent: number
+
+  // GenesisEthVault
+  genesisVault: {
+    admin: string
+    poolEscrow: string
+    stakedEthToken: string
+    capacity: BigNumberish
+    feePercent: number
+  }
 }

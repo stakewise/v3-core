@@ -17,6 +17,6 @@ Object {
 exports[`EthVault - state updates exit queue 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 143497,
+  "gasUsed": 143485,
 }
 `;
