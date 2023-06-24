@@ -4,20 +4,22 @@ pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
-import {IEthPrivateVault} from '../../interfaces/IEthPrivateVault.sol';
+import {IEthPrivVault} from '../../interfaces/IEthPrivVault.sol';
+import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
 import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
-import {IVersioned} from '../../interfaces/IVersioned.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
 import {VaultWhitelist} from '../modules/VaultWhitelist.sol';
+import {VaultVersion} from '../modules/VaultVersion.sol';
 import {EthVault} from './EthVault.sol';
 
 /**
- * @title EthPrivateVault
+ * @title EthPrivVault
  * @author StakeWise
  * @notice Defines the Ethereum staking Vault with whitelist
  */
-contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivateVault {
+contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault {
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -45,36 +47,49 @@ contract EthPrivateVault is Initializable, EthVault, VaultWhitelist, IEthPrivate
   function initialize(
     bytes calldata params
   ) external payable virtual override(IEthVault, EthVault) initializer {
-    EthVaultInitParams memory initParams = abi.decode(params, (EthVaultInitParams));
-    __EthVault_init(initParams);
+    address admin = IEthVaultFactory(msg.sender).vaultAdmin();
+    __EthVault_init(
+      admin,
+      IEthVaultFactory(msg.sender).ownMevEscrow(),
+      abi.decode(params, (EthVaultInitParams))
+    );
     // whitelister is initially set to admin address
-    __VaultWhitelist_init(initParams.admin);
-  }
-
-  /// @inheritdoc IVaultVersion
-  function vaultId() public pure virtual override(EthVault, IVaultVersion) returns (bytes32) {
-    return keccak256('EthPrivateVault');
-  }
-
-  /// @inheritdoc IVersioned
-  function version() public pure virtual override(EthVault, IVersioned) returns (uint8) {
-    return 1;
+    __VaultWhitelist_init(admin);
   }
 
   /// @inheritdoc IVaultEthStaking
   function deposit(
     address receiver,
     address referrer
-  ) public payable override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
-    if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver])) revert AccessDenied();
+  ) public payable virtual override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
+    if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver])) {
+      revert Errors.AccessDenied();
+    }
     return super.deposit(receiver, referrer);
   }
 
   /**
    * @dev Function for depositing using fallback function
    */
-  receive() external payable override {
-    if (!whitelistedAccounts[msg.sender]) revert AccessDenied();
+  receive() external payable virtual override {
+    if (!whitelistedAccounts[msg.sender]) revert Errors.AccessDenied();
     _deposit(msg.sender, msg.value, address(0));
   }
+
+  /// @inheritdoc IVaultVersion
+  function vaultId() public pure virtual override(IVaultVersion, EthVault) returns (bytes32) {
+    return keccak256('EthPrivVault');
+  }
+
+  /// @inheritdoc IVaultVersion
+  function version() public pure virtual override(IVaultVersion, EthVault) returns (uint8) {
+    return 1;
+  }
+
+  /**
+   * @dev This empty reserved space is put in place to allow future versions to add new
+   * variables without shifting down storage in the inheritance chain.
+   * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
+   */
+  uint256[50] private __gap;
 }

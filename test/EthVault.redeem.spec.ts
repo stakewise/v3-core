@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthVault, Keeper, Oracles, OsToken, IKeeperRewards } from '../typechain-types'
+import { EthVault, Keeper, OsToken, IKeeperRewards } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -21,20 +21,13 @@ describe('EthVault - redeem osToken', () => {
   const vaultParams = {
     capacity: parseEther('1000'),
     feePercent: 1000,
-    name: 'SW ETH Vault',
-    symbol: 'SW-ETH-1',
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
   let owner: Wallet, admin: Wallet, dao: Wallet, redeemer: Wallet, receiver: Wallet
-  let vault: EthVault,
-    keeper: Keeper,
-    oracles: Oracles,
-    osToken: OsToken,
-    validatorsRegistry: Contract
+  let vault: EthVault, keeper: Keeper, osToken: OsToken, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
-  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
   before('create fixture loader', async () => {
     ;[owner, redeemer, dao, admin, receiver] = await (ethers as any).getSigners()
@@ -42,21 +35,23 @@ describe('EthVault - redeem osToken', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createVault, getSignatures, keeper, oracles, validatorsRegistry, osToken } =
-      await loadFixture(ethVaultFixture))
+    ;({
+      createEthVault: createVault,
+      keeper,
+      validatorsRegistry,
+      osToken,
+    } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
     await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
     await osToken.connect(dao).setFeePercent(0)
 
     // collateralize vault
-    await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     await vault.connect(owner).deposit(owner.address, ZERO_ADDRESS, { value: shares })
 
     // penalty received
     const tree = await updateRewards(
       keeper,
-      oracles,
-      getSignatures,
       [{ vault: vault.address, reward: penalty, unlockedMevReward }],
       0
     )
@@ -82,10 +77,10 @@ describe('EthVault - redeem osToken', () => {
   })
 
   it('cannot redeem osTokens from not harvested vault', async () => {
-    await updateRewards(keeper, oracles, getSignatures, [
+    await updateRewards(keeper, [
       { vault: vault.address, reward: parseEther('1'), unlockedMevReward: parseEther('0') },
     ])
-    await updateRewards(keeper, oracles, getSignatures, [
+    await updateRewards(keeper, [
       { vault: vault.address, reward: parseEther('1.2'), unlockedMevReward: parseEther('0') },
     ])
     await expect(
@@ -168,9 +163,6 @@ describe('EthVault - redeem osToken', () => {
       .to.emit(osToken, 'Transfer')
       .withArgs(redeemer.address, ZERO_ADDRESS, redeemedShares)
     await expect(receipt)
-      .to.emit(vault, 'Transfer')
-      .withArgs(owner.address, ZERO_ADDRESS, burnedShares)
-    await expect(receipt)
       .to.emit(osToken, 'Burn')
       .withArgs(vault.address, redeemer.address, redeemedShares, redeemedAssets)
 
@@ -179,7 +171,7 @@ describe('EthVault - redeem osToken', () => {
 
   it('can redeem', async () => {
     const penalty = parseEther('-0.530001')
-    const tree = await updateRewards(keeper, oracles, getSignatures, [
+    const tree = await updateRewards(keeper, [
       { vault: vault.address, reward: penalty, unlockedMevReward },
     ])
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
@@ -202,7 +194,6 @@ describe('EthVault - redeem osToken', () => {
 
     await expect(receipt).to.emit(vault, 'OsTokenRedeemed')
     await expect(receipt).to.emit(osToken, 'Transfer')
-    await expect(receipt).to.emit(vault, 'Transfer')
     await expect(receipt).to.emit(osToken, 'Burn')
 
     await snapshotGasCost(receipt)

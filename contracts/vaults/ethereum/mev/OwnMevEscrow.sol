@@ -4,6 +4,7 @@ pragma solidity =0.8.20;
 
 import {IOwnMevEscrow} from '../../../interfaces/IOwnMevEscrow.sol';
 import {IVaultEthStaking} from '../../../interfaces/IVaultEthStaking.sol';
+import {Errors} from '../../../libraries/Errors.sol';
 
 /**
  * @title OwnMevEscrow
@@ -20,7 +21,7 @@ contract OwnMevEscrow is IOwnMevEscrow {
 
   /// @inheritdoc IOwnMevEscrow
   function harvest() external returns (uint256 assets) {
-    if (msg.sender != vault) revert HarvestFailed();
+    if (msg.sender != vault) revert Errors.HarvestFailed();
 
     assets = address(this).balance;
     if (assets == 0) return 0;

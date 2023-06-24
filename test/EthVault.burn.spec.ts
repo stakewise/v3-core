@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthVault, Keeper, Oracles, OsToken, UnknownVaultMock } from '../typechain-types'
+import { EthVault, Keeper, OsToken, UnknownVaultMock } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -19,20 +19,13 @@ describe('EthVault - burn', () => {
   const vaultParams = {
     capacity: parseEther('1000'),
     feePercent: 1000,
-    name: 'SW ETH Vault',
-    symbol: 'SW-ETH-1',
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
   let sender: Wallet, admin: Wallet, owner: Wallet
-  let vault: EthVault,
-    keeper: Keeper,
-    oracles: Oracles,
-    osToken: OsToken,
-    validatorsRegistry: Contract
+  let vault: EthVault, keeper: Keeper, osToken: OsToken, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
-  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
   before('create fixture loader', async () => {
     ;[sender, owner, admin] = await (ethers as any).getSigners()
@@ -40,13 +33,17 @@ describe('EthVault - burn', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ createVault, getSignatures, keeper, oracles, validatorsRegistry, osToken } =
-      await loadFixture(ethVaultFixture))
+    ;({
+      createEthVault: createVault,
+      keeper,
+      validatorsRegistry,
+      osToken,
+    } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
     await osToken.connect(owner).setVaultImplementation(await vault.implementation(), true)
 
     // collateralize vault
-    await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: assets })
     await vault.connect(sender).mintOsToken(sender.address, osTokenAssets, ZERO_ADDRESS)
   })
@@ -111,6 +108,8 @@ describe('EthVault - burn', () => {
   it('burns osTokens', async () => {
     const tx = await vault.connect(sender).burnOsToken(osTokenShares)
     const receipt = await tx.wait()
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
     const osTokenAssets = receipt?.events?.find((e: any) => e.event === 'OsTokenBurned')?.args[1]
 
     expect(await osToken.balanceOf(sender.address)).to.eq(0)

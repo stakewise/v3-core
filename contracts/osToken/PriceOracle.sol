@@ -27,11 +27,8 @@ contract PriceOracle is IChainlinkAggregator {
    */
   function latestAnswer() external view override returns (int256) {
     uint256 value = IOsToken(osToken).convertToAssets(10 ** decimals());
-
-    // check for overflow
-    if (value > uint256(type(int256).max)) return 0;
-
-    return int256(value);
+    // cannot realistically overflow, but better to check
+    return (value > uint256(type(int256).max)) ? type(int256).max : int256(value);
   }
 
   /**

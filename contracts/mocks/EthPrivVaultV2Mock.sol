@@ -2,9 +2,9 @@
 
 pragma solidity =0.8.20;
 
-import {EthPrivateVault} from '../vaults/ethereum/EthPrivateVault.sol';
+import {EthPrivVault} from '../vaults/ethereum/EthPrivVault.sol';
 
-contract EthPrivateVaultV2Mock is EthPrivateVault {
+contract EthPrivVaultV2Mock is EthPrivVault {
   uint128 public newVar;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -16,7 +16,7 @@ contract EthPrivateVaultV2Mock is EthPrivateVault {
     address osTokenConfig,
     address sharedMevEscrow
   )
-    EthPrivateVault(
+    EthPrivVault(
       _keeper,
       _vaultsRegistry,
       _validatorsRegistry,

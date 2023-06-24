@@ -4,10 +4,7 @@ pragma solidity =0.8.20;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
-
-/// Custom errors
-error InvalidCheckpointIndex();
-error InvalidCheckpointValue();
+import {Errors} from './Errors.sol';
 
 /**
  * @title ExitQueue
@@ -104,7 +101,7 @@ library ExitQueue {
     uint256 checkpointAssets = checkpoint.exitedAssets;
     // check whether position ticket is in [prevTotalTickets, currTotalTickets) range
     if (positionTicket < prevTotalTickets || currTotalTickets <= positionTicket) {
-      revert InvalidCheckpointIndex();
+      revert Errors.InvalidCheckpointIndex();
     }
 
     // calculate amount of available shares that will be updated while iterating over checkpoints
@@ -156,7 +153,7 @@ library ExitQueue {
    * @param assets The number of assets that were exited for this checkpoint
    */
   function push(History storage self, uint256 shares, uint256 assets) internal {
-    if (shares == 0 || assets == 0) revert InvalidCheckpointValue();
+    if (shares == 0 || assets == 0) revert Errors.InvalidCheckpointValue();
     Checkpoint memory checkpoint = Checkpoint({
       totalTickets: SafeCast.toUint160(getLatestTotalTickets(self) + shares),
       exitedAssets: SafeCast.toUint96(assets)

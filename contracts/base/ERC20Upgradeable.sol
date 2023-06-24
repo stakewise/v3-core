@@ -5,6 +5,7 @@ pragma solidity =0.8.20;
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
+import {Errors} from '../libraries/Errors.sol';
 
 /**
  * @title ERC20 Upgradeable
@@ -23,9 +24,6 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
 
   /// @inheritdoc IERC20
   uint8 public constant override decimals = 18;
-
-  /// @inheritdoc IERC20
-  mapping(address => uint256) public override balanceOf;
 
   /// @inheritdoc IERC20
   mapping(address => mapping(address => uint256)) public override allowance;
@@ -52,7 +50,7 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
 
   /// @inheritdoc IERC20
   function approve(address spender, uint256 amount) public override returns (bool) {
-    if (spender == address(0)) revert ZeroAddress();
+    if (spender == address(0)) revert Errors.ZeroAddress();
     allowance[msg.sender][spender] = amount;
 
     emit Approval(msg.sender, spender, amount);
@@ -87,7 +85,10 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
     address to,
     uint256 amount
   ) public virtual override returns (bool) {
-    _spendAllowance(from, msg.sender, amount);
+    // Saves gas for limited approvals
+    uint256 allowed = allowance[from][msg.sender];
+    if (allowed != type(uint256).max) allowance[from][msg.sender] = allowed - amount;
+
     _transfer(from, to, amount);
 
     return true;
@@ -103,8 +104,8 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
     bytes32 r,
     bytes32 s
   ) public override {
-    if (spender == address(0)) revert ZeroAddress();
-    if (deadline < block.timestamp) revert PermitDeadlineExpired();
+    if (spender == address(0)) revert Errors.ZeroAddress();
+    if (deadline < block.timestamp) revert Errors.PermitDeadlineExpired();
 
     // Unchecked because the only math done is incrementing
     // the owner's nonce which cannot realistically overflow
@@ -122,7 +123,8 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
         s
       );
 
-      if (recoveredAddress == address(0) || recoveredAddress != owner) revert PermitInvalidSigner();
+      if (recoveredAddress == address(0) || recoveredAddress != owner)
+        revert Errors.PermitInvalidSigner();
 
       allowance[recoveredAddress][spender] = value;
     }
@@ -158,30 +160,7 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
    * @dev Moves `amount` of tokens from `from` to `to`.
    * Emits a {Transfer} event.
    */
-  function _transfer(address from, address to, uint256 amount) internal {
-    if (from == address(0) || to == address(0)) revert ZeroAddress();
-    balanceOf[from] -= amount;
-
-    // Cannot overflow because the sum of all user
-    // balances can't exceed the max uint256 value
-    unchecked {
-      balanceOf[to] += amount;
-    }
-
-    emit Transfer(from, to, amount);
-  }
-
-  /**
-   * @dev Updates `owner`s allowance for `spender` based on spent `amount`.
-   * Does not update the allowance amount in case of infinite allowance.
-   * Revert if not enough allowance is available.
-   */
-  function _spendAllowance(address owner, address spender, uint256 amount) internal {
-    // Saves gas for limited approvals
-    uint256 allowed = allowance[owner][spender];
-
-    if (allowed != type(uint256).max) allowance[owner][spender] = allowed - amount;
-  }
+  function _transfer(address from, address to, uint256 amount) internal virtual;
 
   /**
    * @dev Initializes the ERC20Upgradeable contract

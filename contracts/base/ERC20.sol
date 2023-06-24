@@ -4,6 +4,7 @@ pragma solidity =0.8.20;
 
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
+import {Errors} from '../libraries/Errors.sol';
 
 /**
  * @title ERC20
@@ -51,7 +52,7 @@ abstract contract ERC20 is IERC20Permit {
 
   /// @inheritdoc IERC20
   function approve(address spender, uint256 amount) public override returns (bool) {
-    if (spender == address(0)) revert ZeroAddress();
+    if (spender == address(0)) revert Errors.ZeroAddress();
     allowance[msg.sender][spender] = amount;
 
     emit Approval(msg.sender, spender, amount);
@@ -98,8 +99,8 @@ abstract contract ERC20 is IERC20Permit {
     bytes32 r,
     bytes32 s
   ) public override {
-    if (spender == address(0)) revert ZeroAddress();
-    if (deadline < block.timestamp) revert PermitDeadlineExpired();
+    if (spender == address(0)) revert Errors.ZeroAddress();
+    if (deadline < block.timestamp) revert Errors.PermitDeadlineExpired();
 
     // Unchecked because the only math done is incrementing
     // the owner's nonce which cannot realistically overflow
@@ -117,7 +118,8 @@ abstract contract ERC20 is IERC20Permit {
         s
       );
 
-      if (recoveredAddress == address(0) || recoveredAddress != owner) revert PermitInvalidSigner();
+      if (recoveredAddress == address(0) || recoveredAddress != owner)
+        revert Errors.PermitInvalidSigner();
 
       allowance[recoveredAddress][spender] = value;
     }
@@ -154,7 +156,7 @@ abstract contract ERC20 is IERC20Permit {
    * Emits a {Transfer} event.
    */
   function _transfer(address from, address to, uint256 amount) private {
-    if (from == address(0) || to == address(0)) revert ZeroAddress();
+    if (from == address(0) || to == address(0)) revert Errors.ZeroAddress();
     balanceOf[from] -= amount;
 
     // Cannot overflow because the sum of all user

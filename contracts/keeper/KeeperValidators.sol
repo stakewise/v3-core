@@ -4,6 +4,8 @@ pragma solidity =0.8.20;
 
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IKeeperValidators} from '../interfaces/IKeeperValidators.sol';
+import {Errors} from '../libraries/Errors.sol';
+import {KeeperOracles} from './KeeperOracles.sol';
 import {KeeperRewards} from './KeeperRewards.sol';
 
 /**
@@ -11,7 +13,7 @@ import {KeeperRewards} from './KeeperRewards.sol';
  * @author StakeWise
  * @notice Defines the functionality for approving validators' registrations and updating exit signatures
  */
-abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
+abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValidators {
   bytes32 private constant _registerValidatorsTypeHash =
     keccak256(
       'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes32 validators,bytes32 exitSignaturesIpfsHash)'
@@ -25,6 +27,9 @@ abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
   /// @inheritdoc IKeeperValidators
   mapping(address => uint256) public override exitSignaturesNonces;
 
+  /// @inheritdoc IKeeperValidators
+  uint256 public override validatorsMinOracles;
+
   /**
    * @dev Constructor
    * @param validatorsRegistry The address of the beacon chain validators registry contract
@@ -34,15 +39,21 @@ abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
   }
 
   /// @inheritdoc IKeeperValidators
+  function setValidatorsMinOracles(uint256 _validatorsMinOracles) public override onlyOwner {
+    _setValidatorsMinOracles(_validatorsMinOracles);
+  }
+
+  /// @inheritdoc IKeeperValidators
   function approveValidators(ApprovalParams calldata params) external override {
     // verify oracles approved registration for the current validators registry contract state
     if (_validatorsRegistry.get_deposit_root() != params.validatorsRegistryRoot) {
-      revert InvalidValidatorsRegistryRoot();
+      revert Errors.InvalidValidatorsRegistryRoot();
     }
-    if (!_vaultsRegistry.vaults(msg.sender)) revert AccessDenied();
+    if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.AccessDenied();
 
-    // verify all oracles approved registration
-    _oracles.verifyAllSignatures(
+    // verify oracles approved registration
+    _verifySignatures(
+      validatorsMinOracles,
       keccak256(
         abi.encode(
           _registerValidatorsTypeHash,
@@ -71,13 +82,14 @@ abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
     string calldata exitSignaturesIpfsHash,
     bytes calldata oraclesSignatures
   ) external override {
-    if (!(_vaultsRegistry.vaults(vault) && isCollateralized(vault))) revert InvalidVault();
+    if (!(_vaultsRegistry.vaults(vault) && isCollateralized(vault))) revert Errors.InvalidVault();
 
     // SLOAD to memory
     uint256 nonce = exitSignaturesNonces[vault];
 
-    // verify all oracles approved update
-    _oracles.verifyAllSignatures(
+    // verify oracles approved signatures update
+    _verifySignatures(
+      validatorsMinOracles,
       keccak256(
         abi.encode(_updateExitSigTypeHash, vault, keccak256(bytes(exitSignaturesIpfsHash)), nonce)
       ),
@@ -89,5 +101,17 @@ abstract contract KeeperValidators is KeeperRewards, IKeeperValidators {
 
     // emit event
     emit ExitSignaturesUpdated(msg.sender, vault, nonce, exitSignaturesIpfsHash);
+  }
+
+  /**
+   * @dev Internal function to set the minimum number of oracles required to approve validators
+   * @param _validatorsMinOracles The new minimum number of oracles required to approve validators
+   */
+  function _setValidatorsMinOracles(uint256 _validatorsMinOracles) private {
+    if (_validatorsMinOracles == 0 || totalOracles < _validatorsMinOracles) {
+      revert Errors.InvalidOracles();
+    }
+    validatorsMinOracles = _validatorsMinOracles;
+    emit ValidatorsMinOraclesUpdated(_validatorsMinOracles);
   }
 }

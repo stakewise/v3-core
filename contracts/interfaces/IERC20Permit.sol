@@ -10,11 +10,6 @@ import {IERC20} from './IERC20.sol';
  * @notice Defines the interface for the ERC20Permit
  */
 interface IERC20Permit is IERC20 {
-  /// Custom errors
-  error PermitDeadlineExpired();
-  error PermitInvalidSigner();
-  error ZeroAddress();
-
   /**
    * @notice Get the domain separator for the token
    * @return The domain separator of the token at the current chain. Returns cached value if chainId matches cache,

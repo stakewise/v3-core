@@ -12,11 +12,6 @@ import {IVaultState} from './IVaultState.sol';
  * @notice Defines the interface for VaultValidators contract
  */
 interface IVaultValidators is IVaultAdmin, IVaultState {
-  // Custom errors
-  error InvalidValidator();
-  error InvalidValidators();
-  error InvalidProof();
-
   /**
    * @notice Event emitted on validator registration
    * @param publicKey The public key of the validator that was registered

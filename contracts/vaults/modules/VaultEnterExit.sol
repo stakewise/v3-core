@@ -2,13 +2,14 @@
 
 pragma solidity =0.8.20;
 
+import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
 import {ExitQueue} from '../../libraries/ExitQueue.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
-import {VaultToken} from './VaultToken.sol';
 import {VaultState} from './VaultState.sol';
 
 /**
@@ -16,7 +17,7 @@ import {VaultState} from './VaultState.sol';
  * @author StakeWise
  * @notice Defines the functionality for entering and exiting the Vault
  */
-abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVaultEnterExit {
+abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, IVaultEnterExit {
   using ExitQueue for ExitQueue.History;
 
   /// @inheritdoc IVaultEnterExit
@@ -28,40 +29,38 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
   /// @inheritdoc IVaultEnterExit
   function redeem(
     uint256 shares,
-    address receiver,
-    address owner
+    address receiver
   ) public virtual override returns (uint256 assets) {
     _checkHarvested();
-    if (shares == 0) revert InvalidShares();
-    if (receiver == address(0)) revert ZeroAddress();
+    if (shares == 0) revert Errors.InvalidShares();
+    if (receiver == address(0)) revert Errors.ZeroAddress();
 
     // calculate amount of assets to burn
     assets = convertToAssets(shares);
 
     // reverts in case there are not enough withdrawable assets
-    if (assets > withdrawableAssets()) revert InsufficientAssets();
+    if (assets > withdrawableAssets()) revert Errors.InsufficientAssets();
 
-    // reduce allowance
-    if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
+    // update total assets
+    _totalAssets -= SafeCast.toUint128(assets);
 
     // burn owner shares
-    _burnShares(owner, shares, assets);
+    _burnShares(msg.sender, shares);
 
     // transfer assets to the receiver
     _transferVaultAssets(receiver, assets);
 
-    emit Redeem(msg.sender, receiver, owner, assets, shares);
+    emit Redeemed(msg.sender, receiver, assets, shares);
   }
 
   /// @inheritdoc IVaultEnterExit
   function enterExitQueue(
     uint256 shares,
-    address receiver,
-    address owner
+    address receiver
   ) public virtual override returns (uint256 positionTicket) {
     _checkCollateralized();
-    if (shares == 0) revert InvalidSharesAmount();
-    if (receiver == address(0)) revert ZeroAddress();
+    if (shares == 0) revert Errors.InvalidShares();
+    if (receiver == address(0)) revert Errors.ZeroAddress();
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
@@ -72,18 +71,15 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     // add to the exit requests
     _exitRequests[keccak256(abi.encode(receiver, positionTicket))] = shares;
 
-    // lock tokens in the Vault
-    if (msg.sender != owner) _spendAllowance(owner, msg.sender, shares);
     // reverts if owner does not have enough shares
-    balanceOf[owner] -= shares;
+    _balances[msg.sender] -= shares;
 
     unchecked {
       // cannot overflow as it is capped with _totalShares
       queuedShares = SafeCast.toUint96(_queuedShares + shares);
     }
 
-    emit Transfer(owner, address(this), shares);
-    emit ExitQueueEntered(msg.sender, receiver, owner, positionTicket, shares);
+    emit ExitQueueEntered(msg.sender, receiver, positionTicket, shares);
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -142,34 +138,37 @@ abstract contract VaultEnterExit is VaultImmutables, VaultToken, VaultState, IVa
     address to,
     uint256 assets,
     address referrer
-  ) internal returns (uint256 shares) {
+  ) internal virtual returns (uint256 shares) {
     _checkHarvested();
-    if (to == address(0)) revert ZeroAddress();
-    if (assets == 0) revert InvalidAssets();
+    if (to == address(0)) revert Errors.ZeroAddress();
+    if (assets == 0) revert Errors.InvalidAssets();
 
     uint256 totalAssetsAfter;
     unchecked {
       // cannot overflow as it is capped with underlying asset total supply
       totalAssetsAfter = _totalAssets + assets;
     }
-    if (totalAssetsAfter > capacity()) revert CapacityExceeded();
+    if (totalAssetsAfter > capacity()) revert Errors.CapacityExceeded();
 
     // calculate amount of shares to mint
-    shares = convertToShares(assets);
+    shares = _convertToShares(assets, Math.Rounding.Up);
 
-    // update counters
-    _totalShares += SafeCast.toUint128(shares);
+    // update state
     _totalAssets = SafeCast.toUint128(totalAssetsAfter);
+    _mintShares(to, shares);
 
-    unchecked {
-      // cannot overflow because the sum of all user
-      // balances can't exceed the max uint256 value
-      balanceOf[to] += shares;
-    }
-
-    emit Transfer(address(0), to, shares);
-    emit Deposit(msg.sender, to, assets, shares, referrer);
+    emit Deposited(msg.sender, to, assets, shares, referrer);
   }
+
+  /**
+   * @dev Internal function for transferring assets from the Vault to the receiver
+   * @dev IMPORTANT: because control is transferred to the receiver, care must be
+   *    taken to not create reentrancy vulnerabilities. The Vault must follow the checks-effects-interactions pattern:
+   *    https://docs.soliditylang.org/en/v0.8.20/security-considerations.html#use-the-checks-effects-interactions-pattern
+   * @param receiver The address that will receive the assets
+   * @param assets The number of assets to transfer
+   */
+  function _transferVaultAssets(address receiver, uint256 assets) internal virtual;
 
   /**
    * @dev This empty reserved space is put in place to allow future versions to add new

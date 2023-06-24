@@ -1,21 +1,15 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import {
-  EthVault,
-  IKeeperRewards,
-  Keeper,
-  Oracles,
-  SharedMevEscrow,
-  OsToken,
-} from '../typechain-types'
+import { EthVault, IKeeperRewards, Keeper, SharedMevEscrow, OsToken } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
-import { ethVaultFixture } from './shared/fixtures'
+import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
 import {
   MAX_AVG_REWARD_PER_SECOND,
   ORACLES,
   REWARDS_DELAY,
+  REWARDS_MIN_ORACLES,
   ZERO_ADDRESS,
   ZERO_BYTES32,
 } from './shared/constants'
@@ -23,42 +17,37 @@ import snapshotGasCost from './shared/snapshotGasCost'
 import { getKeeperRewardsUpdateData, getRewardsRootProof, VaultReward } from './shared/rewards'
 import { increaseTime, setBalance } from './shared/utils'
 import { registerEthValidator } from './shared/validators'
+import EthereumWallet from 'ethereumjs-wallet'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
 describe('KeeperRewards', () => {
   const capacity = parseEther('1000')
   const feePercent = 1000
-  const name = 'SW ETH Vault'
-  const symbol = 'SW-ETH-1'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
-  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
-  let sender: Wallet, owner: Wallet, admin: Wallet, oracle: Wallet
+  let owner: Wallet, admin: Wallet, oracle: Wallet, other: Wallet
   let keeper: Keeper,
-    oracles: Oracles,
     validatorsRegistry: Contract,
     sharedMevEscrow: SharedMevEscrow,
     osToken: OsToken
 
   before('create fixture loader', async () => {
-    ;[sender, admin, owner] = await (ethers as any).getSigners()
+    ;[admin, owner, other] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([owner])
     oracle = new Wallet(ORACLES[0], await waffle.provider)
   })
 
   beforeEach(async () => {
     ;({
-      oracles,
       keeper,
-      createVault,
+      createEthVault: createVault,
       validatorsRegistry,
       sharedMevEscrow,
       osToken,
-      getSignatures,
     } = await loadFixture(ethVaultFixture))
     await setBalance(oracle.address, parseEther('10000'))
   })
@@ -72,8 +61,6 @@ describe('KeeperRewards', () => {
       vault = await createVault(admin, {
         capacity,
         feePercent,
-        name,
-        symbol,
         metadataIpfsHash,
       })
       vaultReward = {
@@ -81,13 +68,13 @@ describe('KeeperRewards', () => {
         unlockedMevReward: parseEther('1'),
         vault: vault.address,
       }
-      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], oracles)
+      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], keeper)
       rewardsUpdateParams = {
         rewardsRoot: rewardsUpdate.root,
         updateTimestamp: rewardsUpdate.updateTimestamp,
         rewardsIpfsHash: rewardsUpdate.ipfsHash,
         avgRewardPerSecond: rewardsUpdate.avgRewardPerSecond,
-        signatures: getSignatures(rewardsUpdate.signingData),
+        signatures: getOraclesSignatures(rewardsUpdate.signingData),
       }
     })
 
@@ -116,7 +103,7 @@ describe('KeeperRewards', () => {
       await expect(
         keeper.connect(oracle).updateRewards({
           ...rewardsUpdateParams,
-          avgRewardPerSecond: MAX_AVG_REWARD_PER_SECOND.add(1),
+          avgRewardPerSecond: MAX_AVG_REWARD_PER_SECOND + 1,
         })
       ).to.be.revertedWith('InvalidAvgRewardPerSecond')
     })
@@ -129,7 +116,7 @@ describe('KeeperRewards', () => {
         unlockedMevReward: parseEther('2'),
         vault: vault.address,
       }
-      const newRewardsUpdate = getKeeperRewardsUpdateData([newVaultReward], oracles)
+      const newRewardsUpdate = getKeeperRewardsUpdateData([newVaultReward], keeper)
       await increaseTime(REWARDS_DELAY)
       await expect(
         keeper.connect(oracle).updateRewards({
@@ -137,7 +124,7 @@ describe('KeeperRewards', () => {
           rewardsIpfsHash: newRewardsUpdate.ipfsHash,
           updateTimestamp: newRewardsUpdate.updateTimestamp,
           avgRewardPerSecond: newRewardsUpdate.avgRewardPerSecond,
-          signatures: getSignatures(newRewardsUpdate.signingData),
+          signatures: getOraclesSignatures(newRewardsUpdate.signingData),
         })
       ).to.be.revertedWith('InvalidOracle')
     })
@@ -149,7 +136,7 @@ describe('KeeperRewards', () => {
         unlockedMevReward: parseEther('1'),
         vault: vault.address,
       }
-      const newRewardsUpdate = getKeeperRewardsUpdateData([newVaultReward], oracles, {
+      const newRewardsUpdate = getKeeperRewardsUpdateData([newVaultReward], keeper, {
         nonce: 2,
         updateTimestamp: '1680255895',
       })
@@ -160,9 +147,55 @@ describe('KeeperRewards', () => {
           rewardsIpfsHash: newRewardsUpdate.ipfsHash,
           updateTimestamp: newRewardsUpdate.updateTimestamp,
           avgRewardPerSecond: newRewardsUpdate.avgRewardPerSecond,
-          signatures: getSignatures(newRewardsUpdate.signingData),
+          signatures: getOraclesSignatures(newRewardsUpdate.signingData),
         })
       ).to.be.revertedWith('TooEarlyUpdate')
+    })
+
+    it('fails with invalid number of oracle signatures', async () => {
+      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], keeper)
+      const params = {
+        ...rewardsUpdateParams,
+        signatures: getOraclesSignatures(rewardsUpdate.signingData, REWARDS_MIN_ORACLES - 1),
+      }
+      await expect(keeper.connect(oracle).updateRewards(params)).to.be.revertedWith(
+        'NotEnoughSignatures'
+      )
+    })
+
+    it('fails with repeated signature', async () => {
+      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], keeper)
+      const params = {
+        ...rewardsUpdateParams,
+      }
+      params.signatures = Buffer.concat([
+        getOraclesSignatures(rewardsUpdate.signingData, REWARDS_MIN_ORACLES - 1),
+        getOraclesSignatures(rewardsUpdate.signingData, 1),
+      ])
+      await expect(keeper.connect(oracle).updateRewards(params)).to.be.revertedWith('InvalidOracle')
+    })
+
+    it('fails with invalid oracle', async () => {
+      await keeper.connect(owner).removeOracle(new EthereumWallet(ORACLES[0]).getAddressString())
+      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], keeper)
+      const params = {
+        ...rewardsUpdateParams,
+      }
+      params.signatures = Buffer.concat([
+        getOraclesSignatures(rewardsUpdate.signingData, ORACLES.length),
+        getOraclesSignatures(rewardsUpdate.signingData, 1),
+      ])
+      await expect(keeper.connect(oracle).updateRewards(params)).to.be.revertedWith('InvalidOracle')
+    })
+
+    it('succeeds with all signatures', async () => {
+      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], keeper)
+      const params = {
+        ...rewardsUpdateParams,
+        signatures: getOraclesSignatures(rewardsUpdate.signingData, ORACLES.length),
+      }
+      const receipt = await keeper.connect(oracle).updateRewards(params)
+      await snapshotGasCost(receipt)
     })
 
     it('succeeds', async () => {
@@ -196,7 +229,7 @@ describe('KeeperRewards', () => {
         unlockedMevReward: parseEther('2'),
         vault: vault.address,
       }
-      const newRewardsUpdate = getKeeperRewardsUpdateData([newVaultReward], oracles, {
+      const newRewardsUpdate = getKeeperRewardsUpdateData([newVaultReward], keeper, {
         nonce: 2,
         updateTimestamp: '1670256000',
       })
@@ -206,7 +239,7 @@ describe('KeeperRewards', () => {
         rewardsIpfsHash: newRewardsUpdate.ipfsHash,
         updateTimestamp: newRewardsUpdate.updateTimestamp,
         avgRewardPerSecond: newRewardsUpdate.avgRewardPerSecond,
-        signatures: getSignatures(newRewardsUpdate.signingData),
+        signatures: getOraclesSignatures(newRewardsUpdate.signingData),
       })
       await expect(receipt)
         .to.emit(keeper, 'RewardsUpdated')
@@ -232,8 +265,6 @@ describe('KeeperRewards', () => {
       vault = await createVault(admin, {
         capacity,
         feePercent,
-        name,
-        symbol,
         metadataIpfsHash,
       })
     })
@@ -248,7 +279,7 @@ describe('KeeperRewards', () => {
       // collateralize vault
       const validatorDeposit = parseEther('32')
       await vault.connect(admin).deposit(admin.address, ZERO_ADDRESS, { value: validatorDeposit })
-      await registerEthValidator(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+      await registerEthValidator(vault, keeper, validatorsRegistry, admin)
 
       expect(await keeper.isCollateralized(vault.address)).to.equal(true)
       expect(await keeper.canHarvest(vault.address)).to.equal(false)
@@ -260,7 +291,7 @@ describe('KeeperRewards', () => {
         unlockedMevReward: parseEther('0.5'),
         vault: vault.address,
       }
-      let newRewardsUpdate = getKeeperRewardsUpdateData([newVaultReward], oracles, {
+      let newRewardsUpdate = getKeeperRewardsUpdateData([newVaultReward], keeper, {
         updateTimestamp: '1670258895',
       })
       await keeper.connect(oracle).updateRewards({
@@ -269,7 +300,7 @@ describe('KeeperRewards', () => {
         updateTimestamp: newRewardsUpdate.updateTimestamp,
         avgRewardPerSecond: newRewardsUpdate.avgRewardPerSecond,
 
-        signatures: getSignatures(newRewardsUpdate.signingData),
+        signatures: getOraclesSignatures(newRewardsUpdate.signingData),
       })
 
       expect(await keeper.isCollateralized(vault.address)).to.equal(true)
@@ -283,7 +314,7 @@ describe('KeeperRewards', () => {
         unlockedMevReward: parseEther('2'),
         vault: vault.address,
       }
-      newRewardsUpdate = getKeeperRewardsUpdateData([newVaultReward], oracles, {
+      newRewardsUpdate = getKeeperRewardsUpdateData([newVaultReward], keeper, {
         nonce: 2,
         updateTimestamp: newTimestamp.toString(),
       })
@@ -294,7 +325,7 @@ describe('KeeperRewards', () => {
         updateTimestamp: newRewardsUpdate.updateTimestamp,
         avgRewardPerSecond: newRewardsUpdate.avgRewardPerSecond,
 
-        signatures: getSignatures(newRewardsUpdate.signingData),
+        signatures: getOraclesSignatures(newRewardsUpdate.signingData),
       })
 
       expect(await keeper.isCollateralized(vault.address)).to.equal(true)
@@ -313,8 +344,6 @@ describe('KeeperRewards', () => {
         {
           capacity,
           feePercent,
-          name,
-          symbol,
           metadataIpfsHash,
         },
         true
@@ -331,8 +360,6 @@ describe('KeeperRewards', () => {
           {
             capacity,
             feePercent,
-            name,
-            symbol,
             metadataIpfsHash,
           },
           true
@@ -344,13 +371,13 @@ describe('KeeperRewards', () => {
         })
       }
 
-      const rewardsUpdate = getKeeperRewardsUpdateData(vaultRewards, oracles)
+      const rewardsUpdate = getKeeperRewardsUpdateData(vaultRewards, keeper)
       await keeper.connect(oracle).updateRewards({
         rewardsRoot: rewardsUpdate.root,
         updateTimestamp: rewardsUpdate.updateTimestamp,
         rewardsIpfsHash: rewardsUpdate.ipfsHash,
         avgRewardPerSecond: rewardsUpdate.avgRewardPerSecond,
-        signatures: getSignatures(rewardsUpdate.signingData),
+        signatures: getOraclesSignatures(rewardsUpdate.signingData),
       })
       harvestParams = {
         rewardsRoot: rewardsUpdate.root,
@@ -394,7 +421,7 @@ describe('KeeperRewards', () => {
         vault: ownMevVault.address,
         unlockedMevReward: sharedMevEscrowBalance,
       }
-      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], oracles, {
+      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], keeper, {
         nonce: 2,
         updateTimestamp: '1680255895',
       })
@@ -403,7 +430,7 @@ describe('KeeperRewards', () => {
         updateTimestamp: rewardsUpdate.updateTimestamp,
         rewardsIpfsHash: rewardsUpdate.ipfsHash,
         avgRewardPerSecond: rewardsUpdate.avgRewardPerSecond,
-        signatures: getSignatures(rewardsUpdate.signingData),
+        signatures: getOraclesSignatures(rewardsUpdate.signingData),
       })
       const harvestParams = {
         rewardsRoot: rewardsUpdate.root,
@@ -473,7 +500,7 @@ describe('KeeperRewards', () => {
         vault: ownMevVault.address,
         unlockedMevReward: 0,
       }
-      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], oracles, {
+      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], keeper, {
         nonce: 2,
         updateTimestamp: '1680255895',
       })
@@ -482,7 +509,7 @@ describe('KeeperRewards', () => {
         updateTimestamp: rewardsUpdate.updateTimestamp,
         rewardsIpfsHash: rewardsUpdate.ipfsHash,
         avgRewardPerSecond: rewardsUpdate.avgRewardPerSecond,
-        signatures: getSignatures(rewardsUpdate.signingData),
+        signatures: getOraclesSignatures(rewardsUpdate.signingData),
       })
       const currHarvestParams = {
         rewardsRoot: rewardsUpdate.root,
@@ -549,8 +576,6 @@ describe('KeeperRewards', () => {
         {
           capacity,
           feePercent,
-          name,
-          symbol,
           metadataIpfsHash,
         },
         false
@@ -567,8 +592,6 @@ describe('KeeperRewards', () => {
           {
             capacity,
             feePercent,
-            name,
-            symbol,
             metadataIpfsHash,
           },
           true
@@ -581,13 +604,13 @@ describe('KeeperRewards', () => {
         })
       }
 
-      const rewardsUpdate = getKeeperRewardsUpdateData(vaultRewards, oracles)
+      const rewardsUpdate = getKeeperRewardsUpdateData(vaultRewards, keeper)
       await keeper.connect(oracle).updateRewards({
         rewardsRoot: rewardsUpdate.root,
         updateTimestamp: rewardsUpdate.updateTimestamp,
         rewardsIpfsHash: rewardsUpdate.ipfsHash,
         avgRewardPerSecond: rewardsUpdate.avgRewardPerSecond,
-        signatures: getSignatures(rewardsUpdate.signingData),
+        signatures: getOraclesSignatures(rewardsUpdate.signingData),
       })
       harvestParams = {
         rewardsRoot: rewardsUpdate.root,
@@ -679,7 +702,7 @@ describe('KeeperRewards', () => {
         unlockedMevReward: parseEther('4'),
       }
       await setBalance(sharedMevEscrow.address, vaultReward.unlockedMevReward)
-      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], oracles, {
+      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], keeper, {
         nonce: 2,
         updateTimestamp: '1680255895',
       })
@@ -688,7 +711,7 @@ describe('KeeperRewards', () => {
         updateTimestamp: rewardsUpdate.updateTimestamp,
         rewardsIpfsHash: rewardsUpdate.ipfsHash,
         avgRewardPerSecond: rewardsUpdate.avgRewardPerSecond,
-        signatures: getSignatures(rewardsUpdate.signingData),
+        signatures: getOraclesSignatures(rewardsUpdate.signingData),
       })
       const currHarvestParams = {
         rewardsRoot: rewardsUpdate.root,
@@ -759,6 +782,31 @@ describe('KeeperRewards', () => {
       expect(await keeper.isCollateralized(sharedMevVault.address)).to.equal(true)
       expect(await keeper.canHarvest(sharedMevVault.address)).to.equal(false)
       expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('set min rewards oracles', () => {
+    it('fails if not owner', async () => {
+      await expect(keeper.connect(other).setRewardsMinOracles(1)).revertedWith(
+        'Ownable: caller is not the owner'
+      )
+    })
+
+    it('fails with number larger than total oracles', async () => {
+      await expect(keeper.connect(owner).setRewardsMinOracles(ORACLES.length + 1)).revertedWith(
+        'InvalidOracles'
+      )
+    })
+
+    it('fails with zero', async () => {
+      await expect(keeper.connect(owner).setRewardsMinOracles(0)).revertedWith('InvalidOracles')
+    })
+
+    it('succeeds', async () => {
+      const receipt = await keeper.connect(owner).setRewardsMinOracles(1)
+      await expect(receipt).to.emit(keeper, 'RewardsMinOraclesUpdated').withArgs(1)
+      expect(await keeper.rewardsMinOracles()).to.be.eq(1)
       await snapshotGasCost(receipt)
     })
   })

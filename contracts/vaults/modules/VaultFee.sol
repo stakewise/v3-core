@@ -5,6 +5,7 @@ pragma solidity =0.8.20;
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IVaultFee} from '../../interfaces/IVaultFee.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {VaultAdmin} from './VaultAdmin.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
 
@@ -34,7 +35,7 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
    */
   function _setFeeRecipient(address _feeRecipient) private {
     _checkHarvested();
-    if (_feeRecipient == address(0)) revert InvalidFeeRecipient();
+    if (_feeRecipient == address(0)) revert Errors.InvalidFeeRecipient();
 
     // update fee recipient address
     feeRecipient = _feeRecipient;
@@ -47,7 +48,7 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
    * @param _feePercent The fee percent that is charged by the Vault
    */
   function __VaultFee_init(address _feeRecipient, uint16 _feePercent) internal onlyInitializing {
-    if (_feePercent > _maxFeePercent) revert InvalidFeePercent();
+    if (_feePercent > _maxFeePercent) revert Errors.InvalidFeePercent();
 
     _setFeeRecipient(_feeRecipient);
     feePercent = _feePercent;

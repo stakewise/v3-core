@@ -2,6 +2,7 @@
 
 pragma solidity =0.8.20;
 
+import {IKeeperOracles} from './IKeeperOracles.sol';
 import {IKeeperValidators} from './IKeeperValidators.sol';
 import {IKeeperRewards} from './IKeeperRewards.sol';
 
@@ -10,6 +11,6 @@ import {IKeeperRewards} from './IKeeperRewards.sol';
  * @author StakeWise
  * @notice Defines the interface for the Keeper contract
  */
-interface IKeeper is IKeeperRewards, IKeeperValidators {
+interface IKeeper is IKeeperOracles, IKeeperRewards, IKeeperValidators {
 
 }

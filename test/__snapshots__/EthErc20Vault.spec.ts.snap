@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthErc20Vault deposit emits transfer event 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 68875,
+}
+`;
+
+exports[`EthErc20Vault deposit through receive fallback function emits transfer event 1`] = `
+Object {
+  "calldataByteLength": 4,
+  "gasUsed": 76177,
+}
+`;
+
+exports[`EthErc20Vault enter exit queue emits transfer event 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 71946,
+}
+`;
+
+exports[`EthErc20Vault redeem emits transfer event 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 60549,
+}
+`;
+
+exports[`EthErc20Vault update exit queue emits transfer event 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 137779,
+}
+`;

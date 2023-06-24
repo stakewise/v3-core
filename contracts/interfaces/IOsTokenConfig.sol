@@ -8,12 +8,6 @@ pragma solidity =0.8.20;
  * @notice Defines the interface for the OsTokenConfig contract
  */
 interface IOsTokenConfig {
-  // Custom errors
-  error InvalidLtvPercent();
-  error InvalidLiqBonusPercent();
-  error InvalidLiqThresholdPercent();
-  error InvalidRedeemFromLtvPercent();
-
   /**
    * @notice Emitted when OsToken minting and liquidating configuration values are updated
    * @param redeemFromLtvPercent The LTV allowed to redeem from

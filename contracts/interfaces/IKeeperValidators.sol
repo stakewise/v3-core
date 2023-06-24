@@ -2,16 +2,15 @@
 
 pragma solidity =0.8.20;
 
+import {IKeeperRewards} from './IKeeperRewards.sol';
+import {IKeeperOracles} from './IKeeperOracles.sol';
+
 /**
  * @title IKeeperValidators
  * @author StakeWise
  * @notice Defines the interface for the Keeper validators
  */
-interface IKeeperValidators {
-  // Custom errors
-  error InvalidValidatorsRegistryRoot();
-  error InvalidVault();
-
+interface IKeeperValidators is IKeeperOracles, IKeeperRewards {
   /**
    * @notice Event emitted on validators approval
    * @param vault The address of the Vault
@@ -41,6 +40,12 @@ interface IKeeperValidators {
   );
 
   /**
+   * @notice Event emitted on validators min oracles number update
+   * @param oracles The new minimum number of oracles required to approve validators
+   */
+  event ValidatorsMinOraclesUpdated(uint256 oracles);
+
+  /**
    * @notice Get nonce for the next vault exit signatures update
    * @param vault The address of the Vault to get the nonce for
    * @return The nonce of the Vault for updating signatures
@@ -62,6 +67,12 @@ interface IKeeperValidators {
   }
 
   /**
+   * @notice The minimum number of oracles required to update validators
+   * @return The minimum number of oracles
+   */
+  function validatorsMinOracles() external view returns (uint256);
+
+  /**
    * @notice Function for approving validators registration
    * @param params The parameters for approving validators registration
    */
@@ -78,4 +89,10 @@ interface IKeeperValidators {
     string calldata exitSignaturesIpfsHash,
     bytes calldata oraclesSignatures
   ) external;
+
+  /**
+   * @notice Function for updating validators min oracles number
+   * @param _validatorsMinOracles The new minimum number of oracles required to approve validators
+   */
+  function setValidatorsMinOracles(uint256 _validatorsMinOracles) external;
 }

@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { Keeper, EthVault, Oracles } from '../typechain-types'
+import { Keeper, EthVault } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -14,15 +14,12 @@ const createFixtureLoader = waffle.createFixtureLoader
 describe('EthVault - settings', () => {
   const capacity = parseEther('1000')
   const feePercent = 1000
-  const name = 'SW ETH Vault'
-  const symbol = 'SW-ETH-1'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
-  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createVault']
-  let getSignatures: ThenArg<ReturnType<typeof ethVaultFixture>>['getSignatures']
+  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
   let admin: Wallet, owner: Wallet, keysManager: Wallet, other: Wallet, newFeeRecipient: Wallet
-  let keeper: Keeper, oracles: Oracles, validatorsRegistry: Contract
+  let keeper: Keeper, validatorsRegistry: Contract
 
   before('create fixture loader', async () => {
     ;[admin, owner, keysManager, other, newFeeRecipient] = await (ethers as any).getSigners()
@@ -30,9 +27,11 @@ describe('EthVault - settings', () => {
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({ keeper, oracles, getSignatures, validatorsRegistry, createVault } = await loadFixture(
-      ethVaultFixture
-    ))
+    ;({
+      keeper,
+      validatorsRegistry,
+      createEthVault: createVault,
+    } = await loadFixture(ethVaultFixture))
   })
 
   describe('fee percent', () => {
@@ -41,8 +40,6 @@ describe('EthVault - settings', () => {
         createVault(admin, {
           capacity,
           feePercent: 10001,
-          name,
-          symbol,
           metadataIpfsHash,
         })
       ).to.be.revertedWith('InvalidFeePercent')
@@ -57,8 +54,6 @@ describe('EthVault - settings', () => {
       vault = await createVault(admin, {
         capacity,
         feePercent,
-        name,
-        symbol,
         metadataIpfsHash,
       })
       await vault.connect(admin).setKeysManager(keysManager.address)
@@ -86,8 +81,6 @@ describe('EthVault - settings', () => {
       vault = await createVault(admin, {
         capacity,
         feePercent,
-        name,
-        symbol,
         metadataIpfsHash,
       })
     })
@@ -123,11 +116,9 @@ describe('EthVault - settings', () => {
       vault = await createVault(admin, {
         capacity,
         feePercent,
-        name,
-        symbol,
         metadataIpfsHash,
       })
-      await collateralizeEthVault(vault, oracles, keeper, validatorsRegistry, admin, getSignatures)
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     })
 
     it('only admin can update', async () => {
@@ -143,12 +134,8 @@ describe('EthVault - settings', () => {
     })
 
     it('cannot update when not harvested', async () => {
-      await updateRewards(keeper, oracles, getSignatures, [
-        { vault: vault.address, reward: 1, unlockedMevReward: 0 },
-      ])
-      await updateRewards(keeper, oracles, getSignatures, [
-        { vault: vault.address, reward: 2, unlockedMevReward: 0 },
-      ])
+      await updateRewards(keeper, [{ vault: vault.address, reward: 1, unlockedMevReward: 0 }])
+      await updateRewards(keeper, [{ vault: vault.address, reward: 2, unlockedMevReward: 0 }])
       await expect(
         vault.connect(admin).setFeeRecipient(newFeeRecipient.address)
       ).to.be.revertedWith('NotHarvested')
@@ -173,8 +160,6 @@ describe('EthVault - settings', () => {
       vault = await createVault(admin, {
         capacity,
         feePercent,
-        name,
-        symbol,
         metadataIpfsHash,
       })
     })

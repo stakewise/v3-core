@@ -5,6 +5,7 @@ pragma solidity =0.8.20;
 import {ISharedMevEscrow} from '../../../interfaces/ISharedMevEscrow.sol';
 import {IVaultsRegistry} from '../../../interfaces/IVaultsRegistry.sol';
 import {IVaultEthStaking} from '../../../interfaces/IVaultEthStaking.sol';
+import {Errors} from '../../../libraries/Errors.sol';
 
 /**
  * @title SharedMevEscrow
@@ -21,7 +22,7 @@ contract SharedMevEscrow is ISharedMevEscrow {
 
   /// @inheritdoc ISharedMevEscrow
   function harvest(uint256 assets) external override {
-    if (!_vaultsRegistry.vaults(msg.sender)) revert HarvestFailed();
+    if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.HarvestFailed();
 
     emit Harvested(msg.sender, assets);
     // slither-disable-next-line arbitrary-send-eth

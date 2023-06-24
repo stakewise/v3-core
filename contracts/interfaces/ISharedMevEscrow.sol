@@ -8,8 +8,6 @@ pragma solidity =0.8.20;
  * @notice Defines the interface for the SharedMevEscrow contract
  */
 interface ISharedMevEscrow {
-  error HarvestFailed();
-
   /**
    * @notice Event emitted on received MEV
    * @param assets The amount of MEV assets received

@@ -2,19 +2,14 @@
 
 pragma solidity =0.8.20;
 
+import {IKeeperOracles} from './IKeeperOracles.sol';
+
 /**
  * @title IKeeperRewards
  * @author StakeWise
  * @notice Defines the interface for the Keeper contract rewards
  */
-interface IKeeperRewards {
-  // Custom errors
-  error InvalidRewardsRoot();
-  error InvalidProof();
-  error AccessDenied();
-  error TooEarlyUpdate();
-  error InvalidAvgRewardPerSecond();
-
+interface IKeeperRewards is IKeeperOracles {
   /**
    * @notice Event emitted on rewards update
    * @param caller The address of the function caller
@@ -46,6 +41,12 @@ interface IKeeperRewards {
     int256 totalAssetsDelta,
     uint256 unlockedMevDelta
   );
+
+  /**
+   * @notice Event emitted on rewards min oracles number update
+   * @param oracles The new minimum number of oracles required to update rewards
+   */
+  event RewardsMinOraclesUpdated(uint256 oracles);
 
   /**
    * @notice A struct containing the last synced Vault's cumulative reward
@@ -122,6 +123,12 @@ interface IKeeperRewards {
   function lastRewardsTimestamp() external view returns (uint64);
 
   /**
+   * @notice The minimum number of oracles required to update rewards
+   * @return The minimum number of oracles
+   */
+  function rewardsMinOracles() external view returns (uint256);
+
+  /**
    * @notice The rewards delay
    * @return The delay in seconds between rewards updates
    */
@@ -185,4 +192,10 @@ interface IKeeperRewards {
   function harvest(
     HarvestParams calldata params
   ) external returns (int256 totalAssetsDelta, uint256 unlockedMevDelta);
+
+  /**
+   * @notice Set min number of oracles for confirming rewards update. Can only be called by the owner.
+   * @param _rewardsMinOracles The new min number of oracles for confirming rewards update
+   */
+  function setRewardsMinOracles(uint256 _rewardsMinOracles) external;
 }

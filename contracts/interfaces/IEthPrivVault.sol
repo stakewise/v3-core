@@ -6,10 +6,10 @@ import {IVaultWhitelist} from './IVaultWhitelist.sol';
 import {IEthVault} from './IEthVault.sol';
 
 /**
- * @title IEthPrivateVault
+ * @title IEthPrivVault
  * @author StakeWise
- * @notice Defines the interface for the EthPrivateVault contract
+ * @notice Defines the interface for the EthPrivVault contract
  */
-interface IEthPrivateVault is IEthVault, IVaultWhitelist {
+interface IEthPrivVault is IEthVault, IVaultWhitelist {
 
 }
