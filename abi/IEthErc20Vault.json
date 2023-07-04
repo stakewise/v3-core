@@ -117,12 +117,6 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "caller",
-        "type": "address"
-      },
-      {
-        "indexed": true,
-        "internalType": "address",
         "name": "receiver",
         "type": "address"
       },
@@ -569,11 +563,6 @@
   },
   {
     "inputs": [
-      {
-        "internalType": "address",
-        "name": "receiver",
-        "type": "address"
-      },
       {
         "internalType": "uint256",
         "name": "positionTicket",

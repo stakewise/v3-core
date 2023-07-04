@@ -9,21 +9,21 @@ Object {
 
 exports[`EthGenesisVault pulls assets on claim exited assets 1`] = `
 Object {
-  "calldataByteLength": 100,
-  "gasUsed": 108081,
+  "calldataByteLength": 68,
+  "gasUsed": 107765,
 }
 `;
 
 exports[`EthGenesisVault pulls assets on multiple validators registration 1`] = `
 Object {
   "calldataByteLength": 3620,
-  "gasUsed": 757946,
+  "gasUsed": 757913,
 }
 `;
 
 exports[`EthGenesisVault pulls assets on single validator registration 1`] = `
 Object {
   "calldataByteLength": 1316,
-  "gasUsed": 393573,
+  "gasUsed": 393562,
 }
 `;

@@ -183,13 +183,11 @@ describe('EthGenesisVault', () => {
     await vault.updateState(harvestData)
     const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
 
-    const tx = await vault
-      .connect(other)
-      .claimExitedAssets(other.address, positionTicket, exitQueueIndex)
+    const tx = await vault.connect(other).claimExitedAssets(positionTicket, exitQueueIndex)
     await expect(tx).to.emit(poolEscrow, 'Withdrawn').withArgs(vault.address, vault.address, shares)
     await expect(tx)
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(other.address, other.address, positionTicket, 0, shares)
+      .withArgs(other.address, positionTicket, 0, shares)
     expect(await waffle.provider.getBalance(poolEscrow.address)).to.eq(0)
     await snapshotGasCost(tx)
   })
