@@ -134,17 +134,13 @@ describe('EthVault - multicall', () => {
 
     calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
     calls.push(
-      vault.interface.encodeFunctionData('claimExitedAssets', [
-        sender.address,
-        queueTicket,
-        checkpointIndex,
-      ])
+      vault.interface.encodeFunctionData('claimExitedAssets', [queueTicket, checkpointIndex])
     )
 
     receipt = await vault.connect(sender).multicall(calls)
     await expect(receipt)
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(sender.address, sender.address, queueTicket, 0, assetsDropped)
+      .withArgs(sender.address, queueTicket, 0, assetsDropped)
     await snapshotGasCost(receipt)
 
     // reverts on error

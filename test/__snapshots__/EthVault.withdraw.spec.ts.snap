@@ -2,29 +2,29 @@
 
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in multiple transactions 1`] = `
 Object {
-  "calldataByteLength": 100,
-  "gasUsed": 77322,
+  "calldataByteLength": 68,
+  "gasUsed": 74465,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in multiple transactions 2`] = `
 Object {
-  "calldataByteLength": 100,
-  "gasUsed": 54770,
+  "calldataByteLength": 68,
+  "gasUsed": 51932,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in single transaction 1`] = `
 Object {
-  "calldataByteLength": 100,
-  "gasUsed": 57629,
+  "calldataByteLength": 68,
+  "gasUsed": 54791,
 }
 `;
 
 exports[`EthVault - withdraw claim exited assets for single user in single checkpoint 1`] = `
 Object {
-  "calldataByteLength": 100,
-  "gasUsed": 54770,
+  "calldataByteLength": 68,
+  "gasUsed": 51932,
 }
 `;
 
@@ -40,20 +40,20 @@ exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`
 exports[`EthVault - withdraw redeem redeem transfers assets to receiver 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 60765,
+  "gasUsed": 60743,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue adds checkpoint 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 91159,
+  "gasUsed": 91137,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue for not all the queued shares 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 91155,
+  "gasUsed": 91133,
 }
 `;

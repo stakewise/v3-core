@@ -51,14 +51,12 @@ interface IVaultEnterExit is IVaultState {
 
   /**
    * @notice Event emitted on claim of the exited assets
-   * @param caller The address that called the function
    * @param receiver The address that has received withdrawn assets
    * @param prevPositionTicket The exit queue ticket received after the `enterExitQueue` call
    * @param newPositionTicket The new exit queue ticket in case not all the shares were withdrawn. Otherwise 0.
    * @param withdrawnAssets The total number of assets withdrawn
    */
   event ExitedAssetsClaimed(
-    address indexed caller,
     address indexed receiver,
     uint256 prevPositionTicket,
     uint256 newPositionTicket,
@@ -85,8 +83,7 @@ interface IVaultEnterExit is IVaultState {
   function getExitQueueIndex(uint256 positionTicket) external view returns (int256);
 
   /**
-   * @notice Claims assets that were withdrawn by the Vault. It can be called only after the `enterExitQueue` call.
-   * @param receiver The address that will receive assets. Must be the same as specified during the `enterExitQueue` function call.
+   * @notice Claims assets that were withdrawn by the Vault. It can be called only after the `enterExitQueue` call by the `receiver`.
    * @param positionTicket The exit queue ticket received after the `enterExitQueue` call
    * @param exitQueueIndex The exit queue index at which the shares were burned. It can be looked up by calling `getExitQueueIndex`.
    * @return newPositionTicket The new exit queue ticket in case not all the shares were burned. Otherwise 0.
@@ -94,7 +91,6 @@ interface IVaultEnterExit is IVaultState {
    * @return claimedAssets The number of assets claimed
    */
   function claimExitedAssets(
-    address receiver,
     uint256 positionTicket,
     uint256 exitQueueIndex
   ) external returns (uint256 newPositionTicket, uint256 claimedShares, uint256 claimedAssets);
