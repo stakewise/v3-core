@@ -84,7 +84,6 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
 
   /// @inheritdoc IVaultEnterExit
   function claimExitedAssets(
-    address receiver,
     uint256 positionTicket,
     uint256 exitQueueIndex
   )
@@ -92,7 +91,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     override
     returns (uint256 newPositionTicket, uint256 claimedShares, uint256 claimedAssets)
   {
-    bytes32 queueId = keccak256(abi.encode(receiver, positionTicket));
+    bytes32 queueId = keccak256(abi.encode(msg.sender, positionTicket));
     uint256 requestedShares = _exitRequests[queueId];
 
     // calculate exited shares and assets
@@ -112,19 +111,13 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     if (leftShares > 1) {
       // update user's queue position
       newPositionTicket = positionTicket + claimedShares;
-      _exitRequests[keccak256(abi.encode(receiver, newPositionTicket))] = leftShares;
+      _exitRequests[keccak256(abi.encode(msg.sender, newPositionTicket))] = leftShares;
     }
 
     // transfer assets to the receiver
     _unclaimedAssets -= SafeCast.toUint96(claimedAssets);
-    _transferVaultAssets(receiver, claimedAssets);
-    emit ExitedAssetsClaimed(
-      msg.sender,
-      receiver,
-      positionTicket,
-      newPositionTicket,
-      claimedAssets
-    );
+    _transferVaultAssets(msg.sender, claimedAssets);
+    emit ExitedAssetsClaimed(msg.sender, positionTicket, newPositionTicket, claimedAssets);
   }
 
   /**

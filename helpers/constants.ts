@@ -31,7 +31,7 @@ export const NETWORKS: {
     validatorsMinOracles: 9,
     rewardsDelay: 12 * 60 * 60,
     maxAvgRewardPerSecond: BigNumber.from('6341958397'), // 20% APY
-    oraclesConfigIpfsHash: 'QmWdHy2xj9wBzqAqE3SioR7DU6QMceBPrHzseQ2iE78WYJ',
+    oraclesConfigIpfsHash: 'QmYcJE3hWnrJrLeL56d1gwGZFA3G61cwq7Sc8znWQSFVii',
 
     // OsToken
     treasury: '0x1867c96601bc5fE24F685d112314B8F3Fe228D5A',
