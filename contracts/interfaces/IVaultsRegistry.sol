@@ -10,10 +10,10 @@ pragma solidity =0.8.20;
 interface IVaultsRegistry {
   /**
    * @notice Event emitted on a Vault addition
-   * @param factory The address of the factory that has added the Vault
+   * @param caller The address that has added the Vault
    * @param vault The address of the added Vault
    */
-  event VaultAdded(address indexed factory, address indexed vault);
+  event VaultAdded(address indexed caller, address indexed vault);
 
   /**
    * @notice Event emitted on adding Vault implementation contract

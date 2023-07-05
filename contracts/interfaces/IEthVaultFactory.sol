@@ -43,7 +43,7 @@ interface IEthVaultFactory {
   /**
    * @notice Create Vault. Must transfer security deposit together with a call.
    * @param params The encoded parameters for initializing the Vault contract
-   * @param isOwnMevEscrow Defines whether the Vault uses its own MEV escrow
+   * @param isOwnMevEscrow Whether to deploy own escrow contract or connect to a smoothing pool for priority fees and MEV rewards
    * @return vault The address of the created Vault
    */
   function createVault(
