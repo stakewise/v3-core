@@ -650,6 +650,11 @@
         "type": "address"
       },
       {
+        "internalType": "uint256",
+        "name": "deadline",
+        "type": "uint256"
+      },
+      {
         "internalType": "string",
         "name": "exitSignaturesIpfsHash",
         "type": "string"

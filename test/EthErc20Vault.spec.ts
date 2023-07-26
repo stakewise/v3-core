@@ -168,29 +168,29 @@ describe('EthErc20Vault', () => {
     await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const assets = parseEther('2')
-    const osTokenAssets = parseEther('1')
+    const osTokenShares = parseEther('1')
 
     await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: assets })
-    await vault.connect(sender).mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
+    await vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
     await updateRewards(keeper, [
       { vault: vault.address, reward: parseEther('1'), unlockedMevReward: parseEther('0') },
     ])
     await updateRewards(keeper, [
       { vault: vault.address, reward: parseEther('1.2'), unlockedMevReward: parseEther('0') },
     ])
-    await expect(
-      vault.connect(sender).transfer(receiver.address, osTokenAssets)
-    ).to.be.revertedWith('NotHarvested')
+    await expect(vault.connect(sender).transfer(receiver.address, assets)).to.be.revertedWith(
+      'NotHarvested'
+    )
   })
 
   it('cannot transfer vault shares when LTV is violated', async () => {
     await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const assets = parseEther('2')
-    const osTokenAssets = parseEther('1')
+    const osTokenShares = parseEther('1')
 
     await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: assets })
-    await vault.connect(sender).mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
+    await vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
     await expect(vault.connect(sender).transfer(receiver.address, assets)).to.be.revertedWith(
       'LowLtv'
     )

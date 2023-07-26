@@ -13,6 +13,7 @@ import 'hardhat-log-remover'
 import 'hardhat-spdx-license-identifier'
 import 'hardhat-abi-exporter'
 import '@openzeppelin/hardhat-upgrades'
+import 'solidity-docgen'
 
 dotenv.config({ path: '.env' })
 
@@ -101,6 +102,11 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: BLOCK_EXPLORER_KEY,
+  },
+  docgen: {
+    outputDir: 'docs',
+    pages: 'files',
+    exclude: ['mocks', 'interfaces', 'base', 'libraries'],
   },
 }
 

@@ -87,15 +87,15 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
   /**
    * @notice Mints OsToken shares
    * @param receiver The address that will receive the minted OsToken shares
-   * @param assets The number of assets to calculate the number of OsToken shares to mint
+   * @param osTokenShares The number of OsToken shares to mint to the receiver
    * @param referrer The address of the referrer
-   * @return shares The number of OsToken shares minted to the receiver
+   * @return assets The number of assets minted to the receiver
    */
   function mintOsToken(
     address receiver,
-    uint256 assets,
+    uint256 osTokenShares,
     address referrer
-  ) external returns (uint256 shares);
+  ) external returns (uint256 assets);
 
   /**
    * @notice Burns osToken shares

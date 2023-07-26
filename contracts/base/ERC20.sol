@@ -100,7 +100,7 @@ abstract contract ERC20 is IERC20Permit {
     bytes32 s
   ) public override {
     if (spender == address(0)) revert Errors.ZeroAddress();
-    if (deadline < block.timestamp) revert Errors.PermitDeadlineExpired();
+    if (deadline < block.timestamp) revert Errors.DeadlineExpired();
 
     // Unchecked because the only math done is incrementing
     // the owner's nonce which cannot realistically overflow

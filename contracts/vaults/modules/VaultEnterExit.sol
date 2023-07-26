@@ -83,6 +83,28 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   }
 
   /// @inheritdoc IVaultEnterExit
+  function calculateExitedAssets(
+    address receiver,
+    uint256 positionTicket,
+    uint256 exitQueueIndex
+  )
+    public
+    view
+    override
+    returns (uint256 leftShares, uint256 claimedShares, uint256 claimedAssets)
+  {
+    uint256 requestedShares = _exitRequests[keccak256(abi.encode(receiver, positionTicket))];
+
+    // calculate exited shares and assets
+    (claimedShares, claimedAssets) = _exitQueue.calculateExitedAssets(
+      exitQueueIndex,
+      positionTicket,
+      requestedShares
+    );
+    leftShares = requestedShares - claimedShares;
+  }
+
+  /// @inheritdoc IVaultEnterExit
   function claimExitedAssets(
     uint256 positionTicket,
     uint256 exitQueueIndex
@@ -92,13 +114,13 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     returns (uint256 newPositionTicket, uint256 claimedShares, uint256 claimedAssets)
   {
     bytes32 queueId = keccak256(abi.encode(msg.sender, positionTicket));
-    uint256 requestedShares = _exitRequests[queueId];
 
     // calculate exited shares and assets
-    (claimedShares, claimedAssets) = _exitQueue.calculateExitedAssets(
-      exitQueueIndex,
+    uint256 leftShares;
+    (leftShares, claimedShares, claimedAssets) = calculateExitedAssets(
+      msg.sender,
       positionTicket,
-      requestedShares
+      exitQueueIndex
     );
     // nothing to claim
     if (claimedShares == 0) return (positionTicket, claimedShares, claimedAssets);
@@ -106,7 +128,6 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     // clean up current exit request
     delete _exitRequests[queueId];
 
-    uint256 leftShares = requestedShares - claimedShares;
     // skip creating new position for the shares rounding error
     if (leftShares > 1) {
       // update user's queue position

@@ -100,9 +100,9 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   }
 
   /// @inheritdoc IOsToken
-  function mintShares(address receiver, uint256 assets) external override returns (uint256 shares) {
+  function mintShares(address receiver, uint256 shares) external override returns (uint256 assets) {
     if (receiver == address(0)) revert Errors.ZeroAddress();
-    if (assets == 0) revert Errors.InvalidAssets();
+    if (shares == 0) revert Errors.InvalidShares();
     if (
       !(_vaultsRegistry.vaults(msg.sender) &&
         vaultImplementations[IVaultVersion(msg.sender).implementation()])
@@ -111,8 +111,8 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     // pull accumulated rewards
     updateState();
 
-    // calculate amount of shares to mint
-    shares = convertToShares(assets);
+    // calculate amount of assets to mint
+    assets = convertToAssets(shares);
 
     uint256 totalAssetsAfter = _totalAssets + assets;
     if (totalAssetsAfter > capacity) revert Errors.CapacityExceeded();

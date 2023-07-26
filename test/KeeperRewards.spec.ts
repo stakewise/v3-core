@@ -273,6 +273,7 @@ describe('KeeperRewards', () => {
       expect(await keeper.isCollateralized(vault.address)).to.equal(false)
       expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
       expect(await keeper.canHarvest(vault.address)).to.equal(false)
+      expect(await vault.isStateUpdateRequired()).to.equal(false)
     })
 
     it('returns true for collateralized two times unharvested vault', async () => {
@@ -284,6 +285,7 @@ describe('KeeperRewards', () => {
       expect(await keeper.isCollateralized(vault.address)).to.equal(true)
       expect(await keeper.canHarvest(vault.address)).to.equal(false)
       expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
+      expect(await vault.isStateUpdateRequired()).to.equal(false)
 
       // update rewards first time
       let newVaultReward = {
@@ -306,6 +308,7 @@ describe('KeeperRewards', () => {
       expect(await keeper.isCollateralized(vault.address)).to.equal(true)
       expect(await keeper.canHarvest(vault.address)).to.equal(true)
       expect(await keeper.isHarvestRequired(vault.address)).to.equal(false)
+      expect(await vault.isStateUpdateRequired()).to.equal(false)
 
       // update rewards second time
       const newTimestamp = BigNumber.from(newRewardsUpdate.updateTimestamp).add(1)
@@ -331,6 +334,7 @@ describe('KeeperRewards', () => {
       expect(await keeper.isCollateralized(vault.address)).to.equal(true)
       expect(await keeper.canHarvest(vault.address)).to.equal(true)
       expect(await keeper.isHarvestRequired(vault.address)).to.equal(true)
+      expect(await vault.isStateUpdateRequired()).to.equal(true)
     })
   })
 

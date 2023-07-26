@@ -45,7 +45,7 @@ describe('EthVault - burn', () => {
     // collateralize vault
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: assets })
-    await vault.connect(sender).mintOsToken(sender.address, osTokenAssets, ZERO_ADDRESS)
+    await vault.connect(sender).mintOsToken(sender.address, osTokenShares, ZERO_ADDRESS)
   })
 
   it('cannot burn zero osTokens', async () => {

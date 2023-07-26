@@ -663,7 +663,7 @@ describe('OsToken', () => {
 
       await expect(
         osToken.permit(ownerAddress, spender.address, value, deadline, v, r, s)
-      ).to.be.revertedWith('PermitDeadlineExpired')
+      ).to.be.revertedWith('DeadlineExpired')
     })
 
     it('rejects zero address', async () => {

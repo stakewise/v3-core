@@ -140,6 +140,31 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      }
+    ],
+    "name": "FeeSharesMinted",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
         "name": "caller",
@@ -469,6 +494,45 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "receiver",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "positionTicket",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "exitQueueIndex",
+        "type": "uint256"
+      }
+    ],
+    "name": "calculateExitedAssets",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "leftShares",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "claimedShares",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "claimedAssets",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "canUpdateExitQueue",
     "outputs": [
@@ -687,6 +751,19 @@
   },
   {
     "inputs": [],
+    "name": "isStateUpdateRequired",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "keysManager",
     "outputs": [
       {
@@ -749,7 +826,7 @@
       },
       {
         "internalType": "uint256",
-        "name": "assets",
+        "name": "osTokenShares",
         "type": "uint256"
       },
       {
@@ -762,7 +839,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "shares",
+        "name": "assets",
         "type": "uint256"
       }
     ],

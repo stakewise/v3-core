@@ -80,7 +80,7 @@ Object {
 exports[`OsToken permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 74708,
+  "gasUsed": 74696,
 }
 `;
 

@@ -79,4 +79,5 @@ export const KeeperUpdateExitSignaturesSig = [
   { name: 'vault', type: 'address' },
   { name: 'exitSignaturesIpfsHash', type: 'bytes32' },
   { name: 'nonce', type: 'uint256' },
+  { name: 'deadline', type: 'uint256' },
 ]

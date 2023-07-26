@@ -81,11 +81,13 @@ interface IKeeperValidators is IKeeperOracles, IKeeperRewards {
   /**
    * @notice Function for updating exit signatures for every hard fork
    * @param vault The address of the Vault to update signatures for
+   * @param deadline The deadline for submitting signatures update
    * @param exitSignaturesIpfsHash The IPFS hash with the validators' exit signatures
    * @param oraclesSignatures The concatenation of Oracles' signatures
    */
   function updateExitSignatures(
     address vault,
+    uint256 deadline,
     string calldata exitSignaturesIpfsHash,
     bytes calldata oraclesSignatures
   ) external;
