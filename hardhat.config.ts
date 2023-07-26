@@ -13,7 +13,6 @@ import 'hardhat-log-remover'
 import 'hardhat-spdx-license-identifier'
 import 'hardhat-abi-exporter'
 import '@openzeppelin/hardhat-upgrades'
-import 'solidity-docgen'
 
 dotenv.config({ path: '.env' })
 
