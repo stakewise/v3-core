@@ -15,6 +15,11 @@ interface IRewardEthToken {
   function totalAssets() external view returns (uint256);
 
   /**
+   * @dev Function for retrieving the total rewards amount.
+   */
+  function totalRewards() external view returns (uint128);
+
+  /**
    * @dev Function for getting the total penalty.
    */
   function totalPenalty() external view returns (uint256);

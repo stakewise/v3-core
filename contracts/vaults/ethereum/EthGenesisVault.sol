@@ -93,8 +93,15 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   function updateState(
     IKeeperRewards.HarvestParams calldata harvestParams
   ) public override(IVaultState, VaultState) {
+    bool isCollateralized = IKeeperRewards(_keeper).isCollateralized(address(this));
+
     // process total assets delta since last update
     int256 totalAssetsDelta = _harvestAssets(harvestParams);
+
+    if (!isCollateralized) {
+      // it's the first harvest, deduct rewards accumulated so far in legacy pool
+      totalAssetsDelta -= SafeCast.toInt256(_rewardEthToken.totalRewards());
+    }
 
     // fetch total assets controlled by legacy pool
     uint256 legacyPrincipal = _rewardEthToken.totalAssets() - _rewardEthToken.totalPenalty();

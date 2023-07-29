@@ -5,32 +5,6 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "factory",
-        "type": "address"
-      }
-    ],
-    "name": "FactoryAdded",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "factory",
-        "type": "address"
-      }
-    ],
-    "name": "FactoryRemoved",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
         "name": "caller",
         "type": "address"
       },
@@ -50,11 +24,17 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "impl",
+        "name": "factory",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "bool",
+        "name": "isSupported",
+        "type": "bool"
       }
     ],
-    "name": "VaultImplAdded",
+    "name": "VaultFactoryUpdated",
     "type": "event"
   },
   {
@@ -63,25 +43,35 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "impl",
+        "name": "implementation",
         "type": "address"
-      }
-    ],
-    "name": "VaultImplRemoved",
-    "type": "event"
-  },
-  {
-    "inputs": [
+      },
       {
-        "internalType": "address",
-        "name": "factory",
-        "type": "address"
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "canUpgradeTo",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "canMintOsToken",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "canBurnOsToken",
+            "type": "bool"
+          }
+        ],
+        "indexed": false,
+        "internalType": "struct IVaultsRegistry.VaultImplConfig",
+        "name": "config",
+        "type": "tuple"
       }
     ],
-    "name": "addFactory",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
+    "name": "VaultImplConfigUpdated",
+    "type": "event"
   },
   {
     "inputs": [
@@ -92,19 +82,6 @@
       }
     ],
     "name": "addVault",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "newImpl",
-        "type": "address"
-      }
-    ],
-    "name": "addVaultImpl",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -134,9 +111,14 @@
         "internalType": "address",
         "name": "factory",
         "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "isSupported",
+        "type": "bool"
       }
     ],
-    "name": "removeFactory",
+    "name": "updateVaultFactory",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -145,11 +127,33 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "impl",
+        "name": "implementation",
         "type": "address"
+      },
+      {
+        "components": [
+          {
+            "internalType": "bool",
+            "name": "canUpgradeTo",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "canMintOsToken",
+            "type": "bool"
+          },
+          {
+            "internalType": "bool",
+            "name": "canBurnOsToken",
+            "type": "bool"
+          }
+        ],
+        "internalType": "struct IVaultsRegistry.VaultImplConfig",
+        "name": "config",
+        "type": "tuple"
       }
     ],
-    "name": "removeVaultImpl",
+    "name": "updateVaultImplementation",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -158,12 +162,22 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "impl",
+        "name": "implementation",
         "type": "address"
       }
     ],
-    "name": "vaultImpls",
+    "name": "vaultImplConfigs",
     "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      },
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      },
       {
         "internalType": "bool",
         "name": "",
