@@ -102,11 +102,6 @@ const config: HardhatUserConfig = {
   etherscan: {
     apiKey: BLOCK_EXPLORER_KEY,
   },
-  docgen: {
-    outputDir: 'docs',
-    pages: 'files',
-    exclude: ['mocks', 'interfaces', 'base', 'libraries'],
-  },
 }
 
 export default config
