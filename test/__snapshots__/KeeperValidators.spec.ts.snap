@@ -37,7 +37,7 @@ Object {
 
 exports[`KeeperValidators update exit signatures succeeds 1`] = `
 Object {
-  "calldataByteLength": 1060,
-  "gasUsed": 139299,
+  "calldataByteLength": 996,
+  "gasUsed": 126123,
 }
 `;
