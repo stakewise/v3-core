@@ -292,7 +292,8 @@ describe('EthGenesisVault', () => {
       await vault.deposit(other.address, ZERO_ADDRESS, {
         value: totalVaultAssets.sub(SECURITY_DEPOSIT),
       })
-      await rewardEthToken.connect(other).setTotalAssets(totalLegacyAssets)
+
+      await rewardEthToken.connect(other).setTotalStaked(totalLegacyAssets)
     })
 
     it('splits reward between rewardEthToken and vault', async () => {
@@ -344,6 +345,40 @@ describe('EthGenesisVault', () => {
         totalLegacyAssets.add(expectedLegacyDelta).add(1) // rounding error
       )
       expect(await vault.totalAssets()).to.eq(totalVaultAssets.add(expectedVaultDelta).sub(1)) // rounding error
+      await snapshotGasCost(receipt)
+    })
+
+    it('deducts rewards on first state update', async () => {
+      const totalRewards = parseEther('25')
+      const legacyRewards = parseEther('5')
+      await rewardEthToken.connect(other).setTotalRewards(legacyRewards)
+      expect(await rewardEthToken.totalAssets()).to.eq(totalLegacyAssets.add(legacyRewards))
+      expect(await rewardEthToken.totalRewards()).to.eq(legacyRewards)
+      expect(await vault.totalAssets()).to.eq(totalVaultAssets)
+
+      const expectedVaultDelta = totalRewards
+        .sub(legacyRewards)
+        .mul(totalVaultAssets)
+        .div(totalLegacyAssets.add(legacyRewards).add(totalVaultAssets))
+      const expectedLegacyDelta = totalRewards.sub(legacyRewards).sub(expectedVaultDelta)
+      const vaultReward = {
+        reward: totalRewards,
+        unlockedMevReward: 0,
+        vault: vault.address,
+      }
+      const rewardsTree = await updateRewards(keeper, [vaultReward])
+      const proof = getRewardsRootProof(rewardsTree, vaultReward)
+      const receipt = await vault.updateState({
+        rewardsRoot: rewardsTree.root,
+        reward: vaultReward.reward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
+        proof,
+      })
+
+      expect(await rewardEthToken.totalAssets()).to.eq(
+        totalLegacyAssets.add(legacyRewards).add(expectedLegacyDelta)
+      )
+      expect(await vault.totalAssets()).to.eq(totalVaultAssets.add(expectedVaultDelta))
       await snapshotGasCost(receipt)
     })
   })
