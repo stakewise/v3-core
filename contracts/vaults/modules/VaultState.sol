@@ -244,7 +244,8 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   ) internal virtual returns (int256);
 
   /**
-   * @dev Internal function for retrieving the total assets stored in the Vault
+   * @dev Internal function for retrieving the total assets stored in the Vault.
+          NB! Assets can be forcibly sent to the vault, the returned value must be used with caution
    * @return The total amount of assets stored in the Vault
    */
   function _vaultAssets() internal view virtual returns (uint256);
