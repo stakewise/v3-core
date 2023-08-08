@@ -51,4 +51,5 @@ library Errors {
   error InvalidLtvPercent();
   error InvalidCheckpointIndex();
   error InvalidCheckpointValue();
+  error MaxOraclesExceeded();
 }

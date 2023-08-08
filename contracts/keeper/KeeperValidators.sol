@@ -70,12 +70,7 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
 
     _collateralize(msg.sender);
 
-    emit ValidatorsApproval(
-      msg.sender,
-      params.validators,
-      params.exitSignaturesIpfsHash,
-      block.timestamp
-    );
+    emit ValidatorsApproval(msg.sender, params.validators, params.exitSignaturesIpfsHash);
   }
 
   /// @inheritdoc IKeeperValidators
