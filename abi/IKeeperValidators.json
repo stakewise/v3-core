@@ -182,12 +182,6 @@
         "internalType": "string",
         "name": "exitSignaturesIpfsHash",
         "type": "string"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint256",
-        "name": "updateTimestamp",
-        "type": "uint256"
       }
     ],
     "name": "ValidatorsApproval",

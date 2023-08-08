@@ -171,6 +171,11 @@
   },
   {
     "inputs": [],
+    "name": "MaxOraclesExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NotCollateralized",
     "type": "error"
   },
