@@ -23,15 +23,15 @@ Object {
 
 exports[`EthGenesisVault pulls assets on multiple validators registration 1`] = `
 Object {
-  "calldataByteLength": 3620,
-  "gasUsed": 725525,
+  "calldataByteLength": 3684,
+  "gasUsed": 738387,
 }
 `;
 
 exports[`EthGenesisVault pulls assets on single validator registration 1`] = `
 Object {
-  "calldataByteLength": 1284,
-  "gasUsed": 360272,
+  "calldataByteLength": 1412,
+  "gasUsed": 374236,
 }
 `;
 
@@ -45,7 +45,7 @@ Object {
 exports[`EthGenesisVault update state splits penalty between rewardEthToken and vault 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 135783,
+  "gasUsed": 135771,
 }
 `;
 

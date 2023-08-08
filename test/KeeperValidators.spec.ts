@@ -1,5 +1,5 @@
 import { ethers, waffle } from 'hardhat'
-import { BigNumber, BigNumberish, Contract, Wallet } from 'ethers'
+import { Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
 import { EthVault, IKeeperValidators, Keeper } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
@@ -140,15 +140,9 @@ describe('KeeperValidators', () => {
       expect(rewards.assets).to.eq(0)
 
       let receipt = await vault.registerValidator(approveParams, proof)
-      const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsApproval')
-        .withArgs(
-          vault.address,
-          hexlify(validator),
-          approveParams.exitSignaturesIpfsHash,
-          timestamp
-        )
+        .withArgs(vault.address, hexlify(validator), approveParams.exitSignaturesIpfsHash)
 
       // collateralize vault
       rewards = await keeper.rewards(vault.address)
@@ -314,15 +308,9 @@ describe('KeeperValidators', () => {
         proof.proofFlags,
         proof.proof
       )
-      const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsApproval')
-        .withArgs(
-          vault.address,
-          hexlify(validatorsConcat),
-          approveParams.exitSignaturesIpfsHash,
-          timestamp
-        )
+        .withArgs(vault.address, hexlify(validatorsConcat), approveParams.exitSignaturesIpfsHash)
 
       rewards = await keeper.rewards(vault.address)
       expect(rewards.nonce).to.eq(1)

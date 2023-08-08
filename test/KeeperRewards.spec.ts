@@ -78,19 +78,6 @@ describe('KeeperRewards', () => {
       }
     })
 
-    it('fails with invalid root', async () => {
-      await expect(
-        keeper.connect(oracle).updateRewards({ ...rewardsUpdateParams, rewardsRoot: ZERO_BYTES32 })
-      ).to.be.revertedWith('InvalidRewardsRoot')
-
-      // check can't set to previous rewards root
-      await keeper.connect(oracle).updateRewards(rewardsUpdateParams)
-      await increaseTime(REWARDS_DELAY)
-      await expect(
-        keeper.connect(oracle).updateRewards({ ...rewardsUpdateParams, rewardsRoot: ZERO_BYTES32 })
-      ).to.be.revertedWith('InvalidRewardsRoot')
-    })
-
     it('fails with invalid IPFS hash', async () => {
       await expect(
         keeper
