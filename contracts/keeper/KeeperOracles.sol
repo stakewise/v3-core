@@ -15,7 +15,7 @@ import {IKeeperOracles} from '../interfaces/IKeeperOracles.sol';
  */
 abstract contract KeeperOracles is Ownable2Step, EIP712, IKeeperOracles {
   uint256 internal constant _signatureLength = 65;
-  uint256 private constant _maxOracles = 50;
+  uint256 private constant _maxOracles = 30;
 
   /// @inheritdoc IKeeperOracles
   mapping(address => bool) public override isOracle;
