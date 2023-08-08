@@ -1,5 +1,5 @@
 import { ethers, waffle } from 'hardhat'
-import { BigNumber, BigNumberish, Contract, Wallet } from 'ethers'
+import { Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
 import { EthVault, IKeeperValidators, Keeper } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
