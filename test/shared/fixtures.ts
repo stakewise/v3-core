@@ -17,6 +17,7 @@ import {
   PriceFeed,
   SharedMevEscrow,
   VaultsRegistry,
+  RewardSplitterFactory,
   PoolEscrowMock,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
@@ -71,6 +72,14 @@ export const createPriceFeed = async function (
 ): Promise<PriceFeed> {
   const factory = await ethers.getContractFactory('PriceFeed')
   return (await factory.deploy(osToken.address, description)) as PriceFeed
+}
+
+export const createRewardSplitterFactory = async function (): Promise<RewardSplitterFactory> {
+  let factory = await ethers.getContractFactory('RewardSplitter')
+  const rewardSplitterImpl = await factory.deploy()
+
+  factory = await ethers.getContractFactory('RewardSplitterFactory')
+  return (await factory.deploy(rewardSplitterImpl.address)) as RewardSplitterFactory
 }
 
 export const createOsToken = async function (

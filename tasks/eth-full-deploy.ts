@@ -10,6 +10,8 @@ import {
   PriceFeed__factory,
   SharedMevEscrow__factory,
   VaultsRegistry__factory,
+  RewardSplitter__factory,
+  RewardSplitterFactory__factory,
 } from '../typechain-types'
 import { deployContract, verify } from '../helpers/utils'
 import { NETWORKS } from '../helpers/constants'
@@ -257,6 +259,26 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     'contracts/osToken/PriceFeed.sol:PriceFeed'
   )
 
+  const rewardSplitterImpl = await deployContract(new RewardSplitter__factory(deployer).deploy())
+  console.log('RewardSplitter implementation deployed at', rewardSplitterImpl.address)
+  await verify(
+    hre,
+    rewardSplitterImpl.address,
+    [],
+    'contracts/misc/RewardSplitter.sol:RewardSplitter'
+  )
+
+  const rewardSplitterFactory = await deployContract(
+    new RewardSplitterFactory__factory(deployer).deploy(rewardSplitterImpl.address)
+  )
+  console.log('RewardSplitterFactory deployed at', rewardSplitterFactory.address)
+  await verify(
+    hre,
+    rewardSplitterFactory.address,
+    [rewardSplitterImpl],
+    'contracts/misc/RewardSplitterFactory.sol:RewardSplitterFactory'
+  )
+
   // pass ownership to governor
   await vaultsRegistry.transferOwnership(networkConfig.governor)
   await keeper.transferOwnership(networkConfig.governor)
@@ -275,6 +297,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     OsToken: osToken.address,
     OsTokenConfig: osTokenConfig.address,
     PriceFeed: priceFeed.address,
+    RewardSplitterFactory: rewardSplitterFactory.address,
   }
   const json = JSON.stringify(addresses, null, 2)
   const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`

@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`RewardSplitter decrease shares owner can decrease shares 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 66816,
+}
+`;
+
+exports[`RewardSplitter increase shares owner can increase shares 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 78729,
+}
+`;
+
+exports[`RewardSplitter sync rewards anyone can sync rewards 1`] = `
+Object {
+  "calldataByteLength": 4,
+  "gasUsed": 72879,
+}
+`;
+
+exports[`RewardSplitter withdraw rewards can claim vault tokens for ERC-20 vault 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 77922,
+}
+`;
+
+exports[`RewardSplitter withdraw rewards can redeem, enter exit queue with multicall 1`] = `
+Object {
+  "calldataByteLength": 772,
+  "gasUsed": 200244,
+}
+`;
