@@ -53,6 +53,7 @@ export const NETWORKS: {
       capacity: parseEther('1000000'),
       feePercent: 500,
     },
+    priceFeedDescription: 'osETH/ETH',
   },
   [Networks.mainnet]: {
     url: process.env.NETWORK_RPC_URL || '',
@@ -92,6 +93,7 @@ export const NETWORKS: {
       capacity: parseEther('1000000'),
       feePercent: 500,
     },
+    priceFeedDescription: 'osETH/ETH',
   },
 }
 

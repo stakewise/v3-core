@@ -7,7 +7,7 @@ import {
   Keeper__factory,
   OsToken__factory,
   OsTokenConfig__factory,
-  PriceOracle__factory,
+  PriceFeed__factory,
   SharedMevEscrow__factory,
   VaultsRegistry__factory,
 } from '../typechain-types'
@@ -246,15 +246,15 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     'contracts/vaults/ethereum/EthGenesisVault.sol:EthGenesisVault'
   )
 
-  const priceOracle = await deployContract(
-    new PriceOracle__factory(deployer).deploy(osToken.address)
+  const priceFeed = await deployContract(
+    new PriceFeed__factory(deployer).deploy(osToken.address, networkConfig.priceFeedDescription)
   )
-  console.log('PriceOracle deployed at', priceOracle.address)
+  console.log('PriceFeed deployed at', priceFeed.address)
   await verify(
     hre,
-    priceOracle.address,
-    [osToken.address],
-    'contracts/osToken/PriceOracle.sol:PriceOracle'
+    priceFeed.address,
+    [osToken.address, networkConfig.priceFeedDescription],
+    'contracts/osToken/PriceFeed.sol:PriceFeed'
   )
 
   // pass ownership to governor
@@ -274,7 +274,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     SharedMevEscrow: sharedMevEscrow.address,
     OsToken: osToken.address,
     OsTokenConfig: osTokenConfig.address,
-    PriceOracle: priceOracle.address,
+    PriceFeed: priceFeed.address,
   }
   const json = JSON.stringify(addresses, null, 2)
   const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`
