@@ -41,7 +41,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   /// @inheritdoc IOsToken
   uint64 public override feePercent;
 
-  uint192 private _cumulativeFeePerShare;
+  uint192 private _cumulativeFeePerShare = uint192(_wad);
   uint64 private _lastUpdateTimestamp;
 
   uint128 private _totalShares;

@@ -260,8 +260,8 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     if (cumulativeFeePerShare == position.cumulativeFeePerShare) return;
 
     // add treasury fee to the position
-    position.shares += SafeCast.toUint128(
-      Math.mulDiv(cumulativeFeePerShare - position.cumulativeFeePerShare, position.shares, _wad)
+    position.shares = SafeCast.toUint128(
+      Math.mulDiv(position.shares, cumulativeFeePerShare, position.cumulativeFeePerShare)
     );
     position.cumulativeFeePerShare = SafeCast.toUint128(cumulativeFeePerShare);
   }

@@ -17,6 +17,6 @@ Object {
 exports[`EthVault - mint updates position accumulated fee 2`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 124043,
+  "gasUsed": 123772,
 }
 `;

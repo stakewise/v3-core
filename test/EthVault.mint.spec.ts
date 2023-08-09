@@ -135,12 +135,12 @@ describe('EthVault - mint', () => {
     const treasury = await osToken.treasury()
     let totalShares = osTokenShares
     let totalAssets = await vault.convertToAssets(osTokenShares)
-    let cumulativeFeePerShare = BigNumber.from(0)
+    let cumulativeFeePerShare = parseEther('1')
     let treasuryShares = BigNumber.from(0)
     let positionShares = osTokenShares
     let receiverShares = osTokenShares
 
-    expect(await osToken.cumulativeFeePerShare()).to.eq(0)
+    expect(await osToken.cumulativeFeePerShare()).to.eq(cumulativeFeePerShare)
     expect(await vault.osTokenPositions(sender.address)).to.eq(0)
 
     const verify = async () => {

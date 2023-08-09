@@ -74,11 +74,11 @@ describe('EthVault - burn', () => {
     const treasury = await osToken.treasury()
     let totalShares = osTokenShares
     let totalAssets = osTokenAssets
-    let cumulativeFeePerShare = BigNumber.from(0)
+    let cumulativeFeePerShare = parseEther('1')
     let treasuryShares = BigNumber.from(0)
     let positionShares = osTokenShares
 
-    expect(await osToken.cumulativeFeePerShare()).to.eq(0)
+    expect(await osToken.cumulativeFeePerShare()).to.eq(cumulativeFeePerShare)
     expect(await vault.osTokenPositions(sender.address)).to.eq(positionShares)
 
     await increaseTime(ONE_DAY)
