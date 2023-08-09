@@ -49,8 +49,11 @@ jobs:
 
       - run: npm run lint
       - run: npm run compile
+        env: { SKIP_LOAD: true }
       - run: npm run test:gas
+        env: { SKIP_LOAD: true }
       - run: npm run coverage
+        env: { SKIP_LOAD: true }
       - uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
