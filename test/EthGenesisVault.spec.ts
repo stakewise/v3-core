@@ -72,7 +72,7 @@ describe('EthGenesisVault', () => {
     await expect(tx).to.emit(vault, 'MetadataUpdated').withArgs(dao.address, metadataIpfsHash)
     await expect(tx).to.emit(vault, 'FeeRecipientUpdated').withArgs(dao.address, admin.address)
     await expect(tx)
-      .to.emit(vault, 'EthGenesisVaultCreated')
+      .to.emit(vault, 'GenesisVaultCreated')
       .withArgs(admin.address, capacity, feePercent, metadataIpfsHash)
     expect(await vault.mevEscrow()).to.be.eq(fixture.sharedMevEscrow.address)
 
