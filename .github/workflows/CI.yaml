@@ -45,7 +45,7 @@ jobs:
         run: npm list
 
       - name: Install dependencies
-        run: npm install --force
+        run: npm install
 
       - run: npm run lint
       - run: npm run compile

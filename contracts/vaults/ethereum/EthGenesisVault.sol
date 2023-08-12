@@ -71,6 +71,12 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     );
     // use shared MEV escrow
     __EthVault_init(admin, address(0), initParams);
+    emit GenesisVaultCreated(
+      admin,
+      initParams.capacity,
+      initParams.feePercent,
+      initParams.metadataIpfsHash
+    );
   }
 
   /// @inheritdoc IEthGenesisVault

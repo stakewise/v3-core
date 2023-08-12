@@ -71,6 +71,9 @@ describe('EthGenesisVault', () => {
     await vault.connect(admin).acceptPoolEscrowOwnership()
     await expect(tx).to.emit(vault, 'MetadataUpdated').withArgs(dao.address, metadataIpfsHash)
     await expect(tx).to.emit(vault, 'FeeRecipientUpdated').withArgs(dao.address, admin.address)
+    await expect(tx)
+      .to.emit(vault, 'EthGenesisVaultCreated')
+      .withArgs(admin.address, capacity, feePercent, metadataIpfsHash)
     expect(await vault.mevEscrow()).to.be.eq(fixture.sharedMevEscrow.address)
 
     await fixture.vaultsRegistry.connect(dao).addVault(vault.address)
