@@ -12,6 +12,7 @@ import {
   VaultsRegistry__factory,
   RewardSplitter__factory,
   RewardSplitterFactory__factory,
+  CumulativeMerkleDrop__factory,
 } from '../typechain-types'
 import { deployContract, verify } from '../helpers/utils'
 import { NETWORKS } from '../helpers/constants'
@@ -277,6 +278,20 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     rewardSplitterFactory.address,
     [rewardSplitterImpl],
     'contracts/misc/RewardSplitterFactory.sol:RewardSplitterFactory'
+  )
+
+  const cumulativeMerkleDrop = await deployContract(
+    new CumulativeMerkleDrop__factory(deployer).deploy(
+      networkConfig.liquidityCommittee,
+      networkConfig.swiseToken
+    )
+  )
+  console.log('CumulativeMerkleDrop deployed at', cumulativeMerkleDrop.address)
+  await verify(
+    hre,
+    cumulativeMerkleDrop.address,
+    [networkConfig.liquidityCommittee, networkConfig.swiseToken],
+    'contracts/misc/CumulativeMerkleDrop.sol:CumulativeMerkleDrop'
   )
 
   // pass ownership to governor

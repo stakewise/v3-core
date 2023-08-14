@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`CumulativeMerkleDrop claim works with valid proof 1`] = `
+Object {
+  "calldataByteLength": 228,
+  "gasUsed": 83962,
+}
+`;
+
+exports[`CumulativeMerkleDrop set merkle root works for owner 1`] = `
+Object {
+  "calldataByteLength": 164,
+  "gasUsed": 49768,
+}
+`;

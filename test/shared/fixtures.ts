@@ -19,6 +19,7 @@ import {
   VaultsRegistry,
   RewardSplitterFactory,
   PoolEscrowMock,
+  CumulativeMerkleDrop,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
 import {
@@ -119,6 +120,14 @@ export const createOsTokenConfig = async function (
     liqBonusPercent,
     ltvPercent,
   })) as OsTokenConfig
+}
+
+export const createCumulativeMerkleDrop = async function (
+  token: string,
+  owner: Wallet
+): Promise<CumulativeMerkleDrop> {
+  const factory = await ethers.getContractFactory('CumulativeMerkleDrop')
+  return (await factory.deploy(owner.address, token)) as CumulativeMerkleDrop
 }
 
 export const createKeeper = async function (
