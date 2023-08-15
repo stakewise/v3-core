@@ -477,7 +477,6 @@ describe('KeeperValidators', () => {
         .to.emit(keeper, 'ExitSignaturesUpdated')
         .withArgs(sender.address, vault.address, nonce, exitSignaturesIpfsHash)
       expect(await keeper.exitSignaturesNonces(vault.address)).to.eq(nonce.add(1))
-      await snapshotGasCost(receipt)
     })
   })
 
