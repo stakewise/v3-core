@@ -4,12 +4,13 @@ pragma solidity =0.8.20;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IRewardSplitter} from '../interfaces/IRewardSplitter.sol';
 import {IVaultState} from '../interfaces/IVaultState.sol';
-import {IVaultToken} from '../interfaces/IVaultToken.sol';
 import {IVaultEnterExit} from '../interfaces/IVaultEnterExit.sol';
 import {Multicall} from '../base/Multicall.sol';
 
@@ -64,7 +65,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
 
   /// @inheritdoc IRewardSplitter
   function canSyncRewards() external view override returns (bool) {
-    return totalShares > 0 && _totalRewards != IVaultToken(vault).balanceOf(address(this));
+    return totalShares > 0 && _totalRewards != IERC20(vault).balanceOf(address(this));
   }
 
   /// @inheritdoc IRewardSplitter
@@ -120,7 +121,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   function claimVaultTokens(uint256 rewards, address receiver) external override {
     _withdrawRewards(msg.sender, rewards);
     // NB! will revert if vault is not ERC-20
-    IVaultToken(vault).transfer(receiver, rewards);
+    SafeERC20.safeTransfer(IERC20(vault), receiver, rewards);
   }
 
   /// @inheritdoc IRewardSplitter
@@ -153,7 +154,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
 
     // retrieve new total rewards
     // NB! make sure vault has balanceOf function to retrieve number of shares assigned
-    uint256 newTotalRewards = IVaultToken(_vault).balanceOf(address(this));
+    uint256 newTotalRewards = IERC20(_vault).balanceOf(address(this));
     if (newTotalRewards == prevTotalRewards) return;
 
     // calculate new cumulative reward per share
