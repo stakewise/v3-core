@@ -4,6 +4,7 @@ pragma solidity =0.8.20;
 
 import {IChainlinkAggregator} from '../interfaces/IChainlinkAggregator.sol';
 import {IChainlinkV3Aggregator} from '../interfaces/IChainlinkV3Aggregator.sol';
+import {IBalancerRateProvider} from '../interfaces/IBalancerRateProvider.sol';
 import {IOsToken} from '../interfaces/IOsToken.sol';
 
 /**
@@ -11,7 +12,7 @@ import {IOsToken} from '../interfaces/IOsToken.sol';
  * @author StakeWise
  * @notice Price feed for osToken (e.g osETH price in ETH)
  */
-contract PriceFeed is IChainlinkAggregator, IChainlinkV3Aggregator {
+contract PriceFeed is IBalancerRateProvider, IChainlinkAggregator, IChainlinkV3Aggregator {
   error NotImplemented();
 
   /// @inheritdoc IChainlinkV3Aggregator
@@ -32,9 +33,14 @@ contract PriceFeed is IChainlinkAggregator, IChainlinkV3Aggregator {
     description = _description;
   }
 
+  /// @inheritdoc IBalancerRateProvider
+  function getRate() public view override returns (uint256) {
+    return IOsToken(osToken).convertToAssets(10 ** decimals());
+  }
+
   /// @inheritdoc IChainlinkAggregator
   function latestAnswer() public view override returns (int256) {
-    uint256 value = IOsToken(osToken).convertToAssets(10 ** decimals());
+    uint256 value = getRate();
     // cannot realistically overflow, but better to check
     return (value > uint256(type(int256).max)) ? type(int256).max : int256(value);
   }

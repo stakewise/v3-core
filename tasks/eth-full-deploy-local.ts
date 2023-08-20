@@ -10,8 +10,11 @@ import {
   PriceFeed__factory,
   SharedMevEscrow__factory,
   VaultsRegistry__factory,
+  RewardSplitter__factory,
+  RewardSplitterFactory__factory,
+  CumulativeMerkleDrop__factory,
 } from '../typechain-types'
-import { deployContract } from '../helpers/utils'
+import { deployContract, verify } from '../helpers/utils'
 import { getContractAddress } from 'ethers/lib/utils'
 import { NetworkConfig, Networks } from '../helpers/types'
 import { ethValidatorsRegistry, NETWORKS } from '../helpers/constants'
@@ -137,6 +140,22 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     )
     console.log('PriceFeed deployed at', priceFeed.address)
 
+    const rewardSplitterImpl = await deployContract(new RewardSplitter__factory(deployer).deploy())
+    console.log('RewardSplitter implementation deployed at', rewardSplitterImpl.address)
+
+    const rewardSplitterFactory = await deployContract(
+      new RewardSplitterFactory__factory(deployer).deploy(rewardSplitterImpl.address)
+    )
+    console.log('RewardSplitterFactory deployed at', rewardSplitterFactory.address)
+
+    const cumulativeMerkleDrop = await deployContract(
+      new CumulativeMerkleDrop__factory(deployer).deploy(
+        goerliConfig.liquidityCommittee,
+        goerliConfig.swiseToken
+      )
+    )
+    console.log('CumulativeMerkleDrop deployed at', cumulativeMerkleDrop.address)
+
     // pass ownership to governor
     await vaultsRegistry.transferOwnership(governor.address)
     await keeper.transferOwnership(governor.address)
@@ -161,6 +180,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       OsToken: osToken.address,
       OsTokenConfig: osTokenConfig.address,
       PriceFeed: priceFeed.address,
+      RewardSplitterFactory: rewardSplitterFactory.address,
     }
     const json = JSON.stringify(addresses, null, 2)
     const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`

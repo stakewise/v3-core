@@ -17,7 +17,9 @@ import {
   PriceFeed,
   SharedMevEscrow,
   VaultsRegistry,
+  RewardSplitterFactory,
   PoolEscrowMock,
+  CumulativeMerkleDrop,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
 import {
@@ -73,6 +75,14 @@ export const createPriceFeed = async function (
   return (await factory.deploy(osToken.address, description)) as PriceFeed
 }
 
+export const createRewardSplitterFactory = async function (): Promise<RewardSplitterFactory> {
+  let factory = await ethers.getContractFactory('RewardSplitter')
+  const rewardSplitterImpl = await factory.deploy()
+
+  factory = await ethers.getContractFactory('RewardSplitterFactory')
+  return (await factory.deploy(rewardSplitterImpl.address)) as RewardSplitterFactory
+}
+
 export const createOsToken = async function (
   keeperAddress: string,
   vaultsRegistry: VaultsRegistry,
@@ -110,6 +120,14 @@ export const createOsTokenConfig = async function (
     liqBonusPercent,
     ltvPercent,
   })) as OsTokenConfig
+}
+
+export const createCumulativeMerkleDrop = async function (
+  token: string,
+  owner: Wallet
+): Promise<CumulativeMerkleDrop> {
+  const factory = await ethers.getContractFactory('CumulativeMerkleDrop')
+  return (await factory.deploy(owner.address, token)) as CumulativeMerkleDrop
 }
 
 export const createKeeper = async function (
