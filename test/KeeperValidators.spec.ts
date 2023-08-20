@@ -140,15 +140,9 @@ describe('KeeperValidators', () => {
       expect(rewards.assets).to.eq(0)
 
       let receipt = await vault.registerValidator(approveParams, proof)
-      const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsApproval')
-        .withArgs(
-          vault.address,
-          hexlify(validator),
-          approveParams.exitSignaturesIpfsHash,
-          timestamp
-        )
+        .withArgs(vault.address, hexlify(validator), approveParams.exitSignaturesIpfsHash)
 
       // collateralize vault
       rewards = await keeper.rewards(vault.address)
@@ -314,15 +308,9 @@ describe('KeeperValidators', () => {
         proof.proofFlags,
         proof.proof
       )
-      const timestamp = (await waffle.provider.getBlock(receipt.blockNumber as number)).timestamp
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsApproval')
-        .withArgs(
-          vault.address,
-          hexlify(validatorsConcat),
-          approveParams.exitSignaturesIpfsHash,
-          timestamp
-        )
+        .withArgs(vault.address, hexlify(validatorsConcat), approveParams.exitSignaturesIpfsHash)
 
       rewards = await keeper.rewards(vault.address)
       expect(rewards.nonce).to.eq(1)
@@ -376,12 +364,15 @@ describe('KeeperValidators', () => {
     let exitSignaturesIpfsHash: string
     let oraclesSignatures: Buffer
     let signingData: any
+    let deadline: number
 
     beforeEach(async () => {
       exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
+      deadline = Math.floor(Date.now() / 1000) + 10000000
       signingData = getEthValidatorsExitSignaturesSigningData(
         keeper,
         vault,
+        deadline,
         exitSignaturesIpfsHash,
         0
       )
@@ -390,13 +381,23 @@ describe('KeeperValidators', () => {
 
     it('fails for invalid vault', async () => {
       await expect(
-        keeper.updateExitSignatures(keeper.address, exitSignaturesIpfsHash, oraclesSignatures)
+        keeper.updateExitSignatures(
+          keeper.address,
+          deadline,
+          exitSignaturesIpfsHash,
+          oraclesSignatures
+        )
       ).revertedWith('InvalidVault')
     })
 
     it('fails for not collateralized vault', async () => {
       await expect(
-        keeper.updateExitSignatures(vault.address, exitSignaturesIpfsHash, oraclesSignatures)
+        keeper.updateExitSignatures(
+          vault.address,
+          deadline,
+          exitSignaturesIpfsHash,
+          oraclesSignatures
+        )
       ).revertedWith('InvalidVault')
     })
 
@@ -405,18 +406,61 @@ describe('KeeperValidators', () => {
       await expect(
         keeper.updateExitSignatures(
           vault.address,
+          deadline,
           exitSignaturesIpfsHash,
           getOraclesSignatures(signingData, VALIDATORS_MIN_ORACLES - 1)
         )
       ).revertedWith('NotEnoughSignatures')
     })
 
+    it('fails for invalid deadline', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await expect(
+        keeper.updateExitSignatures(
+          vault.address,
+          deadline + 1,
+          exitSignaturesIpfsHash,
+          oraclesSignatures
+        )
+      ).revertedWith('InvalidOracle')
+    })
+
+    it('fails for expired deadline', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      const newDeadline = Math.floor(Date.now() / 1000)
+      const newSigningData = getEthValidatorsExitSignaturesSigningData(
+        keeper,
+        vault,
+        newDeadline,
+        exitSignaturesIpfsHash,
+        0
+      )
+      await expect(
+        keeper.updateExitSignatures(
+          vault.address,
+          newDeadline,
+          exitSignaturesIpfsHash,
+          getOraclesSignatures(newSigningData, ORACLES.length)
+        )
+      ).revertedWith('DeadlineExpired')
+    })
+
     it('fails to submit update twice', async () => {
       await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
-      await keeper.updateExitSignatures(vault.address, exitSignaturesIpfsHash, oraclesSignatures)
+      await keeper.updateExitSignatures(
+        vault.address,
+        deadline,
+        exitSignaturesIpfsHash,
+        oraclesSignatures
+      )
 
       await expect(
-        keeper.updateExitSignatures(vault.address, exitSignaturesIpfsHash, oraclesSignatures)
+        keeper.updateExitSignatures(
+          vault.address,
+          deadline,
+          exitSignaturesIpfsHash,
+          oraclesSignatures
+        )
       ).revertedWith('InvalidOracle')
     })
 
@@ -428,7 +472,7 @@ describe('KeeperValidators', () => {
 
       const receipt = await keeper
         .connect(sender)
-        .updateExitSignatures(vault.address, exitSignaturesIpfsHash, oraclesSignatures)
+        .updateExitSignatures(vault.address, deadline, exitSignaturesIpfsHash, oraclesSignatures)
       await expect(receipt)
         .to.emit(keeper, 'ExitSignaturesUpdated')
         .withArgs(sender.address, vault.address, nonce, exitSignaturesIpfsHash)

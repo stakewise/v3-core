@@ -82,13 +82,8 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
   /// @inheritdoc IKeeperRewards
   function updateRewards(RewardsUpdateParams calldata params) external override {
     if (!canUpdateRewards()) revert Errors.TooEarlyUpdate();
-    if (params.avgRewardPerSecond > _maxAvgRewardPerSecond)
+    if (params.avgRewardPerSecond > _maxAvgRewardPerSecond) {
       revert Errors.InvalidAvgRewardPerSecond();
-
-    // SLOAD to memory
-    bytes32 currRewardsRoot = rewardsRoot;
-    if (currRewardsRoot == params.rewardsRoot || prevRewardsRoot == params.rewardsRoot) {
-      revert Errors.InvalidRewardsRoot();
     }
 
     // SLOAD to memory
@@ -111,7 +106,7 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
     );
 
     // update state
-    prevRewardsRoot = currRewardsRoot;
+    prevRewardsRoot = rewardsRoot;
     rewardsRoot = params.rewardsRoot;
     // cannot overflow on human timescales
     lastRewardsTimestamp = uint64(block.timestamp);

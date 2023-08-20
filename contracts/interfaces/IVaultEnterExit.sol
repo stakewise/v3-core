@@ -82,6 +82,12 @@ interface IVaultEnterExit is IVaultState {
    */
   function getExitQueueIndex(uint256 positionTicket) external view returns (int256);
 
+  function calculateExitedAssets(
+    address receiver,
+    uint256 positionTicket,
+    uint256 exitQueueIndex
+  ) external view returns (uint256 leftShares, uint256 claimedShares, uint256 claimedAssets);
+
   /**
    * @notice Claims assets that were withdrawn by the Vault. It can be called only after the `enterExitQueue` call by the `receiver`.
    * @param positionTicket The exit queue ticket received after the `enterExitQueue` call

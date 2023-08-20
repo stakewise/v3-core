@@ -14,7 +14,7 @@ import {
   Keeper,
   OsToken,
   OsTokenConfig,
-  PriceOracle,
+  PriceFeed,
   SharedMevEscrow,
   VaultsRegistry,
   PoolEscrowMock,
@@ -65,9 +65,12 @@ export const createSharedMevEscrow = async function (
   return (await factory.deploy(vaultsRegistry.address)) as SharedMevEscrow
 }
 
-export const createPriceOracle = async function (osToken: OsToken): Promise<PriceOracle> {
-  const factory = await ethers.getContractFactory('PriceOracle')
-  return (await factory.deploy(osToken.address)) as PriceOracle
+export const createPriceFeed = async function (
+  osToken: OsToken,
+  description: string
+): Promise<PriceFeed> {
+  const factory = await ethers.getContractFactory('PriceFeed')
+  return (await factory.deploy(osToken.address, description)) as PriceFeed
 }
 
 export const createOsToken = async function (

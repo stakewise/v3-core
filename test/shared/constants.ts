@@ -28,9 +28,10 @@ export const ORACLES = [
   Buffer.from('27bad568920a145813ff66b73360c84f221043e1861fcfdf43f9d150e84202ea', 'hex'),
   Buffer.from('06087f518d2c684d1a2a3523fe358f3fdc45dfe560cf7a7ccb8ba01da7786796', 'hex'),
   Buffer.from('3999c56744678c5cb451df5eadf2846b92aa158b6d5eda55775f27064c6e880a', 'hex'),
+  Buffer.from('ca960119ad719a55764d0f5913fb354c301f614d3f49219c7b03202b2062890f', 'hex'),
 ]
 export const REWARDS_MIN_ORACLES = 6
-export const VALIDATORS_MIN_ORACLES = 9
+export const VALIDATORS_MIN_ORACLES = 11
 export const ORACLES_CONFIG = 'QmbwQ6zFEWs1SjLPGk4NNJqn4wduVe6dK3xyte2iG59Uru'
 export const OSTOKEN_FEE = 500 // 5%
 export const OSTOKEN_CAPACITY = parseEther('10000000')
@@ -79,4 +80,5 @@ export const KeeperUpdateExitSignaturesSig = [
   { name: 'vault', type: 'address' },
   { name: 'exitSignaturesIpfsHash', type: 'bytes32' },
   { name: 'nonce', type: 'uint256' },
+  { name: 'deadline', type: 'uint256' },
 ]

@@ -21,6 +21,11 @@
   },
   {
     "inputs": [],
+    "name": "DeadlineExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "HarvestFailed",
     "type": "error"
   },
@@ -166,6 +171,11 @@
   },
   {
     "inputs": [],
+    "name": "MaxOraclesExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "NotCollateralized",
     "type": "error"
   },
@@ -177,11 +187,6 @@
   {
     "inputs": [],
     "name": "NotHarvested",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "PermitDeadlineExpired",
     "type": "error"
   },
   {

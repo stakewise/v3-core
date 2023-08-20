@@ -7,7 +7,7 @@ import {
   Keeper__factory,
   OsToken__factory,
   OsTokenConfig__factory,
-  PriceOracle__factory,
+  PriceFeed__factory,
   SharedMevEscrow__factory,
   VaultsRegistry__factory,
 } from '../typechain-types'
@@ -132,10 +132,10 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       factories.push(ethVaultFactory.address)
     }
 
-    const priceOracle = await deployContract(
-      new PriceOracle__factory(deployer).deploy(osToken.address)
+    const priceFeed = await deployContract(
+      new PriceFeed__factory(deployer).deploy(osToken.address, goerliConfig.priceFeedDescription)
     )
-    console.log('PriceOracle deployed at', priceOracle.address)
+    console.log('PriceFeed deployed at', priceFeed.address)
 
     // pass ownership to governor
     await vaultsRegistry.transferOwnership(governor.address)
@@ -160,7 +160,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       SharedMevEscrow: sharedMevEscrow.address,
       OsToken: osToken.address,
       OsTokenConfig: osTokenConfig.address,
-      PriceOracle: priceOracle.address,
+      PriceFeed: priceFeed.address,
     }
     const json = JSON.stringify(addresses, null, 2)
     const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`

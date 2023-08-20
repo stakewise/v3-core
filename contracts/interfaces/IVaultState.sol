@@ -19,6 +19,14 @@ interface IVaultState is IVaultFee {
   event CheckpointCreated(uint256 shares, uint256 assets);
 
   /**
+   * @notice Event emitted on minting fee recipient shares
+   * @param receiver The address of the fee recipient
+   * @param shares The number of minted shares
+   * @param assets The amount of minted assets
+   */
+  event FeeSharesMinted(address receiver, uint256 shares, uint256 assets);
+
+  /**
    * @notice Total assets in the Vault
    * @return The total amount of the underlying asset that is "managed" by Vault
    */
@@ -61,6 +69,12 @@ interface IVaultState is IVaultFee {
    * @return `true` if exit queue can be updated, `false` otherwise
    */
   function canUpdateExitQueue() external view returns (bool);
+
+  /**
+   * @notice Check whether state update is required
+   * @return `true` if state update is required, `false` otherwise
+   */
+  function isStateUpdateRequired() external view returns (bool);
 
   /**
    * @notice Updates the total amount of assets in the Vault and its exit queue

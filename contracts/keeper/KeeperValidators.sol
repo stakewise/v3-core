@@ -20,7 +20,9 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
     );
 
   bytes32 private constant _updateExitSigTypeHash =
-    keccak256('KeeperValidators(address vault,bytes32 exitSignaturesIpfsHash,uint256 nonce)');
+    keccak256(
+      'KeeperValidators(address vault,bytes32 exitSignaturesIpfsHash,uint256 nonce,uint256 deadline)'
+    );
 
   IValidatorsRegistry private immutable _validatorsRegistry;
 
@@ -68,21 +70,18 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
 
     _collateralize(msg.sender);
 
-    emit ValidatorsApproval(
-      msg.sender,
-      params.validators,
-      params.exitSignaturesIpfsHash,
-      block.timestamp
-    );
+    emit ValidatorsApproval(msg.sender, params.validators, params.exitSignaturesIpfsHash);
   }
 
   /// @inheritdoc IKeeperValidators
   function updateExitSignatures(
     address vault,
+    uint256 deadline,
     string calldata exitSignaturesIpfsHash,
     bytes calldata oraclesSignatures
   ) external override {
     if (!(_vaultsRegistry.vaults(vault) && isCollateralized(vault))) revert Errors.InvalidVault();
+    if (deadline < block.timestamp) revert Errors.DeadlineExpired();
 
     // SLOAD to memory
     uint256 nonce = exitSignaturesNonces[vault];
@@ -91,7 +90,13 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
     _verifySignatures(
       validatorsMinOracles,
       keccak256(
-        abi.encode(_updateExitSigTypeHash, vault, keccak256(bytes(exitSignaturesIpfsHash)), nonce)
+        abi.encode(
+          _updateExitSigTypeHash,
+          vault,
+          keccak256(bytes(exitSignaturesIpfsHash)),
+          nonce,
+          deadline
+        )
       ),
       oraclesSignatures
     );

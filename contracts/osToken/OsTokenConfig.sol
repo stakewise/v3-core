@@ -24,7 +24,7 @@ contract OsTokenConfig is Ownable2Step, IOsTokenConfig {
    */
   constructor(address _owner, Config memory config) Ownable2Step() {
     updateConfig(config);
-    transferOwnership(_owner);
+    _transferOwnership(_owner);
   }
 
   /// @inheritdoc IOsTokenConfig

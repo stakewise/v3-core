@@ -79,7 +79,14 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   }
 
   /// @inheritdoc IVaultState
-  function updateState(IKeeperRewards.HarvestParams calldata harvestParams) public override {
+  function isStateUpdateRequired() external view override returns (bool) {
+    return IKeeperRewards(_keeper).isHarvestRequired(address(this));
+  }
+
+  /// @inheritdoc IVaultState
+  function updateState(
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) public virtual override {
     // process total assets delta  since last update
     int256 totalAssetsDelta = _harvestAssets(harvestParams);
     if (totalAssetsDelta != 0) _processTotalAssetsDelta(totalAssetsDelta);
@@ -94,7 +101,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
    * @dev Internal function for processing rewards and penalties
    * @param totalAssetsDelta The number of assets earned or lost
    */
-  function _processTotalAssetsDelta(int256 totalAssetsDelta) private {
+  function _processTotalAssetsDelta(int256 totalAssetsDelta) internal {
     // SLOAD to memory
     uint256 newTotalAssets = _totalAssets;
     if (totalAssetsDelta < 0) {
@@ -134,8 +141,11 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
       }
     }
 
+    // SLOAD to memory
+    address _feeRecipient = feeRecipient;
     // mint shares to the fee recipient
-    _mintShares(feeRecipient, feeRecipientShares);
+    _mintShares(_feeRecipient, feeRecipientShares);
+    emit FeeSharesMinted(_feeRecipient, feeRecipientShares, feeRecipientAssets);
   }
 
   /**
@@ -234,7 +244,8 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   ) internal virtual returns (int256);
 
   /**
-   * @dev Internal function for retrieving the total assets stored in the Vault
+   * @dev Internal function for retrieving the total assets stored in the Vault.
+          NB! Assets can be forcibly sent to the vault, the returned value must be used with caution
    * @return The total amount of assets stored in the Vault
    */
   function _vaultAssets() internal view virtual returns (uint256);

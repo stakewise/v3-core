@@ -201,6 +201,7 @@ describe('EthVault - state', () => {
     await expect(receipt)
       .emit(sharedMevEscrow, 'Harvested')
       .withArgs(vault.address, rewardMevEscrow)
+    await expect(receipt).not.emit(vault, 'FeeSharesMinted')
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
       rewardMevEscrow.add(holderAssets).add(SECURITY_DEPOSIT)
     )
@@ -261,6 +262,9 @@ describe('EthVault - state', () => {
       .emit(keeper, 'Harvested')
       .withArgs(vault.address, tree.root, rewardValidators, 0)
     await expect(receipt).emit(ownMevEscrow, 'Harvested').withArgs(rewardMevEscrow)
+    await expect(receipt)
+      .emit(vault, 'FeeSharesMinted')
+      .withArgs(admin.address, operatorShares, operatorReward)
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
       rewardMevEscrow.add(holderAssets).add(SECURITY_DEPOSIT)
     )

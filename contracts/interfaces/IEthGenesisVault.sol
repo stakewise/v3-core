@@ -19,7 +19,21 @@ interface IEthGenesisVault is IEthVault {
   event Migrated(address receiver, uint256 assets, uint256 shares);
 
   /**
-   * @notice Function for migrating from StakeWise v2. Can be called only by sETH2 contract.
+   * @notice Event emitted on EthGenesisVault creation
+   * @param admin The address of the Vault admin
+   * @param capacity The capacity of the Vault
+   * @param feePercent The fee percent of the Vault
+   * @param metadataIpfsHash The IPFS hash of the Vault metadata
+   */
+  event GenesisVaultCreated(
+    address admin,
+    uint256 capacity,
+    uint16 feePercent,
+    string metadataIpfsHash
+  );
+
+  /**
+   * @notice Function for migrating from StakeWise v2. Can be called only by RewardEthToken contract.
    * @param receiver The address of the receiver
    * @param assets The amount of assets migrated
    * @return shares The amount of shares minted

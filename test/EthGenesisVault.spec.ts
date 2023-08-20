@@ -1,7 +1,7 @@
 import { ethers, upgrades, waffle } from 'hardhat'
 import { BigNumber, Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
-import { EthGenesisVault, PoolEscrowMock, Keeper } from '../typechain-types'
+import { EthGenesisVault, PoolEscrowMock, Keeper, RewardEthTokenMock } from '../typechain-types'
 import { createPoolEscrow, ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
 import keccak256 from 'keccak256'
@@ -14,7 +14,7 @@ import {
   getValidatorsMultiProof,
   registerEthValidator,
 } from './shared/validators'
-import { collateralizeEthVault, updateRewards } from './shared/rewards'
+import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
 import { increaseTime, setBalance } from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
@@ -23,14 +23,15 @@ describe('EthGenesisVault', () => {
   const capacity = parseEther('1000')
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
-  let dao: Wallet, admin: Wallet, stakedEthToken: Wallet, other: Wallet
+  let dao: Wallet, admin: Wallet, other: Wallet
   let vault: EthGenesisVault, keeper: Keeper, validatorsRegistry: Contract
   let poolEscrow: PoolEscrowMock
+  let rewardEthToken: RewardEthTokenMock
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
 
   before('create fixture loader', async () => {
-    ;[dao, admin, stakedEthToken, other] = await (ethers as any).getSigners()
+    ;[dao, admin, other] = await (ethers as any).getSigners()
     loadFixture = createFixtureLoader([dao])
   })
 
@@ -39,8 +40,10 @@ describe('EthGenesisVault', () => {
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
 
-    poolEscrow = await createPoolEscrow(stakedEthToken.address)
-    const factory = await ethers.getContractFactory('EthGenesisVault')
+    let factory = await ethers.getContractFactory('RewardEthTokenMock')
+    rewardEthToken = (await factory.deploy()) as RewardEthTokenMock
+    poolEscrow = await createPoolEscrow(dao.address)
+    factory = await ethers.getContractFactory('EthGenesisVault')
     const proxy = await upgrades.deployProxy(factory, [], {
       unsafeAllow: ['delegatecall'],
       initializer: false,
@@ -52,11 +55,12 @@ describe('EthGenesisVault', () => {
         fixture.osTokenConfig.address,
         fixture.sharedMevEscrow.address,
         poolEscrow.address,
-        stakedEthToken.address,
+        rewardEthToken.address,
       ],
     })
     vault = (await proxy.deployed()) as EthGenesisVault
-    await poolEscrow.connect(stakedEthToken).commitOwnershipTransfer(vault.address)
+    await rewardEthToken.setVault(vault.address)
+    await poolEscrow.connect(dao).commitOwnershipTransfer(vault.address)
     const tx = await vault.initialize(
       ethers.utils.defaultAbiCoder.encode(
         ['address', 'tuple(uint256 capacity, uint16 feePercent, string metadataIpfsHash)'],
@@ -67,6 +71,9 @@ describe('EthGenesisVault', () => {
     await vault.connect(admin).acceptPoolEscrowOwnership()
     await expect(tx).to.emit(vault, 'MetadataUpdated').withArgs(dao.address, metadataIpfsHash)
     await expect(tx).to.emit(vault, 'FeeRecipientUpdated').withArgs(dao.address, admin.address)
+    await expect(tx)
+      .to.emit(vault, 'GenesisVaultCreated')
+      .withArgs(admin.address, capacity, feePercent, metadataIpfsHash)
     expect(await vault.mevEscrow()).to.be.eq(fixture.sharedMevEscrow.address)
 
     await fixture.vaultsRegistry.connect(dao).addVault(vault.address)
@@ -109,20 +116,21 @@ describe('EthGenesisVault', () => {
   })
 
   describe('migrate', () => {
-    it('fails from not stakedEthToken', async () => {
+    it('fails from not rewardEthToken', async () => {
       await expect(vault.connect(admin).migrate(admin.address, parseEther('1'))).to.be.revertedWith(
         'AccessDenied'
       )
     })
 
     it('fails with zero receiver', async () => {
+      const assets = parseEther('1')
       await expect(
-        vault.connect(stakedEthToken).migrate(ZERO_ADDRESS, parseEther('1'))
+        rewardEthToken.connect(other).migrate(ZERO_ADDRESS, assets, assets)
       ).to.be.revertedWith('ZeroAddress')
     })
 
     it('fails with zero assets', async () => {
-      await expect(vault.connect(stakedEthToken).migrate(admin.address, 0)).to.be.revertedWith(
+      await expect(rewardEthToken.connect(other).migrate(other.address, 0, 0)).to.be.revertedWith(
         'InvalidAssets'
       )
     })
@@ -143,17 +151,18 @@ describe('EthGenesisVault', () => {
           vault: vault.address,
         },
       ])
+      const assets = parseEther('1')
       await expect(
-        vault.connect(stakedEthToken).migrate(other.address, parseEther('1'))
+        rewardEthToken.connect(other).migrate(other.address, assets, assets)
       ).to.be.revertedWith('NotHarvested')
     })
 
-    it('migrates from stakedEthToken', async () => {
+    it('migrates from rewardEthToken', async () => {
       const assets = parseEther('10')
       const expectedShares = parseEther('10')
       expect(await vault.convertToShares(assets)).to.eq(expectedShares)
 
-      const receipt = await vault.connect(stakedEthToken).migrate(other.address, assets)
+      const receipt = await rewardEthToken.connect(other).migrate(other.address, assets, 0)
       expect(await vault.balanceOf(other.address)).to.eq(expectedShares)
 
       await expect(receipt)
@@ -194,7 +203,7 @@ describe('EthGenesisVault', () => {
 
   it('pulls assets on redeem', async () => {
     const shares = parseEther('10')
-    await vault.connect(stakedEthToken).migrate(other.address, shares)
+    await rewardEthToken.connect(other).migrate(other.address, shares, shares)
 
     await setBalance(vault.address, BigNumber.from(0))
     await setBalance(poolEscrow.address, shares)
@@ -205,13 +214,14 @@ describe('EthGenesisVault', () => {
     await expect(tx)
       .to.emit(vault, 'Redeemed')
       .withArgs(other.address, other.address, shares, shares)
+    await expect(tx).to.not.emit(vault, 'Deposited')
     await expect(tx).to.emit(poolEscrow, 'Withdrawn').withArgs(vault.address, vault.address, shares)
     expect(await waffle.provider.getBalance(poolEscrow.address)).to.eq(0)
   })
 
   it('pulls assets on single validator registration', async () => {
     const validatorDeposit = parseEther('32')
-    await vault.connect(stakedEthToken).migrate(other.address, validatorDeposit)
+    await rewardEthToken.connect(other).migrate(other.address, validatorDeposit, validatorDeposit)
     await setBalance(vault.address, BigNumber.from(0))
     await setBalance(poolEscrow.address, validatorDeposit)
     expect(await vault.withdrawableAssets()).to.eq(validatorDeposit)
@@ -231,7 +241,7 @@ describe('EthGenesisVault', () => {
     ])
     const validators = validatorsData.validators
     const assets = parseEther('32').mul(validators.length)
-    await vault.connect(stakedEthToken).migrate(other.address, assets)
+    await rewardEthToken.connect(other).migrate(other.address, assets, assets)
 
     const sortedVals = proof.leaves.map((v) => v[0])
     const indexes = validators.map((v) => sortedVals.indexOf(v))
@@ -258,5 +268,121 @@ describe('EthGenesisVault', () => {
     const tx = await vault.registerValidators(approveParams, indexes, proof.proofFlags, proof.proof)
     await expect(tx).to.emit(poolEscrow, 'Withdrawn').withArgs(vault.address, vault.address, assets)
     await snapshotGasCost(tx)
+  })
+
+  it('can deposit through receive fallback function', async () => {
+    const depositorMockFactory = await ethers.getContractFactory('DepositorMock')
+    const depositorMock = await depositorMockFactory.deploy(vault.address)
+
+    const amount = parseEther('100')
+    const expectedShares = parseEther('100')
+    expect(await vault.convertToShares(amount)).to.eq(expectedShares)
+
+    const receipt = await depositorMock.connect(other).depositToVault({ value: amount })
+    expect(await vault.balanceOf(depositorMock.address)).to.eq(expectedShares)
+
+    await expect(receipt)
+      .to.emit(vault, 'Deposited')
+      .withArgs(depositorMock.address, depositorMock.address, amount, expectedShares, ZERO_ADDRESS)
+    await snapshotGasCost(receipt)
+  })
+
+  describe('update state', () => {
+    const totalVaultAssets: BigNumber = parseEther('10')
+    const totalLegacyAssets: BigNumber = parseEther('5')
+
+    beforeEach(async () => {
+      await vault.deposit(other.address, ZERO_ADDRESS, {
+        value: totalVaultAssets.sub(SECURITY_DEPOSIT),
+      })
+
+      await rewardEthToken.connect(other).setTotalStaked(totalLegacyAssets)
+    })
+
+    it('splits reward between rewardEthToken and vault', async () => {
+      const totalRewards = parseEther('30')
+      const expectedVaultDelta = totalRewards
+        .mul(totalVaultAssets)
+        .div(totalLegacyAssets.add(totalVaultAssets))
+      const expectedLegacyDelta = totalRewards.sub(expectedVaultDelta)
+      const vaultReward = {
+        reward: totalRewards,
+        unlockedMevReward: 0,
+        vault: vault.address,
+      }
+      const rewardsTree = await updateRewards(keeper, [vaultReward])
+      const proof = getRewardsRootProof(rewardsTree, vaultReward)
+      const receipt = await vault.updateState({
+        rewardsRoot: rewardsTree.root,
+        reward: vaultReward.reward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
+        proof,
+      })
+
+      expect(await rewardEthToken.totalAssets()).to.eq(totalLegacyAssets.add(expectedLegacyDelta))
+      expect(await vault.totalAssets()).to.eq(totalVaultAssets.add(expectedVaultDelta))
+      await snapshotGasCost(receipt)
+    })
+
+    it('splits penalty between rewardEthToken and vault', async () => {
+      const totalPenalty = parseEther('-5')
+      const expectedVaultDelta = totalPenalty
+        .mul(totalVaultAssets)
+        .div(totalLegacyAssets.add(totalVaultAssets))
+      const expectedLegacyDelta = totalPenalty.sub(expectedVaultDelta)
+      const vaultReward = {
+        reward: totalPenalty,
+        unlockedMevReward: 0,
+        vault: vault.address,
+      }
+      const rewardsTree = await updateRewards(keeper, [vaultReward])
+      const proof = getRewardsRootProof(rewardsTree, vaultReward)
+      const receipt = await vault.updateState({
+        rewardsRoot: rewardsTree.root,
+        reward: vaultReward.reward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
+        proof,
+      })
+
+      expect((await rewardEthToken.totalAssets()).sub(await rewardEthToken.totalPenalty())).to.eq(
+        totalLegacyAssets.add(expectedLegacyDelta).add(1) // rounding error
+      )
+      expect(await vault.totalAssets()).to.eq(totalVaultAssets.add(expectedVaultDelta).sub(1)) // rounding error
+      await snapshotGasCost(receipt)
+    })
+
+    it('deducts rewards on first state update', async () => {
+      const totalRewards = parseEther('25')
+      const legacyRewards = parseEther('5')
+      await rewardEthToken.connect(other).setTotalRewards(legacyRewards)
+      expect(await rewardEthToken.totalAssets()).to.eq(totalLegacyAssets.add(legacyRewards))
+      expect(await rewardEthToken.totalRewards()).to.eq(legacyRewards)
+      expect(await vault.totalAssets()).to.eq(totalVaultAssets)
+
+      const expectedVaultDelta = totalRewards
+        .sub(legacyRewards)
+        .mul(totalVaultAssets)
+        .div(totalLegacyAssets.add(legacyRewards).add(totalVaultAssets))
+      const expectedLegacyDelta = totalRewards.sub(legacyRewards).sub(expectedVaultDelta)
+      const vaultReward = {
+        reward: totalRewards,
+        unlockedMevReward: 0,
+        vault: vault.address,
+      }
+      const rewardsTree = await updateRewards(keeper, [vaultReward])
+      const proof = getRewardsRootProof(rewardsTree, vaultReward)
+      const receipt = await vault.updateState({
+        rewardsRoot: rewardsTree.root,
+        reward: vaultReward.reward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
+        proof,
+      })
+
+      expect(await rewardEthToken.totalAssets()).to.eq(
+        totalLegacyAssets.add(legacyRewards).add(expectedLegacyDelta)
+      )
+      expect(await vault.totalAssets()).to.eq(totalVaultAssets.add(expectedVaultDelta))
+      await snapshotGasCost(receipt)
+    })
   })
 })

@@ -579,7 +579,7 @@ describe('EthVault - token', () => {
 
       await expect(
         vault.permit(ownerAddress, spender.address, value, deadline, v, r, s)
-      ).to.be.revertedWith('PermitDeadlineExpired')
+      ).to.be.revertedWith('DeadlineExpired')
     })
 
     it('rejects zero address', async () => {
