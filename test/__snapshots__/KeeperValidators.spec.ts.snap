@@ -3,7 +3,7 @@
 exports[`KeeperValidators register multiple validators succeeds 1`] = `
 Object {
   "calldataByteLength": 3684,
-  "gasUsed": 723512,
+  "gasUsed": 723482,
 }
 `;
 
