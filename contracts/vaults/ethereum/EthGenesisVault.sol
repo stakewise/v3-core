@@ -4,11 +4,14 @@ pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
+import {IVaultState} from '../../interfaces/IVaultState.sol';
 import {IPoolEscrow} from '../../interfaces/IPoolEscrow.sol';
 import {IEthGenesisVault} from '../../interfaces/IEthGenesisVault.sol';
-import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
+import {IRewardEthToken} from '../../interfaces/IRewardEthToken.sol';
+import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
@@ -24,8 +27,9 @@ import {EthVault} from './EthVault.sol';
 contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IPoolEscrow private immutable _poolEscrow;
+
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  address private immutable _stakedEthToken;
+  IRewardEthToken private immutable _rewardEthToken;
 
   /**
    * @dev Constructor
@@ -38,7 +42,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param poolEscrow The address of the pool escrow from StakeWise v2
-   * @param stakedEthToken The address of the sETH2 token from StakeWise v2
+   * @param rewardEthToken The address of the rETH2 token from StakeWise v2
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
@@ -49,12 +53,12 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     address osTokenConfig,
     address sharedMevEscrow,
     address poolEscrow,
-    address stakedEthToken
+    address rewardEthToken
   )
     EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, osToken, osTokenConfig, sharedMevEscrow)
   {
     _poolEscrow = IPoolEscrow(poolEscrow);
-    _stakedEthToken = stakedEthToken;
+    _rewardEthToken = IRewardEthToken(rewardEthToken);
   }
 
   /// @inheritdoc IEthVault
@@ -67,6 +71,12 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     );
     // use shared MEV escrow
     __EthVault_init(admin, address(0), initParams);
+    emit GenesisVaultCreated(
+      admin,
+      initParams.capacity,
+      initParams.feePercent,
+      initParams.metadataIpfsHash
+    );
   }
 
   /// @inheritdoc IEthGenesisVault
@@ -85,9 +95,56 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     return 1;
   }
 
+  /// @inheritdoc IVaultState
+  function updateState(
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) public override(IVaultState, VaultState) {
+    bool isCollateralized = IKeeperRewards(_keeper).isCollateralized(address(this));
+
+    // process total assets delta since last update
+    int256 totalAssetsDelta = _harvestAssets(harvestParams);
+
+    if (!isCollateralized) {
+      // it's the first harvest, deduct rewards accumulated so far in legacy pool
+      totalAssetsDelta -= SafeCast.toInt256(_rewardEthToken.totalRewards());
+    }
+
+    // fetch total assets controlled by legacy pool
+    uint256 legacyPrincipal = _rewardEthToken.totalAssets() - _rewardEthToken.totalPenalty();
+
+    // calculate total principal
+    uint256 totalPrincipal = _totalAssets + legacyPrincipal;
+    if (totalAssetsDelta < 0) {
+      // calculate and update penalty for legacy pool
+      int256 legacyPenalty = SafeCast.toInt256(
+        Math.mulDiv(uint256(-totalAssetsDelta), legacyPrincipal, totalPrincipal)
+      );
+      _rewardEthToken.updateTotalRewards(-legacyPenalty);
+      // deduct penalty from total assets delta
+      totalAssetsDelta += legacyPenalty;
+    } else {
+      // calculate and update reward for legacy pool
+      int256 legacyReward = SafeCast.toInt256(
+        Math.mulDiv(uint256(totalAssetsDelta), legacyPrincipal, totalPrincipal)
+      );
+      _rewardEthToken.updateTotalRewards(legacyReward);
+      // deduct reward from total assets delta
+      totalAssetsDelta -= legacyReward;
+    }
+
+    if (totalAssetsDelta != 0) {
+      super._processTotalAssetsDelta(totalAssetsDelta);
+    }
+
+    // update exit queue
+    if (canUpdateExitQueue()) {
+      _updateExitQueue();
+    }
+  }
+
   /// @inheritdoc IEthGenesisVault
   function migrate(address receiver, uint256 assets) external override returns (uint256 shares) {
-    if (msg.sender != _stakedEthToken) revert Errors.AccessDenied();
+    if (msg.sender != address(_rewardEthToken)) revert Errors.AccessDenied();
 
     _checkHarvested();
     if (receiver == address(0)) revert Errors.ZeroAddress();
@@ -101,6 +158,15 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     _mintShares(receiver, shares);
 
     emit Migrated(receiver, assets, shares);
+  }
+
+  /**
+   * @dev Function for depositing using fallback function
+   */
+  receive() external payable virtual override {
+    if (msg.sender != address(_poolEscrow)) {
+      _deposit(msg.sender, msg.value, address(0));
+    }
   }
 
   /// @inheritdoc VaultEnterExit

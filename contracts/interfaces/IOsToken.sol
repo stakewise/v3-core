@@ -142,14 +142,16 @@ interface IOsToken is IERC20Permit {
   function updateState() external;
 
   /**
-   * @notice Mint shares for the collateralized assets. Can only be called by the Controller.
-   * @param assets The amount of assets collateralized
-   * @return shares The amount of shares minted
+   * @notice Mint OsToken shares. Can only be called by the registered vault.
+   * @param receiver The address that will receive the shares
+   * @param shares The amount of shares to mint
+   * @return assets The amount of assets minted
    */
-  function mintShares(address receiver, uint256 assets) external returns (uint256 shares);
+  function mintShares(address receiver, uint256 shares) external returns (uint256 assets);
 
   /**
-   * @notice Burn shares for withdrawn assets. Can only be called by the Controller.
+   * @notice Burn shares for withdrawn assets. Can only be called by the registered vault.
+   * @param owner The address that owns the shares
    * @param shares The amount of shares to burn
    * @return assets The amount of assets withdrawn
    */

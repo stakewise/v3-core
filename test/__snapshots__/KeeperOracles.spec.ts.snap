@@ -1,20 +1,20 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Oracles add oracle succeeds 1`] = `
+exports[`KeeperOracles add oracle succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 52882,
+  "gasUsed": 52904,
 }
 `;
 
-exports[`Oracles remove oracle succeeds 1`] = `
+exports[`KeeperOracles remove oracle succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
   "gasUsed": 31108,
 }
 `;
 
-exports[`Oracles update config succeeds 1`] = `
+exports[`KeeperOracles update config succeeds 1`] = `
 Object {
   "calldataByteLength": 132,
   "gasUsed": 26984,

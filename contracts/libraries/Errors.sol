@@ -32,7 +32,7 @@ library Errors {
   error InvalidValidator();
   error InvalidValidators();
   error WhitelistAlreadyUpdated();
-  error PermitDeadlineExpired();
+  error DeadlineExpired();
   error PermitInvalidSigner();
   error InvalidValidatorsRegistryRoot();
   error InvalidVault();
@@ -51,4 +51,5 @@ library Errors {
   error InvalidLtvPercent();
   error InvalidCheckpointIndex();
   error InvalidCheckpointValue();
+  error MaxOraclesExceeded();
 }

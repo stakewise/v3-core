@@ -15,6 +15,7 @@ import {IKeeperOracles} from '../interfaces/IKeeperOracles.sol';
  */
 abstract contract KeeperOracles is Ownable2Step, EIP712, IKeeperOracles {
   uint256 internal constant _signatureLength = 65;
+  uint256 private constant _maxOracles = 30;
 
   /// @inheritdoc IKeeperOracles
   mapping(address => bool) public override isOracle;
@@ -31,11 +32,18 @@ abstract contract KeeperOracles is Ownable2Step, EIP712, IKeeperOracles {
   function addOracle(address oracle) public override onlyOwner {
     if (isOracle[oracle]) revert Errors.AlreadyAdded();
 
-    isOracle[oracle] = true;
+    // SLOAD to memory
+    uint256 _totalOracles = totalOracles;
     unchecked {
-      // cannot realistically overflow
-      totalOracles += 1;
+      // capped with _maxOracles
+      _totalOracles += 1;
     }
+    if (_totalOracles > _maxOracles) revert Errors.MaxOraclesExceeded();
+
+    // update state
+    isOracle[oracle] = true;
+    totalOracles = _totalOracles;
+
     emit OracleAdded(oracle);
   }
 

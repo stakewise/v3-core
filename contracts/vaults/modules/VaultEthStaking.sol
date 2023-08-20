@@ -85,10 +85,12 @@ abstract contract VaultEthStaking is
     uint256 endIndex;
     bytes calldata validator;
     bytes calldata publicKey;
-    leaves = new bytes32[](indexes.length);
+    uint256 validatorsCount = indexes.length;
+    leaves = new bytes32[](validatorsCount);
     uint256 validatorDeposit = _validatorDeposit();
     bytes memory withdrawalCreds = _withdrawalCredentials();
-    for (uint256 i = 0; i < indexes.length; ) {
+
+    for (uint256 i = 0; i < validatorsCount; ) {
       unchecked {
         // cannot realistically overflow
         endIndex += _validatorLength;

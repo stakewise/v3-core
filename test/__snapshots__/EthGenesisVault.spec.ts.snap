@@ -1,29 +1,57 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`EthGenesisVault migrate migrates from stakedEthToken 1`] = `
+exports[`EthGenesisVault can deposit through receive fallback function 1`] = `
 Object {
-  "calldataByteLength": 68,
-  "gasUsed": 63554,
+  "calldataByteLength": 4,
+  "gasUsed": 74449,
+}
+`;
+
+exports[`EthGenesisVault migrate migrates from rewardEthToken 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 71330,
 }
 `;
 
 exports[`EthGenesisVault pulls assets on claim exited assets 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 107765,
+  "gasUsed": 67068,
 }
 `;
 
 exports[`EthGenesisVault pulls assets on multiple validators registration 1`] = `
 Object {
-  "calldataByteLength": 3620,
-  "gasUsed": 757913,
+  "calldataByteLength": 3684,
+  "gasUsed": 738387,
 }
 `;
 
 exports[`EthGenesisVault pulls assets on single validator registration 1`] = `
 Object {
-  "calldataByteLength": 1316,
-  "gasUsed": 393562,
+  "calldataByteLength": 1412,
+  "gasUsed": 374236,
+}
+`;
+
+exports[`EthGenesisVault update state deducts rewards on first state update 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 145189,
+}
+`;
+
+exports[`EthGenesisVault update state splits penalty between rewardEthToken and vault 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 135771,
+}
+`;
+
+exports[`EthGenesisVault update state splits reward between rewardEthToken and vault 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 162289,
 }
 `;

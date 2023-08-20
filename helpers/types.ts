@@ -44,4 +44,7 @@ export type NetworkConfig = {
     capacity: BigNumberish
     feePercent: number
   }
+
+  // PriceFeed
+  priceFeedDescription: string
 }

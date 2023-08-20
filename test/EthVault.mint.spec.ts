@@ -14,7 +14,7 @@ const createFixtureLoader = waffle.createFixtureLoader
 
 describe('EthVault - mint', () => {
   const assets = parseEther('2')
-  const osTokenAssets = parseEther('1')
+  const osTokenShares = parseEther('1')
   const vaultParams = {
     capacity: parseEther('1000'),
     feePercent: 1000,
@@ -54,7 +54,7 @@ describe('EthVault - mint', () => {
   it('cannot mint osTokens from not collateralized vault', async () => {
     const notCollatVault = await createVault(admin, vaultParams, false)
     await expect(
-      notCollatVault.connect(sender).mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
+      notCollatVault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
     ).to.be.revertedWith('NotCollateralized')
   })
 
@@ -66,20 +66,20 @@ describe('EthVault - mint', () => {
       { vault: vault.address, reward: parseEther('1.2'), unlockedMevReward: parseEther('0') },
     ])
     await expect(
-      vault.connect(sender).mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
+      vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
     ).to.be.revertedWith('NotHarvested')
   })
 
   it('cannot mint osTokens to zero address', async () => {
     await expect(
-      vault.connect(sender).mintOsToken(ZERO_ADDRESS, osTokenAssets, ZERO_ADDRESS)
+      vault.connect(sender).mintOsToken(ZERO_ADDRESS, osTokenShares, ZERO_ADDRESS)
     ).to.be.revertedWith('ZeroAddress')
   })
 
-  it('cannot mint zero osToken assets', async () => {
+  it('cannot mint zero osToken shares', async () => {
     await expect(
       vault.connect(sender).mintOsToken(receiver.address, 0, ZERO_ADDRESS)
-    ).to.be.revertedWith('InvalidAssets')
+    ).to.be.revertedWith('InvalidShares')
   })
 
   it('cannot mint osTokens from unregistered vault', async () => {
@@ -89,7 +89,7 @@ describe('EthVault - mint', () => {
       await vault.implementation()
     )) as UnknownVaultMock
     await expect(
-      unknownVault.connect(sender).mintOsToken(receiver.address, osTokenAssets)
+      unknownVault.connect(sender).mintOsToken(receiver.address, osTokenShares)
     ).to.be.revertedWith('AccessDenied')
   })
 
@@ -98,32 +98,34 @@ describe('EthVault - mint', () => {
     const unknownVault = (await factory.deploy(osToken.address, ZERO_ADDRESS)) as UnknownVaultMock
     await vaultsRegistry.connect(owner).addVault(unknownVault.address)
     await expect(
-      unknownVault.connect(sender).mintOsToken(receiver.address, osTokenAssets)
+      unknownVault.connect(sender).mintOsToken(receiver.address, osTokenShares)
     ).to.be.revertedWith('AccessDenied')
   })
 
   it('cannot mint osTokens when it exceeds capacity', async () => {
+    const osTokenAssets = await vault.convertToAssets(osTokenShares)
     await osToken.connect(owner).setCapacity(osTokenAssets.sub(1))
     await expect(
-      vault.connect(sender).mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
+      vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
     ).to.be.revertedWith('CapacityExceeded')
   })
 
   it('cannot mint osTokens when LTV is violated', async () => {
+    const shares = await vault.convertToAssets(assets)
     await expect(
-      vault.connect(sender).mintOsToken(receiver.address, assets, ZERO_ADDRESS)
+      vault.connect(sender).mintOsToken(receiver.address, shares, ZERO_ADDRESS)
     ).to.be.revertedWith('LowLtv')
   })
 
   it('cannot enter exit queue when LTV is violated', async () => {
-    await vault.connect(sender).mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
+    await vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
     await expect(vault.connect(sender).enterExitQueue(assets, receiver.address)).to.be.revertedWith(
       'LowLtv'
     )
   })
 
   it('cannot redeem when LTV is violated', async () => {
-    await vault.connect(sender).mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
+    await vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
     await expect(vault.connect(sender).redeem(assets, receiver.address)).to.be.revertedWith(
       'LowLtv'
     )
@@ -131,14 +133,14 @@ describe('EthVault - mint', () => {
 
   it('updates position accumulated fee', async () => {
     const treasury = await osToken.treasury()
-    let totalShares = osTokenAssets
-    let totalAssets = osTokenAssets
-    let cumulativeFeePerShare = BigNumber.from(0)
+    let totalShares = osTokenShares
+    let totalAssets = await vault.convertToAssets(osTokenShares)
+    let cumulativeFeePerShare = parseEther('1')
     let treasuryShares = BigNumber.from(0)
-    let positionShares = osTokenAssets
-    let receiverShares = osTokenAssets
+    let positionShares = osTokenShares
+    let receiverShares = osTokenShares
 
-    expect(await osToken.cumulativeFeePerShare()).to.eq(0)
+    expect(await osToken.cumulativeFeePerShare()).to.eq(cumulativeFeePerShare)
     expect(await vault.osTokenPositions(sender.address)).to.eq(0)
 
     const verify = async () => {
@@ -153,7 +155,7 @@ describe('EthVault - mint', () => {
 
     let receipt = await vault
       .connect(sender)
-      .mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
+      .mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
     await verify()
 
     await snapshotGasCost(receipt)
@@ -161,11 +163,11 @@ describe('EthVault - mint', () => {
 
     expect(await osToken.cumulativeFeePerShare()).to.be.above(cumulativeFeePerShare)
     expect(await osToken.totalAssets()).to.be.above(totalAssets)
-    expect(await osToken.convertToAssets(receiverShares)).to.be.above(osTokenAssets)
+    expect(await osToken.convertToAssets(receiverShares)).to.be.above(osTokenShares)
     expect(await vault.osTokenPositions(sender.address)).to.be.above(positionShares)
 
     receipt = await vault.connect(sender).mintOsToken(receiver.address, 100, ZERO_ADDRESS)
-    receiverShares = receiverShares.add(await osToken.convertToShares(100))
+    receiverShares = receiverShares.add(100)
     expect(await osToken.balanceOf(treasury)).to.be.above(0)
     expect(await osToken.cumulativeFeePerShare()).to.be.above(cumulativeFeePerShare)
 
@@ -173,20 +175,19 @@ describe('EthVault - mint', () => {
     treasuryShares = await osToken.balanceOf(treasury)
     positionShares = treasuryShares.add(receiverShares)
     totalShares = positionShares
-    totalAssets = (await osToken.convertToAssets(treasuryShares))
-      .add(await osToken.convertToAssets(receiverShares))
-      .add(1) // rounding error
+    totalAssets = await osToken.convertToAssets(positionShares)
     await verify()
 
     await snapshotGasCost(receipt)
   })
 
   it('mints osTokens to the receiver', async () => {
-    const osTokenShares = osTokenAssets
     const receipt = await vault
       .connect(sender)
-      .mintOsToken(receiver.address, osTokenAssets, ZERO_ADDRESS)
+      .mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
+    const osTokenAssets = await vault.convertToAssets(osTokenShares)
 
+    expect(await osToken.convertToShares(osTokenAssets)).to.eq(osTokenShares)
     expect(await osToken.balanceOf(receiver.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(sender.address)).to.eq(osTokenShares)
     await expect(receipt)

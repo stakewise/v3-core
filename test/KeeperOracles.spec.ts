@@ -4,11 +4,12 @@ import { Keeper } from '../typechain-types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { ORACLES_CONFIG } from './shared/constants'
+import { ORACLES, ORACLES_CONFIG } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
-describe('Oracles', () => {
+describe('KeeperOracles', () => {
+  const maxOracles = 30
   let owner: Wallet, oracle: Wallet, other: Wallet
   let keeper: Keeper
   let totalOracles: number
@@ -35,6 +36,15 @@ describe('Oracles', () => {
     it('fails if already added', async () => {
       await keeper.connect(owner).addOracle(oracle.address)
       await expect(keeper.connect(owner).addOracle(oracle.address)).revertedWith('AlreadyAdded')
+    })
+
+    it('fails when number of oracles exceeded', async () => {
+      for (let i = 0; i < maxOracles - ORACLES.length; i++) {
+        await keeper.connect(owner).addOracle(ethers.Wallet.createRandom().address)
+      }
+      await expect(
+        keeper.connect(owner).addOracle(ethers.Wallet.createRandom().address)
+      ).revertedWith('MaxOraclesExceeded')
     })
 
     it('succeeds', async () => {

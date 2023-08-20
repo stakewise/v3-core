@@ -81,7 +81,7 @@ contract EthVault is
   }
 
   /// @inheritdoc IEthVault
-  function balanceOf(address account) external view returns (uint256) {
+  function balanceOf(address account) external view override returns (uint256) {
     return _balances[account];
   }
 

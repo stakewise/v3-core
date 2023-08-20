@@ -55,14 +55,14 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   /// @inheritdoc IVaultOsToken
   function mintOsToken(
     address receiver,
-    uint256 assets,
+    uint256 osTokenShares,
     address referrer
-  ) external override returns (uint256 osTokenShares) {
+  ) external override returns (uint256 assets) {
     _checkCollateralized();
     _checkHarvested();
 
     // mint osToken shares to the receiver
-    osTokenShares = _osToken.mintShares(receiver, assets);
+    assets = _osToken.mintShares(receiver, osTokenShares);
 
     // fetch user position
     OsTokenPosition memory position = _positions[msg.sender];
@@ -260,8 +260,8 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     if (cumulativeFeePerShare == position.cumulativeFeePerShare) return;
 
     // add treasury fee to the position
-    position.shares += SafeCast.toUint128(
-      Math.mulDiv(cumulativeFeePerShare - position.cumulativeFeePerShare, position.shares, _wad)
+    position.shares = SafeCast.toUint128(
+      Math.mulDiv(position.shares, cumulativeFeePerShare, position.cumulativeFeePerShare)
     );
     position.cumulativeFeePerShare = SafeCast.toUint128(cumulativeFeePerShare);
   }

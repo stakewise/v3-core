@@ -228,6 +228,7 @@ export function getEthValidatorsSigningData(
 export function getEthValidatorsExitSignaturesSigningData(
   keeper: Keeper,
   vault: EthVault,
+  deadline: BigNumberish,
   exitSignaturesIpfsHash: string,
   nonce: BigNumberish
 ) {
@@ -242,6 +243,7 @@ export function getEthValidatorsExitSignaturesSigningData(
     },
     message: {
       vault: vault.address,
+      deadline,
       nonce,
       exitSignaturesIpfsHash: keccak256(exitSignaturesIpfsHash),
     },
