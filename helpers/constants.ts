@@ -54,6 +54,10 @@ export const NETWORKS: {
       feePercent: 500,
     },
     priceFeedDescription: 'osETH/ETH',
+
+    // Cumulative MerkleDrop
+    liquidityCommittee: '0x1867c96601bc5fE24F685d112314B8F3Fe228D5A',
+    swiseToken: '0x0e2497aACec2755d831E4AFDEA25B4ef1B823855',
   },
   [Networks.mainnet]: {
     url: process.env.NETWORK_RPC_URL || '',
@@ -94,6 +98,10 @@ export const NETWORKS: {
       feePercent: 500,
     },
     priceFeedDescription: 'osETH/ETH',
+
+    // Cumulative MerkleDrop
+    liquidityCommittee: '',
+    swiseToken: '',
   },
 }
 

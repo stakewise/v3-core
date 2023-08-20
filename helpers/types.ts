@@ -47,4 +47,8 @@ export type NetworkConfig = {
 
   // PriceFeed
   priceFeedDescription: string
+
+  // Cumulative MerkleDrop
+  liquidityCommittee: string
+  swiseToken: string
 }
