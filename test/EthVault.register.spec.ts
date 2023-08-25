@@ -73,11 +73,13 @@ describe('EthVault - register', () => {
     let validator: Buffer
     let proof: string[]
     let approvalParams: IKeeperValidators.ApprovalParamsStruct
+    let deadline: number
 
     beforeEach(async () => {
       validator = validatorsData.validators[0]
       proof = getValidatorProof(validatorsData.tree, validator, 0)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
+      deadline = Math.floor(Date.now() / 1000) + 10000000
       const signatures = getOraclesSignatures(
         getEthValidatorsSigningData(
           validator,
@@ -162,11 +164,13 @@ describe('EthVault - register', () => {
     let approvalParams: IKeeperValidators.ApprovalParamsStruct
     let multiProof: ValidatorsMultiProof
     let signatures: Buffer
+    let deadline: number
 
     beforeEach(async () => {
       multiProof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators, [
         ...Array(validatorsData.validators.length).keys(),
       ])
+      deadline = Math.floor(Date.now() / 1000) + 10000000
       validators = validatorsData.validators
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       const sortedVals = multiProof.leaves.map((v) => v[0])
