@@ -80,6 +80,8 @@ abstract contract KeeperOracles is Ownable2Step, EIP712, IKeeperOracles {
     bytes32 message,
     bytes calldata signatures
   ) internal view {
+    if (requiredSignatures == 0) revert Errors.InvalidOracles();
+
     // check whether enough signatures
     unchecked {
       // cannot realistically overflow
