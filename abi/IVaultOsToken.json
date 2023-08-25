@@ -420,19 +420,6 @@
   },
   {
     "inputs": [],
-    "name": "canUpdateExitQueue",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "capacity",
     "outputs": [
       {
@@ -680,9 +667,9 @@
     "name": "queuedShares",
     "outputs": [
       {
-        "internalType": "uint96",
+        "internalType": "uint128",
         "name": "",
-        "type": "uint96"
+        "type": "uint128"
       }
     ],
     "stateMutability": "view",

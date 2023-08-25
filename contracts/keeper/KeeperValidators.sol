@@ -16,7 +16,7 @@ import {KeeperRewards} from './KeeperRewards.sol';
 abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValidators {
   bytes32 private constant _registerValidatorsTypeHash =
     keccak256(
-      'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes validators,string exitSignaturesIpfsHash)'
+      'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes validators,string exitSignaturesIpfsHash,uint256 deadline)'
     );
 
   bytes32 private constant _updateExitSigTypeHash =
@@ -47,6 +47,8 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
 
   /// @inheritdoc IKeeperValidators
   function approveValidators(ApprovalParams calldata params) external override {
+    if (params.deadline < block.timestamp) revert Errors.DeadlineExpired();
+
     // verify oracles approved registration for the current validators registry contract state
     if (_validatorsRegistry.get_deposit_root() != params.validatorsRegistryRoot) {
       revert Errors.InvalidValidatorsRegistryRoot();
@@ -62,7 +64,8 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
           params.validatorsRegistryRoot,
           msg.sender,
           keccak256(params.validators),
-          keccak256(bytes(params.exitSignaturesIpfsHash))
+          keccak256(bytes(params.exitSignaturesIpfsHash)),
+          params.deadline
         )
       ),
       params.signatures

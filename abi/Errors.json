@@ -11,6 +11,11 @@
   },
   {
     "inputs": [],
+    "name": "AlreadyHarvested",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "AlreadyRemoved",
     "type": "error"
   },
@@ -22,6 +27,11 @@
   {
     "inputs": [],
     "name": "DeadlineExpired",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "HarvestBetweenDepositAndWithdraw",
     "type": "error"
   },
   {
