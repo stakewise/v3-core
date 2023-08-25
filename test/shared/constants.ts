@@ -63,7 +63,7 @@ export const PermitSig = [
 
 export const KeeperRewardsSig = [
   { name: 'rewardsRoot', type: 'bytes32' },
-  { name: 'rewardsIpfsHash', type: 'bytes32' },
+  { name: 'rewardsIpfsHash', type: 'string' },
   { name: 'avgRewardPerSecond', type: 'uint256' },
   { name: 'updateTimestamp', type: 'uint64' },
   { name: 'nonce', type: 'uint64' },
@@ -72,8 +72,9 @@ export const KeeperRewardsSig = [
 export const KeeperValidatorsSig = [
   { name: 'validatorsRegistryRoot', type: 'bytes32' },
   { name: 'vault', type: 'address' },
-  { name: 'validators', type: 'bytes32' },
-  { name: 'exitSignaturesIpfsHash', type: 'bytes32' },
+  { name: 'validators', type: 'bytes' },
+  { name: 'exitSignaturesIpfsHash', type: 'string' },
+  { name: 'deadline', type: 'uint256' },
 ]
 
 export const KeeperUpdateExitSignaturesSig = [

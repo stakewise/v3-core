@@ -202,6 +202,7 @@ export async function createEthValidatorsData(vault: EthVault): Promise<EthValid
 
 export function getEthValidatorsSigningData(
   validators: Buffer,
+  deadline: BigNumberish,
   exitSignaturesIpfsHash: string,
   keeper: Keeper,
   vault: EthVault,
@@ -219,8 +220,9 @@ export function getEthValidatorsSigningData(
     message: {
       validatorsRegistryRoot,
       vault: vault.address,
-      validators: keccak256(validators),
-      exitSignaturesIpfsHash: keccak256(exitSignaturesIpfsHash),
+      validators,
+      exitSignaturesIpfsHash,
+      deadline,
     },
   }
 }
@@ -281,8 +283,10 @@ export async function registerEthValidator(
   await vault.connect(admin).setValidatorsRoot(validatorsData.root)
   const validator = validatorsData.validators[0]
   const exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
+  const deadline = Math.floor(Date.now() / 1000) + 10000000
   const signingData = getEthValidatorsSigningData(
     validator,
+    deadline,
     exitSignatureIpfsHash,
     keeper,
     vault,
@@ -296,6 +300,7 @@ export async function registerEthValidator(
       validators: validator,
       signatures,
       exitSignaturesIpfsHash: exitSignatureIpfsHash,
+      deadline,
     },
     proof
   )

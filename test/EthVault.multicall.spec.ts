@@ -1,13 +1,13 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthVault, IKeeperRewards, Keeper, OwnMevEscrow } from '../typechain-types'
+import { EthVault, IKeeperRewards, Keeper, MulticallMock, OwnMevEscrow } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { increaseTime, setBalance } from './shared/utils'
-import { getRewardsRootProof, updateRewards } from './shared/rewards'
+import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
 import { registerEthValidator } from './shared/validators'
 import { ONE_DAY } from './shared/constants'
 
@@ -112,6 +112,9 @@ describe('EthVault - multicall', () => {
       vault.interface.encodeFunctionData('enterExitQueue', [exitQueueShares, sender.address])
     )
 
+    await updateRewards(keeper, [
+      { reward: vaultReward, unlockedMevReward: 0, vault: vault.address },
+    ])
     result = await vault.connect(sender).callStatic.multicall(calls)
     const queueTicket = vault.interface.decodeFunctionResult('enterExitQueue', result[2])[0]
 
@@ -127,6 +130,10 @@ describe('EthVault - multicall', () => {
     await setBalance(vault.address, assetsDropped)
     // wait for exit queue
     await increaseTime(ONE_DAY)
+    await updateRewards(keeper, [
+      { reward: vaultReward, unlockedMevReward: 0, vault: vault.address },
+    ])
+
     calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
     calls.push(vault.interface.encodeFunctionData('getExitQueueIndex', [queueTicket]))
     result = await vault.connect(sender).callStatic.multicall(calls)
@@ -158,5 +165,163 @@ describe('EthVault - multicall', () => {
       vault.interface.encodeFunctionData('redeem', [amount, sender.address]),
     ]
     await expect(vault.connect(sender).multicall(calls)).reverted
+  })
+
+  describe('flash loan', () => {
+    let multicallMock: MulticallMock
+
+    beforeEach(async () => {
+      const multicallMockFactory = await ethers.getContractFactory('MulticallMock')
+      multicallMock = await multicallMockFactory.deploy()
+    })
+
+    it('fails to deposit, update state and redeem in one transaction', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      expect(await vault.isStateUpdateRequired()).to.eq(false)
+      expect(await keeper.canHarvest(vault.address)).to.eq(false)
+
+      const vaultReward = parseEther('1')
+      const tree = await updateRewards(keeper, [
+        { reward: vaultReward, unlockedMevReward: 0, vault: vault.address },
+      ])
+      await setBalance(await vault.mevEscrow(), parseEther('1'))
+      expect(await vault.isStateUpdateRequired()).to.eq(false)
+      expect(await keeper.canHarvest(vault.address)).to.eq(true)
+
+      const harvestParams: IKeeperRewards.HarvestParamsStruct = {
+        rewardsRoot: tree.root,
+        reward: vaultReward,
+        unlockedMevReward: 0,
+        proof: getRewardsRootProof(tree, {
+          vault: vault.address,
+          reward: vaultReward,
+          unlockedMevReward: 0,
+        }),
+      }
+
+      const amount = parseEther('1')
+      let calls = [
+        {
+          target: vault.address,
+          isPayable: true,
+          callData: vault.interface.encodeFunctionData('deposit', [
+            multicallMock.address,
+            referrer,
+          ]),
+        },
+        {
+          target: vault.address,
+          isPayable: false,
+          callData: vault.interface.encodeFunctionData('updateState', [harvestParams]),
+        },
+        {
+          target: vault.address,
+          isPayable: false,
+          callData: vault.interface.encodeFunctionData('redeem', [amount, sender.address]),
+        },
+      ]
+      await expect(multicallMock.connect(sender).aggregate(calls, { value: amount })).reverted
+
+      // works without state update between
+      calls = [
+        {
+          target: vault.address,
+          isPayable: true,
+          callData: vault.interface.encodeFunctionData('deposit', [
+            multicallMock.address,
+            referrer,
+          ]),
+        },
+        {
+          target: vault.address,
+          isPayable: false,
+          callData: vault.interface.encodeFunctionData('redeem', [amount, sender.address]),
+        },
+      ]
+      await expect(multicallMock.connect(sender).aggregate(calls, { value: amount })).not.reverted
+    })
+
+    it('fails to deposit, enter exit queue, update state and claim in one transaction', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      expect(await vault.isStateUpdateRequired()).to.eq(false)
+      expect(await keeper.canHarvest(vault.address)).to.eq(false)
+
+      const vaultReward = parseEther('1')
+      const tree = await updateRewards(keeper, [
+        { reward: vaultReward, unlockedMevReward: 0, vault: vault.address },
+      ])
+      await setBalance(await vault.mevEscrow(), parseEther('1'))
+      expect(await vault.isStateUpdateRequired()).to.eq(false)
+      expect(await keeper.canHarvest(vault.address)).to.eq(true)
+
+      const harvestParams: IKeeperRewards.HarvestParamsStruct = {
+        rewardsRoot: tree.root,
+        reward: vaultReward,
+        unlockedMevReward: 0,
+        proof: getRewardsRootProof(tree, {
+          vault: vault.address,
+          reward: vaultReward,
+          unlockedMevReward: 0,
+        }),
+      }
+
+      const amount = parseEther('1')
+
+      let calls = [
+        {
+          target: vault.address,
+          isPayable: true,
+          callData: vault.interface.encodeFunctionData('deposit', [
+            multicallMock.address,
+            referrer,
+          ]),
+        },
+        {
+          target: vault.address,
+          isPayable: false,
+          callData: vault.interface.encodeFunctionData('enterExitQueue', [
+            amount,
+            multicallMock.address,
+          ]),
+        },
+        {
+          target: vault.address,
+          isPayable: false,
+          callData: vault.interface.encodeFunctionData('updateState', [harvestParams]),
+        },
+        {
+          target: vault.address,
+          isPayable: false,
+          callData: vault.interface.encodeFunctionData('claimExitedAssets', [parseEther('32'), 1]),
+        },
+      ]
+      await expect(multicallMock.connect(sender).aggregate(calls, { value: amount })).reverted
+
+      // works without state update between
+      calls = [
+        {
+          target: vault.address,
+          isPayable: true,
+          callData: vault.interface.encodeFunctionData('deposit', [
+            multicallMock.address,
+            referrer,
+          ]),
+        },
+        {
+          target: vault.address,
+          isPayable: false,
+          callData: vault.interface.encodeFunctionData('enterExitQueue', [
+            amount,
+            multicallMock.address,
+          ]),
+        },
+        {
+          target: vault.address,
+          isPayable: false,
+          callData: vault.interface.encodeFunctionData('claimExitedAssets', [parseEther('32'), 1]),
+        },
+      ]
+      await expect(multicallMock.connect(sender).aggregate(calls, { value: amount })).not.reverted
+    })
   })
 })

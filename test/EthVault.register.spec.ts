@@ -3,7 +3,7 @@ import { Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
 import { UintNumberType } from '@chainsafe/ssz'
 import { ThenArg } from '../helpers/types'
-import { Keeper, EthVault, IKeeperValidators } from '../typechain-types'
+import { EthVault, IKeeperValidators, Keeper } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 import { setBalance } from './shared/utils'
@@ -65,14 +65,17 @@ describe('EthVault - register', () => {
     let validator: Buffer
     let proof: string[]
     let approvalParams: IKeeperValidators.ApprovalParamsStruct
+    let deadline: number
 
     beforeEach(async () => {
       validator = validatorsData.validators[0]
       proof = getValidatorProof(validatorsData.tree, validator, 0)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
+      deadline = Math.floor(Date.now() / 1000) + 10000000
       const signatures = getOraclesSignatures(
         getEthValidatorsSigningData(
           validator,
+          deadline,
           exitSignaturesIpfsHash,
           keeper,
           vault,
@@ -85,6 +88,7 @@ describe('EthVault - register', () => {
         validators: validator,
         signatures,
         exitSignaturesIpfsHash,
+        deadline,
       }
     })
 
@@ -110,9 +114,11 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: appendDepositData(validator, validatorDeposit, vault.address),
+            deadline,
             signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidator,
+                deadline,
                 exitSignaturesIpfsHash,
                 keeper,
                 vault,
@@ -150,11 +156,13 @@ describe('EthVault - register', () => {
     let approvalParams: IKeeperValidators.ApprovalParamsStruct
     let multiProof: ValidatorsMultiProof
     let signatures: Buffer
+    let deadline: number
 
     beforeEach(async () => {
       multiProof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators, [
         ...Array(validatorsData.validators.length).keys(),
       ])
+      deadline = Math.floor(Date.now() / 1000) + 10000000
       validators = validatorsData.validators
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       const sortedVals = multiProof.leaves.map((v) => v[0])
@@ -163,6 +171,7 @@ describe('EthVault - register', () => {
       signatures = getOraclesSignatures(
         getEthValidatorsSigningData(
           Buffer.concat(validators),
+          deadline,
           exitSignaturesIpfsHash,
           keeper,
           vault,
@@ -175,6 +184,7 @@ describe('EthVault - register', () => {
         validators: Buffer.concat(validators),
         signatures,
         exitSignaturesIpfsHash,
+        deadline,
       }
     })
 
@@ -192,9 +202,11 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: Buffer.from(''),
+            deadline,
             signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 Buffer.from(''),
+                deadline,
                 exitSignaturesIpfsHash,
                 keeper,
                 vault,
@@ -227,10 +239,12 @@ describe('EthVault - register', () => {
         vault.registerValidators(
           {
             validatorsRegistryRoot,
+            deadline,
             validators: invalidValidatorsConcat,
             signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidatorsConcat,
+                deadline,
                 exitSignaturesIpfsHash,
                 keeper,
                 vault,
@@ -261,9 +275,11 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: invalidValidatorsConcat,
+            deadline,
             signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidatorsConcat,
+                deadline,
                 exitSignaturesIpfsHash,
                 keeper,
                 vault,
@@ -294,9 +310,11 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: invalidValidatorsConcat,
+            deadline,
             signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidatorsConcat,
+                deadline,
                 exitSignaturesIpfsHash,
                 keeper,
                 vault,
@@ -378,9 +396,11 @@ describe('EthVault - register', () => {
             {
               validatorsRegistryRoot,
               validators: invalidValidators[i],
+              deadline,
               signatures: getOraclesSignatures(
                 getEthValidatorsSigningData(
                   invalidValidators[i],
+                  deadline,
                   exitSignaturesIpfsHash,
                   keeper,
                   vault,

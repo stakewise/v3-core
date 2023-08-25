@@ -6,7 +6,12 @@ import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { ONE_DAY, OSTOKEN_LIQ_BONUS, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
-import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
+import {
+  collateralizeEthVault,
+  getRewardsRootProof,
+  setAvgRewardPerSecond,
+  updateRewards,
+} from './shared/rewards'
 import { increaseTime, setBalance } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
 
@@ -48,14 +53,19 @@ describe('EthVault - liquidate', () => {
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     await vault.connect(owner).deposit(owner.address, ZERO_ADDRESS, { value: shares })
 
+    // set avg reward per second to 0
+    await setAvgRewardPerSecond(dao, vault, keeper, 0)
+
+    // mint osTokens
+    await vault.connect(owner).mintOsToken(owner.address, osTokenShares, ZERO_ADDRESS)
+
     // slashing received
     const tree = await updateRewards(
       keeper,
       [{ vault: vault.address, reward: penalty, unlockedMevReward }],
       0
     )
-    await vault.connect(owner).mintOsToken(owner.address, osTokenShares, ZERO_ADDRESS)
-    const harvestParams: IKeeperRewards.HarvestParamsStruct = {
+    const harvestParams = {
       rewardsRoot: tree.root,
       reward: penalty,
       unlockedMevReward: unlockedMevReward,

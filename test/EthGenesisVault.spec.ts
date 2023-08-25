@@ -173,8 +173,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on claim exited assets', async () => {
-    const data = await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
-    const harvestData = { rewardsRoot: data[0], reward: 0, unlockedMevReward: 0, proof: data[1] }
+    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
 
     const shares = parseEther('10')
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: shares })
@@ -189,7 +188,24 @@ describe('EthGenesisVault', () => {
     expect(await vault.withdrawableAssets()).to.eq(0)
 
     await increaseTime(ONE_DAY)
-    await vault.updateState(harvestData)
+    const tree = await updateRewards(keeper, [
+      {
+        reward: 0,
+        unlockedMevReward: 0,
+        vault: vault.address,
+      },
+    ])
+    const proof = getRewardsRootProof(tree, {
+      vault: vault.address,
+      unlockedMevReward: 0,
+      reward: 0,
+    })
+    await vault.updateState({
+      rewardsRoot: tree.root,
+      reward: 0,
+      unlockedMevReward: 0,
+      proof,
+    })
     const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
 
     const tx = await vault.connect(other).claimExitedAssets(positionTicket, exitQueueIndex)
@@ -247,8 +263,11 @@ describe('EthGenesisVault', () => {
     const indexes = validators.map((v) => sortedVals.indexOf(v))
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: assets })
     const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
+    const deadline = Math.floor(Date.now() / 1000) + 10000000
+
     const signingData = getEthValidatorsSigningData(
       Buffer.concat(validators),
+      deadline,
       exitSignaturesIpfsHash,
       keeper,
       vault,
@@ -259,6 +278,7 @@ describe('EthGenesisVault', () => {
       validators: hexlify(Buffer.concat(validators)),
       signatures: getOraclesSignatures(signingData, ORACLES.length),
       exitSignaturesIpfsHash,
+      deadline,
     }
 
     await setBalance(vault.address, BigNumber.from(0))
