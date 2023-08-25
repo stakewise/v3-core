@@ -133,13 +133,11 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     }
 
     if (totalAssetsDelta != 0) {
-      super._processTotalAssetsDelta(totalAssetsDelta);
+      _processTotalAssetsDelta(totalAssetsDelta);
     }
 
     // update exit queue
-    if (canUpdateExitQueue()) {
-      _updateExitQueue();
-    }
+    _updateExitQueue();
   }
 
   /// @inheritdoc IEthGenesisVault

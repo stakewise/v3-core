@@ -20,6 +20,8 @@ import {VaultState} from './VaultState.sol';
 abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, IVaultEnterExit {
   using ExitQueue for ExitQueue.History;
 
+  uint256 private _notHarvestedDepositBlock;
+
   /// @inheritdoc IVaultEnterExit
   function getExitQueueIndex(uint256 positionTicket) external view override returns (int256) {
     uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionTicket);
@@ -32,6 +34,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     address receiver
   ) public virtual override returns (uint256 assets) {
     _checkHarvested();
+    _checkHarvestBetweenDepositAndWithdraw();
     if (shares == 0) revert Errors.InvalidShares();
     if (receiver == address(0)) revert Errors.ZeroAddress();
 
@@ -113,6 +116,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     override
     returns (uint256 newPositionTicket, uint256 claimedShares, uint256 claimedAssets)
   {
+    _checkHarvestBetweenDepositAndWithdraw();
     bytes32 queueId = keccak256(abi.encode(msg.sender, positionTicket));
 
     // calculate exited shares and assets
@@ -153,9 +157,17 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     uint256 assets,
     address referrer
   ) internal virtual returns (uint256 shares) {
-    _checkHarvested();
     if (to == address(0)) revert Errors.ZeroAddress();
     if (assets == 0) revert Errors.InvalidAssets();
+    if (_canHarvest()) {
+      _checkHarvested();
+      // SLOAD to memory
+      uint256 notHarvestedDepositBlock = _notHarvestedDepositBlock;
+      if (notHarvestedDepositBlock != block.number) {
+        // save the block number of the deposit that happened before the vault was fully harvested
+        _notHarvestedDepositBlock = block.number;
+      }
+    }
 
     uint256 totalAssetsAfter;
     unchecked {
@@ -172,6 +184,16 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     _mintShares(to, shares);
 
     emit Deposited(msg.sender, to, assets, shares, referrer);
+  }
+
+  /**
+   * @dev Internal function for protecting against attacks,
+   *      when the deposit, harvest (shares price is increased) and withdraw happens in single transaction
+   */
+  function _checkHarvestBetweenDepositAndWithdraw() internal view {
+    if (_notHarvestedDepositBlock == block.number && !_canHarvest()) {
+      revert Errors.HarvestBetweenDepositAndWithdraw();
+    }
   }
 
   /**

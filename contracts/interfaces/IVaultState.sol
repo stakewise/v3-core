@@ -65,12 +65,6 @@ interface IVaultState is IVaultFee {
   function convertToAssets(uint256 shares) external view returns (uint256 assets);
 
   /**
-   * @notice Check whether exit queue can be updated
-   * @return `true` if exit queue can be updated, `false` otherwise
-   */
-  function canUpdateExitQueue() external view returns (bool);
-
-  /**
    * @notice Check whether state update is required
    * @return `true` if state update is required, `false` otherwise
    */

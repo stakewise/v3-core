@@ -20,15 +20,12 @@ import {VaultFee} from './VaultFee.sol';
 abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVaultState {
   using ExitQueue for ExitQueue.History;
 
-  uint256 private constant _exitQueueUpdateDelay = 1 days;
-
   uint128 internal _totalShares;
   uint128 internal _totalAssets;
 
   /// @inheritdoc IVaultState
   uint128 public override queuedShares;
   uint128 internal _unclaimedAssets;
-  uint64 private _exitQueueNextUpdate;
 
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
@@ -73,11 +70,6 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   }
 
   /// @inheritdoc IVaultState
-  function canUpdateExitQueue() public view override returns (bool) {
-    return block.timestamp >= _exitQueueNextUpdate;
-  }
-
-  /// @inheritdoc IVaultState
   function isStateUpdateRequired() external view override returns (bool) {
     return IKeeperRewards(_keeper).isHarvestRequired(address(this));
   }
@@ -91,9 +83,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     if (totalAssetsDelta != 0) _processTotalAssetsDelta(totalAssetsDelta);
 
     // update exit queue
-    if (canUpdateExitQueue()) {
-      _updateExitQueue();
-    }
+    _updateExitQueue();
   }
 
   /**
@@ -149,6 +139,8 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
 
   /**
    * @dev Internal function that must be used to process exit queue
+   * @dev Make sure that sufficient time passed between exit queue updates (at least 1 day).
+          Currently it's restricted by the keeper's harvest interval
    * @return burnedShares The total amount of burned shares
    */
   function _updateExitQueue() internal virtual returns (uint256 burnedShares) {
@@ -171,11 +163,6 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     // update queued shares and unclaimed assets
     queuedShares = SafeCast.toUint128(_queuedShares - burnedShares);
     _unclaimedAssets = SafeCast.toUint128(unclaimedAssets + exitedAssets);
-
-    unchecked {
-      // cannot overflow on human timescales
-      _exitQueueNextUpdate = uint64(block.timestamp + _exitQueueUpdateDelay);
-    }
 
     // push checkpoint so that exited assets could be claimed
     _exitQueue.push(burnedShares, exitedAssets);
