@@ -16,7 +16,7 @@ import {KeeperRewards} from './KeeperRewards.sol';
 abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValidators {
   bytes32 private constant _registerValidatorsTypeHash =
     keccak256(
-      'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes32 validators,bytes32 exitSignaturesIpfsHash)'
+      'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes validators,string exitSignaturesIpfsHash)'
     );
 
   bytes32 private constant _updateExitSigTypeHash =

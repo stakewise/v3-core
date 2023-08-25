@@ -18,7 +18,7 @@ import {KeeperOracles} from './KeeperOracles.sol';
 abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
   bytes32 private constant _rewardsUpdateTypeHash =
     keccak256(
-      'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint256 avgRewardPerSecond,uint64 updateTimestamp,uint64 nonce)'
+      'KeeperRewards(bytes32 rewardsRoot,string rewardsIpfsHash,uint256 avgRewardPerSecond,uint64 updateTimestamp,uint64 nonce)'
     );
 
   uint256 private immutable _maxAvgRewardPerSecond;
