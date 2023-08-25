@@ -76,7 +76,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
 
     unchecked {
       // cannot overflow as it is capped with _totalShares
-      queuedShares = SafeCast.toUint96(_queuedShares + shares);
+      queuedShares = SafeCast.toUint128(_queuedShares + shares);
     }
 
     emit ExitQueueEntered(msg.sender, receiver, positionTicket, shares);
@@ -136,7 +136,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     }
 
     // transfer assets to the receiver
-    _unclaimedAssets -= SafeCast.toUint96(claimedAssets);
+    _unclaimedAssets -= SafeCast.toUint128(claimedAssets);
     _transferVaultAssets(msg.sender, claimedAssets);
     emit ExitedAssetsClaimed(msg.sender, positionTicket, newPositionTicket, claimedAssets);
   }

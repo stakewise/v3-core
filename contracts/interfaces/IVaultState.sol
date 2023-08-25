@@ -48,7 +48,7 @@ interface IVaultState is IVaultFee {
    * @notice Queued Shares
    * @return The total number of shares queued for exit
    */
-  function queuedShares() external view returns (uint96);
+  function queuedShares() external view returns (uint128);
 
   /**
    * @notice Converts shares to assets

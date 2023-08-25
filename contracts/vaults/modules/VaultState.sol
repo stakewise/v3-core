@@ -26,9 +26,8 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   uint128 internal _totalAssets;
 
   /// @inheritdoc IVaultState
-  uint96 public override queuedShares;
-
-  uint96 internal _unclaimedAssets;
+  uint128 public override queuedShares;
+  uint128 internal _unclaimedAssets;
   uint64 private _exitQueueNextUpdate;
 
   ExitQueue.History internal _exitQueue;
@@ -169,8 +168,9 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     burnedShares = convertToShares(exitedAssets);
     if (burnedShares == 0) return 0;
 
-    queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
-    _unclaimedAssets = SafeCast.toUint96(unclaimedAssets + exitedAssets);
+    // update queued shares and unclaimed assets
+    queuedShares = SafeCast.toUint128(_queuedShares - burnedShares);
+    _unclaimedAssets = SafeCast.toUint128(unclaimedAssets + exitedAssets);
 
     unchecked {
       // cannot overflow on human timescales
