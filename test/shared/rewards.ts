@@ -1,7 +1,6 @@
 import { network, waffle } from 'hardhat'
 import { BigNumberish, Contract, ethers, Signer, Wallet } from 'ethers'
-import { parseEther, toUtf8Bytes } from 'ethers/lib/utils'
-import keccak256 from 'keccak256'
+import { parseEther } from 'ethers/lib/utils'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { Keeper, EthVault, IKeeperRewards } from '../../typechain-types'
 import {
