@@ -21,7 +21,7 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
 
   bytes32 private constant _updateExitSigTypeHash =
     keccak256(
-      'KeeperValidators(address vault,bytes32 exitSignaturesIpfsHash,uint256 nonce,uint256 deadline)'
+      'KeeperValidators(address vault,string exitSignaturesIpfsHash,uint256 nonce,uint256 deadline)'
     );
 
   IValidatorsRegistry private immutable _validatorsRegistry;
