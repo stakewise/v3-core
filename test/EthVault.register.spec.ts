@@ -19,7 +19,13 @@ import {
   ValidatorsMultiProof,
 } from './shared/validators'
 import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
-import { MAX_UINT256, PANIC_CODES, VALIDATORS_MIN_ORACLES, ZERO_ADDRESS } from './shared/constants'
+import {
+  MAX_UINT256,
+  PANIC_CODES,
+  VALIDATORS_DEADLINE,
+  VALIDATORS_MIN_ORACLES,
+  ZERO_ADDRESS,
+} from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const gwei = 1000000000
@@ -30,6 +36,8 @@ describe('EthVault - register', () => {
   const capacity = MAX_UINT256
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
+  const deadline = VALIDATORS_DEADLINE
+
   let admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault, keeper: Keeper, validatorsRegistry: Contract
   let validatorsData: EthValidatorsData
@@ -65,13 +73,11 @@ describe('EthVault - register', () => {
     let validator: Buffer
     let proof: string[]
     let approvalParams: IKeeperValidators.ApprovalParamsStruct
-    let deadline: number
 
     beforeEach(async () => {
       validator = validatorsData.validators[0]
       proof = getValidatorProof(validatorsData.tree, validator, 0)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
-      deadline = Math.floor(Date.now() / 1000) + 10000000
       const signatures = getOraclesSignatures(
         getEthValidatorsSigningData(
           validator,
@@ -156,13 +162,11 @@ describe('EthVault - register', () => {
     let approvalParams: IKeeperValidators.ApprovalParamsStruct
     let multiProof: ValidatorsMultiProof
     let signatures: Buffer
-    let deadline: number
 
     beforeEach(async () => {
       multiProof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators, [
         ...Array(validatorsData.validators.length).keys(),
       ])
-      deadline = Math.floor(Date.now() / 1000) + 10000000
       validators = validatorsData.validators
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       const sortedVals = multiProof.leaves.map((v) => v[0])

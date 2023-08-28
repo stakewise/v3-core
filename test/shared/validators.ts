@@ -5,11 +5,12 @@ import { Buffer } from 'buffer'
 import { BigNumber, BigNumberish, BytesLike, Contract, ContractTransaction, Wallet } from 'ethers'
 import { arrayify, parseEther } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
-import { Keeper, EthVault } from '../../typechain-types'
+import { EthVault, Keeper } from '../../typechain-types'
 import {
   EIP712Domain,
-  KeeperValidatorsSig,
   KeeperUpdateExitSignaturesSig,
+  KeeperValidatorsSig,
+  VALIDATORS_DEADLINE,
   VALIDATORS_MIN_ORACLES,
 } from './constants'
 import { getOraclesSignatures } from './fixtures'
@@ -282,10 +283,9 @@ export async function registerEthValidator(
   await vault.connect(admin).setValidatorsRoot(validatorsData.root)
   const validator = validatorsData.validators[0]
   const exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
-  const deadline = Math.floor(Date.now() / 1000) + 10000000
   const signingData = getEthValidatorsSigningData(
     validator,
-    deadline,
+    VALIDATORS_DEADLINE,
     exitSignatureIpfsHash,
     keeper,
     vault,
@@ -299,7 +299,7 @@ export async function registerEthValidator(
       validators: validator,
       signatures,
       exitSignaturesIpfsHash: exitSignatureIpfsHash,
-      deadline,
+      deadline: VALIDATORS_DEADLINE,
     },
     proof
   )

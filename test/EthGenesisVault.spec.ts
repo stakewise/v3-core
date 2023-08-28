@@ -1,11 +1,18 @@
 import { ethers, upgrades, waffle } from 'hardhat'
 import { BigNumber, Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
-import { EthGenesisVault, PoolEscrowMock, Keeper, RewardEthTokenMock } from '../typechain-types'
+import { EthGenesisVault, Keeper, PoolEscrowMock, RewardEthTokenMock } from '../typechain-types'
 import { createPoolEscrow, ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
 import keccak256 from 'keccak256'
-import { ONE_DAY, ORACLES, SECURITY_DEPOSIT, ZERO_ADDRESS, ZERO_BYTES32 } from './shared/constants'
+import {
+  ONE_DAY,
+  ORACLES,
+  SECURITY_DEPOSIT,
+  VALIDATORS_DEADLINE,
+  ZERO_ADDRESS,
+  ZERO_BYTES32,
+} from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
 import {
   createEthValidatorsData,
@@ -23,6 +30,7 @@ describe('EthGenesisVault', () => {
   const capacity = parseEther('1000')
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
+  const deadline = VALIDATORS_DEADLINE
   let dao: Wallet, admin: Wallet, other: Wallet
   let vault: EthGenesisVault, keeper: Keeper, validatorsRegistry: Contract
   let poolEscrow: PoolEscrowMock
@@ -263,7 +271,6 @@ describe('EthGenesisVault', () => {
     const indexes = validators.map((v) => sortedVals.indexOf(v))
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: assets })
     const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
-    const deadline = Math.floor(Date.now() / 1000) + 10000000
 
     const signingData = getEthValidatorsSigningData(
       Buffer.concat(validators),

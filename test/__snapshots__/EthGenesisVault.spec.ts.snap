@@ -24,14 +24,14 @@ Object {
 exports[`EthGenesisVault pulls assets on multiple validators registration 1`] = `
 Object {
   "calldataByteLength": 3716,
-  "gasUsed": 738964,
+  "gasUsed": 739000,
 }
 `;
 
 exports[`EthGenesisVault pulls assets on single validator registration 1`] = `
 Object {
   "calldataByteLength": 1476,
-  "gasUsed": 375166,
+  "gasUsed": 375190,
 }
 `;
 

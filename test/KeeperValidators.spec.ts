@@ -5,7 +5,12 @@ import { EthVault, IKeeperValidators, Keeper } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ORACLES, VALIDATORS_MIN_ORACLES, ZERO_ADDRESS } from './shared/constants'
+import {
+  ORACLES,
+  VALIDATORS_DEADLINE,
+  VALIDATORS_MIN_ORACLES,
+  ZERO_ADDRESS,
+} from './shared/constants'
 import {
   createEthValidatorsData,
   EthValidatorsData,
@@ -27,6 +32,7 @@ describe('KeeperValidators', () => {
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const referrer = ZERO_ADDRESS
+  const deadline = VALIDATORS_DEADLINE
   const depositAmount = parseEther('32')
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -63,14 +69,12 @@ describe('KeeperValidators', () => {
     let proof: string[]
     let signingData: any
     let approveParams: IKeeperValidators.ApprovalParamsStruct
-    let deadline: number
 
     beforeEach(async () => {
       validator = validatorsData.validators[0]
       const exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
       proof = getValidatorProof(validatorsData.tree, validator, 0)
       await vault.connect(sender).deposit(sender.address, referrer, { value: depositAmount })
-      deadline = Math.floor(Date.now() / 1000) + 10000000
       signingData = getEthValidatorsSigningData(
         validator,
         deadline,
@@ -226,7 +230,6 @@ describe('KeeperValidators', () => {
     let proof: ValidatorsMultiProof
     let signingData: any
     let approveParams: IKeeperValidators.ApprovalParamsStruct
-    let deadline: number
 
     beforeEach(async () => {
       proof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators, [
@@ -239,7 +242,6 @@ describe('KeeperValidators', () => {
         .connect(sender)
         .deposit(sender.address, referrer, { value: depositAmount.mul(validators.length) })
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
-      deadline = Math.floor(Date.now() / 1000) + 10000000
 
       signingData = getEthValidatorsSigningData(
         Buffer.concat(validators),
