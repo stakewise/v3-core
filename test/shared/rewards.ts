@@ -12,7 +12,6 @@ import {
   REWARDS_DELAY,
   ZERO_ADDRESS,
 } from './constants'
-import { Buffer } from 'buffer'
 import { registerEthValidator } from './validators'
 import { increaseTime, setBalance } from './utils'
 import { getOraclesSignatures } from './fixtures'

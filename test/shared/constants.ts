@@ -79,7 +79,7 @@ export const KeeperValidatorsSig = [
 
 export const KeeperUpdateExitSignaturesSig = [
   { name: 'vault', type: 'address' },
-  { name: 'exitSignaturesIpfsHash', type: 'bytes32' },
+  { name: 'exitSignaturesIpfsHash', type: 'string' },
   { name: 'nonce', type: 'uint256' },
   { name: 'deadline', type: 'uint256' },
 ]

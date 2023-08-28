@@ -14,7 +14,7 @@ import {
   RewardSplitterFactory__factory,
   CumulativeMerkleDrop__factory,
 } from '../typechain-types'
-import { deployContract, verify } from '../helpers/utils'
+import { deployContract } from '../helpers/utils'
 import { getContractAddress } from 'ethers/lib/utils'
 import { NetworkConfig, Networks } from '../helpers/types'
 import { ethValidatorsRegistry, NETWORKS } from '../helpers/constants'

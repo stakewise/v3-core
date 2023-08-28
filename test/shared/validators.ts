@@ -5,7 +5,6 @@ import { Buffer } from 'buffer'
 import { BigNumber, BigNumberish, BytesLike, Contract, ContractTransaction, Wallet } from 'ethers'
 import { arrayify, parseEther } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
-import keccak256 from 'keccak256'
 import { Keeper, EthVault } from '../../typechain-types'
 import {
   EIP712Domain,
@@ -247,7 +246,7 @@ export function getEthValidatorsExitSignaturesSigningData(
       vault: vault.address,
       deadline,
       nonce,
-      exitSignaturesIpfsHash: keccak256(exitSignaturesIpfsHash),
+      exitSignaturesIpfsHash,
     },
   }
 }
