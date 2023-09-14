@@ -54,4 +54,5 @@ library Errors {
   error InvalidCheckpointIndex();
   error InvalidCheckpointValue();
   error MaxOraclesExceeded();
+  error NegativeAssetsDelta();
 }

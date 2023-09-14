@@ -193,7 +193,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     console.log('Saved to', fileName)
 
     console.log(
-      'NB! GenesisEthVault is not deployed as ' +
+      'NB! EthGenesisVault is not deployed as ' +
         'it requires StakeWise V2 StakedEthToken and PoolEscrow contracts'
     )
   }

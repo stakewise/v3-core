@@ -131,6 +131,7 @@ describe('EthGenesisVault', () => {
     })
 
     it('fails with zero receiver', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       const assets = parseEther('1')
       await expect(
         rewardEthToken.connect(other).migrate(ZERO_ADDRESS, assets, assets)
@@ -138,9 +139,17 @@ describe('EthGenesisVault', () => {
     })
 
     it('fails with zero assets', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       await expect(rewardEthToken.connect(other).migrate(other.address, 0, 0)).to.be.revertedWith(
         'InvalidAssets'
       )
+    })
+
+    it('fails when not collateralized', async () => {
+      const assets = parseEther('1')
+      await expect(
+        rewardEthToken.connect(other).migrate(other.address, assets, assets)
+      ).to.be.revertedWith('NotCollateralized')
     })
 
     it('fails when not harvested', async () => {
@@ -166,6 +175,7 @@ describe('EthGenesisVault', () => {
     })
 
     it('migrates from rewardEthToken', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       const assets = parseEther('10')
       const expectedShares = parseEther('10')
       expect(await vault.convertToShares(assets)).to.eq(expectedShares)
@@ -226,6 +236,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on redeem', async () => {
+    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const shares = parseEther('10')
     await rewardEthToken.connect(other).migrate(other.address, shares, shares)
 
@@ -244,6 +255,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on single validator registration', async () => {
+    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const validatorDeposit = parseEther('32')
     await rewardEthToken.connect(other).migrate(other.address, validatorDeposit, validatorDeposit)
     await setBalance(vault.address, BigNumber.from(0))
@@ -257,6 +269,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on multiple validators registration', async () => {
+    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const validatorsData = await createEthValidatorsData(vault)
     const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(admin).setValidatorsRoot(validatorsData.root)
@@ -351,7 +364,27 @@ describe('EthGenesisVault', () => {
       await snapshotGasCost(receipt)
     })
 
+    it('fails with negative first update', async () => {
+      const totalPenalty = parseEther('-5')
+      const vaultReward = {
+        reward: totalPenalty,
+        unlockedMevReward: 0,
+        vault: vault.address,
+      }
+      const rewardsTree = await updateRewards(keeper, [vaultReward])
+      const proof = getRewardsRootProof(rewardsTree, vaultReward)
+      await expect(
+        vault.updateState({
+          rewardsRoot: rewardsTree.root,
+          reward: vaultReward.reward,
+          unlockedMevReward: vaultReward.unlockedMevReward,
+          proof,
+        })
+      ).to.revertedWith('NegativeAssetsDelta')
+    })
+
     it('splits penalty between rewardEthToken and vault', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       const totalPenalty = parseEther('-5')
       const expectedVaultDelta = totalPenalty
         .mul(totalVaultAssets)

@@ -45,11 +45,11 @@ export const NETWORKS: {
     liqBonusPercent: 10100, // 101%
     ltvPercent: 9000, // 90%
 
-    // GenesisEthVault
+    // EthGenesisVault
     genesisVault: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
       poolEscrow: '0x040F15C6b5Bfc5F324eCaB5864C38D4e1EEF4218',
-      stakedEthToken: '0x221D9812823DBAb0F1fB40b0D294D9875980Ac19',
+      rewardEthToken: '0x826f88d423440c305D9096cC1581Ae751eFCAfB0',
       capacity: parseEther('1000000'),
       feePercent: 500,
     },
@@ -89,11 +89,11 @@ export const NETWORKS: {
     liqBonusPercent: 10100, // 101%
     ltvPercent: 9000, // 90%
 
-    // GenesisEthVault
+    // EthGenesisVault
     genesisVault: {
       admin: '',
       poolEscrow: '0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079',
-      stakedEthToken: '0xFe2e637202056d30016725477c5da089Ab0A043A',
+      rewardEthToken: '0x20BC832ca081b91433ff6c17f85701B6e92486c5',
       capacity: parseEther('1000000'),
       feePercent: 500,
     },

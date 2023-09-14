@@ -36,11 +36,11 @@ export type NetworkConfig = {
   liqBonusPercent: number
   ltvPercent: number
 
-  // GenesisEthVault
+  // EthGenesisVault
   genesisVault: {
     admin: string
     poolEscrow: string
-    stakedEthToken: string
+    rewardEthToken: string
     capacity: BigNumberish
     feePercent: number
   }

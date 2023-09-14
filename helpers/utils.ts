@@ -1,5 +1,5 @@
 import { Contract } from 'ethers'
-import { HardhatRuntimeEnvironment } from 'hardhat/src/types/runtime'
+import { HardhatRuntimeEnvironment } from 'hardhat/types/runtime'
 
 export async function deployContract(tx: any): Promise<Contract> {
   const result = await tx

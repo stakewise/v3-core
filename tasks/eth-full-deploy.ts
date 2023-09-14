@@ -210,7 +210,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       osTokenConfig.address,
       sharedMevEscrow.address,
       networkConfig.genesisVault.poolEscrow,
-      networkConfig.genesisVault.stakedEthToken,
+      networkConfig.genesisVault.rewardEthToken,
     ],
   })
   await ethGenesisVault.deployed()
@@ -244,7 +244,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       osTokenConfig.address,
       sharedMevEscrow.address,
       networkConfig.genesisVault.poolEscrow,
-      networkConfig.genesisVault.stakedEthToken,
+      networkConfig.genesisVault.rewardEthToken,
     ],
     'contracts/vaults/ethereum/EthGenesisVault.sol:EthGenesisVault'
   )
@@ -303,7 +303,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const addresses = {
     VaultsRegistry: vaultsRegistry.address,
     Keeper: keeper.address,
-    GenesisEthVault: ethGenesisVault.address,
+    EthGenesisVault: ethGenesisVault.address,
     EthVaultFactory: factories[0],
     EthPrivVaultFactory: factories[1],
     EthErc20VaultFactory: factories[2],
@@ -327,5 +327,5 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   console.log('NB! Accept ownership of Keeper from', networkConfig.governor)
   console.log('NB! Accept ownership of OsToken from', networkConfig.governor)
   console.log('NB! Accept ownership of VaultsRegistry from', networkConfig.governor)
-  console.log('NB! Commit and accept StakeWise V2 PoolEscrow ownership to GenesisEthVault')
+  console.log('NB! Commit and accept StakeWise V2 PoolEscrow ownership to EthGenesisVault')
 })
