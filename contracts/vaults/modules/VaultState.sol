@@ -79,11 +79,13 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     IKeeperRewards.HarvestParams calldata harvestParams
   ) public virtual override {
     // process total assets delta  since last update
-    int256 totalAssetsDelta = _harvestAssets(harvestParams);
+    (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
+
+    // process total assets delta if it has changed
     if (totalAssetsDelta != 0) _processTotalAssetsDelta(totalAssetsDelta);
 
-    // update exit queue
-    _updateExitQueue();
+    // update exit queue every time new update is harvested
+    if (harvested) _updateExitQueue();
   }
 
   /**
@@ -225,10 +227,11 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   /**
    * @dev Internal function for harvesting Vaults' new assets
    * @return The total assets delta after harvest
+   * @return `true` when the rewards were harvested, `false` otherwise
    */
   function _harvestAssets(
     IKeeperRewards.HarvestParams calldata harvestParams
-  ) internal virtual returns (int256);
+  ) internal virtual returns (int256, bool);
 
   /**
    * @dev Internal function for retrieving the total assets stored in the Vault.

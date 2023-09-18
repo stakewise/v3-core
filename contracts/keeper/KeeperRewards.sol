@@ -161,7 +161,7 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
   /// @inheritdoc IKeeperRewards
   function harvest(
     HarvestParams calldata params
-  ) external override returns (int256 totalAssetsDelta, uint256 unlockedMevDelta) {
+  ) external override returns (int256 totalAssetsDelta, uint256 unlockedMevDelta, bool harvested) {
     if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.AccessDenied();
 
     // SLOAD to memory
@@ -192,10 +192,11 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
     // SLOAD to memory
     Reward memory lastReward = rewards[msg.sender];
     // check whether Vault's nonce is smaller that the current, otherwise it's already harvested
-    if (lastReward.nonce >= currentNonce) revert Errors.AlreadyHarvested();
+    if (lastReward.nonce >= currentNonce) return (0, 0, false);
 
     // calculate total assets delta
     totalAssetsDelta = params.reward - lastReward.assets;
+    harvested = true;
 
     // update state
     rewards[msg.sender] = Reward({nonce: currentNonce, assets: params.reward});

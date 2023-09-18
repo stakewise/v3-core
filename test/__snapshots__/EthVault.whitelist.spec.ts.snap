@@ -3,14 +3,14 @@
 exports[`EthVault - whitelist deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 69266,
+  "gasUsed": 69280,
 }
 `;
 
 exports[`EthVault - whitelist deposit deposit through receive fallback can be called by whitelisted sender 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 76793,
+  "gasUsed": 76807,
 }
 `;
 

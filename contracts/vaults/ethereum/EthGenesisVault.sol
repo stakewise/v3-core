@@ -102,7 +102,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     bool isCollateralized = IKeeperRewards(_keeper).isCollateralized(address(this));
 
     // process total assets delta since last update
-    int256 totalAssetsDelta = _harvestAssets(harvestParams);
+    (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
 
     if (!isCollateralized) {
       // it's the first harvest, deduct rewards accumulated so far in legacy pool
@@ -134,12 +134,11 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       totalAssetsDelta -= legacyReward;
     }
 
-    if (totalAssetsDelta != 0) {
-      _processTotalAssetsDelta(totalAssetsDelta);
-    }
+    // process total assets delta if it has changed
+    if (totalAssetsDelta != 0) _processTotalAssetsDelta(totalAssetsDelta);
 
-    // update exit queue
-    _updateExitQueue();
+    // update exit queue every time new update is harvested
+    if (harvested) _updateExitQueue();
   }
 
   /// @inheritdoc IEthGenesisVault

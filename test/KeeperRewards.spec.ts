@@ -465,8 +465,17 @@ describe('KeeperRewards', () => {
       expect(await keeper.isHarvestRequired(ownMevVault.address)).to.equal(false)
       await snapshotGasCost(receipt)
 
-      // fails for harvesting twice
-      await expect(ownMevVault.updateState(harvestParams)).to.be.revertedWith('AlreadyHarvested')
+      // does not fail for harvesting twice
+      const mevEscrow = await ownMevVault.mevEscrow()
+      await other.sendTransaction({
+        to: mevEscrow,
+        value: parseEther('5'),
+      })
+      const totalAssets = await ownMevVault.totalAssets()
+      const ownMevEscrowAssets = await waffle.provider.getBalance(mevEscrow)
+      await expect(await ownMevVault.updateState(harvestParams)).to.not.emit(keeper, 'Harvested')
+      expect(await waffle.provider.getBalance(mevEscrow)).to.equal(ownMevEscrowAssets)
+      expect(await ownMevVault.totalAssets()).to.equal(totalAssets)
     })
 
     it('succeeds for previous rewards root', async () => {
@@ -530,10 +539,20 @@ describe('KeeperRewards', () => {
       expect(await keeper.isHarvestRequired(ownMevVault.address)).to.equal(false)
       await snapshotGasCost(receipt)
 
-      // fails for harvesting twice
-      await expect(ownMevVault.updateState(prevHarvestParams)).to.be.revertedWith(
-        'AlreadyHarvested'
+      // does not fail for harvesting twice
+      const mevEscrow = await ownMevVault.mevEscrow()
+      await other.sendTransaction({
+        to: mevEscrow,
+        value: parseEther('5'),
+      })
+      const totalAssets = await ownMevVault.totalAssets()
+      const ownMevEscrowAssets = await waffle.provider.getBalance(mevEscrow)
+      await expect(await ownMevVault.updateState(prevHarvestParams)).to.not.emit(
+        keeper,
+        'Harvested'
       )
+      expect(await waffle.provider.getBalance(mevEscrow)).to.equal(ownMevEscrowAssets)
+      expect(await ownMevVault.totalAssets()).to.equal(totalAssets)
     })
   })
 
@@ -643,8 +662,8 @@ describe('KeeperRewards', () => {
       expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
       await snapshotGasCost(receipt)
 
-      // fails for harvesting twice
-      await expect(sharedMevVault.updateState(harvestParams)).to.be.revertedWith('AlreadyHarvested')
+      // does not fail for harvesting twice
+      await expect(await sharedMevVault.updateState(harvestParams)).to.not.emit(keeper, 'Harvested')
     })
 
     it('succeeds for previous rewards root', async () => {
@@ -725,10 +744,8 @@ describe('KeeperRewards', () => {
       expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
       await snapshotGasCost(receipt)
 
-      // fails for harvesting twice
-      await expect(sharedMevVault.updateState(prevHarvestParams)).to.be.revertedWith(
-        'AlreadyHarvested'
-      )
+      // does not fail for harvesting twice
+      await expect(await sharedMevVault.updateState(harvestParams)).to.not.emit(keeper, 'Harvested')
     })
   })
 

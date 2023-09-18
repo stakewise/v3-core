@@ -388,6 +388,11 @@
         "internalType": "uint256",
         "name": "unlockedMevDelta",
         "type": "uint256"
+      },
+      {
+        "internalType": "bool",
+        "name": "harvested",
+        "type": "bool"
       }
     ],
     "stateMutability": "nonpayable",
