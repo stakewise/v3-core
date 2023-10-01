@@ -250,9 +250,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
     // check whether any profit accrued
     if (profitAccrued == 0) {
-      // SLOAD to memory
-      uint256 lastUpdateTimestamp = _lastUpdateTimestamp;
-      if (lastUpdateTimestamp != block.timestamp) {
+      if (_lastUpdateTimestamp != block.timestamp) {
         _lastUpdateTimestamp = uint64(block.timestamp);
       }
       return;

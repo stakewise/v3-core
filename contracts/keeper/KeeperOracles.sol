@@ -29,7 +29,7 @@ abstract contract KeeperOracles is Ownable2Step, EIP712, IKeeperOracles {
   constructor() Ownable2Step() EIP712('KeeperOracles', '1') {}
 
   /// @inheritdoc IKeeperOracles
-  function addOracle(address oracle) public override onlyOwner {
+  function addOracle(address oracle) external override onlyOwner {
     if (isOracle[oracle]) revert Errors.AlreadyAdded();
 
     // SLOAD to memory

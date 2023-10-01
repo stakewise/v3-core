@@ -48,7 +48,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   /// @inheritdoc IVaultOsToken
   function osTokenPositions(address user) external view override returns (uint128 shares) {
     OsTokenPosition memory position = _positions[user];
-    if (position.shares > 0) _syncPositionFee(position);
+    if (position.shares != 0) _syncPositionFee(position);
     return position.shares;
   }
 
@@ -66,7 +66,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
 
     // fetch user position
     OsTokenPosition memory position = _positions[msg.sender];
-    if (position.shares > 0) {
+    if (position.shares != 0) {
       _syncPositionFee(position);
     } else {
       position.cumulativeFeePerShare = SafeCast.toUint128(_osToken.cumulativeFeePerShare());

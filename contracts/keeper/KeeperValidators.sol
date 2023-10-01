@@ -41,7 +41,7 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
   }
 
   /// @inheritdoc IKeeperValidators
-  function setValidatorsMinOracles(uint256 _validatorsMinOracles) public override onlyOwner {
+  function setValidatorsMinOracles(uint256 _validatorsMinOracles) external override onlyOwner {
     _setValidatorsMinOracles(_validatorsMinOracles);
   }
 
@@ -105,7 +105,10 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
     );
 
     // update state
-    exitSignaturesNonces[vault] = nonce + 1;
+    unchecked {
+      // cannot realistically overflow
+      exitSignaturesNonces[vault] = nonce + 1;
+    }
 
     // emit event
     emit ExitSignaturesUpdated(msg.sender, vault, nonce, exitSignaturesIpfsHash);

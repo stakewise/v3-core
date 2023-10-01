@@ -31,6 +31,6 @@ Object {
 exports[`EthErc20Vault update exit queue emits transfer event 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 137518,
+  "gasUsed": 137509,
 }
 `;

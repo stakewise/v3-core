@@ -214,7 +214,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    */
   function _pullAssets() private {
     uint256 escrowBalance = address(_poolEscrow).balance;
-    if (escrowBalance > 0) _poolEscrow.withdraw(payable(this), escrowBalance);
+    if (escrowBalance != 0) _poolEscrow.withdraw(payable(this), escrowBalance);
   }
 
   /**

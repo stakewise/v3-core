@@ -112,7 +112,10 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
     rewardsRoot = params.rewardsRoot;
     // cannot overflow on human timescales
     lastRewardsTimestamp = uint64(block.timestamp);
-    rewardsNonce = nonce + 1;
+    unchecked {
+      // cannot realistically overflow
+      rewardsNonce = nonce + 1;
+    }
 
     _osToken.setAvgRewardPerSecond(params.avgRewardPerSecond);
 
@@ -128,11 +131,9 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
 
   /// @inheritdoc IKeeperRewards
   function canUpdateRewards() public view override returns (bool) {
-    // SLOAD to memory
-    uint256 _lastRewardsTimestamp = lastRewardsTimestamp;
     unchecked {
       // cannot overflow as lastRewardsTimestamp & rewardsDelay are uint64
-      return _lastRewardsTimestamp + rewardsDelay < block.timestamp;
+      return lastRewardsTimestamp + rewardsDelay < block.timestamp;
     }
   }
 
@@ -190,7 +191,7 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
     }
 
     // SLOAD to memory
-    Reward memory lastReward = rewards[msg.sender];
+    Reward storage lastReward = rewards[msg.sender];
     // check whether Vault's nonce is smaller that the current, otherwise it's already harvested
     if (lastReward.nonce >= currentNonce) return (0, 0, false);
 
@@ -199,7 +200,8 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
     harvested = true;
 
     // update state
-    rewards[msg.sender] = Reward({nonce: currentNonce, assets: params.reward});
+    lastReward.nonce = currentNonce;
+    lastReward.assets = params.reward;
 
     // check whether Vault has unlocked execution reward
     if (IVaultMev(msg.sender).mevEscrow() == _sharedMevEscrow) {

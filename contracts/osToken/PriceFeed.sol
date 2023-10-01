@@ -67,6 +67,6 @@ contract PriceFeed is IBalancerRateProvider, IChainlinkAggregator, IChainlinkV3A
       uint80 answeredInRound
     )
   {
-    return (uint80(0), latestAnswer(), block.timestamp, block.timestamp, uint80(0));
+    return (0, latestAnswer(), block.timestamp, block.timestamp, 0);
   }
 }
