@@ -13,8 +13,9 @@ import '../interfaces/IMulticall.sol';
 abstract contract Multicall is IMulticall {
   /// @inheritdoc IMulticall
   function multicall(bytes[] calldata data) external override returns (bytes[] memory results) {
-    results = new bytes[](data.length);
-    for (uint256 i = 0; i < data.length; ) {
+    uint256 dataLength = data.length;
+    results = new bytes[](dataLength);
+    for (uint256 i = 0; i < dataLength; ) {
       (bool success, bytes memory result) = address(this).delegatecall(data[i]);
 
       if (!success) {

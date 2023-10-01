@@ -17,14 +17,14 @@ Object {
 exports[`EthGenesisVault pulls assets on claim exited assets 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 64329,
+  "gasUsed": 64321,
 }
 `;
 
 exports[`EthGenesisVault pulls assets on multiple validators registration 1`] = `
 Object {
   "calldataByteLength": 3716,
-  "gasUsed": 682468,
+  "gasUsed": 682648,
 }
 `;
 
