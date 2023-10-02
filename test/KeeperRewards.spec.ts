@@ -170,13 +170,6 @@ describe('KeeperRewards', () => {
       )
     })
 
-    it('fails from not an oracle', async () => {
-      await keeper.connect(owner).removeOracle(oracle.address)
-      await expect(keeper.connect(oracle).updateRewards(rewardsUpdateParams)).to.be.revertedWith(
-        'AccessDenied'
-      )
-    })
-
     it('succeeds with all signatures', async () => {
       const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], keeper)
       const params = {

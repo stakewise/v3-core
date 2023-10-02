@@ -165,7 +165,6 @@ describe('EthErc20Vault', () => {
   })
 
   it('cannot transfer vault shares when unharvested', async () => {
-    await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const assets = parseEther('2')
     const osTokenShares = parseEther('1')
@@ -184,7 +183,6 @@ describe('EthErc20Vault', () => {
   })
 
   it('cannot transfer vault shares when LTV is violated', async () => {
-    await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const assets = parseEther('2')
     const osTokenShares = parseEther('1')

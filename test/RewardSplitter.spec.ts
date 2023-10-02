@@ -109,7 +109,7 @@ describe('RewardSplitter', () => {
       })
       const feeShares = await vault.convertToShares(fee)
       expect(await vault.feeRecipient()).to.eq(rewardSplitter.address)
-      expect(await vault.balanceOf(rewardSplitter.address)).to.eq(feeShares)
+      expect(await vault.getShares(rewardSplitter.address)).to.eq(feeShares)
 
       await rewardSplitter.connect(admin).increaseShares(admin.address, 100)
       expect(await rewardSplitter.rewardsOf(other.address)).to.eq(feeShares)
@@ -198,7 +198,7 @@ describe('RewardSplitter', () => {
       })
       const feeShares = await vault.convertToShares(fee)
       expect(await vault.feeRecipient()).to.eq(rewardSplitter.address)
-      expect(await vault.balanceOf(rewardSplitter.address)).to.eq(feeShares)
+      expect(await vault.getShares(rewardSplitter.address)).to.eq(feeShares)
 
       await rewardSplitter.connect(admin).decreaseShares(admin.address, 1)
       expect(await rewardSplitter.rewardsOf(other.address)).to.eq(feeShares.div(2))

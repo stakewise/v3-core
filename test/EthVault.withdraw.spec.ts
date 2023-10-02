@@ -129,8 +129,8 @@ describe('EthVault - withdraw', () => {
         .withArgs(holder.address, receiver.address, holderAssets, holderShares)
 
       expect(await vault.totalAssets()).to.be.eq(SECURITY_DEPOSIT)
-      expect(await vault.totalSupply()).to.be.eq(SECURITY_DEPOSIT)
-      expect(await vault.balanceOf(holder.address)).to.be.eq(0)
+      expect(await vault.totalShares()).to.be.eq(SECURITY_DEPOSIT)
+      expect(await vault.getShares(holder.address)).to.be.eq(0)
       expect(await waffle.provider.getBalance(vault.address)).to.be.eq(SECURITY_DEPOSIT)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
         receiverBalanceBefore.add(holderAssets)
@@ -185,8 +185,8 @@ describe('EthVault - withdraw', () => {
 
     it('locks shares for the time of exit', async () => {
       expect(await vault.queuedShares()).to.be.eq(0)
-      expect(await vault.balanceOf(holder.address)).to.be.eq(holderShares)
-      expect(await vault.balanceOf(vault.address)).to.be.eq(SECURITY_DEPOSIT)
+      expect(await vault.getShares(holder.address)).to.be.eq(holderShares)
+      expect(await vault.getShares(vault.address)).to.be.eq(SECURITY_DEPOSIT)
 
       const receipt = await vault.connect(holder).enterExitQueue(holderShares, receiver.address)
       await expect(receipt)
@@ -194,7 +194,7 @@ describe('EthVault - withdraw', () => {
         .withArgs(holder.address, receiver.address, validatorDeposit, holderShares)
 
       expect(await vault.queuedShares()).to.be.eq(holderShares)
-      expect(await vault.balanceOf(holder.address)).to.be.eq(0)
+      expect(await vault.getShares(holder.address)).to.be.eq(0)
 
       await snapshotGasCost(receipt)
     })
@@ -283,7 +283,7 @@ describe('EthVault - withdraw', () => {
         holderAssets.add(SECURITY_DEPOSIT)
       )
       expect(await vault.getExitQueueIndex(0)).to.be.eq(0)
-      expect(await vault.totalSupply()).to.be.eq(SECURITY_DEPOSIT)
+      expect(await vault.totalShares()).to.be.eq(SECURITY_DEPOSIT)
       expect(await vault.totalAssets()).to.be.eq(SECURITY_DEPOSIT)
       expect(await vault.queuedShares()).to.be.eq(0)
 
@@ -606,7 +606,7 @@ describe('EthVault - withdraw', () => {
     let bobShares = 0
     let bobAssets = 0
     let totalAssets = 0
-    let totalSupply = 0
+    let totalShares = 0
     let queuedShares = 0
     let unclaimedAssets = 0
     let latestPositionTicket = validatorDeposit
@@ -615,11 +615,11 @@ describe('EthVault - withdraw', () => {
     let totalUnlockedMevReward = 0
 
     const checkVaultState = async () => {
-      expect(await vault.balanceOf(alice.address)).to.be.eq(aliceShares)
-      expect(await vault.balanceOf(bob.address)).to.be.eq(bobShares)
+      expect(await vault.getShares(alice.address)).to.be.eq(aliceShares)
+      expect(await vault.getShares(bob.address)).to.be.eq(bobShares)
       expect(await vault.convertToAssets(aliceShares)).to.be.eq(aliceAssets)
       expect(await vault.convertToAssets(bobShares)).to.be.eq(bobAssets)
-      expect(await vault.totalSupply()).to.be.eq(totalSupply)
+      expect(await vault.totalShares()).to.be.eq(totalShares)
       expect(await waffle.provider.getBalance(sharedMevEscrow.address)).to.be.eq(0)
       expect(await waffle.provider.getBalance(vault.address)).to.be.eq(vaultLiquidAssets)
       expect(await vault.totalAssets()).to.be.eq(totalAssets)
@@ -631,7 +631,7 @@ describe('EthVault - withdraw', () => {
     aliceAssets += 2000
     totalAssets += 2000
     vaultLiquidAssets += 2000
-    totalSupply += 2000
+    totalShares += 2000
     await vault.connect(alice).deposit(alice.address, referrer, { value: aliceAssets })
 
     await checkVaultState()
@@ -641,7 +641,7 @@ describe('EthVault - withdraw', () => {
     bobAssets += 4000
     totalAssets += 4000
     vaultLiquidAssets += 4000
-    totalSupply += 4000
+    totalShares += 4000
     await vault.connect(bob).deposit(bob.address, referrer, { value: bobAssets })
 
     await checkVaultState()
@@ -677,7 +677,7 @@ describe('EthVault - withdraw', () => {
     bobAssets -= 1 // rounding error
     totalAssets += 2000
     vaultLiquidAssets += 2000
-    totalSupply += 1334
+    totalShares += 1334
 
     await vault.connect(alice).deposit(alice.address, referrer, { value: 2000 })
     await checkVaultState()
@@ -688,7 +688,7 @@ describe('EthVault - withdraw', () => {
     bobAssets += 3000
     totalAssets += 3000
     vaultLiquidAssets += 3000
-    totalSupply += 2001
+    totalShares += 2001
 
     await checkVaultState()
 
@@ -725,7 +725,7 @@ describe('EthVault - withdraw', () => {
     aliceAssets -= 2427
     totalAssets -= 2427
     vaultLiquidAssets -= 2427
-    totalSupply -= 1333
+    totalShares -= 1333
 
     await checkVaultState()
 
@@ -736,7 +736,7 @@ describe('EthVault - withdraw', () => {
     bobAssets -= 2928
     totalAssets -= 2928
     vaultLiquidAssets -= 2928
-    totalSupply -= 1608
+    totalShares -= 1608
 
     await checkVaultState()
 
@@ -794,7 +794,7 @@ describe('EthVault - withdraw', () => {
 
     aliceAssets -= 1 // rounding error
     totalAssets -= 2600
-    totalSupply -= 1427
+    totalShares -= 1427
     queuedShares -= 1427
     unclaimedAssets += 2600
     await checkVaultState()
@@ -826,7 +826,7 @@ describe('EthVault - withdraw', () => {
 
     // update alice assets
     aliceAssets += 1007
-    totalSupply -= 1060
+    totalShares -= 1060
     totalAssets -= 3000
     queuedShares -= 1060
     unclaimedAssets += 3000
@@ -885,7 +885,7 @@ describe('EthVault - withdraw', () => {
 
     unclaimedAssets += totalAssets
     vaultLiquidAssets = unclaimedAssets
-    totalSupply = 0
+    totalShares = 0
     queuedShares = 0
     totalAssets = 0
 
@@ -916,7 +916,7 @@ describe('EthVault - withdraw', () => {
     bobShares = 0
     bobAssets = 0
     totalAssets = 0
-    totalSupply = 0
+    totalShares = 0
     queuedShares = 0
     vaultLiquidAssets = 2
     await checkVaultState()

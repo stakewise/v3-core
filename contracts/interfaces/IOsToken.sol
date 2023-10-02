@@ -67,11 +67,10 @@ interface IOsToken is IERC20Permit {
   event KeeperUpdated(address keeper);
 
   /**
-   * @notice Event emitted on vault implementation update
-   * @param implementation The vault implementation address
-   * @param isSupported Whether the implementation can mint osToken
+   * @notice Event emitted on checker address update
+   * @param checker The new checker address
    */
-  event VaultImplementationUpdated(address indexed implementation, bool isSupported);
+  event CheckerUpdated(address checker);
 
   /**
    * @notice The OsToken capacity
@@ -98,11 +97,10 @@ interface IOsToken is IERC20Permit {
   function keeper() external view returns (address);
 
   /**
-   * @notice Checks whether Vault implementation address is supported for minting osToken
-   * @param implementation The address of the Vault implementation
-   * @return isSupported Returns `true` if the implementation is supported, `false` otherwise
+   * @notice The address that checks whether caller can mint or burn OsToken shares
+   * @return The address of the checker contract
    */
-  function vaultImplementations(address implementation) external view returns (bool isSupported);
+  function checker() external view returns (address);
 
   /**
    * @notice The average reward per second used to mint OsToken rewards
@@ -182,11 +180,10 @@ interface IOsToken is IERC20Permit {
   function setKeeper(address _keeper) external;
 
   /**
-   * @notice Enable/disable osToken minting for specific vault implementation. Can only be called by the owner.
-   * @param implementation The address of the Vault implementation
-   * @param isSupported Whether the implementation can mint osToken
+   * @notice Update checker address. Can only be called by the owner.
+   * @param _checker The new checker address
    */
-  function setVaultImplementation(address implementation, bool isSupported) external;
+  function setChecker(address _checker) external;
 
   /**
    * @notice Updates average reward per second. Can only be called by the keeper.

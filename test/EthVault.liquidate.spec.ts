@@ -46,7 +46,6 @@ describe('EthVault - liquidate', () => {
       osToken,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
-    await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
     await osToken.connect(dao).setFeePercent(0)
 
     // collateralize vault
@@ -149,7 +148,7 @@ describe('EthVault - liquidate', () => {
   it('calculates liquidation correctly', async () => {
     expect(await osToken.balanceOf(liquidator.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(osTokenShares)
-    expect(await vault.balanceOf(owner.address)).to.be.eq(shares)
+    expect(await vault.getShares(owner.address)).to.be.eq(shares)
 
     const balanceBefore = await waffle.provider.getBalance(receiver.address)
     const osTokenAssets = osTokenShares.mul(OSTOKEN_LIQ_BONUS).div(10000)
@@ -161,7 +160,7 @@ describe('EthVault - liquidate', () => {
 
     expect(await osToken.balanceOf(liquidator.address)).to.eq(0)
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(0)
-    expect(await vault.balanceOf(owner.address)).to.be.eq(shares.sub(burnedShares))
+    expect(await vault.getShares(owner.address)).to.be.eq(shares.sub(burnedShares))
     expect(await waffle.provider.getBalance(receiver.address)).to.eq(
       balanceBefore.add(osTokenAssets)
     )

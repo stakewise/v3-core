@@ -49,7 +49,6 @@ describe('OsToken', () => {
     osToken = fixture.osToken
     const vault = await fixture.createEthVault(admin, vaultParams)
     vaultImpl = await vault.implementation()
-    await osToken.connect(owner).setVaultImplementation(vaultImpl, true)
 
     // collateralize vault
     await collateralizeEthVault(vault, fixture.keeper, fixture.validatorsRegistry, admin)
@@ -120,25 +119,23 @@ describe('OsToken', () => {
     })
   })
 
-  describe('vault implementation', () => {
+  describe('checker', () => {
     it('not owner cannot change', async () => {
-      await expect(
-        osToken.connect(initialHolder).setVaultImplementation(vaultImpl, false)
-      ).to.be.revertedWith('Ownable: caller is not the owner')
+      await expect(osToken.connect(initialHolder).setChecker(recipient.address)).to.be.revertedWith(
+        'Ownable: caller is not the owner'
+      )
     })
 
     it('cannot set to zero address', async () => {
-      await expect(
-        osToken.connect(owner).setVaultImplementation(ZERO_ADDRESS, false)
-      ).to.be.revertedWith('ZeroAddress')
+      await expect(osToken.connect(owner).setChecker(ZERO_ADDRESS)).to.be.revertedWith(
+        'ZeroAddress'
+      )
     })
 
     it('owner can change', async () => {
-      const receipt = await osToken.connect(owner).setVaultImplementation(vaultImpl, false)
-      await expect(receipt)
-        .to.emit(osToken, 'VaultImplementationUpdated')
-        .withArgs(vaultImpl, false)
-      expect(await osToken.vaultImplementations(vaultImpl)).to.eq(false)
+      const receipt = await osToken.connect(owner).setChecker(vaultImpl)
+      await expect(receipt).to.emit(osToken, 'CheckerUpdated').withArgs(vaultImpl)
+      expect(await osToken.checker()).to.eq(vaultImpl)
       await snapshotGasCost(receipt)
     })
   })

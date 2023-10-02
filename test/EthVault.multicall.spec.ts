@@ -56,7 +56,7 @@ describe('EthVault - multicall', () => {
     await registerEthValidator(vault, keeper, validatorsRegistry, admin)
     await setBalance(mevEscrow.address, parseEther('10'))
 
-    const userShares = await vault.balanceOf(sender.address)
+    const userShares = await vault.getShares(sender.address)
 
     // update rewards root for the vault
     const vaultReward = parseEther('1')

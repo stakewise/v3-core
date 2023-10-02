@@ -34,8 +34,18 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   uint256 private _capacity;
 
   /// @inheritdoc IVaultState
+  function totalShares() external view override returns (uint256) {
+    return _totalShares;
+  }
+
+  /// @inheritdoc IVaultState
   function totalAssets() external view override returns (uint256) {
     return _totalAssets;
+  }
+
+  /// @inheritdoc IVaultState
+  function getShares(address account) external view override returns (uint256) {
+    return _balances[account];
   }
 
   /// @inheritdoc IVaultState
@@ -45,8 +55,8 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
 
   /// @inheritdoc IVaultState
   function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
-    uint256 totalShares = _totalShares;
-    return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares);
+    uint256 totalShares_ = _totalShares;
+    return (totalShares_ == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares_);
   }
 
   /// @inheritdoc IVaultState
@@ -116,17 +126,17 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     if (feeRecipientAssets == 0) return;
 
     // SLOAD to memory
-    uint256 totalShares = _totalShares;
+    uint256 totalShares_ = _totalShares;
 
     // calculate fee recipient's shares
     uint256 feeRecipientShares;
-    if (totalShares == 0) {
+    if (totalShares_ == 0) {
       feeRecipientShares = feeRecipientAssets;
     } else {
       unchecked {
         feeRecipientShares = Math.mulDiv(
           feeRecipientAssets,
-          totalShares,
+          totalShares_,
           newTotalAssets - feeRecipientAssets
         );
       }
@@ -215,13 +225,13 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     uint256 assets,
     Math.Rounding rounding
   ) internal view returns (uint256 shares) {
-    uint256 totalShares = _totalShares;
+    uint256 totalShares_ = _totalShares;
     // Will revert if assets > 0, totalShares > 0 and _totalAssets = 0.
     // That corresponds to a case where any asset would represent an infinite amount of shares.
     return
-      (assets == 0 || totalShares == 0)
+      (assets == 0 || totalShares_ == 0)
         ? assets
-        : Math.mulDiv(assets, totalShares, _totalAssets, rounding);
+        : Math.mulDiv(assets, totalShares_, _totalAssets, rounding);
   }
 
   /**

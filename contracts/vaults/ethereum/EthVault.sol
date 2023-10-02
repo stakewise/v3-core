@@ -75,16 +75,6 @@ contract EthVault is
     );
   }
 
-  /// @inheritdoc IEthVault
-  function totalSupply() external view override returns (uint256) {
-    return _totalShares;
-  }
-
-  /// @inheritdoc IEthVault
-  function balanceOf(address account) external view override returns (uint256) {
-    return _balances[account];
-  }
-
   /// @inheritdoc IVaultEnterExit
   function redeem(
     uint256 shares,

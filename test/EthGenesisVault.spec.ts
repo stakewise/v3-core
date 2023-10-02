@@ -85,7 +85,6 @@ describe('EthGenesisVault', () => {
     expect(await vault.mevEscrow()).to.be.eq(fixture.sharedMevEscrow.address)
 
     await fixture.vaultsRegistry.connect(dao).addVault(vault.address)
-    await fixture.osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
   })
 
   it('initializes correctly', async () => {
@@ -181,7 +180,7 @@ describe('EthGenesisVault', () => {
       expect(await vault.convertToShares(assets)).to.eq(expectedShares)
 
       const receipt = await rewardEthToken.connect(other).migrate(other.address, assets, 0)
-      expect(await vault.balanceOf(other.address)).to.eq(expectedShares)
+      expect(await vault.getShares(other.address)).to.eq(expectedShares)
 
       await expect(receipt)
         .to.emit(vault, 'Migrated')
@@ -319,7 +318,7 @@ describe('EthGenesisVault', () => {
     expect(await vault.convertToShares(amount)).to.eq(expectedShares)
 
     const receipt = await depositorMock.connect(other).depositToVault({ value: amount })
-    expect(await vault.balanceOf(depositorMock.address)).to.eq(expectedShares)
+    expect(await vault.getShares(depositorMock.address)).to.eq(expectedShares)
 
     await expect(receipt)
       .to.emit(vault, 'Deposited')

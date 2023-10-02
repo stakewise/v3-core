@@ -47,7 +47,6 @@ describe('EthVault - redeem osToken', () => {
       osToken,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
-    await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
     await osToken.connect(dao).setFeePercent(0)
 
     // collateralize vault
@@ -146,7 +145,7 @@ describe('EthVault - redeem osToken', () => {
   it('calculates redeem correctly', async () => {
     expect(await osToken.balanceOf(redeemer.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(osTokenShares)
-    expect(await vault.balanceOf(owner.address)).to.be.eq(shares)
+    expect(await vault.getShares(owner.address)).to.be.eq(shares)
 
     const balanceBefore = await waffle.provider.getBalance(receiver.address)
     const redeemedAssets = await osToken.convertToAssets(redeemedShares)
@@ -158,7 +157,7 @@ describe('EthVault - redeem osToken', () => {
 
     expect(await osToken.balanceOf(redeemer.address)).to.eq(osTokenShares.sub(redeemedShares))
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(osTokenShares.sub(redeemedShares))
-    expect(await vault.balanceOf(owner.address)).to.be.eq(shares.sub(burnedShares))
+    expect(await vault.getShares(owner.address)).to.be.eq(shares.sub(burnedShares))
     expect(await waffle.provider.getBalance(receiver.address)).to.eq(
       balanceBefore.add(redeemedAssets)
     )

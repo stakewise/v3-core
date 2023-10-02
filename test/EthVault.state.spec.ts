@@ -128,7 +128,7 @@ describe('EthVault - state', () => {
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     await vault._setTotalAssets(1)
     expect(await vault.totalAssets()).to.eq(1)
-    expect(await vault.totalSupply()).to.eq(securityDeposit.add(1))
+    expect(await vault.totalShares()).to.eq(securityDeposit.add(1))
 
     // attacker drops a lot of eth as a reward
     const burnedAssets = parseEther('1000')
@@ -151,14 +151,14 @@ describe('EthVault - state', () => {
 
     // small amount of shares own a lot of assets
     expect(await vault.totalAssets()).to.eq(burnedAssets.add(1))
-    expect(await vault.totalSupply()).to.eq(securityDeposit.add(1))
+    expect(await vault.totalShares()).to.eq(securityDeposit.add(1))
 
     // user deposits
     const userAssets = parseEther('10')
     await vault.connect(holder).deposit(holder.address, ZERO_ADDRESS, { value: userAssets })
 
     // user lost ~ 10 gwei due to the inflation above
-    expect(await vault.convertToAssets(await vault.balanceOf(holder.address))).to.eq(
+    expect(await vault.convertToAssets(await vault.getShares(holder.address))).to.eq(
       BigNumber.from('10000000980198017861')
     )
   })
@@ -186,7 +186,7 @@ describe('EthVault - state', () => {
       unlockedMevReward: rewardMevEscrow,
     })
 
-    const totalSupplyBefore = await vault.totalSupply()
+    const totalSharesBefore = await vault.totalShares()
     const totalAssetsBefore = await vault.totalAssets()
     const receipt = await vault.updateState({
       rewardsRoot: tree.root,
@@ -205,7 +205,7 @@ describe('EthVault - state', () => {
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
       rewardMevEscrow.add(holderAssets).add(SECURITY_DEPOSIT)
     )
-    expect(await vault.totalSupply()).to.be.eq(totalSupplyBefore)
+    expect(await vault.totalShares()).to.be.eq(totalSharesBefore)
     expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore.add(penalty))
     await snapshotGasCost(receipt)
   })
@@ -244,7 +244,7 @@ describe('EthVault - state', () => {
       unlockedMevReward: 0,
     })
 
-    const totalSupplyBefore = await vault.totalSupply()
+    const totalSharesBefore = await vault.totalShares()
     const totalAssetsBefore = await vault.totalAssets()
     const receipt = await vault.updateState({
       rewardsRoot: tree.root,
@@ -253,7 +253,7 @@ describe('EthVault - state', () => {
       proof,
     })
 
-    const operatorShares = await vault.balanceOf(admin.address)
+    const operatorShares = await vault.getShares(admin.address)
     expect(await vault.convertToAssets(operatorShares)).to.be.eq(operatorReward.sub(2)) // rounding error
     expect(await vault.convertToShares(operatorReward)).to.be.eq(operatorShares)
     expect(await waffle.provider.getBalance(mevEscrow.address)).to.be.eq(0)
@@ -268,7 +268,7 @@ describe('EthVault - state', () => {
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
       rewardMevEscrow.add(holderAssets).add(SECURITY_DEPOSIT)
     )
-    expect(await vault.totalSupply()).to.be.eq(totalSupplyBefore.add(operatorShares))
+    expect(await vault.totalShares()).to.be.eq(totalSharesBefore.add(operatorShares))
     expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore.add(reward))
     await snapshotGasCost(receipt)
   })
@@ -277,7 +277,7 @@ describe('EthVault - state', () => {
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     await vault.connect(holder).enterExitQueue(holderShares, holder.address)
 
-    const totalSupplyBefore = await vault.totalSupply()
+    const totalSharesBefore = await vault.totalShares()
     const totalAssetsBefore = await vault.totalAssets()
 
     const rewardValidators = parseEther('0.5')
@@ -303,7 +303,7 @@ describe('EthVault - state', () => {
       unlockedMevReward,
       proof,
     })
-    const operatorShares = await vault.balanceOf(admin.address)
+    const operatorShares = await vault.getShares(admin.address)
     expect(await waffle.provider.getBalance(sharedMevEscrow.address)).to.be.eq(0)
     expect(await waffle.provider.getBalance(vault.address)).to.be.eq(
       unlockedMevReward.add(holderAssets).add(SECURITY_DEPOSIT)
@@ -316,16 +316,16 @@ describe('EthVault - state', () => {
       .withArgs(vault.address, unlockedMevReward)
     await expect(receipt).emit(vault, 'CheckpointCreated')
 
-    let totalSupplyAfter = totalSupplyBefore.add(operatorShares)
+    let totalSharesAfter = totalSharesBefore.add(operatorShares)
     let totalAssetsAfter = totalAssetsBefore.add(reward)
 
     const unclaimedAssets = holderAssets.add(unlockedMevReward).add(SECURITY_DEPOSIT)
-    const burnedShares = unclaimedAssets.mul(totalSupplyAfter).div(totalAssetsAfter)
+    const burnedShares = unclaimedAssets.mul(totalSharesAfter).div(totalAssetsAfter)
 
-    totalSupplyAfter = totalSupplyAfter.sub(burnedShares)
+    totalSharesAfter = totalSharesAfter.sub(burnedShares)
     totalAssetsAfter = totalAssetsAfter.sub(unclaimedAssets)
 
-    expect(await vault.totalSupply()).to.be.eq(totalSupplyAfter)
+    expect(await vault.totalShares()).to.be.eq(totalSharesAfter)
     expect(await vault.totalAssets()).to.be.eq(totalAssetsAfter)
     await snapshotGasCost(receipt)
   })

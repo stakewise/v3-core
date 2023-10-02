@@ -3,125 +3,125 @@
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount decreases the spender allowance subtracting the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 29571,
+  "gasUsed": 29574,
 }
 `;
 
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount emits an approval event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 24771,
+  "gasUsed": 24774,
 }
 `;
 
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender has enough balance when the spender had an approved amount decreases the spender allowance subtracting the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 29571,
+  "gasUsed": 29574,
 }
 `;
 
 exports[`OsToken approve decrease allowance when the spender is not the zero address when the sender has enough balance when the spender had an approved amount emits an approval event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 24771,
+  "gasUsed": 24774,
 }
 `;
 
 exports[`OsToken approve increase allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount increases the spender allowance adding the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 29241,
+  "gasUsed": 29244,
 }
 `;
 
 exports[`OsToken approve increase allowance when the spender is not the zero address when the sender does not have enough balance when there was no approved amount before approves the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 46341,
+  "gasUsed": 46344,
 }
 `;
 
 exports[`OsToken approve when the sender has enough balance when the spender had an approved amount approves the requested amount and replaces the previous one 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 28906,
+  "gasUsed": 28909,
 }
 `;
 
 exports[`OsToken approve when the sender has enough balance when there was no approved amount before approves the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 46006,
+  "gasUsed": 46009,
 }
 `;
 
 exports[`OsToken capacity owner can change 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 25251,
+  "gasUsed": 25257,
+}
+`;
+
+exports[`OsToken checker owner can change 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 30609,
 }
 `;
 
 exports[`OsToken fee percent owner can change 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 69104,
+  "gasUsed": 69110,
 }
 `;
 
 exports[`OsToken keeper owner can change 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 30273,
+  "gasUsed": 30279,
 }
 `;
 
 exports[`OsToken permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 74708,
+  "gasUsed": 74731,
 }
 `;
 
 exports[`OsToken transfer from when the spender has enough allowance when the token owner has enough balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 47479,
+  "gasUsed": 47482,
 }
 `;
 
 exports[`OsToken transfer from when the spender has unlimited allowance does not decrease the spender allowance 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 53957,
+  "gasUsed": 53960,
 }
 `;
 
 exports[`OsToken transfer when the sender transfers all balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 46870,
+  "gasUsed": 46873,
 }
 `;
 
 exports[`OsToken transfer when the sender transfers zero tokens transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 28946,
+  "gasUsed": 28949,
 }
 `;
 
 exports[`OsToken treasury owner can change 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 27994,
-}
-`;
-
-exports[`OsToken vault implementation owner can change 1`] = `
-Object {
-  "calldataByteLength": 68,
-  "gasUsed": 26533,
+  "gasUsed": 28022,
 }
 `;

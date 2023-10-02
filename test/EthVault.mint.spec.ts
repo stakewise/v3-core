@@ -44,7 +44,6 @@ describe('EthVault - mint', () => {
       vaultsRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
-    await osToken.connect(owner).setVaultImplementation(await vault.implementation(), true)
 
     // collateralize vault
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)

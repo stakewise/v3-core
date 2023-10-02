@@ -82,7 +82,6 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
   /// @inheritdoc IKeeperRewards
   function updateRewards(RewardsUpdateParams calldata params) external override {
     if (!canUpdateRewards()) revert Errors.TooEarlyUpdate();
-    if (!isOracle[msg.sender]) revert Errors.AccessDenied();
 
     if (params.avgRewardPerSecond > _maxAvgRewardPerSecond) {
       revert Errors.InvalidAvgRewardPerSecond();
