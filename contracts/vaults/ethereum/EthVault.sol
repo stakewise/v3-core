@@ -79,10 +79,28 @@ contract EthVault is
   }
 
   /// @inheritdoc IVaultEnterExit
+  function redeem(
+    uint256 shares,
+    address receiver
+  )
+    public
+    virtual
+    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+    returns (uint256 assets)
+  {
+    return super.redeem(shares, receiver);
+  }
+
+  /// @inheritdoc IVaultEnterExit
   function enterExitQueue(
     uint256 shares,
     address receiver
-  ) public virtual override(IVaultEnterExit, VaultEnterExit, VaultOsToken) {
+  )
+    public
+    virtual
+    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+    returns (uint256 positionTicket)
+  {
     return super.enterExitQueue(shares, receiver);
   }
 

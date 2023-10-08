@@ -125,9 +125,18 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   }
 
   /// @inheritdoc IRewardSplitter
-  function enterExitQueue(uint256 rewards, address receiver) external override {
+  function enterExitQueue(
+    uint256 rewards,
+    address receiver
+  ) external override returns (uint256 positionTicket) {
     _withdrawRewards(msg.sender, rewards);
-    IVaultEnterExit(vault).enterExitQueue(rewards, receiver);
+    return IVaultEnterExit(vault).enterExitQueue(rewards, receiver);
+  }
+
+  /// @inheritdoc IRewardSplitter
+  function redeem(uint256 rewards, address receiver) external override returns (uint256 assets) {
+    _withdrawRewards(msg.sender, rewards);
+    return IVaultEnterExit(vault).redeem(rewards, receiver);
   }
 
   /// @inheritdoc IRewardSplitter

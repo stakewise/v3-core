@@ -132,11 +132,20 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   }
 
   /// @inheritdoc IVaultEnterExit
+  function redeem(
+    uint256 shares,
+    address receiver
+  ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 assets) {
+    assets = super.redeem(shares, receiver);
+    _checkOsTokenPosition(msg.sender);
+  }
+
+  /// @inheritdoc IVaultEnterExit
   function enterExitQueue(
     uint256 shares,
     address receiver
-  ) public virtual override(IVaultEnterExit, VaultEnterExit) {
-    super.enterExitQueue(shares, receiver);
+  ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 positionTicket) {
+    positionTicket = super.enterExitQueue(shares, receiver);
     _checkOsTokenPosition(msg.sender);
   }
 
