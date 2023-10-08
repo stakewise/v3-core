@@ -43,13 +43,6 @@ abstract contract VaultImmutables {
   }
 
   /**
-   * @dev Internal method for checking whether the vault can be harvested
-   */
-  function _canHarvest() internal view returns (bool) {
-    return IKeeperRewards(_keeper).canHarvest(address(this));
-  }
-
-  /**
    * @dev Internal method for checking whether the vault is collateralized
    */
   function _checkCollateralized() internal view {

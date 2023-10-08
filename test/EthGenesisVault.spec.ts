@@ -244,7 +244,6 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on redeem', async () => {
-    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const shares = parseEther('10')
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: shares })
 
@@ -253,7 +252,7 @@ describe('EthGenesisVault', () => {
 
     expect(await vault.withdrawableAssets()).to.eq(shares)
 
-    const tx = await vault.connect(other).redeem(shares, other.address)
+    const tx = await vault.connect(other).enterExitQueue(shares, other.address)
     await expect(tx)
       .to.emit(vault, 'Redeemed')
       .withArgs(other.address, other.address, shares, shares)

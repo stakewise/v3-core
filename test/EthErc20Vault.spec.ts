@@ -95,7 +95,7 @@ describe('EthErc20Vault', () => {
     const amount = parseEther('100')
     await vault.connect(sender).deposit(sender.address, referrer, { value: amount })
     const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
-    const receipt = await vault.connect(sender).redeem(amount, receiver.address)
+    const receipt = await vault.connect(sender).enterExitQueue(amount, receiver.address)
     await expect(receipt)
       .to.emit(vault, 'Redeemed')
       .withArgs(sender.address, receiver.address, amount, amount)

@@ -19,7 +19,6 @@ library Errors {
   error InvalidFeeRecipient();
   error InvalidFeePercent();
   error NotHarvested();
-  error HarvestBetweenDepositAndWithdraw();
   error NotCollateralized();
   error Collateralized();
   error InvalidProof();
