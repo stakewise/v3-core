@@ -123,13 +123,6 @@ describe('EthVault - mint', () => {
     )
   })
 
-  it('cannot redeem when LTV is violated', async () => {
-    await vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
-    await expect(vault.connect(sender).redeem(assets, receiver.address)).to.be.revertedWith(
-      'LowLtv'
-    )
-  })
-
   it('updates position accumulated fee', async () => {
     const treasury = await osToken.treasury()
     let totalShares = osTokenShares

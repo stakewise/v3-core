@@ -6,7 +6,7 @@ import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { increaseTime, setBalance } from './shared/utils'
+import { extractExitPositionTicket, increaseTime, setBalance } from './shared/utils'
 import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
 import { registerEthValidator } from './shared/validators'
 import { ONE_DAY } from './shared/constants'
@@ -47,7 +47,7 @@ describe('EthVault - multicall', () => {
     )
   })
 
-  it('can update state, redeem and queue for exit', async () => {
+  it('can update state and queue for exit', async () => {
     const ownMevEscrow = await ethers.getContractFactory('OwnMevEscrow')
     const mevEscrow = ownMevEscrow.attach(await vault.mevEscrow()) as OwnMevEscrow
 
@@ -79,33 +79,20 @@ describe('EthVault - multicall', () => {
     // fetch available assets and user assets after state update
     let calls: string[] = [
       vault.interface.encodeFunctionData('updateState', [harvestParams]),
-      vault.interface.encodeFunctionData('withdrawableAssets'),
       vault.interface.encodeFunctionData('convertToAssets', [userShares]),
     ]
     let result = await vault.callStatic.multicall(calls)
-    const availableAssets = vault.interface.decodeFunctionResult('withdrawableAssets', result[1])[0]
-    const userAssets = vault.interface.decodeFunctionResult('convertToAssets', result[2])[0]
-
-    // calculate assets that can be withdrawn instantly
-    const withdrawAssets = availableAssets.gt(userAssets) ? userAssets : availableAssets
-
-    // calculate assets that must go to the exit queue
-    const exitQueueAssets = userAssets.sub(withdrawAssets)
+    const userAssets = vault.interface.decodeFunctionResult('convertToAssets', result[1])[0]
 
     // convert exit queue assets to shares
     calls = [
       vault.interface.encodeFunctionData('updateState', [harvestParams]),
-      vault.interface.encodeFunctionData('convertToShares', [exitQueueAssets]),
-      vault.interface.encodeFunctionData('convertToShares', [withdrawAssets]),
+      vault.interface.encodeFunctionData('convertToShares', [userAssets]),
     ]
     result = await vault.callStatic.multicall(calls)
     const exitQueueShares = vault.interface.decodeFunctionResult('convertToShares', result[1])[0]
-    const withdrawShares = vault.interface.decodeFunctionResult('convertToShares', result[2])[0]
 
     calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
-
-    // add call for instant withdrawal
-    calls.push(vault.interface.encodeFunctionData('redeem', [withdrawShares, sender.address]))
 
     // add call for entering exit queue
     calls.push(
@@ -115,19 +102,18 @@ describe('EthVault - multicall', () => {
     await updateRewards(keeper, [
       { reward: vaultReward, unlockedMevReward: 0, vault: vault.address },
     ])
-    result = await vault.connect(sender).callStatic.multicall(calls)
-    const queueTicket = vault.interface.decodeFunctionResult('enterExitQueue', result[2])[0]
 
     let receipt = await vault.connect(sender).multicall(calls)
+    const queueTicket = extractExitPositionTicket(await receipt.wait())
+    const timestamp = (await ethers.provider.getBlock((await receipt.wait()).blockNumber)).timestamp
     await expect(receipt).to.emit(keeper, 'Harvested')
     await expect(receipt).to.emit(mevEscrow, 'Harvested')
-    await expect(receipt).to.emit(vault, 'Redeemed')
     await expect(receipt).to.emit(vault, 'ExitQueueEntered')
     await snapshotGasCost(receipt)
 
     // wait for exit queue to complete and withdraw exited assets
-    const assetsDropped = await vault.convertToAssets(exitQueueShares)
-    await setBalance(vault.address, assetsDropped)
+    await setBalance(vault.address, userAssets)
+
     // wait for exit queue
     await increaseTime(ONE_DAY)
     await updateRewards(keeper, [
@@ -141,28 +127,23 @@ describe('EthVault - multicall', () => {
 
     calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
     calls.push(
-      vault.interface.encodeFunctionData('claimExitedAssets', [queueTicket, checkpointIndex])
+      vault.interface.encodeFunctionData('claimExitedAssets', [
+        queueTicket,
+        timestamp,
+        checkpointIndex,
+      ])
     )
 
     receipt = await vault.connect(sender).multicall(calls)
     await expect(receipt)
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(sender.address, queueTicket, 0, assetsDropped)
+      .withArgs(sender.address, queueTicket, 0, userAssets.sub(1)) // 1 wei is left in the vault
     await snapshotGasCost(receipt)
-
-    // reverts on error
-    calls = [
-      vault.interface.encodeFunctionData('updateState', [harvestParams]),
-      vault.interface.encodeFunctionData('redeem', [userShares, sender.address]),
-    ]
-    await expect(vault.connect(sender).multicall(calls)).reverted
   })
 
   it('fails to deposit in multicall', async () => {
-    const amount = parseEther('1')
     const calls: string[] = [
       vault.interface.encodeFunctionData('deposit', [sender.address, referrer]),
-      vault.interface.encodeFunctionData('redeem', [amount, sender.address]),
     ]
     await expect(vault.connect(sender).multicall(calls)).reverted
   })
@@ -172,73 +153,7 @@ describe('EthVault - multicall', () => {
 
     beforeEach(async () => {
       const multicallMockFactory = await ethers.getContractFactory('MulticallMock')
-      multicallMock = await multicallMockFactory.deploy()
-    })
-
-    it('fails to deposit, update state and redeem in one transaction', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
-      expect(await vault.isStateUpdateRequired()).to.eq(false)
-      expect(await keeper.canHarvest(vault.address)).to.eq(false)
-
-      const vaultReward = parseEther('1')
-      const tree = await updateRewards(keeper, [
-        { reward: vaultReward, unlockedMevReward: 0, vault: vault.address },
-      ])
-      await setBalance(await vault.mevEscrow(), parseEther('1'))
-      expect(await vault.isStateUpdateRequired()).to.eq(false)
-      expect(await keeper.canHarvest(vault.address)).to.eq(true)
-
-      const harvestParams: IKeeperRewards.HarvestParamsStruct = {
-        rewardsRoot: tree.root,
-        reward: vaultReward,
-        unlockedMevReward: 0,
-        proof: getRewardsRootProof(tree, {
-          vault: vault.address,
-          reward: vaultReward,
-          unlockedMevReward: 0,
-        }),
-      }
-
-      const amount = parseEther('1')
-      let calls = [
-        {
-          target: vault.address,
-          isPayable: true,
-          callData: vault.interface.encodeFunctionData('deposit', [
-            multicallMock.address,
-            referrer,
-          ]),
-        },
-        {
-          target: vault.address,
-          isPayable: false,
-          callData: vault.interface.encodeFunctionData('updateState', [harvestParams]),
-        },
-        {
-          target: vault.address,
-          isPayable: false,
-          callData: vault.interface.encodeFunctionData('redeem', [amount, sender.address]),
-        },
-      ]
-      await expect(multicallMock.connect(sender).aggregate(calls, { value: amount })).reverted
-
-      // works without state update between
-      calls = [
-        {
-          target: vault.address,
-          isPayable: true,
-          callData: vault.interface.encodeFunctionData('deposit', [
-            multicallMock.address,
-            referrer,
-          ]),
-        },
-        {
-          target: vault.address,
-          isPayable: false,
-          callData: vault.interface.encodeFunctionData('redeem', [amount, sender.address]),
-        },
-      ]
-      await expect(multicallMock.connect(sender).aggregate(calls, { value: amount })).not.reverted
+      multicallMock = (await multicallMockFactory.deploy()) as MulticallMock
     })
 
     it('fails to deposit, enter exit queue, update state and claim in one transaction', async () => {
@@ -266,8 +181,9 @@ describe('EthVault - multicall', () => {
       }
 
       const amount = parseEther('1')
-
-      let calls = [
+      const currentBlockTimestamp = (await ethers.provider.getBlock('latest')).timestamp
+      await waffle.provider.send('evm_setNextBlockTimestamp', [currentBlockTimestamp + 1])
+      const calls = [
         {
           target: vault.address,
           isPayable: true,
@@ -292,36 +208,14 @@ describe('EthVault - multicall', () => {
         {
           target: vault.address,
           isPayable: false,
-          callData: vault.interface.encodeFunctionData('claimExitedAssets', [parseEther('32'), 1]),
+          callData: vault.interface.encodeFunctionData('claimExitedAssets', [
+            parseEther('32'),
+            currentBlockTimestamp + 1,
+            1,
+          ]),
         },
       ]
       await expect(multicallMock.connect(sender).aggregate(calls, { value: amount })).reverted
-
-      // works without state update between
-      calls = [
-        {
-          target: vault.address,
-          isPayable: true,
-          callData: vault.interface.encodeFunctionData('deposit', [
-            multicallMock.address,
-            referrer,
-          ]),
-        },
-        {
-          target: vault.address,
-          isPayable: false,
-          callData: vault.interface.encodeFunctionData('enterExitQueue', [
-            amount,
-            multicallMock.address,
-          ]),
-        },
-        {
-          target: vault.address,
-          isPayable: false,
-          callData: vault.interface.encodeFunctionData('claimExitedAssets', [parseEther('32'), 1]),
-        },
-      ]
-      await expect(multicallMock.connect(sender).aggregate(calls, { value: amount })).not.reverted
     })
   })
 })

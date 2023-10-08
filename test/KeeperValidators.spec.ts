@@ -174,7 +174,7 @@ describe('KeeperValidators', () => {
       let receipt = await vault.registerValidator(approveParams, proof)
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsApproval')
-        .withArgs(vault.address, hexlify(validator), approveParams.exitSignaturesIpfsHash)
+        .withArgs(vault.address, approveParams.exitSignaturesIpfsHash)
 
       // collateralize vault
       rewards = await keeper.rewards(vault.address)
@@ -377,7 +377,7 @@ describe('KeeperValidators', () => {
       )
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsApproval')
-        .withArgs(vault.address, hexlify(validatorsConcat), approveParams.exitSignaturesIpfsHash)
+        .withArgs(vault.address, approveParams.exitSignaturesIpfsHash)
 
       rewards = await keeper.rewards(vault.address)
       expect(rewards.nonce).to.eq(1)

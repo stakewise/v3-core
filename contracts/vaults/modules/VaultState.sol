@@ -150,7 +150,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   }
 
   /**
-   * @dev Internal function that must be used to process exit queue
+	 * @dev Internal function that must be used to process exit queue
    * @dev Make sure that sufficient time passed between exit queue updates (at least 1 day).
           Currently it's restricted by the keeper's harvest interval
    * @return burnedShares The total amount of burned shares
@@ -244,7 +244,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   ) internal virtual returns (int256, bool);
 
   /**
-   * @dev Internal function for retrieving the total assets stored in the Vault.
+	 * @dev Internal function for retrieving the total assets stored in the Vault.
           NB! Assets can be forcibly sent to the vault, the returned value must be used with caution
    * @return The total amount of assets stored in the Vault
    */

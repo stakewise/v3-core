@@ -21,12 +21,12 @@
   },
   {
     "inputs": [],
-    "name": "DeadlineExpired",
+    "name": "ClaimTooEarly",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "HarvestBetweenDepositAndWithdraw",
+    "name": "DeadlineExpired",
     "type": "error"
   },
   {

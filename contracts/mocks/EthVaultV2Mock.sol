@@ -14,9 +14,18 @@ contract EthVaultV2Mock is EthVault {
     address _validatorsRegistry,
     address osToken,
     address osTokenConfig,
-    address sharedMevEscrow
+    address sharedMevEscrow,
+    uint256 exitingAssetsClaimDelay
   )
-    EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, osToken, osTokenConfig, sharedMevEscrow)
+    EthVault(
+      _keeper,
+      _vaultsRegistry,
+      _validatorsRegistry,
+      osToken,
+      osTokenConfig,
+      sharedMevEscrow,
+      exitingAssetsClaimDelay
+    )
   {}
 
   function initialize(bytes calldata data) external payable virtual override reinitializer(2) {

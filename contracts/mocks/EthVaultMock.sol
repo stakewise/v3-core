@@ -25,9 +25,18 @@ contract EthVaultMock is EthVault {
     address _validatorsRegistry,
     address osToken,
     address osTokenConfig,
-    address sharedMevEscrow
+    address sharedMevEscrow,
+    uint256 exitingAssetsClaimDelay
   )
-    EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, osToken, osTokenConfig, sharedMevEscrow)
+    EthVault(
+      _keeper,
+      _vaultsRegistry,
+      _validatorsRegistry,
+      osToken,
+      osTokenConfig,
+      sharedMevEscrow,
+      exitingAssetsClaimDelay
+    )
   {}
 
   function getGasCostOfGetExitQueueIndex(uint256 positionTicket) external view returns (uint256) {

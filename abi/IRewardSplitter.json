@@ -153,13 +153,7 @@
       }
     ],
     "name": "enterExitQueue",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "positionTicket",
-        "type": "uint256"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -213,30 +207,6 @@
         "internalType": "bytes[]",
         "name": "results",
         "type": "bytes[]"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "uint256",
-        "name": "rewards",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "receiver",
-        "type": "address"
-      }
-    ],
-    "name": "redeem",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "assets",
-        "type": "uint256"
       }
     ],
     "stateMutability": "nonpayable",

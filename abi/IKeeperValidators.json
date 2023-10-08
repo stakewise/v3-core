@@ -173,12 +173,6 @@
       },
       {
         "indexed": false,
-        "internalType": "bytes",
-        "name": "validators",
-        "type": "bytes"
-      },
-      {
-        "indexed": false,
         "internalType": "string",
         "name": "exitSignaturesIpfsHash",
         "type": "string"

@@ -54,6 +54,7 @@ contract EthErc20Vault is
    * @param osToken The address of the OsToken contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
+   * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
@@ -62,9 +63,11 @@ contract EthErc20Vault is
     address _validatorsRegistry,
     address osToken,
     address osTokenConfig,
-    address sharedMevEscrow
+    address sharedMevEscrow,
+    uint256 exitingAssetsClaimDelay
   )
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
+    VaultEnterExit(exitingAssetsClaimDelay)
     VaultOsToken(osToken, osTokenConfig)
     VaultMev(sharedMevEscrow)
   {
@@ -102,29 +105,11 @@ contract EthErc20Vault is
   }
 
   /// @inheritdoc IVaultEnterExit
-  function redeem(
-    uint256 shares,
-    address receiver
-  )
-    public
-    virtual
-    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
-    returns (uint256 assets)
-  {
-    return super.redeem(shares, receiver);
-  }
-
-  /// @inheritdoc IVaultEnterExit
   function enterExitQueue(
     uint256 shares,
     address receiver
-  )
-    public
-    virtual
-    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
-    returns (uint256 positionTicket)
-  {
-    positionTicket = super.enterExitQueue(shares, receiver);
+  ) public virtual override(IVaultEnterExit, VaultEnterExit, VaultOsToken) {
+    super.enterExitQueue(shares, receiver);
     emit Transfer(msg.sender, address(this), shares);
   }
 

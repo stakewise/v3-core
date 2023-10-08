@@ -24,6 +24,7 @@ import {
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
 import {
+  EXITING_ASSETS_MIN_DELAY,
   MAX_AVG_REWARD_PER_SECOND,
   ORACLES,
   ORACLES_CONFIG,
@@ -355,6 +356,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
         osToken.address,
         osTokenConfig.address,
         sharedMevEscrow.address,
+        EXITING_ASSETS_MIN_DELAY,
       ],
     })) as string
     const vaultFactory = await createEthVaultFactory(vaultImpl, vaultsRegistry)

@@ -35,6 +35,7 @@ export const ORACLES = [
 export const REWARDS_MIN_ORACLES = 6
 export const VALIDATORS_MIN_ORACLES = 11
 export const ORACLES_CONFIG = 'QmbwQ6zFEWs1SjLPGk4NNJqn4wduVe6dK3xyte2iG59Uru'
+export const EXITING_ASSETS_MIN_DELAY = ONE_DAY
 export const OSTOKEN_FEE = 500 // 5%
 export const OSTOKEN_CAPACITY = parseEther('10000000')
 export const OSTOKEN_NAME = 'SW Staked ETH'

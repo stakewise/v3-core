@@ -22,7 +22,7 @@ describe('EthErc20Vault', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const referrer = '0x' + '1'.repeat(40)
   let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Wallet
-  let vault: EthErc20Vault, keeper: Keeper, osToken: OsToken, validatorsRegistry: Contract
+  let vault: EthErc20Vault, keeper: Keeper, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
 
@@ -42,7 +42,6 @@ describe('EthErc20Vault', () => {
     })
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
-    osToken = fixture.osToken
   })
 
   it('has id', async () => {
@@ -96,7 +95,7 @@ describe('EthErc20Vault', () => {
     const amount = parseEther('100')
     await vault.connect(sender).deposit(sender.address, referrer, { value: amount })
     const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
-    const receipt = await vault.connect(sender).redeem(amount, receiver.address)
+    const receipt = await vault.connect(sender).enterExitQueue(amount, receiver.address)
     await expect(receipt)
       .to.emit(vault, 'Redeemed')
       .withArgs(sender.address, receiver.address, amount, amount)

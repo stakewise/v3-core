@@ -5,7 +5,7 @@ import { EthVaultFactory, VaultsRegistry } from '../typechain-types'
 import { encodeEthVaultInitParams, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { SECURITY_DEPOSIT, ZERO_ADDRESS } from './shared/constants'
+import { EXITING_ASSETS_MIN_DELAY, SECURITY_DEPOSIT, ZERO_ADDRESS } from './shared/constants'
 import { extractVaultAddress } from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
@@ -43,6 +43,7 @@ describe('VaultsRegistry', () => {
         fixture.osToken.address,
         fixture.osTokenConfig.address,
         fixture.sharedMevEscrow.address,
+        EXITING_ASSETS_MIN_DELAY,
       ],
     })) as string
   })

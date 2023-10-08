@@ -6,6 +6,7 @@ import { createPoolEscrow, ethVaultFixture, getOraclesSignatures } from './share
 import { expect } from './shared/expect'
 import keccak256 from 'keccak256'
 import {
+  EXITING_ASSETS_MIN_DELAY,
   ONE_DAY,
   ORACLES,
   SECURITY_DEPOSIT,
@@ -22,7 +23,12 @@ import {
   registerEthValidator,
 } from './shared/validators'
 import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
-import { increaseTime, setBalance } from './shared/utils'
+import {
+  extractExitPositionTicket,
+  getBlockTimestamp,
+  increaseTime,
+  setBalance,
+} from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -64,6 +70,7 @@ describe('EthGenesisVault', () => {
         fixture.sharedMevEscrow.address,
         poolEscrow.address,
         rewardEthToken.address,
+        EXITING_ASSETS_MIN_DELAY,
       ],
     })
     vault = (await proxy.deployed()) as EthGenesisVault
@@ -196,10 +203,10 @@ describe('EthGenesisVault', () => {
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: shares })
 
     await setBalance(vault.address, BigNumber.from(0))
-    const positionTicket = await vault
-      .connect(other)
-      .callStatic.enterExitQueue(shares, other.address)
-    await vault.connect(other).enterExitQueue(shares, other.address)
+    const response = await vault.connect(other).enterExitQueue(shares, other.address)
+    const receipt = await response.wait()
+    const positionTicket = extractExitPositionTicket(receipt)
+    const timestamp = await getBlockTimestamp(receipt)
 
     await setBalance(poolEscrow.address, shares)
     expect(await vault.withdrawableAssets()).to.eq(0)
@@ -225,7 +232,9 @@ describe('EthGenesisVault', () => {
     })
     const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
 
-    const tx = await vault.connect(other).claimExitedAssets(positionTicket, exitQueueIndex)
+    const tx = await vault
+      .connect(other)
+      .claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
     await expect(tx).to.emit(poolEscrow, 'Withdrawn').withArgs(vault.address, vault.address, shares)
     await expect(tx)
       .to.emit(vault, 'ExitedAssetsClaimed')
@@ -235,16 +244,15 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on redeem', async () => {
-    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const shares = parseEther('10')
-    await rewardEthToken.connect(other).migrate(other.address, shares, shares)
+    await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: shares })
 
     await setBalance(vault.address, BigNumber.from(0))
     await setBalance(poolEscrow.address, shares)
 
     expect(await vault.withdrawableAssets()).to.eq(shares)
 
-    const tx = await vault.connect(other).redeem(shares, other.address)
+    const tx = await vault.connect(other).enterExitQueue(shares, other.address)
     await expect(tx)
       .to.emit(vault, 'Redeemed')
       .withArgs(other.address, other.address, shares, shares)

@@ -14,10 +14,9 @@ interface IKeeperValidators is IKeeperOracles, IKeeperRewards {
   /**
    * @notice Event emitted on validators approval
    * @param vault The address of the Vault
-   * @param validators The concatenation of the validators' public key, signature and deposit data root
    * @param exitSignaturesIpfsHash The IPFS hash with the validators' exit signatures
    */
-  event ValidatorsApproval(address indexed vault, bytes validators, string exitSignaturesIpfsHash);
+  event ValidatorsApproval(address indexed vault, string exitSignaturesIpfsHash);
 
   /**
    * @notice Event emitted on exit signatures update

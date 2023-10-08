@@ -20,7 +20,19 @@ import {VaultState} from './VaultState.sol';
 abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, IVaultEnterExit {
   using ExitQueue for ExitQueue.History;
 
-  uint256 private _notHarvestedDepositBlock;
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  uint256 private immutable _exitingAssetsClaimDelay;
+
+  /**
+   * @dev Constructor
+   * @dev Since the immutable variable value is stored in the bytecode,
+   *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
+   * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
+   */
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor(uint256 exitingAssetsClaimDelay) {
+    _exitingAssetsClaimDelay = exitingAssetsClaimDelay;
+  }
 
   /// @inheritdoc IVaultEnterExit
   function getExitQueueIndex(uint256 positionTicket) external view override returns (int256) {
@@ -29,50 +41,23 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   }
 
   /// @inheritdoc IVaultEnterExit
-  function redeem(
-    uint256 shares,
-    address receiver
-  ) public virtual override returns (uint256 assets) {
-    _checkHarvested();
-    _checkHarvestBetweenDepositAndWithdraw();
+  function enterExitQueue(uint256 shares, address receiver) public virtual override {
     if (shares == 0) revert Errors.InvalidShares();
     if (receiver == address(0)) revert Errors.ZeroAddress();
 
-    // calculate amount of assets to burn
-    assets = convertToAssets(shares);
-
-    // reverts in case there are not enough withdrawable assets
-    if (assets > withdrawableAssets()) revert Errors.InsufficientAssets();
-
-    // update total assets
-    _totalAssets -= SafeCast.toUint128(assets);
-
-    // burn owner shares
-    _burnShares(msg.sender, shares);
-
-    // transfer assets to the receiver
-    _transferVaultAssets(receiver, assets);
-
-    emit Redeemed(msg.sender, receiver, assets, shares);
-  }
-
-  /// @inheritdoc IVaultEnterExit
-  function enterExitQueue(
-    uint256 shares,
-    address receiver
-  ) public virtual override returns (uint256 positionTicket) {
-    _checkCollateralized();
-    if (shares == 0) revert Errors.InvalidShares();
-    if (receiver == address(0)) revert Errors.ZeroAddress();
+    if (!IKeeperRewards(_keeper).isCollateralized(address(this))) {
+      _redeem(shares, receiver);
+      return;
+    }
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
 
     // calculate position ticket
-    positionTicket = _exitQueue.getLatestTotalTickets() + _queuedShares;
+    uint256 positionTicket = _exitQueue.getLatestTotalTickets() + _queuedShares;
 
     // add to the exit requests
-    _exitRequests[keccak256(abi.encode(receiver, positionTicket))] = shares;
+    _exitRequests[keccak256(abi.encode(receiver, block.timestamp, positionTicket))] = shares;
 
     // reverts if owner does not have enough shares
     _balances[msg.sender] -= shares;
@@ -89,6 +74,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   function calculateExitedAssets(
     address receiver,
     uint256 positionTicket,
+    uint256 timestamp,
     uint256 exitQueueIndex
   )
     public
@@ -96,7 +82,9 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     override
     returns (uint256 leftShares, uint256 claimedShares, uint256 claimedAssets)
   {
-    uint256 requestedShares = _exitRequests[keccak256(abi.encode(receiver, positionTicket))];
+    uint256 requestedShares = _exitRequests[
+      keccak256(abi.encode(receiver, timestamp, positionTicket))
+    ];
 
     // calculate exited shares and assets
     (claimedShares, claimedAssets) = _exitQueue.calculateExitedAssets(
@@ -110,20 +98,22 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   /// @inheritdoc IVaultEnterExit
   function claimExitedAssets(
     uint256 positionTicket,
+    uint256 timestamp,
     uint256 exitQueueIndex
   )
     external
     override
     returns (uint256 newPositionTicket, uint256 claimedShares, uint256 claimedAssets)
   {
-    _checkHarvestBetweenDepositAndWithdraw();
-    bytes32 queueId = keccak256(abi.encode(msg.sender, positionTicket));
+    if (block.timestamp < timestamp + _exitingAssetsClaimDelay) revert Errors.ClaimTooEarly();
+    bytes32 queueId = keccak256(abi.encode(msg.sender, timestamp, positionTicket));
 
     // calculate exited shares and assets
     uint256 leftShares;
     (leftShares, claimedShares, claimedAssets) = calculateExitedAssets(
       msg.sender,
       positionTicket,
+      timestamp,
       exitQueueIndex
     );
     // nothing to claim
@@ -136,7 +126,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     if (leftShares > 1) {
       // update user's queue position
       newPositionTicket = positionTicket + claimedShares;
-      _exitRequests[keccak256(abi.encode(msg.sender, newPositionTicket))] = leftShares;
+      _exitRequests[keccak256(abi.encode(msg.sender, timestamp, newPositionTicket))] = leftShares;
     }
 
     // transfer assets to the receiver
@@ -157,17 +147,9 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     uint256 assets,
     address referrer
   ) internal virtual returns (uint256 shares) {
+    _checkHarvested();
     if (to == address(0)) revert Errors.ZeroAddress();
     if (assets == 0) revert Errors.InvalidAssets();
-    if (_canHarvest()) {
-      _checkHarvested();
-      // SLOAD to memory
-      uint256 notHarvestedDepositBlock = _notHarvestedDepositBlock;
-      if (notHarvestedDepositBlock != block.number) {
-        // save the block number of the deposit that happened before the vault was fully harvested
-        _notHarvestedDepositBlock = block.number;
-      }
-    }
 
     uint256 totalAssetsAfter;
     unchecked {
@@ -187,13 +169,27 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   }
 
   /**
-   * @dev Internal function for protecting against attacks,
-   *      when the deposit, harvest (shares price is increased) and withdraw happens in single transaction
+   * @notice Internal function for redeeming assets from the Vault by utilising what has not been staked yet.
+   * @param shares The number of shares to burn
+   * @param receiver The address that will receive assets
    */
-  function _checkHarvestBetweenDepositAndWithdraw() internal view {
-    if (_notHarvestedDepositBlock == block.number && !_canHarvest()) {
-      revert Errors.HarvestBetweenDepositAndWithdraw();
-    }
+  function _redeem(uint256 shares, address receiver) private {
+    // calculate amount of assets to burn
+    uint256 assets = convertToAssets(shares);
+
+    // reverts in case there are not enough withdrawable assets
+    if (assets > withdrawableAssets()) revert Errors.InsufficientAssets();
+
+    // update total assets
+    _totalAssets -= SafeCast.toUint128(assets);
+
+    // burn owner shares
+    _burnShares(msg.sender, shares);
+
+    // transfer assets to the receiver
+    _transferVaultAssets(receiver, assets);
+
+    emit Redeemed(msg.sender, receiver, assets, shares);
   }
 
   /**

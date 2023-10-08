@@ -19,7 +19,6 @@ library Errors {
   error InvalidFeeRecipient();
   error InvalidFeePercent();
   error NotHarvested();
-  error HarvestBetweenDepositAndWithdraw();
   error NotCollateralized();
   error InvalidProof();
   error LowLtv();
@@ -54,4 +53,5 @@ library Errors {
   error InvalidCheckpointValue();
   error MaxOraclesExceeded();
   error NegativeAssetsDelta();
+  error ClaimTooEarly();
 }

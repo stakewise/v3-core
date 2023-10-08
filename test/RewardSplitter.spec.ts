@@ -374,7 +374,7 @@ describe('RewardSplitter', () => {
       await snapshotGasCost(receipt)
     })
 
-    it('can redeem, enter exit queue with multicall', async () => {
+    it('can enter exit queue with multicall', async () => {
       await vault.deposit(other.address, ZERO_ADDRESS, {
         value: parseEther('10').sub(SECURITY_DEPOSIT),
       })
@@ -416,13 +416,9 @@ describe('RewardSplitter', () => {
         .connect(other)
         .multicall([
           ...calls,
-          rewardSplitter.interface.encodeFunctionData('redeem', [rewards.div(2), other.address]),
-          rewardSplitter.interface.encodeFunctionData('enterExitQueue', [
-            rewards.div(2),
-            other.address,
-          ]),
+          rewardSplitter.interface.encodeFunctionData('enterExitQueue', [rewards, other.address]),
         ])
-      expect(await rewardSplitter.rewardsOf(other.address)).to.eq(1) // rounding error
+      expect(await rewardSplitter.rewardsOf(other.address)).to.eq(0)
       await snapshotGasCost(receipt)
     })
   })

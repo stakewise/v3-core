@@ -368,6 +368,11 @@
       },
       {
         "internalType": "uint256",
+        "name": "timestamp",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
         "name": "exitQueueIndex",
         "type": "uint256"
       }
@@ -411,6 +416,11 @@
       {
         "internalType": "uint256",
         "name": "positionTicket",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "timestamp",
         "type": "uint256"
       },
       {
@@ -529,13 +539,7 @@
       }
     ],
     "name": "enterExitQueue",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "positionTicket",
-        "type": "uint256"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -579,6 +583,25 @@
         "internalType": "int256",
         "name": "",
         "type": "int256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "getShares",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
       }
     ],
     "stateMutability": "view",
@@ -712,30 +735,6 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
-        "name": "shares",
-        "type": "uint256"
-      },
-      {
-        "internalType": "address",
-        "name": "receiver",
-        "type": "address"
-      }
-    ],
-    "name": "redeem",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "assets",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
         "internalType": "address",
         "name": "_feeRecipient",
         "type": "address"
@@ -775,6 +774,19 @@
   {
     "inputs": [],
     "name": "totalAssets",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalShares",
     "outputs": [
       {
         "internalType": "uint256",
