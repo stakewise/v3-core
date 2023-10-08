@@ -252,7 +252,7 @@ describe('EthGenesisVault', () => {
 
     expect(await vault.withdrawableAssets()).to.eq(shares)
 
-    const tx = await vault.connect(other).enterExitQueue(shares, other.address)
+    const tx = await vault.connect(other).redeem(shares, other.address)
     await expect(tx)
       .to.emit(vault, 'Redeemed')
       .withArgs(other.address, other.address, shares, shares)

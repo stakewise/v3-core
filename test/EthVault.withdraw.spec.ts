@@ -69,31 +69,31 @@ describe('EthVault - withdraw', () => {
   describe('redeem', () => {
     it('fails with not enough balance', async () => {
       await setBalance(vault.address, BigNumber.from(0))
-      await expect(
-        vault.connect(holder).enterExitQueue(holderShares, receiver.address)
-      ).to.be.revertedWith('InsufficientAssets')
+      await expect(vault.connect(holder).redeem(holderShares, receiver.address)).to.be.revertedWith(
+        'InsufficientAssets'
+      )
     })
 
     it('fails for sender other than owner without approval', async () => {
-      await expect(
-        vault.connect(other).enterExitQueue(holderShares, receiver.address)
-      ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+      await expect(vault.connect(other).redeem(holderShares, receiver.address)).to.be.revertedWith(
+        PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW
+      )
     })
 
     it('fails for shares larger than balance', async () => {
       const newBalance = holderShares.add(1)
       await setBalance(vault.address, newBalance)
-      await expect(
-        vault.connect(holder).enterExitQueue(newBalance, receiver.address)
-      ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+      await expect(vault.connect(holder).redeem(newBalance, receiver.address)).to.be.revertedWith(
+        PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW
+      )
     })
 
     it('fails for zero address receiver', async () => {
       const newBalance = holderShares.add(1)
       await setBalance(vault.address, newBalance)
-      await expect(
-        vault.connect(holder).enterExitQueue(newBalance, ZERO_ADDRESS)
-      ).to.be.revertedWith('ZeroAddress')
+      await expect(vault.connect(holder).redeem(newBalance, ZERO_ADDRESS)).to.be.revertedWith(
+        'ZeroAddress'
+      )
     })
 
     it('does not overflow', async () => {
@@ -110,16 +110,23 @@ describe('EthVault - withdraw', () => {
       await setBalance(await vault.address, MAX_UINT128)
       await vault._setTotalAssets(MAX_UINT128)
 
-      await vault.connect(holder).enterExitQueue(holderShares, receiver.address)
+      await vault.connect(holder).redeem(holderShares, receiver.address)
       expect(await vault.totalAssets()).to.be.eq(0)
       expect(await waffle.provider.getBalance(receiver.address)).to.be.eq(
         receiverBalanceBefore.add(MAX_UINT128)
       )
     })
 
+    it('fails for collateralized', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await expect(vault.connect(holder).redeem(holderShares, receiver.address)).to.be.revertedWith(
+        'Collateralized'
+      )
+    })
+
     it('redeem transfers assets to receiver', async () => {
       const receiverBalanceBefore = await waffle.provider.getBalance(receiver.address)
-      const receipt = await vault.connect(holder).enterExitQueue(holderShares, receiver.address)
+      const receipt = await vault.connect(holder).redeem(holderShares, receiver.address)
       await expect(receipt)
         .to.emit(vault, 'Redeemed')
         .withArgs(holder.address, receiver.address, holderAssets, holderShares)
@@ -163,7 +170,7 @@ describe('EthVault - withdraw', () => {
       await setBalance(newVault.address, BigNumber.from(0))
       await expect(
         newVault.connect(holder).enterExitQueue(holderShares, receiver.address)
-      ).to.be.revertedWith('InsufficientAssets')
+      ).to.be.revertedWith('NotCollateralized')
     })
 
     it('fails for sender other than owner without approval', async () => {

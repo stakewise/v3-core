@@ -67,8 +67,12 @@ interface IVaultEnterExit is IVaultState {
    * @notice Locks shares to the exit queue. The shares continue earning rewards until they will be burned by the Vault.
    * @param shares The number of shares to lock
    * @param receiver The address that will receive assets upon withdrawal
+   * @return positionTicket The position ticket of the exit queue
    */
-  function enterExitQueue(uint256 shares, address receiver) external;
+  function enterExitQueue(
+    uint256 shares,
+    address receiver
+  ) external returns (uint256 positionTicket);
 
   /**
    * @notice Get the exit queue index to claim exited assets from
@@ -109,4 +113,12 @@ interface IVaultEnterExit is IVaultState {
     uint256 timestamp,
     uint256 exitQueueIndex
   ) external returns (uint256 newPositionTicket, uint256 claimedShares, uint256 claimedAssets);
+
+  /**
+   * @notice Redeems assets from the Vault by utilising what has not been staked yet. Can only be called when vault is not collateralized.
+   * @param shares The number of shares to burn
+   * @param receiver The address that will receive assets
+   * @return assets The number of assets withdrawn
+   */
+  function redeem(uint256 shares, address receiver) external returns (uint256 assets);
 }

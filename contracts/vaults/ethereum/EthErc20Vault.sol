@@ -105,11 +105,29 @@ contract EthErc20Vault is
   }
 
   /// @inheritdoc IVaultEnterExit
+  function redeem(
+    uint256 shares,
+    address receiver
+  )
+    public
+    virtual
+    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+    returns (uint256 assets)
+  {
+    return super.redeem(shares, receiver);
+  }
+
+  /// @inheritdoc IVaultEnterExit
   function enterExitQueue(
     uint256 shares,
     address receiver
-  ) public virtual override(IVaultEnterExit, VaultEnterExit, VaultOsToken) {
-    super.enterExitQueue(shares, receiver);
+  )
+    public
+    virtual
+    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+    returns (uint256 positionTicket)
+  {
+    positionTicket = super.enterExitQueue(shares, receiver);
     emit Transfer(msg.sender, address(this), shares);
   }
 

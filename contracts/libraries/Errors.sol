@@ -20,6 +20,7 @@ library Errors {
   error InvalidFeePercent();
   error NotHarvested();
   error NotCollateralized();
+  error Collateralized();
   error InvalidProof();
   error LowLtv();
   error RedemptionExceeded();

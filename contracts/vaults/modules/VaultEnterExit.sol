@@ -41,20 +41,46 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   }
 
   /// @inheritdoc IVaultEnterExit
-  function enterExitQueue(uint256 shares, address receiver) public virtual override {
+  function redeem(
+    uint256 shares,
+    address receiver
+  ) public virtual override returns (uint256 assets) {
+    _checkNotCollateralized();
     if (shares == 0) revert Errors.InvalidShares();
     if (receiver == address(0)) revert Errors.ZeroAddress();
 
-    if (!IKeeperRewards(_keeper).isCollateralized(address(this))) {
-      _redeem(shares, receiver);
-      return;
-    }
+    // calculate amount of assets to burn
+    assets = convertToAssets(shares);
+
+    // reverts in case there are not enough withdrawable assets
+    if (assets > withdrawableAssets()) revert Errors.InsufficientAssets();
+
+    // update total assets
+    _totalAssets -= SafeCast.toUint128(assets);
+
+    // burn owner shares
+    _burnShares(msg.sender, shares);
+
+    // transfer assets to the receiver
+    _transferVaultAssets(receiver, assets);
+
+    emit Redeemed(msg.sender, receiver, assets, shares);
+  }
+
+  /// @inheritdoc IVaultEnterExit
+  function enterExitQueue(
+    uint256 shares,
+    address receiver
+  ) public virtual override returns (uint256 positionTicket) {
+    _checkCollateralized();
+    if (shares == 0) revert Errors.InvalidShares();
+    if (receiver == address(0)) revert Errors.ZeroAddress();
 
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
 
     // calculate position ticket
-    uint256 positionTicket = _exitQueue.getLatestTotalTickets() + _queuedShares;
+    positionTicket = _exitQueue.getLatestTotalTickets() + _queuedShares;
 
     // add to the exit requests
     _exitRequests[keccak256(abi.encode(receiver, block.timestamp, positionTicket))] = shares;
@@ -166,30 +192,6 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     _mintShares(to, shares);
 
     emit Deposited(msg.sender, to, assets, shares, referrer);
-  }
-
-  /**
-   * @notice Internal function for redeeming assets from the Vault by utilising what has not been staked yet.
-   * @param shares The number of shares to burn
-   * @param receiver The address that will receive assets
-   */
-  function _redeem(uint256 shares, address receiver) private {
-    // calculate amount of assets to burn
-    uint256 assets = convertToAssets(shares);
-
-    // reverts in case there are not enough withdrawable assets
-    if (assets > withdrawableAssets()) revert Errors.InsufficientAssets();
-
-    // update total assets
-    _totalAssets -= SafeCast.toUint128(assets);
-
-    // burn owner shares
-    _burnShares(msg.sender, shares);
-
-    // transfer assets to the receiver
-    _transferVaultAssets(receiver, assets);
-
-    emit Redeemed(msg.sender, receiver, assets, shares);
   }
 
   /**

@@ -48,4 +48,11 @@ abstract contract VaultImmutables {
   function _checkCollateralized() internal view {
     if (!IKeeperRewards(_keeper).isCollateralized(address(this))) revert Errors.NotCollateralized();
   }
+
+  /**
+   * @dev Internal method for checking whether the vault is not collateralized
+   */
+  function _checkNotCollateralized() internal view {
+    if (IKeeperRewards(_keeper).isCollateralized(address(this))) revert Errors.Collateralized();
+  }
 }

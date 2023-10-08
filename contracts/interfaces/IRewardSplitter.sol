@@ -125,8 +125,20 @@ interface IRewardSplitter is IMulticall {
    * @notice Sends the rewards to the exit queue
    * @param rewards The amount of rewards to send to the exit queue
    * @param receiver The address that will claim exited assets
+   * @return positionTicket The position ticket of the exit queue
    */
-  function enterExitQueue(uint256 rewards, address receiver) external;
+  function enterExitQueue(
+    uint256 rewards,
+    address receiver
+  ) external returns (uint256 positionTicket);
+
+  /**
+   * @notice Redeems available assets from the vault
+   * @param rewards The amount of rewards to redeem
+   * @param receiver The address that will receive the redeemed assets
+   * @return assets The amount of assets that were redeemed
+   */
+  function redeem(uint256 rewards, address receiver) external returns (uint256 assets);
 
   /**
    * @notice Syncs the rewards from the vault to the splitter. The vault state must be up-to-date.

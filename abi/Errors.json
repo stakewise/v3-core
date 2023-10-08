@@ -26,6 +26,11 @@
   },
   {
     "inputs": [],
+    "name": "Collateralized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "DeadlineExpired",
     "type": "error"
   },
