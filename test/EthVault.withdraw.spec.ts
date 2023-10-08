@@ -428,6 +428,19 @@ describe('EthVault - withdraw', () => {
       ).to.be.revertedWith('InvalidCheckpointIndex')
     })
 
+    it('fails with invalid timestamp', async () => {
+      await vault.updateState(harvestParams)
+      await expect(
+        vault
+          .connect(receiver)
+          .claimExitedAssets(
+            positionTicket,
+            timestamp,
+            await vault.getExitQueueIndex(positionTicket)
+          )
+      ).to.be.revertedWith('ClaimTooEarly')
+    })
+
     it('for single user in single checkpoint', async () => {
       await vault.updateState(harvestParams)
       const checkpointIndex = await vault.getExitQueueIndex(positionTicket)
