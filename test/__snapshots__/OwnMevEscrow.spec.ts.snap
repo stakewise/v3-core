@@ -2,7 +2,7 @@
 
 exports[`OwnMevEscrow vault deployment gas 1`] = `
 Object {
-  "calldataByteLength": 649,
-  "gasUsed": 158469,
+  "calldataByteLength": 660,
+  "gasUsed": 160119,
 }
 `;

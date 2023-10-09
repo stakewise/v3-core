@@ -3,13 +3,13 @@
 exports[`CumulativeMerkleDrop claim works with valid proof 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 83962,
+  "gasUsed": 83971,
 }
 `;
 
 exports[`CumulativeMerkleDrop set merkle root works for owner 1`] = `
 Object {
   "calldataByteLength": 164,
-  "gasUsed": 49768,
+  "gasUsed": 49770,
 }
 `;
