@@ -1,28 +1,28 @@
-import { ethers, waffle } from 'hardhat'
+import { ethers } from 'hardhat'
 import { Wallet } from 'ethers'
-import { parseEther } from 'ethers/lib/utils'
-import { EthVault, RewardSplitter, RewardSplitterFactory } from '../typechain-types'
+import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
+import {
+  EthVault,
+  RewardSplitterFactory__factory,
+  RewardSplitter__factory,
+  RewardSplitterFactory,
+} from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { createRewardSplitterFactory, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 
-const createFixtureLoader = waffle.createFixtureLoader
-
 describe('RewardSplitterFactory', () => {
-  let admin: Wallet, owner: Wallet
+  let admin: Wallet
   let vault: EthVault, rewardSplitterFactory: RewardSplitterFactory
 
-  let loadFixture: ReturnType<typeof createFixtureLoader>
-
   before('create fixture loader', async () => {
-    ;[owner, admin] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([owner])
+    ;[admin] = (await (ethers as any).getSigners()).slice(1, 2)
   })
 
   beforeEach(async () => {
     const fixture = await loadFixture(ethVaultFixture)
     vault = await fixture.createEthVault(admin, {
-      capacity: parseEther('1000'),
+      capacity: ethers.parseEther('1000'),
       feePercent: 1000,
       metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
     })
@@ -30,33 +30,38 @@ describe('RewardSplitterFactory', () => {
   })
 
   it('splitter deployment gas', async () => {
-    const receipt = await rewardSplitterFactory.connect(admin).createRewardSplitter(vault.address)
+    const receipt = await rewardSplitterFactory
+      .connect(admin)
+      .createRewardSplitter(await vault.getAddress())
     await snapshotGasCost(receipt)
   })
 
   it('factory deploys correctly', async () => {
     let factory = await ethers.getContractFactory('RewardSplitter')
     const rewardSplitterImpl = await factory.deploy()
+    const rewardSplitterImplAddress = await rewardSplitterImpl.getAddress()
 
     factory = await ethers.getContractFactory('RewardSplitterFactory')
-    const rewardsFactory = (await factory.deploy(
-      rewardSplitterImpl.address
-    )) as RewardSplitterFactory
-    expect(await rewardsFactory.implementation()).to.eq(rewardSplitterImpl.address)
+    const rewardsFactory = RewardSplitterFactory__factory.connect(
+      await (await factory.deploy(rewardSplitterImplAddress)).getAddress(),
+      admin
+    )
+    expect(await rewardsFactory.implementation()).to.eq(rewardSplitterImplAddress)
   })
 
   it('splitter deploys correctly', async () => {
     const rewardSplitterAddress = await rewardSplitterFactory
       .connect(admin)
-      .callStatic.createRewardSplitter(vault.address)
-    const receipt = await rewardSplitterFactory.connect(admin).createRewardSplitter(vault.address)
+      .createRewardSplitter.staticCall(await vault.getAddress())
+    const receipt = await rewardSplitterFactory
+      .connect(admin)
+      .createRewardSplitter(await vault.getAddress())
     await expect(receipt)
       .to.emit(rewardSplitterFactory, 'RewardSplitterCreated')
-      .withArgs(admin.address, vault.address, rewardSplitterAddress)
+      .withArgs(admin.address, await vault.getAddress(), rewardSplitterAddress)
 
-    const factory = await ethers.getContractFactory('RewardSplitter')
-    const rewardSplitter = (await factory.attach(rewardSplitterAddress)) as RewardSplitter
-    expect(await rewardSplitter.vault()).to.eq(vault.address)
+    const rewardSplitter = RewardSplitter__factory.connect(rewardSplitterAddress, admin)
+    expect(await rewardSplitter.vault()).to.eq(await vault.getAddress())
     expect(await rewardSplitter.owner()).to.eq(admin.address)
     expect(await rewardSplitter.totalShares()).to.eq(0)
   })

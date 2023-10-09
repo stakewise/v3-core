@@ -1,41 +1,34 @@
-import { ethers, waffle } from 'hardhat'
-import { BigNumber, Contract, Wallet } from 'ethers'
-import { parseEther } from 'ethers/lib/utils'
-import { EthVault, Keeper, OsToken, UnknownVaultMock, VaultsRegistry } from '../typechain-types'
+import { ethers } from 'hardhat'
+import { Contract, Wallet } from 'ethers'
+import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
+import { EthVault, Keeper, OsToken, VaultsRegistry } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { ethVaultFixture } from './shared/fixtures'
+import { createUnknownVaultMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
 import { collateralizeEthVault, updateRewards } from './shared/rewards'
 import { increaseTime } from './shared/utils'
 
-const createFixtureLoader = waffle.createFixtureLoader
-
 describe('EthVault - mint', () => {
-  const assets = parseEther('2')
-  const osTokenShares = parseEther('1')
+  const assets = ethers.parseEther('2')
+  const osTokenShares = ethers.parseEther('1')
   const vaultParams = {
-    capacity: parseEther('1000'),
+    capacity: ethers.parseEther('1000'),
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
-  let sender: Wallet, receiver: Wallet, admin: Wallet, owner: Wallet
+  let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Wallet
   let vault: EthVault,
     keeper: Keeper,
     vaultsRegistry: VaultsRegistry,
     osToken: OsToken,
     validatorsRegistry: Contract
 
-  let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
-  before('create fixture loader', async () => {
-    ;[sender, receiver, owner, admin] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([owner])
-  })
-
   beforeEach('deploy fixture', async () => {
+    ;[dao, sender, receiver, admin] = await (ethers as any).getSigners()
     ;({
       createEthVault: createVault,
       keeper,
@@ -54,81 +47,84 @@ describe('EthVault - mint', () => {
     const notCollatVault = await createVault(admin, vaultParams, false)
     await expect(
       notCollatVault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
-    ).to.be.revertedWith('NotCollateralized')
+    ).to.be.revertedWithCustomError(vault, 'NotCollateralized')
   })
 
   it('cannot mint osTokens from not harvested vault', async () => {
     await updateRewards(keeper, [
-      { vault: vault.address, reward: parseEther('1'), unlockedMevReward: parseEther('0') },
+      {
+        vault: await vault.getAddress(),
+        reward: ethers.parseEther('1'),
+        unlockedMevReward: ethers.parseEther('0'),
+      },
     ])
     await updateRewards(keeper, [
-      { vault: vault.address, reward: parseEther('1.2'), unlockedMevReward: parseEther('0') },
+      {
+        vault: await vault.getAddress(),
+        reward: ethers.parseEther('1.2'),
+        unlockedMevReward: ethers.parseEther('0'),
+      },
     ])
     await expect(
       vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
-    ).to.be.revertedWith('NotHarvested')
+    ).to.be.revertedWithCustomError(vault, 'NotHarvested')
   })
 
   it('cannot mint osTokens to zero address', async () => {
     await expect(
       vault.connect(sender).mintOsToken(ZERO_ADDRESS, osTokenShares, ZERO_ADDRESS)
-    ).to.be.revertedWith('ZeroAddress')
+    ).to.be.revertedWithCustomError(vault, 'ZeroAddress')
   })
 
   it('cannot mint zero osToken shares', async () => {
     await expect(
       vault.connect(sender).mintOsToken(receiver.address, 0, ZERO_ADDRESS)
-    ).to.be.revertedWith('InvalidShares')
+    ).to.be.revertedWithCustomError(vault, 'InvalidShares')
   })
 
   it('cannot mint osTokens from unregistered vault', async () => {
-    const factory = await ethers.getContractFactory('UnknownVaultMock')
-    const unknownVault = (await factory.deploy(
-      osToken.address,
-      await vault.implementation()
-    )) as UnknownVaultMock
+    const unknownVault = await createUnknownVaultMock(osToken, await vault.implementation())
     await expect(
       unknownVault.connect(sender).mintOsToken(receiver.address, osTokenShares)
-    ).to.be.revertedWith('AccessDenied')
+    ).to.be.revertedWithCustomError(vault, 'AccessDenied')
   })
 
   it('cannot mint osTokens from vault with unsupported implementation', async () => {
-    const factory = await ethers.getContractFactory('UnknownVaultMock')
-    const unknownVault = (await factory.deploy(osToken.address, ZERO_ADDRESS)) as UnknownVaultMock
-    await vaultsRegistry.connect(owner).addVault(unknownVault.address)
+    const unknownVault = await createUnknownVaultMock(osToken, ZERO_ADDRESS)
+    await vaultsRegistry.connect(dao).addVault(await unknownVault.getAddress())
     await expect(
       unknownVault.connect(sender).mintOsToken(receiver.address, osTokenShares)
-    ).to.be.revertedWith('AccessDenied')
+    ).to.be.revertedWithCustomError(vault, 'AccessDenied')
   })
 
   it('cannot mint osTokens when it exceeds capacity', async () => {
     const osTokenAssets = await vault.convertToAssets(osTokenShares)
-    await osToken.connect(owner).setCapacity(osTokenAssets.sub(1))
+    await osToken.connect(dao).setCapacity(osTokenAssets - 1n)
     await expect(
       vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
-    ).to.be.revertedWith('CapacityExceeded')
+    ).to.be.revertedWithCustomError(vault, 'CapacityExceeded')
   })
 
   it('cannot mint osTokens when LTV is violated', async () => {
     const shares = await vault.convertToAssets(assets)
     await expect(
       vault.connect(sender).mintOsToken(receiver.address, shares, ZERO_ADDRESS)
-    ).to.be.revertedWith('LowLtv')
+    ).to.be.revertedWithCustomError(vault, 'LowLtv')
   })
 
   it('cannot enter exit queue when LTV is violated', async () => {
     await vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
-    await expect(vault.connect(sender).enterExitQueue(assets, receiver.address)).to.be.revertedWith(
-      'LowLtv'
-    )
+    await expect(
+      vault.connect(sender).enterExitQueue(assets, receiver.address)
+    ).to.be.revertedWithCustomError(vault, 'LowLtv')
   })
 
   it('updates position accumulated fee', async () => {
     const treasury = await osToken.treasury()
     let totalShares = osTokenShares
     let totalAssets = await vault.convertToAssets(osTokenShares)
-    let cumulativeFeePerShare = parseEther('1')
-    let treasuryShares = BigNumber.from(0)
+    let cumulativeFeePerShare = ethers.parseEther('1')
+    let treasuryShares = 0n
     let positionShares = osTokenShares
     let receiverShares = osTokenShares
 
@@ -159,13 +155,13 @@ describe('EthVault - mint', () => {
     expect(await vault.osTokenPositions(sender.address)).to.be.above(positionShares)
 
     receipt = await vault.connect(sender).mintOsToken(receiver.address, 100, ZERO_ADDRESS)
-    receiverShares = receiverShares.add(100)
+    receiverShares = receiverShares + 100n
     expect(await osToken.balanceOf(treasury)).to.be.above(0)
     expect(await osToken.cumulativeFeePerShare()).to.be.above(cumulativeFeePerShare)
 
     cumulativeFeePerShare = await osToken.cumulativeFeePerShare()
     treasuryShares = await osToken.balanceOf(treasury)
-    positionShares = treasuryShares.add(receiverShares)
+    positionShares = treasuryShares + receiverShares
     totalShares = positionShares
     totalAssets = await osToken.convertToAssets(positionShares)
     await verify()
@@ -190,7 +186,7 @@ describe('EthVault - mint', () => {
       .withArgs(ZERO_ADDRESS, receiver.address, osTokenShares)
     await expect(receipt)
       .to.emit(osToken, 'Mint')
-      .withArgs(vault.address, receiver.address, osTokenAssets, osTokenShares)
+      .withArgs(await vault.getAddress(), receiver.address, osTokenAssets, osTokenShares)
 
     await snapshotGasCost(receipt)
   })

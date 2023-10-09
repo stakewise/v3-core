@@ -1,4 +1,5 @@
-import { ethers, waffle } from 'hardhat'
+import { ethers } from 'hardhat'
+import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { Wallet } from 'ethers'
 import { Keeper } from '../typechain-types'
 import { ethVaultFixture } from './shared/fixtures'
@@ -6,24 +7,16 @@ import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ORACLES, ORACLES_CONFIG } from './shared/constants'
 
-const createFixtureLoader = waffle.createFixtureLoader
-
 describe('KeeperOracles', () => {
   const maxOracles = 30
-  let owner: Wallet, oracle: Wallet, other: Wallet
+  let dao: Wallet, oracle: Wallet, other: Wallet
   let keeper: Keeper
   let totalOracles: number
 
-  let loadFixture: ReturnType<typeof createFixtureLoader>
-
-  before('create fixture loader', async () => {
-    ;[owner, oracle, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([owner])
-  })
-
   beforeEach('deploy fixture', async () => {
+    ;[dao, oracle, other] = await (ethers as any).getSigners()
     ;({ keeper } = await loadFixture(ethVaultFixture))
-    totalOracles = (await keeper.totalOracles()).toNumber()
+    totalOracles = Number(await keeper.totalOracles())
   })
 
   describe('add oracle', () => {
@@ -34,21 +27,24 @@ describe('KeeperOracles', () => {
     })
 
     it('fails if already added', async () => {
-      await keeper.connect(owner).addOracle(oracle.address)
-      await expect(keeper.connect(owner).addOracle(oracle.address)).revertedWith('AlreadyAdded')
+      await keeper.connect(dao).addOracle(oracle.address)
+      await expect(keeper.connect(dao).addOracle(oracle.address)).revertedWithCustomError(
+        keeper,
+        'AlreadyAdded'
+      )
     })
 
     it('fails when number of oracles exceeded', async () => {
       for (let i = 0; i < maxOracles - ORACLES.length; i++) {
-        await keeper.connect(owner).addOracle(ethers.Wallet.createRandom().address)
+        await keeper.connect(dao).addOracle(ethers.Wallet.createRandom().address)
       }
       await expect(
-        keeper.connect(owner).addOracle(ethers.Wallet.createRandom().address)
-      ).revertedWith('MaxOraclesExceeded')
+        keeper.connect(dao).addOracle(ethers.Wallet.createRandom().address)
+      ).revertedWithCustomError(keeper, 'MaxOraclesExceeded')
     })
 
     it('succeeds', async () => {
-      const receipt = await keeper.connect(owner).addOracle(oracle.address)
+      const receipt = await keeper.connect(dao).addOracle(oracle.address)
       await expect(receipt).to.emit(keeper, 'OracleAdded').withArgs(oracle.address)
       expect(await keeper.isOracle(oracle.address)).to.be.eq(true)
       expect(await keeper.totalOracles()).to.be.eq(totalOracles + 1)
@@ -60,8 +56,8 @@ describe('KeeperOracles', () => {
     let totalOracles: number
 
     beforeEach(async () => {
-      await keeper.connect(owner).addOracle(oracle.address)
-      totalOracles = (await keeper.totalOracles()).toNumber()
+      await keeper.connect(dao).addOracle(oracle.address)
+      totalOracles = Number(await keeper.totalOracles())
     })
 
     it('fails if not owner', async () => {
@@ -71,14 +67,15 @@ describe('KeeperOracles', () => {
     })
 
     it('fails if already removed', async () => {
-      await keeper.connect(owner).removeOracle(oracle.address)
-      await expect(keeper.connect(owner).removeOracle(oracle.address)).revertedWith(
+      await keeper.connect(dao).removeOracle(oracle.address)
+      await expect(keeper.connect(dao).removeOracle(oracle.address)).revertedWithCustomError(
+        keeper,
         'AlreadyRemoved'
       )
     })
 
     it('succeeds', async () => {
-      const receipt = await keeper.connect(owner).removeOracle(oracle.address)
+      const receipt = await keeper.connect(dao).removeOracle(oracle.address)
       await expect(receipt).to.emit(keeper, 'OracleRemoved').withArgs(oracle.address)
       expect(await keeper.isOracle(oracle.address)).to.be.eq(false)
       expect(await keeper.totalOracles()).to.be.eq(totalOracles - 1)
@@ -94,7 +91,7 @@ describe('KeeperOracles', () => {
     })
 
     it('succeeds', async () => {
-      const receipt = await keeper.connect(owner).updateConfig(ORACLES_CONFIG)
+      const receipt = await keeper.connect(dao).updateConfig(ORACLES_CONFIG)
       await expect(receipt).to.emit(keeper, 'ConfigUpdated').withArgs(ORACLES_CONFIG)
       await snapshotGasCost(receipt)
     })
