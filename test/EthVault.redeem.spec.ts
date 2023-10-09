@@ -1,7 +1,7 @@
-import { ethers, waffle } from 'hardhat'
-import { BigNumber, Contract, Wallet } from 'ethers'
-import { parseEther } from 'ethers/lib/utils'
-import { EthVault, Keeper, OsToken, IKeeperRewards } from '../typechain-types'
+import { ethers } from 'hardhat'
+import { Contract, Wallet } from 'ethers'
+import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
+import { EthVault, IKeeperRewards, Keeper, OsToken } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -15,31 +15,24 @@ import {
 import { increaseTime, setBalance } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
 
-const createFixtureLoader = waffle.createFixtureLoader
-
 describe('EthVault - redeem osToken', () => {
-  const shares = parseEther('32')
-  const osTokenShares = parseEther('28.8')
-  const penalty = parseEther('-0.53')
-  const unlockedMevReward = parseEther('0')
-  const redeemedShares = parseEther('4.76')
+  const shares = ethers.parseEther('32')
+  const osTokenShares = ethers.parseEther('28.8')
+  const penalty = ethers.parseEther('-0.53')
+  const unlockedMevReward = ethers.parseEther('0')
+  const redeemedShares = ethers.parseEther('4.76')
   const vaultParams = {
-    capacity: parseEther('1000'),
+    capacity: ethers.parseEther('1000'),
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
   let owner: Wallet, admin: Wallet, dao: Wallet, redeemer: Wallet, receiver: Wallet
   let vault: EthVault, keeper: Keeper, osToken: OsToken, validatorsRegistry: Contract
 
-  let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
-  before('create fixture loader', async () => {
-    ;[owner, redeemer, dao, admin, receiver] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([dao])
-  })
-
   beforeEach('deploy fixture', async () => {
+    ;[dao, owner, redeemer, admin, receiver] = await (ethers as any).getSigners()
     ;({
       createEthVault: createVault,
       keeper,
@@ -59,7 +52,7 @@ describe('EthVault - redeem osToken', () => {
     // penalty received
     const tree = await updateRewards(
       keeper,
-      [{ vault: vault.address, reward: penalty, unlockedMevReward }],
+      [{ vault: await vault.getAddress(), reward: penalty, unlockedMevReward }],
       0
     )
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
@@ -67,7 +60,7 @@ describe('EthVault - redeem osToken', () => {
       reward: penalty,
       unlockedMevReward: unlockedMevReward,
       proof: getRewardsRootProof(tree, {
-        vault: vault.address,
+        vault: await vault.getAddress(),
         unlockedMevReward: unlockedMevReward,
         reward: penalty,
       }),
@@ -79,38 +72,46 @@ describe('EthVault - redeem osToken', () => {
   it('cannot redeem osTokens to zero receiver', async () => {
     await expect(
       vault.connect(redeemer).redeemOsToken(redeemedShares, owner.address, ZERO_ADDRESS)
-    ).to.be.revertedWith('ZeroAddress')
+    ).to.be.revertedWithCustomError(vault, 'ZeroAddress')
   })
 
   it('cannot redeem osTokens from not harvested vault', async () => {
     await updateRewards(keeper, [
-      { vault: vault.address, reward: parseEther('1'), unlockedMevReward: parseEther('0') },
+      {
+        vault: await vault.getAddress(),
+        reward: ethers.parseEther('1'),
+        unlockedMevReward: ethers.parseEther('0'),
+      },
     ])
     await updateRewards(keeper, [
-      { vault: vault.address, reward: parseEther('1.2'), unlockedMevReward: parseEther('0') },
+      {
+        vault: await vault.getAddress(),
+        reward: ethers.parseEther('1.2'),
+        unlockedMevReward: ethers.parseEther('0'),
+      },
     ])
     await expect(
       vault.connect(redeemer).redeemOsToken(redeemedShares, owner.address, receiver.address)
-    ).to.be.revertedWith('NotHarvested')
+    ).to.be.revertedWithCustomError(vault, 'NotHarvested')
   })
 
   it('cannot redeem osTokens for position with zero minted shares', async () => {
     await expect(
       vault.connect(redeemer).redeemOsToken(redeemedShares, dao.address, receiver.address)
-    ).to.be.revertedWith('InvalidPosition')
+    ).to.be.revertedWithCustomError(vault, 'InvalidPosition')
   })
 
   it('cannot redeem osTokens when withdrawable assets exceed received assets', async () => {
-    await setBalance(vault.address, BigNumber.from(0))
+    await setBalance(await vault.getAddress(), 0n)
     await expect(
       vault.connect(redeemer).redeemOsToken(redeemedShares, owner.address, receiver.address)
-    ).to.be.revertedWith('InvalidReceivedAssets')
+    ).to.be.revertedWithCustomError(vault, 'InvalidReceivedAssets')
   })
 
   it('cannot redeem osTokens when redeeming more than minted', async () => {
     await expect(
-      vault.connect(redeemer).redeemOsToken(osTokenShares.add(1), owner.address, receiver.address)
-    ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+      vault.connect(redeemer).redeemOsToken(osTokenShares + 1n, owner.address, receiver.address)
+    ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
   })
 
   it('cannot redeem osTokens when LTV is below redeemFromLtvPercent', async () => {
@@ -118,28 +119,28 @@ describe('EthVault - redeem osToken', () => {
     await vault.connect(owner).burnOsToken(redeemedShares)
     await expect(
       vault.connect(redeemer).redeemOsToken(redeemedShares, owner.address, receiver.address)
-    ).to.be.revertedWith('InvalidLtv')
+    ).to.be.revertedWithCustomError(vault, 'InvalidLtv')
   })
 
   it('cannot redeem osTokens when LTV is below redeemToLtvPercent', async () => {
     await expect(
       vault
         .connect(redeemer)
-        .redeemOsToken(redeemedShares.add(parseEther('0.01')), owner.address, receiver.address)
-    ).to.be.revertedWith('RedemptionExceeded')
+        .redeemOsToken(redeemedShares + ethers.parseEther('0.01'), owner.address, receiver.address)
+    ).to.be.revertedWithCustomError(vault, 'RedemptionExceeded')
   })
 
   it('cannot redeem zero osToken shares', async () => {
     await expect(
       vault.connect(redeemer).redeemOsToken(0, owner.address, receiver.address)
-    ).to.be.revertedWith('InvalidShares')
+    ).to.be.revertedWithCustomError(vault, 'InvalidShares')
   })
 
   it('cannot redeem without osTokens', async () => {
     await osToken.connect(redeemer).transfer(dao.address, osTokenShares)
     await expect(
       vault.connect(redeemer).redeemOsToken(osTokenShares, owner.address, receiver.address)
-    ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+    ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
   })
 
   it('calculates redeem correctly', async () => {
@@ -147,7 +148,7 @@ describe('EthVault - redeem osToken', () => {
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(osTokenShares)
     expect(await vault.getShares(owner.address)).to.be.eq(shares)
 
-    const balanceBefore = await waffle.provider.getBalance(receiver.address)
+    const balanceBefore = await ethers.provider.getBalance(receiver.address)
     const redeemedAssets = await osToken.convertToAssets(redeemedShares)
     const burnedShares = await vault.convertToShares(redeemedAssets)
 
@@ -155,12 +156,10 @@ describe('EthVault - redeem osToken', () => {
       .connect(redeemer)
       .redeemOsToken(redeemedShares, owner.address, receiver.address)
 
-    expect(await osToken.balanceOf(redeemer.address)).to.eq(osTokenShares.sub(redeemedShares))
-    expect(await vault.osTokenPositions(owner.address)).to.be.eq(osTokenShares.sub(redeemedShares))
-    expect(await vault.getShares(owner.address)).to.be.eq(shares.sub(burnedShares))
-    expect(await waffle.provider.getBalance(receiver.address)).to.eq(
-      balanceBefore.add(redeemedAssets)
-    )
+    expect(await osToken.balanceOf(redeemer.address)).to.eq(osTokenShares - redeemedShares)
+    expect(await vault.osTokenPositions(owner.address)).to.be.eq(osTokenShares - redeemedShares)
+    expect(await vault.getShares(owner.address)).to.be.eq(shares - burnedShares)
+    expect(await ethers.provider.getBalance(receiver.address)).to.eq(balanceBefore + redeemedAssets)
 
     await expect(receipt)
       .to.emit(vault, 'OsTokenRedeemed')
@@ -170,22 +169,22 @@ describe('EthVault - redeem osToken', () => {
       .withArgs(redeemer.address, ZERO_ADDRESS, redeemedShares)
     await expect(receipt)
       .to.emit(osToken, 'Burn')
-      .withArgs(vault.address, redeemer.address, redeemedShares, redeemedAssets)
+      .withArgs(await vault.getAddress(), redeemer.address, redeemedShares, redeemedAssets)
 
     await snapshotGasCost(receipt)
   })
 
   it('can redeem', async () => {
-    const penalty = parseEther('-0.530001')
+    const penalty = ethers.parseEther('-0.530001')
     const tree = await updateRewards(keeper, [
-      { vault: vault.address, reward: penalty, unlockedMevReward },
+      { vault: await vault.getAddress(), reward: penalty, unlockedMevReward },
     ])
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
       rewardsRoot: tree.root,
       reward: penalty,
       unlockedMevReward: unlockedMevReward,
       proof: getRewardsRootProof(tree, {
-        vault: vault.address,
+        vault: await vault.getAddress(),
         unlockedMevReward: unlockedMevReward,
         reward: penalty,
       }),

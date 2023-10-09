@@ -1,36 +1,29 @@
-import { ethers, waffle } from 'hardhat'
+import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
-import { hexlify, parseEther } from 'ethers/lib/utils'
-import { EthPrivErc20Vault, Keeper, IKeeperRewards } from '../typechain-types'
+import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
+import { EthPrivErc20Vault, IKeeperRewards, Keeper } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
-import { ethVaultFixture } from './shared/fixtures'
+import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { ZERO_ADDRESS } from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
 import keccak256 from 'keccak256'
 
-const createFixtureLoader = waffle.createFixtureLoader
-
 describe('EthPrivErc20Vault', () => {
-  const capacity = parseEther('1000')
+  const capacity = ethers.parseEther('1000')
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const feePercent = 1000
   const referrer = ZERO_ADDRESS
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
-  let dao: Wallet, sender: Wallet, admin: Wallet, other: Wallet
+  let sender: Wallet, admin: Wallet, other: Wallet
   let vault: EthPrivErc20Vault, keeper: Keeper, validatorsRegistry: Contract
 
-  let loadFixture: ReturnType<typeof createFixtureLoader>
   let createPrivateVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthPrivErc20Vault']
 
-  before('create fixture loader', async () => {
-    ;[dao, sender, admin, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([dao])
-  })
-
   beforeEach('deploy fixtures', async () => {
+    ;[sender, admin, other] = (await (ethers as any).getSigners()).slice(1, 4)
     ;({
       createEthPrivErc20Vault: createPrivateVault,
       keeper,
@@ -46,7 +39,7 @@ describe('EthPrivErc20Vault', () => {
   })
 
   it('has id', async () => {
-    expect(await vault.vaultId()).to.eq(hexlify(keccak256('EthPrivErc20Vault')))
+    expect(await vault.vaultId()).to.eq(`0x${keccak256('EthPrivErc20Vault').toString('hex')}`)
   })
 
   it('has version', async () => {
@@ -54,7 +47,7 @@ describe('EthPrivErc20Vault', () => {
   })
 
   describe('deposit', () => {
-    const amount = parseEther('1')
+    const amount = ethers.parseEther('1')
 
     beforeEach(async () => {
       await vault.connect(admin).updateWhitelist(sender.address, true)
@@ -63,23 +56,23 @@ describe('EthPrivErc20Vault', () => {
     it('cannot be called by not whitelisted sender', async () => {
       await expect(
         vault.connect(other).deposit(other.address, referrer, { value: amount })
-      ).to.revertedWith('AccessDenied')
+      ).to.revertedWithCustomError(vault, 'AccessDenied')
     })
 
     it('cannot update state and call', async () => {
       await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
-      const vaultReward = parseEther('1')
+      const vaultReward = ethers.parseEther('1')
       const tree = await updateRewards(keeper, [
-        { reward: vaultReward, unlockedMevReward: 0, vault: vault.address },
+        { reward: vaultReward, unlockedMevReward: 0n, vault: await vault.getAddress() },
       ])
 
       const harvestParams: IKeeperRewards.HarvestParamsStruct = {
         rewardsRoot: tree.root,
         reward: vaultReward,
-        unlockedMevReward: 0,
+        unlockedMevReward: 0n,
         proof: getRewardsRootProof(tree, {
-          vault: vault.address,
-          unlockedMevReward: 0,
+          vault: await vault.getAddress(),
+          unlockedMevReward: 0n,
           reward: vaultReward,
         }),
       }
@@ -87,13 +80,13 @@ describe('EthPrivErc20Vault', () => {
         vault
           .connect(other)
           .updateStateAndDeposit(other.address, referrer, harvestParams, { value: amount })
-      ).to.revertedWith('AccessDenied')
+      ).to.revertedWithCustomError(vault, 'AccessDenied')
     })
 
     it('cannot set receiver to not whitelisted user', async () => {
       await expect(
         vault.connect(other).deposit(other.address, referrer, { value: amount })
-      ).to.revertedWith('AccessDenied')
+      ).to.revertedWithCustomError(vault, 'AccessDenied')
     })
 
     it('can be called by whitelisted user', async () => {
@@ -109,33 +102,30 @@ describe('EthPrivErc20Vault', () => {
     })
 
     it('deposit through receive fallback cannot be called by not whitelisted sender', async () => {
-      const depositorMockFactory = await ethers.getContractFactory('DepositorMock')
-      const depositorMock = await depositorMockFactory.deploy(vault.address)
-
-      const amount = parseEther('100')
-      const expectedShares = parseEther('100')
+      const depositorMock = await createDepositorMock(vault)
+      const amount = ethers.parseEther('100')
+      const expectedShares = ethers.parseEther('100')
       expect(await vault.convertToShares(amount)).to.eq(expectedShares)
-      await expect(depositorMock.connect(sender).depositToVault({ value: amount })).to.revertedWith(
-        'DepositFailed'
-      )
+      await expect(
+        depositorMock.connect(sender).depositToVault({ value: amount })
+      ).to.revertedWithCustomError(depositorMock, 'DepositFailed')
     })
 
     it('deposit through receive fallback can be called by whitelisted sender', async () => {
-      const depositorMockFactory = await ethers.getContractFactory('DepositorMock')
-      const depositorMock = await depositorMockFactory.deploy(vault.address)
-      await vault.connect(admin).updateWhitelist(depositorMock.address, true)
+      const depositorMock = await createDepositorMock(vault)
+      await vault.connect(admin).updateWhitelist(await depositorMock.getAddress(), true)
 
-      const amount = parseEther('100')
-      const expectedShares = parseEther('100')
+      const amount = ethers.parseEther('100')
+      const expectedShares = ethers.parseEther('100')
       expect(await vault.convertToShares(amount)).to.eq(expectedShares)
       const receipt = await depositorMock.connect(sender).depositToVault({ value: amount })
-      expect(await vault.balanceOf(depositorMock.address)).to.eq(expectedShares)
+      expect(await vault.balanceOf(await depositorMock.getAddress())).to.eq(expectedShares)
 
       await expect(receipt)
         .to.emit(vault, 'Deposited')
         .withArgs(
-          depositorMock.address,
-          depositorMock.address,
+          await depositorMock.getAddress(),
+          await depositorMock.getAddress(),
           amount,
           expectedShares,
           ZERO_ADDRESS

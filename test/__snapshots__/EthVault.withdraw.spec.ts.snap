@@ -31,7 +31,7 @@ Object {
 exports[`EthVault - withdraw enter exit queue locks shares for the time of exit 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 87124,
+  "gasUsed": 87112,
 }
 `;
 
@@ -40,7 +40,7 @@ exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`
 exports[`EthVault - withdraw redeem redeem transfers assets to receiver 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 58254,
+  "gasUsed": 58242,
 }
 `;
 

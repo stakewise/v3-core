@@ -1,16 +1,19 @@
-import { ethers, upgrades, waffle } from 'hardhat'
+import { ethers, upgrades } from 'hardhat'
 import { Wallet } from 'ethers'
-import { defaultAbiCoder, parseEther } from 'ethers/lib/utils'
-import { EthVault, EthVaultV2Mock, VaultsRegistry } from '../typechain-types'
+import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
+import {
+  EthVault,
+  EthVaultV2Mock,
+  VaultsRegistry,
+  EthVaultV2Mock__factory,
+} from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { EXITING_ASSETS_MIN_DELAY, MAX_UINT256, ZERO_ADDRESS } from './shared/constants'
 
-const createFixtureLoader = waffle.createFixtureLoader
-
 describe('EthVault - upgrade', () => {
-  const capacity = parseEther('1000')
+  const capacity = ethers.parseEther('1000')
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
   let admin: Wallet, dao: Wallet, other: Wallet
@@ -20,16 +23,10 @@ describe('EthVault - upgrade', () => {
   let currImpl: string
   let newImpl: string
   let callData: string
-
-  let loadFixture: ReturnType<typeof createFixtureLoader>
-  let fixture
-
-  before('create fixture loader', async () => {
-    ;[dao, admin, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([dao])
-  })
+  let fixture: any
 
   beforeEach('deploy fixture', async () => {
+    ;[dao, admin, other] = await (ethers as any).getSigners()
     fixture = await loadFixture(ethVaultFixture)
     vaultsRegistry = fixture.vaultsRegistry
     vault = await fixture.createEthVault(admin, {
@@ -42,52 +39,58 @@ describe('EthVault - upgrade', () => {
     newImpl = (await upgrades.deployImplementation(ethVaultMock, {
       unsafeAllow: ['delegatecall'],
       constructorArgs: [
-        fixture.keeper.address,
-        vaultsRegistry.address,
-        fixture.validatorsRegistry.address,
-        fixture.osToken.address,
-        fixture.osTokenConfig.address,
-        fixture.sharedMevEscrow.address,
+        await fixture.keeper.getAddress(),
+        await vaultsRegistry.getAddress(),
+        await fixture.validatorsRegistry.getAddress(),
+        await fixture.osToken.getAddress(),
+        await fixture.osTokenConfig.getAddress(),
+        await fixture.sharedMevEscrow.getAddress(),
         EXITING_ASSETS_MIN_DELAY,
       ],
     })) as string
     currImpl = await vault.implementation()
-    callData = defaultAbiCoder.encode(['uint128'], [100])
+    callData = ethers.AbiCoder.defaultAbiCoder().encode(['uint128'], [100])
     await vaultsRegistry.connect(dao).addVaultImpl(newImpl)
-    updatedVault = (await ethVaultMock.attach(vault.address)) as EthVaultV2Mock
+    updatedVault = EthVaultV2Mock__factory.connect(
+      await vault.getAddress(),
+      await ethers.provider.getSigner()
+    )
   })
 
   it('fails without the call', async () => {
-    await expect(vault.connect(admin).upgradeTo(newImpl)).to.revertedWith('UpgradeFailed')
+    await expect(vault.connect(admin).upgradeTo(newImpl)).to.revertedWithCustomError(
+      vault,
+      'UpgradeFailed'
+    )
     expect(await vault.version()).to.be.eq(1)
   })
 
   it('fails from not admin', async () => {
-    await expect(vault.connect(other).upgradeToAndCall(newImpl, callData)).to.revertedWith(
-      'AccessDenied'
-    )
+    await expect(
+      vault.connect(other).upgradeToAndCall(newImpl, callData)
+    ).to.revertedWithCustomError(vault, 'AccessDenied')
     expect(await vault.version()).to.be.eq(1)
   })
 
   it('fails with zero new implementation address', async () => {
-    await expect(vault.connect(admin).upgradeToAndCall(ZERO_ADDRESS, callData)).to.revertedWith(
-      'UpgradeFailed'
-    )
+    await expect(
+      vault.connect(admin).upgradeToAndCall(ZERO_ADDRESS, callData)
+    ).to.revertedWithCustomError(vault, 'UpgradeFailed')
     expect(await vault.version()).to.be.eq(1)
   })
 
   it('fails for the same implementation', async () => {
-    await expect(vault.connect(admin).upgradeToAndCall(currImpl, callData)).to.revertedWith(
-      'UpgradeFailed'
-    )
+    await expect(
+      vault.connect(admin).upgradeToAndCall(currImpl, callData)
+    ).to.revertedWithCustomError(vault, 'UpgradeFailed')
     expect(await vault.version()).to.be.eq(1)
   })
 
   it('fails for not approved implementation', async () => {
     await vaultsRegistry.connect(dao).removeVaultImpl(newImpl)
-    await expect(vault.connect(admin).upgradeToAndCall(newImpl, callData)).to.revertedWith(
-      'UpgradeFailed'
-    )
+    await expect(
+      vault.connect(admin).upgradeToAndCall(newImpl, callData)
+    ).to.revertedWithCustomError(vault, 'UpgradeFailed')
     expect(await vault.version()).to.be.eq(1)
   })
 
@@ -96,20 +99,20 @@ describe('EthVault - upgrade', () => {
     const newImpl = (await upgrades.deployImplementation(ethVaultMock, {
       unsafeAllow: ['delegatecall'],
       constructorArgs: [
-        fixture.keeper.address,
-        vaultsRegistry.address,
-        fixture.validatorsRegistry.address,
-        fixture.osToken.address,
-        fixture.osTokenConfig.address,
-        fixture.sharedMevEscrow.address,
+        await fixture.keeper.getAddress(),
+        await vaultsRegistry.getAddress(),
+        await fixture.validatorsRegistry.getAddress(),
+        await fixture.osToken.getAddress(),
+        await fixture.osTokenConfig.getAddress(),
+        await fixture.sharedMevEscrow.getAddress(),
         EXITING_ASSETS_MIN_DELAY,
       ],
     })) as string
-    callData = defaultAbiCoder.encode(['uint128'], [100])
+    callData = ethers.AbiCoder.defaultAbiCoder().encode(['uint128'], [100])
     await vaultsRegistry.connect(dao).addVaultImpl(newImpl)
-    await expect(vault.connect(admin).upgradeToAndCall(newImpl, callData)).to.revertedWith(
-      'UpgradeFailed'
-    )
+    await expect(
+      vault.connect(admin).upgradeToAndCall(newImpl, callData)
+    ).to.revertedWithCustomError(vault, 'UpgradeFailed')
     expect(await vault.version()).to.be.eq(1)
   })
 
@@ -118,20 +121,20 @@ describe('EthVault - upgrade', () => {
     const newImpl = (await upgrades.deployImplementation(ethVaultMock, {
       unsafeAllow: ['delegatecall'],
       constructorArgs: [
-        fixture.keeper.address,
-        vaultsRegistry.address,
-        fixture.validatorsRegistry.address,
-        fixture.osToken.address,
-        fixture.osTokenConfig.address,
-        fixture.sharedMevEscrow.address,
+        await fixture.keeper.getAddress(),
+        await vaultsRegistry.getAddress(),
+        await fixture.validatorsRegistry.getAddress(),
+        await fixture.osToken.getAddress(),
+        await fixture.osTokenConfig.getAddress(),
+        await fixture.sharedMevEscrow.getAddress(),
         EXITING_ASSETS_MIN_DELAY,
       ],
     })) as string
-    callData = defaultAbiCoder.encode(['uint128'], [100])
+    callData = ethers.AbiCoder.defaultAbiCoder().encode(['uint128'], [100])
     await vaultsRegistry.connect(dao).addVaultImpl(newImpl)
-    await expect(vault.connect(admin).upgradeToAndCall(newImpl, callData)).to.revertedWith(
-      'UpgradeFailed'
-    )
+    await expect(
+      vault.connect(admin).upgradeToAndCall(newImpl, callData)
+    ).to.revertedWithCustomError(vault, 'UpgradeFailed')
     expect(await vault.version()).to.be.eq(1)
   })
 
@@ -139,7 +142,10 @@ describe('EthVault - upgrade', () => {
     await expect(
       vault
         .connect(admin)
-        .upgradeToAndCall(newImpl, defaultAbiCoder.encode(['uint256'], [MAX_UINT256]))
+        .upgradeToAndCall(
+          newImpl,
+          ethers.AbiCoder.defaultAbiCoder().encode(['uint256'], [MAX_UINT256])
+        )
     ).to.revertedWith('Address: low-level delegate call failed')
     expect(await vault.version()).to.be.eq(1)
   })
@@ -150,9 +156,9 @@ describe('EthVault - upgrade', () => {
     expect(await vault.implementation()).to.be.eq(newImpl)
     expect(await updatedVault.newVar()).to.be.eq(100)
     expect(await updatedVault.somethingNew()).to.be.eq(true)
-    await expect(vault.connect(admin).upgradeToAndCall(newImpl, callData)).to.revertedWith(
-      'UpgradeFailed'
-    )
+    await expect(
+      vault.connect(admin).upgradeToAndCall(newImpl, callData)
+    ).to.revertedWithCustomError(vault, 'UpgradeFailed')
     await expect(updatedVault.connect(admin).initialize(callData)).to.revertedWith(
       'Initializable: contract is already initialized'
     )

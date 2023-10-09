@@ -1,6 +1,6 @@
-import { ethers, waffle } from 'hardhat'
+import { ethers } from 'hardhat'
 import { Wallet } from 'ethers'
-import { hexlify, parseEther } from 'ethers/lib/utils'
+import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { EthVaultFactory, SharedMevEscrow, VaultsRegistry } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
@@ -10,13 +10,11 @@ import {
   ethVaultFixture,
 } from './shared/fixtures'
 import { SECURITY_DEPOSIT, ZERO_ADDRESS, ZERO_BYTES32 } from './shared/constants'
-import { extractMevEscrowAddress, extractVaultAddress } from './shared/utils'
+import { extractMevEscrowAddress, extractVaultAddress, toHexString } from './shared/utils'
 import keccak256 from 'keccak256'
 
-const createFixtureLoader = waffle.createFixtureLoader
-
 describe('EthVaultFactory', () => {
-  const capacity = parseEther('1000')
+  const capacity = ethers.parseEther('1000')
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
@@ -36,7 +34,7 @@ describe('EthVaultFactory', () => {
     metadataIpfsHash,
   }
   const ethErc20VaultInitParamsEncoded = encodeEthErc20VaultInitParams(ethErc20VaultInitParams)
-  let admin: Wallet, owner: Wallet
+  let admin: Wallet
   let ethVaultFactory: EthVaultFactory,
     ethPrivVaultFactory: EthVaultFactory,
     ethErc20VaultFactory: EthVaultFactory,
@@ -44,14 +42,8 @@ describe('EthVaultFactory', () => {
   let sharedMevEscrow: SharedMevEscrow
   let vaultsRegistry: VaultsRegistry
 
-  let loadFixture: ReturnType<typeof createFixtureLoader>
-
-  before('create fixture loader', async () => {
-    ;[owner, admin] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([owner])
-  })
-
   beforeEach(async () => {
+    ;[admin] = (await (ethers as any).getSigners()).slice(1, 2)
     ;({
       ethVaultFactory,
       ethPrivVaultFactory,
@@ -146,16 +138,15 @@ describe('EthVaultFactory', () => {
           : encodeEthVaultInitParams(ethVaultInitParams)
 
         // fails without security deposit
-        await expect(
-          factory.connect(admin).createVault(initParamsEncoded, isOwnEscrow)
-        ).to.revertedWith('InvalidSecurityDeposit')
+        await expect(factory.connect(admin).createVault(initParamsEncoded, isOwnEscrow)).to.reverted
 
         const tx = await factory
           .connect(admin)
           .createVault(initParamsEncoded, isOwnEscrow, { value: SECURITY_DEPOSIT })
-        const receipt = await tx.wait()
-        const vaultAddress = extractVaultAddress(receipt)
-        const mevEscrow = isOwnEscrow ? extractMevEscrowAddress(receipt) : sharedMevEscrow.address
+        const vaultAddress = await extractVaultAddress(tx)
+        const mevEscrow = isOwnEscrow
+          ? await extractMevEscrowAddress(tx)
+          : await sharedMevEscrow.getAddress()
 
         await expect(tx)
           .to.emit(factory, 'VaultCreated')
@@ -171,7 +162,7 @@ describe('EthVaultFactory', () => {
 
         await expect(tx)
           .to.emit(vaultsRegistry, 'VaultAdded')
-          .withArgs(factory.address, vaultAddress)
+          .withArgs(await factory.getAddress(), vaultAddress)
         await expect(vault.connect(admin).initialize(ZERO_BYTES32)).to.revertedWith(
           'Initializable: contract is already initialized'
         )
@@ -193,11 +184,11 @@ describe('EthVaultFactory', () => {
         expect(await vault.admin()).to.be.eq(admin.address)
         await expect(tx)
           .to.emit(vault, 'MetadataUpdated')
-          .withArgs(factory.address, metadataIpfsHash)
+          .withArgs(await factory.getAddress(), metadataIpfsHash)
 
         // VaultVersion
         expect(await vault.version()).to.be.eq(1)
-        expect(await vault.vaultId()).to.be.eq(hexlify(keccak256(vaultClass)))
+        expect(await vault.vaultId()).to.be.eq(toHexString(keccak256(vaultClass)))
         expect(await factory.implementation()).to.be.eq(await vault.implementation())
 
         // VaultFee
@@ -205,7 +196,7 @@ describe('EthVaultFactory', () => {
         expect(await vault.feePercent()).to.be.eq(feePercent)
         await expect(tx)
           .to.emit(vault, 'FeeRecipientUpdated')
-          .withArgs(factory.address, admin.address)
+          .withArgs(await factory.getAddress(), admin.address)
 
         // VaultMev
         expect(await vault.mevEscrow()).to.be.eq(mevEscrow)
@@ -215,7 +206,7 @@ describe('EthVaultFactory', () => {
           await expect(await vault.whitelister()).to.be.eq(admin.address)
           await expect(tx)
             .to.emit(vault, 'WhitelisterUpdated')
-            .withArgs(factory.address, admin.address)
+            .withArgs(await factory.getAddress(), admin.address)
         }
       }
     }

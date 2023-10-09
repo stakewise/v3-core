@@ -1,29 +1,26 @@
-import { ethers, waffle } from 'hardhat'
+import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
-import { parseEther } from 'ethers/lib/utils'
-import { Keeper, EthVault } from '../typechain-types'
+
+import { EthVault, Keeper } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ZERO_ADDRESS } from './shared/constants'
 import { collateralizeEthVault, updateRewards } from './shared/rewards'
-
-const createFixtureLoader = waffle.createFixtureLoader
+import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 
 describe('EthVault - settings', () => {
-  const capacity = parseEther('1000')
+  const capacity = ethers.parseEther('1000')
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
-  let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
-  let admin: Wallet, owner: Wallet, keysManager: Wallet, other: Wallet, newFeeRecipient: Wallet
+  let admin: Wallet, keysManager: Wallet, other: Wallet, newFeeRecipient: Wallet
   let keeper: Keeper, validatorsRegistry: Contract
 
   before('create fixture loader', async () => {
-    ;[admin, owner, keysManager, other, newFeeRecipient] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([owner])
+    ;[admin, keysManager, other, newFeeRecipient] = (await (ethers as any).getSigners()).slice(1, 5)
   })
 
   beforeEach('deploy fixture', async () => {
@@ -36,13 +33,18 @@ describe('EthVault - settings', () => {
 
   describe('fee percent', () => {
     it('cannot be set to invalid value', async () => {
+      const vault = await createVault(admin, {
+        capacity,
+        feePercent: 10000,
+        metadataIpfsHash,
+      })
       await expect(
         createVault(admin, {
           capacity,
           feePercent: 10001,
           metadataIpfsHash,
         })
-      ).to.be.revertedWith('InvalidFeePercent')
+      ).to.be.revertedWithCustomError(vault, 'InvalidFeePercent')
     })
   })
 
@@ -60,9 +62,9 @@ describe('EthVault - settings', () => {
     })
 
     it('onlykeys manager can update', async () => {
-      await expect(vault.connect(admin).setValidatorsRoot(newValidatorsRoot)).to.be.revertedWith(
-        'AccessDenied'
-      )
+      await expect(
+        vault.connect(admin).setValidatorsRoot(newValidatorsRoot)
+      ).to.be.revertedWithCustomError(vault, 'AccessDenied')
     })
 
     it('can update', async () => {
@@ -86,13 +88,14 @@ describe('EthVault - settings', () => {
     })
 
     it('cannot be updated by anyone', async () => {
-      await expect(vault.connect(other).setKeysManager(keysManager.address)).to.be.revertedWith(
-        'AccessDenied'
-      )
+      await expect(
+        vault.connect(other).setKeysManager(keysManager.address)
+      ).to.be.revertedWithCustomError(vault, 'AccessDenied')
     })
 
     it('cannot set to zero address', async () => {
-      await expect(vault.connect(admin).setKeysManager(ZERO_ADDRESS)).to.be.revertedWith(
+      await expect(vault.connect(admin).setKeysManager(ZERO_ADDRESS)).to.be.revertedWithCustomError(
+        vault,
         'ZeroAddress'
       )
     })
@@ -124,21 +127,25 @@ describe('EthVault - settings', () => {
     it('only admin can update', async () => {
       await expect(
         vault.connect(other).setFeeRecipient(newFeeRecipient.address)
-      ).to.be.revertedWith('AccessDenied')
+      ).to.be.revertedWithCustomError(vault, 'AccessDenied')
     })
 
     it('cannot set to zero address', async () => {
-      await expect(vault.connect(admin).setFeeRecipient(ZERO_ADDRESS)).to.be.revertedWith(
-        'InvalidFeeRecipient'
-      )
+      await expect(
+        vault.connect(admin).setFeeRecipient(ZERO_ADDRESS)
+      ).to.be.revertedWithCustomError(vault, 'InvalidFeeRecipient')
     })
 
     it('cannot update when not harvested', async () => {
-      await updateRewards(keeper, [{ vault: vault.address, reward: 1, unlockedMevReward: 0 }])
-      await updateRewards(keeper, [{ vault: vault.address, reward: 2, unlockedMevReward: 0 }])
+      await updateRewards(keeper, [
+        { vault: await vault.getAddress(), reward: 1n, unlockedMevReward: 0n },
+      ])
+      await updateRewards(keeper, [
+        { vault: await vault.getAddress(), reward: 2n, unlockedMevReward: 0n },
+      ])
       await expect(
         vault.connect(admin).setFeeRecipient(newFeeRecipient.address)
-      ).to.be.revertedWith('NotHarvested')
+      ).to.be.revertedWithCustomError(vault, 'NotHarvested')
     })
 
     it('can update', async () => {
@@ -165,9 +172,9 @@ describe('EthVault - settings', () => {
     })
 
     it('only admin can update', async () => {
-      await expect(vault.connect(other).setMetadata(newMetadataIpfsHash)).to.be.revertedWith(
-        'AccessDenied'
-      )
+      await expect(
+        vault.connect(other).setMetadata(newMetadataIpfsHash)
+      ).to.be.revertedWithCustomError(vault, 'AccessDenied')
       const receipt = await vault.connect(admin).setMetadata(newMetadataIpfsHash)
       await expect(receipt)
         .to.emit(vault, 'MetadataUpdated')
