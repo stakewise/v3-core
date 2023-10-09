@@ -3,13 +3,13 @@
 exports[`EthPrivErc20Vault deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 71152,
+  "gasUsed": 71162,
 }
 `;
 
 exports[`EthPrivErc20Vault deposit deposit through receive fallback can be called by whitelisted sender 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 78338,
+  "gasUsed": 78348,
 }
 `;
