@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.20;
 
-import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
+import {Ownable2Step, Ownable} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 import {Errors} from '../libraries/Errors.sol';
@@ -26,7 +26,7 @@ abstract contract KeeperOracles is Ownable2Step, EIP712, IKeeperOracles {
   /**
    * @dev Constructor
    */
-  constructor() Ownable2Step() EIP712('KeeperOracles', '1') {}
+  constructor() Ownable(msg.sender) EIP712('KeeperOracles', '1') {}
 
   /// @inheritdoc IKeeperOracles
   function addOracle(address oracle) external override onlyOwner {

@@ -757,8 +757,9 @@ describe('KeeperRewards', () => {
 
   describe('set min rewards oracles', () => {
     it('fails if not owner', async () => {
-      await expect(keeper.connect(other).setRewardsMinOracles(1)).revertedWith(
-        'Ownable: caller is not the owner'
+      await expect(keeper.connect(other).setRewardsMinOracles(1)).revertedWithCustomError(
+        keeper,
+        'OwnableUnauthorizedAccount'
       )
     })
 

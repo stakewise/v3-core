@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.20;
 
-import {IERC1822ProxiableUpgradeable} from '@openzeppelin/contracts-upgradeable/interfaces/draft-IERC1822Upgradeable.sol';
+import {IERC1822Proxiable} from '@openzeppelin/contracts/interfaces/draft-IERC1822.sol';
 import {IVaultAdmin} from './IVaultAdmin.sol';
 
 /**
@@ -10,7 +10,7 @@ import {IVaultAdmin} from './IVaultAdmin.sol';
  * @author StakeWise
  * @notice Defines the interface for VaultVersion contract
  */
-interface IVaultVersion is IERC1822ProxiableUpgradeable, IVaultAdmin {
+interface IVaultVersion is IERC1822Proxiable, IVaultAdmin {
   /**
    * @notice Vault Unique Identifier
    * @return The unique identifier of the Vault

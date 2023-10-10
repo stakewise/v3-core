@@ -41,7 +41,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
 
   /// @inheritdoc IRewardSplitter
   function initialize(address owner, address _vault) external override initializer {
-    _transferOwnership(owner);
+    __Ownable_init(owner);
     vault = _vault;
   }
 

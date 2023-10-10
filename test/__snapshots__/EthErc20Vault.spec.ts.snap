@@ -3,34 +3,34 @@
 exports[`EthErc20Vault deposit emits transfer event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 68948,
+  "gasUsed": 68918,
 }
 `;
 
 exports[`EthErc20Vault deposit through receive fallback function emits transfer event 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 76174,
+  "gasUsed": 76143,
 }
 `;
 
 exports[`EthErc20Vault enter exit queue emits transfer event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 89124,
+  "gasUsed": 89078,
 }
 `;
 
 exports[`EthErc20Vault redeem emits transfer event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 60245,
+  "gasUsed": 60190,
 }
 `;
 
 exports[`EthErc20Vault update exit queue emits transfer event 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 137482,
+  "gasUsed": 137364,
 }
 `;

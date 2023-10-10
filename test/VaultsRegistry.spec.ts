@@ -72,8 +72,9 @@ describe('VaultsRegistry', () => {
   })
 
   it('not owner cannot register vault implementation contract', async () => {
-    await expect(vaultsRegistry.connect(admin).addVaultImpl(newVaultImpl)).revertedWith(
-      'Ownable: caller is not the owner'
+    await expect(vaultsRegistry.connect(admin).addVaultImpl(newVaultImpl)).revertedWithCustomError(
+      vaultsRegistry,
+      'OwnableUnauthorizedAccount'
     )
   })
 
@@ -94,9 +95,9 @@ describe('VaultsRegistry', () => {
 
   it('not owner cannot remove implementation', async () => {
     await vaultsRegistry.connect(dao).addVaultImpl(newVaultImpl)
-    await expect(vaultsRegistry.connect(admin).removeVaultImpl(newVaultImpl)).revertedWith(
-      'Ownable: caller is not the owner'
-    )
+    await expect(
+      vaultsRegistry.connect(admin).removeVaultImpl(newVaultImpl)
+    ).revertedWithCustomError(vaultsRegistry, 'OwnableUnauthorizedAccount')
   })
 
   it('owner can remove implementation', async () => {
@@ -118,7 +119,7 @@ describe('VaultsRegistry', () => {
   it('not owner cannot add factory', async () => {
     await expect(
       vaultsRegistry.connect(admin).addFactory(await ethVaultFactory.getAddress())
-    ).revertedWith('Ownable: caller is not the owner')
+    ).revertedWithCustomError(vaultsRegistry, 'OwnableUnauthorizedAccount')
   })
 
   it('owner can add factory', async () => {
@@ -141,7 +142,7 @@ describe('VaultsRegistry', () => {
   it('not owner cannot remove factory', async () => {
     await expect(
       vaultsRegistry.connect(admin).removeFactory(await ethVaultFactory.getAddress())
-    ).revertedWith('Ownable: caller is not the owner')
+    ).revertedWithCustomError(vaultsRegistry, 'OwnableUnauthorizedAccount')
   })
 
   it('owner can remove factory', async () => {

@@ -4,6 +4,7 @@ pragma solidity =0.8.20;
 
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import {ERC1967Utils} from '@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol';
 import {IVaultsRegistry} from '../../interfaces/IVaultsRegistry.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
 import {Errors} from '../../libraries/Errors.sol';
@@ -26,13 +27,7 @@ abstract contract VaultVersion is
 
   /// @inheritdoc IVaultVersion
   function implementation() external view override returns (address) {
-    return _getImplementation();
-  }
-
-  /// @inheritdoc UUPSUpgradeable
-  function upgradeTo(address) public view override onlyProxy {
-    // disable upgrades without the call
-    revert Errors.UpgradeFailed();
+    return ERC1967Utils.getImplementation();
   }
 
   /// @inheritdoc UUPSUpgradeable
@@ -40,8 +35,7 @@ abstract contract VaultVersion is
     address newImplementation,
     bytes memory data
   ) public payable override onlyProxy {
-    _authorizeUpgrade(newImplementation);
-    _upgradeToAndCallUUPS(newImplementation, abi.encodeWithSelector(_initSelector, data), true);
+    super.upgradeToAndCall(newImplementation, abi.encodeWithSelector(_initSelector, data));
   }
 
   /// @inheritdoc UUPSUpgradeable
@@ -49,7 +43,7 @@ abstract contract VaultVersion is
     _checkAdmin();
     if (
       newImplementation == address(0) ||
-      _getImplementation() == newImplementation || // cannot reinit the same implementation
+      ERC1967Utils.getImplementation() == newImplementation || // cannot reinit the same implementation
       IVaultVersion(newImplementation).vaultId() != vaultId() || // vault must be of the same type
       IVaultVersion(newImplementation).version() != version() + 1 || // vault cannot skip versions between
       !IVaultsRegistry(_vaultsRegistry).vaultImpls(newImplementation) // new implementation must be registered

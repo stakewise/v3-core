@@ -58,8 +58,9 @@ describe('OsToken', () => {
 
   describe('capacity', () => {
     it('not owner cannot change', async () => {
-      await expect(osToken.connect(initialHolder).setCapacity(0)).to.be.revertedWith(
-        'Ownable: caller is not the owner'
+      await expect(osToken.connect(initialHolder).setCapacity(0)).to.be.revertedWithCustomError(
+        osToken,
+        'OwnableUnauthorizedAccount'
       )
     })
 
@@ -73,9 +74,9 @@ describe('OsToken', () => {
 
   describe('treasury', () => {
     it('not owner cannot change', async () => {
-      await expect(osToken.connect(initialHolder).setTreasury(dao.address)).to.be.revertedWith(
-        'Ownable: caller is not the owner'
-      )
+      await expect(
+        osToken.connect(initialHolder).setTreasury(dao.address)
+      ).to.be.revertedWithCustomError(osToken, 'OwnableUnauthorizedAccount')
     })
 
     it('cannot set to zero address', async () => {
@@ -95,8 +96,9 @@ describe('OsToken', () => {
 
   describe('fee percent', () => {
     it('not owner cannot change', async () => {
-      await expect(osToken.connect(initialHolder).setFeePercent(100)).to.be.revertedWith(
-        'Ownable: caller is not the owner'
+      await expect(osToken.connect(initialHolder).setFeePercent(100)).to.be.revertedWithCustomError(
+        osToken,
+        'OwnableUnauthorizedAccount'
       )
     })
 
@@ -119,9 +121,9 @@ describe('OsToken', () => {
 
   describe('checker', () => {
     it('not owner cannot change', async () => {
-      await expect(osToken.connect(initialHolder).setChecker(recipient.address)).to.be.revertedWith(
-        'Ownable: caller is not the owner'
-      )
+      await expect(
+        osToken.connect(initialHolder).setChecker(recipient.address)
+      ).to.be.revertedWithCustomError(osToken, 'OwnableUnauthorizedAccount')
     })
 
     it('cannot set to zero address', async () => {
@@ -141,9 +143,9 @@ describe('OsToken', () => {
 
   describe('keeper', () => {
     it('not owner cannot change', async () => {
-      await expect(osToken.connect(initialHolder).setKeeper(dao.address)).to.be.revertedWith(
-        'Ownable: caller is not the owner'
-      )
+      await expect(
+        osToken.connect(initialHolder).setKeeper(dao.address)
+      ).to.be.revertedWithCustomError(osToken, 'OwnableUnauthorizedAccount')
     })
 
     it('cannot set to zero address', async () => {

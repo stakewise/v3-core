@@ -82,7 +82,7 @@
     "core"
   ],
   "dependencies": {
-    "@openzeppelin/contracts": "4.9.2",
-    "@openzeppelin/contracts-upgradeable": "4.9.2"
+    "@openzeppelin/contracts": "5.0.0",
+    "@openzeppelin/contracts-upgradeable": "5.0.0"
   }
 }

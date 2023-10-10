@@ -558,8 +558,9 @@ describe('KeeperValidators', () => {
 
   describe('set validators oracles', () => {
     it('fails if not owner', async () => {
-      await expect(keeper.connect(sender).setValidatorsMinOracles(1)).revertedWith(
-        'Ownable: caller is not the owner'
+      await expect(keeper.connect(sender).setValidatorsMinOracles(1)).revertedWithCustomError(
+        keeper,
+        'OwnableUnauthorizedAccount'
       )
     })
 

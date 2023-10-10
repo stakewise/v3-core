@@ -102,8 +102,9 @@ describe('EthGenesisVault', () => {
   })
 
   it('initializes correctly', async () => {
-    await expect(vault.connect(admin).initialize(ZERO_BYTES32)).to.revertedWith(
-      'Initializable: contract is already initialized'
+    await expect(vault.connect(admin).initialize(ZERO_BYTES32)).to.revertedWithCustomError(
+      vault,
+      'InvalidInitialization'
     )
     expect(await vault.capacity()).to.be.eq(capacity)
 

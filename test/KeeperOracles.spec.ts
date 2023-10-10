@@ -21,8 +21,9 @@ describe('KeeperOracles', () => {
 
   describe('add oracle', () => {
     it('fails if not owner', async () => {
-      await expect(keeper.connect(other).addOracle(oracle.address)).revertedWith(
-        'Ownable: caller is not the owner'
+      await expect(keeper.connect(other).addOracle(oracle.address)).revertedWithCustomError(
+        keeper,
+        'OwnableUnauthorizedAccount'
       )
     })
 
@@ -61,8 +62,9 @@ describe('KeeperOracles', () => {
     })
 
     it('fails if not owner', async () => {
-      await expect(keeper.connect(other).removeOracle(oracle.address)).revertedWith(
-        'Ownable: caller is not the owner'
+      await expect(keeper.connect(other).removeOracle(oracle.address)).revertedWithCustomError(
+        keeper,
+        'OwnableUnauthorizedAccount'
       )
     })
 
@@ -85,8 +87,9 @@ describe('KeeperOracles', () => {
 
   describe('update config', () => {
     it('fails if not owner', async () => {
-      await expect(keeper.connect(other).updateConfig(ORACLES_CONFIG)).revertedWith(
-        'Ownable: caller is not the owner'
+      await expect(keeper.connect(other).updateConfig(ORACLES_CONFIG)).revertedWithCustomError(
+        keeper,
+        'OwnableUnauthorizedAccount'
       )
     })
 

@@ -48,7 +48,7 @@ describe('CumulativeMerkleDrop', () => {
     it('fails for not owner', async () => {
       await expect(
         merkleDrop.connect(sender).setMerkleRoot(tree.root, proofsIpfsHash)
-      ).revertedWith('Ownable: caller is not the owner')
+      ).revertedWithCustomError(merkleDrop, 'OwnableUnauthorizedAccount')
     })
 
     it('works for owner', async () => {
