@@ -361,7 +361,7 @@ describe('EthVault - register', () => {
           invalidMultiProof.proofFlags,
           invalidMultiProof.proof
         )
-      ).to.be.revertedWith('MerkleProof: invalid multiproof')
+      ).to.be.revertedWithCustomError(vault, 'MerkleProofInvalidMultiproof')
     })
 
     it('fails with invalid indexes', async () => {

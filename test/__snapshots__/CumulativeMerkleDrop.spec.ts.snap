@@ -3,7 +3,7 @@
 exports[`CumulativeMerkleDrop claim works with valid proof 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 83971,
+  "gasUsed": 83813,
 }
 `;
 

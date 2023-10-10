@@ -3,42 +3,42 @@
 exports[`KeeperRewards harvest (own escrow) succeeds for latest rewards root 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 110874,
+  "gasUsed": 110823,
 }
 `;
 
 exports[`KeeperRewards harvest (own escrow) succeeds for previous rewards root 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 113029,
+  "gasUsed": 112978,
 }
 `;
 
 exports[`KeeperRewards harvest (own escrow) succeeds for previous rewards root 2`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 74427,
+  "gasUsed": 74376,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for latest rewards root 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 144187,
+  "gasUsed": 144096,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for previous rewards root 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 146342,
+  "gasUsed": 146251,
 }
 `;
 
 exports[`KeeperRewards harvest (shared escrow) succeeds for previous rewards root 2`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 90652,
+  "gasUsed": 90561,
 }
 `;
 
@@ -52,20 +52,20 @@ Object {
 exports[`KeeperRewards update rewards succeeds 1`] = `
 Object {
   "calldataByteLength": 772,
-  "gasUsed": 140923,
+  "gasUsed": 141004,
 }
 `;
 
 exports[`KeeperRewards update rewards succeeds 2`] = `
 Object {
   "calldataByteLength": 772,
-  "gasUsed": 123739,
+  "gasUsed": 123820,
 }
 `;
 
 exports[`KeeperRewards update rewards succeeds with all signatures 1`] = `
 Object {
   "calldataByteLength": 1156,
-  "gasUsed": 147115,
+  "gasUsed": 147196,
 }
 `;

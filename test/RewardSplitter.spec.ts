@@ -65,7 +65,7 @@ describe('RewardSplitter', () => {
     it('fails by not owner', async () => {
       await expect(
         rewardSplitter.connect(other).increaseShares(other.address, 1)
-      ).to.be.revertedWith('Ownable: caller is not the owner')
+      ).to.be.revertedWithCustomError(rewardSplitter, 'OwnableUnauthorizedAccount')
     })
 
     it('fails when vault not harvested', async () => {
@@ -161,7 +161,7 @@ describe('RewardSplitter', () => {
     it('fails by not owner', async () => {
       await expect(
         rewardSplitter.connect(other).decreaseShares(other.address, 1)
-      ).to.be.revertedWith('Ownable: caller is not the owner')
+      ).to.be.revertedWithCustomError(rewardSplitter, 'OwnableUnauthorizedAccount')
     })
 
     it('fails with amount larger than balance', async () => {

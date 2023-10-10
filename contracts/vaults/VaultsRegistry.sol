@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.20;
 
-import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
+import {Ownable2Step, Ownable} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {Errors} from '../libraries/Errors.sol';
 
@@ -24,7 +24,7 @@ contract VaultsRegistry is Ownable2Step, IVaultsRegistry {
   /**
    * @dev Constructor
    */
-  constructor() Ownable2Step() {}
+  constructor() Ownable(msg.sender) {}
 
   /// @inheritdoc IVaultsRegistry
   function addVault(address vault) external override {

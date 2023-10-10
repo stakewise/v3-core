@@ -39,8 +39,9 @@ describe('OsTokenConfig', () => {
   })
 
   it('cannot be updated by not owner', async () => {
-    await expect(osTokenConfig.connect(other).updateConfig(newConfig)).to.revertedWith(
-      'Ownable: caller is not the owner'
+    await expect(osTokenConfig.connect(other).updateConfig(newConfig)).to.revertedWithCustomError(
+      osTokenConfig,
+      'OwnableUnauthorizedAccount'
     )
   })
 

@@ -57,14 +57,6 @@ describe('EthVault - upgrade', () => {
     )
   })
 
-  it('fails without the call', async () => {
-    await expect(vault.connect(admin).upgradeTo(newImpl)).to.revertedWithCustomError(
-      vault,
-      'UpgradeFailed'
-    )
-    expect(await vault.version()).to.be.eq(1)
-  })
-
   it('fails from not admin', async () => {
     await expect(
       vault.connect(other).upgradeToAndCall(newImpl, callData)
@@ -146,7 +138,7 @@ describe('EthVault - upgrade', () => {
           newImpl,
           ethers.AbiCoder.defaultAbiCoder().encode(['uint256'], [MAX_UINT256])
         )
-    ).to.revertedWith('Address: low-level delegate call failed')
+    ).to.revertedWithCustomError(vault, 'FailedInnerCall')
     expect(await vault.version()).to.be.eq(1)
   })
 
@@ -159,8 +151,9 @@ describe('EthVault - upgrade', () => {
     await expect(
       vault.connect(admin).upgradeToAndCall(newImpl, callData)
     ).to.revertedWithCustomError(vault, 'UpgradeFailed')
-    await expect(updatedVault.connect(admin).initialize(callData)).to.revertedWith(
-      'Initializable: contract is already initialized'
+    await expect(updatedVault.connect(admin).initialize(callData)).to.revertedWithCustomError(
+      updatedVault,
+      'InvalidInitialization'
     )
     await snapshotGasCost(receipt)
   })

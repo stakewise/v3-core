@@ -163,8 +163,9 @@ describe('EthVaultFactory', () => {
         await expect(tx)
           .to.emit(vaultsRegistry, 'VaultAdded')
           .withArgs(await factory.getAddress(), vaultAddress)
-        await expect(vault.connect(admin).initialize(ZERO_BYTES32)).to.revertedWith(
-          'Initializable: contract is already initialized'
+        await expect(vault.connect(admin).initialize(ZERO_BYTES32)).to.revertedWithCustomError(
+          vault,
+          'InvalidInitialization'
         )
 
         // Factory

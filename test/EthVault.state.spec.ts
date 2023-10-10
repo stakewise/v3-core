@@ -88,7 +88,7 @@ describe('EthVault - state', () => {
           unlockedMevReward,
         }),
       })
-    ).revertedWith("SafeCast: value doesn't fit in 128 bits")
+    ).revertedWithCustomError(vault, 'SafeCastOverflowedUintDowncast')
   })
 
   it('reverts when underflow', async () => {
