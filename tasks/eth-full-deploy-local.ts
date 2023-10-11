@@ -12,6 +12,7 @@ import {
   RewardSplitter__factory,
   RewardSplitterFactory__factory,
   CumulativeMerkleDrop__factory,
+  OsTokenChecker__factory,
 } from '../typechain-types'
 import { deployContract } from '../helpers/utils'
 import { NetworkConfig, Networks } from '../helpers/types'
@@ -55,6 +56,12 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     const sharedMevEscrowAddress = await sharedMevEscrow.getAddress()
     console.log('SharedMevEscrow deployed at', sharedMevEscrowAddress)
 
+    const osTokenChecker = await deployContract(
+      new OsTokenChecker__factory(deployer).deploy(vaultsRegistryAddress)
+    )
+    const osTokenCheckerAddress = await osTokenChecker.getAddress()
+    console.log('OsTokenChecker deployed at', osTokenCheckerAddress)
+
     const keeperCalculatedAddress = ethers.getCreateAddress({
       from: deployer.address,
       nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1,
@@ -62,8 +69,9 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     const osToken = await deployContract(
       new OsToken__factory(deployer).deploy(
         keeperCalculatedAddress,
-        vaultsRegistryAddress,
+        osTokenCheckerAddress,
         treasury.address,
+        governor.address,
         goerliConfig.osTokenFeePercent,
         goerliConfig.osTokenCapacity,
         goerliConfig.osTokenName,
@@ -107,7 +115,8 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
         ltvPercent: goerliConfig.ltvPercent,
       })
     )
-    console.log('OsTokenConfig deployed at', osTokenConfig.address)
+    const osTokenConfigAddress = await osTokenConfig.getAddress()
+    console.log('OsTokenConfig deployed at', osTokenConfigAddress)
 
     const factories: string[] = []
     for (const vaultType of ['EthVault', 'EthPrivVault', 'EthErc20Vault', 'EthPrivErc20Vault']) {
@@ -119,8 +128,9 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
           vaultsRegistryAddress,
           validatorsRegistryAddress,
           osTokenAddress,
-          osTokenConfig.address,
+          osTokenConfigAddress,
           sharedMevEscrowAddress,
+          goerliConfig.exitedAssetsClaimDelay,
         ],
       })) as string
       console.log(`${vaultType} implementation deployed at`, vaultImpl)
@@ -134,15 +144,16 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       await vaultsRegistry.addFactory(ethVaultFactoryAddress)
       console.log(`Added ${vaultType}Factory to VaultsRegistry`)
 
-      await osToken.setVaultImplementation(vaultImpl, true)
-      console.log(`Added ${vaultType} implementation to OsToken`)
+      await vaultsRegistry.addVaultImpl(vaultImpl)
+      console.log(`Added ${vaultType} implementation to VaultsRegistry`)
       factories.push(ethVaultFactoryAddress)
     }
 
     const priceFeed = await deployContract(
       new PriceFeed__factory(deployer).deploy(osTokenAddress, goerliConfig.priceFeedDescription)
     )
-    console.log('PriceFeed deployed at', priceFeed.address)
+    const priceFeedAddress = await priceFeed.getAddress()
+    console.log('PriceFeed deployed at', priceFeedAddress)
 
     const rewardSplitterImpl = await deployContract(new RewardSplitter__factory(deployer).deploy())
     const rewardSplitterImplAddress = await rewardSplitterImpl.getAddress()
@@ -151,7 +162,8 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     const rewardSplitterFactory = await deployContract(
       new RewardSplitterFactory__factory(deployer).deploy(rewardSplitterImplAddress)
     )
-    console.log('RewardSplitterFactory deployed at', rewardSplitterFactory.address)
+    const rewardSplitterFactoryAddress = await rewardSplitterFactory.getAddress()
+    console.log('RewardSplitterFactory deployed at', rewardSplitterFactoryAddress)
 
     const cumulativeMerkleDrop = await deployContract(
       new CumulativeMerkleDrop__factory(deployer).deploy(
@@ -159,7 +171,8 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
         goerliConfig.swiseToken
       )
     )
-    console.log('CumulativeMerkleDrop deployed at', cumulativeMerkleDrop.address)
+    const cumulativeMerkleDropAddress = await cumulativeMerkleDrop.getAddress()
+    console.log('CumulativeMerkleDrop deployed at', cumulativeMerkleDropAddress)
 
     // pass ownership to governor
     await vaultsRegistry.transferOwnership(governor.address)
@@ -167,11 +180,12 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     await osToken.transferOwnership(governor.address)
     console.log('Ownership transferred to governor')
 
-    // accept ownership from governor
-    await Keeper__factory.connect(keeperAddress, governor).acceptOwnership()
-    await OsToken__factory.connect(osTokenAddress, governor).acceptOwnership()
-    await VaultsRegistry__factory.connect(vaultsRegistryAddress, governor).acceptOwnership()
-    console.log('Ownership accepted from governor')
+    // transfer ownership to governor
+    await vaultsRegistry.initialize(governor.address)
+    console.log('VaultsRegistry ownership transferred to', governor.address)
+
+    await keeper.initialize(governor.address)
+    console.log('Keeper ownership transferred to', governor.address)
 
     // Save the addresses
     const addresses = {
@@ -183,9 +197,10 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       EthPrivErc20VaultFactory: factories[3],
       SharedMevEscrow: sharedMevEscrowAddress,
       OsToken: osTokenAddress,
-      OsTokenConfig: osTokenConfig.address,
-      PriceFeed: priceFeed.address,
-      RewardSplitterFactory: rewardSplitterFactory.address,
+      OsTokenConfig: osTokenConfigAddress,
+      OsTokenChecker: osTokenCheckerAddress,
+      PriceFeed: priceFeedAddress,
+      RewardSplitterFactory: rewardSplitterFactoryAddress,
     }
     const json = JSON.stringify(addresses, null, 2)
     const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`

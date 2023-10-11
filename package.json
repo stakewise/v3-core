@@ -1,6 +1,6 @@
 {
   "name": "@stakewise/v3-core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Liquid staking protocol for Ethereum",
   "main": "index.js",
   "scripts": {

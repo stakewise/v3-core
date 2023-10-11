@@ -12,6 +12,7 @@ import {
   RewardSplitter__factory,
   RewardSplitterFactory__factory,
   CumulativeMerkleDrop__factory,
+  OsTokenChecker__factory,
 } from '../typechain-types'
 import { deployContract, verify } from '../helpers/utils'
 import { NETWORKS } from '../helpers/constants'
@@ -45,6 +46,18 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     'contracts/vaults/ethereum/mev/SharedMevEscrow.sol:SharedMevEscrow'
   )
 
+  const osTokenChecker = await deployContract(
+    new OsTokenChecker__factory(deployer).deploy(vaultsRegistryAddress)
+  )
+  const osTokenCheckerAddress = await osTokenChecker.getAddress()
+  console.log('OsTokenChecker deployed at', osTokenCheckerAddress)
+  await verify(
+    hre,
+    osTokenCheckerAddress,
+    [vaultsRegistryAddress],
+    'contracts/osToken/OsTokenChecker.sol:OsTokenChecker'
+  )
+
   const keeperCalculatedAddress = ethers.getCreateAddress({
     from: deployer.address,
     nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1,
@@ -52,8 +65,9 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const osToken = await deployContract(
     new OsToken__factory(deployer).deploy(
       keeperCalculatedAddress,
-      vaultsRegistryAddress,
+      osTokenCheckerAddress,
       networkConfig.treasury,
+      networkConfig.governor,
       networkConfig.osTokenFeePercent,
       networkConfig.osTokenCapacity,
       networkConfig.osTokenName,
@@ -67,8 +81,9 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     osTokenAddress,
     [
       keeperCalculatedAddress,
-      vaultsRegistryAddress,
+      osTokenCheckerAddress,
       networkConfig.treasury,
+      networkConfig.governor,
       networkConfig.osTokenFeePercent,
       networkConfig.osTokenCapacity,
       networkConfig.osTokenName,
@@ -152,6 +167,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
         osTokenAddress,
         osTokenConfigAddress,
         sharedMevEscrowAddress,
+        networkConfig.exitedAssetsClaimDelay,
       ],
     })) as string
     console.log(`${vaultType} implementation deployed at`, vaultImpl)
@@ -165,6 +181,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
         osTokenAddress,
         osTokenConfigAddress,
         sharedMevEscrowAddress,
+        networkConfig.exitedAssetsClaimDelay,
       ],
       `contracts/vaults/ethereum/${vaultType}.sol:${vaultType}`
     )
@@ -184,8 +201,8 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     await vaultsRegistry.addFactory(ethVaultFactoryAddress)
     console.log(`Added ${vaultType}Factory to VaultsRegistry`)
 
-    await osToken.setVaultImplementation(vaultImpl, true)
-    console.log(`Added ${vaultType} implementation to OsToken`)
+    await vaultsRegistry.addVaultImpl(vaultImpl)
+    console.log(`Added ${vaultType} implementation to VaultsRegistry`)
     factories.push(ethVaultFactoryAddress)
   }
 
@@ -202,10 +219,11 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       sharedMevEscrowAddress,
       networkConfig.genesisVault.poolEscrow,
       networkConfig.genesisVault.rewardEthToken,
+      networkConfig.exitedAssetsClaimDelay,
     ],
   })
   const ethGenesisVaultAddress = await ethGenesisVault.getAddress()
-  await ethGenesisVault.deployed()
+  await ethGenesisVault.waitForDeployment()
   const tx = await ethGenesisVault.initialize(
     ethers.AbiCoder.defaultAbiCoder().encode(
       ['address', 'tuple(uint256 capacity, uint16 feePercent, string metadataIpfsHash)'],
@@ -223,8 +241,8 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   console.log('Added EthGenesisVault to VaultsRegistry')
 
   const ethGenesisVaultImpl = await ethGenesisVault.implementation()
-  await osToken.setVaultImplementation(ethGenesisVaultImpl, true)
-  console.log(`Added EthGenesisVault implementation to OsToken`)
+  await vaultsRegistry.addVaultImpl(ethGenesisVaultImpl)
+  console.log(`Added EthGenesisVault implementation to VaultsRegistry`)
   await verify(
     hre,
     ethGenesisVaultAddress,
@@ -237,6 +255,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       sharedMevEscrowAddress,
       networkConfig.genesisVault.poolEscrow,
       networkConfig.genesisVault.rewardEthToken,
+      networkConfig.exitedAssetsClaimDelay,
     ],
     'contracts/vaults/ethereum/EthGenesisVault.sol:EthGenesisVault'
   )
@@ -290,10 +309,12 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     'contracts/misc/CumulativeMerkleDrop.sol:CumulativeMerkleDrop'
   )
 
-  // pass ownership to governor
-  await vaultsRegistry.transferOwnership(networkConfig.governor)
-  await keeper.transferOwnership(networkConfig.governor)
-  await osToken.transferOwnership(networkConfig.governor)
+  // transfer ownership to governor
+  await vaultsRegistry.initialize(networkConfig.governor)
+  console.log('VaultsRegistry ownership transferred to', networkConfig.governor)
+
+  await keeper.initialize(networkConfig.governor)
+  console.log('Keeper ownership transferred to', networkConfig.governor)
 
   // Save the addresses
   const addresses = {
@@ -307,6 +328,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     SharedMevEscrow: sharedMevEscrowAddress,
     OsToken: osTokenAddress,
     OsTokenConfig: osTokenConfigAddress,
+    OsTokenChecker: osTokenCheckerAddress,
     PriceFeed: priceFeedAddress,
     RewardSplitterFactory: rewardSplitterFactoryAddress,
   }
@@ -320,8 +342,5 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   fs.writeFileSync(fileName, json, 'utf-8')
   console.log('Saved to', fileName)
 
-  console.log('NB! Accept ownership of Keeper from', networkConfig.governor)
-  console.log('NB! Accept ownership of OsToken from', networkConfig.governor)
-  console.log('NB! Accept ownership of VaultsRegistry from', networkConfig.governor)
   console.log('NB! Commit and accept StakeWise V2 PoolEscrow ownership to EthGenesisVault')
 })

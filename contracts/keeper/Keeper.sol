@@ -9,6 +9,7 @@ import {IKeeper} from '../interfaces/IKeeper.sol';
 import {KeeperValidators} from './KeeperValidators.sol';
 import {KeeperRewards} from './KeeperRewards.sol';
 import {KeeperOracles} from './KeeperOracles.sol';
+import {Errors} from '../libraries/Errors.sol';
 
 /**
  * @title Keeper
@@ -16,6 +17,8 @@ import {KeeperOracles} from './KeeperOracles.sol';
  * @notice Defines the functionality for updating Vaults' rewards and approving validators registrations
  */
 contract Keeper is KeeperOracles, KeeperRewards, KeeperValidators, IKeeper {
+  bool private _initialized;
+
   /**
    * @dev Constructor
    * @param sharedMevEscrow The address of the shared MEV escrow contract
@@ -37,4 +40,14 @@ contract Keeper is KeeperOracles, KeeperRewards, KeeperValidators, IKeeper {
     KeeperRewards(sharedMevEscrow, vaultsRegistry, osToken, _rewardsDelay, maxAvgRewardPerSecond)
     KeeperValidators(validatorsRegistry)
   {}
+
+  /// @inheritdoc IKeeper
+  function initialize(address _owner) external override onlyOwner {
+    if (_owner == address(0)) revert Errors.ZeroAddress();
+    if (_initialized) revert Errors.AccessDenied();
+
+    // transfer ownership
+    _transferOwnership(_owner);
+    _initialized = true;
+  }
 }

@@ -45,7 +45,7 @@ Object {
 exports[`KeeperRewards set min rewards oracles succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 32256,
+  "gasUsed": 32278,
 }
 `;
 

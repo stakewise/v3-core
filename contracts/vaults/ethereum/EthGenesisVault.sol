@@ -118,7 +118,9 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       // it's the first harvest, deduct rewards accumulated so far in legacy pool
       totalAssetsDelta -= SafeCast.toInt256(_rewardEthToken.totalRewards());
       // the first state update must be with positive delta
-      if (totalAssetsDelta < 0) revert Errors.NegativeAssetsDelta();
+      if (_poolEscrow.owner() != address(this) || totalAssetsDelta < 0) {
+        revert Errors.InvalidInitialHarvest();
+      }
     }
 
     // fetch total assets controlled by legacy pool
@@ -153,7 +155,9 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
 
   /// @inheritdoc IEthGenesisVault
   function migrate(address receiver, uint256 assets) external override returns (uint256 shares) {
-    if (msg.sender != address(_rewardEthToken)) revert Errors.AccessDenied();
+    if (msg.sender != address(_rewardEthToken) || _poolEscrow.owner() != address(this)) {
+      revert Errors.AccessDenied();
+    }
 
     _checkCollateralized();
     _checkHarvested();
@@ -184,7 +188,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     address receiver,
     uint256 assets
   ) internal virtual override(VaultEnterExit, VaultEthStaking) {
-    _pullAssets();
+    if (assets > super._vaultAssets()) _pullAssets();
     return super._transferVaultAssets(receiver, assets);
   }
 

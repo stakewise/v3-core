@@ -51,6 +51,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
    * @param _keeper The address of the Keeper contract
    * @param _checker The address of the OsTokenChecker contract
    * @param _treasury The address of the DAO treasury
+   * @param _owner The address of the owner of the contract
    * @param _feePercent The fee percent applied on the rewards
    * @param _capacity The amount after which the osToken stops accepting deposits
    * @param _name The name of the ERC20 token
@@ -60,11 +61,13 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     address _keeper,
     address _checker,
     address _treasury,
+    address _owner,
     uint16 _feePercent,
     uint256 _capacity,
     string memory _name,
     string memory _symbol
   ) ERC20(_name, _symbol) Ownable(msg.sender) {
+    if (_owner == address(0)) revert Errors.ZeroAddress();
     keeper = _keeper;
     checker = _checker;
     _lastUpdateTimestamp = uint64(block.timestamp);
@@ -72,6 +75,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     setCapacity(_capacity);
     setTreasury(_treasury);
     setFeePercent(_feePercent);
+    _transferOwnership(_owner);
   }
 
   /// @inheritdoc IERC20

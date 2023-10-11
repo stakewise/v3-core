@@ -163,4 +163,27 @@ describe('VaultsRegistry', () => {
     ).revertedWithCustomError(vaultsRegistry, 'AlreadyRemoved')
     expect(await vaultsRegistry.factories(await ethVaultFactory.getAddress())).to.be.eq(false)
   })
+
+  describe('initialize', () => {
+    it('cannot initialize twice', async () => {
+      await expect(vaultsRegistry.connect(dao).initialize(admin.address)).revertedWithCustomError(
+        vaultsRegistry,
+        'AccessDenied'
+      )
+    })
+
+    it('not owner cannot initialize', async () => {
+      await expect(vaultsRegistry.connect(admin).initialize(admin.address)).revertedWithCustomError(
+        vaultsRegistry,
+        'OwnableUnauthorizedAccount'
+      )
+    })
+
+    it('cannot initialize to zero address', async () => {
+      await expect(vaultsRegistry.connect(dao).initialize(ZERO_ADDRESS)).revertedWithCustomError(
+        vaultsRegistry,
+        'ZeroAddress'
+      )
+    })
+  })
 })

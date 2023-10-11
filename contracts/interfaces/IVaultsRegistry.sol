@@ -89,4 +89,10 @@ interface IVaultsRegistry {
    * @param factory The address of the factory to remove from the whitelist
    */
   function removeFactory(address factory) external;
+
+  /**
+   * @notice Function for initializing the registry. Can only be called once during the deployment.
+   * @param _owner The address of the owner of the contract
+   */
+  function initialize(address _owner) external;
 }

@@ -22,8 +22,7 @@ contract CumulativeMerkleDrop is Ownable2Step, ICumulativeMerkleDrop {
    * @param _owner The address of the owner of the contract
    * @param _token The address of the token contract
    */
-  constructor(address _owner, address _token) Ownable(msg.sender) {
-    _transferOwnership(_owner);
+  constructor(address _owner, address _token) Ownable(_owner) {
     token = IERC20(_token);
   }
 

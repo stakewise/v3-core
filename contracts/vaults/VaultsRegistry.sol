@@ -21,6 +21,8 @@ contract VaultsRegistry is Ownable2Step, IVaultsRegistry {
   /// @inheritdoc IVaultsRegistry
   mapping(address => bool) public override vaultImpls;
 
+  bool private _initialized;
+
   /**
    * @dev Constructor
    */
@@ -60,5 +62,15 @@ contract VaultsRegistry is Ownable2Step, IVaultsRegistry {
     if (!factories[factory]) revert Errors.AlreadyRemoved();
     factories[factory] = false;
     emit FactoryRemoved(factory);
+  }
+
+  /// @inheritdoc IVaultsRegistry
+  function initialize(address _owner) external override onlyOwner {
+    if (_owner == address(0)) revert Errors.ZeroAddress();
+    if (_initialized) revert Errors.AccessDenied();
+
+    // transfer ownership
+    _transferOwnership(_owner);
+    _initialized = true;
   }
 }

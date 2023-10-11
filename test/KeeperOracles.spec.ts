@@ -5,7 +5,7 @@ import { Keeper } from '../typechain-types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { ORACLES, ORACLES_CONFIG } from './shared/constants'
+import { ORACLES, ORACLES_CONFIG, ZERO_ADDRESS } from './shared/constants'
 
 describe('KeeperOracles', () => {
   const maxOracles = 30
@@ -97,6 +97,29 @@ describe('KeeperOracles', () => {
       const receipt = await keeper.connect(dao).updateConfig(ORACLES_CONFIG)
       await expect(receipt).to.emit(keeper, 'ConfigUpdated').withArgs(ORACLES_CONFIG)
       await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('initialize', () => {
+    it('cannot initialize twice', async () => {
+      await expect(keeper.connect(dao).initialize(other.address)).revertedWithCustomError(
+        keeper,
+        'AccessDenied'
+      )
+    })
+
+    it('not owner cannot initialize', async () => {
+      await expect(keeper.connect(other).initialize(other.address)).revertedWithCustomError(
+        keeper,
+        'OwnableUnauthorizedAccount'
+      )
+    })
+
+    it('cannot initialize to zero address', async () => {
+      await expect(keeper.connect(dao).initialize(ZERO_ADDRESS)).revertedWithCustomError(
+        keeper,
+        'ZeroAddress'
+      )
     })
   })
 })

@@ -90,6 +90,13 @@ describe('EthVault - withdraw', () => {
       ).to.be.revertedWithCustomError(vault, 'ZeroAddress')
     })
 
+    it('fails for zero shares', async () => {
+      await expect(vault.connect(holder).redeem(0, holder.address)).to.be.revertedWithCustomError(
+        vault,
+        'InvalidShares'
+      )
+    })
+
     it('does not overflow', async () => {
       const vault: EthVaultMock = await createVaultMock(admin, {
         capacity,

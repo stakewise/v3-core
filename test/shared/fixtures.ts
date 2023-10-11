@@ -159,6 +159,7 @@ export const createOsToken = async function (
   keeperAddress: string,
   checker: OsTokenChecker,
   treasury: Wallet,
+  governor: Wallet,
   feePercent: BigNumberish,
   capacity: BigNumberish,
   name: string,
@@ -169,6 +170,7 @@ export const createOsToken = async function (
     keeperAddress,
     await checker.getAddress(),
     treasury.address,
+    governor.address,
     feePercent,
     capacity,
     name,
@@ -377,16 +379,16 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
   const osTokenChecker = await createOsTokenChecker(vaultsRegistry)
 
   // 2. calc keeper address
-  const [_deployer] = await ethers.getSigners()
   const _keeperAddress = ethers.getCreateAddress({
-    from: _deployer.address,
-    nonce: (await ethers.provider.getTransactionCount(_deployer.address)) + 1,
+    from: dao.address,
+    nonce: (await ethers.provider.getTransactionCount(dao.address)) + 1,
   })
 
   // 3. deploy ostoken
   const osToken = await createOsToken(
     _keeperAddress,
     osTokenChecker,
+    dao,
     dao,
     OSTOKEN_FEE,
     OSTOKEN_CAPACITY,
@@ -456,12 +458,8 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
   }
 
   // change ownership
-  await vaultsRegistry.transferOwnership(dao.address)
-  await vaultsRegistry.connect(dao).acceptOwnership()
-  await keeper.transferOwnership(dao.address)
-  await keeper.connect(dao).acceptOwnership()
-  await osToken.transferOwnership(dao.address)
-  await osToken.connect(dao).acceptOwnership()
+  await vaultsRegistry.initialize(dao.address)
+  await keeper.initialize(dao.address)
 
   return {
     vaultsRegistry,

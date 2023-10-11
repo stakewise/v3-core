@@ -11,6 +11,7 @@ export const NETWORKS: {
     governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     validatorsRegistry: '0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b',
     securityDeposit: 1000000000,
+    exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
 
     // Keeper
     oracles: [
@@ -65,6 +66,7 @@ export const NETWORKS: {
     governor: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
     validatorsRegistry: '0x00000000219ab540356cBB839Cbe05303d7705Fa',
     securityDeposit: 1000000000,
+    exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
 
     // Keeper
     oracles: [], // TODO: update with oracles' addresses

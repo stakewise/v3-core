@@ -90,7 +90,6 @@ describe('EthGenesisVault', () => {
       ),
       { value: SECURITY_DEPOSIT }
     )
-    await vault.connect(admin).acceptPoolEscrowOwnership()
     await expect(tx).to.emit(vault, 'MetadataUpdated').withArgs(dao.address, metadataIpfsHash)
     await expect(tx).to.emit(vault, 'FeeRecipientUpdated').withArgs(dao.address, admin.address)
     await expect(tx)
@@ -125,10 +124,12 @@ describe('EthGenesisVault', () => {
   })
 
   it('applies ownership transfer', async () => {
+    await vault.connect(admin).acceptPoolEscrowOwnership()
     expect(await poolEscrow.owner()).to.eq(await vault.getAddress())
   })
 
   it('apply ownership cannot be called second time', async () => {
+    await vault.connect(admin).acceptPoolEscrowOwnership()
     await expect(vault.connect(other).acceptPoolEscrowOwnership()).to.be.revertedWithCustomError(
       vault,
       'AccessDenied'
@@ -145,7 +146,15 @@ describe('EthGenesisVault', () => {
       ).to.be.revertedWithCustomError(vault, 'AccessDenied')
     })
 
+    it('fails when pool escrow ownership is not accepted', async () => {
+      const assets = ethers.parseEther('10')
+      await expect(
+        rewardEthToken.connect(other).migrate(other.address, assets, 0)
+      ).to.be.revertedWithCustomError(vault, 'AccessDenied')
+    })
+
     it('fails with zero receiver', async () => {
+      await vault.connect(admin).acceptPoolEscrowOwnership()
       await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       const assets = ethers.parseEther('1')
       await expect(
@@ -154,6 +163,7 @@ describe('EthGenesisVault', () => {
     })
 
     it('fails with zero assets', async () => {
+      await vault.connect(admin).acceptPoolEscrowOwnership()
       await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       await expect(
         rewardEthToken.connect(other).migrate(other.address, 0, 0)
@@ -161,6 +171,7 @@ describe('EthGenesisVault', () => {
     })
 
     it('fails when not collateralized', async () => {
+      await vault.connect(admin).acceptPoolEscrowOwnership()
       const assets = ethers.parseEther('1')
       await expect(
         rewardEthToken.connect(other).migrate(other.address, assets, assets)
@@ -168,6 +179,7 @@ describe('EthGenesisVault', () => {
     })
 
     it('fails when not harvested', async () => {
+      await vault.connect(admin).acceptPoolEscrowOwnership()
       await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       await updateRewards(keeper, [
         {
@@ -190,6 +202,7 @@ describe('EthGenesisVault', () => {
     })
 
     it('migrates from rewardEthToken', async () => {
+      await vault.connect(admin).acceptPoolEscrowOwnership()
       await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       const assets = ethers.parseEther('10')
       const expectedShares = ethers.parseEther('10')
@@ -206,6 +219,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on claim exited assets', async () => {
+    await vault.connect(admin).acceptPoolEscrowOwnership()
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
 
     const shares = ethers.parseEther('10')
@@ -254,6 +268,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on redeem', async () => {
+    await vault.connect(admin).acceptPoolEscrowOwnership()
     const shares = ethers.parseEther('10')
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: shares })
 
@@ -274,6 +289,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on single validator registration', async () => {
+    await vault.connect(admin).acceptPoolEscrowOwnership()
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const validatorDeposit = ethers.parseEther('32')
     await rewardEthToken.connect(other).migrate(other.address, validatorDeposit, validatorDeposit)
@@ -288,6 +304,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on multiple validators registration', async () => {
+    await vault.connect(admin).acceptPoolEscrowOwnership()
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const validatorsData = await createEthValidatorsData(vault)
     const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
@@ -365,6 +382,7 @@ describe('EthGenesisVault', () => {
     })
 
     it('splits reward between rewardEthToken and vault', async () => {
+      await vault.connect(admin).acceptPoolEscrowOwnership()
       const totalRewards = ethers.parseEther('30')
       const expectedVaultDelta =
         (totalRewards * totalVaultAssets) / (totalLegacyAssets + totalVaultAssets)
@@ -388,7 +406,27 @@ describe('EthGenesisVault', () => {
       await snapshotGasCost(receipt)
     })
 
+    it('fails when pool escrow ownership not accepted', async () => {
+      const totalRewards = ethers.parseEther('30')
+      const vaultReward = {
+        reward: totalRewards,
+        unlockedMevReward: 0n,
+        vault: await vault.getAddress(),
+      }
+      const rewardsTree = await updateRewards(keeper, [vaultReward])
+      const proof = getRewardsRootProof(rewardsTree, vaultReward)
+      await expect(
+        vault.updateState({
+          rewardsRoot: rewardsTree.root,
+          reward: vaultReward.reward,
+          unlockedMevReward: vaultReward.unlockedMevReward,
+          proof,
+        })
+      ).to.be.revertedWithCustomError(vault, 'InvalidInitialHarvest')
+    })
+
     it('fails with negative first update', async () => {
+      await vault.connect(admin).acceptPoolEscrowOwnership()
       const totalPenalty = ethers.parseEther('-5')
       const vaultReward = {
         reward: totalPenalty,
@@ -404,10 +442,11 @@ describe('EthGenesisVault', () => {
           unlockedMevReward: vaultReward.unlockedMevReward,
           proof,
         })
-      ).to.revertedWithCustomError(vault, 'NegativeAssetsDelta')
+      ).to.revertedWithCustomError(vault, 'InvalidInitialHarvest')
     })
 
     it('splits penalty between rewardEthToken and vault', async () => {
+      await vault.connect(admin).acceptPoolEscrowOwnership()
       await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       const totalPenalty = ethers.parseEther('-5')
       const expectedVaultDelta =
@@ -435,6 +474,7 @@ describe('EthGenesisVault', () => {
     })
 
     it('deducts rewards on first state update', async () => {
+      await vault.connect(admin).acceptPoolEscrowOwnership()
       const totalRewards = ethers.parseEther('25')
       const legacyRewards = ethers.parseEther('5')
       await rewardEthToken.connect(other).setTotalRewards(legacyRewards)

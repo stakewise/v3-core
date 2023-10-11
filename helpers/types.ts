@@ -13,6 +13,7 @@ export type NetworkConfig = {
   governor: string
   validatorsRegistry: string
   securityDeposit: BigNumberish
+  exitedAssetsClaimDelay: number
 
   // Keeper
   oracles: string[]
