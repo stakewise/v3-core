@@ -23,6 +23,7 @@ contract OsTokenConfig is Ownable2Step, IOsTokenConfig {
    * @param config The OsToken configuration
    */
   constructor(address _owner, Config memory config) Ownable(msg.sender) {
+    if (_owner == address(0)) revert Errors.ZeroAddress();
     updateConfig(config);
     _transferOwnership(_owner);
   }

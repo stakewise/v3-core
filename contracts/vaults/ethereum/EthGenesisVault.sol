@@ -31,6 +31,8 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IRewardEthToken private immutable _rewardEthToken;
 
+  error InvalidInitialHarvest();
+
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -119,7 +121,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       totalAssetsDelta -= SafeCast.toInt256(_rewardEthToken.totalRewards());
       // the first state update must be with positive delta
       if (_poolEscrow.owner() != address(this) || totalAssetsDelta < 0) {
-        revert Errors.InvalidInitialHarvest();
+        revert InvalidInitialHarvest();
       }
     }
 
