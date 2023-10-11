@@ -166,7 +166,14 @@ describe('EthVault - liquidate', () => {
 
     await expect(receipt)
       .to.emit(vault, 'OsTokenLiquidated')
-      .withArgs(liquidator.address, owner.address, receiver.address, osTokenShares, osTokenAssets)
+      .withArgs(
+        liquidator.address,
+        owner.address,
+        receiver.address,
+        osTokenShares,
+        burnedShares,
+        osTokenAssets
+      )
     await expect(receipt)
       .to.emit(osToken, 'Transfer')
       .withArgs(liquidator.address, ZERO_ADDRESS, osTokenShares)

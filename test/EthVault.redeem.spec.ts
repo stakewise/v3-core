@@ -163,7 +163,14 @@ describe('EthVault - redeem osToken', () => {
 
     await expect(receipt)
       .to.emit(vault, 'OsTokenRedeemed')
-      .withArgs(redeemer.address, owner.address, receiver.address, redeemedShares, redeemedAssets)
+      .withArgs(
+        redeemer.address,
+        owner.address,
+        receiver.address,
+        redeemedShares,
+        burnedShares,
+        redeemedAssets
+      )
     await expect(receipt)
       .to.emit(osToken, 'Transfer')
       .withArgs(redeemer.address, ZERO_ADDRESS, redeemedShares)
