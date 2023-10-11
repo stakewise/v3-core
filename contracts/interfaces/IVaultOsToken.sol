@@ -40,14 +40,16 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
    * @param caller The address of the function caller
    * @param user The address of the user liquidated
    * @param receiver The address of the receiver of the liquidated assets
-   * @param coveredShares The amount of covered shares
+   * @param osTokenShares The amount of osToken shares to liquidate
+   * @param shares The amount of vault shares burned
    * @param receivedAssets The amount of assets received
    */
   event OsTokenLiquidated(
     address indexed caller,
     address indexed user,
     address receiver,
-    uint256 coveredShares,
+    uint256 osTokenShares,
+    uint256 shares,
     uint256 receivedAssets
   );
 
@@ -56,13 +58,15 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
    * @param caller The address of the function caller
    * @param user The address of the position owner to redeem from
    * @param receiver The address of the receiver of the redeemed assets
-   * @param shares The amount of shares to redeem
+   * @param osTokenShares The amount of osToken shares to redeem
+   * @param shares The amount of vault shares burned
    * @param assets The amount of assets received
    */
   event OsTokenRedeemed(
     address indexed caller,
     address indexed user,
     address receiver,
+    uint256 osTokenShares,
     uint256 shares,
     uint256 assets
   );
@@ -110,24 +114,14 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
    * @param osTokenShares The number of shares to cover
    * @param owner The address of the position owner to liquidate
    * @param receiver The address of the receiver of the liquidated assets
-   * @return receivedAssets The number of assets received
    */
-  function liquidateOsToken(
-    uint256 osTokenShares,
-    address owner,
-    address receiver
-  ) external returns (uint256 receivedAssets);
+  function liquidateOsToken(uint256 osTokenShares, address owner, address receiver) external;
 
   /**
    * @notice Redeems osToken shares for assets. Can only be called when health factor is above redeemFromHealthFactor.
    * @param osTokenShares The number of osToken shares to redeem
    * @param owner The address of the position owner to redeem from
    * @param receiver The address of the receiver of the redeemed assets
-   * @return receivedAssets The number of assets received
    */
-  function redeemOsToken(
-    uint256 osTokenShares,
-    address owner,
-    address receiver
-  ) external returns (uint256 receivedAssets);
+  function redeemOsToken(uint256 osTokenShares, address owner, address receiver) external;
 }

@@ -24,7 +24,7 @@ import {
 } from './shared/validators'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { collateralizeEthVault } from './shared/rewards'
-import { toHexString } from './shared/utils'
+import { getLatestBlockTimestamp, toHexString } from './shared/utils'
 
 describe('KeeperValidators', () => {
   const capacity = ethers.parseEther('1000')
@@ -136,7 +136,7 @@ describe('KeeperValidators', () => {
         vault.registerValidator(
           {
             ...approveParams,
-            deadline: Math.floor(Date.now() / 1000) - 1,
+            deadline: await getLatestBlockTimestamp(),
           },
           proof
         )
@@ -327,7 +327,7 @@ describe('KeeperValidators', () => {
         vault.registerValidators(
           {
             ...approveParams,
-            deadline: Math.floor(Date.now() / 1000) - 1,
+            deadline: await getLatestBlockTimestamp(),
           },
           indexes,
           proof.proofFlags,
@@ -498,7 +498,7 @@ describe('KeeperValidators', () => {
 
     it('fails for expired deadline', async () => {
       await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
-      const newDeadline = Math.floor(Date.now() / 1000)
+      const newDeadline = await getLatestBlockTimestamp()
       const newSigningData = await getEthValidatorsExitSignaturesSigningData(
         keeper,
         vault,
