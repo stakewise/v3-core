@@ -43,6 +43,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param poolEscrow The address of the pool escrow from StakeWise v2
    * @param rewardEthToken The address of the rETH2 token from StakeWise v2
+   * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
@@ -53,9 +54,18 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     address osTokenConfig,
     address sharedMevEscrow,
     address poolEscrow,
-    address rewardEthToken
+    address rewardEthToken,
+    uint256 exitingAssetsClaimDelay
   )
-    EthVault(_keeper, _vaultsRegistry, _validatorsRegistry, osToken, osTokenConfig, sharedMevEscrow)
+    EthVault(
+      _keeper,
+      _vaultsRegistry,
+      _validatorsRegistry,
+      osToken,
+      osTokenConfig,
+      sharedMevEscrow,
+      exitingAssetsClaimDelay
+    )
   {
     _poolEscrow = IPoolEscrow(poolEscrow);
     _rewardEthToken = IRewardEthToken(rewardEthToken);
@@ -102,11 +112,13 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     bool isCollateralized = IKeeperRewards(_keeper).isCollateralized(address(this));
 
     // process total assets delta since last update
-    int256 totalAssetsDelta = _harvestAssets(harvestParams);
+    (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
 
     if (!isCollateralized) {
       // it's the first harvest, deduct rewards accumulated so far in legacy pool
       totalAssetsDelta -= SafeCast.toInt256(_rewardEthToken.totalRewards());
+      // the first state update must be with positive delta
+      if (totalAssetsDelta < 0) revert Errors.NegativeAssetsDelta();
     }
 
     // fetch total assets controlled by legacy pool
@@ -132,20 +144,18 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       totalAssetsDelta -= legacyReward;
     }
 
-    if (totalAssetsDelta != 0) {
-      super._processTotalAssetsDelta(totalAssetsDelta);
-    }
+    // process total assets delta if it has changed
+    if (totalAssetsDelta != 0) _processTotalAssetsDelta(totalAssetsDelta);
 
-    // update exit queue
-    if (canUpdateExitQueue()) {
-      _updateExitQueue();
-    }
+    // update exit queue every time new update is harvested
+    if (harvested) _updateExitQueue();
   }
 
   /// @inheritdoc IEthGenesisVault
   function migrate(address receiver, uint256 assets) external override returns (uint256 shares) {
     if (msg.sender != address(_rewardEthToken)) revert Errors.AccessDenied();
 
+    _checkCollateralized();
     _checkHarvested();
     if (receiver == address(0)) revert Errors.ZeroAddress();
     if (assets == 0) revert Errors.InvalidAssets();
@@ -214,7 +224,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    */
   function _pullAssets() private {
     uint256 escrowBalance = address(_poolEscrow).balance;
-    if (escrowBalance > 0) _poolEscrow.withdraw(payable(this), escrowBalance);
+    if (escrowBalance != 0) _poolEscrow.withdraw(payable(this), escrowBalance);
   }
 
   /**

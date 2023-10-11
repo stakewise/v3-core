@@ -6,7 +6,12 @@ import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { ONE_DAY, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
-import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
+import {
+  collateralizeEthVault,
+  getRewardsRootProof,
+  setAvgRewardPerSecond,
+  updateRewards,
+} from './shared/rewards'
 import { increaseTime, setBalance } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
 
@@ -42,12 +47,14 @@ describe('EthVault - redeem osToken', () => {
       osToken,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
-    await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
     await osToken.connect(dao).setFeePercent(0)
 
     // collateralize vault
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     await vault.connect(owner).deposit(owner.address, ZERO_ADDRESS, { value: shares })
+
+    await setAvgRewardPerSecond(dao, vault, keeper, 0)
+    await vault.connect(owner).mintOsToken(owner.address, osTokenShares, ZERO_ADDRESS)
 
     // penalty received
     const tree = await updateRewards(
@@ -55,7 +62,6 @@ describe('EthVault - redeem osToken', () => {
       [{ vault: vault.address, reward: penalty, unlockedMevReward }],
       0
     )
-    await vault.connect(owner).mintOsToken(owner.address, osTokenShares, ZERO_ADDRESS)
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
       rewardsRoot: tree.root,
       reward: penalty,
@@ -139,7 +145,7 @@ describe('EthVault - redeem osToken', () => {
   it('calculates redeem correctly', async () => {
     expect(await osToken.balanceOf(redeemer.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(osTokenShares)
-    expect(await vault.balanceOf(owner.address)).to.be.eq(shares)
+    expect(await vault.getShares(owner.address)).to.be.eq(shares)
 
     const balanceBefore = await waffle.provider.getBalance(receiver.address)
     const redeemedAssets = await osToken.convertToAssets(redeemedShares)
@@ -151,7 +157,7 @@ describe('EthVault - redeem osToken', () => {
 
     expect(await osToken.balanceOf(redeemer.address)).to.eq(osTokenShares.sub(redeemedShares))
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(osTokenShares.sub(redeemedShares))
-    expect(await vault.balanceOf(owner.address)).to.be.eq(shares.sub(burnedShares))
+    expect(await vault.getShares(owner.address)).to.be.eq(shares.sub(burnedShares))
     expect(await waffle.provider.getBalance(receiver.address)).to.eq(
       balanceBefore.add(redeemedAssets)
     )

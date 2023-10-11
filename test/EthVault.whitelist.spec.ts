@@ -141,7 +141,7 @@ describe('EthVault - whitelist', () => {
       const receipt = await vault
         .connect(sender)
         .deposit(sender.address, referrer, { value: amount })
-      expect(await vault.balanceOf(sender.address)).to.eq(amount)
+      expect(await vault.getShares(sender.address)).to.eq(amount)
 
       await expect(receipt)
         .to.emit(vault, 'Deposited')
@@ -170,7 +170,7 @@ describe('EthVault - whitelist', () => {
       const expectedShares = parseEther('100')
       expect(await vault.convertToShares(amount)).to.eq(expectedShares)
       const receipt = await depositorMock.connect(sender).depositToVault({ value: amount })
-      expect(await vault.balanceOf(depositorMock.address)).to.eq(expectedShares)
+      expect(await vault.getShares(depositorMock.address)).to.eq(expectedShares)
 
       await expect(receipt)
         .to.emit(vault, 'Deposited')

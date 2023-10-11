@@ -8,6 +8,7 @@ import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {Errors} from '../libraries/Errors.sol';
 import {IERC20} from '../interfaces/IERC20.sol';
 import {IOsToken} from '../interfaces/IOsToken.sol';
+import {IOsTokenChecker} from '../interfaces/IOsTokenChecker.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {ERC20} from '../base/ERC20.sol';
@@ -21,7 +22,8 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   uint256 private constant _wad = 1e18;
   uint256 private constant _maxFeePercent = 10_000; // @dev 100.00 %
 
-  IVaultsRegistry private immutable _vaultsRegistry;
+  /// @inheritdoc IOsToken
+  address public override checker;
 
   /// @inheritdoc IOsToken
   address public override keeper;
@@ -31,9 +33,6 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   uint256 public override avgRewardPerSecond;
-
-  /// @inheritdoc IOsToken
-  mapping(address => bool) public override vaultImplementations;
 
   /// @inheritdoc IOsToken
   address public override treasury;
@@ -50,7 +49,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   /**
    * @dev Constructor
    * @param _keeper The address of the Keeper contract
-   * @param vaultsRegistry The address of the VaultsRegistry contract
+   * @param _checker The address of the OsTokenChecker contract
    * @param _treasury The address of the DAO treasury
    * @param _feePercent The fee percent applied on the rewards
    * @param _capacity The amount after which the osToken stops accepting deposits
@@ -59,7 +58,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
    */
   constructor(
     address _keeper,
-    address vaultsRegistry,
+    address _checker,
     address _treasury,
     uint16 _feePercent,
     uint256 _capacity,
@@ -67,7 +66,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     string memory _symbol
   ) ERC20(_name, _symbol) Ownable2Step() {
     keeper = _keeper;
-    _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
+    checker = _checker;
     _lastUpdateTimestamp = uint64(block.timestamp);
 
     setCapacity(_capacity);
@@ -101,12 +100,9 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function mintShares(address receiver, uint256 shares) external override returns (uint256 assets) {
+    if (!IOsTokenChecker(checker).canMintShares(msg.sender)) revert Errors.AccessDenied();
     if (receiver == address(0)) revert Errors.ZeroAddress();
     if (shares == 0) revert Errors.InvalidShares();
-    if (
-      !(_vaultsRegistry.vaults(msg.sender) &&
-        vaultImplementations[IVaultVersion(msg.sender).implementation()])
-    ) revert Errors.AccessDenied();
 
     // pull accumulated rewards
     updateState();
@@ -133,8 +129,8 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function burnShares(address owner, uint256 shares) external override returns (uint256 assets) {
+    if (!IOsTokenChecker(checker).canBurnShares(msg.sender)) revert Errors.AccessDenied();
     if (shares == 0) revert Errors.InvalidShares();
-    if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.AccessDenied();
 
     // pull accumulated rewards
     updateState();
@@ -185,17 +181,6 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
   }
 
   /// @inheritdoc IOsToken
-  function setVaultImplementation(
-    address implementation,
-    bool isSupported
-  ) external override onlyOwner {
-    if (implementation == address(0)) revert Errors.ZeroAddress();
-
-    vaultImplementations[implementation] = isSupported;
-    emit VaultImplementationUpdated(implementation, isSupported);
-  }
-
-  /// @inheritdoc IOsToken
   function setAvgRewardPerSecond(uint256 _avgRewardPerSecond) external override {
     if (msg.sender != keeper) revert Errors.AccessDenied();
 
@@ -210,6 +195,14 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
     keeper = _keeper;
     emit KeeperUpdated(_keeper);
+  }
+
+  /// @inheritdoc IOsToken
+  function setChecker(address _checker) external override onlyOwner {
+    if (_checker == address(0)) revert Errors.ZeroAddress();
+
+    checker = _checker;
+    emit CheckerUpdated(_checker);
   }
 
   /// @inheritdoc IOsToken
@@ -250,9 +243,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
     // check whether any profit accrued
     if (profitAccrued == 0) {
-      // SLOAD to memory
-      uint256 lastUpdateTimestamp = _lastUpdateTimestamp;
-      if (lastUpdateTimestamp != block.timestamp) {
+      if (_lastUpdateTimestamp != block.timestamp) {
         _lastUpdateTimestamp = uint64(block.timestamp);
       }
       return;

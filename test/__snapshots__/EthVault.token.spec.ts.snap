@@ -31,14 +31,14 @@ Object {
 exports[`EthVault - token approve increase allowance when the spender is not the zero address when the sender does not have enough balance when the spender had an approved amount increases the spender allowance adding the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 34267,
+  "gasUsed": 34245,
 }
 `;
 
 exports[`EthVault - token approve increase allowance when the spender is not the zero address when the sender does not have enough balance when there was no approved amount before approves the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 51367,
+  "gasUsed": 51345,
 }
 `;
 
@@ -59,21 +59,21 @@ Object {
 exports[`EthVault - token permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 82558,
+  "gasUsed": 82502,
 }
 `;
 
 exports[`EthVault - token transfer from when the spender has enough allowance when the token owner has enough balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 54850,
+  "gasUsed": 54828,
 }
 `;
 
 exports[`EthVault - token transfer from when the spender has unlimited allowance does not decrease the spender allowance 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 61326,
+  "gasUsed": 61304,
 }
 `;
 

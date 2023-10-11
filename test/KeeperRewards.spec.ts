@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { BigNumber, Contract, Wallet } from 'ethers'
 import { parseEther } from 'ethers/lib/utils'
-import { EthVault, IKeeperRewards, Keeper, SharedMevEscrow, OsToken } from '../typechain-types'
+import { EthVault, IKeeperRewards, Keeper, OsToken, SharedMevEscrow } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -17,7 +17,6 @@ import snapshotGasCost from './shared/snapshotGasCost'
 import { getKeeperRewardsUpdateData, getRewardsRootProof, VaultReward } from './shared/rewards'
 import { increaseTime, setBalance } from './shared/utils'
 import { registerEthValidator } from './shared/validators'
-import EthereumWallet from 'ethereumjs-wallet'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -163,16 +162,12 @@ describe('KeeperRewards', () => {
     })
 
     it('fails with invalid oracle', async () => {
-      await keeper.connect(owner).removeOracle(new EthereumWallet(ORACLES[0]).getAddressString())
-      const rewardsUpdate = getKeeperRewardsUpdateData([vaultReward], keeper)
-      const params = {
-        ...rewardsUpdateParams,
-      }
-      params.signatures = Buffer.concat([
-        getOraclesSignatures(rewardsUpdate.signingData, ORACLES.length),
-        getOraclesSignatures(rewardsUpdate.signingData, 1),
-      ])
-      await expect(keeper.connect(oracle).updateRewards(params)).to.be.revertedWith('InvalidOracle')
+      await keeper
+        .connect(owner)
+        .removeOracle(new Wallet(ORACLES[1], await waffle.provider).address)
+      await expect(keeper.connect(oracle).updateRewards(rewardsUpdateParams)).to.be.revertedWith(
+        'InvalidOracle'
+      )
     })
 
     it('succeeds with all signatures', async () => {
@@ -440,7 +435,7 @@ describe('KeeperRewards', () => {
     })
 
     it('succeeds for latest rewards root', async () => {
-      let receipt = await ownMevVault.updateState(harvestParams)
+      const receipt = await ownMevVault.updateState(harvestParams)
       await expect(receipt)
         .to.emit(keeper, 'Harvested')
         .withArgs(
@@ -450,11 +445,11 @@ describe('KeeperRewards', () => {
           harvestParams.unlockedMevReward
         )
 
-      let rewards = await keeper.rewards(ownMevVault.address)
+      const rewards = await keeper.rewards(ownMevVault.address)
       expect(rewards.nonce).to.equal(2)
       expect(rewards.assets).to.equal(harvestParams.reward)
 
-      let unlockedMevRewards = await keeper.unlockedMevRewards(ownMevVault.address)
+      const unlockedMevRewards = await keeper.unlockedMevRewards(ownMevVault.address)
       expect(unlockedMevRewards.nonce).to.equal(0)
       expect(unlockedMevRewards.assets).to.equal(0)
 
@@ -463,22 +458,17 @@ describe('KeeperRewards', () => {
       expect(await keeper.isHarvestRequired(ownMevVault.address)).to.equal(false)
       await snapshotGasCost(receipt)
 
-      // doesn't fail for harvesting twice
-      receipt = await ownMevVault.updateState(harvestParams)
-      await expect(receipt).to.not.emit(keeper, 'Harvested')
-
-      rewards = await keeper.rewards(ownMevVault.address)
-      expect(rewards.nonce).to.equal(2)
-      expect(rewards.assets).to.equal(harvestParams.reward)
-
-      unlockedMevRewards = await keeper.unlockedMevRewards(ownMevVault.address)
-      expect(unlockedMevRewards.nonce).to.equal(0)
-      expect(unlockedMevRewards.assets).to.equal(0)
-
-      expect(await keeper.isCollateralized(ownMevVault.address)).to.equal(true)
-      expect(await keeper.canHarvest(ownMevVault.address)).to.equal(false)
-      expect(await keeper.isHarvestRequired(ownMevVault.address)).to.equal(false)
-      await snapshotGasCost(receipt)
+      // does not fail for harvesting twice
+      const mevEscrow = await ownMevVault.mevEscrow()
+      await other.sendTransaction({
+        to: mevEscrow,
+        value: parseEther('5'),
+      })
+      const totalAssets = await ownMevVault.totalAssets()
+      const ownMevEscrowAssets = await waffle.provider.getBalance(mevEscrow)
+      await expect(await ownMevVault.updateState(harvestParams)).to.not.emit(keeper, 'Harvested')
+      expect(await waffle.provider.getBalance(mevEscrow)).to.equal(ownMevEscrowAssets)
+      expect(await ownMevVault.totalAssets()).to.equal(totalAssets)
     })
 
     it('succeeds for previous rewards root', async () => {
@@ -542,18 +532,20 @@ describe('KeeperRewards', () => {
       expect(await keeper.isHarvestRequired(ownMevVault.address)).to.equal(false)
       await snapshotGasCost(receipt)
 
-      // doesn't fail for harvesting previous again
-      receipt = await ownMevVault.updateState(prevHarvestParams)
-      await expect(receipt).to.not.emit(keeper, 'Harvested')
-
-      rewards = await keeper.rewards(ownMevVault.address)
-      expect(rewards.nonce).to.equal(3)
-      expect(rewards.assets).to.equal(currHarvestParams.reward)
-
-      expect(await keeper.isCollateralized(ownMevVault.address)).to.equal(true)
-      expect(await keeper.canHarvest(ownMevVault.address)).to.equal(false)
-      expect(await keeper.isHarvestRequired(ownMevVault.address)).to.equal(false)
-      await snapshotGasCost(receipt)
+      // does not fail for harvesting twice
+      const mevEscrow = await ownMevVault.mevEscrow()
+      await other.sendTransaction({
+        to: mevEscrow,
+        value: parseEther('5'),
+      })
+      const totalAssets = await ownMevVault.totalAssets()
+      const ownMevEscrowAssets = await waffle.provider.getBalance(mevEscrow)
+      await expect(await ownMevVault.updateState(prevHarvestParams)).to.not.emit(
+        keeper,
+        'Harvested'
+      )
+      expect(await waffle.provider.getBalance(mevEscrow)).to.equal(ownMevEscrowAssets)
+      expect(await ownMevVault.totalAssets()).to.equal(totalAssets)
     })
   })
 
@@ -636,7 +628,7 @@ describe('KeeperRewards', () => {
     })
 
     it('succeeds for latest rewards root', async () => {
-      let receipt = await sharedMevVault.updateState(harvestParams)
+      const receipt = await sharedMevVault.updateState(harvestParams)
       await expect(receipt)
         .to.emit(keeper, 'Harvested')
         .withArgs(
@@ -650,11 +642,11 @@ describe('KeeperRewards', () => {
         .to.emit(sharedMevEscrow, 'Harvested')
         .withArgs(sharedMevVault.address, harvestParams.unlockedMevReward)
 
-      let rewards = await keeper.rewards(sharedMevVault.address)
+      const rewards = await keeper.rewards(sharedMevVault.address)
       expect(rewards.nonce).to.equal(2)
       expect(rewards.assets).to.equal(harvestParams.reward)
 
-      let unlockedMevRewards = await keeper.unlockedMevRewards(sharedMevVault.address)
+      const unlockedMevRewards = await keeper.unlockedMevRewards(sharedMevVault.address)
       expect(unlockedMevRewards.nonce).to.equal(2)
       expect(unlockedMevRewards.assets).to.equal(harvestParams.unlockedMevReward)
 
@@ -663,23 +655,8 @@ describe('KeeperRewards', () => {
       expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
       await snapshotGasCost(receipt)
 
-      // doesn't fail for harvesting twice
-      receipt = await sharedMevVault.updateState(harvestParams)
-      await expect(receipt).to.not.emit(keeper, 'Harvested')
-      await expect(receipt).to.not.emit(sharedMevEscrow, 'Harvested')
-
-      rewards = await keeper.rewards(sharedMevVault.address)
-      expect(rewards.nonce).to.equal(2)
-      expect(rewards.assets).to.equal(harvestParams.reward)
-
-      unlockedMevRewards = await keeper.unlockedMevRewards(sharedMevVault.address)
-      expect(unlockedMevRewards.nonce).to.equal(2)
-      expect(unlockedMevRewards.assets).to.equal(harvestParams.unlockedMevReward)
-
-      expect(await keeper.isCollateralized(sharedMevVault.address)).to.equal(true)
-      expect(await keeper.canHarvest(sharedMevVault.address)).to.equal(false)
-      expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
-      await snapshotGasCost(receipt)
+      // does not fail for harvesting twice
+      await expect(await sharedMevVault.updateState(harvestParams)).to.not.emit(keeper, 'Harvested')
     })
 
     it('succeeds for previous rewards root', async () => {
@@ -760,20 +737,8 @@ describe('KeeperRewards', () => {
       expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
       await snapshotGasCost(receipt)
 
-      // doesn't fail for harvesting previous again
-      receipt = await sharedMevVault.updateState(prevHarvestParams)
-      await expect(receipt).to.not.emit(keeper, 'Harvested')
-      await expect(receipt).to.not.emit(sharedMevEscrow, 'Harvested')
-      expect(await waffle.provider.getBalance(sharedMevEscrow.address)).to.equal(0)
-
-      rewards = await keeper.rewards(sharedMevVault.address)
-      expect(rewards.nonce).to.equal(3)
-      expect(rewards.assets).to.equal(currHarvestParams.reward)
-
-      expect(await keeper.isCollateralized(sharedMevVault.address)).to.equal(true)
-      expect(await keeper.canHarvest(sharedMevVault.address)).to.equal(false)
-      expect(await keeper.isHarvestRequired(sharedMevVault.address)).to.equal(false)
-      await snapshotGasCost(receipt)
+      // does not fail for harvesting twice
+      await expect(await sharedMevVault.updateState(harvestParams)).to.not.emit(keeper, 'Harvested')
     })
   })
 

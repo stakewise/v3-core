@@ -96,19 +96,6 @@
   },
   {
     "inputs": [],
-    "name": "canUpdateExitQueue",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "capacity",
     "outputs": [
       {
@@ -185,6 +172,25 @@
     "type": "function"
   },
   {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "account",
+        "type": "address"
+      }
+    ],
+    "name": "getShares",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [],
     "name": "isStateUpdateRequired",
     "outputs": [
@@ -202,9 +208,9 @@
     "name": "queuedShares",
     "outputs": [
       {
-        "internalType": "uint96",
+        "internalType": "uint128",
         "name": "",
-        "type": "uint96"
+        "type": "uint128"
       }
     ],
     "stateMutability": "view",
@@ -239,6 +245,19 @@
   {
     "inputs": [],
     "name": "totalAssets",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "totalShares",
     "outputs": [
       {
         "internalType": "uint256",

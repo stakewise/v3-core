@@ -60,7 +60,10 @@ library ExitQueue {
       if (_unsafeAccess(self.checkpoints, mid).totalTickets > positionTicket) {
         high = mid;
       } else {
-        low = mid + 1;
+        unchecked {
+          // cannot underflow as mid < high
+          low = mid + 1;
+        }
       }
     }
     return high;
@@ -124,8 +127,10 @@ library ExitQueue {
         // cannot overflow as it is capped with underlying asset total supply
         burnedShares += sharesDelta;
         exitedAssets += Math.mulDiv(sharesDelta, checkpointAssets, checkpointShares);
+
+        // cannot overflow as checkpoints are created max once per day
+        checkpointIdx++;
       }
-      checkpointIdx++;
 
       // stop when required shares collected or reached end of checkpoints list
       if (positionShares <= burnedShares || checkpointIdx >= length) {

@@ -1,15 +1,15 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`EthVault - multicall can update state, redeem and queue for exit 1`] = `
+exports[`EthVault - multicall can update state and queue for exit 1`] = `
 Object {
-  "calldataByteLength": 676,
-  "gasUsed": 183837,
+  "calldataByteLength": 516,
+  "gasUsed": 164156,
 }
 `;
 
-exports[`EthVault - multicall can update state, redeem and queue for exit 2`] = `
+exports[`EthVault - multicall can update state and queue for exit 2`] = `
 Object {
-  "calldataByteLength": 516,
-  "gasUsed": 131201,
+  "calldataByteLength": 548,
+  "gasUsed": 137770,
 }
 `;

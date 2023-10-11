@@ -44,7 +44,6 @@ describe('EthVault - mint', () => {
       vaultsRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
-    await osToken.connect(owner).setVaultImplementation(await vault.implementation(), true)
 
     // collateralize vault
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
@@ -120,13 +119,6 @@ describe('EthVault - mint', () => {
   it('cannot enter exit queue when LTV is violated', async () => {
     await vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
     await expect(vault.connect(sender).enterExitQueue(assets, receiver.address)).to.be.revertedWith(
-      'LowLtv'
-    )
-  })
-
-  it('cannot redeem when LTV is violated', async () => {
-    await vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
-    await expect(vault.connect(sender).redeem(assets, receiver.address)).to.be.revertedWith(
       'LowLtv'
     )
   })

@@ -5,7 +5,7 @@ import { EthVault, EthVaultV2Mock, VaultsRegistry } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { MAX_UINT256, ZERO_ADDRESS } from './shared/constants'
+import { EXITING_ASSETS_MIN_DELAY, MAX_UINT256, ZERO_ADDRESS } from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -48,6 +48,7 @@ describe('EthVault - upgrade', () => {
         fixture.osToken.address,
         fixture.osTokenConfig.address,
         fixture.sharedMevEscrow.address,
+        EXITING_ASSETS_MIN_DELAY,
       ],
     })) as string
     currImpl = await vault.implementation()
@@ -101,6 +102,7 @@ describe('EthVault - upgrade', () => {
         fixture.osToken.address,
         fixture.osTokenConfig.address,
         fixture.sharedMevEscrow.address,
+        EXITING_ASSETS_MIN_DELAY,
       ],
     })) as string
     callData = defaultAbiCoder.encode(['uint128'], [100])
@@ -122,6 +124,7 @@ describe('EthVault - upgrade', () => {
         fixture.osToken.address,
         fixture.osTokenConfig.address,
         fixture.sharedMevEscrow.address,
+        EXITING_ASSETS_MIN_DELAY,
       ],
     })) as string
     callData = defaultAbiCoder.encode(['uint128'], [100])

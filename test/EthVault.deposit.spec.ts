@@ -55,7 +55,7 @@ describe('EthVault - deposit', () => {
   describe('empty vault: no assets & no shares', () => {
     it('status', async () => {
       expect(await vault.totalAssets()).to.equal(SECURITY_DEPOSIT)
-      expect(await vault.totalSupply()).to.equal(SECURITY_DEPOSIT)
+      expect(await vault.totalShares()).to.equal(SECURITY_DEPOSIT)
     })
 
     it('deposit', async () => {
@@ -64,7 +64,7 @@ describe('EthVault - deposit', () => {
       const receipt = await vault
         .connect(sender)
         .deposit(receiver.address, referrer, { value: amount })
-      expect(await vault.balanceOf(receiver.address)).to.eq(amount)
+      expect(await vault.getShares(receiver.address)).to.eq(amount)
 
       await expect(receipt)
         .to.emit(vault, 'Deposited')
@@ -188,7 +188,7 @@ describe('EthVault - deposit', () => {
       const receipt = await vault
         .connect(sender)
         .deposit(receiver.address, referrer, { value: amount })
-      expect(await vault.balanceOf(receiver.address)).to.eq(expectedShares)
+      expect(await vault.getShares(receiver.address)).to.eq(expectedShares)
 
       await expect(receipt)
         .to.emit(vault, 'Deposited')
@@ -205,7 +205,7 @@ describe('EthVault - deposit', () => {
       expect(await vault.convertToShares(amount)).to.eq(expectedShares)
 
       const receipt = await depositorMock.connect(sender).depositToVault({ value: amount })
-      expect(await vault.balanceOf(depositorMock.address)).to.eq(expectedShares)
+      expect(await vault.getShares(depositorMock.address)).to.eq(expectedShares)
 
       await expect(receipt)
         .to.emit(vault, 'Deposited')

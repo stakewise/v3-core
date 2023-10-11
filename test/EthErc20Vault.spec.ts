@@ -1,7 +1,7 @@
 import { ethers, waffle } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
-import { EthErc20Vault, Keeper, OsToken } from '../typechain-types'
+import { EthErc20Vault, Keeper } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -22,7 +22,7 @@ describe('EthErc20Vault', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const referrer = '0x' + '1'.repeat(40)
   let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Wallet
-  let vault: EthErc20Vault, keeper: Keeper, osToken: OsToken, validatorsRegistry: Contract
+  let vault: EthErc20Vault, keeper: Keeper, validatorsRegistry: Contract
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
 
@@ -42,7 +42,6 @@ describe('EthErc20Vault', () => {
     })
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
-    osToken = fixture.osToken
   })
 
   it('has id', async () => {
@@ -165,7 +164,6 @@ describe('EthErc20Vault', () => {
   })
 
   it('cannot transfer vault shares when unharvested', async () => {
-    await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const assets = parseEther('2')
     const osTokenShares = parseEther('1')
@@ -184,7 +182,6 @@ describe('EthErc20Vault', () => {
   })
 
   it('cannot transfer vault shares when LTV is violated', async () => {
-    await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const assets = parseEther('2')
     const osTokenShares = parseEther('1')

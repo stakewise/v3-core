@@ -20,6 +20,7 @@ library Errors {
   error InvalidFeePercent();
   error NotHarvested();
   error NotCollateralized();
+  error Collateralized();
   error InvalidProof();
   error LowLtv();
   error RedemptionExceeded();
@@ -52,4 +53,6 @@ library Errors {
   error InvalidCheckpointIndex();
   error InvalidCheckpointValue();
   error MaxOraclesExceeded();
+  error NegativeAssetsDelta();
+  error ClaimTooEarly();
 }

@@ -1,11 +1,19 @@
 import { ethers, upgrades, waffle } from 'hardhat'
 import { BigNumber, Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
-import { EthGenesisVault, PoolEscrowMock, Keeper, RewardEthTokenMock } from '../typechain-types'
+import { EthGenesisVault, Keeper, PoolEscrowMock, RewardEthTokenMock } from '../typechain-types'
 import { createPoolEscrow, ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
 import keccak256 from 'keccak256'
-import { ONE_DAY, ORACLES, SECURITY_DEPOSIT, ZERO_ADDRESS, ZERO_BYTES32 } from './shared/constants'
+import {
+  EXITING_ASSETS_MIN_DELAY,
+  ONE_DAY,
+  ORACLES,
+  SECURITY_DEPOSIT,
+  VALIDATORS_DEADLINE,
+  ZERO_ADDRESS,
+  ZERO_BYTES32,
+} from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
 import {
   createEthValidatorsData,
@@ -15,7 +23,12 @@ import {
   registerEthValidator,
 } from './shared/validators'
 import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
-import { increaseTime, setBalance } from './shared/utils'
+import {
+  extractExitPositionTicket,
+  getBlockTimestamp,
+  increaseTime,
+  setBalance,
+} from './shared/utils'
 
 const createFixtureLoader = waffle.createFixtureLoader
 
@@ -23,6 +36,7 @@ describe('EthGenesisVault', () => {
   const capacity = parseEther('1000')
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
+  const deadline = VALIDATORS_DEADLINE
   let dao: Wallet, admin: Wallet, other: Wallet
   let vault: EthGenesisVault, keeper: Keeper, validatorsRegistry: Contract
   let poolEscrow: PoolEscrowMock
@@ -56,6 +70,7 @@ describe('EthGenesisVault', () => {
         fixture.sharedMevEscrow.address,
         poolEscrow.address,
         rewardEthToken.address,
+        EXITING_ASSETS_MIN_DELAY,
       ],
     })
     vault = (await proxy.deployed()) as EthGenesisVault
@@ -77,7 +92,6 @@ describe('EthGenesisVault', () => {
     expect(await vault.mevEscrow()).to.be.eq(fixture.sharedMevEscrow.address)
 
     await fixture.vaultsRegistry.connect(dao).addVault(vault.address)
-    await fixture.osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
   })
 
   it('initializes correctly', async () => {
@@ -123,6 +137,7 @@ describe('EthGenesisVault', () => {
     })
 
     it('fails with zero receiver', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       const assets = parseEther('1')
       await expect(
         rewardEthToken.connect(other).migrate(ZERO_ADDRESS, assets, assets)
@@ -130,9 +145,17 @@ describe('EthGenesisVault', () => {
     })
 
     it('fails with zero assets', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       await expect(rewardEthToken.connect(other).migrate(other.address, 0, 0)).to.be.revertedWith(
         'InvalidAssets'
       )
+    })
+
+    it('fails when not collateralized', async () => {
+      const assets = parseEther('1')
+      await expect(
+        rewardEthToken.connect(other).migrate(other.address, assets, assets)
+      ).to.be.revertedWith('NotCollateralized')
     })
 
     it('fails when not harvested', async () => {
@@ -158,12 +181,13 @@ describe('EthGenesisVault', () => {
     })
 
     it('migrates from rewardEthToken', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       const assets = parseEther('10')
       const expectedShares = parseEther('10')
       expect(await vault.convertToShares(assets)).to.eq(expectedShares)
 
       const receipt = await rewardEthToken.connect(other).migrate(other.address, assets, 0)
-      expect(await vault.balanceOf(other.address)).to.eq(expectedShares)
+      expect(await vault.getShares(other.address)).to.eq(expectedShares)
 
       await expect(receipt)
         .to.emit(vault, 'Migrated')
@@ -173,26 +197,44 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on claim exited assets', async () => {
-    const data = await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
-    const harvestData = { rewardsRoot: data[0], reward: 0, unlockedMevReward: 0, proof: data[1] }
+    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
 
     const shares = parseEther('10')
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: shares })
 
     await setBalance(vault.address, BigNumber.from(0))
-    const positionTicket = await vault
-      .connect(other)
-      .callStatic.enterExitQueue(shares, other.address)
-    await vault.connect(other).enterExitQueue(shares, other.address)
+    const response = await vault.connect(other).enterExitQueue(shares, other.address)
+    const receipt = await response.wait()
+    const positionTicket = extractExitPositionTicket(receipt)
+    const timestamp = await getBlockTimestamp(receipt)
 
     await setBalance(poolEscrow.address, shares)
     expect(await vault.withdrawableAssets()).to.eq(0)
 
     await increaseTime(ONE_DAY)
-    await vault.updateState(harvestData)
+    const tree = await updateRewards(keeper, [
+      {
+        reward: 0,
+        unlockedMevReward: 0,
+        vault: vault.address,
+      },
+    ])
+    const proof = getRewardsRootProof(tree, {
+      vault: vault.address,
+      unlockedMevReward: 0,
+      reward: 0,
+    })
+    await vault.updateState({
+      rewardsRoot: tree.root,
+      reward: 0,
+      unlockedMevReward: 0,
+      proof,
+    })
     const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
 
-    const tx = await vault.connect(other).claimExitedAssets(positionTicket, exitQueueIndex)
+    const tx = await vault
+      .connect(other)
+      .claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
     await expect(tx).to.emit(poolEscrow, 'Withdrawn').withArgs(vault.address, vault.address, shares)
     await expect(tx)
       .to.emit(vault, 'ExitedAssetsClaimed')
@@ -203,7 +245,7 @@ describe('EthGenesisVault', () => {
 
   it('pulls assets on redeem', async () => {
     const shares = parseEther('10')
-    await rewardEthToken.connect(other).migrate(other.address, shares, shares)
+    await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: shares })
 
     await setBalance(vault.address, BigNumber.from(0))
     await setBalance(poolEscrow.address, shares)
@@ -220,6 +262,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on single validator registration', async () => {
+    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const validatorDeposit = parseEther('32')
     await rewardEthToken.connect(other).migrate(other.address, validatorDeposit, validatorDeposit)
     await setBalance(vault.address, BigNumber.from(0))
@@ -233,6 +276,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on multiple validators registration', async () => {
+    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     const validatorsData = await createEthValidatorsData(vault)
     const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(admin).setValidatorsRoot(validatorsData.root)
@@ -247,8 +291,10 @@ describe('EthGenesisVault', () => {
     const indexes = validators.map((v) => sortedVals.indexOf(v))
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: assets })
     const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
+
     const signingData = getEthValidatorsSigningData(
       Buffer.concat(validators),
+      deadline,
       exitSignaturesIpfsHash,
       keeper,
       vault,
@@ -259,6 +305,7 @@ describe('EthGenesisVault', () => {
       validators: hexlify(Buffer.concat(validators)),
       signatures: getOraclesSignatures(signingData, ORACLES.length),
       exitSignaturesIpfsHash,
+      deadline,
     }
 
     await setBalance(vault.address, BigNumber.from(0))
@@ -279,7 +326,7 @@ describe('EthGenesisVault', () => {
     expect(await vault.convertToShares(amount)).to.eq(expectedShares)
 
     const receipt = await depositorMock.connect(other).depositToVault({ value: amount })
-    expect(await vault.balanceOf(depositorMock.address)).to.eq(expectedShares)
+    expect(await vault.getShares(depositorMock.address)).to.eq(expectedShares)
 
     await expect(receipt)
       .to.emit(vault, 'Deposited')
@@ -324,7 +371,27 @@ describe('EthGenesisVault', () => {
       await snapshotGasCost(receipt)
     })
 
+    it('fails with negative first update', async () => {
+      const totalPenalty = parseEther('-5')
+      const vaultReward = {
+        reward: totalPenalty,
+        unlockedMevReward: 0,
+        vault: vault.address,
+      }
+      const rewardsTree = await updateRewards(keeper, [vaultReward])
+      const proof = getRewardsRootProof(rewardsTree, vaultReward)
+      await expect(
+        vault.updateState({
+          rewardsRoot: rewardsTree.root,
+          reward: vaultReward.reward,
+          unlockedMevReward: vaultReward.unlockedMevReward,
+          proof,
+        })
+      ).to.revertedWith('NegativeAssetsDelta')
+    })
+
     it('splits penalty between rewardEthToken and vault', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       const totalPenalty = parseEther('-5')
       const expectedVaultDelta = totalPenalty
         .mul(totalVaultAssets)

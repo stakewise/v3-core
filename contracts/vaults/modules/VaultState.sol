@@ -20,16 +20,12 @@ import {VaultFee} from './VaultFee.sol';
 abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVaultState {
   using ExitQueue for ExitQueue.History;
 
-  uint256 private constant _exitQueueUpdateDelay = 1 days;
-
   uint128 internal _totalShares;
   uint128 internal _totalAssets;
 
   /// @inheritdoc IVaultState
-  uint96 public override queuedShares;
-
-  uint96 internal _unclaimedAssets;
-  uint64 private _exitQueueNextUpdate;
+  uint128 public override queuedShares;
+  uint128 internal _unclaimedAssets;
 
   ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
@@ -38,8 +34,18 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   uint256 private _capacity;
 
   /// @inheritdoc IVaultState
+  function totalShares() external view override returns (uint256) {
+    return _totalShares;
+  }
+
+  /// @inheritdoc IVaultState
   function totalAssets() external view override returns (uint256) {
     return _totalAssets;
+  }
+
+  /// @inheritdoc IVaultState
+  function getShares(address account) external view override returns (uint256) {
+    return _balances[account];
   }
 
   /// @inheritdoc IVaultState
@@ -49,8 +55,8 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
 
   /// @inheritdoc IVaultState
   function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
-    uint256 totalShares = _totalShares;
-    return (totalShares == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares);
+    uint256 totalShares_ = _totalShares;
+    return (totalShares_ == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares_);
   }
 
   /// @inheritdoc IVaultState
@@ -74,11 +80,6 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   }
 
   /// @inheritdoc IVaultState
-  function canUpdateExitQueue() public view override returns (bool) {
-    return block.timestamp >= _exitQueueNextUpdate;
-  }
-
-  /// @inheritdoc IVaultState
   function isStateUpdateRequired() external view override returns (bool) {
     return IKeeperRewards(_keeper).isHarvestRequired(address(this));
   }
@@ -88,13 +89,13 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     IKeeperRewards.HarvestParams calldata harvestParams
   ) public virtual override {
     // process total assets delta  since last update
-    int256 totalAssetsDelta = _harvestAssets(harvestParams);
+    (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
+
+    // process total assets delta if it has changed
     if (totalAssetsDelta != 0) _processTotalAssetsDelta(totalAssetsDelta);
 
-    // update exit queue
-    if (canUpdateExitQueue()) {
-      _updateExitQueue();
-    }
+    // update exit queue every time new update is harvested
+    if (harvested) _updateExitQueue();
   }
 
   /**
@@ -125,17 +126,17 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     if (feeRecipientAssets == 0) return;
 
     // SLOAD to memory
-    uint256 totalShares = _totalShares;
+    uint256 totalShares_ = _totalShares;
 
     // calculate fee recipient's shares
     uint256 feeRecipientShares;
-    if (totalShares == 0) {
+    if (totalShares_ == 0) {
       feeRecipientShares = feeRecipientAssets;
     } else {
       unchecked {
         feeRecipientShares = Math.mulDiv(
           feeRecipientAssets,
-          totalShares,
+          totalShares_,
           newTotalAssets - feeRecipientAssets
         );
       }
@@ -149,7 +150,9 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   }
 
   /**
-   * @dev Internal function that must be used to process exit queue
+	 * @dev Internal function that must be used to process exit queue
+   * @dev Make sure that sufficient time passed between exit queue updates (at least 1 day).
+          Currently it's restricted by the keeper's harvest interval
    * @return burnedShares The total amount of burned shares
    */
   function _updateExitQueue() internal virtual returns (uint256 burnedShares) {
@@ -169,13 +172,9 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     burnedShares = convertToShares(exitedAssets);
     if (burnedShares == 0) return 0;
 
-    queuedShares = SafeCast.toUint96(_queuedShares - burnedShares);
-    _unclaimedAssets = SafeCast.toUint96(unclaimedAssets + exitedAssets);
-
-    unchecked {
-      // cannot overflow on human timescales
-      _exitQueueNextUpdate = uint64(block.timestamp + _exitQueueUpdateDelay);
-    }
+    // update queued shares and unclaimed assets
+    queuedShares = SafeCast.toUint128(_queuedShares - burnedShares);
+    _unclaimedAssets = SafeCast.toUint128(unclaimedAssets + exitedAssets);
 
     // push checkpoint so that exited assets could be claimed
     _exitQueue.push(burnedShares, exitedAssets);
@@ -226,25 +225,26 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     uint256 assets,
     Math.Rounding rounding
   ) internal view returns (uint256 shares) {
-    uint256 totalShares = _totalShares;
+    uint256 totalShares_ = _totalShares;
     // Will revert if assets > 0, totalShares > 0 and _totalAssets = 0.
     // That corresponds to a case where any asset would represent an infinite amount of shares.
     return
-      (assets == 0 || totalShares == 0)
+      (assets == 0 || totalShares_ == 0)
         ? assets
-        : Math.mulDiv(assets, totalShares, _totalAssets, rounding);
+        : Math.mulDiv(assets, totalShares_, _totalAssets, rounding);
   }
 
   /**
    * @dev Internal function for harvesting Vaults' new assets
    * @return The total assets delta after harvest
+   * @return `true` when the rewards were harvested, `false` otherwise
    */
   function _harvestAssets(
     IKeeperRewards.HarvestParams calldata harvestParams
-  ) internal virtual returns (int256);
+  ) internal virtual returns (int256, bool);
 
   /**
-   * @dev Internal function for retrieving the total assets stored in the Vault.
+	 * @dev Internal function for retrieving the total assets stored in the Vault.
           NB! Assets can be forcibly sent to the vault, the returned value must be used with caution
    * @return The total amount of assets stored in the Vault
    */

@@ -40,7 +40,7 @@ abstract contract VaultToken is Initializable, ERC20Upgradeable, VaultState, IVa
   /// @inheritdoc VaultState
   function _updateExitQueue() internal virtual override returns (uint256 burnedShares) {
     burnedShares = super._updateExitQueue();
-    if (burnedShares > 0) emit Transfer(address(this), address(0), burnedShares);
+    if (burnedShares != 0) emit Transfer(address(this), address(0), burnedShares);
   }
 
   /// @inheritdoc ERC20Upgradeable

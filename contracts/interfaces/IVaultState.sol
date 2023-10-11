@@ -33,6 +33,12 @@ interface IVaultState is IVaultFee {
   function totalAssets() external view returns (uint256);
 
   /**
+   * @notice Function for retrieving total shares
+   * @return The amount of shares in existence
+   */
+  function totalShares() external view returns (uint256);
+
+  /**
    * @notice The Vault's capacity
    * @return The amount after which the Vault stops accepting deposits
    */
@@ -48,7 +54,14 @@ interface IVaultState is IVaultFee {
    * @notice Queued Shares
    * @return The total number of shares queued for exit
    */
-  function queuedShares() external view returns (uint96);
+  function queuedShares() external view returns (uint128);
+
+  /**
+   * @notice Returns the number of shares held by an account
+   * @param account The account for which to look up the number of shares it has, i.e. its balance
+   * @return The number of shares held by the account
+   */
+  function getShares(address account) external view returns (uint256);
 
   /**
    * @notice Converts shares to assets
@@ -63,12 +76,6 @@ interface IVaultState is IVaultFee {
    * @return assets The amount of assets that the Vault would exchange for the amount of shares provided
    */
   function convertToAssets(uint256 shares) external view returns (uint256 assets);
-
-  /**
-   * @notice Check whether exit queue can be updated
-   * @return `true` if exit queue can be updated, `false` otherwise
-   */
-  function canUpdateExitQueue() external view returns (bool);
 
   /**
    * @notice Check whether state update is required

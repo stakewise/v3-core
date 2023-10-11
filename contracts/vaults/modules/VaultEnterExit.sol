@@ -20,6 +20,20 @@ import {VaultState} from './VaultState.sol';
 abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, IVaultEnterExit {
   using ExitQueue for ExitQueue.History;
 
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  uint256 private immutable _exitingAssetsClaimDelay;
+
+  /**
+   * @dev Constructor
+   * @dev Since the immutable variable value is stored in the bytecode,
+   *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
+   * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
+   */
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor(uint256 exitingAssetsClaimDelay) {
+    _exitingAssetsClaimDelay = exitingAssetsClaimDelay;
+  }
+
   /// @inheritdoc IVaultEnterExit
   function getExitQueueIndex(uint256 positionTicket) external view override returns (int256) {
     uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionTicket);
@@ -31,7 +45,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     uint256 shares,
     address receiver
   ) public virtual override returns (uint256 assets) {
-    _checkHarvested();
+    _checkNotCollateralized();
     if (shares == 0) revert Errors.InvalidShares();
     if (receiver == address(0)) revert Errors.ZeroAddress();
 
@@ -69,14 +83,14 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     positionTicket = _exitQueue.getLatestTotalTickets() + _queuedShares;
 
     // add to the exit requests
-    _exitRequests[keccak256(abi.encode(receiver, positionTicket))] = shares;
+    _exitRequests[keccak256(abi.encode(receiver, block.timestamp, positionTicket))] = shares;
 
     // reverts if owner does not have enough shares
     _balances[msg.sender] -= shares;
 
     unchecked {
       // cannot overflow as it is capped with _totalShares
-      queuedShares = SafeCast.toUint96(_queuedShares + shares);
+      queuedShares = SafeCast.toUint128(_queuedShares + shares);
     }
 
     emit ExitQueueEntered(msg.sender, receiver, positionTicket, shares);
@@ -86,6 +100,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   function calculateExitedAssets(
     address receiver,
     uint256 positionTicket,
+    uint256 timestamp,
     uint256 exitQueueIndex
   )
     public
@@ -93,7 +108,9 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     override
     returns (uint256 leftShares, uint256 claimedShares, uint256 claimedAssets)
   {
-    uint256 requestedShares = _exitRequests[keccak256(abi.encode(receiver, positionTicket))];
+    uint256 requestedShares = _exitRequests[
+      keccak256(abi.encode(receiver, timestamp, positionTicket))
+    ];
 
     // calculate exited shares and assets
     (claimedShares, claimedAssets) = _exitQueue.calculateExitedAssets(
@@ -107,19 +124,22 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   /// @inheritdoc IVaultEnterExit
   function claimExitedAssets(
     uint256 positionTicket,
+    uint256 timestamp,
     uint256 exitQueueIndex
   )
     external
     override
     returns (uint256 newPositionTicket, uint256 claimedShares, uint256 claimedAssets)
   {
-    bytes32 queueId = keccak256(abi.encode(msg.sender, positionTicket));
+    if (block.timestamp < timestamp + _exitingAssetsClaimDelay) revert Errors.ClaimTooEarly();
+    bytes32 queueId = keccak256(abi.encode(msg.sender, timestamp, positionTicket));
 
     // calculate exited shares and assets
     uint256 leftShares;
     (leftShares, claimedShares, claimedAssets) = calculateExitedAssets(
       msg.sender,
       positionTicket,
+      timestamp,
       exitQueueIndex
     );
     // nothing to claim
@@ -132,11 +152,11 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     if (leftShares > 1) {
       // update user's queue position
       newPositionTicket = positionTicket + claimedShares;
-      _exitRequests[keccak256(abi.encode(msg.sender, newPositionTicket))] = leftShares;
+      _exitRequests[keccak256(abi.encode(msg.sender, timestamp, newPositionTicket))] = leftShares;
     }
 
     // transfer assets to the receiver
-    _unclaimedAssets -= SafeCast.toUint96(claimedAssets);
+    _unclaimedAssets -= SafeCast.toUint128(claimedAssets);
     _transferVaultAssets(msg.sender, claimedAssets);
     emit ExitedAssetsClaimed(msg.sender, positionTicket, newPositionTicket, claimedAssets);
   }

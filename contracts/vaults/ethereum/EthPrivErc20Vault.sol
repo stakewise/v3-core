@@ -30,6 +30,7 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
    * @param osToken The address of the OsToken contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
+   * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
@@ -38,7 +39,8 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
     address _validatorsRegistry,
     address osToken,
     address osTokenConfig,
-    address sharedMevEscrow
+    address sharedMevEscrow,
+    uint256 exitingAssetsClaimDelay
   )
     EthErc20Vault(
       _keeper,
@@ -46,7 +48,8 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
       _validatorsRegistry,
       osToken,
       osTokenConfig,
-      sharedMevEscrow
+      sharedMevEscrow,
+      exitingAssetsClaimDelay
     )
   {}
 

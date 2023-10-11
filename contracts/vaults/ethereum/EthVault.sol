@@ -49,6 +49,7 @@ contract EthVault is
    * @param osToken The address of the OsToken contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
+   * @param exitedAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
@@ -57,9 +58,11 @@ contract EthVault is
     address _validatorsRegistry,
     address osToken,
     address osTokenConfig,
-    address sharedMevEscrow
+    address sharedMevEscrow,
+    uint256 exitedAssetsClaimDelay
   )
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
+    VaultEnterExit(exitedAssetsClaimDelay)
     VaultOsToken(osToken, osTokenConfig)
     VaultMev(sharedMevEscrow)
   {
@@ -73,16 +76,6 @@ contract EthVault is
       IEthVaultFactory(msg.sender).ownMevEscrow(),
       abi.decode(params, (EthVaultInitParams))
     );
-  }
-
-  /// @inheritdoc IEthVault
-  function totalSupply() external view override returns (uint256) {
-    return _totalShares;
-  }
-
-  /// @inheritdoc IEthVault
-  function balanceOf(address account) external view override returns (uint256) {
-    return _balances[account];
   }
 
   /// @inheritdoc IVaultEnterExit

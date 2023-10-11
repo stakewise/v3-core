@@ -1,20 +1,20 @@
 import { network, waffle } from 'hardhat'
-import { BigNumberish, Contract, Wallet } from 'ethers'
-import { parseEther, toUtf8Bytes } from 'ethers/lib/utils'
-import keccak256 from 'keccak256'
+import { BigNumberish, Contract, ethers, Signer, Wallet } from 'ethers'
+import { parseEther } from 'ethers/lib/utils'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
-import { Keeper, EthVault } from '../../typechain-types'
+import { EthVault, IKeeperRewards, Keeper } from '../../typechain-types'
 import {
   EIP712Domain,
+  EXITING_ASSETS_MIN_DELAY,
   KeeperRewardsSig,
   MAX_AVG_REWARD_PER_SECOND,
   ONE_DAY,
+  ORACLES,
   REWARDS_DELAY,
   ZERO_ADDRESS,
 } from './constants'
-import { Buffer } from 'buffer'
 import { registerEthValidator } from './validators'
-import { increaseTime, setBalance } from './utils'
+import { extractExitPositionTicket, getBlockTimestamp, increaseTime, setBalance } from './utils'
 import { getOraclesSignatures } from './fixtures'
 
 export type RewardsTree = StandardMerkleTree<[string, BigNumberish, BigNumberish]>
@@ -69,7 +69,7 @@ export function getKeeperRewardsUpdateData(
       },
       message: {
         rewardsRoot: treeRoot,
-        rewardsIpfsHash: keccak256(Buffer.from(toUtf8Bytes(ipfsHash))),
+        rewardsIpfsHash: ipfsHash,
         avgRewardPerSecond,
         updateTimestamp,
         nonce,
@@ -89,7 +89,10 @@ export async function updateRewards(
     avgRewardPerSecond,
   })
   await increaseTime(REWARDS_DELAY)
-  await keeper.updateRewards({
+  const oracle = new ethers.Wallet(ORACLES[0], waffle.provider)
+  await setBalance(oracle.address, parseEther('2000'))
+
+  await keeper.connect(oracle).updateRewards({
     rewardsRoot: rewardsUpdate.root,
     avgRewardPerSecond: rewardsUpdate.avgRewardPerSecond,
     updateTimestamp: rewardsUpdate.updateTimestamp,
@@ -108,7 +111,7 @@ export async function collateralizeEthVault(
   keeper: Keeper,
   validatorsRegistry: Contract,
   admin: Wallet
-): Promise<[string, string[]]> {
+) {
   const balanceBefore = await waffle.provider.getBalance(vault.address)
   // register validator
   const validatorDeposit = parseEther('32')
@@ -126,20 +129,44 @@ export async function collateralizeEthVault(
   })
 
   // exit validator
-  const positionTicket = await vault
-    .connect(admin)
-    .callStatic.enterExitQueue(validatorDeposit, admin.address)
-  await vault.connect(admin).enterExitQueue(validatorDeposit, admin.address)
+  const response = await vault.connect(admin).enterExitQueue(validatorDeposit, admin.address)
+  const receipt = await response.wait()
+  const positionTicket = extractExitPositionTicket(receipt)
+  const timestamp = await getBlockTimestamp(receipt)
+
+  await increaseTime(EXITING_ASSETS_MIN_DELAY)
   await setBalance(vault.address, validatorDeposit)
 
   await vault.updateState({ rewardsRoot: rewardsTree.root, reward: 0, unlockedMevReward: 0, proof })
 
   // claim exited assets
   const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
-  await vault.connect(admin).claimExitedAssets(positionTicket, exitQueueIndex)
+  await vault.connect(admin).claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
 
   await increaseTime(ONE_DAY)
   await setBalance(vault.address, balanceBefore)
+}
 
-  return [rewardsTree.root, proof]
+export async function setAvgRewardPerSecond(
+  dao: Signer,
+  vault: EthVault,
+  keeper: Keeper,
+  avgRewardPerSecond: number
+) {
+  const tree = await updateRewards(
+    keeper,
+    [{ vault: vault.address, reward: 0, unlockedMevReward: 0 }],
+    avgRewardPerSecond
+  )
+  const harvestParams: IKeeperRewards.HarvestParamsStruct = {
+    rewardsRoot: tree.root,
+    reward: 0,
+    unlockedMevReward: 0,
+    proof: getRewardsRootProof(tree, {
+      vault: vault.address,
+      unlockedMevReward: 0,
+      reward: 0,
+    }),
+  }
+  await vault.connect(dao).updateState(harvestParams)
 }

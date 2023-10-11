@@ -9,7 +9,7 @@ export const NETWORKS: {
     url: process.env.NETWORK_RPC_URL || '',
     chainId: 5,
 
-    governor: '0x1867c96601bc5fE24F685d112314B8F3Fe228D5A',
+    governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     validatorsRegistry: '0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b',
     securityDeposit: 1000000000,
 
@@ -34,7 +34,7 @@ export const NETWORKS: {
     oraclesConfigIpfsHash: 'QmYcJE3hWnrJrLeL56d1gwGZFA3G61cwq7Sc8znWQSFVii',
 
     // OsToken
-    treasury: '0x1867c96601bc5fE24F685d112314B8F3Fe228D5A',
+    treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     osTokenFeePercent: 500,
     osTokenCapacity: parseEther('1000000'),
     osTokenName: 'SW Staked ETH',
@@ -45,18 +45,18 @@ export const NETWORKS: {
     liqBonusPercent: 10100, // 101%
     ltvPercent: 9000, // 90%
 
-    // GenesisEthVault
+    // EthGenesisVault
     genesisVault: {
-      admin: '0x1867c96601bc5fE24F685d112314B8F3Fe228D5A',
+      admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
       poolEscrow: '0x040F15C6b5Bfc5F324eCaB5864C38D4e1EEF4218',
-      stakedEthToken: '0x221D9812823DBAb0F1fB40b0D294D9875980Ac19',
+      rewardEthToken: '0x826f88d423440c305D9096cC1581Ae751eFCAfB0',
       capacity: parseEther('1000000'),
       feePercent: 500,
     },
     priceFeedDescription: 'osETH/ETH',
 
     // Cumulative MerkleDrop
-    liquidityCommittee: '0x1867c96601bc5fE24F685d112314B8F3Fe228D5A',
+    liquidityCommittee: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     swiseToken: '0x0e2497aACec2755d831E4AFDEA25B4ef1B823855',
   },
   [Networks.mainnet]: {
@@ -79,7 +79,7 @@ export const NETWORKS: {
     treasury: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
     osTokenFeePercent: 500,
     osTokenCapacity: parseEther('1000000'),
-    osTokenName: 'SW Staked ETH',
+    osTokenName: 'Staked ETH',
     osTokenSymbol: 'osETH',
 
     // OsTokenConfig
@@ -89,11 +89,11 @@ export const NETWORKS: {
     liqBonusPercent: 10100, // 101%
     ltvPercent: 9000, // 90%
 
-    // GenesisEthVault
+    // EthGenesisVault
     genesisVault: {
       admin: '',
       poolEscrow: '0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079',
-      stakedEthToken: '0xFe2e637202056d30016725477c5da089Ab0A043A',
+      rewardEthToken: '0x20BC832ca081b91433ff6c17f85701B6e92486c5',
       capacity: parseEther('1000000'),
       feePercent: 500,
     },

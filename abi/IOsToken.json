@@ -86,6 +86,19 @@
     "inputs": [
       {
         "indexed": false,
+        "internalType": "address",
+        "name": "checker",
+        "type": "address"
+      }
+    ],
+    "name": "CheckerUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
         "internalType": "uint16",
         "name": "feePercent",
         "type": "uint16"
@@ -199,25 +212,6 @@
       }
     ],
     "name": "TreasuryUpdated",
-    "type": "event"
-  },
-  {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": true,
-        "internalType": "address",
-        "name": "implementation",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "bool",
-        "name": "isSupported",
-        "type": "bool"
-      }
-    ],
-    "name": "VaultImplementationUpdated",
     "type": "event"
   },
   {
@@ -345,6 +339,19 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "checker",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -616,6 +623,19 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "_checker",
+        "type": "address"
+      }
+    ],
+    "name": "setChecker",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint16",
         "name": "_feePercent",
         "type": "uint16"
@@ -648,24 +668,6 @@
       }
     ],
     "name": "setTreasury",
-    "outputs": [],
-    "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "implementation",
-        "type": "address"
-      },
-      {
-        "internalType": "bool",
-        "name": "isSupported",
-        "type": "bool"
-      }
-    ],
-    "name": "setVaultImplementation",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -780,25 +782,6 @@
     "name": "updateState",
     "outputs": [],
     "stateMutability": "nonpayable",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "implementation",
-        "type": "address"
-      }
-    ],
-    "name": "vaultImplementations",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "isSupported",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "view",
     "type": "function"
   }
 ]

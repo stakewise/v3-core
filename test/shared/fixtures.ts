@@ -20,9 +20,11 @@ import {
   RewardSplitterFactory,
   PoolEscrowMock,
   CumulativeMerkleDrop,
+  OsTokenChecker,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
 import {
+  EXITING_ASSETS_MIN_DELAY,
   MAX_AVG_REWARD_PER_SECOND,
   ORACLES,
   ORACLES_CONFIG,
@@ -85,7 +87,7 @@ export const createRewardSplitterFactory = async function (): Promise<RewardSpli
 
 export const createOsToken = async function (
   keeperAddress: string,
-  vaultsRegistry: VaultsRegistry,
+  checker: OsTokenChecker,
   treasury: Wallet,
   feePercent: BigNumberish,
   capacity: BigNumberish,
@@ -95,13 +97,20 @@ export const createOsToken = async function (
   const factory = await ethers.getContractFactory('OsToken')
   return (await factory.deploy(
     keeperAddress,
-    vaultsRegistry.address,
+    checker.address,
     treasury.address,
     feePercent,
     capacity,
     name,
     symbol
   )) as OsToken
+}
+
+export const createOsTokenChecker = async function (
+  vaultsRegistry: VaultsRegistry
+): Promise<OsTokenChecker> {
+  const factory = await ethers.getContractFactory('OsTokenChecker')
+  return (await factory.deploy(vaultsRegistry.address)) as OsTokenChecker
 }
 
 export const createOsTokenConfig = async function (
@@ -233,6 +242,7 @@ interface EthVaultFixture {
   ethPrivErc20VaultFactory: EthVaultFactory
   osToken: OsToken
   osTokenConfig: OsTokenConfig
+  osTokenChecker: OsTokenChecker
 
   createEthVault(
     admin: Wallet,
@@ -273,6 +283,9 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
 
   const sharedMevEscrow = await createSharedMevEscrow(vaultsRegistry)
 
+  // 1. deploy osTokenChecker
+  const osTokenChecker = await createOsTokenChecker(vaultsRegistry)
+
   // 2. calc keeper address
   const [_deployer] = await ethers.getSigners()
   const _keeperAddress = getContractAddress({
@@ -283,7 +296,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
   // 3. deploy ostoken
   const osToken = await createOsToken(
     _keeperAddress,
-    vaultsRegistry,
+    osTokenChecker,
     dao,
     OSTOKEN_FEE,
     OSTOKEN_CAPACITY,
@@ -343,11 +356,12 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
         osToken.address,
         osTokenConfig.address,
         sharedMevEscrow.address,
+        EXITING_ASSETS_MIN_DELAY,
       ],
     })) as string
     const vaultFactory = await createEthVaultFactory(vaultImpl, vaultsRegistry)
     await vaultsRegistry.addFactory(vaultFactory.address)
-    await osToken.setVaultImplementation(vaultImpl, true)
+    await vaultsRegistry.addVaultImpl(vaultImpl)
     factories.push(vaultFactory)
   }
 
@@ -371,6 +385,7 @@ export const ethVaultFixture: Fixture<EthVaultFixture> = async function ([
     ethPrivErc20VaultFactory: factories[4],
     osToken,
     osTokenConfig,
+    osTokenChecker,
     createEthVault: async (
       admin: Wallet,
       vaultParams: EthVaultInitParamsStruct,

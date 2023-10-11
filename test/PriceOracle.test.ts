@@ -36,7 +36,6 @@ describe('PriceFeed', () => {
 
     osToken = fixture.osToken
     priceFeed = await createPriceFeed(osToken, description)
-    await osToken.connect(dao).setVaultImplementation(await vault.implementation(), true)
 
     // collateralize vault
     await collateralizeEthVault(vault, fixture.keeper, fixture.validatorsRegistry, admin)

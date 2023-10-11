@@ -67,7 +67,7 @@ interface IVaultEnterExit is IVaultState {
    * @notice Locks shares to the exit queue. The shares continue earning rewards until they will be burned by the Vault.
    * @param shares The number of shares to lock
    * @param receiver The address that will receive assets upon withdrawal
-   * @return positionTicket The exit queue ticket assigned to the position
+   * @return positionTicket The position ticket of the exit queue
    */
   function enterExitQueue(
     uint256 shares,
@@ -82,15 +82,27 @@ interface IVaultEnterExit is IVaultState {
    */
   function getExitQueueIndex(uint256 positionTicket) external view returns (int256);
 
+  /**
+   * @notice Calculates the number of shares and assets that can be claimed from the exit queue.
+   * @param receiver The address that will receive assets upon withdrawal
+   * @param positionTicket The exit queue ticket received after the `enterExitQueue` call
+   * @param timestamp The timestamp when the shares entered the exit queue
+   * @param exitQueueIndex The exit queue index at which the shares were burned. It can be looked up by calling `getExitQueueIndex`.
+   * @return leftShares The number of shares that are still in the queue
+   * @return claimedShares The number of claimed shares
+   * @return claimedAssets The number of claimed assets
+   */
   function calculateExitedAssets(
     address receiver,
     uint256 positionTicket,
+    uint256 timestamp,
     uint256 exitQueueIndex
   ) external view returns (uint256 leftShares, uint256 claimedShares, uint256 claimedAssets);
 
   /**
    * @notice Claims assets that were withdrawn by the Vault. It can be called only after the `enterExitQueue` call by the `receiver`.
    * @param positionTicket The exit queue ticket received after the `enterExitQueue` call
+   * @param timestamp The timestamp when the shares entered the exit queue
    * @param exitQueueIndex The exit queue index at which the shares were burned. It can be looked up by calling `getExitQueueIndex`.
    * @return newPositionTicket The new exit queue ticket in case not all the shares were burned. Otherwise 0.
    * @return claimedShares The number of shares claimed
@@ -98,11 +110,12 @@ interface IVaultEnterExit is IVaultState {
    */
   function claimExitedAssets(
     uint256 positionTicket,
+    uint256 timestamp,
     uint256 exitQueueIndex
   ) external returns (uint256 newPositionTicket, uint256 claimedShares, uint256 claimedAssets);
 
   /**
-   * @notice Redeems assets from the Vault by utilising what has not been staked yet
+   * @notice Redeems assets from the Vault by utilising what has not been staked yet. Can only be called when vault is not collateralized.
    * @param shares The number of shares to burn
    * @param receiver The address that will receive assets
    * @return assets The number of assets withdrawn

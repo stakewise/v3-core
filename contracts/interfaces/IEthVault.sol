@@ -47,17 +47,4 @@ interface IEthVault is
    * @param params The encoded parameters for initializing the EthVault contract
    */
   function initialize(bytes calldata params) external payable;
-
-  /**
-   * @notice Function for retrieving total shares
-   * @return The amount of shares in existence
-   */
-  function totalSupply() external view returns (uint256);
-
-  /**
-   * @notice Returns the balance of a user
-   * @param account The account for which to look up the number of shares it has, i.e. its balance
-   * @return The number of shares held by the account
-   */
-  function balanceOf(address account) external view returns (uint256);
 }

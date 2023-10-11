@@ -18,7 +18,7 @@ import {KeeperOracles} from './KeeperOracles.sol';
 abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
   bytes32 private constant _rewardsUpdateTypeHash =
     keccak256(
-      'KeeperRewards(bytes32 rewardsRoot,bytes32 rewardsIpfsHash,uint256 avgRewardPerSecond,uint64 updateTimestamp,uint64 nonce)'
+      'KeeperRewards(bytes32 rewardsRoot,string rewardsIpfsHash,uint256 avgRewardPerSecond,uint64 updateTimestamp,uint64 nonce)'
     );
 
   uint256 private immutable _maxAvgRewardPerSecond;
@@ -82,6 +82,7 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
   /// @inheritdoc IKeeperRewards
   function updateRewards(RewardsUpdateParams calldata params) external override {
     if (!canUpdateRewards()) revert Errors.TooEarlyUpdate();
+
     if (params.avgRewardPerSecond > _maxAvgRewardPerSecond) {
       revert Errors.InvalidAvgRewardPerSecond();
     }
@@ -110,7 +111,10 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
     rewardsRoot = params.rewardsRoot;
     // cannot overflow on human timescales
     lastRewardsTimestamp = uint64(block.timestamp);
-    rewardsNonce = nonce + 1;
+    unchecked {
+      // cannot realistically overflow
+      rewardsNonce = nonce + 1;
+    }
 
     _osToken.setAvgRewardPerSecond(params.avgRewardPerSecond);
 
@@ -126,11 +130,9 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
 
   /// @inheritdoc IKeeperRewards
   function canUpdateRewards() public view override returns (bool) {
-    // SLOAD to memory
-    uint256 _lastRewardsTimestamp = lastRewardsTimestamp;
     unchecked {
       // cannot overflow as lastRewardsTimestamp & rewardsDelay are uint64
-      return _lastRewardsTimestamp + rewardsDelay < block.timestamp;
+      return lastRewardsTimestamp + rewardsDelay < block.timestamp;
     }
   }
 
@@ -159,7 +161,7 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
   /// @inheritdoc IKeeperRewards
   function harvest(
     HarvestParams calldata params
-  ) external override returns (int256 totalAssetsDelta, uint256 unlockedMevDelta) {
+  ) external override returns (int256 totalAssetsDelta, uint256 unlockedMevDelta, bool harvested) {
     if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.AccessDenied();
 
     // SLOAD to memory
@@ -188,15 +190,17 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
     }
 
     // SLOAD to memory
-    Reward memory lastReward = rewards[msg.sender];
+    Reward storage lastReward = rewards[msg.sender];
     // check whether Vault's nonce is smaller that the current, otherwise it's already harvested
-    if (lastReward.nonce >= currentNonce) return (0, 0);
+    if (lastReward.nonce >= currentNonce) return (0, 0, false);
 
     // calculate total assets delta
     totalAssetsDelta = params.reward - lastReward.assets;
+    harvested = true;
 
     // update state
-    rewards[msg.sender] = Reward({nonce: currentNonce, assets: params.reward});
+    lastReward.nonce = currentNonce;
+    lastReward.assets = params.reward;
 
     // check whether Vault has unlocked execution reward
     if (IVaultMev(msg.sender).mevEscrow() == _sharedMevEscrow) {

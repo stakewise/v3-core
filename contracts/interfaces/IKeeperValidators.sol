@@ -14,10 +14,9 @@ interface IKeeperValidators is IKeeperOracles, IKeeperRewards {
   /**
    * @notice Event emitted on validators approval
    * @param vault The address of the Vault
-   * @param validators The concatenation of the validators' public key, signature and deposit data root
    * @param exitSignaturesIpfsHash The IPFS hash with the validators' exit signatures
    */
-  event ValidatorsApproval(address indexed vault, bytes validators, string exitSignaturesIpfsHash);
+  event ValidatorsApproval(address indexed vault, string exitSignaturesIpfsHash);
 
   /**
    * @notice Event emitted on exit signatures update
@@ -49,12 +48,14 @@ interface IKeeperValidators is IKeeperOracles, IKeeperRewards {
   /**
    * @notice Struct for approving registration of one or more validators
    * @param validatorsRegistryRoot The deposit data root used to verify that oracles approved validators
+   * @param deadline The deadline for submitting the approval
    * @param validators The concatenation of the validators' public key, signature and deposit data root
    * @param signatures The concatenation of Oracles' signatures
    * @param exitSignaturesIpfsHash The IPFS hash with the validators' exit signatures
    */
   struct ApprovalParams {
     bytes32 validatorsRegistryRoot;
+    uint256 deadline;
     bytes validators;
     bytes signatures;
     string exitSignaturesIpfsHash;

@@ -5,12 +5,12 @@ import { Buffer } from 'buffer'
 import { BigNumber, BigNumberish, BytesLike, Contract, ContractTransaction, Wallet } from 'ethers'
 import { arrayify, parseEther } from 'ethers/lib/utils'
 import bls from 'bls-eth-wasm'
-import keccak256 from 'keccak256'
-import { Keeper, EthVault } from '../../typechain-types'
+import { EthVault, Keeper } from '../../typechain-types'
 import {
   EIP712Domain,
-  KeeperValidatorsSig,
   KeeperUpdateExitSignaturesSig,
+  KeeperValidatorsSig,
+  VALIDATORS_DEADLINE,
   VALIDATORS_MIN_ORACLES,
 } from './constants'
 import { getOraclesSignatures } from './fixtures'
@@ -202,6 +202,7 @@ export async function createEthValidatorsData(vault: EthVault): Promise<EthValid
 
 export function getEthValidatorsSigningData(
   validators: Buffer,
+  deadline: BigNumberish,
   exitSignaturesIpfsHash: string,
   keeper: Keeper,
   vault: EthVault,
@@ -219,8 +220,9 @@ export function getEthValidatorsSigningData(
     message: {
       validatorsRegistryRoot,
       vault: vault.address,
-      validators: keccak256(validators),
-      exitSignaturesIpfsHash: keccak256(exitSignaturesIpfsHash),
+      validators,
+      exitSignaturesIpfsHash,
+      deadline,
     },
   }
 }
@@ -245,7 +247,7 @@ export function getEthValidatorsExitSignaturesSigningData(
       vault: vault.address,
       deadline,
       nonce,
-      exitSignaturesIpfsHash: keccak256(exitSignaturesIpfsHash),
+      exitSignaturesIpfsHash,
     },
   }
 }
@@ -283,6 +285,7 @@ export async function registerEthValidator(
   const exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
   const signingData = getEthValidatorsSigningData(
     validator,
+    VALIDATORS_DEADLINE,
     exitSignatureIpfsHash,
     keeper,
     vault,
@@ -296,6 +299,7 @@ export async function registerEthValidator(
       validators: validator,
       signatures,
       exitSignaturesIpfsHash: exitSignatureIpfsHash,
+      deadline: VALIDATORS_DEADLINE,
     },
     proof
   )

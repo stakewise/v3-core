@@ -14,7 +14,7 @@
     "spdx": "hardhat prepend-spdx-license",
     "export-abi": "hardhat export-abi",
     "size": "npm run compile && hardhat size-contracts",
-    "slither": "SKIP_LOAD=true slither --fail-high .",
+    "slither": "npm run compile && SKIP_LOAD=true slither --fail-high --skip-clean .",
     "quick-test": "hardhat test",
     "test": "npm run compile && hardhat test",
     "test:gas": "npm run compile && TRACK_GAS=true hardhat test",

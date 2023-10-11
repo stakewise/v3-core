@@ -65,7 +65,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
 
   /// @inheritdoc IRewardSplitter
   function canSyncRewards() external view override returns (bool) {
-    return totalShares > 0 && _totalRewards != IERC20(vault).balanceOf(address(this));
+    return totalShares > 0 && _totalRewards != IVaultState(vault).getShares(address(this));
   }
 
   /// @inheritdoc IRewardSplitter
@@ -154,7 +154,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
 
     // retrieve new total rewards
     // NB! make sure vault has balanceOf function to retrieve number of shares assigned
-    uint256 newTotalRewards = IERC20(_vault).balanceOf(address(this));
+    uint256 newTotalRewards = IVaultState(_vault).getShares(address(this));
     if (newTotalRewards == prevTotalRewards) return;
 
     // calculate new cumulative reward per share

@@ -5,7 +5,12 @@ import { EthVault, IKeeperValidators, Keeper } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ORACLES, VALIDATORS_MIN_ORACLES, ZERO_ADDRESS } from './shared/constants'
+import {
+  ORACLES,
+  VALIDATORS_DEADLINE,
+  VALIDATORS_MIN_ORACLES,
+  ZERO_ADDRESS,
+} from './shared/constants'
 import {
   createEthValidatorsData,
   EthValidatorsData,
@@ -27,6 +32,7 @@ describe('KeeperValidators', () => {
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const referrer = ZERO_ADDRESS
+  const deadline = VALIDATORS_DEADLINE
   const depositAmount = parseEther('32')
 
   let loadFixture: ReturnType<typeof createFixtureLoader>
@@ -71,6 +77,7 @@ describe('KeeperValidators', () => {
       await vault.connect(sender).deposit(sender.address, referrer, { value: depositAmount })
       signingData = getEthValidatorsSigningData(
         validator,
+        deadline,
         exitSignatureIpfsHash,
         keeper,
         vault,
@@ -79,6 +86,7 @@ describe('KeeperValidators', () => {
       approveParams = {
         validatorsRegistryRoot,
         validators: validator,
+        deadline,
         signatures: getOraclesSignatures(signingData, ORACLES.length),
         exitSignaturesIpfsHash: exitSignatureIpfsHash,
       }
@@ -113,6 +121,30 @@ describe('KeeperValidators', () => {
       ).revertedWith('NotEnoughSignatures')
     })
 
+    it('fails for invalid deadline', async () => {
+      await expect(
+        vault.registerValidator(
+          {
+            ...approveParams,
+            deadline: deadline + 1,
+          },
+          proof
+        )
+      ).revertedWith('InvalidOracle')
+    })
+
+    it('fails for expired deadline', async () => {
+      await expect(
+        vault.registerValidator(
+          {
+            ...approveParams,
+            deadline: Math.floor(Date.now() / 1000),
+          },
+          proof
+        )
+      ).revertedWith('DeadlineExpired')
+    })
+
     it('fails for invalid validator', async () => {
       await expect(
         vault.registerValidator(
@@ -142,7 +174,7 @@ describe('KeeperValidators', () => {
       let receipt = await vault.registerValidator(approveParams, proof)
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsApproval')
-        .withArgs(vault.address, hexlify(validator), approveParams.exitSignaturesIpfsHash)
+        .withArgs(vault.address, approveParams.exitSignaturesIpfsHash)
 
       // collateralize vault
       rewards = await keeper.rewards(vault.address)
@@ -165,6 +197,7 @@ describe('KeeperValidators', () => {
 
       const newSigningData = getEthValidatorsSigningData(
         newValidator,
+        deadline,
         newExitSignatureIpfsHash,
         keeper,
         vault,
@@ -177,6 +210,7 @@ describe('KeeperValidators', () => {
           validators: newValidator,
           signatures: newSignatures,
           exitSignaturesIpfsHash: newExitSignatureIpfsHash,
+          deadline,
         },
         newProof
       )
@@ -208,8 +242,10 @@ describe('KeeperValidators', () => {
         .connect(sender)
         .deposit(sender.address, referrer, { value: depositAmount.mul(validators.length) })
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
+
       signingData = getEthValidatorsSigningData(
         Buffer.concat(validators),
+        deadline,
         exitSignaturesIpfsHash,
         keeper,
         vault,
@@ -220,6 +256,7 @@ describe('KeeperValidators', () => {
         validators: hexlify(Buffer.concat(validators)),
         signatures: getOraclesSignatures(signingData, ORACLES.length),
         exitSignaturesIpfsHash,
+        deadline,
       }
     })
 
@@ -269,6 +306,34 @@ describe('KeeperValidators', () => {
       ).revertedWith('InvalidOracle')
     })
 
+    it('fails for invalid deadline', async () => {
+      await expect(
+        vault.registerValidators(
+          {
+            ...approveParams,
+            deadline: deadline + 1,
+          },
+          indexes,
+          proof.proofFlags,
+          proof.proof
+        )
+      ).revertedWith('InvalidOracle')
+    })
+
+    it('fails for expired deadline', async () => {
+      await expect(
+        vault.registerValidators(
+          {
+            ...approveParams,
+            deadline: Math.floor(Date.now() / 1000),
+          },
+          indexes,
+          proof.proofFlags,
+          proof.proof
+        )
+      ).revertedWith('DeadlineExpired')
+    })
+
     it('fails for invalid proof', async () => {
       const invalidProof = getValidatorsMultiProof(validatorsData.tree, [validators[0]], [0])
       const exitSignaturesIpfsHash = approveParams.exitSignaturesIpfsHash as string
@@ -276,11 +341,13 @@ describe('KeeperValidators', () => {
         vault.registerValidators(
           {
             validatorsRegistryRoot,
+            deadline,
             validators: validators[1],
             exitSignaturesIpfsHash,
             signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 validators[1],
+                deadline,
                 exitSignaturesIpfsHash,
                 keeper,
                 vault,
@@ -310,7 +377,7 @@ describe('KeeperValidators', () => {
       )
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsApproval')
-        .withArgs(vault.address, hexlify(validatorsConcat), approveParams.exitSignaturesIpfsHash)
+        .withArgs(vault.address, approveParams.exitSignaturesIpfsHash)
 
       rewards = await keeper.rewards(vault.address)
       expect(rewards.nonce).to.eq(1)
@@ -333,6 +400,7 @@ describe('KeeperValidators', () => {
       await vault.connect(admin).setValidatorsRoot(validatorsData.root)
       const newSigningData = getEthValidatorsSigningData(
         validatorsConcat,
+        deadline,
         approveParams.exitSignaturesIpfsHash as string,
         keeper,
         vault,
@@ -342,6 +410,7 @@ describe('KeeperValidators', () => {
       receipt = await vault.registerValidators(
         {
           validatorsRegistryRoot: newValidatorsRegistryRoot,
+          deadline,
           validators: validatorsConcat,
           signatures: newSignatures,
           exitSignaturesIpfsHash: approveParams.exitSignaturesIpfsHash,

@@ -16,12 +16,12 @@ import {KeeperRewards} from './KeeperRewards.sol';
 abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValidators {
   bytes32 private constant _registerValidatorsTypeHash =
     keccak256(
-      'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes32 validators,bytes32 exitSignaturesIpfsHash)'
+      'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes validators,string exitSignaturesIpfsHash,uint256 deadline)'
     );
 
   bytes32 private constant _updateExitSigTypeHash =
     keccak256(
-      'KeeperValidators(address vault,bytes32 exitSignaturesIpfsHash,uint256 nonce,uint256 deadline)'
+      'KeeperValidators(address vault,string exitSignaturesIpfsHash,uint256 nonce,uint256 deadline)'
     );
 
   IValidatorsRegistry private immutable _validatorsRegistry;
@@ -41,12 +41,14 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
   }
 
   /// @inheritdoc IKeeperValidators
-  function setValidatorsMinOracles(uint256 _validatorsMinOracles) public override onlyOwner {
+  function setValidatorsMinOracles(uint256 _validatorsMinOracles) external override onlyOwner {
     _setValidatorsMinOracles(_validatorsMinOracles);
   }
 
   /// @inheritdoc IKeeperValidators
   function approveValidators(ApprovalParams calldata params) external override {
+    if (params.deadline < block.timestamp) revert Errors.DeadlineExpired();
+
     // verify oracles approved registration for the current validators registry contract state
     if (_validatorsRegistry.get_deposit_root() != params.validatorsRegistryRoot) {
       revert Errors.InvalidValidatorsRegistryRoot();
@@ -62,7 +64,8 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
           params.validatorsRegistryRoot,
           msg.sender,
           keccak256(params.validators),
-          keccak256(bytes(params.exitSignaturesIpfsHash))
+          keccak256(bytes(params.exitSignaturesIpfsHash)),
+          params.deadline
         )
       ),
       params.signatures
@@ -70,7 +73,7 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
 
     _collateralize(msg.sender);
 
-    emit ValidatorsApproval(msg.sender, params.validators, params.exitSignaturesIpfsHash);
+    emit ValidatorsApproval(msg.sender, params.exitSignaturesIpfsHash);
   }
 
   /// @inheritdoc IKeeperValidators
@@ -102,7 +105,10 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
     );
 
     // update state
-    exitSignaturesNonces[vault] = nonce + 1;
+    unchecked {
+      // cannot realistically overflow
+      exitSignaturesNonces[vault] = nonce + 1;
+    }
 
     // emit event
     emit ExitSignaturesUpdated(msg.sender, vault, nonce, exitSignaturesIpfsHash);

@@ -3,7 +3,7 @@ import { Contract, Wallet } from 'ethers'
 import { hexlify, parseEther } from 'ethers/lib/utils'
 import { UintNumberType } from '@chainsafe/ssz'
 import { ThenArg } from '../helpers/types'
-import { Keeper, EthVault, IKeeperValidators } from '../typechain-types'
+import { EthVault, IKeeperValidators, Keeper } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 import { setBalance } from './shared/utils'
@@ -19,7 +19,13 @@ import {
   ValidatorsMultiProof,
 } from './shared/validators'
 import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
-import { MAX_UINT256, PANIC_CODES, VALIDATORS_MIN_ORACLES, ZERO_ADDRESS } from './shared/constants'
+import {
+  MAX_UINT256,
+  PANIC_CODES,
+  VALIDATORS_DEADLINE,
+  VALIDATORS_MIN_ORACLES,
+  ZERO_ADDRESS,
+} from './shared/constants'
 
 const createFixtureLoader = waffle.createFixtureLoader
 const gwei = 1000000000
@@ -30,6 +36,8 @@ describe('EthVault - register', () => {
   const capacity = MAX_UINT256
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
+  const deadline = VALIDATORS_DEADLINE
+
   let admin: Wallet, dao: Wallet, other: Wallet
   let vault: EthVault, keeper: Keeper, validatorsRegistry: Contract
   let validatorsData: EthValidatorsData
@@ -73,6 +81,7 @@ describe('EthVault - register', () => {
       const signatures = getOraclesSignatures(
         getEthValidatorsSigningData(
           validator,
+          deadline,
           exitSignaturesIpfsHash,
           keeper,
           vault,
@@ -85,6 +94,7 @@ describe('EthVault - register', () => {
         validators: validator,
         signatures,
         exitSignaturesIpfsHash,
+        deadline,
       }
     })
 
@@ -110,9 +120,11 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: appendDepositData(validator, validatorDeposit, vault.address),
+            deadline,
             signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidator,
+                deadline,
                 exitSignaturesIpfsHash,
                 keeper,
                 vault,
@@ -163,6 +175,7 @@ describe('EthVault - register', () => {
       signatures = getOraclesSignatures(
         getEthValidatorsSigningData(
           Buffer.concat(validators),
+          deadline,
           exitSignaturesIpfsHash,
           keeper,
           vault,
@@ -175,6 +188,7 @@ describe('EthVault - register', () => {
         validators: Buffer.concat(validators),
         signatures,
         exitSignaturesIpfsHash,
+        deadline,
       }
     })
 
@@ -192,9 +206,11 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: Buffer.from(''),
+            deadline,
             signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 Buffer.from(''),
+                deadline,
                 exitSignaturesIpfsHash,
                 keeper,
                 vault,
@@ -227,10 +243,12 @@ describe('EthVault - register', () => {
         vault.registerValidators(
           {
             validatorsRegistryRoot,
+            deadline,
             validators: invalidValidatorsConcat,
             signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidatorsConcat,
+                deadline,
                 exitSignaturesIpfsHash,
                 keeper,
                 vault,
@@ -261,9 +279,11 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: invalidValidatorsConcat,
+            deadline,
             signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidatorsConcat,
+                deadline,
                 exitSignaturesIpfsHash,
                 keeper,
                 vault,
@@ -294,9 +314,11 @@ describe('EthVault - register', () => {
           {
             validatorsRegistryRoot,
             validators: invalidValidatorsConcat,
+            deadline,
             signatures: getOraclesSignatures(
               getEthValidatorsSigningData(
                 invalidValidatorsConcat,
+                deadline,
                 exitSignaturesIpfsHash,
                 keeper,
                 vault,
@@ -378,9 +400,11 @@ describe('EthVault - register', () => {
             {
               validatorsRegistryRoot,
               validators: invalidValidators[i],
+              deadline,
               signatures: getOraclesSignatures(
                 getEthValidatorsSigningData(
                   invalidValidators[i],
+                  deadline,
                   exitSignaturesIpfsHash,
                   keeper,
                   vault,

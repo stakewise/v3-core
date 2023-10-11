@@ -21,6 +21,16 @@
   },
   {
     "inputs": [],
+    "name": "ClaimTooEarly",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "Collateralized",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "DeadlineExpired",
     "type": "error"
   },
@@ -172,6 +182,11 @@
   {
     "inputs": [],
     "name": "MaxOraclesExceeded",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "NegativeAssetsDelta",
     "type": "error"
   },
   {

@@ -109,7 +109,7 @@ describe('RewardSplitter', () => {
       })
       const feeShares = await vault.convertToShares(fee)
       expect(await vault.feeRecipient()).to.eq(rewardSplitter.address)
-      expect(await vault.balanceOf(rewardSplitter.address)).to.eq(feeShares)
+      expect(await vault.getShares(rewardSplitter.address)).to.eq(feeShares)
 
       await rewardSplitter.connect(admin).increaseShares(admin.address, 100)
       expect(await rewardSplitter.rewardsOf(other.address)).to.eq(feeShares)
@@ -198,7 +198,7 @@ describe('RewardSplitter', () => {
       })
       const feeShares = await vault.convertToShares(fee)
       expect(await vault.feeRecipient()).to.eq(rewardSplitter.address)
-      expect(await vault.balanceOf(rewardSplitter.address)).to.eq(feeShares)
+      expect(await vault.getShares(rewardSplitter.address)).to.eq(feeShares)
 
       await rewardSplitter.connect(admin).decreaseShares(admin.address, 1)
       expect(await rewardSplitter.rewardsOf(other.address)).to.eq(feeShares.div(2))
@@ -374,7 +374,7 @@ describe('RewardSplitter', () => {
       await snapshotGasCost(receipt)
     })
 
-    it('can redeem, enter exit queue with multicall', async () => {
+    it('can enter exit queue with multicall', async () => {
       await vault.deposit(other.address, ZERO_ADDRESS, {
         value: parseEther('10').sub(SECURITY_DEPOSIT),
       })
@@ -416,13 +416,9 @@ describe('RewardSplitter', () => {
         .connect(other)
         .multicall([
           ...calls,
-          rewardSplitter.interface.encodeFunctionData('redeem', [rewards.div(2), other.address]),
-          rewardSplitter.interface.encodeFunctionData('enterExitQueue', [
-            rewards.div(2),
-            other.address,
-          ]),
+          rewardSplitter.interface.encodeFunctionData('enterExitQueue', [rewards, other.address]),
         ])
-      expect(await rewardSplitter.rewardsOf(other.address)).to.eq(1) // rounding error
+      expect(await rewardSplitter.rewardsOf(other.address)).to.eq(0)
       await snapshotGasCost(receipt)
     })
   })

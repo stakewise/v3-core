@@ -15,6 +15,8 @@ export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 export const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000'
 export const ONE_DAY = 86400
 
+export const VALIDATORS_DEADLINE = 1914150396
+
 export const REWARDS_DELAY = ONE_DAY / 2
 export const ORACLES = [
   Buffer.from('c2bc8560ffcc278ded2efffaccfc4ce08b2a3a867eb744cec45732603e30ebf7', 'hex'),
@@ -33,6 +35,7 @@ export const ORACLES = [
 export const REWARDS_MIN_ORACLES = 6
 export const VALIDATORS_MIN_ORACLES = 11
 export const ORACLES_CONFIG = 'QmbwQ6zFEWs1SjLPGk4NNJqn4wduVe6dK3xyte2iG59Uru'
+export const EXITING_ASSETS_MIN_DELAY = ONE_DAY
 export const OSTOKEN_FEE = 500 // 5%
 export const OSTOKEN_CAPACITY = parseEther('10000000')
 export const OSTOKEN_NAME = 'SW Staked ETH'
@@ -63,7 +66,7 @@ export const PermitSig = [
 
 export const KeeperRewardsSig = [
   { name: 'rewardsRoot', type: 'bytes32' },
-  { name: 'rewardsIpfsHash', type: 'bytes32' },
+  { name: 'rewardsIpfsHash', type: 'string' },
   { name: 'avgRewardPerSecond', type: 'uint256' },
   { name: 'updateTimestamp', type: 'uint64' },
   { name: 'nonce', type: 'uint64' },
@@ -72,13 +75,14 @@ export const KeeperRewardsSig = [
 export const KeeperValidatorsSig = [
   { name: 'validatorsRegistryRoot', type: 'bytes32' },
   { name: 'vault', type: 'address' },
-  { name: 'validators', type: 'bytes32' },
-  { name: 'exitSignaturesIpfsHash', type: 'bytes32' },
+  { name: 'validators', type: 'bytes' },
+  { name: 'exitSignaturesIpfsHash', type: 'string' },
+  { name: 'deadline', type: 'uint256' },
 ]
 
 export const KeeperUpdateExitSignaturesSig = [
   { name: 'vault', type: 'address' },
-  { name: 'exitSignaturesIpfsHash', type: 'bytes32' },
+  { name: 'exitSignaturesIpfsHash', type: 'string' },
   { name: 'nonce', type: 'uint256' },
   { name: 'deadline', type: 'uint256' },
 ]

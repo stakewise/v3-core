@@ -188,10 +188,11 @@ interface IKeeperRewards is IKeeperOracles {
    * @param params The struct containing rewards harvesting parameters
    * @return totalAssetsDelta The total reward/penalty accumulated by the Vault since the last sync
    * @return unlockedMevDelta The Vault execution reward that can be withdrawn from shared MEV escrow. Only used by shared MEV Vaults.
+   * @return harvested `true` when the rewards were harvested, `false` otherwise
    */
   function harvest(
     HarvestParams calldata params
-  ) external returns (int256 totalAssetsDelta, uint256 unlockedMevDelta);
+  ) external returns (int256 totalAssetsDelta, uint256 unlockedMevDelta, bool harvested);
 
   /**
    * @notice Set min number of oracles for confirming rewards update. Can only be called by the owner.
