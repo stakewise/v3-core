@@ -2,7 +2,7 @@
 
 pragma solidity =0.8.20;
 
-import {Ownable2Step} from '@openzeppelin/contracts/access/Ownable2Step.sol';
+import {Ownable2Step, Ownable} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {Errors} from '../libraries/Errors.sol';
@@ -51,6 +51,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
    * @param _keeper The address of the Keeper contract
    * @param _checker The address of the OsTokenChecker contract
    * @param _treasury The address of the DAO treasury
+   * @param _owner The address of the owner of the contract
    * @param _feePercent The fee percent applied on the rewards
    * @param _capacity The amount after which the osToken stops accepting deposits
    * @param _name The name of the ERC20 token
@@ -60,11 +61,13 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     address _keeper,
     address _checker,
     address _treasury,
+    address _owner,
     uint16 _feePercent,
     uint256 _capacity,
     string memory _name,
     string memory _symbol
-  ) ERC20(_name, _symbol) Ownable2Step() {
+  ) ERC20(_name, _symbol) Ownable(msg.sender) {
+    if (_owner == address(0)) revert Errors.ZeroAddress();
     keeper = _keeper;
     checker = _checker;
     _lastUpdateTimestamp = uint64(block.timestamp);
@@ -72,6 +75,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
     setCapacity(_capacity);
     setTreasury(_treasury);
     setFeePercent(_feePercent);
+    _transferOwnership(_owner);
   }
 
   /// @inheritdoc IERC20
@@ -90,12 +94,12 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
 
   /// @inheritdoc IOsToken
   function convertToShares(uint256 assets) public view override returns (uint256 shares) {
-    return _convertToShares(assets, _totalShares, totalAssets(), Math.Rounding.Down);
+    return _convertToShares(assets, _totalShares, totalAssets(), Math.Rounding.Floor);
   }
 
   /// @inheritdoc IOsToken
   function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
-    return _convertToAssets(shares, _totalShares, totalAssets(), Math.Rounding.Down);
+    return _convertToAssets(shares, _totalShares, totalAssets(), Math.Rounding.Floor);
   }
 
   /// @inheritdoc IOsToken
@@ -229,7 +233,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
         totalShares,
         // cannot underflow because profitAccrued >= treasuryAssets
         _totalAssets + profitAccrued - treasuryAssets,
-        Math.Rounding.Down
+        Math.Rounding.Floor
       );
     }
 
@@ -270,7 +274,7 @@ contract OsToken is ERC20, Ownable2Step, IOsToken {
         totalShares,
         // cannot underflow because newTotalAssets >= treasuryAssets
         newTotalAssets - treasuryAssets,
-        Math.Rounding.Down
+        Math.Rounding.Floor
       );
     }
 

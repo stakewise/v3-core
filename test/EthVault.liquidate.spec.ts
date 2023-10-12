@@ -1,6 +1,6 @@
-import { ethers, waffle } from 'hardhat'
-import { BigNumber, Contract, Wallet } from 'ethers'
-import { parseEther } from 'ethers/lib/utils'
+import { ethers } from 'hardhat'
+import { Contract, Wallet } from 'ethers'
+import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { EthVault, IKeeperRewards, Keeper, OsToken } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
@@ -15,30 +15,23 @@ import {
 import { increaseTime, setBalance } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
 
-const createFixtureLoader = waffle.createFixtureLoader
-
 describe('EthVault - liquidate', () => {
-  const shares = parseEther('32')
-  const osTokenShares = parseEther('28.8')
-  const penalty = parseEther('-2.6')
-  const unlockedMevReward = parseEther('0')
+  const shares = ethers.parseEther('32')
+  const osTokenShares = ethers.parseEther('28.8')
+  const penalty = ethers.parseEther('-2.6')
+  const unlockedMevReward = ethers.parseEther('0')
   const vaultParams = {
-    capacity: parseEther('1000'),
+    capacity: ethers.parseEther('1000'),
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
   let owner: Wallet, admin: Wallet, dao: Wallet, liquidator: Wallet, receiver: Wallet
   let vault: EthVault, keeper: Keeper, osToken: OsToken, validatorsRegistry: Contract
 
-  let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
-  before('create fixture loader', async () => {
-    ;[owner, liquidator, dao, admin, receiver] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([dao])
-  })
-
   beforeEach('deploy fixture', async () => {
+    ;[dao, owner, liquidator, admin, receiver] = await (ethers as any).getSigners()
     ;({
       createEthVault: createVault,
       keeper,
@@ -61,7 +54,7 @@ describe('EthVault - liquidate', () => {
     // slashing received
     const tree = await updateRewards(
       keeper,
-      [{ vault: vault.address, reward: penalty, unlockedMevReward }],
+      [{ vault: await vault.getAddress(), reward: penalty, unlockedMevReward }],
       0
     )
     const harvestParams = {
@@ -69,7 +62,7 @@ describe('EthVault - liquidate', () => {
       reward: penalty,
       unlockedMevReward: unlockedMevReward,
       proof: getRewardsRootProof(tree, {
-        vault: vault.address,
+        vault: await vault.getAddress(),
         unlockedMevReward: unlockedMevReward,
         reward: penalty,
       }),
@@ -81,68 +74,76 @@ describe('EthVault - liquidate', () => {
   it('cannot liquidate osTokens to zero receiver', async () => {
     await expect(
       vault.connect(liquidator).liquidateOsToken(osTokenShares, owner.address, ZERO_ADDRESS)
-    ).to.be.revertedWith('ZeroAddress')
+    ).to.be.revertedWithCustomError(vault, 'ZeroAddress')
   })
 
   it('cannot liquidate osTokens from not harvested vault', async () => {
     await updateRewards(keeper, [
-      { vault: vault.address, reward: parseEther('1'), unlockedMevReward: parseEther('0') },
+      {
+        vault: await vault.getAddress(),
+        reward: ethers.parseEther('1'),
+        unlockedMevReward: ethers.parseEther('0'),
+      },
     ])
     await updateRewards(keeper, [
-      { vault: vault.address, reward: parseEther('1.2'), unlockedMevReward: parseEther('0') },
+      {
+        vault: await vault.getAddress(),
+        reward: ethers.parseEther('1.2'),
+        unlockedMevReward: ethers.parseEther('0'),
+      },
     ])
     await expect(
       vault.connect(liquidator).liquidateOsToken(osTokenShares, owner.address, receiver.address)
-    ).to.be.revertedWith('NotHarvested')
+    ).to.be.revertedWithCustomError(vault, 'NotHarvested')
   })
 
   it('cannot liquidate osTokens for position with zero minted shares', async () => {
     await expect(
       vault.connect(liquidator).liquidateOsToken(osTokenShares, dao.address, receiver.address)
-    ).to.be.revertedWith('InvalidPosition')
+    ).to.be.revertedWithCustomError(vault, 'InvalidPosition')
   })
 
   it('cannot liquidate osTokens when received assets exceed deposited assets', async () => {
     await expect(
-      vault.connect(liquidator).liquidateOsToken(shares.add(1), owner.address, receiver.address)
-    ).to.be.revertedWith('InvalidReceivedAssets')
+      vault.connect(liquidator).liquidateOsToken(shares + 1n, owner.address, receiver.address)
+    ).to.be.revertedWithCustomError(vault, 'InvalidReceivedAssets')
   })
 
   it('cannot liquidate osTokens when withdrawable assets exceed received assets', async () => {
-    await setBalance(vault.address, BigNumber.from(0))
+    await setBalance(await vault.getAddress(), 0n)
     await expect(
       vault.connect(liquidator).liquidateOsToken(osTokenShares, owner.address, receiver.address)
-    ).to.be.revertedWith('InvalidReceivedAssets')
+    ).to.be.revertedWithCustomError(vault, 'InvalidReceivedAssets')
   })
 
   it('cannot liquidate osTokens when liquidating more than minted', async () => {
     await expect(
       vault
         .connect(liquidator)
-        .liquidateOsToken(osTokenShares.add(1), owner.address, receiver.address)
-    ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+        .liquidateOsToken(osTokenShares + 1n, owner.address, receiver.address)
+    ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
   })
 
   it('cannot liquidate osTokens when health factor is above 1', async () => {
     await osToken.connect(liquidator).transfer(owner.address, osTokenShares)
-    const liqShares = osTokenShares.div(2)
+    const liqShares = osTokenShares / 2n
     await vault.connect(owner).burnOsToken(liqShares)
     await expect(
       vault.connect(liquidator).liquidateOsToken(liqShares, owner.address, receiver.address)
-    ).to.be.revertedWith('InvalidHealthFactor')
+    ).to.be.revertedWithCustomError(vault, 'InvalidHealthFactor')
   })
 
   it('cannot liquidate zero osToken shares', async () => {
     await expect(
       vault.connect(liquidator).liquidateOsToken(0, owner.address, receiver.address)
-    ).to.be.revertedWith('InvalidShares')
+    ).to.be.revertedWithCustomError(vault, 'InvalidShares')
   })
 
   it('cannot liquidate without osTokens', async () => {
     await osToken.connect(liquidator).transfer(dao.address, osTokenShares)
     await expect(
       vault.connect(liquidator).liquidateOsToken(osTokenShares, owner.address, receiver.address)
-    ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+    ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
   })
 
   it('calculates liquidation correctly', async () => {
@@ -150,8 +151,8 @@ describe('EthVault - liquidate', () => {
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(osTokenShares)
     expect(await vault.getShares(owner.address)).to.be.eq(shares)
 
-    const balanceBefore = await waffle.provider.getBalance(receiver.address)
-    const osTokenAssets = osTokenShares.mul(OSTOKEN_LIQ_BONUS).div(10000)
+    const balanceBefore = await ethers.provider.getBalance(receiver.address)
+    const osTokenAssets = (osTokenShares * BigInt(OSTOKEN_LIQ_BONUS)) / 10000n
     const burnedShares = await vault.convertToShares(osTokenAssets)
 
     const receipt = await vault
@@ -160,35 +161,40 @@ describe('EthVault - liquidate', () => {
 
     expect(await osToken.balanceOf(liquidator.address)).to.eq(0)
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(0)
-    expect(await vault.getShares(owner.address)).to.be.eq(shares.sub(burnedShares))
-    expect(await waffle.provider.getBalance(receiver.address)).to.eq(
-      balanceBefore.add(osTokenAssets)
-    )
+    expect(await vault.getShares(owner.address)).to.be.eq(shares - burnedShares)
+    expect(await ethers.provider.getBalance(receiver.address)).to.eq(balanceBefore + osTokenAssets)
 
     await expect(receipt)
       .to.emit(vault, 'OsTokenLiquidated')
-      .withArgs(liquidator.address, owner.address, receiver.address, osTokenShares, osTokenAssets)
+      .withArgs(
+        liquidator.address,
+        owner.address,
+        receiver.address,
+        osTokenShares,
+        burnedShares,
+        osTokenAssets
+      )
     await expect(receipt)
       .to.emit(osToken, 'Transfer')
       .withArgs(liquidator.address, ZERO_ADDRESS, osTokenShares)
     await expect(receipt)
       .to.emit(osToken, 'Burn')
-      .withArgs(vault.address, liquidator.address, osTokenShares, osTokenShares)
+      .withArgs(await vault.getAddress(), liquidator.address, osTokenShares, osTokenShares)
 
     await snapshotGasCost(receipt)
   })
 
   it('can liquidate', async () => {
-    const penalty = parseEther('-2.6001')
+    const penalty = ethers.parseEther('-2.6001')
     const tree = await updateRewards(keeper, [
-      { vault: vault.address, reward: penalty, unlockedMevReward },
+      { vault: await vault.getAddress(), reward: penalty, unlockedMevReward },
     ])
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
       rewardsRoot: tree.root,
       reward: penalty,
       unlockedMevReward: unlockedMevReward,
       proof: getRewardsRootProof(tree, {
-        vault: vault.address,
+        vault: await vault.getAddress(),
         unlockedMevReward: unlockedMevReward,
         reward: penalty,
       }),

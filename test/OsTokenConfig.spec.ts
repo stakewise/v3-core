@@ -1,5 +1,6 @@
-import { ethers, waffle } from 'hardhat'
+import { ethers } from 'hardhat'
 import { Wallet } from 'ethers'
+import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { OsTokenConfig } from '../typechain-types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -13,8 +14,6 @@ import {
 } from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
 
-const createFixtureLoader = waffle.createFixtureLoader
-
 describe('OsTokenConfig', () => {
   const newConfig = {
     redeemFromLtvPercent: OSTOKEN_REDEEM_FROM_LTV + 1,
@@ -23,16 +22,11 @@ describe('OsTokenConfig', () => {
     liqBonusPercent: OSTOKEN_LIQ_BONUS + 1,
     ltvPercent: OSTOKEN_LTV + 1,
   }
-  let owner: Wallet, other: Wallet
+  let dao: Wallet, other: Wallet
   let osTokenConfig: OsTokenConfig
-  let loadFixture: ReturnType<typeof createFixtureLoader>
-
-  before('create fixture loader', async () => {
-    ;[owner, other] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([owner])
-  })
 
   beforeEach('deploy fixtures', async () => {
+    ;[dao, other] = await (ethers as any).getSigners()
     ;({ osTokenConfig } = await loadFixture(ethVaultFixture))
   })
 
@@ -45,22 +39,23 @@ describe('OsTokenConfig', () => {
   })
 
   it('cannot be updated by not owner', async () => {
-    await expect(osTokenConfig.connect(other).updateConfig(newConfig)).to.revertedWith(
-      'Ownable: caller is not the owner'
+    await expect(osTokenConfig.connect(other).updateConfig(newConfig)).to.revertedWithCustomError(
+      osTokenConfig,
+      'OwnableUnauthorizedAccount'
     )
   })
 
   it('fails with invalid redeem params', async () => {
     await expect(
       osTokenConfig
-        .connect(owner)
+        .connect(dao)
         .updateConfig({ ...newConfig, redeemToLtvPercent: 9000, redeemFromLtvPercent: 8900 })
-    ).to.revertedWith('InvalidRedeemFromLtvPercent')
+    ).to.revertedWithCustomError(osTokenConfig, 'InvalidRedeemFromLtvPercent')
   })
 
   it('can disable redeems for all positions', async () => {
     await expect(
-      osTokenConfig.connect(owner).updateConfig({
+      osTokenConfig.connect(dao).updateConfig({
         ...newConfig,
         redeemFromLtvPercent: MAX_UINT16,
         redeemToLtvPercent: MAX_UINT16,
@@ -71,53 +66,53 @@ describe('OsTokenConfig', () => {
   it('can enable redeems for all positions', async () => {
     await expect(
       osTokenConfig
-        .connect(owner)
+        .connect(dao)
         .updateConfig({ ...newConfig, redeemFromLtvPercent: MAX_UINT16, redeemToLtvPercent: 0 })
     ).to.emit(osTokenConfig, 'OsTokenConfigUpdated')
   })
 
   it('fails with invalid liqThresholdPercent', async () => {
     await expect(
-      osTokenConfig.connect(owner).updateConfig({ ...newConfig, liqThresholdPercent: 0 })
-    ).to.revertedWith('InvalidLiqThresholdPercent')
+      osTokenConfig.connect(dao).updateConfig({ ...newConfig, liqThresholdPercent: 0 })
+    ).to.revertedWithCustomError(osTokenConfig, 'InvalidLiqThresholdPercent')
 
     await expect(
-      osTokenConfig.connect(owner).updateConfig({ ...newConfig, liqThresholdPercent: 10000 })
-    ).to.revertedWith('InvalidLiqThresholdPercent')
+      osTokenConfig.connect(dao).updateConfig({ ...newConfig, liqThresholdPercent: 10000 })
+    ).to.revertedWithCustomError(osTokenConfig, 'InvalidLiqThresholdPercent')
   })
 
   it('fails with invalid liqBonusPercent', async () => {
     await expect(
-      osTokenConfig.connect(owner).updateConfig({ ...newConfig, liqBonusPercent: 9999 })
-    ).to.revertedWith('InvalidLiqBonusPercent')
+      osTokenConfig.connect(dao).updateConfig({ ...newConfig, liqBonusPercent: 9999 })
+    ).to.revertedWithCustomError(osTokenConfig, 'InvalidLiqBonusPercent')
 
     await expect(
       osTokenConfig
-        .connect(owner)
+        .connect(dao)
         .updateConfig({ ...newConfig, liqThresholdPercent: 9500, liqBonusPercent: 11000 })
-    ).to.revertedWith('InvalidLiqBonusPercent')
+    ).to.revertedWithCustomError(osTokenConfig, 'InvalidLiqBonusPercent')
   })
 
   it('can disable liqBonusPercent', async () => {
     await expect(
-      osTokenConfig.connect(owner).updateConfig({ ...newConfig, liqBonusPercent: 10000 })
+      osTokenConfig.connect(dao).updateConfig({ ...newConfig, liqBonusPercent: 10000 })
     ).to.emit(osTokenConfig, 'OsTokenConfigUpdated')
   })
 
   it('fails with invalid ltvPercent', async () => {
     await expect(
-      osTokenConfig.connect(owner).updateConfig({ ...newConfig, ltvPercent: 0 })
-    ).to.revertedWith('InvalidLtvPercent')
+      osTokenConfig.connect(dao).updateConfig({ ...newConfig, ltvPercent: 0 })
+    ).to.revertedWithCustomError(osTokenConfig, 'InvalidLtvPercent')
 
     await expect(
       osTokenConfig
-        .connect(owner)
+        .connect(dao)
         .updateConfig({ ...newConfig, ltvPercent: newConfig.liqThresholdPercent + 1 })
-    ).to.revertedWith('InvalidLtvPercent')
+    ).to.revertedWithCustomError(osTokenConfig, 'InvalidLtvPercent')
   })
 
   it('owner can update config', async () => {
-    const tx = await osTokenConfig.connect(owner).updateConfig(newConfig)
+    const tx = await osTokenConfig.connect(dao).updateConfig(newConfig)
     await expect(tx)
       .to.emit(osTokenConfig, 'OsTokenConfigUpdated')
       .withArgs(

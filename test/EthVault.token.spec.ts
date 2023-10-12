@@ -1,7 +1,7 @@
-import { ethers, network, waffle } from 'hardhat'
-import { BigNumber, Wallet } from 'ethers'
-import { arrayify, parseEther } from 'ethers/lib/utils'
+import { ethers, network } from 'hardhat'
+import { Wallet } from 'ethers'
 import EthereumWallet from 'ethereumjs-wallet'
+import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { EthErc20Vault } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { expect } from './shared/expect'
@@ -13,29 +13,25 @@ import {
   SECURITY_DEPOSIT,
   ZERO_ADDRESS,
 } from './shared/constants'
-import { domainSeparator, getSignatureFromTypedData, latestTimestamp } from './shared/utils'
+import { domainSeparator, getLatestBlockTimestamp, getSignatureFromTypedData } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 
-const createFixtureLoader = waffle.createFixtureLoader
-
 describe('EthVault - token', () => {
-  const capacity = parseEther('1000')
+  const capacity = ethers.parseEther('1000')
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
-  const initialSupply = 1000
+  const initialSupply = 1000n
 
   let vault: EthErc20Vault
-  let admin: Wallet, dao: Wallet, initialHolder: Wallet, spender: Wallet, recipient: Wallet
+  let admin: Wallet, initialHolder: Wallet, spender: Wallet, recipient: Wallet
 
-  let loadFixture: ReturnType<typeof createFixtureLoader>
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthErc20Vault']
 
   before('create fixture loader', async () => {
-    ;[admin, dao, initialHolder, spender, recipient] = await (ethers as any).getSigners()
-    loadFixture = createFixtureLoader([dao])
+    ;[admin, initialHolder, spender, recipient] = (await (ethers as any).getSigners()).slice(1, 5)
   })
 
   beforeEach('deploy fixture', async () => {
@@ -73,31 +69,31 @@ describe('EthVault - token', () => {
         symbol,
         metadataIpfsHash,
       })
-    ).to.be.revertedWith('InvalidTokenMeta')
+    ).to.be.revertedWithCustomError(vault, 'InvalidTokenMeta')
   })
 
   it('fails to deploy with zero capacity', async () => {
     await expect(
       createVault(admin, {
-        capacity: 0,
+        capacity: 0n,
         feePercent,
         name,
         symbol,
         metadataIpfsHash,
       })
-    ).to.be.revertedWith('InvalidCapacity')
+    ).to.be.revertedWithCustomError(vault, 'InvalidCapacity')
   })
 
   it('fails to deploy with capacity less than validator deposit amount', async () => {
     await expect(
       createVault(admin, {
-        capacity: parseEther('31'),
+        capacity: ethers.parseEther('31'),
         feePercent,
         name,
         symbol,
         metadataIpfsHash,
       })
-    ).to.be.revertedWith('InvalidCapacity')
+    ).to.be.revertedWithCustomError(vault, 'InvalidCapacity')
   })
 
   it('fails to deploy with invalid symbol length', async () => {
@@ -109,12 +105,12 @@ describe('EthVault - token', () => {
         symbol: 'a'.repeat(21),
         metadataIpfsHash,
       })
-    ).to.be.revertedWith('InvalidTokenMeta')
+    ).to.be.revertedWithCustomError(vault, 'InvalidTokenMeta')
   })
 
   describe('total supply', () => {
     it('returns the total amount of tokens', async () => {
-      expect(await vault.totalSupply()).to.eq(BigNumber.from(SECURITY_DEPOSIT).add(initialSupply))
+      expect(await vault.totalSupply()).to.eq(SECURITY_DEPOSIT + initialSupply)
     })
   })
 
@@ -136,16 +132,16 @@ describe('EthVault - token', () => {
     const balance = initialSupply
 
     it('reverts when the sender does not have enough balance', async () => {
-      const amount = balance + 1
+      const amount = balance + 1n
       await expect(
         vault.connect(initialHolder).transfer(recipient.address, amount)
-      ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+      ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
     })
 
     it('reverts with zero address recipient', async () => {
-      await expect(vault.connect(initialHolder).transfer(ZERO_ADDRESS, balance)).to.be.revertedWith(
-        'ZeroAddress'
-      )
+      await expect(
+        vault.connect(initialHolder).transfer(ZERO_ADDRESS, balance)
+      ).to.be.revertedWithCustomError(vault, 'ZeroAddress')
     })
 
     describe('when the sender transfers all balance', () => {
@@ -226,13 +222,13 @@ describe('EthVault - token', () => {
         it('reverts', async () => {
           await expect(
             vault.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
-          ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+          ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
         })
       })
     })
 
     describe('when the spender does not have enough allowance', () => {
-      const allowance = initialSupply - 1
+      const allowance = initialSupply - 1n
 
       beforeEach(async () => {
         await vault.connect(initialHolder).approve(spender.address, allowance)
@@ -244,7 +240,7 @@ describe('EthVault - token', () => {
         it('reverts', async () => {
           await expect(
             vault.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
-          ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+          ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
         })
       })
 
@@ -258,7 +254,7 @@ describe('EthVault - token', () => {
         it('reverts', async () => {
           await expect(
             vault.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
-          ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+          ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
         })
       })
     })
@@ -280,10 +276,10 @@ describe('EthVault - token', () => {
 
   describe('approve', () => {
     it('fails to approve zero address', async () => {
-      const amount = parseEther('1')
-      await expect(vault.connect(initialHolder).approve(ZERO_ADDRESS, amount)).to.be.revertedWith(
-        'ZeroAddress'
-      )
+      const amount = ethers.parseEther('1')
+      await expect(
+        vault.connect(initialHolder).approve(ZERO_ADDRESS, amount)
+      ).to.be.revertedWithCustomError(vault, 'ZeroAddress')
     })
 
     describe('when the sender has enough balance', () => {
@@ -317,7 +313,7 @@ describe('EthVault - token', () => {
     })
 
     describe('when the sender does not have enough balance', () => {
-      const amount = initialSupply + 1
+      const amount = initialSupply + 1n
 
       it('emits an approval event', async () => {
         await expect(vault.connect(initialHolder).approve(spender.address, amount))
@@ -371,14 +367,14 @@ describe('EthVault - token', () => {
             it('increases the spender allowance adding the requested amount', async () => {
               await vault.connect(initialHolder).increaseAllowance(spender.address, amount)
               expect(await vault.allowance(initialHolder.address, spender.address)).to.be.eq(
-                amount + 1
+                amount + 1n
               )
             })
           })
         })
 
         describe('when the sender does not have enough balance', () => {
-          const amount = initialSupply + 1
+          const amount = initialSupply + 1n
 
           it('emits an approval event', async () => {
             await expect(vault.connect(initialHolder).increaseAllowance(spender.address, amount))
@@ -406,7 +402,7 @@ describe('EthVault - token', () => {
                 .connect(initialHolder)
                 .increaseAllowance(spender.address, amount)
               expect(await vault.allowance(initialHolder.address, spender.address)).to.eq(
-                amount + 1
+                amount + 1n
               )
               await snapshotGasCost(receipt)
             })
@@ -418,7 +414,7 @@ describe('EthVault - token', () => {
         it('reverts', async () => {
           await expect(
             vault.connect(initialHolder).increaseAllowance(ZERO_ADDRESS, amount)
-          ).to.be.revertedWith('ZeroAddress')
+          ).to.be.revertedWithCustomError(vault, 'ZeroAddress')
         })
       })
     })
@@ -430,7 +426,7 @@ describe('EthVault - token', () => {
             it('reverts', async () => {
               await expect(
                 vault.connect(initialHolder).decreaseAllowance(spender.address, amount)
-              ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+              ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
             })
           })
 
@@ -454,7 +450,7 @@ describe('EthVault - token', () => {
             it('decreases the spender allowance subtracting the requested amount', async () => {
               const receipt = await vault
                 .connect(initialHolder)
-                .decreaseAllowance(spender.address, approvedAmount - 1)
+                .decreaseAllowance(spender.address, approvedAmount - 1n)
               expect(await vault.allowance(initialHolder.address, spender.address)).to.eq('1')
               await snapshotGasCost(receipt)
             })
@@ -466,8 +462,8 @@ describe('EthVault - token', () => {
 
             it('reverts when more than the full allowance is removed', async () => {
               await expect(
-                vault.connect(initialHolder).decreaseAllowance(spender.address, approvedAmount + 1)
-              ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+                vault.connect(initialHolder).decreaseAllowance(spender.address, approvedAmount + 1n)
+              ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
             })
           })
         }
@@ -477,7 +473,7 @@ describe('EthVault - token', () => {
         })
 
         describe('when the sender does not have enough balance', () => {
-          const amount = initialSupply + 1
+          const amount = initialSupply + 1n
 
           shouldDecreaseApproval(amount)
         })
@@ -490,7 +486,7 @@ describe('EthVault - token', () => {
         it('reverts', async () => {
           await expect(
             vault.connect(initialHolder).decreaseAllowance(spender, amount)
-          ).to.be.revertedWith(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+          ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
         })
       })
     })
@@ -503,19 +499,21 @@ describe('EthVault - token', () => {
     const chainId = network.config.chainId
 
     const owner = new EthereumWallet(
-      Buffer.from(arrayify('0x35a1c4d02b06d93778758410e5c09e010760268cf98b1af33c2d0646f27a8b70'))
+      Buffer.from(
+        ethers.getBytes('0x35a1c4d02b06d93778758410e5c09e010760268cf98b1af33c2d0646f27a8b70')
+      )
     )
     const ownerAddress = owner.getChecksumAddressString()
     const ownerPrivateKey = owner.getPrivateKey()
 
-    const buildData = (deadline = maxDeadline, spender) => ({
+    const buildData = async (deadline = maxDeadline, spender) => ({
       primaryType: 'Permit',
       types: { EIP712Domain, Permit: PermitSig },
       domain: {
         name,
         version: '1',
         chainId,
-        verifyingContract: vault.address,
+        verifyingContract: await vault.getAddress(),
       },
       message: { owner: ownerAddress, spender, value, nonce, deadline },
     })
@@ -526,14 +524,14 @@ describe('EthVault - token', () => {
 
     it('domain separator', async () => {
       expect(await vault.DOMAIN_SEPARATOR()).to.equal(
-        await domainSeparator(name, '1', chainId, vault.address)
+        await domainSeparator(name, '1', chainId, await vault.getAddress())
       )
     })
 
     it('accepts owner signature', async () => {
       const { v, r, s } = getSignatureFromTypedData(
         ownerPrivateKey,
-        buildData(maxDeadline, spender.address)
+        await buildData(maxDeadline, spender.address)
       )
 
       const receipt = await vault.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
@@ -550,48 +548,48 @@ describe('EthVault - token', () => {
     it('rejects reused signature', async () => {
       const { v, r, s } = getSignatureFromTypedData(
         ownerPrivateKey,
-        buildData(maxDeadline, spender.address)
+        await buildData(maxDeadline, spender.address)
       )
 
       await vault.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
 
       await expect(
         vault.permit(initialHolder.address, spender.address, value, maxDeadline, v, r, s)
-      ).to.be.revertedWith('PermitInvalidSigner')
+      ).to.be.revertedWithCustomError(vault, 'PermitInvalidSigner')
     })
 
     it('rejects other signature', async () => {
       const otherWallet = EthereumWallet.generate()
-      const data = buildData(maxDeadline, spender.address)
+      const data = await buildData(maxDeadline, spender.address)
       const { v, r, s } = getSignatureFromTypedData(otherWallet.getPrivateKey(), data)
 
       await expect(
         vault.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
-      ).to.be.revertedWith('PermitInvalidSigner')
+      ).to.be.revertedWithCustomError(vault, 'PermitInvalidSigner')
     })
 
     it('rejects expired permit', async () => {
-      const deadline = (await latestTimestamp()).sub(500).toString()
+      const deadline = ((await getLatestBlockTimestamp()) - 500).toString()
       const { v, r, s } = getSignatureFromTypedData(
         ownerPrivateKey,
-        buildData(deadline, spender.address)
+        await buildData(deadline, spender.address)
       )
 
       await expect(
         vault.permit(ownerAddress, spender.address, value, deadline, v, r, s)
-      ).to.be.revertedWith('DeadlineExpired')
+      ).to.be.revertedWithCustomError(vault, 'DeadlineExpired')
     })
 
     it('rejects zero address', async () => {
-      const deadline = (await latestTimestamp()).sub(500).toString()
+      const deadline = ((await getLatestBlockTimestamp()) - 500).toString()
       const { v, r, s } = getSignatureFromTypedData(
         ownerPrivateKey,
-        buildData(deadline, ZERO_ADDRESS)
+        await buildData(deadline, ZERO_ADDRESS)
       )
 
       await expect(
         vault.permit(ownerAddress, ZERO_ADDRESS, value, deadline, v, r, s)
-      ).to.be.revertedWith('ZeroAddress')
+      ).to.be.revertedWithCustomError(vault, 'ZeroAddress')
     })
   })
 })

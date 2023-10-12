@@ -1,6 +1,5 @@
-import { network, waffle } from 'hardhat'
-import { BigNumberish, Contract, ethers, Signer, Wallet } from 'ethers'
-import { parseEther } from 'ethers/lib/utils'
+import { ethers, network } from 'hardhat'
+import { Contract, Signer, Wallet } from 'ethers'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { EthVault, IKeeperRewards, Keeper } from '../../typechain-types'
 import {
@@ -17,32 +16,32 @@ import { registerEthValidator } from './validators'
 import { extractExitPositionTicket, getBlockTimestamp, increaseTime, setBalance } from './utils'
 import { getOraclesSignatures } from './fixtures'
 
-export type RewardsTree = StandardMerkleTree<[string, BigNumberish, BigNumberish]>
+export type RewardsTree = StandardMerkleTree<[string, bigint, bigint]>
 
 export type RewardsUpdate = {
   root: string
   ipfsHash: string
-  updateTimestamp: BigNumberish
-  avgRewardPerSecond: BigNumberish
+  updateTimestamp: number
+  avgRewardPerSecond: number
   tree: RewardsTree
   signingData: any
 }
 
 export type VaultReward = {
   vault: string
-  reward: BigNumberish
-  unlockedMevReward: BigNumberish
+  reward: bigint
+  unlockedMevReward: bigint
 }
 
 function randomIntFromInterval(min, max): number {
   return Math.floor(Math.random() * (max - min + 1) + min)
 }
 
-export function getKeeperRewardsUpdateData(
+export async function getKeeperRewardsUpdateData(
   rewards: VaultReward[],
   keeper: Keeper,
-  { nonce = 1, updateTimestamp = '1670255895', avgRewardPerSecond = 1585489600 } = {}
-): RewardsUpdate {
+  { nonce = 1, updateTimestamp = 1670255895, avgRewardPerSecond = 1585489600 } = {}
+): Promise<RewardsUpdate> {
   const tree = StandardMerkleTree.of(
     rewards.map((r) => [r.vault, r.reward, r.unlockedMevReward]),
     ['address', 'int160', 'uint160']
@@ -65,7 +64,7 @@ export function getKeeperRewardsUpdateData(
         name: 'KeeperOracles',
         version: '1',
         chainId: network.config.chainId,
-        verifyingContract: keeper.address,
+        verifyingContract: await keeper.getAddress(),
       },
       message: {
         rewardsRoot: treeRoot,
@@ -84,13 +83,13 @@ export async function updateRewards(
   avgRewardPerSecond: number = randomIntFromInterval(1, MAX_AVG_REWARD_PER_SECOND)
 ): Promise<RewardsTree> {
   const rewardsNonce = await keeper.rewardsNonce()
-  const rewardsUpdate = getKeeperRewardsUpdateData(rewards, keeper, {
-    nonce: rewardsNonce.toNumber(),
+  const rewardsUpdate = await getKeeperRewardsUpdateData(rewards, keeper, {
+    nonce: Number(rewardsNonce),
     avgRewardPerSecond,
   })
   await increaseTime(REWARDS_DELAY)
-  const oracle = new ethers.Wallet(ORACLES[0], waffle.provider)
-  await setBalance(oracle.address, parseEther('2000'))
+  const oracle = new ethers.Wallet(ORACLES[0].toString('hex'), ethers.provider)
+  await setBalance(oracle.address, ethers.parseEther('2000'))
 
   await keeper.connect(oracle).updateRewards({
     rewardsRoot: rewardsUpdate.root,
@@ -112,39 +111,44 @@ export async function collateralizeEthVault(
   validatorsRegistry: Contract,
   admin: Wallet
 ) {
-  const balanceBefore = await waffle.provider.getBalance(vault.address)
+  const vaultAddress = await vault.getAddress()
+  const balanceBefore = await ethers.provider.getBalance(vaultAddress)
   // register validator
-  const validatorDeposit = parseEther('32')
+  const validatorDeposit = ethers.parseEther('32')
   await vault.connect(admin).deposit(admin.address, ZERO_ADDRESS, { value: validatorDeposit })
   await registerEthValidator(vault, keeper, validatorsRegistry, admin)
 
   // update rewards tree
   const rewardsTree = await updateRewards(keeper, [
-    { vault: vault.address, reward: 0, unlockedMevReward: 0 },
+    { vault: vaultAddress, reward: 0n, unlockedMevReward: 0n },
   ])
   const proof = getRewardsRootProof(rewardsTree, {
-    vault: vault.address,
-    reward: 0,
-    unlockedMevReward: 0,
+    vault: vaultAddress,
+    reward: 0n,
+    unlockedMevReward: 0n,
   })
 
   // exit validator
   const response = await vault.connect(admin).enterExitQueue(validatorDeposit, admin.address)
-  const receipt = await response.wait()
-  const positionTicket = extractExitPositionTicket(receipt)
-  const timestamp = await getBlockTimestamp(receipt)
+  const positionTicket = await extractExitPositionTicket(response)
+  const timestamp = await getBlockTimestamp(response)
 
   await increaseTime(EXITING_ASSETS_MIN_DELAY)
-  await setBalance(vault.address, validatorDeposit)
+  await setBalance(vaultAddress, validatorDeposit)
 
-  await vault.updateState({ rewardsRoot: rewardsTree.root, reward: 0, unlockedMevReward: 0, proof })
+  await vault.updateState({
+    rewardsRoot: rewardsTree.root,
+    reward: 0n,
+    unlockedMevReward: 0n,
+    proof,
+  })
 
   // claim exited assets
   const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
   await vault.connect(admin).claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
 
   await increaseTime(ONE_DAY)
-  await setBalance(vault.address, balanceBefore)
+  await setBalance(vaultAddress, balanceBefore)
 }
 
 export async function setAvgRewardPerSecond(
@@ -153,19 +157,20 @@ export async function setAvgRewardPerSecond(
   keeper: Keeper,
   avgRewardPerSecond: number
 ) {
+  const vaultAddress = await vault.getAddress()
   const tree = await updateRewards(
     keeper,
-    [{ vault: vault.address, reward: 0, unlockedMevReward: 0 }],
+    [{ vault: vaultAddress, reward: 0n, unlockedMevReward: 0n }],
     avgRewardPerSecond
   )
   const harvestParams: IKeeperRewards.HarvestParamsStruct = {
     rewardsRoot: tree.root,
-    reward: 0,
-    unlockedMevReward: 0,
+    reward: 0n,
+    unlockedMevReward: 0n,
     proof: getRewardsRootProof(tree, {
-      vault: vault.address,
-      unlockedMevReward: 0,
-      reward: 0,
+      vault: vaultAddress,
+      unlockedMevReward: 0n,
+      reward: 0n,
     }),
   }
   await vault.connect(dao).updateState(harvestParams)

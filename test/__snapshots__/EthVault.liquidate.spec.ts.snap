@@ -3,13 +3,13 @@
 exports[`EthVault - liquidate calculates liquidation correctly 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 109079,
+  "gasUsed": 109434,
 }
 `;
 
 exports[`EthVault - liquidate can liquidate 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 111734,
+  "gasUsed": 112093,
 }
 `;

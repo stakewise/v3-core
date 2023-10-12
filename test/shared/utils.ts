@@ -1,7 +1,7 @@
 import { ECDSASignature, fromRpcSig } from 'ethereumjs-util'
 import { signTypedData, SignTypedDataVersion, TypedDataUtils } from '@metamask/eth-sig-util'
-import { ethers, waffle } from 'hardhat'
-import { BigNumber, ContractReceipt } from 'ethers'
+import { ethers } from 'hardhat'
+import { ContractTransactionReceipt, ContractTransactionResponse } from 'ethers'
 import { EIP712Domain } from './constants'
 
 export const getSignatureFromTypedData = (privateKey: Buffer, data: any): ECDSASignature => {
@@ -9,24 +9,49 @@ export const getSignatureFromTypedData = (privateKey: Buffer, data: any): ECDSAS
   return fromRpcSig(signature)
 }
 
-export const extractVaultAddress = (receipt: ContractReceipt): string => {
-  return receipt.events?.[receipt.events.length - 1].args?.vault as string
-}
-
-export const extractMevEscrowAddress = (receipt: ContractReceipt): string => {
-  return receipt.events?.[receipt.events.length - 1].args?.ownMevEscrow as string
-}
-
-export const getBlockTimestamp = async (receipt: ContractReceipt): Promise<number> => {
-  return (await waffle.provider.getBlock(receipt.blockNumber)).timestamp
-}
-
-export const extractExitPositionTicket = (receipt: ContractReceipt): BigNumber => {
-  let positionTicket = receipt.events?.[receipt.events.length - 1].args?.positionTicket
-  if (!positionTicket && receipt.events?.length && receipt.events?.length > 1) {
-    positionTicket = receipt.events?.[receipt.events.length - 2].args?.positionTicket
+export const extractVaultAddress = async (
+  response: ContractTransactionResponse
+): Promise<string> => {
+  const receipt = (await response.wait()) as ContractTransactionReceipt
+  const log = receipt.logs?.[receipt.logs.length - 1]
+  if (!('args' in log)) {
+    throw new Error('No logs found')
   }
-  return positionTicket as BigNumber
+  return log.args?.vault as string
+}
+
+export const extractMevEscrowAddress = async (
+  response: ContractTransactionResponse
+): Promise<string> => {
+  const receipt = (await response.wait()) as ContractTransactionReceipt
+  const log = receipt.logs?.[receipt.logs.length - 1]
+  if (!('args' in log)) {
+    throw new Error('No logs found')
+  }
+  return log.args?.ownMevEscrow as string
+}
+
+export const getBlockTimestamp = async (response: ContractTransactionResponse): Promise<number> => {
+  const receipt = (await response.wait()) as ContractTransactionReceipt
+  const block = await ethers.provider.getBlock(receipt.blockNumber)
+  return block?.timestamp as number
+}
+
+export const extractExitPositionTicket = async (
+  response: ContractTransactionResponse
+): Promise<bigint> => {
+  const receipt = (await response.wait()) as ContractTransactionReceipt
+  let log = receipt.logs?.[receipt.logs.length - 1]
+  if (!('args' in log)) {
+    throw new Error('No logs found')
+  }
+  if (log.args?.positionTicket == undefined && receipt.logs?.length && receipt.logs?.length > 1) {
+    log = receipt.logs?.[receipt.logs.length - 2]
+    if (!('args' in log)) {
+      throw new Error('No logs found')
+    }
+  }
+  return log.args?.positionTicket as bigint
 }
 
 export async function domainSeparator(name, version, chainId, verifyingContract) {
@@ -46,19 +71,23 @@ export async function domainSeparator(name, version, chainId, verifyingContract)
   )
 }
 
-export async function latestTimestamp(): Promise<BigNumber> {
+export async function getLatestBlockTimestamp(): Promise<number> {
   const block = await ethers.provider.getBlock('latest')
-  return BigNumber.from(block.timestamp)
+  if (!block) {
+    throw new Error('No block found')
+  }
+  return block.timestamp
 }
 
-export async function setBalance(address: string, value: BigNumber): Promise<void> {
-  return waffle.provider.send('hardhat_setBalance', [
-    address,
-    value.toHexString().replace('0x0', '0x'),
-  ])
+export async function setBalance(address: string, value: bigint): Promise<void> {
+  return ethers.provider.send('hardhat_setBalance', [address, '0x' + value.toString(16)])
 }
 
 export async function increaseTime(seconds: number): Promise<void> {
-  await waffle.provider.send('evm_increaseTime', [seconds])
-  return waffle.provider.send('evm_mine', [])
+  await ethers.provider.send('evm_increaseTime', [seconds])
+  return ethers.provider.send('evm_mine', [])
+}
+
+export function toHexString(data: Buffer | Uint8Array): string {
+  return '0x' + data.toString('hex')
 }

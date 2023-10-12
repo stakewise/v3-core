@@ -1,6 +1,5 @@
 import { NetworkConfig, Networks } from './types'
-import { BigNumber } from 'ethers'
-import { parseEther } from 'ethers/lib/utils'
+import { ethers } from 'ethers'
 
 export const NETWORKS: {
   [network in Networks]: NetworkConfig
@@ -12,6 +11,7 @@ export const NETWORKS: {
     governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     validatorsRegistry: '0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b',
     securityDeposit: 1000000000,
+    exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
 
     // Keeper
     oracles: [
@@ -30,13 +30,13 @@ export const NETWORKS: {
     rewardsMinOracles: 6,
     validatorsMinOracles: 9,
     rewardsDelay: 12 * 60 * 60,
-    maxAvgRewardPerSecond: BigNumber.from('6341958397'), // 20% APY
+    maxAvgRewardPerSecond: 6341958397n, // 20% APY
     oraclesConfigIpfsHash: 'QmYcJE3hWnrJrLeL56d1gwGZFA3G61cwq7Sc8znWQSFVii',
 
     // OsToken
     treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     osTokenFeePercent: 500,
-    osTokenCapacity: parseEther('1000000'),
+    osTokenCapacity: ethers.parseEther('1000000'),
     osTokenName: 'SW Staked ETH',
     osTokenSymbol: 'osETH',
     redeemFromLtvPercent: 9150, // 91.5%
@@ -50,7 +50,7 @@ export const NETWORKS: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
       poolEscrow: '0x040F15C6b5Bfc5F324eCaB5864C38D4e1EEF4218',
       rewardEthToken: '0x826f88d423440c305D9096cC1581Ae751eFCAfB0',
-      capacity: parseEther('1000000'),
+      capacity: ethers.parseEther('1000000'),
       feePercent: 500,
     },
     priceFeedDescription: 'osETH/ETH',
@@ -66,19 +66,20 @@ export const NETWORKS: {
     governor: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
     validatorsRegistry: '0x00000000219ab540356cBB839Cbe05303d7705Fa',
     securityDeposit: 1000000000,
+    exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
 
     // Keeper
     oracles: [], // TODO: update with oracles' addresses
     rewardsDelay: 12 * 60 * 60,
     rewardsMinOracles: 6,
     validatorsMinOracles: 9,
-    maxAvgRewardPerSecond: BigNumber.from('6341958397'), // 20% APY
+    maxAvgRewardPerSecond: 6341958397n, // 20% APY
     oraclesConfigIpfsHash: '',
 
     // OsToken
     treasury: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
     osTokenFeePercent: 500,
-    osTokenCapacity: parseEther('1000000'),
+    osTokenCapacity: ethers.parseEther('1000000'),
     osTokenName: 'Staked ETH',
     osTokenSymbol: 'osETH',
 
@@ -94,7 +95,7 @@ export const NETWORKS: {
       admin: '',
       poolEscrow: '0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079',
       rewardEthToken: '0x20BC832ca081b91433ff6c17f85701B6e92486c5',
-      capacity: parseEther('1000000'),
+      capacity: ethers.parseEther('1000000'),
       feePercent: 500,
     },
     priceFeedDescription: 'osETH/ETH',

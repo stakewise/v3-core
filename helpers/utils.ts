@@ -3,7 +3,7 @@ import { HardhatRuntimeEnvironment } from 'hardhat/types/runtime'
 
 export async function deployContract(tx: any): Promise<Contract> {
   const result = await tx
-  await result.deployTransaction.wait()
+  await result.waitForDeployment()
   return result
 }
 

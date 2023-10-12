@@ -229,7 +229,13 @@
       {
         "indexed": false,
         "internalType": "uint256",
-        "name": "coveredShares",
+        "name": "osTokenShares",
+        "type": "uint256"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "shares",
         "type": "uint256"
       },
       {
@@ -299,6 +305,12 @@
         "internalType": "address",
         "name": "receiver",
         "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint256",
+        "name": "osTokenShares",
+        "type": "uint256"
       },
       {
         "indexed": false,
@@ -633,13 +645,7 @@
       }
     ],
     "name": "liquidateOsToken",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "receivedAssets",
-        "type": "uint256"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },
@@ -747,13 +753,7 @@
       }
     ],
     "name": "redeemOsToken",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "receivedAssets",
-        "type": "uint256"
-      }
-    ],
+    "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
   },

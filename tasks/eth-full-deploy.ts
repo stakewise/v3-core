@@ -1,4 +1,3 @@
-import '@nomiclabs/hardhat-ethers'
 import fs from 'fs'
 import '@openzeppelin/hardhat-upgrades/dist/type-extensions'
 import { task } from 'hardhat/config'
@@ -13,17 +12,13 @@ import {
   RewardSplitter__factory,
   RewardSplitterFactory__factory,
   CumulativeMerkleDrop__factory,
+  OsTokenChecker__factory,
 } from '../typechain-types'
 import { deployContract, verify } from '../helpers/utils'
 import { NETWORKS } from '../helpers/constants'
 import { NetworkConfig } from '../helpers/types'
-import { getContractAddress } from 'ethers/lib/utils'
 
 const DEPLOYMENTS_DIR = 'deployments'
-const FEE_DATA = {
-  maxFeePerGas: '364053996066',
-  maxPriorityFeePerGas: '305657672',
-}
 
 task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (taskArgs, hre) => {
   const upgrades = hre.upgrades
@@ -31,56 +26,64 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const networkName = hre.network.name
   const networkConfig: NetworkConfig = NETWORKS[networkName]
 
-  // Wrap the provider so we can override fee data.
-  const provider = new ethers.providers.FallbackProvider([ethers.provider], 1)
-  provider.getFeeData = async () => FEE_DATA
-
   // Create the signer for the mnemonic, connected to the provider with hardcoded fee data
-  const deployer = ethers.Wallet.fromMnemonic(process.env.MNEMONIC).connect(provider)
+  const deployer = ethers.Wallet.fromPhrase(process.env.MNEMONIC as string).connect(ethers.provider)
 
   const vaultsRegistry = await deployContract(new VaultsRegistry__factory(deployer).deploy())
-  console.log('VaultsRegistry deployed at', vaultsRegistry.address)
-  await verify(
-    hre,
-    vaultsRegistry.address,
-    [],
-    'contracts/vaults/VaultsRegistry.sol:VaultsRegistry'
-  )
+  const vaultsRegistryAddress = await vaultsRegistry.getAddress()
+  console.log('VaultsRegistry deployed at', vaultsRegistryAddress)
+  await verify(hre, vaultsRegistryAddress, [], 'contracts/vaults/VaultsRegistry.sol:VaultsRegistry')
 
   const sharedMevEscrow = await deployContract(
-    new SharedMevEscrow__factory(deployer).deploy(vaultsRegistry.address)
+    new SharedMevEscrow__factory(deployer).deploy(vaultsRegistryAddress)
   )
-  console.log('SharedMevEscrow deployed at', sharedMevEscrow.address)
+  const sharedMevEscrowAddress = await sharedMevEscrow.getAddress()
+  console.log('SharedMevEscrow deployed at', sharedMevEscrowAddress)
   await verify(
     hre,
-    sharedMevEscrow.address,
-    [vaultsRegistry.address],
+    sharedMevEscrowAddress,
+    [vaultsRegistryAddress],
     'contracts/vaults/ethereum/mev/SharedMevEscrow.sol:SharedMevEscrow'
   )
 
-  const keeperCalculatedAddress = getContractAddress({
+  const osTokenChecker = await deployContract(
+    new OsTokenChecker__factory(deployer).deploy(vaultsRegistryAddress)
+  )
+  const osTokenCheckerAddress = await osTokenChecker.getAddress()
+  console.log('OsTokenChecker deployed at', osTokenCheckerAddress)
+  await verify(
+    hre,
+    osTokenCheckerAddress,
+    [vaultsRegistryAddress],
+    'contracts/osToken/OsTokenChecker.sol:OsTokenChecker'
+  )
+
+  const keeperCalculatedAddress = ethers.getCreateAddress({
     from: deployer.address,
-    nonce: (await deployer.getTransactionCount()) + 1,
+    nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1,
   })
   const osToken = await deployContract(
     new OsToken__factory(deployer).deploy(
       keeperCalculatedAddress,
-      vaultsRegistry.address,
+      osTokenCheckerAddress,
       networkConfig.treasury,
+      networkConfig.governor,
       networkConfig.osTokenFeePercent,
       networkConfig.osTokenCapacity,
       networkConfig.osTokenName,
       networkConfig.osTokenSymbol
     )
   )
-  console.log('OsToken deployed at', osToken.address)
+  const osTokenAddress = await osToken.getAddress()
+  console.log('OsToken deployed at', osTokenAddress)
   await verify(
     hre,
-    osToken.address,
+    osTokenAddress,
     [
       keeperCalculatedAddress,
-      vaultsRegistry.address,
+      osTokenCheckerAddress,
       networkConfig.treasury,
+      networkConfig.governor,
       networkConfig.osTokenFeePercent,
       networkConfig.osTokenCapacity,
       networkConfig.osTokenName,
@@ -91,18 +94,19 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
 
   const keeper = await deployContract(
     new Keeper__factory(deployer).deploy(
-      sharedMevEscrow.address,
-      vaultsRegistry.address,
-      osToken.address,
+      sharedMevEscrowAddress,
+      vaultsRegistryAddress,
+      osTokenAddress,
       networkConfig.rewardsDelay,
       networkConfig.maxAvgRewardPerSecond,
       networkConfig.validatorsRegistry
     )
   )
-  if (keeper.address !== keeperCalculatedAddress) {
+  const keeperAddress = await keeper.getAddress()
+  if (keeperAddress !== keeperCalculatedAddress) {
     throw new Error('Keeper address mismatch')
   }
-  console.log('Keeper deployed at', keeper.address)
+  console.log('Keeper deployed at', keeperAddress)
 
   for (let i = 0; i < networkConfig.oracles.length; i++) {
     await keeper.addOracle(networkConfig.oracles[i])
@@ -112,11 +116,11 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   await keeper.setValidatorsMinOracles(networkConfig.validatorsMinOracles)
   await verify(
     hre,
-    keeper.address,
+    keeperAddress,
     [
-      sharedMevEscrow.address,
-      vaultsRegistry.address,
-      osToken.address,
+      sharedMevEscrowAddress,
+      vaultsRegistryAddress,
+      osTokenAddress,
       networkConfig.rewardsDelay,
       networkConfig.maxAvgRewardPerSecond,
       networkConfig.validatorsRegistry,
@@ -133,10 +137,11 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       ltvPercent: networkConfig.ltvPercent,
     })
   )
-  console.log('OsTokenConfig deployed at', osTokenConfig.address)
+  const osTokenConfigAddress = await osTokenConfig.getAddress()
+  console.log('OsTokenConfig deployed at', osTokenConfigAddress)
   await verify(
     hre,
-    osTokenConfig.address,
+    osTokenConfigAddress,
     [
       networkConfig.governor,
       {
@@ -156,12 +161,13 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     const vaultImpl = (await upgrades.deployImplementation(vault, {
       unsafeAllow: ['delegatecall'],
       constructorArgs: [
-        keeper.address,
-        vaultsRegistry.address,
+        keeperAddress,
+        vaultsRegistryAddress,
         networkConfig.validatorsRegistry,
-        osToken.address,
-        osTokenConfig.address,
-        sharedMevEscrow.address,
+        osTokenAddress,
+        osTokenConfigAddress,
+        sharedMevEscrowAddress,
+        networkConfig.exitedAssetsClaimDelay,
       ],
     })) as string
     console.log(`${vaultType} implementation deployed at`, vaultImpl)
@@ -169,33 +175,35 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       hre,
       vaultImpl,
       [
-        keeper.address,
-        vaultsRegistry.address,
+        keeperAddress,
+        vaultsRegistryAddress,
         networkConfig.validatorsRegistry,
-        osToken.address,
-        osTokenConfig.address,
-        sharedMevEscrow.address,
+        osTokenAddress,
+        osTokenConfigAddress,
+        sharedMevEscrowAddress,
+        networkConfig.exitedAssetsClaimDelay,
       ],
       `contracts/vaults/ethereum/${vaultType}.sol:${vaultType}`
     )
 
     const ethVaultFactory = await deployContract(
-      new EthVaultFactory__factory(deployer).deploy(vaultImpl, vaultsRegistry.address)
+      new EthVaultFactory__factory(deployer).deploy(vaultImpl, vaultsRegistryAddress)
     )
-    console.log(`${vaultType}Factory deployed at`, ethVaultFactory.address)
+    const ethVaultFactoryAddress = await ethVaultFactory.getAddress()
+    console.log(`${vaultType}Factory deployed at`, ethVaultFactoryAddress)
     await verify(
       hre,
-      ethVaultFactory.address,
-      [vaultImpl, vaultsRegistry.address],
+      ethVaultFactoryAddress,
+      [vaultImpl, vaultsRegistryAddress],
       'contracts/vaults/ethereum/EthVaultFactory.sol:EthVaultFactory'
     )
 
-    await vaultsRegistry.addFactory(ethVaultFactory.address)
+    await vaultsRegistry.addFactory(ethVaultFactoryAddress)
     console.log(`Added ${vaultType}Factory to VaultsRegistry`)
 
-    await osToken.setVaultImplementation(vaultImpl, true)
-    console.log(`Added ${vaultType} implementation to OsToken`)
-    factories.push(ethVaultFactory.address)
+    await vaultsRegistry.addVaultImpl(vaultImpl)
+    console.log(`Added ${vaultType} implementation to VaultsRegistry`)
+    factories.push(ethVaultFactoryAddress)
   }
 
   const ethGenesisVaultFactory = await ethers.getContractFactory('EthGenesisVault')
@@ -203,19 +211,21 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     unsafeAllow: ['delegatecall'],
     initializer: false,
     constructorArgs: [
-      keeper.address,
-      vaultsRegistry.address,
+      keeperAddress,
+      vaultsRegistryAddress,
       networkConfig.validatorsRegistry,
-      osToken.address,
-      osTokenConfig.address,
-      sharedMevEscrow.address,
+      osTokenAddress,
+      osTokenConfigAddress,
+      sharedMevEscrowAddress,
       networkConfig.genesisVault.poolEscrow,
       networkConfig.genesisVault.rewardEthToken,
+      networkConfig.exitedAssetsClaimDelay,
     ],
   })
-  await ethGenesisVault.deployed()
+  const ethGenesisVaultAddress = await ethGenesisVault.getAddress()
+  await ethGenesisVault.waitForDeployment()
   const tx = await ethGenesisVault.initialize(
-    ethers.utils.defaultAbiCoder.encode(
+    ethers.AbiCoder.defaultAbiCoder().encode(
       ['address', 'tuple(uint256 capacity, uint16 feePercent, string metadataIpfsHash)'],
       [
         networkConfig.genesisVault.admin,
@@ -225,57 +235,61 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     { value: networkConfig.securityDeposit }
   )
   await tx.wait()
-  console.log(`EthGenesisVault deployed at`, ethGenesisVault.address)
+  console.log(`EthGenesisVault deployed at`, ethGenesisVaultAddress)
 
-  await vaultsRegistry.addVault(ethGenesisVault.address)
+  await vaultsRegistry.addVault(ethGenesisVaultAddress)
   console.log('Added EthGenesisVault to VaultsRegistry')
 
   const ethGenesisVaultImpl = await ethGenesisVault.implementation()
-  await osToken.setVaultImplementation(ethGenesisVaultImpl, true)
-  console.log(`Added EthGenesisVault implementation to OsToken`)
+  await vaultsRegistry.addVaultImpl(ethGenesisVaultImpl)
+  console.log(`Added EthGenesisVault implementation to VaultsRegistry`)
   await verify(
     hre,
-    ethGenesisVault.address,
+    ethGenesisVaultAddress,
     [
-      keeper.address,
-      vaultsRegistry.address,
+      keeperAddress,
+      vaultsRegistryAddress,
       networkConfig.validatorsRegistry,
-      osToken.address,
-      osTokenConfig.address,
-      sharedMevEscrow.address,
+      osTokenAddress,
+      osTokenConfigAddress,
+      sharedMevEscrowAddress,
       networkConfig.genesisVault.poolEscrow,
       networkConfig.genesisVault.rewardEthToken,
+      networkConfig.exitedAssetsClaimDelay,
     ],
     'contracts/vaults/ethereum/EthGenesisVault.sol:EthGenesisVault'
   )
 
   const priceFeed = await deployContract(
-    new PriceFeed__factory(deployer).deploy(osToken.address, networkConfig.priceFeedDescription)
+    new PriceFeed__factory(deployer).deploy(osTokenAddress, networkConfig.priceFeedDescription)
   )
-  console.log('PriceFeed deployed at', priceFeed.address)
+  const priceFeedAddress = await priceFeed.getAddress()
+  console.log('PriceFeed deployed at', priceFeedAddress)
   await verify(
     hre,
-    priceFeed.address,
-    [osToken.address, networkConfig.priceFeedDescription],
+    priceFeedAddress,
+    [osTokenAddress, networkConfig.priceFeedDescription],
     'contracts/osToken/PriceFeed.sol:PriceFeed'
   )
 
   const rewardSplitterImpl = await deployContract(new RewardSplitter__factory(deployer).deploy())
-  console.log('RewardSplitter implementation deployed at', rewardSplitterImpl.address)
+  const rewardSplitterImplAddress = await rewardSplitterImpl.getAddress()
+  console.log('RewardSplitter implementation deployed at', rewardSplitterImplAddress)
   await verify(
     hre,
-    rewardSplitterImpl.address,
+    rewardSplitterImplAddress,
     [],
     'contracts/misc/RewardSplitter.sol:RewardSplitter'
   )
 
   const rewardSplitterFactory = await deployContract(
-    new RewardSplitterFactory__factory(deployer).deploy(rewardSplitterImpl.address)
+    new RewardSplitterFactory__factory(deployer).deploy(rewardSplitterImplAddress)
   )
-  console.log('RewardSplitterFactory deployed at', rewardSplitterFactory.address)
+  const rewardSplitterFactoryAddress = await rewardSplitterFactory.getAddress()
+  console.log('RewardSplitterFactory deployed at', rewardSplitterFactoryAddress)
   await verify(
     hre,
-    rewardSplitterFactory.address,
+    rewardSplitterFactoryAddress,
     [rewardSplitterImpl],
     'contracts/misc/RewardSplitterFactory.sol:RewardSplitterFactory'
   )
@@ -286,33 +300,37 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       networkConfig.swiseToken
     )
   )
-  console.log('CumulativeMerkleDrop deployed at', cumulativeMerkleDrop.address)
+  const cumulativeMerkleDropAddress = await cumulativeMerkleDrop.getAddress()
+  console.log('CumulativeMerkleDrop deployed at', cumulativeMerkleDropAddress)
   await verify(
     hre,
-    cumulativeMerkleDrop.address,
+    cumulativeMerkleDropAddress,
     [networkConfig.liquidityCommittee, networkConfig.swiseToken],
     'contracts/misc/CumulativeMerkleDrop.sol:CumulativeMerkleDrop'
   )
 
-  // pass ownership to governor
-  await vaultsRegistry.transferOwnership(networkConfig.governor)
-  await keeper.transferOwnership(networkConfig.governor)
-  await osToken.transferOwnership(networkConfig.governor)
+  // transfer ownership to governor
+  await vaultsRegistry.initialize(networkConfig.governor)
+  console.log('VaultsRegistry ownership transferred to', networkConfig.governor)
+
+  await keeper.initialize(networkConfig.governor)
+  console.log('Keeper ownership transferred to', networkConfig.governor)
 
   // Save the addresses
   const addresses = {
-    VaultsRegistry: vaultsRegistry.address,
-    Keeper: keeper.address,
-    EthGenesisVault: ethGenesisVault.address,
+    VaultsRegistry: vaultsRegistryAddress,
+    Keeper: keeperAddress,
+    EthGenesisVault: ethGenesisVaultAddress,
     EthVaultFactory: factories[0],
     EthPrivVaultFactory: factories[1],
     EthErc20VaultFactory: factories[2],
     EthPrivErc20VaultFactory: factories[3],
-    SharedMevEscrow: sharedMevEscrow.address,
-    OsToken: osToken.address,
-    OsTokenConfig: osTokenConfig.address,
-    PriceFeed: priceFeed.address,
-    RewardSplitterFactory: rewardSplitterFactory.address,
+    SharedMevEscrow: sharedMevEscrowAddress,
+    OsToken: osTokenAddress,
+    OsTokenConfig: osTokenConfigAddress,
+    OsTokenChecker: osTokenCheckerAddress,
+    PriceFeed: priceFeedAddress,
+    RewardSplitterFactory: rewardSplitterFactoryAddress,
   }
   const json = JSON.stringify(addresses, null, 2)
   const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`
@@ -324,8 +342,5 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   fs.writeFileSync(fileName, json, 'utf-8')
   console.log('Saved to', fileName)
 
-  console.log('NB! Accept ownership of Keeper from', networkConfig.governor)
-  console.log('NB! Accept ownership of OsToken from', networkConfig.governor)
-  console.log('NB! Accept ownership of VaultsRegistry from', networkConfig.governor)
   console.log('NB! Commit and accept StakeWise V2 PoolEscrow ownership to EthGenesisVault')
 })

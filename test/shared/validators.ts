@@ -1,9 +1,8 @@
 import { ByteVectorType, ContainerType, Type, UintNumberType } from '@chainsafe/ssz'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
-import { network } from 'hardhat'
+import { ethers, network } from 'hardhat'
 import { Buffer } from 'buffer'
-import { BigNumber, BigNumberish, BytesLike, Contract, ContractTransaction, Wallet } from 'ethers'
-import { arrayify, parseEther } from 'ethers/lib/utils'
+import { BytesLike, Contract, ContractTransactionResponse, Wallet } from 'ethers'
 import bls from 'bls-eth-wasm'
 import { EthVault, Keeper } from '../../typechain-types'
 import {
@@ -43,7 +42,7 @@ export const exitSignatureIpfsHashes = [
 
 const DOMAIN_DEPOSIT = Uint8Array.from([3, 0, 0, 0])
 const ETH1_ADDRESS_WITHDRAWAL_PREFIX = Uint8Array.from([1])
-const GENESIS_FORK_VERSION = arrayify('0x00000000')
+const GENESIS_FORK_VERSION = ethers.getBytes('0x00000000')
 const ZERO_HASH = Buffer.alloc(32, 0)
 
 // SSZ types
@@ -135,11 +134,15 @@ function computeSigningRoot<T>(type: Type<T>, sszObject: T, domain): Uint8Array 
 }
 
 export function getWithdrawalCredentials(vaultAddress: string): Buffer {
-  return Buffer.concat([ETH1_ADDRESS_WITHDRAWAL_PREFIX, Buffer.alloc(11), arrayify(vaultAddress)])
+  return Buffer.concat([
+    ETH1_ADDRESS_WITHDRAWAL_PREFIX,
+    Buffer.alloc(11),
+    ethers.getBytes(vaultAddress),
+  ])
 }
 
 export async function createValidators(
-  depositAmount: BigNumber,
+  depositAmount: bigint,
   vaultAddress: string
 ): Promise<Buffer[]> {
   await bls.init(bls.BLS12_381)
@@ -148,14 +151,14 @@ export async function createValidators(
   const validators: Buffer[] = []
   for (let i = 0; i < secretKeys.length; i++) {
     const secretKey = new bls.SecretKey()
-    secretKey.deserialize(arrayify(secretKeys[i]))
+    secretKey.deserialize(ethers.getBytes(secretKeys[i]))
     const publicKey = secretKey.getPublicKey().serialize()
 
     // create DepositData
     const depositData = {
       pubkey: publicKey,
       withdrawalCredentials,
-      amount: depositAmount.div(1000000000).toNumber(), // convert to gwei
+      amount: Number(depositAmount / 1000000000n), // convert to gwei
       signature: Buffer.alloc(0),
     }
     const domain = computeDomain(DOMAIN_DEPOSIT, GENESIS_FORK_VERSION, ZERO_HASH)
@@ -169,7 +172,7 @@ export async function createValidators(
 
 export function appendDepositData(
   validator: Buffer,
-  depositAmount: BigNumber,
+  depositAmount: bigint,
   vaultAddress: string
 ): Buffer {
   const withdrawalCredentials = getWithdrawalCredentials(vaultAddress)
@@ -178,15 +181,15 @@ export function appendDepositData(
   const depositData = {
     pubkey: validator.subarray(0, 48),
     withdrawalCredentials,
-    amount: depositAmount.div(1000000000).toNumber(), // convert to gwei
+    amount: Number(depositAmount / 1000000000n), // convert to gwei
     signature: validator.subarray(48, 144),
   }
   return Buffer.concat([validator, DepositData.hashTreeRoot(depositData)])
 }
 
 export async function createEthValidatorsData(vault: EthVault): Promise<EthValidatorsData> {
-  const validatorDeposit = parseEther('32')
-  const validators = await createValidators(validatorDeposit, vault.address)
+  const validatorDeposit = ethers.parseEther('32')
+  const validators = await createValidators(validatorDeposit, await vault.getAddress())
   const tree = StandardMerkleTree.of(
     validators.map((v, i) => [v, i]),
     ['bytes', 'uint256']
@@ -200,9 +203,9 @@ export async function createEthValidatorsData(vault: EthVault): Promise<EthValid
   }
 }
 
-export function getEthValidatorsSigningData(
+export async function getEthValidatorsSigningData(
   validators: Buffer,
-  deadline: BigNumberish,
+  deadline: bigint,
   exitSignaturesIpfsHash: string,
   keeper: Keeper,
   vault: EthVault,
@@ -215,11 +218,11 @@ export function getEthValidatorsSigningData(
       name: 'KeeperOracles',
       version: '1',
       chainId: network.config.chainId,
-      verifyingContract: keeper.address,
+      verifyingContract: await keeper.getAddress(),
     },
     message: {
       validatorsRegistryRoot,
-      vault: vault.address,
+      vault: await vault.getAddress(),
       validators,
       exitSignaturesIpfsHash,
       deadline,
@@ -227,12 +230,12 @@ export function getEthValidatorsSigningData(
   }
 }
 
-export function getEthValidatorsExitSignaturesSigningData(
+export async function getEthValidatorsExitSignaturesSigningData(
   keeper: Keeper,
   vault: EthVault,
-  deadline: BigNumberish,
+  deadline: number,
   exitSignaturesIpfsHash: string,
-  nonce: BigNumberish
+  nonce: number
 ) {
   return {
     primaryType: 'KeeperValidators',
@@ -241,10 +244,10 @@ export function getEthValidatorsExitSignaturesSigningData(
       name: 'KeeperOracles',
       version: '1',
       chainId: network.config.chainId,
-      verifyingContract: keeper.address,
+      verifyingContract: await keeper.getAddress(),
     },
     message: {
-      vault: vault.address,
+      vault: await vault.getAddress(),
       deadline,
       nonce,
       exitSignaturesIpfsHash,
@@ -277,13 +280,13 @@ export async function registerEthValidator(
   keeper: Keeper,
   validatorsRegistry: Contract,
   admin: Wallet
-): Promise<ContractTransaction> {
+): Promise<ContractTransactionResponse> {
   const validatorsData = await createEthValidatorsData(vault)
   const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
   await vault.connect(admin).setValidatorsRoot(validatorsData.root)
   const validator = validatorsData.validators[0]
   const exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
-  const signingData = getEthValidatorsSigningData(
+  const signingData = await getEthValidatorsSigningData(
     validator,
     VALIDATORS_DEADLINE,
     exitSignatureIpfsHash,

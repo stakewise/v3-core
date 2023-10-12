@@ -116,19 +116,32 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     uint256 osTokenShares,
     address owner,
     address receiver
-  ) external override returns (uint256 receivedAssets) {
-    receivedAssets = _redeemOsToken(owner, receiver, osTokenShares, true);
-    emit OsTokenLiquidated(msg.sender, owner, receiver, osTokenShares, receivedAssets);
+  ) external override {
+    (uint256 burnedShares, uint256 receivedAssets) = _redeemOsToken(
+      owner,
+      receiver,
+      osTokenShares,
+      true
+    );
+    emit OsTokenLiquidated(
+      msg.sender,
+      owner,
+      receiver,
+      osTokenShares,
+      burnedShares,
+      receivedAssets
+    );
   }
 
   /// @inheritdoc IVaultOsToken
-  function redeemOsToken(
-    uint256 osTokenShares,
-    address owner,
-    address receiver
-  ) external override returns (uint256 receivedAssets) {
-    receivedAssets = _redeemOsToken(owner, receiver, osTokenShares, false);
-    emit OsTokenRedeemed(msg.sender, owner, receiver, osTokenShares, receivedAssets);
+  function redeemOsToken(uint256 osTokenShares, address owner, address receiver) external override {
+    (uint256 burnedShares, uint256 receivedAssets) = _redeemOsToken(
+      owner,
+      receiver,
+      osTokenShares,
+      false
+    );
+    emit OsTokenRedeemed(msg.sender, owner, receiver, osTokenShares, burnedShares, receivedAssets);
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -155,6 +168,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
    * @param receiver The receiver of the assets
    * @param osTokenShares The amount of osToken shares to redeem or liquidate
    * @param isLiquidation Whether the liquidation or redemption is being performed
+   * @return burnedShares The amount of shares burned
    * @return receivedAssets The amount of assets received
    */
   function _redeemOsToken(
@@ -162,7 +176,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     address receiver,
     uint256 osTokenShares,
     bool isLiquidation
-  ) private returns (uint256 receivedAssets) {
+  ) private returns (uint256 burnedShares, uint256 receivedAssets) {
     if (receiver == address(0)) revert Errors.ZeroAddress();
     _checkHarvested();
 
@@ -225,7 +239,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     position.shares -= SafeCast.toUint128(osTokenShares);
     _positions[owner] = position;
 
-    uint256 sharesToBurn = convertToShares(receivedAssets);
+    burnedShares = convertToShares(receivedAssets);
 
     // update total assets
     unchecked {
@@ -233,7 +247,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     }
 
     // burn owner shares
-    _burnShares(owner, sharesToBurn);
+    _burnShares(owner, burnedShares);
 
     // check ltv violation in case of redemption
     if (

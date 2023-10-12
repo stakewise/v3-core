@@ -186,11 +186,6 @@
   },
   {
     "inputs": [],
-    "name": "NegativeAssetsDelta",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "NotCollateralized",
     "type": "error"
   },

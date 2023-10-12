@@ -3,20 +3,20 @@
 exports[`KeeperOracles add oracle succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 52926,
+  "gasUsed": 52950,
 }
 `;
 
 exports[`KeeperOracles remove oracle succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 31108,
+  "gasUsed": 31133,
 }
 `;
 
 exports[`KeeperOracles update config succeeds 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 27006,
+  "gasUsed": 27009,
 }
 `;

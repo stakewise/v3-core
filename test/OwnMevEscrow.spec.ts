@@ -1,9 +1,8 @@
 import { ethers } from 'hardhat'
 import { ContractFactory, Wallet } from 'ethers'
-import { OwnMevEscrow } from '../typechain-types'
+import { OwnMevEscrow__factory } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
-import { parseEther } from 'ethers/lib/utils'
 
 describe('OwnMevEscrow', () => {
   let ownMevEscrowFactory: ContractFactory
@@ -15,26 +14,33 @@ describe('OwnMevEscrow', () => {
   })
 
   it('vault deployment gas', async () => {
-    const tx = await ownMevEscrowFactory.deploy(vault.address)
-    await snapshotGasCost(tx.deployTransaction)
+    const contract = await ownMevEscrowFactory.deploy(await vault.getAddress())
+    await snapshotGasCost(contract.deploymentTransaction() as any)
   })
 
   it('only vault can withdraw assets', async () => {
-    const mevEscrow = (await ownMevEscrowFactory.deploy(vault.address)) as OwnMevEscrow
-    await expect(mevEscrow.connect(other).harvest()).to.be.revertedWith('HarvestFailed')
+    const tx = await ethers.deployContract('OwnMevEscrow', [await vault.getAddress()])
+    const contract = await tx.waitForDeployment()
+    const ownMevEscrow = OwnMevEscrow__factory.connect(await contract.getAddress(), other)
+    await expect(ownMevEscrow.connect(other).harvest()).to.be.revertedWithCustomError(
+      ownMevEscrow,
+      'HarvestFailed'
+    )
   })
 
   it('emits event on transfers', async () => {
-    const value = parseEther('1')
-    const mevEscrow = (await ownMevEscrowFactory.deploy(vault.address)) as OwnMevEscrow
+    const value = ethers.parseEther('1')
+    const tx = await ethers.deployContract('OwnMevEscrow', [await vault.getAddress()])
+    const contract = await tx.waitForDeployment()
+    const ownMevEscrow = OwnMevEscrow__factory.connect(await contract.getAddress(), other)
 
     await expect(
       other.sendTransaction({
-        to: mevEscrow.address,
+        to: await ownMevEscrow.getAddress(),
         value: value,
       })
     )
-      .to.be.emit(mevEscrow, 'MevReceived')
+      .to.be.emit(ownMevEscrow, 'MevReceived')
       .withArgs(value)
   })
 })

@@ -1,21 +1,20 @@
-import { BigNumber } from 'ethers'
-import { parseEther } from 'ethers/lib/utils'
+import { ethers } from 'ethers'
 
 export const PANIC_CODES = {
-  ARITHMETIC_UNDER_OR_OVERFLOW: 'panic code 0x11',
-  DIVISION_BY_ZERO: 'panic code 0x12',
-  OUT_OF_BOUND_INDEX: 'panic code 0x32',
+  ARITHMETIC_UNDER_OR_OVERFLOW: 0x11,
+  DIVISION_BY_ZERO: 0x12,
+  OUT_OF_BOUND_INDEX: 0x32,
 }
 
-export const SECURITY_DEPOSIT = 1000000000
-export const MAX_UINT256 = BigNumber.from(2).pow(256).sub(1)
-export const MAX_UINT16 = BigNumber.from(2).pow(16).sub(1)
-export const MAX_UINT128 = BigNumber.from(2).pow(128).sub(1)
+export const SECURITY_DEPOSIT = 1000000000n
+export const MAX_UINT256 = 2n ** 256n - 1n
+export const MAX_UINT16 = 2n ** 16n - 1n
+export const MAX_UINT128 = 2n ** 128n - 1n
 export const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000'
 export const ZERO_BYTES32 = '0x0000000000000000000000000000000000000000000000000000000000000000'
 export const ONE_DAY = 86400
 
-export const VALIDATORS_DEADLINE = 1914150396
+export const VALIDATORS_DEADLINE = 1914150396n
 
 export const REWARDS_DELAY = ONE_DAY / 2
 export const ORACLES = [
@@ -37,7 +36,7 @@ export const VALIDATORS_MIN_ORACLES = 11
 export const ORACLES_CONFIG = 'QmbwQ6zFEWs1SjLPGk4NNJqn4wduVe6dK3xyte2iG59Uru'
 export const EXITING_ASSETS_MIN_DELAY = ONE_DAY
 export const OSTOKEN_FEE = 500 // 5%
-export const OSTOKEN_CAPACITY = parseEther('10000000')
+export const OSTOKEN_CAPACITY = ethers.parseEther('10000000')
 export const OSTOKEN_NAME = 'SW Staked ETH'
 export const OSTOKEN_SYMBOL = 'osETH'
 

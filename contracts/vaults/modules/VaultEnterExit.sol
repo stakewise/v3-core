@@ -185,7 +185,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     if (totalAssetsAfter > capacity()) revert Errors.CapacityExceeded();
 
     // calculate amount of shares to mint
-    shares = _convertToShares(assets, Math.Rounding.Up);
+    shares = _convertToShares(assets, Math.Rounding.Ceil);
 
     // update state
     _totalAssets = SafeCast.toUint128(totalAssetsAfter);
