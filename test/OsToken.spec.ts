@@ -1,7 +1,7 @@
 import { ethers, network } from 'hardhat'
 import { Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { OsToken } from '../typechain-types'
+import { OsTokenVaultController, OsToken } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -11,7 +11,6 @@ import {
   ONE_DAY,
   OSTOKEN_NAME,
   OSTOKEN_SYMBOL,
-  PANIC_CODES,
   PermitSig,
   ZERO_ADDRESS,
 } from './shared/constants'
@@ -28,8 +27,7 @@ describe('OsToken', () => {
   const assets = ethers.parseEther('2')
   const initialSupply = 1000
   let initialHolder: Wallet, spender: Wallet, admin: Wallet, dao: Wallet, recipient: Wallet
-  let vaultImpl: string
-  let osToken: OsToken
+  let osTokenVaultController: OsTokenVaultController, osToken: OsToken
 
   before('create fixture loader', async () => {
     ;[dao, initialHolder, admin, spender, recipient] = await (ethers as any).getSigners()
@@ -42,9 +40,9 @@ describe('OsToken', () => {
       feePercent: 1000,
       metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
     }
+    osTokenVaultController = fixture.osTokenVaultController
     osToken = fixture.osToken
     const vault = await fixture.createEthVault(admin, vaultParams)
-    vaultImpl = await vault.implementation()
 
     // collateralize vault
     await collateralizeEthVault(vault, fixture.keeper, fixture.validatorsRegistry, admin)
@@ -58,16 +56,15 @@ describe('OsToken', () => {
 
   describe('capacity', () => {
     it('not owner cannot change', async () => {
-      await expect(osToken.connect(initialHolder).setCapacity(0)).to.be.revertedWithCustomError(
-        osToken,
-        'OwnableUnauthorizedAccount'
-      )
+      await expect(
+        osTokenVaultController.connect(initialHolder).setCapacity(0)
+      ).to.be.revertedWithCustomError(osToken, 'OwnableUnauthorizedAccount')
     })
 
     it('owner can change', async () => {
-      const receipt = await osToken.connect(dao).setCapacity(0)
-      await expect(receipt).to.emit(osToken, 'CapacityUpdated').withArgs(0)
-      expect(await osToken.capacity()).to.eq(0)
+      const receipt = await osTokenVaultController.connect(dao).setCapacity(0)
+      await expect(receipt).to.emit(osTokenVaultController, 'CapacityUpdated').withArgs(0)
+      expect(await osTokenVaultController.capacity()).to.eq(0)
       await snapshotGasCost(receipt)
     })
   })
@@ -75,68 +72,96 @@ describe('OsToken', () => {
   describe('treasury', () => {
     it('not owner cannot change', async () => {
       await expect(
-        osToken.connect(initialHolder).setTreasury(dao.address)
+        osTokenVaultController.connect(initialHolder).setTreasury(dao.address)
       ).to.be.revertedWithCustomError(osToken, 'OwnableUnauthorizedAccount')
     })
 
     it('cannot set to zero address', async () => {
-      await expect(osToken.connect(dao).setTreasury(ZERO_ADDRESS)).to.be.revertedWithCustomError(
-        osToken,
-        'ZeroAddress'
-      )
+      await expect(
+        osTokenVaultController.connect(dao).setTreasury(ZERO_ADDRESS)
+      ).to.be.revertedWithCustomError(osToken, 'ZeroAddress')
     })
 
     it('owner can change', async () => {
-      const receipt = await osToken.connect(dao).setTreasury(dao.address)
-      await expect(receipt).to.emit(osToken, 'TreasuryUpdated').withArgs(dao.address)
-      expect(await osToken.treasury()).to.eq(dao.address)
+      const receipt = await osTokenVaultController.connect(dao).setTreasury(dao.address)
+      await expect(receipt).to.emit(osTokenVaultController, 'TreasuryUpdated').withArgs(dao.address)
+      expect(await osTokenVaultController.treasury()).to.eq(dao.address)
       await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('controllers', () => {
+    it('not owner cannot change', async () => {
+      await expect(
+        osToken.connect(initialHolder).setController(dao.address, true)
+      ).to.be.revertedWithCustomError(osToken, 'OwnableUnauthorizedAccount')
+    })
+
+    it('cannot set to zero address', async () => {
+      await expect(
+        osToken.connect(dao).setController(ZERO_ADDRESS, true)
+      ).to.be.revertedWithCustomError(osToken, 'ZeroAddress')
+    })
+
+    it('owner can change', async () => {
+      let receipt = await osToken.connect(dao).setController(dao.address, true)
+      await expect(receipt).to.emit(osToken, 'ControllerUpdated').withArgs(dao.address, true)
+      expect(await osToken.controllers(dao.address)).to.eq(true)
+      await snapshotGasCost(receipt)
+
+      receipt = await osToken.connect(dao).setController(dao.address, false)
+      await expect(receipt).to.emit(osToken, 'ControllerUpdated').withArgs(dao.address, false)
+      expect(await osToken.controllers(dao.address)).to.eq(false)
+      await snapshotGasCost(receipt)
+    })
+
+    it('not controller cannot mint', async () => {
+      await expect(
+        osToken.connect(initialHolder).mint(dao.address, 1)
+      ).to.be.revertedWithCustomError(osToken, 'AccessDenied')
+    })
+
+    it('controller can mint', async () => {
+      await osToken.connect(dao).setController(initialHolder.address, true)
+      const receipt = await osToken.connect(initialHolder).mint(dao.address, 1)
+      await expect(receipt).to.emit(osToken, 'Transfer').withArgs(ZERO_ADDRESS, dao.address, 1)
+      expect(await osToken.balanceOf(dao.address)).to.eq(1)
+    })
+
+    it('not controller cannot burn', async () => {
+      await expect(
+        osToken.connect(initialHolder).burn(dao.address, 1)
+      ).to.be.revertedWithCustomError(osToken, 'AccessDenied')
+    })
+
+    it('controller can burn', async () => {
+      await osToken.connect(dao).setController(initialHolder.address, true)
+      await osToken.connect(initialHolder).mint(dao.address, 1)
+      const receipt = await osToken.connect(initialHolder).burn(dao.address, 1)
+      await expect(receipt).to.emit(osToken, 'Transfer').withArgs(dao.address, ZERO_ADDRESS, 1)
+      expect(await osToken.balanceOf(dao.address)).to.eq(0)
     })
   })
 
   describe('fee percent', () => {
     it('not owner cannot change', async () => {
-      await expect(osToken.connect(initialHolder).setFeePercent(100)).to.be.revertedWithCustomError(
-        osToken,
-        'OwnableUnauthorizedAccount'
-      )
+      await expect(
+        osTokenVaultController.connect(initialHolder).setFeePercent(100)
+      ).to.be.revertedWithCustomError(osToken, 'OwnableUnauthorizedAccount')
     })
 
     it('cannot set to more than 100%', async () => {
-      await expect(osToken.connect(dao).setFeePercent(10001)).to.be.revertedWithCustomError(
-        osToken,
-        'InvalidFeePercent'
-      )
+      await expect(
+        osTokenVaultController.connect(dao).setFeePercent(10001)
+      ).to.be.revertedWithCustomError(osTokenVaultController, 'InvalidFeePercent')
     })
 
     it('owner can change', async () => {
       await increaseTime(ONE_DAY * 1000)
-      const receipt = await osToken.connect(dao).setFeePercent(100)
-      await expect(receipt).to.emit(osToken, 'FeePercentUpdated').withArgs(100)
-      await expect(receipt).to.emit(osToken, 'StateUpdated')
-      expect(await osToken.feePercent()).to.eq(100)
-      await snapshotGasCost(receipt)
-    })
-  })
-
-  describe('checker', () => {
-    it('not owner cannot change', async () => {
-      await expect(
-        osToken.connect(initialHolder).setChecker(recipient.address)
-      ).to.be.revertedWithCustomError(osToken, 'OwnableUnauthorizedAccount')
-    })
-
-    it('cannot set to zero address', async () => {
-      await expect(osToken.connect(dao).setChecker(ZERO_ADDRESS)).to.be.revertedWithCustomError(
-        osToken,
-        'ZeroAddress'
-      )
-    })
-
-    it('owner can change', async () => {
-      const receipt = await osToken.connect(dao).setChecker(vaultImpl)
-      await expect(receipt).to.emit(osToken, 'CheckerUpdated').withArgs(vaultImpl)
-      expect(await osToken.checker()).to.eq(vaultImpl)
+      const receipt = await osTokenVaultController.connect(dao).setFeePercent(100)
+      await expect(receipt).to.emit(osTokenVaultController, 'FeePercentUpdated').withArgs(100)
+      await expect(receipt).to.emit(osTokenVaultController, 'StateUpdated')
+      expect(await osTokenVaultController.feePercent()).to.eq(100)
       await snapshotGasCost(receipt)
     })
   })
@@ -144,31 +169,29 @@ describe('OsToken', () => {
   describe('keeper', () => {
     it('not owner cannot change', async () => {
       await expect(
-        osToken.connect(initialHolder).setKeeper(dao.address)
-      ).to.be.revertedWithCustomError(osToken, 'OwnableUnauthorizedAccount')
+        osTokenVaultController.connect(initialHolder).setKeeper(dao.address)
+      ).to.be.revertedWithCustomError(osTokenVaultController, 'OwnableUnauthorizedAccount')
     })
 
     it('cannot set to zero address', async () => {
-      await expect(osToken.connect(dao).setKeeper(ZERO_ADDRESS)).to.be.revertedWithCustomError(
-        osToken,
-        'ZeroAddress'
-      )
+      await expect(
+        osTokenVaultController.connect(dao).setKeeper(ZERO_ADDRESS)
+      ).to.be.revertedWithCustomError(osTokenVaultController, 'ZeroAddress')
     })
 
     it('owner can change', async () => {
-      const receipt = await osToken.connect(dao).setKeeper(dao.address)
-      await expect(receipt).to.emit(osToken, 'KeeperUpdated').withArgs(dao.address)
-      expect(await osToken.keeper()).to.eq(dao.address)
+      const receipt = await osTokenVaultController.connect(dao).setKeeper(dao.address)
+      await expect(receipt).to.emit(osTokenVaultController, 'KeeperUpdated').withArgs(dao.address)
+      expect(await osTokenVaultController.keeper()).to.eq(dao.address)
       await snapshotGasCost(receipt)
     })
   })
 
   describe('avg reward per second', () => {
     it('not owner cannot change', async () => {
-      await expect(osToken.connect(dao).setAvgRewardPerSecond(0)).to.be.revertedWithCustomError(
-        osToken,
-        'AccessDenied'
-      )
+      await expect(
+        osTokenVaultController.connect(dao).setAvgRewardPerSecond(0)
+      ).to.be.revertedWithCustomError(osTokenVaultController, 'AccessDenied')
     })
   })
 
@@ -187,6 +210,7 @@ describe('OsToken', () => {
   describe('total supply', () => {
     it('returns the total amount of tokens', async () => {
       expect(await osToken.totalSupply()).to.eq(initialSupply)
+      expect(await osTokenVaultController.totalShares()).to.eq(initialSupply)
     })
   })
 
@@ -211,13 +235,13 @@ describe('OsToken', () => {
       const amount = balance + 1
       await expect(
         osToken.connect(initialHolder).transfer(recipient.address, amount)
-      ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+      ).to.be.revertedWithCustomError(osToken, 'ERC20InsufficientBalance')
     })
 
     it('reverts with zero address recipient', async () => {
       await expect(
         osToken.connect(initialHolder).transfer(ZERO_ADDRESS, balance)
-      ).to.be.revertedWithCustomError(osToken, 'ZeroAddress')
+      ).to.be.revertedWithCustomError(osToken, 'ERC20InvalidReceiver')
     })
 
     describe('when the sender transfers all balance', () => {
@@ -300,7 +324,7 @@ describe('OsToken', () => {
         it('reverts', async () => {
           await expect(
             osToken.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
-          ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+          ).to.be.revertedWithCustomError(osToken, 'ERC20InsufficientBalance')
         })
       })
     })
@@ -318,7 +342,7 @@ describe('OsToken', () => {
         it('reverts', async () => {
           await expect(
             osToken.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
-          ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+          ).to.be.revertedWithCustomError(osToken, 'ERC20InsufficientAllowance')
         })
       })
 
@@ -332,7 +356,7 @@ describe('OsToken', () => {
         it('reverts', async () => {
           await expect(
             osToken.connect(spender).transferFrom(initialHolder.address, spender.address, amount)
-          ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+          ).to.be.revertedWithCustomError(osToken, 'ERC20InsufficientBalance')
         })
       })
     })
@@ -357,7 +381,7 @@ describe('OsToken', () => {
       const amount = ethers.parseEther('1')
       await expect(
         osToken.connect(initialHolder).approve(ZERO_ADDRESS, amount)
-      ).to.be.revertedWithCustomError(osToken, 'ZeroAddress')
+      ).to.be.revertedWithCustomError(osToken, 'ERC20InvalidSpender')
     })
 
     describe('when the sender has enough balance', () => {
@@ -415,160 +439,6 @@ describe('OsToken', () => {
           await osToken.connect(initialHolder).approve(spender.address, amount)
 
           expect(await osToken.allowance(initialHolder.address, spender.address)).to.eq(amount)
-        })
-      })
-    })
-
-    describe('increase allowance', () => {
-      const amount = initialSupply
-
-      describe('when the spender is not the zero address', () => {
-        describe('when the sender has enough balance', () => {
-          it('emits an approval event', async () => {
-            await expect(osToken.connect(initialHolder).increaseAllowance(spender.address, amount))
-              .to.emit(osToken, 'Approval')
-              .withArgs(initialHolder.address, spender.address, amount)
-          })
-
-          describe('when there was no approved amount before', () => {
-            it('approves the requested amount', async () => {
-              await osToken.connect(initialHolder).increaseAllowance(spender.address, amount)
-              expect(await osToken.allowance(initialHolder.address, spender.address)).to.eq(amount)
-            })
-          })
-
-          describe('when the spender had an approved amount', () => {
-            beforeEach(async () => {
-              await osToken.connect(initialHolder).approve(spender.address, 1)
-            })
-
-            it('increases the spender allowance adding the requested amount', async () => {
-              await osToken.connect(initialHolder).increaseAllowance(spender.address, amount)
-              expect(await osToken.allowance(initialHolder.address, spender.address)).to.be.eq(
-                amount + 1
-              )
-            })
-          })
-        })
-
-        describe('when the sender does not have enough balance', () => {
-          const amount = initialSupply + 1
-
-          it('emits an approval event', async () => {
-            await expect(osToken.connect(initialHolder).increaseAllowance(spender.address, amount))
-              .to.emit(osToken, 'Approval')
-              .withArgs(initialHolder.address, spender.address, amount)
-          })
-
-          describe('when there was no approved amount before', () => {
-            it('approves the requested amount', async () => {
-              const receipt = await osToken
-                .connect(initialHolder)
-                .increaseAllowance(spender.address, amount)
-              expect(await osToken.allowance(initialHolder.address, spender.address)).to.eq(amount)
-              await snapshotGasCost(receipt)
-            })
-          })
-
-          describe('when the spender had an approved amount', () => {
-            beforeEach(async () => {
-              await osToken.connect(initialHolder).approve(spender.address, 1)
-            })
-
-            it('increases the spender allowance adding the requested amount', async () => {
-              const receipt = await osToken
-                .connect(initialHolder)
-                .increaseAllowance(spender.address, amount)
-              expect(await osToken.allowance(initialHolder.address, spender.address)).to.eq(
-                amount + 1
-              )
-              await snapshotGasCost(receipt)
-            })
-          })
-        })
-      })
-
-      describe('when the spender is the zero address', () => {
-        it('reverts', async () => {
-          await expect(
-            osToken.connect(initialHolder).increaseAllowance(ZERO_ADDRESS, amount)
-          ).to.be.revertedWithCustomError(osToken, 'ZeroAddress')
-        })
-      })
-    })
-
-    describe('decrease allowance', () => {
-      describe('when the spender is not the zero address', () => {
-        function shouldDecreaseApproval(amount) {
-          describe('when there was no approved amount before', () => {
-            it('reverts', async () => {
-              await expect(
-                osToken.connect(initialHolder).decreaseAllowance(spender.address, amount)
-              ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
-            })
-          })
-
-          describe('when the spender had an approved amount', () => {
-            const approvedAmount = amount
-
-            beforeEach(async () => {
-              await osToken.connect(initialHolder).approve(spender.address, approvedAmount)
-            })
-
-            it('emits an approval event', async () => {
-              const receipt = await osToken
-                .connect(initialHolder)
-                .decreaseAllowance(spender.address, approvedAmount)
-              await expect(receipt)
-                .to.emit(osToken, 'Approval')
-                .withArgs(initialHolder.address, spender.address, 0)
-              await snapshotGasCost(receipt)
-            })
-
-            it('decreases the spender allowance subtracting the requested amount', async () => {
-              const receipt = await osToken
-                .connect(initialHolder)
-                .decreaseAllowance(spender.address, approvedAmount - 1)
-              expect(await osToken.allowance(initialHolder.address, spender.address)).to.eq('1')
-              await snapshotGasCost(receipt)
-            })
-
-            it('sets the allowance to zero when all allowance is removed', async () => {
-              await osToken
-                .connect(initialHolder)
-                .decreaseAllowance(spender.address, approvedAmount)
-              expect(await osToken.allowance(initialHolder.address, spender.address)).to.eq('0')
-            })
-
-            it('reverts when more than the full allowance is removed', async () => {
-              await expect(
-                osToken
-                  .connect(initialHolder)
-                  .decreaseAllowance(spender.address, approvedAmount + 1)
-              ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
-            })
-          })
-        }
-
-        describe('when the sender has enough balance', () => {
-          shouldDecreaseApproval(initialSupply)
-        })
-
-        describe('when the sender does not have enough balance', () => {
-          const amount = initialSupply + 1
-
-          shouldDecreaseApproval(amount)
-        })
-      })
-
-      describe('when the spender is the zero address', () => {
-        const amount = initialSupply
-        const spender = ZERO_ADDRESS
-
-        it('reverts', async () => {
-          await expect(
-            osToken.connect(initialHolder).decreaseAllowance(spender, amount)
-          ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
         })
       })
     })
@@ -645,7 +515,7 @@ describe('OsToken', () => {
 
       await expect(
         osToken.permit(initialHolder.address, spender.address, value, maxDeadline, v, r, s)
-      ).to.be.revertedWithCustomError(osToken, 'PermitInvalidSigner')
+      ).to.be.revertedWithCustomError(osToken, 'ERC2612InvalidSigner')
     })
 
     it('rejects other signature', async () => {
@@ -655,7 +525,7 @@ describe('OsToken', () => {
 
       await expect(
         osToken.permit(ownerAddress, spender.address, value, maxDeadline, v, r, s)
-      ).to.be.revertedWithCustomError(osToken, 'PermitInvalidSigner')
+      ).to.be.revertedWithCustomError(osToken, 'ERC2612InvalidSigner')
     })
 
     it('rejects expired permit', async () => {
@@ -667,7 +537,7 @@ describe('OsToken', () => {
 
       await expect(
         osToken.permit(ownerAddress, spender.address, value, deadline, v, r, s)
-      ).to.be.revertedWithCustomError(osToken, 'DeadlineExpired')
+      ).to.be.revertedWithCustomError(osToken, 'ERC2612ExpiredSignature')
     })
 
     it('rejects zero address', async () => {
@@ -679,7 +549,7 @@ describe('OsToken', () => {
 
       await expect(
         osToken.permit(ownerAddress, ZERO_ADDRESS, value, deadline, v, r, s)
-      ).to.be.revertedWithCustomError(osToken, 'ZeroAddress')
+      ).to.be.revertedWithCustomError(osToken, 'ERC2612ExpiredSignature')
     })
   })
 })

@@ -1,11 +1,17 @@
 import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthVault, IKeeperRewards, Keeper, OsToken } from '../typechain-types'
+import {
+  EthVault,
+  IKeeperRewards,
+  Keeper,
+  OsToken,
+  OsTokenVaultController,
+} from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ONE_DAY, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
+import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
 import {
   collateralizeEthVault,
   getRewardsRootProof,
@@ -27,7 +33,11 @@ describe('EthVault - redeem osToken', () => {
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
   let owner: Wallet, admin: Wallet, dao: Wallet, redeemer: Wallet, receiver: Wallet
-  let vault: EthVault, keeper: Keeper, osToken: OsToken, validatorsRegistry: Contract
+  let vault: EthVault,
+    keeper: Keeper,
+    osTokenVaultController: OsTokenVaultController,
+    osToken: OsToken,
+    validatorsRegistry: Contract
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
@@ -37,10 +47,11 @@ describe('EthVault - redeem osToken', () => {
       createEthVault: createVault,
       keeper,
       validatorsRegistry,
+      osTokenVaultController,
       osToken,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
-    await osToken.connect(dao).setFeePercent(0)
+    await osTokenVaultController.connect(dao).setFeePercent(0)
 
     // collateralize vault
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
@@ -111,7 +122,7 @@ describe('EthVault - redeem osToken', () => {
   it('cannot redeem osTokens when redeeming more than minted', async () => {
     await expect(
       vault.connect(redeemer).redeemOsToken(osTokenShares + 1n, owner.address, receiver.address)
-    ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+    ).to.be.revertedWithCustomError(osToken, 'ERC20InsufficientBalance')
   })
 
   it('cannot redeem osTokens when LTV is below redeemFromLtvPercent', async () => {
@@ -140,7 +151,7 @@ describe('EthVault - redeem osToken', () => {
     await osToken.connect(redeemer).transfer(dao.address, osTokenShares)
     await expect(
       vault.connect(redeemer).redeemOsToken(osTokenShares, owner.address, receiver.address)
-    ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+    ).to.be.revertedWithCustomError(osToken, 'ERC20InsufficientBalance')
   })
 
   it('calculates redeem correctly', async () => {
@@ -149,7 +160,7 @@ describe('EthVault - redeem osToken', () => {
     expect(await vault.getShares(owner.address)).to.be.eq(shares)
 
     const balanceBefore = await ethers.provider.getBalance(receiver.address)
-    const redeemedAssets = await osToken.convertToAssets(redeemedShares)
+    const redeemedAssets = await osTokenVaultController.convertToAssets(redeemedShares)
     const burnedShares = await vault.convertToShares(redeemedAssets)
 
     const receipt = await vault
@@ -175,7 +186,7 @@ describe('EthVault - redeem osToken', () => {
       .to.emit(osToken, 'Transfer')
       .withArgs(redeemer.address, ZERO_ADDRESS, redeemedShares)
     await expect(receipt)
-      .to.emit(osToken, 'Burn')
+      .to.emit(osTokenVaultController, 'Burn')
       .withArgs(await vault.getAddress(), redeemer.address, redeemedShares, redeemedAssets)
 
     await snapshotGasCost(receipt)
@@ -206,7 +217,7 @@ describe('EthVault - redeem osToken', () => {
 
     await expect(receipt).to.emit(vault, 'OsTokenRedeemed')
     await expect(receipt).to.emit(osToken, 'Transfer')
-    await expect(receipt).to.emit(osToken, 'Burn')
+    await expect(receipt).to.emit(osTokenVaultController, 'Burn')
 
     await snapshotGasCost(receipt)
   })

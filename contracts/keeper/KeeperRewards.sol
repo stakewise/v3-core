@@ -7,7 +7,7 @@ import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IVaultMev} from '../interfaces/IVaultMev.sol';
 import {Errors} from '../libraries/Errors.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
-import {IOsToken} from '../interfaces/IOsToken.sol';
+import {IOsTokenVaultController} from '../interfaces/IOsTokenVaultController.sol';
 import {KeeperOracles} from './KeeperOracles.sol';
 
 /**
@@ -25,7 +25,7 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
 
   address private immutable _sharedMevEscrow;
 
-  IOsToken private immutable _osToken;
+  IOsTokenVaultController private immutable _osTokenVaultController;
 
   IVaultsRegistry internal immutable _vaultsRegistry;
 
@@ -57,20 +57,20 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
    * @dev Constructor
    * @param sharedMevEscrow The address of the shared MEV escrow contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
-   * @param osToken The address of the OsToken contract
+   * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param _rewardsDelay The delay in seconds between rewards updates
    * @param maxAvgRewardPerSecond The maximum possible average reward per second
    */
   constructor(
     address sharedMevEscrow,
     IVaultsRegistry vaultsRegistry,
-    IOsToken osToken,
+    IOsTokenVaultController osTokenVaultController,
     uint256 _rewardsDelay,
     uint256 maxAvgRewardPerSecond
   ) {
     _sharedMevEscrow = sharedMevEscrow;
     _vaultsRegistry = vaultsRegistry;
-    _osToken = osToken;
+    _osTokenVaultController = osTokenVaultController;
     rewardsDelay = _rewardsDelay;
     _maxAvgRewardPerSecond = maxAvgRewardPerSecond;
 
@@ -116,7 +116,7 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
       rewardsNonce = nonce + 1;
     }
 
-    _osToken.setAvgRewardPerSecond(params.avgRewardPerSecond);
+    _osTokenVaultController.setAvgRewardPerSecond(params.avgRewardPerSecond);
 
     emit RewardsUpdated(
       msg.sender,

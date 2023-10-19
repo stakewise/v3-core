@@ -3,8 +3,9 @@
 pragma solidity =0.8.20;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {IERC20} from '../interfaces/IERC20.sol';
-import {IERC20Permit} from '../interfaces/IERC20Permit.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IERC20Permit} from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol';
+import {IERC20Metadata} from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
 import {Errors} from '../libraries/Errors.sol';
 
 /**
@@ -12,17 +13,17 @@ import {Errors} from '../libraries/Errors.sol';
  * @author StakeWise
  * @notice Modern and gas efficient ERC20 + EIP-2612 implementation
  */
-abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
+abstract contract ERC20Upgradeable is Initializable, IERC20Permit, IERC20, IERC20Metadata {
   bytes32 private constant _permitTypeHash =
     keccak256('Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)');
 
-  /// @inheritdoc IERC20
+  /// @inheritdoc IERC20Metadata
   string public override name;
 
-  /// @inheritdoc IERC20
+  /// @inheritdoc IERC20Metadata
   string public override symbol;
 
-  /// @inheritdoc IERC20
+  /// @inheritdoc IERC20Metadata
   uint8 public constant override decimals = 18;
 
   /// @inheritdoc IERC20
@@ -55,21 +56,6 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit {
 
     emit Approval(msg.sender, spender, amount);
 
-    return true;
-  }
-
-  /// @inheritdoc IERC20Permit
-  function increaseAllowance(address spender, uint256 addedValue) external override returns (bool) {
-    approve(spender, allowance[msg.sender][spender] + addedValue);
-    return true;
-  }
-
-  /// @inheritdoc IERC20Permit
-  function decreaseAllowance(
-    address spender,
-    uint256 subtractedValue
-  ) external override returns (bool) {
-    approve(spender, allowance[msg.sender][spender] - subtractedValue);
     return true;
   }
 

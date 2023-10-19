@@ -2,23 +2,23 @@
 
 pragma solidity =0.8.20;
 
-import {IOsToken} from '../interfaces/IOsToken.sol';
+import {IOsTokenVaultController} from '../interfaces/IOsTokenVaultController.sol';
 
 contract UnknownVaultMock {
-  IOsToken private immutable _osToken;
+  IOsTokenVaultController private immutable _osTokenVaultController;
   address private immutable _implementation;
 
-  constructor(IOsToken osToken, address implementation_) {
-    _osToken = osToken;
+  constructor(IOsTokenVaultController osTokenVaultController, address implementation_) {
+    _osTokenVaultController = osTokenVaultController;
     _implementation = implementation_;
   }
 
   function mintOsToken(address account, uint256 amount) external {
-    _osToken.mintShares(account, amount);
+    _osTokenVaultController.mintShares(account, amount);
   }
 
   function burnOsToken(uint256 amount) external {
-    _osToken.burnShares(msg.sender, amount);
+    _osTokenVaultController.burnShares(msg.sender, amount);
   }
 
   function implementation() external view returns (address) {

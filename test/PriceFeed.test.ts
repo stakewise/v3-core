@@ -1,7 +1,7 @@
 import { ethers } from 'hardhat'
 import { Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthVault, IKeeperRewards, OsToken, PriceFeed } from '../typechain-types'
+import { EthVault, IKeeperRewards, OsTokenVaultController, PriceFeed } from '../typechain-types'
 import { expect } from './shared/expect'
 import { createPriceFeed, ethVaultFixture } from './shared/fixtures'
 import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
@@ -19,7 +19,7 @@ describe('PriceFeed', () => {
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
   let sender: Wallet, admin: Wallet, dao: Wallet
-  let osToken: OsToken, priceFeed: PriceFeed, vault: EthVault
+  let osTokenVaultController: OsTokenVaultController, priceFeed: PriceFeed, vault: EthVault
 
   before('create fixture loader', async () => {
     ;[sender, dao, admin] = await (ethers as any).getSigners()
@@ -29,8 +29,8 @@ describe('PriceFeed', () => {
     const fixture = await loadFixture(ethVaultFixture)
     vault = await fixture.createEthVault(admin, vaultParams)
 
-    osToken = fixture.osToken
-    priceFeed = await createPriceFeed(osToken, description)
+    osTokenVaultController = fixture.osTokenVaultController
+    priceFeed = await createPriceFeed(osTokenVaultController, description)
 
     // collateralize vault
     await collateralizeEthVault(vault, fixture.keeper, fixture.validatorsRegistry, admin)
@@ -54,7 +54,9 @@ describe('PriceFeed', () => {
   })
 
   it('has osToken address', async () => {
-    expect(await priceFeed.osToken()).to.eq(await osToken.getAddress())
+    expect(await priceFeed.osTokenVaultController()).to.eq(
+      await osTokenVaultController.getAddress()
+    )
   })
 
   it('has decimals', async () => {
@@ -75,7 +77,7 @@ describe('PriceFeed', () => {
 
   it('works with zero supply', async () => {
     const expectedValue = ethers.parseEther('1')
-    expect(await osToken.totalSupply()).to.eq(0)
+    expect(await osTokenVaultController.totalShares()).to.eq(0)
     expect(await priceFeed.latestAnswer()).to.eq(expectedValue)
 
     const latestRoundData = await priceFeed.latestRoundData()

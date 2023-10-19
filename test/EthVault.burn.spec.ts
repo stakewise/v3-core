@@ -1,7 +1,7 @@
 import { ethers } from 'hardhat'
 import { Contract, ContractTransactionReceipt, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthVault, Keeper, OsToken } from '../typechain-types'
+import { EthVault, Keeper, OsTokenVaultController, OsToken } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { createUnknownVaultMock, ethVaultFixture } from './shared/fixtures'
@@ -20,7 +20,11 @@ describe('EthVault - burn', () => {
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
   let sender: Wallet, admin: Wallet, owner: Wallet
-  let vault: EthVault, keeper: Keeper, osToken: OsToken, validatorsRegistry: Contract
+  let vault: EthVault,
+    keeper: Keeper,
+    osTokenVaultController: OsTokenVaultController,
+    osToken: OsToken,
+    validatorsRegistry: Contract
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
@@ -31,6 +35,7 @@ describe('EthVault - burn', () => {
       keeper,
       validatorsRegistry,
       osToken,
+      osTokenVaultController,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
 
@@ -56,42 +61,45 @@ describe('EthVault - burn', () => {
   })
 
   it('cannot burn osTokens from unregistered vault', async () => {
-    const unknownVault = await createUnknownVaultMock(osToken, await vault.implementation())
+    const unknownVault = await createUnknownVaultMock(
+      osTokenVaultController,
+      await vault.implementation()
+    )
     await expect(
       unknownVault.connect(sender).burnOsToken(osTokenShares)
     ).to.be.revertedWithCustomError(vault, 'AccessDenied')
   })
 
   it('updates position accumulated fee', async () => {
-    const treasury = await osToken.treasury()
+    const treasury = await osTokenVaultController.treasury()
     let totalShares = osTokenShares
     let totalAssets = osTokenAssets
     let cumulativeFeePerShare = ethers.parseEther('1')
     let treasuryShares = 0n
     let positionShares = osTokenShares
 
-    expect(await osToken.cumulativeFeePerShare()).to.eq(cumulativeFeePerShare)
+    expect(await osTokenVaultController.cumulativeFeePerShare()).to.eq(cumulativeFeePerShare)
     expect(await vault.osTokenPositions(sender.address)).to.eq(positionShares)
 
     await increaseTime(ONE_DAY)
 
-    expect(await osToken.cumulativeFeePerShare()).to.be.above(cumulativeFeePerShare)
-    expect(await osToken.totalAssets()).to.be.above(totalAssets)
+    expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.above(cumulativeFeePerShare)
+    expect(await osTokenVaultController.totalAssets()).to.be.above(totalAssets)
     expect(await vault.osTokenPositions(sender.address)).to.be.above(positionShares)
 
     const receipt = await vault.connect(sender).burnOsToken(osTokenShares)
     expect(await osToken.balanceOf(treasury)).to.be.above(0)
-    expect(await osToken.cumulativeFeePerShare()).to.be.above(cumulativeFeePerShare)
+    expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.above(cumulativeFeePerShare)
     await snapshotGasCost(receipt)
 
-    cumulativeFeePerShare = await osToken.cumulativeFeePerShare()
+    cumulativeFeePerShare = await osTokenVaultController.cumulativeFeePerShare()
     treasuryShares = await osToken.balanceOf(treasury)
     positionShares = treasuryShares
     totalShares = treasuryShares
-    totalAssets = await osToken.convertToAssets(treasuryShares)
-    expect(await osToken.totalSupply()).to.eq(totalShares)
-    expect(await osToken.totalAssets()).to.eq(totalAssets)
-    expect(await osToken.cumulativeFeePerShare()).to.eq(cumulativeFeePerShare)
+    totalAssets = await osTokenVaultController.convertToAssets(treasuryShares)
+    expect(await osTokenVaultController.totalShares()).to.eq(totalShares)
+    expect(await osTokenVaultController.totalAssets()).to.eq(totalAssets)
+    expect(await osTokenVaultController.cumulativeFeePerShare()).to.eq(cumulativeFeePerShare)
     expect(await osToken.balanceOf(treasury)).to.eq(treasuryShares)
     expect(await osToken.balanceOf(sender.address)).to.eq(0)
     expect(await vault.osTokenPositions(sender.address)).to.eq(positionShares)
@@ -106,7 +114,7 @@ describe('EthVault - burn', () => {
 
     expect(await osToken.balanceOf(sender.address)).to.eq(0)
     expect(await vault.osTokenPositions(sender.address)).to.eq(
-      await osToken.balanceOf(await osToken.treasury())
+      await osToken.balanceOf(await osTokenVaultController.treasury())
     )
     await expect(tx)
       .to.emit(vault, 'OsTokenBurned')
@@ -115,7 +123,7 @@ describe('EthVault - burn', () => {
       .to.emit(osToken, 'Transfer')
       .withArgs(sender.address, ZERO_ADDRESS, osTokenShares)
     await expect(tx)
-      .to.emit(osToken, 'Burn')
+      .to.emit(osTokenVaultController, 'Burn')
       .withArgs(await vault.getAddress(), sender.address, osTokenAssets, osTokenShares)
 
     await snapshotGasCost(tx)
