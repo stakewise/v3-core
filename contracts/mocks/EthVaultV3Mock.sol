@@ -10,7 +10,7 @@ contract EthVaultV3Mock is EthVaultV2Mock {
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
-    address osToken,
+    address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
     uint256 exitingAssetsClaimDelay
@@ -19,7 +19,7 @@ contract EthVaultV3Mock is EthVaultV2Mock {
       _keeper,
       _vaultsRegistry,
       _validatorsRegistry,
-      osToken,
+      osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
       exitingAssetsClaimDelay

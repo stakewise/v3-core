@@ -51,7 +51,7 @@ contract EthErc20Vault is
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
-   * @param osToken The address of the OsToken contract
+   * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
@@ -61,14 +61,14 @@ contract EthErc20Vault is
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
-    address osToken,
+    address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
     uint256 exitingAssetsClaimDelay
   )
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
     VaultEnterExit(exitingAssetsClaimDelay)
-    VaultOsToken(osToken, osTokenConfig)
+    VaultOsToken(osTokenVaultController, osTokenConfig)
     VaultMev(sharedMevEscrow)
   {
     _disableInitializers();

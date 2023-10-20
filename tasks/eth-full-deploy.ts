@@ -12,7 +12,7 @@ import {
   RewardSplitter__factory,
   RewardSplitterFactory__factory,
   CumulativeMerkleDrop__factory,
-  OsTokenChecker__factory,
+  OsTokenVaultController__factory,
 } from '../typechain-types'
 import { deployContract, verify } from '../helpers/utils'
 import { NETWORKS } from '../helpers/constants'
@@ -46,46 +46,60 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     'contracts/vaults/ethereum/mev/SharedMevEscrow.sol:SharedMevEscrow'
   )
 
-  const osTokenChecker = await deployContract(
-    new OsTokenChecker__factory(deployer).deploy(vaultsRegistryAddress)
-  )
-  const osTokenCheckerAddress = await osTokenChecker.getAddress()
-  console.log('OsTokenChecker deployed at', osTokenCheckerAddress)
-  await verify(
-    hre,
-    osTokenCheckerAddress,
-    [vaultsRegistryAddress],
-    'contracts/osToken/OsTokenChecker.sol:OsTokenChecker'
-  )
-
-  const keeperCalculatedAddress = ethers.getCreateAddress({
+  const osTokenAddress = ethers.getCreateAddress({
     from: deployer.address,
     nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1,
   })
-  const osToken = await deployContract(
-    new OsToken__factory(deployer).deploy(
-      keeperCalculatedAddress,
-      osTokenCheckerAddress,
+  const keeperAddress = ethers.getCreateAddress({
+    from: deployer.address,
+    nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 2,
+  })
+  const osTokenVaultController = await deployContract(
+    new OsTokenVaultController__factory(deployer).deploy(
+      keeperAddress,
+      vaultsRegistryAddress,
+      osTokenAddress,
+      networkConfig.treasury,
+      networkConfig.governor,
+      networkConfig.osTokenFeePercent,
+      networkConfig.osTokenCapacity
+    )
+  )
+  const osTokenVaultControllerAddress = await osTokenVaultController.getAddress()
+  console.log('OsTokenVaultController deployed at', osTokenVaultControllerAddress)
+  await verify(
+    hre,
+    osTokenVaultControllerAddress,
+    [
+      keeperAddress,
+      vaultsRegistryAddress,
+      osTokenAddress,
       networkConfig.treasury,
       networkConfig.governor,
       networkConfig.osTokenFeePercent,
       networkConfig.osTokenCapacity,
+    ],
+    'contracts/osToken/OsTokenVaultController.sol:OsTokenVaultController'
+  )
+
+  const osToken = await deployContract(
+    new OsToken__factory(deployer).deploy(
+      networkConfig.governor,
+      osTokenVaultControllerAddress,
       networkConfig.osTokenName,
       networkConfig.osTokenSymbol
     )
   )
-  const osTokenAddress = await osToken.getAddress()
+  if ((await osToken.getAddress()) !== osTokenAddress) {
+    throw new Error('OsToken address mismatch')
+  }
   console.log('OsToken deployed at', osTokenAddress)
   await verify(
     hre,
     osTokenAddress,
     [
-      keeperCalculatedAddress,
-      osTokenCheckerAddress,
-      networkConfig.treasury,
       networkConfig.governor,
-      networkConfig.osTokenFeePercent,
-      networkConfig.osTokenCapacity,
+      osTokenVaultControllerAddress,
       networkConfig.osTokenName,
       networkConfig.osTokenSymbol,
     ],
@@ -96,14 +110,13 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     new Keeper__factory(deployer).deploy(
       sharedMevEscrowAddress,
       vaultsRegistryAddress,
-      osTokenAddress,
+      osTokenVaultControllerAddress,
       networkConfig.rewardsDelay,
       networkConfig.maxAvgRewardPerSecond,
       networkConfig.validatorsRegistry
     )
   )
-  const keeperAddress = await keeper.getAddress()
-  if (keeperAddress !== keeperCalculatedAddress) {
+  if ((await keeper.getAddress()) !== keeperAddress) {
     throw new Error('Keeper address mismatch')
   }
   console.log('Keeper deployed at', keeperAddress)
@@ -120,7 +133,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     [
       sharedMevEscrowAddress,
       vaultsRegistryAddress,
-      osTokenAddress,
+      osTokenVaultControllerAddress,
       networkConfig.rewardsDelay,
       networkConfig.maxAvgRewardPerSecond,
       networkConfig.validatorsRegistry,
@@ -164,7 +177,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
         keeperAddress,
         vaultsRegistryAddress,
         networkConfig.validatorsRegistry,
-        osTokenAddress,
+        osTokenVaultControllerAddress,
         osTokenConfigAddress,
         sharedMevEscrowAddress,
         networkConfig.exitedAssetsClaimDelay,
@@ -178,7 +191,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
         keeperAddress,
         vaultsRegistryAddress,
         networkConfig.validatorsRegistry,
-        osTokenAddress,
+        osTokenVaultControllerAddress,
         osTokenConfigAddress,
         sharedMevEscrowAddress,
         networkConfig.exitedAssetsClaimDelay,
@@ -214,7 +227,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       keeperAddress,
       vaultsRegistryAddress,
       networkConfig.validatorsRegistry,
-      osTokenAddress,
+      osTokenVaultControllerAddress,
       osTokenConfigAddress,
       sharedMevEscrowAddress,
       networkConfig.genesisVault.poolEscrow,
@@ -250,7 +263,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       keeperAddress,
       vaultsRegistryAddress,
       networkConfig.validatorsRegistry,
-      osTokenAddress,
+      osTokenVaultControllerAddress,
       osTokenConfigAddress,
       sharedMevEscrowAddress,
       networkConfig.genesisVault.poolEscrow,
@@ -261,14 +274,17 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   )
 
   const priceFeed = await deployContract(
-    new PriceFeed__factory(deployer).deploy(osTokenAddress, networkConfig.priceFeedDescription)
+    new PriceFeed__factory(deployer).deploy(
+      osTokenVaultControllerAddress,
+      networkConfig.priceFeedDescription
+    )
   )
   const priceFeedAddress = await priceFeed.getAddress()
   console.log('PriceFeed deployed at', priceFeedAddress)
   await verify(
     hre,
     priceFeedAddress,
-    [osTokenAddress, networkConfig.priceFeedDescription],
+    [osTokenVaultControllerAddress, networkConfig.priceFeedDescription],
     'contracts/osToken/PriceFeed.sol:PriceFeed'
   )
 
@@ -328,7 +344,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     SharedMevEscrow: sharedMevEscrowAddress,
     OsToken: osTokenAddress,
     OsTokenConfig: osTokenConfigAddress,
-    OsTokenChecker: osTokenCheckerAddress,
+    OsTokenVaultController: osTokenVaultControllerAddress,
     PriceFeed: priceFeedAddress,
     RewardSplitterFactory: rewardSplitterFactoryAddress,
   }
