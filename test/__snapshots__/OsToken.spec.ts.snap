@@ -31,7 +31,7 @@ Object {
 exports[`OsToken controllers owner can change 2`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 26138,
+  "gasUsed": 26160,
 }
 `;
 
