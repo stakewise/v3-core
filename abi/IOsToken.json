@@ -11,7 +11,7 @@
       {
         "indexed": false,
         "internalType": "bool",
-        "name": "enabled",
+        "name": "registered",
         "type": "bool"
       }
     ],
@@ -157,7 +157,7 @@
       },
       {
         "internalType": "bool",
-        "name": "enabled",
+        "name": "registered",
         "type": "bool"
       }
     ],

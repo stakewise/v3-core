@@ -13,14 +13,14 @@ interface IOsToken is IERC20Permit {
   /**
    * @notice Emitted when a controller is updated
    * @param controller The address of the controller
-   * @param enabled The new controller status
+   * @param registered Whether the controller is registered or not
    */
-  event ControllerUpdated(address indexed controller, bool enabled);
+  event ControllerUpdated(address indexed controller, bool registered);
 
   /**
    * @notice Returns whether controller is registered or not
    * @param controller The address of the controller
-   * @return The controller status
+   * @return Whether the controller is registered or not
    */
   function controllers(address controller) external view returns (bool);
 
@@ -41,7 +41,7 @@ interface IOsToken is IERC20Permit {
   /**
    * @notice Enable or disable the controller. Can only be called by the contract owner.
    * @param controller The address of the controller
-   * @param enabled The controller status
+   * @param registered Whether the controller is registered or not
    */
-  function setController(address controller, bool enabled) external;
+  function setController(address controller, bool registered) external;
 }
