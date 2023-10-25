@@ -46,7 +46,7 @@ contract EthVault is
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
-   * @param osToken The address of the OsToken contract
+   * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param exitedAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
@@ -56,14 +56,14 @@ contract EthVault is
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
-    address osToken,
+    address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
     uint256 exitedAssetsClaimDelay
   )
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
     VaultEnterExit(exitedAssetsClaimDelay)
-    VaultOsToken(osToken, osTokenConfig)
+    VaultOsToken(osTokenVaultController, osTokenConfig)
     VaultMev(sharedMevEscrow)
   {
     _disableInitializers();

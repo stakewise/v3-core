@@ -40,7 +40,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
-   * @param osToken The address of the OsToken contract
+   * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param poolEscrow The address of the pool escrow from StakeWise v2
@@ -52,7 +52,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
-    address osToken,
+    address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
     address poolEscrow,
@@ -63,7 +63,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       _keeper,
       _vaultsRegistry,
       _validatorsRegistry,
-      osToken,
+      osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
       exitingAssetsClaimDelay

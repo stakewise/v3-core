@@ -8,7 +8,7 @@ import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
 import {IEthErc20Vault} from '../../interfaces/IEthErc20Vault.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
-import {IERC20} from '../../interfaces/IERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Multicall} from '../../base/Multicall.sol';
 import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
@@ -51,7 +51,7 @@ contract EthErc20Vault is
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
-   * @param osToken The address of the OsToken contract
+   * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
@@ -61,14 +61,14 @@ contract EthErc20Vault is
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
-    address osToken,
+    address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
     uint256 exitingAssetsClaimDelay
   )
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
     VaultEnterExit(exitingAssetsClaimDelay)
-    VaultOsToken(osToken, osTokenConfig)
+    VaultOsToken(osTokenVaultController, osTokenConfig)
     VaultMev(sharedMevEscrow)
   {
     _disableInitializers();

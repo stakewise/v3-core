@@ -22,6 +22,7 @@
     "precommit": "lint-staged",
     "node": "hardhat node",
     "full-deploy:goerli": "hardhat eth-full-deploy --network goerli",
+    "full-deploy:holesky": "hardhat eth-full-deploy --network holesky",
     "full-deploy:local": "hardhat eth-full-deploy-local --network local"
   },
   "repository": {

@@ -1,7 +1,13 @@
 import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthVault, IKeeperRewards, Keeper, OsToken, SharedMevEscrow } from '../typechain-types'
+import {
+  EthVault,
+  IKeeperRewards,
+  Keeper,
+  OsTokenVaultController,
+  SharedMevEscrow,
+} from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -29,7 +35,7 @@ describe('KeeperRewards', () => {
   let keeper: Keeper,
     validatorsRegistry: Contract,
     sharedMevEscrow: SharedMevEscrow,
-    osToken: OsToken
+    osTokenVaultController: OsTokenVaultController
 
   beforeEach(async () => {
     ;[dao, admin, oracle, other] = await (ethers as any).getSigners()
@@ -38,7 +44,7 @@ describe('KeeperRewards', () => {
       createEthVault: createVault,
       validatorsRegistry,
       sharedMevEscrow,
-      osToken,
+      osTokenVaultController,
     } = await loadFixture(ethVaultFixture))
     await setBalance(oracle.address, ethers.parseEther('10000'))
   })
@@ -191,12 +197,14 @@ describe('KeeperRewards', () => {
           rewardsUpdateParams.rewardsIpfsHash
         )
       await expect(receipt)
-        .to.emit(osToken, 'AvgRewardPerSecondUpdated')
+        .to.emit(osTokenVaultController, 'AvgRewardPerSecondUpdated')
         .withArgs(rewardsUpdateParams.avgRewardPerSecond)
       expect(await keeper.prevRewardsRoot()).to.eq(ZERO_BYTES32)
       expect(await keeper.rewardsRoot()).to.eq(rewardsUpdateParams.rewardsRoot)
       expect(await keeper.rewardsNonce()).to.eq(2)
-      expect(await osToken.avgRewardPerSecond()).to.eq(rewardsUpdateParams.avgRewardPerSecond)
+      expect(await osTokenVaultController.avgRewardPerSecond()).to.eq(
+        rewardsUpdateParams.avgRewardPerSecond
+      )
       expect(await keeper.lastRewardsTimestamp()).to.not.eq(0)
       expect(await keeper.canUpdateRewards()).to.eq(false)
       await snapshotGasCost(receipt)

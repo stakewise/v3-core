@@ -1,11 +1,17 @@
 import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthVault, IKeeperRewards, Keeper, OsToken } from '../typechain-types'
+import {
+  EthVault,
+  IKeeperRewards,
+  Keeper,
+  OsToken,
+  OsTokenVaultController,
+} from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ONE_DAY, OSTOKEN_LIQ_BONUS, PANIC_CODES, ZERO_ADDRESS } from './shared/constants'
+import { ONE_DAY, OSTOKEN_LIQ_BONUS, ZERO_ADDRESS } from './shared/constants'
 import {
   collateralizeEthVault,
   getRewardsRootProof,
@@ -26,7 +32,11 @@ describe('EthVault - liquidate', () => {
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
   let owner: Wallet, admin: Wallet, dao: Wallet, liquidator: Wallet, receiver: Wallet
-  let vault: EthVault, keeper: Keeper, osToken: OsToken, validatorsRegistry: Contract
+  let vault: EthVault,
+    keeper: Keeper,
+    osTokenVaultController: OsTokenVaultController,
+    osToken: OsToken,
+    validatorsRegistry: Contract
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
@@ -36,10 +46,11 @@ describe('EthVault - liquidate', () => {
       createEthVault: createVault,
       keeper,
       validatorsRegistry,
+      osTokenVaultController,
       osToken,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
-    await osToken.connect(dao).setFeePercent(0)
+    await osTokenVaultController.connect(dao).setFeePercent(0)
 
     // collateralize vault
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
@@ -121,7 +132,7 @@ describe('EthVault - liquidate', () => {
       vault
         .connect(liquidator)
         .liquidateOsToken(osTokenShares + 1n, owner.address, receiver.address)
-    ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+    ).to.be.revertedWithCustomError(osToken, 'ERC20InsufficientBalance')
   })
 
   it('cannot liquidate osTokens when health factor is above 1', async () => {
@@ -143,7 +154,7 @@ describe('EthVault - liquidate', () => {
     await osToken.connect(liquidator).transfer(dao.address, osTokenShares)
     await expect(
       vault.connect(liquidator).liquidateOsToken(osTokenShares, owner.address, receiver.address)
-    ).to.be.revertedWithPanic(PANIC_CODES.ARITHMETIC_UNDER_OR_OVERFLOW)
+    ).to.be.revertedWithCustomError(osToken, 'ERC20InsufficientBalance')
   })
 
   it('calculates liquidation correctly', async () => {
@@ -178,7 +189,7 @@ describe('EthVault - liquidate', () => {
       .to.emit(osToken, 'Transfer')
       .withArgs(liquidator.address, ZERO_ADDRESS, osTokenShares)
     await expect(receipt)
-      .to.emit(osToken, 'Burn')
+      .to.emit(osTokenVaultController, 'Burn')
       .withArgs(await vault.getAddress(), liquidator.address, osTokenShares, osTokenShares)
 
     await snapshotGasCost(receipt)
@@ -209,7 +220,7 @@ describe('EthVault - liquidate', () => {
 
     await expect(receipt).to.emit(vault, 'OsTokenLiquidated')
     await expect(receipt).to.emit(osToken, 'Transfer')
-    await expect(receipt).to.emit(osToken, 'Burn')
+    await expect(receipt).to.emit(osTokenVaultController, 'Burn')
 
     await snapshotGasCost(receipt)
   })

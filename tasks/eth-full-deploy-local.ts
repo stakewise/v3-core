@@ -12,7 +12,7 @@ import {
   RewardSplitter__factory,
   RewardSplitterFactory__factory,
   CumulativeMerkleDrop__factory,
-  OsTokenChecker__factory,
+  OsTokenVaultController__factory,
 } from '../typechain-types'
 import { deployContract } from '../helpers/utils'
 import { NetworkConfig, Networks } from '../helpers/types'
@@ -56,43 +56,53 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     const sharedMevEscrowAddress = await sharedMevEscrow.getAddress()
     console.log('SharedMevEscrow deployed at', sharedMevEscrowAddress)
 
-    const osTokenChecker = await deployContract(
-      new OsTokenChecker__factory(deployer).deploy(vaultsRegistryAddress)
-    )
-    const osTokenCheckerAddress = await osTokenChecker.getAddress()
-    console.log('OsTokenChecker deployed at', osTokenCheckerAddress)
-
-    const keeperCalculatedAddress = ethers.getCreateAddress({
+    const osTokenAddress = ethers.getCreateAddress({
       from: deployer.address,
       nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1,
     })
-    const osToken = await deployContract(
-      new OsToken__factory(deployer).deploy(
-        keeperCalculatedAddress,
-        osTokenCheckerAddress,
+
+    const keeperAddress = ethers.getCreateAddress({
+      from: deployer.address,
+      nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 2,
+    })
+    const osTokenVaultController = await deployContract(
+      new OsTokenVaultController__factory(deployer).deploy(
+        keeperAddress,
+        vaultsRegistryAddress,
+        osTokenAddress,
         treasury.address,
         governor.address,
         goerliConfig.osTokenFeePercent,
-        goerliConfig.osTokenCapacity,
+        goerliConfig.osTokenCapacity
+      )
+    )
+    const osTokenVaultControllerAddress = await osTokenVaultController.getAddress()
+    console.log('OsTokenVaultController deployed at', osTokenVaultControllerAddress)
+
+    const osToken = await deployContract(
+      new OsToken__factory(deployer).deploy(
+        governor.address,
+        osTokenVaultControllerAddress,
         goerliConfig.osTokenName,
         goerliConfig.osTokenSymbol
       )
     )
-    const osTokenAddress = await osToken.getAddress()
+    if ((await osToken.getAddress()) !== osTokenAddress) {
+      throw new Error('OsToken address mismatch')
+    }
     console.log('OsToken deployed at', osTokenAddress)
 
     const keeper = await deployContract(
       new Keeper__factory(deployer).deploy(
         sharedMevEscrowAddress,
         vaultsRegistryAddress,
-        osTokenAddress,
+        osTokenVaultControllerAddress,
         goerliConfig.rewardsDelay,
         goerliConfig.maxAvgRewardPerSecond,
-        validatorsRegistryAddress
+        goerliConfig.validatorsRegistry
       )
     )
-    const keeperAddress = await keeper.getAddress()
-    if (keeperAddress !== keeperCalculatedAddress) {
+    if ((await keeper.getAddress()) !== keeperAddress) {
       throw new Error('Keeper address mismatch')
     }
     console.log('Keeper deployed at', keeperAddress)
@@ -127,7 +137,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
           keeperAddress,
           vaultsRegistryAddress,
           validatorsRegistryAddress,
-          osTokenAddress,
+          osTokenVaultControllerAddress,
           osTokenConfigAddress,
           sharedMevEscrowAddress,
           goerliConfig.exitedAssetsClaimDelay,
@@ -150,7 +160,10 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     }
 
     const priceFeed = await deployContract(
-      new PriceFeed__factory(deployer).deploy(osTokenAddress, goerliConfig.priceFeedDescription)
+      new PriceFeed__factory(deployer).deploy(
+        osTokenVaultControllerAddress,
+        goerliConfig.priceFeedDescription
+      )
     )
     const priceFeedAddress = await priceFeed.getAddress()
     console.log('PriceFeed deployed at', priceFeedAddress)
@@ -198,7 +211,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       SharedMevEscrow: sharedMevEscrowAddress,
       OsToken: osTokenAddress,
       OsTokenConfig: osTokenConfigAddress,
-      OsTokenChecker: osTokenCheckerAddress,
+      osTokenVaultController: osTokenVaultControllerAddress,
       PriceFeed: priceFeedAddress,
       RewardSplitterFactory: rewardSplitterFactoryAddress,
     }

@@ -61,6 +61,7 @@ const config: HardhatUserConfig = {
   },
   networks: {
     goerli: getCommonNetworkConfig(Networks.goerli),
+    holesky: getCommonNetworkConfig(Networks.holesky),
     mainnet: getCommonNetworkConfig(Networks.mainnet),
     hardhat: {
       blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,
@@ -96,6 +97,16 @@ const config: HardhatUserConfig = {
   },
   etherscan: {
     apiKey: BLOCK_EXPLORER_KEY,
+    customChains: [
+      {
+        network: 'holesky',
+        chainId: 17000,
+        urls: {
+          apiURL: 'https://api-holesky.etherscan.io/api',
+          browserURL: 'https://holesky.etherscan.io',
+        },
+      },
+    ],
   },
 }
 

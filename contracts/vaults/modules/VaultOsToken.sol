@@ -4,8 +4,7 @@ pragma solidity =0.8.20;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
-import {IERC20} from '../../interfaces/IERC20.sol';
-import {IOsToken} from '../../interfaces/IOsToken.sol';
+import {IOsTokenVaultController} from '../../interfaces/IOsTokenVaultController.sol';
 import {IOsTokenConfig} from '../../interfaces/IOsTokenConfig.sol';
 import {IVaultOsToken} from '../../interfaces/IVaultOsToken.sol';
 import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
@@ -25,7 +24,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   uint256 private constant _maxPercent = 10_000; // @dev 100.00 %
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IOsToken private immutable _osToken;
+  IOsTokenVaultController private immutable _osTokenVaultController;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IOsTokenConfig private immutable _osTokenConfig;
@@ -36,12 +35,12 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param osToken The address of the OsToken contract
+   * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address osToken, address osTokenConfig) {
-    _osToken = IOsToken(osToken);
+  constructor(address osTokenVaultController, address osTokenConfig) {
+    _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
     _osTokenConfig = IOsTokenConfig(osTokenConfig);
   }
 
@@ -62,14 +61,16 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     _checkHarvested();
 
     // mint osToken shares to the receiver
-    assets = _osToken.mintShares(receiver, osTokenShares);
+    assets = _osTokenVaultController.mintShares(receiver, osTokenShares);
 
     // fetch user position
     OsTokenPosition memory position = _positions[msg.sender];
     if (position.shares != 0) {
       _syncPositionFee(position);
     } else {
-      position.cumulativeFeePerShare = SafeCast.toUint128(_osToken.cumulativeFeePerShare());
+      position.cumulativeFeePerShare = SafeCast.toUint128(
+        _osTokenVaultController.cumulativeFeePerShare()
+      );
     }
 
     // add minted shares to the position
@@ -81,7 +82,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
         convertToAssets(_balances[msg.sender]),
         _osTokenConfig.ltvPercent(),
         _maxPercent
-      ) < _osToken.convertToAssets(position.shares)
+      ) < _osTokenVaultController.convertToAssets(position.shares)
     ) {
       revert Errors.LowLtv();
     }
@@ -96,7 +97,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   /// @inheritdoc IVaultOsToken
   function burnOsToken(uint128 osTokenShares) external override returns (uint256 assets) {
     // burn osToken shares
-    assets = _osToken.burnShares(msg.sender, osTokenShares);
+    assets = _osTokenVaultController.burnShares(msg.sender, osTokenShares);
 
     // fetch user position
     OsTokenPosition memory position = _positions[msg.sender];
@@ -181,7 +182,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     _checkHarvested();
 
     // update osToken state for gas efficiency
-    _osToken.updateState();
+    _osTokenVaultController.updateState();
 
     // fetch user position
     OsTokenPosition memory position = _positions[owner];
@@ -200,12 +201,12 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     // calculate received assets
     if (isLiquidation) {
       receivedAssets = Math.mulDiv(
-        _osToken.convertToAssets(osTokenShares),
+        _osTokenVaultController.convertToAssets(osTokenShares),
         liqBonusPercent,
         _maxPercent
       );
     } else {
-      receivedAssets = _osToken.convertToAssets(osTokenShares);
+      receivedAssets = _osTokenVaultController.convertToAssets(osTokenShares);
     }
 
     {
@@ -215,7 +216,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
         revert Errors.InvalidReceivedAssets();
       }
 
-      uint256 mintedAssets = _osToken.convertToAssets(position.shares);
+      uint256 mintedAssets = _osTokenVaultController.convertToAssets(position.shares);
       if (isLiquidation) {
         // check health factor violation in case of liquidation
         if (
@@ -233,7 +234,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     }
 
     // reduce osToken supply
-    _osToken.burnShares(msg.sender, osTokenShares);
+    _osTokenVaultController.burnShares(msg.sender, osTokenShares);
 
     // update osToken position
     position.shares -= SafeCast.toUint128(osTokenShares);
@@ -253,7 +254,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     if (
       !isLiquidation &&
       Math.mulDiv(convertToAssets(_balances[owner]), redeemToLtvPercent, _maxPercent) >
-      _osToken.convertToAssets(position.shares)
+      _osTokenVaultController.convertToAssets(position.shares)
     ) {
       revert Errors.RedemptionExceeded();
     }
@@ -268,7 +269,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
    */
   function _syncPositionFee(OsTokenPosition memory position) private view {
     // fetch current cumulative fee per share
-    uint256 cumulativeFeePerShare = _osToken.cumulativeFeePerShare();
+    uint256 cumulativeFeePerShare = _osTokenVaultController.cumulativeFeePerShare();
 
     // check whether fee is already up to date
     if (cumulativeFeePerShare == position.cumulativeFeePerShare) return;
@@ -298,7 +299,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     // calculate and validate position LTV
     if (
       Math.mulDiv(convertToAssets(_balances[user]), _osTokenConfig.ltvPercent(), _maxPercent) <
-      _osToken.convertToAssets(position.shares)
+      _osTokenVaultController.convertToAssets(position.shares)
     ) {
       revert Errors.LowLtv();
     }

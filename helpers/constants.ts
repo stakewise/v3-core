@@ -50,14 +50,69 @@ export const NETWORKS: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
       poolEscrow: '0x040F15C6b5Bfc5F324eCaB5864C38D4e1EEF4218',
       rewardEthToken: '0x826f88d423440c305D9096cC1581Ae751eFCAfB0',
-      capacity: ethers.parseEther('1000000'),
-      feePercent: 500,
+      capacity: ethers.parseEther('1000000'), // 1m ETH
+      feePercent: 500, // 5%
     },
     priceFeedDescription: 'osETH/ETH',
 
     // Cumulative MerkleDrop
     liquidityCommittee: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     swiseToken: '0x0e2497aACec2755d831E4AFDEA25B4ef1B823855',
+  },
+  [Networks.holesky]: {
+    url: process.env.NETWORK_RPC_URL || '',
+    chainId: 17000,
+
+    governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
+    validatorsRegistry: '0x4242424242424242424242424242424242424242',
+    securityDeposit: 1000000000, // 1 gwei
+    exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
+
+    // Keeper
+    oracles: [
+      '0xf1a2f8E2FaE384566Fe10f9a960f52fe4a103737',
+      '0xF1091485531122c2cd0Beb6fD998FBCcCf42b38C',
+      '0x51182c9B66F5Cb2394511006851aE9b1Ea7f1B5D',
+      '0x675eD17F58b15CD2C31F6d9bfb0b4DfcCA264eC1',
+      '0x6bAfFEE3c8B59E5bA19c26Cd409B2a232abb57Cb',
+      '0x36a2E8FF08f801caB399eab2fEe9E6A8C49A9C2A',
+      '0x3EC6676fa4D07C1f31d088ae1DE96240eC56D1D9',
+      '0x893e1c16fE47DF676Fd344d44c074096675B6aF6',
+      '0x3eEC4A51cbB2De4e8Cc6c9eE859Ad16E8a8693FC',
+      '0x9772Ef6AbC2Dfd879ebd88aeAA9Cf1e69a16fCF4',
+      '0x18991d6F877eF0c0920BFF9B14D994D80d2E7B0c',
+    ],
+    rewardsMinOracles: 6,
+    validatorsMinOracles: 6,
+    rewardsDelay: 24 * 60 * 60, // 24 hours
+    maxAvgRewardPerSecond: 6341958397n, // 20% APY
+    oraclesConfigIpfsHash: 'QmeyrcamiMS1Z82fvY59MfP5FrVZHB78jLnYjwucpZ8syE',
+
+    // OsToken
+    treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
+    osTokenFeePercent: 500, // 5%
+    osTokenCapacity: ethers.parseEther('1000000'), // 1m ETH
+    osTokenName: 'Staked ETH',
+    osTokenSymbol: 'osETH',
+    redeemFromLtvPercent: 9150, // 91.5%
+    redeemToLtvPercent: 9000, // 90%
+    liqThresholdPercent: 9200, // 92%
+    liqBonusPercent: 10100, // 101%
+    ltvPercent: 9000, // 90%
+
+    // EthGenesisVault
+    genesisVault: {
+      admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
+      poolEscrow: '0x253368DEBd5B3894D5A53516bE94CE4104bA4BD3',
+      rewardEthToken: '0x413C51fDF65668B3A1d434bC184a479E3B8e0f3f',
+      capacity: ethers.parseEther('1000000'), // 1m ETH
+      feePercent: 500, // 5%
+    },
+    priceFeedDescription: 'osETH/ETH',
+
+    // Cumulative MerkleDrop
+    liquidityCommittee: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
+    swiseToken: '0x484871C6D54a3dAEBeBBDB0AB7a54c97D72986Bb',
   },
   [Networks.mainnet]: {
     url: process.env.NETWORK_RPC_URL || '',

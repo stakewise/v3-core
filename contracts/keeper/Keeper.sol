@@ -4,7 +4,7 @@ pragma solidity =0.8.20;
 
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
-import {IOsToken} from '../interfaces/IOsToken.sol';
+import {IOsTokenVaultController} from '../interfaces/IOsTokenVaultController.sol';
 import {IKeeper} from '../interfaces/IKeeper.sol';
 import {KeeperValidators} from './KeeperValidators.sol';
 import {KeeperRewards} from './KeeperRewards.sol';
@@ -23,7 +23,7 @@ contract Keeper is KeeperOracles, KeeperRewards, KeeperValidators, IKeeper {
    * @dev Constructor
    * @param sharedMevEscrow The address of the shared MEV escrow contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
-   * @param osToken The address of the OsToken contract
+   * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param _rewardsDelay The delay in seconds between rewards updates
    * @param maxAvgRewardPerSecond The maximum possible average reward per second
    * @param validatorsRegistry The address of the beacon chain validators registry contract
@@ -31,13 +31,19 @@ contract Keeper is KeeperOracles, KeeperRewards, KeeperValidators, IKeeper {
   constructor(
     address sharedMevEscrow,
     IVaultsRegistry vaultsRegistry,
-    IOsToken osToken,
+    IOsTokenVaultController osTokenVaultController,
     uint256 _rewardsDelay,
     uint256 maxAvgRewardPerSecond,
     IValidatorsRegistry validatorsRegistry
   )
     KeeperOracles()
-    KeeperRewards(sharedMevEscrow, vaultsRegistry, osToken, _rewardsDelay, maxAvgRewardPerSecond)
+    KeeperRewards(
+      sharedMevEscrow,
+      vaultsRegistry,
+      osTokenVaultController,
+      _rewardsDelay,
+      maxAvgRewardPerSecond
+    )
     KeeperValidators(validatorsRegistry)
   {}
 
