@@ -33,8 +33,8 @@ export type NetworkConfig = {
   osTokenSymbol: string
 
   // OsTokenConfig
-  redeemFromLtvPercent: number
-  redeemToLtvPercent: number
+  redeemFromLtvPercent: bigint
+  redeemToLtvPercent: bigint
   liqThresholdPercent: number
   liqBonusPercent: number
   ltvPercent: number
