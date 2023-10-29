@@ -1,10 +1,27 @@
 import { Contract } from 'ethers'
 import { HardhatRuntimeEnvironment } from 'hardhat/types/runtime'
+import '@openzeppelin/hardhat-upgrades/dist/type-extensions'
 
-export async function deployContract(tx: any): Promise<Contract> {
+export async function deployContract(
+  hre: HardhatRuntimeEnvironment,
+  contractName: string,
+  constructorArgs: any[],
+  path?: string
+): Promise<Contract> {
+  const contract = await hre.ethers.deployContract(contractName, constructorArgs)
+  await contract.waitForDeployment()
+
+  const contractAddress = await contract.getAddress()
+  console.log(`${contractName} deployed at`, contractAddress)
+  if (path) {
+    await verify(hre, contractAddress, constructorArgs, path)
+  }
+  return contract
+}
+
+export async function callContract(tx: any) {
   const result = await tx
-  await result.waitForDeployment()
-  return result
+  await result.wait()
 }
 
 async function delay(ms: number) {
@@ -22,7 +39,7 @@ export async function verify(
   }
 
   let count = 0
-  const maxTries = 8
+  const maxTries = 3
   // eslint-disable-next-line no-constant-condition
   while (true) {
     await delay(10000)

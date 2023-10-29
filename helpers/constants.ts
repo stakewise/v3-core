@@ -1,5 +1,5 @@
 import { NetworkConfig, Networks } from './types'
-import { ethers } from 'ethers'
+import { parseEther } from 'ethers'
 
 const MAX_UINT16 = 2n ** 16n - 1n
 
@@ -12,7 +12,7 @@ export const NETWORKS: {
 
     governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     validatorsRegistry: '0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b',
-    securityDeposit: 1000000000,
+    securityDeposit: 1000000000n,
     exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
 
     // Keeper
@@ -38,7 +38,7 @@ export const NETWORKS: {
     // OsToken
     treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     osTokenFeePercent: 500,
-    osTokenCapacity: ethers.parseEther('1000000'),
+    osTokenCapacity: parseEther('1000000'),
     osTokenName: 'SW Staked ETH',
     osTokenSymbol: 'osETH',
     redeemFromLtvPercent: 9150n, // 91.5%
@@ -52,7 +52,7 @@ export const NETWORKS: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
       poolEscrow: '0x040F15C6b5Bfc5F324eCaB5864C38D4e1EEF4218',
       rewardEthToken: '0x826f88d423440c305D9096cC1581Ae751eFCAfB0',
-      capacity: ethers.parseEther('1000000'), // 1m ETH
+      capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
     },
     priceFeedDescription: 'osETH/ETH',
@@ -67,7 +67,7 @@ export const NETWORKS: {
 
     governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     validatorsRegistry: '0x4242424242424242424242424242424242424242',
-    securityDeposit: 1000000000, // 1 gwei
+    securityDeposit: 1000000000n, // 1 gwei
     exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
 
     // Keeper
@@ -93,7 +93,7 @@ export const NETWORKS: {
     // OsToken
     treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     osTokenFeePercent: 500, // 5%
-    osTokenCapacity: ethers.parseEther('1000000'), // 1m ETH
+    osTokenCapacity: parseEther('1000000'), // 1m ETH
     osTokenName: 'Staked ETH',
     osTokenSymbol: 'osETH',
     redeemFromLtvPercent: 9150n, // 91.5%
@@ -107,7 +107,7 @@ export const NETWORKS: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
       poolEscrow: '0x253368DEBd5B3894D5A53516bE94CE4104bA4BD3',
       rewardEthToken: '0x413C51fDF65668B3A1d434bC184a479E3B8e0f3f',
-      capacity: ethers.parseEther('1000000'), // 1m ETH
+      capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
     },
     priceFeedDescription: 'osETH/ETH',
@@ -122,7 +122,7 @@ export const NETWORKS: {
 
     governor: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
     validatorsRegistry: '0x00000000219ab540356cBB839Cbe05303d7705Fa',
-    securityDeposit: 1000000000, // 1 gwei
+    securityDeposit: 1000000000n, // 1 gwei
     exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
 
     // Keeper
@@ -146,7 +146,7 @@ export const NETWORKS: {
     // OsToken
     treasury: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
     osTokenFeePercent: 500, // 5 %
-    osTokenCapacity: ethers.parseEther('20000000'), // 20m osETH
+    osTokenCapacity: parseEther('20000000'), // 20m osETH
     osTokenName: 'Staked ETH',
     osTokenSymbol: 'osETH',
 
@@ -162,7 +162,7 @@ export const NETWORKS: {
       admin: '0xf330b5fE72E91d1a3782E65eED876CF3624c7802',
       poolEscrow: '0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079',
       rewardEthToken: '0x20BC832ca081b91433ff6c17f85701B6e92486c5',
-      capacity: ethers.parseEther('1000000'), // 1m ETH
+      capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
     },
     priceFeedDescription: 'osETH/ETH',

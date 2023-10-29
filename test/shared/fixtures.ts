@@ -1,5 +1,6 @@
-import { ethers, upgrades } from 'hardhat'
+import hre, { ethers } from 'hardhat'
 import { BigNumberish, Contract, Wallet } from 'ethers'
+import { simulateDeployImpl } from '@openzeppelin/hardhat-upgrades/dist/utils'
 import { signTypedData, SignTypedDataVersion } from '@metamask/eth-sig-util'
 import EthereumWallet from 'ethereumjs-wallet'
 import {
@@ -277,6 +278,32 @@ export const createEthVaultFactory = async function (
   )
 }
 
+export const deployVaultImplementation = async function (
+  vaultType: string,
+  keeper: Keeper,
+  vaultsRegistry: VaultsRegistry,
+  validatorsRegistry: string,
+  osTokenVaultController: OsTokenVaultController,
+  osTokenConfig: OsTokenConfig,
+  sharedMevEscrow: SharedMevEscrow,
+  exitingAssetsMinDelay: number
+): Promise<string> {
+  const factory = await ethers.getContractFactory(vaultType)
+  const constructorArgs = [
+    await keeper.getAddress(),
+    await vaultsRegistry.getAddress(),
+    validatorsRegistry,
+    await osTokenVaultController.getAddress(),
+    await osTokenConfig.getAddress(),
+    await sharedMevEscrow.getAddress(),
+    exitingAssetsMinDelay,
+  ]
+  const contract = await factory.deploy(...constructorArgs)
+  const vaultImpl = await contract.getAddress()
+  await simulateDeployImpl(hre, factory, { constructorArgs }, vaultImpl)
+  return vaultImpl
+}
+
 export const encodeEthVaultInitParams = function (vaultParams: EthVaultInitParamsStruct): string {
   return ethers.AbiCoder.defaultAbiCoder().encode(
     ['tuple(uint256 capacity, uint16 feePercent, string metadataIpfsHash)'],
@@ -451,19 +478,16 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
     'EthErc20Vault',
     'EthPrivErc20Vault',
   ]) {
-    const vault = await ethers.getContractFactory(vaultType)
-    const vaultImpl = (await upgrades.deployImplementation(vault, {
-      unsafeAllow: ['delegatecall'],
-      constructorArgs: [
-        await keeper.getAddress(),
-        await vaultsRegistry.getAddress(),
-        await validatorsRegistry.getAddress(),
-        await osTokenVaultController.getAddress(),
-        await osTokenConfig.getAddress(),
-        await sharedMevEscrow.getAddress(),
-        EXITING_ASSETS_MIN_DELAY,
-      ],
-    })) as string
+    const vaultImpl = await deployVaultImplementation(
+      vaultType,
+      keeper,
+      vaultsRegistry,
+      await validatorsRegistry.getAddress(),
+      osTokenVaultController,
+      osTokenConfig,
+      sharedMevEscrow,
+      EXITING_ASSETS_MIN_DELAY
+    )
     const vaultFactory = await createEthVaultFactory(vaultImpl, vaultsRegistry)
     await vaultsRegistry.addFactory(await vaultFactory.getAddress())
     await vaultsRegistry.addVaultImpl(vaultImpl)

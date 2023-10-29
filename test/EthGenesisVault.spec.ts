@@ -1,8 +1,7 @@
-import { ethers, upgrades } from 'hardhat'
+import hre, { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import {
   EthGenesisVault,
-  EthGenesisVault__factory,
   Keeper,
   PoolEscrowMock,
   RewardEthTokenMock,
@@ -41,6 +40,7 @@ import {
   setBalance,
 } from './shared/utils'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
+import { simulateDeployImpl } from '@openzeppelin/hardhat-upgrades/dist/utils'
 
 describe('EthGenesisVault', () => {
   const capacity = ethers.parseEther('1000')
@@ -65,22 +65,27 @@ describe('EthGenesisVault', () => {
     )
     poolEscrow = await createPoolEscrow(dao.address)
     factory = await ethers.getContractFactory('EthGenesisVault')
-    const proxy = await upgrades.deployProxy(factory, [], {
-      unsafeAllow: ['delegatecall'],
-      initializer: false,
-      constructorArgs: [
-        await fixture.keeper.getAddress(),
-        await fixture.vaultsRegistry.getAddress(),
-        await fixture.validatorsRegistry.getAddress(),
-        await fixture.osToken.getAddress(),
-        await fixture.osTokenConfig.getAddress(),
-        await fixture.sharedMevEscrow.getAddress(),
-        await poolEscrow.getAddress(),
-        await rewardEthToken.getAddress(),
-        EXITING_ASSETS_MIN_DELAY,
-      ],
-    })
-    vault = EthGenesisVault__factory.connect(await proxy.getAddress(), dao)
+    const constructorArgs = [
+      await fixture.keeper.getAddress(),
+      await fixture.vaultsRegistry.getAddress(),
+      await fixture.validatorsRegistry.getAddress(),
+      await fixture.osToken.getAddress(),
+      await fixture.osTokenConfig.getAddress(),
+      await fixture.sharedMevEscrow.getAddress(),
+      await poolEscrow.getAddress(),
+      await rewardEthToken.getAddress(),
+      EXITING_ASSETS_MIN_DELAY,
+    ]
+    const contract = await factory.deploy(...constructorArgs)
+    const vaultImpl = await contract.getAddress()
+    await simulateDeployImpl(hre, factory, { constructorArgs }, vaultImpl)
+    const proxyFactory = await ethers.getContractFactory('ERC1967Proxy')
+    const proxy = await proxyFactory.deploy(vaultImpl, '0x')
+    const proxyAddress = await proxy.getAddress()
+
+    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+    // @ts-ignore
+    vault = factory.attach(proxyAddress) as EthGenesisVault
     await rewardEthToken.setVault(await vault.getAddress())
     await poolEscrow.connect(dao).commitOwnershipTransfer(await vault.getAddress())
     const tx = await vault.initialize(
