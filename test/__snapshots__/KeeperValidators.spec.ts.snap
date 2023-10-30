@@ -3,34 +3,34 @@
 exports[`KeeperValidators register multiple validators succeeds 1`] = `
 Object {
   "calldataByteLength": 3716,
-  "gasUsed": 709276,
+  "gasUsed": 708307,
 }
 `;
 
 exports[`KeeperValidators register multiple validators succeeds 2`] = `
 Object {
   "calldataByteLength": 3716,
-  "gasUsed": 617705,
+  "gasUsed": 616737,
 }
 `;
 
 exports[`KeeperValidators register single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 1508,
-  "gasUsed": 358292,
+  "gasUsed": 358020,
 }
 `;
 
 exports[`KeeperValidators register single validator succeeds 2`] = `
 Object {
   "calldataByteLength": 1540,
-  "gasUsed": 305672,
+  "gasUsed": 305338,
 }
 `;
 
 exports[`KeeperValidators set validators oracles succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 32168,
+  "gasUsed": 32165,
 }
 `;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: CC0-1.0
 
-pragma solidity =0.8.20;
+pragma solidity =0.8.22;
 
 /**
  * @title IValidatorsRegistry
