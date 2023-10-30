@@ -86,9 +86,9 @@ export const NETWORKS: {
     ],
     rewardsMinOracles: 6,
     validatorsMinOracles: 6,
-    rewardsDelay: 24 * 60 * 60, // 24 hours
+    rewardsDelay: 12 * 60 * 60, // 12 hours
     maxAvgRewardPerSecond: 6341958397n, // 20% APY
-    oraclesConfigIpfsHash: 'QmeyrcamiMS1Z82fvY59MfP5FrVZHB78jLnYjwucpZ8syE',
+    oraclesConfigIpfsHash: 'QmPpm82rEJTfgw34noJKugYovHSg7BFdWHWzUV5eNC91Zs',
 
     // OsToken
     treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',

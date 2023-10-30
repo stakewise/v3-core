@@ -39,7 +39,7 @@ export async function verify(
   }
 
   let count = 0
-  const maxTries = 3
+  const maxTries = 8
   // eslint-disable-next-line no-constant-condition
   while (true) {
     await delay(10000)
