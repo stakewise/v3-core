@@ -136,12 +136,14 @@ export const NETWORKS: {
       '0x671D846eCd7D945011912a6fa42E6F3E39eD0569',
       '0x3F77cC37b5F49561E84e36D87FAe1F032E1f771e',
       '0xa9Ccb8ba942C45F6Fa786F936679812591dA012a',
+      '0xb5dBd61DAb7138aF20A61614e0A4587566C2A15A',
+      '0x8Ce4f2800dE6476F42a070C79AfA58E0E209173e',
     ],
     rewardsDelay: 12 * 60 * 60, // 12 hours
-    rewardsMinOracles: 9,
-    validatorsMinOracles: 9,
+    rewardsMinOracles: 6,
+    validatorsMinOracles: 6,
     maxAvgRewardPerSecond: 6341958397n, // 20% APY
-    oraclesConfigIpfsHash: 'QmXtPyFUDCVGuAM1sTRVE3UWyxzoGQF2vnWxyHq9cmvNEQ',
+    oraclesConfigIpfsHash: 'QmTnGWcLbVXQckrjSZ4GT8XJuCBNJkPZ6XGMUkKVsf591V',
 
     // OsToken
     treasury: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
