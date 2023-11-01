@@ -1,5 +1,7 @@
 import { NetworkConfig, Networks } from './types'
-import { ethers } from 'ethers'
+import { parseEther } from 'ethers'
+
+const MAX_UINT16 = 2n ** 16n - 1n
 
 export const NETWORKS: {
   [network in Networks]: NetworkConfig
@@ -10,7 +12,7 @@ export const NETWORKS: {
 
     governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     validatorsRegistry: '0xff50ed3d0ec03aC01D4C79aAd74928BFF48a7b2b',
-    securityDeposit: 1000000000,
+    securityDeposit: 1000000000n,
     exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
 
     // Keeper
@@ -36,11 +38,11 @@ export const NETWORKS: {
     // OsToken
     treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     osTokenFeePercent: 500,
-    osTokenCapacity: ethers.parseEther('1000000'),
+    osTokenCapacity: parseEther('1000000'),
     osTokenName: 'SW Staked ETH',
     osTokenSymbol: 'osETH',
-    redeemFromLtvPercent: 9150, // 91.5%
-    redeemToLtvPercent: 9000, // 90%
+    redeemFromLtvPercent: 9150n, // 91.5%
+    redeemToLtvPercent: 9000n, // 90%
     liqThresholdPercent: 9200, // 92%
     liqBonusPercent: 10100, // 101%
     ltvPercent: 9000, // 90%
@@ -50,7 +52,7 @@ export const NETWORKS: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
       poolEscrow: '0x040F15C6b5Bfc5F324eCaB5864C38D4e1EEF4218',
       rewardEthToken: '0x826f88d423440c305D9096cC1581Ae751eFCAfB0',
-      capacity: ethers.parseEther('1000000'), // 1m ETH
+      capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
     },
     priceFeedDescription: 'osETH/ETH',
@@ -65,7 +67,7 @@ export const NETWORKS: {
 
     governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     validatorsRegistry: '0x4242424242424242424242424242424242424242',
-    securityDeposit: 1000000000, // 1 gwei
+    securityDeposit: 1000000000n, // 1 gwei
     exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
 
     // Keeper
@@ -84,18 +86,18 @@ export const NETWORKS: {
     ],
     rewardsMinOracles: 6,
     validatorsMinOracles: 6,
-    rewardsDelay: 24 * 60 * 60, // 24 hours
+    rewardsDelay: 12 * 60 * 60, // 12 hours
     maxAvgRewardPerSecond: 6341958397n, // 20% APY
-    oraclesConfigIpfsHash: 'QmeyrcamiMS1Z82fvY59MfP5FrVZHB78jLnYjwucpZ8syE',
+    oraclesConfigIpfsHash: 'QmPpm82rEJTfgw34noJKugYovHSg7BFdWHWzUV5eNC91Zs',
 
     // OsToken
     treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     osTokenFeePercent: 500, // 5%
-    osTokenCapacity: ethers.parseEther('1000000'), // 1m ETH
+    osTokenCapacity: parseEther('1000000'), // 1m ETH
     osTokenName: 'Staked ETH',
     osTokenSymbol: 'osETH',
-    redeemFromLtvPercent: 9150, // 91.5%
-    redeemToLtvPercent: 9000, // 90%
+    redeemFromLtvPercent: 9150n, // 91.5%
+    redeemToLtvPercent: 9000n, // 90%
     liqThresholdPercent: 9200, // 92%
     liqBonusPercent: 10100, // 101%
     ltvPercent: 9000, // 90%
@@ -105,7 +107,7 @@ export const NETWORKS: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
       poolEscrow: '0x253368DEBd5B3894D5A53516bE94CE4104bA4BD3',
       rewardEthToken: '0x413C51fDF65668B3A1d434bC184a479E3B8e0f3f',
-      capacity: ethers.parseEther('1000000'), // 1m ETH
+      capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
     },
     priceFeedDescription: 'osETH/ETH',
@@ -120,44 +122,56 @@ export const NETWORKS: {
 
     governor: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
     validatorsRegistry: '0x00000000219ab540356cBB839Cbe05303d7705Fa',
-    securityDeposit: 1000000000,
+    securityDeposit: 1000000000n, // 1 gwei
     exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
 
     // Keeper
-    oracles: [], // TODO: update with oracles' addresses
-    rewardsDelay: 12 * 60 * 60,
+    oracles: [
+      '0x6D403394848EaD12356C9Bb667ED27bCe1945914',
+      '0xED5a1c366984215A28a95bE95A9a49d59a065e91',
+      '0x20B04EcB2bc5E44Ac5AaAd9c8DD3cd04d9Fb87c8',
+      '0x4E81bfde2eb1574bf0839aDEFb65cEA0D8B07EFC',
+      '0x49F436341dbB3ffFce92C59fBcfcAEdaD22D0b0e',
+      '0x624EC1141Eb0C3bE58b382737718852665c35Cf0',
+      '0x671D846eCd7D945011912a6fa42E6F3E39eD0569',
+      '0x3F77cC37b5F49561E84e36D87FAe1F032E1f771e',
+      '0xa9Ccb8ba942C45F6Fa786F936679812591dA012a',
+      '0xb5dBd61DAb7138aF20A61614e0A4587566C2A15A',
+      '0x8Ce4f2800dE6476F42a070C79AfA58E0E209173e',
+    ],
+    rewardsDelay: 12 * 60 * 60, // 12 hours
     rewardsMinOracles: 6,
-    validatorsMinOracles: 9,
+    validatorsMinOracles: 6,
     maxAvgRewardPerSecond: 6341958397n, // 20% APY
-    oraclesConfigIpfsHash: '',
+    oraclesConfigIpfsHash: 'QmTnGWcLbVXQckrjSZ4GT8XJuCBNJkPZ6XGMUkKVsf591V',
 
     // OsToken
     treasury: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
-    osTokenFeePercent: 500,
-    osTokenCapacity: ethers.parseEther('1000000'),
+    osTokenFeePercent: 500, // 5 %
+    osTokenCapacity: parseEther('20000000'), // 20m osETH
     osTokenName: 'Staked ETH',
     osTokenSymbol: 'osETH',
 
     // OsTokenConfig
-    redeemFromLtvPercent: 9150, // 91.5%
-    redeemToLtvPercent: 9000, // 90%
+    redeemFromLtvPercent: MAX_UINT16, // disable redeems
+    redeemToLtvPercent: MAX_UINT16, // disable redeems
     liqThresholdPercent: 9200, // 92%
     liqBonusPercent: 10100, // 101%
     ltvPercent: 9000, // 90%
 
     // EthGenesisVault
     genesisVault: {
-      admin: '',
+      admin: '0xf330b5fE72E91d1a3782E65eED876CF3624c7802',
       poolEscrow: '0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079',
       rewardEthToken: '0x20BC832ca081b91433ff6c17f85701B6e92486c5',
-      capacity: ethers.parseEther('1000000'),
-      feePercent: 500,
+      capacity: parseEther('1000000'), // 1m ETH
+      feePercent: 500, // 5%
     },
     priceFeedDescription: 'osETH/ETH',
 
     // Cumulative MerkleDrop
-    liquidityCommittee: '',
-    swiseToken: '',
+    liquidityCommittee: '0x189Cb93839AD52b5e955ddA254Ed7212ae1B1f61',
+    swiseToken: '0x48C3399719B582dD63eB5AADf12A40B4C3f52FA2',
   },
 }
 

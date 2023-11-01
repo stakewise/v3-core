@@ -6,12 +6,20 @@ import {
   IKeeperRewards,
   Keeper,
   OsToken,
+  OsTokenConfig,
   OsTokenVaultController,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
+import {
+  MAX_UINT16,
+  ONE_DAY,
+  OSTOKEN_LIQ_BONUS,
+  OSTOKEN_LIQ_THRESHOLD,
+  OSTOKEN_LTV,
+  ZERO_ADDRESS,
+} from './shared/constants'
 import {
   collateralizeEthVault,
   getRewardsRootProof,
@@ -37,6 +45,7 @@ describe('EthVault - redeem osToken', () => {
     keeper: Keeper,
     osTokenVaultController: OsTokenVaultController,
     osToken: OsToken,
+    osTokenConfig: OsTokenConfig,
     validatorsRegistry: Contract
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
@@ -49,6 +58,7 @@ describe('EthVault - redeem osToken', () => {
       validatorsRegistry,
       osTokenVaultController,
       osToken,
+      osTokenConfig,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
     await osTokenVaultController.connect(dao).setFeePercent(0)
@@ -128,6 +138,18 @@ describe('EthVault - redeem osToken', () => {
   it('cannot redeem osTokens when LTV is below redeemFromLtvPercent', async () => {
     await osToken.connect(redeemer).transfer(owner.address, redeemedShares)
     await vault.connect(owner).burnOsToken(redeemedShares)
+    await expect(
+      vault.connect(redeemer).redeemOsToken(redeemedShares, owner.address, receiver.address)
+    ).to.be.revertedWithCustomError(vault, 'InvalidLtv')
+
+    // check with redeems disabled
+    await osTokenConfig.connect(dao).updateConfig({
+      redeemFromLtvPercent: MAX_UINT16,
+      redeemToLtvPercent: MAX_UINT16,
+      liqThresholdPercent: OSTOKEN_LIQ_THRESHOLD,
+      liqBonusPercent: OSTOKEN_LIQ_BONUS,
+      ltvPercent: OSTOKEN_LTV,
+    })
     await expect(
       vault.connect(redeemer).redeemOsToken(redeemedShares, owner.address, receiver.address)
     ).to.be.revertedWithCustomError(vault, 'InvalidLtv')

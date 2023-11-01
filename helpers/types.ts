@@ -1,5 +1,3 @@
-import { BigNumberish } from 'ethers'
-
 export type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 
 export enum Networks {
@@ -14,7 +12,7 @@ export type NetworkConfig = {
 
   governor: string
   validatorsRegistry: string
-  securityDeposit: BigNumberish
+  securityDeposit: bigint
   exitedAssetsClaimDelay: number
 
   // Keeper
@@ -23,18 +21,18 @@ export type NetworkConfig = {
   validatorsMinOracles: number
   rewardsDelay: number
   oraclesConfigIpfsHash: string
-  maxAvgRewardPerSecond: BigNumberish
+  maxAvgRewardPerSecond: bigint
 
   // OsToken
   treasury: string
   osTokenFeePercent: number
-  osTokenCapacity: BigNumberish
+  osTokenCapacity: bigint
   osTokenName: string
   osTokenSymbol: string
 
   // OsTokenConfig
-  redeemFromLtvPercent: number
-  redeemToLtvPercent: number
+  redeemFromLtvPercent: bigint
+  redeemToLtvPercent: bigint
   liqThresholdPercent: number
   liqBonusPercent: number
   ltvPercent: number
@@ -44,7 +42,7 @@ export type NetworkConfig = {
     admin: string
     poolEscrow: string
     rewardEthToken: string
-    capacity: BigNumberish
+    capacity: bigint
     feePercent: number
   }
 

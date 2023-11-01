@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pragma solidity 0.8.20;
+pragma solidity 0.8.22;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IEthGenesisVault} from '../interfaces/IEthGenesisVault.sol';

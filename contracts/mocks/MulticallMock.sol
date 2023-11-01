@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.20;
+pragma solidity 0.8.22;
 
 /// @dev Copied from https://github.com/mds1/multicall/blob/main/src/Multicall3.sol
 contract MulticallMock {
@@ -20,7 +20,7 @@ contract MulticallMock {
     uint256 length = calls.length;
     returnData = new bytes[](length);
     Call calldata call;
-    for (uint256 i = 0; i < length; ) {
+    for (uint256 i = 0; i < length; i++) {
       bool success;
       call = calls[i];
       if (call.isPayable) {
@@ -29,9 +29,6 @@ contract MulticallMock {
         (success, returnData[i]) = call.target.call(call.callData);
       }
       require(success, 'Multicall3: call failed');
-      unchecked {
-        ++i;
-      }
     }
   }
 

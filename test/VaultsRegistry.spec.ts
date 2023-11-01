@@ -1,8 +1,12 @@
-import { ethers, upgrades } from 'hardhat'
+import { ethers } from 'hardhat'
 import { Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { EthVaultFactory, VaultsRegistry } from '../typechain-types'
-import { encodeEthVaultInitParams, ethVaultFixture } from './shared/fixtures'
+import {
+  deployVaultImplementation,
+  encodeEthVaultInitParams,
+  ethVaultFixture,
+} from './shared/fixtures'
 import { expect } from './shared/expect'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { EXITING_ASSETS_MIN_DELAY, SECURITY_DEPOSIT, ZERO_ADDRESS } from './shared/constants'
@@ -27,19 +31,16 @@ describe('VaultsRegistry', () => {
     ethVaultFactory = fixture.ethVaultFactory
     vaultsRegistry = fixture.vaultsRegistry
 
-    const ethVaultMock = await ethers.getContractFactory('EthVaultV2Mock')
-    newVaultImpl = (await upgrades.deployImplementation(ethVaultMock, {
-      unsafeAllow: ['delegatecall'],
-      constructorArgs: [
-        await fixture.keeper.getAddress(),
-        await fixture.vaultsRegistry.getAddress(),
-        await fixture.validatorsRegistry.getAddress(),
-        await fixture.osToken.getAddress(),
-        await fixture.osTokenConfig.getAddress(),
-        await fixture.sharedMevEscrow.getAddress(),
-        EXITING_ASSETS_MIN_DELAY,
-      ],
-    })) as string
+    newVaultImpl = await deployVaultImplementation(
+      'EthVaultV2Mock',
+      fixture.keeper,
+      fixture.vaultsRegistry,
+      await fixture.validatorsRegistry.getAddress(),
+      fixture.osTokenVaultController,
+      fixture.osTokenConfig,
+      fixture.sharedMevEscrow,
+      EXITING_ASSETS_MIN_DELAY
+    )
   })
 
   it('fails to add a vault if not a factory or owner', async () => {

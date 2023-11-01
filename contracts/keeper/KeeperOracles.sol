@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.20;
+pragma solidity =0.8.22;
 
 import {Ownable2Step, Ownable} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
@@ -93,7 +93,7 @@ abstract contract KeeperOracles is Ownable2Step, EIP712, IKeeperOracles {
     address lastOracle;
     address currentOracle;
     uint256 startIndex;
-    for (uint256 i = 0; i < requiredSignatures; ) {
+    for (uint256 i = 0; i < requiredSignatures; i++) {
       unchecked {
         // cannot overflow as signatures.length is checked above
         currentOracle = ECDSA.recover(data, signatures[startIndex:startIndex + _signatureLength]);
@@ -106,7 +106,6 @@ abstract contract KeeperOracles is Ownable2Step, EIP712, IKeeperOracles {
 
       unchecked {
         // cannot realistically overflow
-        ++i;
         startIndex += _signatureLength;
       }
     }

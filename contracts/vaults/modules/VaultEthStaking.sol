@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.20;
+pragma solidity =0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
@@ -90,7 +90,7 @@ abstract contract VaultEthStaking is
     uint256 validatorDeposit = _validatorDeposit();
     bytes memory withdrawalCreds = _withdrawalCredentials();
 
-    for (uint256 i = 0; i < validatorsCount; ) {
+    for (uint256 i = 0; i < validatorsCount; i++) {
       unchecked {
         // cannot realistically overflow
         endIndex += _validatorLength;
@@ -110,7 +110,6 @@ abstract contract VaultEthStaking is
       startIndex = endIndex;
       unchecked {
         // cannot realistically overflow
-        ++i;
         ++currentValIndex;
       }
       emit ValidatorRegistered(publicKey);

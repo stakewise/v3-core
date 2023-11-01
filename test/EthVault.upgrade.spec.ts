@@ -1,4 +1,4 @@
-import { ethers, upgrades } from 'hardhat'
+import { ethers } from 'hardhat'
 import { Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
@@ -8,7 +8,7 @@ import {
   EthVaultV2Mock__factory,
 } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { ethVaultFixture } from './shared/fixtures'
+import { deployVaultImplementation, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { EXITING_ASSETS_MIN_DELAY, MAX_UINT256, ZERO_ADDRESS } from './shared/constants'
 
@@ -35,19 +35,16 @@ describe('EthVault - upgrade', () => {
       metadataIpfsHash,
     })
 
-    const ethVaultMock = await ethers.getContractFactory('EthVaultV2Mock')
-    newImpl = (await upgrades.deployImplementation(ethVaultMock, {
-      unsafeAllow: ['delegatecall'],
-      constructorArgs: [
-        await fixture.keeper.getAddress(),
-        await vaultsRegistry.getAddress(),
-        await fixture.validatorsRegistry.getAddress(),
-        await fixture.osToken.getAddress(),
-        await fixture.osTokenConfig.getAddress(),
-        await fixture.sharedMevEscrow.getAddress(),
-        EXITING_ASSETS_MIN_DELAY,
-      ],
-    })) as string
+    newImpl = await deployVaultImplementation(
+      'EthVaultV2Mock',
+      fixture.keeper,
+      fixture.vaultsRegistry,
+      await fixture.validatorsRegistry.getAddress(),
+      fixture.osTokenVaultController,
+      fixture.osTokenConfig,
+      fixture.sharedMevEscrow,
+      EXITING_ASSETS_MIN_DELAY
+    )
     currImpl = await vault.implementation()
     callData = ethers.AbiCoder.defaultAbiCoder().encode(['uint128'], [100])
     await vaultsRegistry.connect(dao).addVaultImpl(newImpl)
@@ -87,19 +84,16 @@ describe('EthVault - upgrade', () => {
   })
 
   it('fails for implementation with different vault id', async () => {
-    const ethVaultMock = await ethers.getContractFactory('EthPrivVaultV2Mock')
-    const newImpl = (await upgrades.deployImplementation(ethVaultMock, {
-      unsafeAllow: ['delegatecall'],
-      constructorArgs: [
-        await fixture.keeper.getAddress(),
-        await vaultsRegistry.getAddress(),
-        await fixture.validatorsRegistry.getAddress(),
-        await fixture.osToken.getAddress(),
-        await fixture.osTokenConfig.getAddress(),
-        await fixture.sharedMevEscrow.getAddress(),
-        EXITING_ASSETS_MIN_DELAY,
-      ],
-    })) as string
+    const newImpl = await deployVaultImplementation(
+      'EthPrivVaultV2Mock',
+      fixture.keeper,
+      fixture.vaultsRegistry,
+      await fixture.validatorsRegistry.getAddress(),
+      fixture.osTokenVaultController,
+      fixture.osTokenConfig,
+      fixture.sharedMevEscrow,
+      EXITING_ASSETS_MIN_DELAY
+    )
     callData = ethers.AbiCoder.defaultAbiCoder().encode(['uint128'], [100])
     await vaultsRegistry.connect(dao).addVaultImpl(newImpl)
     await expect(
@@ -109,19 +103,16 @@ describe('EthVault - upgrade', () => {
   })
 
   it('fails for implementation with too high version', async () => {
-    const ethVaultMock = await ethers.getContractFactory('EthVaultV3Mock')
-    const newImpl = (await upgrades.deployImplementation(ethVaultMock, {
-      unsafeAllow: ['delegatecall'],
-      constructorArgs: [
-        await fixture.keeper.getAddress(),
-        await vaultsRegistry.getAddress(),
-        await fixture.validatorsRegistry.getAddress(),
-        await fixture.osToken.getAddress(),
-        await fixture.osTokenConfig.getAddress(),
-        await fixture.sharedMevEscrow.getAddress(),
-        EXITING_ASSETS_MIN_DELAY,
-      ],
-    })) as string
+    const newImpl = await deployVaultImplementation(
+      'EthVaultV3Mock',
+      fixture.keeper,
+      fixture.vaultsRegistry,
+      await fixture.validatorsRegistry.getAddress(),
+      fixture.osTokenVaultController,
+      fixture.osTokenConfig,
+      fixture.sharedMevEscrow,
+      EXITING_ASSETS_MIN_DELAY
+    )
     callData = ethers.AbiCoder.defaultAbiCoder().encode(['uint128'], [100])
     await vaultsRegistry.connect(dao).addVaultImpl(newImpl)
     await expect(

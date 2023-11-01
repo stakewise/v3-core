@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-pragma solidity =0.8.20;
+pragma solidity =0.8.22;
 
 import '../interfaces/IMulticall.sol';
 
@@ -15,7 +15,7 @@ abstract contract Multicall is IMulticall {
   function multicall(bytes[] calldata data) external override returns (bytes[] memory results) {
     uint256 dataLength = data.length;
     results = new bytes[](dataLength);
-    for (uint256 i = 0; i < dataLength; ) {
+    for (uint256 i = 0; i < dataLength; i++) {
       (bool success, bytes memory result) = address(this).delegatecall(data[i]);
 
       if (!success) {
@@ -28,10 +28,6 @@ abstract contract Multicall is IMulticall {
       }
 
       results[i] = result;
-      unchecked {
-        // cannot realistically overflow
-        ++i;
-      }
     }
   }
 }

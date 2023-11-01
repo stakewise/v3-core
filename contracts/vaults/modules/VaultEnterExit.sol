@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.20;
+pragma solidity =0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
@@ -198,7 +198,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
    * @dev Internal function for transferring assets from the Vault to the receiver
    * @dev IMPORTANT: because control is transferred to the receiver, care must be
    *    taken to not create reentrancy vulnerabilities. The Vault must follow the checks-effects-interactions pattern:
-   *    https://docs.soliditylang.org/en/v0.8.20/security-considerations.html#use-the-checks-effects-interactions-pattern
+   *    https://docs.soliditylang.org/en/v0.8.22/security-considerations.html#use-the-checks-effects-interactions-pattern
    * @param receiver The address that will receive the assets
    * @param assets The number of assets to transfer
    */

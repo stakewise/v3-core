@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.20;
+pragma solidity =0.8.22;
 
 import {IERC1822Proxiable} from '@openzeppelin/contracts/interfaces/draft-IERC1822.sol';
 import {IVaultAdmin} from './IVaultAdmin.sol';
