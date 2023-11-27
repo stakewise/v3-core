@@ -143,7 +143,7 @@ export const NETWORKS: {
     rewardsMinOracles: 6,
     validatorsMinOracles: 6,
     maxAvgRewardPerSecond: 6341958397n, // 20% APY
-    oraclesConfigIpfsHash: 'QmTnGWcLbVXQckrjSZ4GT8XJuCBNJkPZ6XGMUkKVsf591V',
+    oraclesConfigIpfsHash: 'QmXeaejxVMPgLAL1u7SuN12gUUULtwgYqvRNBzVafcnxFn',
 
     // OsToken
     treasury: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
