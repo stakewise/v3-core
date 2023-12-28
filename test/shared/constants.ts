@@ -32,12 +32,12 @@ export const ORACLES = [
   Buffer.from('ca960119ad719a55764d0f5913fb354c301f614d3f49219c7b03202b2062890f', 'hex'),
 ]
 export const REWARDS_MIN_ORACLES = 6
-export const VALIDATORS_MIN_ORACLES = 11
+export const VALIDATORS_MIN_ORACLES = 6
 export const ORACLES_CONFIG = 'QmbwQ6zFEWs1SjLPGk4NNJqn4wduVe6dK3xyte2iG59Uru'
 export const EXITING_ASSETS_MIN_DELAY = ONE_DAY
 export const OSTOKEN_FEE = 500 // 5%
 export const OSTOKEN_CAPACITY = ethers.parseEther('10000000')
-export const OSTOKEN_NAME = 'SW Staked ETH'
+export const OSTOKEN_NAME = 'Staked ETH'
 export const OSTOKEN_SYMBOL = 'osETH'
 
 export const OSTOKEN_LIQ_THRESHOLD = 9200 // 92%

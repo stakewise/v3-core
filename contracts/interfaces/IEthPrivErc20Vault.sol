@@ -10,6 +10,4 @@ import {IEthErc20Vault} from './IEthErc20Vault.sol';
  * @author StakeWise
  * @notice Defines the interface for the EthPrivErc20Vault contract
  */
-interface IEthPrivErc20Vault is IEthErc20Vault, IVaultWhitelist {
-
-}
+interface IEthPrivErc20Vault is IEthErc20Vault, IVaultWhitelist {}

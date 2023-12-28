@@ -28,6 +28,15 @@ const IS_COVERAGE = process.env.COVERAGE === 'true'
 const BLOCK_EXPLORER_KEY = process.env.BLOCK_EXPLORER_KEY || ''
 const HARDHATEVM_CHAINID = 31337
 
+// fork
+const mainnetFork =
+  process.env.MAINNET_FORK_RPC_URL && process.env.MAINNET_FORK_BLOCK_NUMBER
+    ? {
+        blockNumber: Number(process.env.MAINNET_FORK_BLOCK_NUMBER),
+        url: process.env.MAINNET_FORK_RPC_URL,
+      }
+    : undefined
+
 const getCommonNetworkConfig = (networkName) => {
   return {
     url: NETWORKS[networkName].url,
@@ -67,13 +76,13 @@ const config: HardhatUserConfig = {
     hardhat: {
       blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,
       gas: DEFAULT_BLOCK_GAS_LIMIT,
-      gasPrice: 8000000000,
       chainId: HARDHATEVM_CHAINID,
       throwOnTransactionFailures: true,
       throwOnCallFailures: true,
       accounts: {
         accountsBalance: '1000000000000000000000000',
       },
+      forking: mainnetFork,
     },
     local: {
       url: 'http://127.0.0.1:8545/',

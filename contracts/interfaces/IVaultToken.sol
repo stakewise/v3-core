@@ -13,6 +13,4 @@ import {IVaultEnterExit} from './IVaultEnterExit.sol';
  * @author StakeWise
  * @notice Defines the interface for the VaultToken contract
  */
-interface IVaultToken is IERC20Permit, IERC20, IERC20Metadata, IVaultState, IVaultEnterExit {
-
-}
+interface IVaultToken is IERC20Permit, IERC20, IERC20Metadata, IVaultState, IVaultEnterExit {}

@@ -1,5 +1,5 @@
 import { ethers, network } from 'hardhat'
-import { Contract, Signer, Wallet } from 'ethers'
+import { Contract, Signer } from 'ethers'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { EthVault, IKeeperRewards, Keeper } from '../../typechain-types'
 import {
@@ -109,13 +109,15 @@ export async function collateralizeEthVault(
   vault: EthVault,
   keeper: Keeper,
   validatorsRegistry: Contract,
-  admin: Wallet
+  admin: Signer
 ) {
   const vaultAddress = await vault.getAddress()
   const balanceBefore = await ethers.provider.getBalance(vaultAddress)
+  const adminAddr = await admin.getAddress()
+
   // register validator
   const validatorDeposit = ethers.parseEther('32')
-  await vault.connect(admin).deposit(admin.address, ZERO_ADDRESS, { value: validatorDeposit })
+  await vault.connect(admin).deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
   await registerEthValidator(vault, keeper, validatorsRegistry, admin)
 
   // update rewards tree
@@ -129,7 +131,7 @@ export async function collateralizeEthVault(
   })
 
   // exit validator
-  const response = await vault.connect(admin).enterExitQueue(validatorDeposit, admin.address)
+  const response = await vault.connect(admin).enterExitQueue(validatorDeposit, adminAddr)
   const positionTicket = await extractExitPositionTicket(response)
   const timestamp = await getBlockTimestamp(response)
 

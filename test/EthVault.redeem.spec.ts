@@ -18,6 +18,8 @@ import {
   OSTOKEN_LIQ_BONUS,
   OSTOKEN_LIQ_THRESHOLD,
   OSTOKEN_LTV,
+  OSTOKEN_REDEEM_FROM_LTV,
+  OSTOKEN_REDEEM_TO_LTV,
   ZERO_ADDRESS,
 } from './shared/constants'
 import {
@@ -28,13 +30,16 @@ import {
 } from './shared/rewards'
 import { increaseTime, setBalance } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
+import { MAINNET_FORK } from '../helpers/constants'
 
 describe('EthVault - redeem osToken', () => {
   const shares = ethers.parseEther('32')
-  const osTokenShares = ethers.parseEther('28.8')
+  const osTokenAssets = ethers.parseEther('28.8')
+  let osTokenShares: bigint
   const penalty = ethers.parseEther('-0.53')
   const unlockedMevReward = ethers.parseEther('0')
-  const redeemedShares = ethers.parseEther('4.76')
+  const redeemedAssets = ethers.parseEther('4.76')
+  let redeemedShares: bigint
   const vaultParams = {
     capacity: ethers.parseEther('1000'),
     feePercent: 1000,
@@ -68,6 +73,15 @@ describe('EthVault - redeem osToken', () => {
     await vault.connect(owner).deposit(owner.address, ZERO_ADDRESS, { value: shares })
 
     await setAvgRewardPerSecond(dao, vault, keeper, 0)
+    await osTokenConfig.connect(dao).updateConfig({
+      redeemFromLtvPercent: OSTOKEN_REDEEM_FROM_LTV,
+      redeemToLtvPercent: OSTOKEN_REDEEM_TO_LTV,
+      liqThresholdPercent: OSTOKEN_LIQ_THRESHOLD,
+      liqBonusPercent: OSTOKEN_LIQ_BONUS,
+      ltvPercent: OSTOKEN_LTV,
+    })
+    osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+    redeemedShares = await osTokenVaultController.convertToShares(redeemedAssets)
     await vault.connect(owner).mintOsToken(owner.address, osTokenShares, ZERO_ADDRESS)
 
     // penalty received
@@ -182,17 +196,22 @@ describe('EthVault - redeem osToken', () => {
     expect(await vault.getShares(owner.address)).to.be.eq(shares)
 
     const balanceBefore = await ethers.provider.getBalance(receiver.address)
-    const redeemedAssets = await osTokenVaultController.convertToAssets(redeemedShares)
-    const burnedShares = await vault.convertToShares(redeemedAssets)
+    let burnedShares = await vault.convertToShares(redeemedAssets)
+    let receiverAssets = redeemedAssets
 
     const receipt = await vault
       .connect(redeemer)
       .redeemOsToken(redeemedShares, owner.address, receiver.address)
 
+    if (MAINNET_FORK.enabled) {
+      burnedShares -= 1n // rounding error
+      receiverAssets -= 1n // rounding error
+    }
+
     expect(await osToken.balanceOf(redeemer.address)).to.eq(osTokenShares - redeemedShares)
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(osTokenShares - redeemedShares)
     expect(await vault.getShares(owner.address)).to.be.eq(shares - burnedShares)
-    expect(await ethers.provider.getBalance(receiver.address)).to.eq(balanceBefore + redeemedAssets)
+    expect(await ethers.provider.getBalance(receiver.address)).to.eq(balanceBefore + receiverAssets)
 
     await expect(receipt)
       .to.emit(vault, 'OsTokenRedeemed')
@@ -202,14 +221,14 @@ describe('EthVault - redeem osToken', () => {
         receiver.address,
         redeemedShares,
         burnedShares,
-        redeemedAssets
+        receiverAssets
       )
     await expect(receipt)
       .to.emit(osToken, 'Transfer')
       .withArgs(redeemer.address, ZERO_ADDRESS, redeemedShares)
     await expect(receipt)
       .to.emit(osTokenVaultController, 'Burn')
-      .withArgs(await vault.getAddress(), redeemer.address, redeemedShares, redeemedAssets)
+      .withArgs(await vault.getAddress(), redeemer.address, receiverAssets, redeemedShares)
 
     await snapshotGasCost(receipt)
   })

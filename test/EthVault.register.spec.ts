@@ -142,6 +142,7 @@ describe('EthVault - register', () => {
     })
 
     it('succeeds', async () => {
+      const index = await validatorsRegistry.get_deposit_count()
       const receipt = await vault.registerValidator(approvalParams, proof)
       const publicKey = `0x${validator.subarray(0, 48).toString('hex')}`
       await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
@@ -152,7 +153,7 @@ describe('EthVault - register', () => {
           toHexString(getWithdrawalCredentials(await vault.getAddress())),
           toHexString(Buffer.from(uintSerializer.serialize(Number(validatorDeposit / gwei)))),
           toHexString(validator.subarray(48, 144)),
-          toHexString(Buffer.from(uintSerializer.serialize(0)))
+          index
         )
       await snapshotGasCost(receipt)
     })
@@ -433,6 +434,9 @@ describe('EthVault - register', () => {
     })
 
     it('succeeds', async () => {
+      const startIndex = uintSerializer.deserialize(
+        ethers.getBytes(await validatorsRegistry.get_deposit_count())
+      )
       const receipt = await vault.registerValidators(
         approvalParams,
         indexes,
@@ -450,7 +454,7 @@ describe('EthVault - register', () => {
             toHexString(getWithdrawalCredentials(await vault.getAddress())),
             toHexString(Buffer.from(uintSerializer.serialize(Number(validatorDeposit / gwei)))),
             toHexString(validator.subarray(48, 144)),
-            toHexString(Buffer.from(uintSerializer.serialize(i)))
+            toHexString(Buffer.from(uintSerializer.serialize(startIndex + i)))
           )
       }
       await snapshotGasCost(receipt)

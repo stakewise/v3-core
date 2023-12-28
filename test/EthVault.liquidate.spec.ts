@@ -7,11 +7,12 @@ import {
   Keeper,
   OsToken,
   OsTokenVaultController,
+  OsTokenConfig,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ONE_DAY, OSTOKEN_LIQ_BONUS, ZERO_ADDRESS } from './shared/constants'
+import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
 import {
   collateralizeEthVault,
   getRewardsRootProof,
@@ -20,10 +21,12 @@ import {
 } from './shared/rewards'
 import { increaseTime, setBalance } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
+import { MAINNET_FORK } from '../helpers/constants'
 
 describe('EthVault - liquidate', () => {
   const shares = ethers.parseEther('32')
-  const osTokenShares = ethers.parseEther('28.8')
+  const osTokenAssets = ethers.parseEther('28.8')
+  let osTokenShares: bigint
   const penalty = ethers.parseEther('-2.6')
   const unlockedMevReward = ethers.parseEther('0')
   const vaultParams = {
@@ -36,6 +39,7 @@ describe('EthVault - liquidate', () => {
     keeper: Keeper,
     osTokenVaultController: OsTokenVaultController,
     osToken: OsToken,
+    osTokenConfig: OsTokenConfig,
     validatorsRegistry: Contract
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
@@ -48,6 +52,7 @@ describe('EthVault - liquidate', () => {
       validatorsRegistry,
       osTokenVaultController,
       osToken,
+      osTokenConfig,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
     await osTokenVaultController.connect(dao).setFeePercent(0)
@@ -60,6 +65,7 @@ describe('EthVault - liquidate', () => {
     await setAvgRewardPerSecond(dao, vault, keeper, 0)
 
     // mint osTokens
+    osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
     await vault.connect(owner).mintOsToken(owner.address, osTokenShares, ZERO_ADDRESS)
 
     // slashing received
@@ -163,8 +169,12 @@ describe('EthVault - liquidate', () => {
     expect(await vault.getShares(owner.address)).to.be.eq(shares)
 
     const balanceBefore = await ethers.provider.getBalance(receiver.address)
-    const osTokenAssets = (osTokenShares * BigInt(OSTOKEN_LIQ_BONUS)) / 10000n
-    const burnedShares = await vault.convertToShares(osTokenAssets)
+    const liqBonus = await osTokenConfig.liqBonusPercent()
+    let liquidatorAssets = (osTokenAssets * BigInt(liqBonus)) / 10000n
+    if (MAINNET_FORK.enabled) {
+      liquidatorAssets -= 2n // rounding error
+    }
+    const burnedShares = await vault.convertToShares(liquidatorAssets)
 
     const receipt = await vault
       .connect(liquidator)
@@ -173,7 +183,9 @@ describe('EthVault - liquidate', () => {
     expect(await osToken.balanceOf(liquidator.address)).to.eq(0)
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(0)
     expect(await vault.getShares(owner.address)).to.be.eq(shares - burnedShares)
-    expect(await ethers.provider.getBalance(receiver.address)).to.eq(balanceBefore + osTokenAssets)
+    expect(await ethers.provider.getBalance(receiver.address)).to.eq(
+      balanceBefore + liquidatorAssets
+    )
 
     await expect(receipt)
       .to.emit(vault, 'OsTokenLiquidated')
@@ -183,14 +195,20 @@ describe('EthVault - liquidate', () => {
         receiver.address,
         osTokenShares,
         burnedShares,
-        osTokenAssets
+        liquidatorAssets
       )
     await expect(receipt)
       .to.emit(osToken, 'Transfer')
       .withArgs(liquidator.address, ZERO_ADDRESS, osTokenShares)
+
+    let burnedAssets = osTokenAssets
+    if (MAINNET_FORK.enabled) {
+      burnedAssets -= 1n // rounding error
+    }
+
     await expect(receipt)
       .to.emit(osTokenVaultController, 'Burn')
-      .withArgs(await vault.getAddress(), liquidator.address, osTokenShares, osTokenShares)
+      .withArgs(await vault.getAddress(), liquidator.address, burnedAssets, osTokenShares) // rounding error
 
     await snapshotGasCost(receipt)
   })

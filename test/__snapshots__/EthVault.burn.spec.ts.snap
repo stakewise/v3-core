@@ -3,13 +3,13 @@
 exports[`EthVault - burn burns osTokens 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 101220,
+  "gasUsed": 84144,
 }
 `;
 
 exports[`EthVault - burn updates position accumulated fee 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 101220,
+  "gasUsed": 84132,
 }
 `;

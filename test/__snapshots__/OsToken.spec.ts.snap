@@ -38,7 +38,7 @@ Object {
 exports[`OsToken fee percent owner can change 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 77683,
+  "gasUsed": 60583,
 }
 `;
 
@@ -52,7 +52,7 @@ Object {
 exports[`OsToken permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 74554,
+  "gasUsed": 74791,
 }
 `;
 

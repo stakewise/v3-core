@@ -2,7 +2,7 @@ import { ByteVectorType, ContainerType, Type, UintNumberType } from '@chainsafe/
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
 import { ethers, network } from 'hardhat'
 import { Buffer } from 'buffer'
-import { BytesLike, Contract, ContractTransactionResponse, Wallet } from 'ethers'
+import { BytesLike, Contract, ContractTransactionResponse, Signer } from 'ethers'
 import bls from 'bls-eth-wasm'
 import { EthVault, Keeper } from '../../typechain-types'
 import {
@@ -279,7 +279,7 @@ export async function registerEthValidator(
   vault: EthVault,
   keeper: Keeper,
   validatorsRegistry: Contract,
-  admin: Wallet
+  admin: Signer
 ): Promise<ContractTransactionResponse> {
   const validatorsData = await createEthValidatorsData(vault)
   const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
