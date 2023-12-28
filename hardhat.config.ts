@@ -35,6 +35,9 @@ const mainnetFork = process.env.MAINNET_FORK_RPC_URL
       url: process.env.MAINNET_FORK_RPC_URL,
     }
   : undefined
+if (mainnetFork) {
+  console.log(`Using mainnet fork at block ${mainnetFork.blockNumber}`)
+}
 
 const getCommonNetworkConfig = (networkName) => {
   return {
