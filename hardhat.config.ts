@@ -12,7 +12,7 @@ import '@openzeppelin/hardhat-upgrades'
 dotenv.config({ path: '.env' })
 
 import { Networks } from './helpers/types'
-import { NETWORKS } from './helpers/constants'
+import { MAINNET_FORK, NETWORKS } from './helpers/constants'
 
 if (!process.env.SKIP_LOAD) {
   glob.sync('./tasks/*.ts').forEach((file) => {
@@ -29,13 +29,12 @@ const BLOCK_EXPLORER_KEY = process.env.BLOCK_EXPLORER_KEY || ''
 const HARDHATEVM_CHAINID = 31337
 
 // fork
-const mainnetFork =
-  process.env.MAINNET_FORK_RPC_URL && process.env.MAINNET_FORK_BLOCK_NUMBER
-    ? {
-        blockNumber: Number(process.env.MAINNET_FORK_BLOCK_NUMBER),
-        url: process.env.MAINNET_FORK_RPC_URL,
-      }
-    : undefined
+const mainnetFork = process.env.MAINNET_FORK_RPC_URL
+  ? {
+      blockNumber: MAINNET_FORK.blockNumber,
+      url: process.env.MAINNET_FORK_RPC_URL,
+    }
+  : undefined
 
 const getCommonNetworkConfig = (networkName) => {
   return {
