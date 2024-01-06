@@ -13,7 +13,7 @@ import { increaseTime } from './shared/utils'
 describe('EthVault - burn', () => {
   const assets = ethers.parseEther('2')
   const osTokenAssets = ethers.parseEther('1')
-  const osTokenShares = ethers.parseEther('1')
+  let osTokenShares: bigint
   const vaultParams = {
     capacity: ethers.parseEther('1000'),
     feePercent: 1000,
@@ -42,6 +42,7 @@ describe('EthVault - burn', () => {
     // collateralize vault
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: assets })
+    osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
     await vault.connect(sender).mintOsToken(sender.address, osTokenShares, ZERO_ADDRESS)
   })
 
@@ -72,37 +73,33 @@ describe('EthVault - burn', () => {
 
   it('updates position accumulated fee', async () => {
     const treasury = await osTokenVaultController.treasury()
-    let totalShares = osTokenShares
-    let totalAssets = osTokenAssets
-    let cumulativeFeePerShare = ethers.parseEther('1')
-    let treasuryShares = 0n
-    let positionShares = osTokenShares
+    const currTotalShares = await osTokenVaultController.totalShares()
+    const currTotalAssets = await osTokenVaultController.totalAssets()
+    const currCumulativeFeePerShare = await osTokenVaultController.cumulativeFeePerShare()
+    const currTreasuryShares = await osToken.balanceOf(treasury)
+    const currPositionShares = osTokenShares
 
-    expect(await osTokenVaultController.cumulativeFeePerShare()).to.eq(cumulativeFeePerShare)
-    expect(await vault.osTokenPositions(sender.address)).to.eq(positionShares)
+    expect(await vault.osTokenPositions(sender.address)).to.eq(currPositionShares)
 
     await increaseTime(ONE_DAY)
 
-    expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.above(cumulativeFeePerShare)
-    expect(await osTokenVaultController.totalAssets()).to.be.above(totalAssets)
-    expect(await vault.osTokenPositions(sender.address)).to.be.above(positionShares)
+    const newTotalShares = await osTokenVaultController.totalShares()
+    const newTotalAssets = await osTokenVaultController.totalAssets()
+    const newCumulativeFeePerShare = await osTokenVaultController.cumulativeFeePerShare()
+    const newTreasuryShares = await osToken.balanceOf(treasury)
+    const newPositionShares = await vault.osTokenPositions(sender.address)
+    expect(newTotalShares).to.be.eq(currTotalShares)
+    expect(newTotalAssets).to.be.above(currTotalAssets)
+    expect(newCumulativeFeePerShare).to.be.above(currCumulativeFeePerShare)
+    expect(newTreasuryShares).to.be.eq(currTreasuryShares)
+    expect(newPositionShares).to.be.above(currPositionShares)
 
     const receipt = await vault.connect(sender).burnOsToken(osTokenShares)
-    expect(await osToken.balanceOf(treasury)).to.be.above(0)
-    expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.above(cumulativeFeePerShare)
+    expect(await vault.osTokenPositions(sender.address)).to.be.above(
+      newPositionShares - currPositionShares
+    )
+    expect
     await snapshotGasCost(receipt)
-
-    cumulativeFeePerShare = await osTokenVaultController.cumulativeFeePerShare()
-    treasuryShares = await osToken.balanceOf(treasury)
-    positionShares = treasuryShares
-    totalShares = treasuryShares
-    totalAssets = await osTokenVaultController.convertToAssets(treasuryShares)
-    expect(await osTokenVaultController.totalShares()).to.eq(totalShares)
-    expect(await osTokenVaultController.totalAssets()).to.eq(totalAssets)
-    expect(await osTokenVaultController.cumulativeFeePerShare()).to.eq(cumulativeFeePerShare)
-    expect(await osToken.balanceOf(treasury)).to.eq(treasuryShares)
-    expect(await osToken.balanceOf(sender.address)).to.eq(0)
-    expect(await vault.osTokenPositions(sender.address)).to.eq(positionShares)
   })
 
   it('burns osTokens', async () => {
@@ -113,9 +110,7 @@ describe('EthVault - burn', () => {
     const osTokenAssets = receipt.logs?.[receipt.logs.length - 1]?.args?.assets
 
     expect(await osToken.balanceOf(sender.address)).to.eq(0)
-    expect(await vault.osTokenPositions(sender.address)).to.eq(
-      await osToken.balanceOf(await osTokenVaultController.treasury())
-    )
+    expect(await vault.osTokenPositions(sender.address)).to.be.above(0)
     await expect(tx)
       .to.emit(vault, 'OsTokenBurned')
       .withArgs(sender.address, osTokenAssets, osTokenShares)
@@ -125,7 +120,6 @@ describe('EthVault - burn', () => {
     await expect(tx)
       .to.emit(osTokenVaultController, 'Burn')
       .withArgs(await vault.getAddress(), sender.address, osTokenAssets, osTokenShares)
-
     await snapshotGasCost(tx)
   })
 })

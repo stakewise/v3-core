@@ -54,6 +54,17 @@ export const extractExitPositionTicket = async (
   return log.args?.positionTicket as bigint
 }
 
+export const extractDepositShares = async (
+  response: ContractTransactionResponse
+): Promise<bigint> => {
+  const receipt = (await response.wait()) as ContractTransactionReceipt
+  const log = receipt.logs?.[receipt.logs.length - 1]
+  if (!('args' in log)) {
+    throw new Error('No logs found')
+  }
+  return log.args?.shares as bigint
+}
+
 export async function domainSeparator(name, version, chainId, verifyingContract) {
   return (
     '0x' +

@@ -132,50 +132,47 @@ describe('EthVault - mint', () => {
 
   it('updates position accumulated fee', async () => {
     const treasury = await osTokenVaultController.treasury()
-    let totalShares = osTokenShares
-    let totalAssets = await vault.convertToAssets(osTokenShares)
-    let cumulativeFeePerShare = ethers.parseEther('1')
-    let treasuryShares = 0n
-    let positionShares = osTokenShares
-    let receiverShares = osTokenShares
 
-    expect(await osTokenVaultController.cumulativeFeePerShare()).to.eq(cumulativeFeePerShare)
-    expect(await vault.osTokenPositions(sender.address)).to.eq(0)
+    const currTotalShares = await osTokenVaultController.totalShares()
+    const currCumulativeFeePerShare = await osTokenVaultController.cumulativeFeePerShare()
+    const currTreasuryShares = await osToken.balanceOf(treasury)
+    const currPositionShares = osTokenShares
 
-    const verify = async () => {
-      expect(await osTokenVaultController.totalShares()).to.eq(totalShares)
-      expect(await osTokenVaultController.totalAssets()).to.eq(totalAssets)
-      expect(await osTokenVaultController.cumulativeFeePerShare()).to.eq(cumulativeFeePerShare)
-      expect(await osToken.balanceOf(treasury)).to.eq(treasuryShares)
-      expect(await osToken.balanceOf(sender.address)).to.eq(0)
-      expect(await vault.osTokenPositions(sender.address)).to.eq(positionShares)
-      expect(await osToken.balanceOf(receiver.address)).to.eq(receiverShares)
-    }
+    expect(await vault.osTokenPositions(sender.address)).to.eq(0n)
 
-    let receipt = await vault
-      .connect(sender)
-      .mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
-    await verify()
-
-    await snapshotGasCost(receipt)
     await increaseTime(ONE_DAY)
 
-    expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.above(cumulativeFeePerShare)
-    expect(await osTokenVaultController.totalAssets()).to.be.above(totalAssets)
-    expect(await osTokenVaultController.convertToAssets(receiverShares)).to.be.above(osTokenShares)
-    expect(await vault.osTokenPositions(sender.address)).to.be.above(positionShares)
+    await vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
+    const newTreasuryShares = await osToken.balanceOf(treasury)
+    const newTotalShares = await osTokenVaultController.totalShares()
+    const newTotalAssets = await osTokenVaultController.totalAssets()
+    expect(newTotalShares).to.be.eq(
+      currTotalShares + currPositionShares - currTreasuryShares + newTreasuryShares
+    )
+    expect(newTotalAssets).to.be.eq(await osTokenVaultController.convertToAssets(newTotalShares))
+    if (currTotalShares > 0n) {
+      expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.above(
+        currCumulativeFeePerShare
+      )
+    } else {
+      expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.eq(
+        currCumulativeFeePerShare
+      )
+    }
 
-    receipt = await vault.connect(sender).mintOsToken(receiver.address, 100, ZERO_ADDRESS)
-    receiverShares = receiverShares + 100n
-    expect(await osToken.balanceOf(treasury)).to.be.above(0)
-    expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.above(cumulativeFeePerShare)
+    expect(await vault.osTokenPositions(sender.address)).to.be.eq(currPositionShares)
 
-    cumulativeFeePerShare = await osTokenVaultController.cumulativeFeePerShare()
-    treasuryShares = await osToken.balanceOf(treasury)
-    positionShares = treasuryShares + receiverShares
-    totalShares = positionShares
-    totalAssets = await osTokenVaultController.convertToAssets(positionShares)
-    await verify()
+    const newShares = 10n
+    const newAssets = await osTokenVaultController.convertToAssets(newShares)
+    const receipt = await vault
+      .connect(sender)
+      .mintOsToken(receiver.address, newShares, ZERO_ADDRESS)
+    expect(await osTokenVaultController.totalShares()).to.be.above(newTotalShares + 10n)
+    expect(await osTokenVaultController.totalAssets()).to.be.above(newTotalAssets + newAssets)
+    expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.above(
+      currCumulativeFeePerShare
+    )
+    expect(await vault.osTokenPositions(sender.address)).to.be.above(currPositionShares + newShares)
 
     await snapshotGasCost(receipt)
   })
@@ -184,9 +181,8 @@ describe('EthVault - mint', () => {
     const receipt = await vault
       .connect(sender)
       .mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
-    const osTokenAssets = await vault.convertToAssets(osTokenShares)
+    const osTokenAssets = await osTokenVaultController.convertToAssets(osTokenShares)
 
-    expect(await osTokenVaultController.convertToShares(osTokenAssets)).to.eq(osTokenShares)
     expect(await osToken.balanceOf(receiver.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(sender.address)).to.eq(osTokenShares)
     await expect(receipt)

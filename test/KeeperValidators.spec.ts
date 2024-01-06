@@ -168,6 +168,7 @@ describe('KeeperValidators', () => {
       let rewards = await keeper.rewards(await vault.getAddress())
       expect(rewards.nonce).to.eq(0)
       expect(rewards.assets).to.eq(0)
+      const globalRewardsNonce = await keeper.rewardsNonce()
 
       let receipt = await vault.registerValidator(approveParams, proof)
       await expect(receipt)
@@ -176,7 +177,7 @@ describe('KeeperValidators', () => {
 
       // collateralize vault
       rewards = await keeper.rewards(await vault.getAddress())
-      expect(rewards.nonce).to.eq(1)
+      expect(rewards.nonce).to.eq(globalRewardsNonce)
       expect(rewards.assets).to.eq(0)
 
       await snapshotGasCost(receipt)
@@ -216,7 +217,7 @@ describe('KeeperValidators', () => {
 
       // doesn't collateralize twice
       rewards = await keeper.rewards(await vault.getAddress())
-      expect(rewards.nonce).to.eq(1)
+      expect(rewards.nonce).to.eq(globalRewardsNonce)
       expect(rewards.assets).to.eq(0)
 
       await snapshotGasCost(receipt)
@@ -370,6 +371,7 @@ describe('KeeperValidators', () => {
       expect(rewards.nonce).to.eq(0)
       expect(rewards.assets).to.eq(0)
       const validatorsConcat = Buffer.concat(validators)
+      const globalRewardsNonce = await keeper.rewardsNonce()
 
       let receipt = await vault.registerValidators(
         approveParams,
@@ -382,7 +384,7 @@ describe('KeeperValidators', () => {
         .withArgs(await vault.getAddress(), approveParams.exitSignaturesIpfsHash)
 
       rewards = await keeper.rewards(await vault.getAddress())
-      expect(rewards.nonce).to.eq(1)
+      expect(rewards.nonce).to.eq(globalRewardsNonce)
       expect(rewards.assets).to.eq(0)
 
       await snapshotGasCost(receipt)
@@ -424,7 +426,7 @@ describe('KeeperValidators', () => {
 
       // doesn't collateralize twice
       rewards = await keeper.rewards(await vault.getAddress())
-      expect(rewards.nonce).to.eq(1)
+      expect(rewards.nonce).to.eq(globalRewardsNonce)
       expect(rewards.assets).to.eq(0)
 
       await snapshotGasCost(receipt)

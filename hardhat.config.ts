@@ -12,7 +12,7 @@ import '@openzeppelin/hardhat-upgrades'
 dotenv.config({ path: '.env' })
 
 import { Networks } from './helpers/types'
-import { NETWORKS } from './helpers/constants'
+import { MAINNET_FORK, NETWORKS } from './helpers/constants'
 
 if (!process.env.SKIP_LOAD) {
   glob.sync('./tasks/*.ts').forEach((file) => {
@@ -27,6 +27,17 @@ const TRACK_GAS = process.env.TRACK_GAS === 'true'
 const IS_COVERAGE = process.env.COVERAGE === 'true'
 const BLOCK_EXPLORER_KEY = process.env.BLOCK_EXPLORER_KEY || ''
 const HARDHATEVM_CHAINID = 31337
+
+// fork
+const mainnetFork = process.env.MAINNET_FORK_RPC_URL
+  ? {
+      blockNumber: MAINNET_FORK.blockNumber,
+      url: process.env.MAINNET_FORK_RPC_URL,
+    }
+  : undefined
+if (mainnetFork) {
+  console.log(`Using mainnet fork at block ${mainnetFork.blockNumber}`)
+}
 
 const getCommonNetworkConfig = (networkName) => {
   return {
@@ -67,13 +78,13 @@ const config: HardhatUserConfig = {
     hardhat: {
       blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,
       gas: DEFAULT_BLOCK_GAS_LIMIT,
-      gasPrice: 8000000000,
       chainId: HARDHATEVM_CHAINID,
       throwOnTransactionFailures: true,
       throwOnCallFailures: true,
       accounts: {
         accountsBalance: '1000000000000000000000000',
       },
+      forking: mainnetFork,
     },
     local: {
       url: 'http://127.0.0.1:8545/',

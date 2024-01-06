@@ -25,7 +25,8 @@ import {
 
 describe('OsToken', () => {
   const assets = ethers.parseEther('2')
-  const initialSupply = 1000
+  const initialHolderShares = 1000n
+  let initialSupply: bigint
   let initialHolder: Wallet, spender: Wallet, admin: Wallet, dao: Wallet, recipient: Wallet
   let osTokenVaultController: OsTokenVaultController, osToken: OsToken
 
@@ -51,7 +52,8 @@ describe('OsToken', () => {
       .deposit(initialHolder.address, ZERO_ADDRESS, { value: assets })
     await vault
       .connect(initialHolder)
-      .mintOsToken(initialHolder.address, initialSupply, ZERO_ADDRESS)
+      .mintOsToken(initialHolder.address, initialHolderShares, ZERO_ADDRESS)
+    initialSupply = await osToken.totalSupply()
   })
 
   describe('capacity', () => {
@@ -123,9 +125,11 @@ describe('OsToken', () => {
 
     it('controller can mint', async () => {
       await osToken.connect(dao).setController(initialHolder.address, true)
-      const receipt = await osToken.connect(initialHolder).mint(dao.address, 1)
-      await expect(receipt).to.emit(osToken, 'Transfer').withArgs(ZERO_ADDRESS, dao.address, 1)
-      expect(await osToken.balanceOf(dao.address)).to.eq(1)
+      const receipt = await osToken.connect(initialHolder).mint(recipient.address, 1)
+      await expect(receipt)
+        .to.emit(osToken, 'Transfer')
+        .withArgs(ZERO_ADDRESS, recipient.address, 1)
+      expect(await osToken.balanceOf(recipient.address)).to.eq(1)
     })
 
     it('not controller cannot burn', async () => {
@@ -136,10 +140,12 @@ describe('OsToken', () => {
 
     it('controller can burn', async () => {
       await osToken.connect(dao).setController(initialHolder.address, true)
-      await osToken.connect(initialHolder).mint(dao.address, 1)
-      const receipt = await osToken.connect(initialHolder).burn(dao.address, 1)
-      await expect(receipt).to.emit(osToken, 'Transfer').withArgs(dao.address, ZERO_ADDRESS, 1)
-      expect(await osToken.balanceOf(dao.address)).to.eq(0)
+      await osToken.connect(initialHolder).mint(recipient.address, 1)
+      const receipt = await osToken.connect(initialHolder).burn(recipient.address, 1)
+      await expect(receipt)
+        .to.emit(osToken, 'Transfer')
+        .withArgs(recipient.address, ZERO_ADDRESS, 1)
+      expect(await osToken.balanceOf(recipient.address)).to.eq(0)
     })
   })
 
@@ -223,16 +229,16 @@ describe('OsToken', () => {
 
     describe('when the requested account has some tokens', () => {
       it('returns the total amount of tokens', async () => {
-        expect(await osToken.balanceOf(initialHolder.address)).to.eq(initialSupply)
+        expect(await osToken.balanceOf(initialHolder.address)).to.eq(initialHolderShares)
       })
     })
   })
 
   describe('transfer', () => {
-    const balance = initialSupply
+    const balance = initialHolderShares
 
     it('reverts when the sender does not have enough balance', async () => {
-      const amount = balance + 1
+      const amount = balance + 1n
       await expect(
         osToken.connect(initialHolder).transfer(recipient.address, amount)
       ).to.be.revertedWithCustomError(osToken, 'ERC20InsufficientBalance')
@@ -245,7 +251,7 @@ describe('OsToken', () => {
     })
 
     describe('when the sender transfers all balance', () => {
-      const amount = initialSupply
+      const amount = initialHolderShares
 
       it('transfers the requested amount', async () => {
         const receipt = await osToken.connect(initialHolder).transfer(recipient.address, amount)
@@ -263,7 +269,7 @@ describe('OsToken', () => {
 
     describe('when the sender transfers zero tokens', () => {
       const amount = 0
-      const balance = initialSupply
+      const balance = initialHolderShares
 
       it('transfers the requested amount', async () => {
         const receipt = await osToken.connect(initialHolder).transfer(recipient.address, amount)
@@ -283,11 +289,11 @@ describe('OsToken', () => {
   describe('transfer from', () => {
     describe('when the spender has enough allowance', () => {
       beforeEach(async () => {
-        await osToken.connect(initialHolder).approve(spender.address, initialSupply)
+        await osToken.connect(initialHolder).approve(spender.address, initialHolderShares)
       })
 
       describe('when the token owner has enough balance', () => {
-        const amount = initialSupply
+        const amount = initialHolderShares
 
         it('transfers the requested amount', async () => {
           const receipt = await osToken
@@ -315,7 +321,7 @@ describe('OsToken', () => {
       })
 
       describe('when the token owner does not have enough balance', () => {
-        const amount = initialSupply
+        const amount = initialHolderShares
 
         beforeEach('reducing balance', async () => {
           await osToken.connect(initialHolder).transfer(spender.address, 1)
@@ -330,14 +336,14 @@ describe('OsToken', () => {
     })
 
     describe('when the spender does not have enough allowance', () => {
-      const allowance = initialSupply - 1
+      const allowance = initialHolderShares - 1n
 
       beforeEach(async () => {
         await osToken.connect(initialHolder).approve(spender.address, allowance)
       })
 
       describe('when the token owner has enough balance', () => {
-        const amount = initialSupply
+        const amount = initialHolderShares
 
         it('reverts', async () => {
           await expect(
@@ -385,7 +391,7 @@ describe('OsToken', () => {
     })
 
     describe('when the sender has enough balance', () => {
-      const amount = initialSupply
+      const amount = initialHolderShares
 
       it('emits an approval event', async () => {
         await expect(osToken.connect(initialHolder).approve(spender.address, amount))
@@ -415,7 +421,7 @@ describe('OsToken', () => {
     })
 
     describe('when the sender does not have enough balance', () => {
-      const amount = initialSupply + 1
+      const amount = initialHolderShares + 1n
 
       it('emits an approval event', async () => {
         await expect(osToken.connect(initialHolder).approve(spender.address, amount))

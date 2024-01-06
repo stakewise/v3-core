@@ -36,6 +36,7 @@ describe('KeeperRewards', () => {
     validatorsRegistry: Contract,
     sharedMevEscrow: SharedMevEscrow,
     osTokenVaultController: OsTokenVaultController
+  let globalRewardsNonce: number
 
   beforeEach(async () => {
     ;[dao, admin, oracle, other] = await (ethers as any).getSigners()
@@ -65,7 +66,10 @@ describe('KeeperRewards', () => {
         unlockedMevReward: ethers.parseEther('1'),
         vault: await vault.getAddress(),
       }
-      const rewardsUpdate = await getKeeperRewardsUpdateData([vaultReward], keeper)
+      globalRewardsNonce = Number(await keeper.rewardsNonce())
+      const rewardsUpdate = await getKeeperRewardsUpdateData([vaultReward], keeper, {
+        nonce: globalRewardsNonce,
+      })
       rewardsUpdateParams = {
         rewardsRoot: rewardsUpdate.root,
         updateTimestamp: rewardsUpdate.updateTimestamp,
@@ -73,6 +77,7 @@ describe('KeeperRewards', () => {
         avgRewardPerSecond: rewardsUpdate.avgRewardPerSecond,
         signatures: getOraclesSignatures(rewardsUpdate.signingData),
       }
+      await increaseTime(REWARDS_DELAY)
     })
 
     it('fails with invalid IPFS hash', async () => {
@@ -121,7 +126,7 @@ describe('KeeperRewards', () => {
         vault: await vault.getAddress(),
       }
       const newRewardsUpdate = await getKeeperRewardsUpdateData([newVaultReward], keeper, {
-        nonce: 2,
+        nonce: globalRewardsNonce + 1,
         updateTimestamp: 1680255895,
       })
       expect(await keeper.canUpdateRewards()).to.eq(false)
@@ -173,7 +178,9 @@ describe('KeeperRewards', () => {
     })
 
     it('succeeds with all signatures', async () => {
-      const rewardsUpdate = await getKeeperRewardsUpdateData([vaultReward], keeper)
+      const rewardsUpdate = await getKeeperRewardsUpdateData([vaultReward], keeper, {
+        nonce: globalRewardsNonce,
+      })
       const params = {
         ...rewardsUpdateParams,
         signatures: getOraclesSignatures(rewardsUpdate.signingData, ORACLES.length),
@@ -183,8 +190,10 @@ describe('KeeperRewards', () => {
     })
 
     it('succeeds', async () => {
-      expect(await keeper.lastRewardsTimestamp()).to.eq(0)
       expect(await keeper.canUpdateRewards()).to.eq(true)
+      const prevRewardsRoot = await keeper.rewardsRoot()
+      const prevRewardsTimestamp = await keeper.lastRewardsTimestamp()
+
       let receipt = await keeper.connect(oracle).updateRewards(rewardsUpdateParams)
       await expect(receipt)
         .to.emit(keeper, 'RewardsUpdated')
@@ -193,19 +202,20 @@ describe('KeeperRewards', () => {
           rewardsUpdateParams.rewardsRoot,
           rewardsUpdateParams.avgRewardPerSecond,
           rewardsUpdateParams.updateTimestamp,
-          1,
+          globalRewardsNonce,
           rewardsUpdateParams.rewardsIpfsHash
         )
       await expect(receipt)
         .to.emit(osTokenVaultController, 'AvgRewardPerSecondUpdated')
         .withArgs(rewardsUpdateParams.avgRewardPerSecond)
-      expect(await keeper.prevRewardsRoot()).to.eq(ZERO_BYTES32)
+
+      expect(await keeper.prevRewardsRoot()).to.eq(prevRewardsRoot)
       expect(await keeper.rewardsRoot()).to.eq(rewardsUpdateParams.rewardsRoot)
-      expect(await keeper.rewardsNonce()).to.eq(2)
+      expect(await keeper.rewardsNonce()).to.eq(globalRewardsNonce + 1)
       expect(await osTokenVaultController.avgRewardPerSecond()).to.eq(
         rewardsUpdateParams.avgRewardPerSecond
       )
-      expect(await keeper.lastRewardsTimestamp()).to.not.eq(0)
+      expect(await keeper.lastRewardsTimestamp()).to.not.eq(prevRewardsTimestamp)
       expect(await keeper.canUpdateRewards()).to.eq(false)
       await snapshotGasCost(receipt)
 
@@ -216,7 +226,7 @@ describe('KeeperRewards', () => {
         vault: await vault.getAddress(),
       }
       const newRewardsUpdate = await getKeeperRewardsUpdateData([newVaultReward], keeper, {
-        nonce: 2,
+        nonce: globalRewardsNonce + 1,
         updateTimestamp: 1670256000,
       })
       await increaseTime(REWARDS_DELAY)
@@ -234,12 +244,12 @@ describe('KeeperRewards', () => {
           newRewardsUpdate.root,
           newRewardsUpdate.avgRewardPerSecond,
           newRewardsUpdate.updateTimestamp,
-          2,
+          globalRewardsNonce + 1,
           newRewardsUpdate.ipfsHash
         )
       expect(await keeper.prevRewardsRoot()).to.eq(rewardsUpdateParams.rewardsRoot)
       expect(await keeper.rewardsRoot()).to.eq(newRewardsUpdate.root)
-      expect(await keeper.rewardsNonce()).to.eq(3)
+      expect(await keeper.rewardsNonce()).to.eq(globalRewardsNonce + 2)
       await snapshotGasCost(receipt)
     })
   })
@@ -253,6 +263,7 @@ describe('KeeperRewards', () => {
         feePercent,
         metadataIpfsHash,
       })
+      await increaseTime(REWARDS_DELAY)
     })
 
     it('returns false for uncollateralized vault', async () => {
@@ -272,6 +283,7 @@ describe('KeeperRewards', () => {
       expect(await keeper.canHarvest(await vault.getAddress())).to.equal(false)
       expect(await keeper.isHarvestRequired(await vault.getAddress())).to.equal(false)
       expect(await vault.isStateUpdateRequired()).to.equal(false)
+      const globalRewardsNonce = Number(await keeper.rewardsNonce())
 
       // update rewards first time
       let newVaultReward = {
@@ -281,13 +293,13 @@ describe('KeeperRewards', () => {
       }
       let newRewardsUpdate = await getKeeperRewardsUpdateData([newVaultReward], keeper, {
         updateTimestamp: 1670258895,
+        nonce: globalRewardsNonce,
       })
       await keeper.connect(oracle).updateRewards({
         rewardsRoot: newRewardsUpdate.root,
         rewardsIpfsHash: newRewardsUpdate.ipfsHash,
         updateTimestamp: newRewardsUpdate.updateTimestamp,
         avgRewardPerSecond: newRewardsUpdate.avgRewardPerSecond,
-
         signatures: getOraclesSignatures(newRewardsUpdate.signingData),
       })
 
@@ -304,7 +316,7 @@ describe('KeeperRewards', () => {
         vault: await vault.getAddress(),
       }
       newRewardsUpdate = await getKeeperRewardsUpdateData([newVaultReward], keeper, {
-        nonce: 2,
+        nonce: globalRewardsNonce + 1,
         updateTimestamp: newTimestamp,
       })
       await increaseTime(REWARDS_DELAY)
@@ -313,7 +325,6 @@ describe('KeeperRewards', () => {
         rewardsIpfsHash: newRewardsUpdate.ipfsHash,
         updateTimestamp: newRewardsUpdate.updateTimestamp,
         avgRewardPerSecond: newRewardsUpdate.avgRewardPerSecond,
-
         signatures: getOraclesSignatures(newRewardsUpdate.signingData),
       })
 
@@ -327,6 +338,7 @@ describe('KeeperRewards', () => {
   describe('harvest (own escrow)', () => {
     let harvestParams: IKeeperRewards.HarvestParamsStruct
     let ownMevVault: EthVault
+    let globalRewardsNonce: number
 
     beforeEach(async () => {
       ownMevVault = await createVault(
@@ -361,7 +373,11 @@ describe('KeeperRewards', () => {
         })
       }
 
-      const rewardsUpdate = await getKeeperRewardsUpdateData(vaultRewards, keeper)
+      globalRewardsNonce = Number(await keeper.rewardsNonce())
+      const rewardsUpdate = await getKeeperRewardsUpdateData(vaultRewards, keeper, {
+        nonce: globalRewardsNonce,
+      })
+      await increaseTime(REWARDS_DELAY)
       await keeper.connect(oracle).updateRewards({
         rewardsRoot: rewardsUpdate.root,
         updateTimestamp: rewardsUpdate.updateTimestamp,
@@ -375,6 +391,8 @@ describe('KeeperRewards', () => {
         unlockedMevReward: vaultReward.unlockedMevReward,
         proof: getRewardsRootProof(rewardsUpdate.tree, vaultReward),
       }
+      globalRewardsNonce += 1
+      expect(await keeper.rewardsNonce()).to.eq(globalRewardsNonce)
     })
 
     it('only vault can harvest', async () => {
@@ -415,7 +433,7 @@ describe('KeeperRewards', () => {
         unlockedMevReward: sharedMevEscrowBalance,
       }
       const rewardsUpdate = await getKeeperRewardsUpdateData([vaultReward], keeper, {
-        nonce: 2,
+        nonce: globalRewardsNonce,
         updateTimestamp: 1680255895,
       })
       await keeper.connect(oracle).updateRewards({
@@ -458,7 +476,7 @@ describe('KeeperRewards', () => {
         )
 
       const rewards = await keeper.rewards(await ownMevVault.getAddress())
-      expect(rewards.nonce).to.equal(2)
+      expect(rewards.nonce).to.equal(globalRewardsNonce)
       expect(rewards.assets).to.equal(harvestParams.reward)
 
       const unlockedMevRewards = await keeper.unlockedMevRewards(await ownMevVault.getAddress())
@@ -494,7 +512,7 @@ describe('KeeperRewards', () => {
         unlockedMevReward: 0n,
       }
       const rewardsUpdate = await getKeeperRewardsUpdateData([vaultReward], keeper, {
-        nonce: 2,
+        nonce: globalRewardsNonce,
         updateTimestamp: 1680255895,
       })
       await keeper.connect(oracle).updateRewards({
@@ -522,7 +540,7 @@ describe('KeeperRewards', () => {
         )
 
       let rewards = await keeper.rewards(await ownMevVault.getAddress())
-      expect(rewards.nonce).to.equal(2)
+      expect(rewards.nonce).to.equal(globalRewardsNonce)
       expect(rewards.assets).to.equal(prevHarvestParams.reward)
 
       expect(await keeper.isCollateralized(await ownMevVault.getAddress())).to.equal(true)
@@ -541,7 +559,7 @@ describe('KeeperRewards', () => {
         )
 
       rewards = await keeper.rewards(await ownMevVault.getAddress())
-      expect(rewards.nonce).to.equal(3)
+      expect(rewards.nonce).to.equal(globalRewardsNonce + 1)
       expect(rewards.assets).to.equal(currHarvestParams.reward)
 
       expect(await keeper.isCollateralized(await ownMevVault.getAddress())).to.equal(true)
@@ -569,6 +587,7 @@ describe('KeeperRewards', () => {
   describe('harvest (shared escrow)', () => {
     let harvestParams: IKeeperRewards.HarvestParamsStruct
     let sharedMevVault: EthVault
+    let globalRewardsNonce: number
 
     beforeEach(async () => {
       sharedMevVault = await createVault(
@@ -604,7 +623,11 @@ describe('KeeperRewards', () => {
         })
       }
 
-      const rewardsUpdate = await getKeeperRewardsUpdateData(vaultRewards, keeper)
+      globalRewardsNonce = Number(await keeper.rewardsNonce())
+      const rewardsUpdate = await getKeeperRewardsUpdateData(vaultRewards, keeper, {
+        nonce: globalRewardsNonce,
+      })
+      await increaseTime(REWARDS_DELAY)
       await keeper.connect(oracle).updateRewards({
         rewardsRoot: rewardsUpdate.root,
         updateTimestamp: rewardsUpdate.updateTimestamp,
@@ -619,6 +642,8 @@ describe('KeeperRewards', () => {
         proof: getRewardsRootProof(rewardsUpdate.tree, vaultReward),
       }
       await setBalance(await sharedMevEscrow.getAddress(), BigInt(harvestParams.unlockedMevReward))
+      globalRewardsNonce += 1
+      expect(await keeper.rewardsNonce()).to.eq(globalRewardsNonce)
     })
 
     it('only vault can harvest', async () => {
@@ -663,11 +688,11 @@ describe('KeeperRewards', () => {
         .withArgs(await sharedMevVault.getAddress(), harvestParams.unlockedMevReward)
 
       const rewards = await keeper.rewards(await sharedMevVault.getAddress())
-      expect(rewards.nonce).to.equal(2)
+      expect(rewards.nonce).to.equal(globalRewardsNonce)
       expect(rewards.assets).to.equal(harvestParams.reward)
 
       const unlockedMevRewards = await keeper.unlockedMevRewards(await sharedMevVault.getAddress())
-      expect(unlockedMevRewards.nonce).to.equal(2)
+      expect(unlockedMevRewards.nonce).to.equal(globalRewardsNonce)
       expect(unlockedMevRewards.assets).to.equal(harvestParams.unlockedMevReward)
 
       expect(await keeper.isCollateralized(await sharedMevVault.getAddress())).to.equal(true)
@@ -691,7 +716,7 @@ describe('KeeperRewards', () => {
       }
       await setBalance(await sharedMevEscrow.getAddress(), vaultReward.unlockedMevReward)
       const rewardsUpdate = await getKeeperRewardsUpdateData([vaultReward], keeper, {
-        nonce: 2,
+        nonce: globalRewardsNonce,
         updateTimestamp: 1680255895,
       })
       await keeper.connect(oracle).updateRewards({
@@ -725,7 +750,7 @@ describe('KeeperRewards', () => {
         .withArgs(await sharedMevVault.getAddress(), prevHarvestParams.unlockedMevReward)
 
       let rewards = await keeper.rewards(await sharedMevVault.getAddress())
-      expect(rewards.nonce).to.equal(2)
+      expect(rewards.nonce).to.equal(globalRewardsNonce)
       expect(rewards.assets).to.equal(prevHarvestParams.reward)
 
       expect(await keeper.isCollateralized(await sharedMevVault.getAddress())).to.equal(true)
@@ -750,7 +775,7 @@ describe('KeeperRewards', () => {
       expect(await ethers.provider.getBalance(await sharedMevEscrow.getAddress())).to.equal(0)
 
       rewards = await keeper.rewards(await sharedMevVault.getAddress())
-      expect(rewards.nonce).to.equal(3)
+      expect(rewards.nonce).to.equal(globalRewardsNonce + 1)
       expect(rewards.assets).to.equal(currHarvestParams.reward)
 
       expect(await keeper.isCollateralized(await sharedMevVault.getAddress())).to.equal(true)

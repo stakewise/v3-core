@@ -642,6 +642,9 @@ describe('EthVault - withdraw', () => {
     await vault.resetSecurityDeposit()
     const alice = holder
     const bob = other
+    let sharedMevEscrowBalance = await ethers.provider.getBalance(
+      await sharedMevEscrow.getAddress()
+    )
 
     // collateralize vault by registering validator
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
@@ -667,7 +670,9 @@ describe('EthVault - withdraw', () => {
       expect(await vault.convertToAssets(aliceShares)).to.be.eq(aliceAssets)
       expect(await vault.convertToAssets(bobShares)).to.be.eq(bobAssets)
       expect(await vault.totalShares()).to.be.eq(totalShares)
-      expect(await ethers.provider.getBalance(await sharedMevEscrow.getAddress())).to.be.eq(0)
+      expect(await ethers.provider.getBalance(await sharedMevEscrow.getAddress())).to.be.eq(
+        sharedMevEscrowBalance
+      )
       expect(await ethers.provider.getBalance(await vault.getAddress())).to.be.eq(vaultLiquidAssets)
       expect(await vault.totalAssets()).to.be.eq(totalAssets)
       expect(await vault.queuedShares()).to.be.eq(queuedShares)
@@ -719,6 +724,7 @@ describe('EthVault - withdraw', () => {
     })
     aliceAssets += 1000n
     bobAssets += 2000n
+    sharedMevEscrowBalance = 0n
 
     await checkVaultState()
 

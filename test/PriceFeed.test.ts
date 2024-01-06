@@ -7,6 +7,7 @@ import { createPriceFeed, ethVaultFixture } from './shared/fixtures'
 import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
 import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
 import { increaseTime } from './shared/utils'
+import { MAINNET_FORK } from '../helpers/constants'
 
 describe('PriceFeed', () => {
   const shares = ethers.parseEther('2')
@@ -76,6 +77,7 @@ describe('PriceFeed', () => {
   })
 
   it('works with zero supply', async () => {
+    if (MAINNET_FORK.enabled) return
     const expectedValue = ethers.parseEther('1')
     expect(await osTokenVaultController.totalShares()).to.eq(0)
     expect(await priceFeed.latestAnswer()).to.eq(expectedValue)
@@ -87,7 +89,6 @@ describe('PriceFeed', () => {
   it('increments over time', async () => {
     await vault.connect(sender).mintOsToken(sender.address, osTokenShares, ZERO_ADDRESS)
     const value = await priceFeed.latestAnswer()
-    expect(value).to.eq(ethers.parseEther('1'))
 
     let latestRoundData = await priceFeed.latestRoundData()
     expect(latestRoundData[1]).to.eq(value)

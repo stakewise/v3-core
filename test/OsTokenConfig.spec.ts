@@ -13,6 +13,7 @@ import {
   MAX_UINT16,
 } from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
+import { MAINNET_FORK } from '../helpers/constants'
 
 describe('OsTokenConfig', () => {
   const newConfig = {
@@ -31,6 +32,7 @@ describe('OsTokenConfig', () => {
   })
 
   it('updates in constructor', async () => {
+    if (MAINNET_FORK.enabled) return
     expect(await osTokenConfig.redeemFromLtvPercent()).to.be.eq(OSTOKEN_REDEEM_FROM_LTV)
     expect(await osTokenConfig.redeemToLtvPercent()).to.be.eq(OSTOKEN_REDEEM_TO_LTV)
     expect(await osTokenConfig.liqThresholdPercent()).to.be.eq(OSTOKEN_LIQ_THRESHOLD)
