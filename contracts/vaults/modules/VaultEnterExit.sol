@@ -172,6 +172,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
 
     // calculate amount of assets to burn
     assets = convertToAssets(shares);
+    if (assets == 0) revert Errors.InvalidAssets();
 
     // reverts in case there are not enough withdrawable assets
     if (assets > withdrawableAssets()) revert Errors.InsufficientAssets();

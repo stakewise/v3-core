@@ -26,7 +26,7 @@ interface IVaultBlocklist is IVaultAdmin {
   event BlocklistManagerUpdated(address indexed caller, address indexed blocklistManager);
 
   /**
-   * @notice blocklist manager address
+   * @notice Blocklist manager address
    * @return The address of the blocklist manager
    */
   function blocklistManager() external view returns (address);

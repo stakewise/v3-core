@@ -1,4 +1,5 @@
 import { ethers } from 'hardhat'
+import keccak256 from 'keccak256'
 import { Contract, parseEther, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { Keeper, IKeeperRewards, EthFoxVault } from '../typechain-types'
@@ -41,6 +42,21 @@ describe('EthFoxVault', () => {
       metadataIpfsHash,
     })
     admin = await ethers.getImpersonatedSigner(await vault.admin())
+  })
+
+  it('cannot initialize twice', async () => {
+    await expect(vault.connect(other).initialize('0x')).revertedWithCustomError(
+      vault,
+      'InvalidInitialization'
+    )
+  })
+
+  it('has id', async () => {
+    expect(await vault.vaultId()).to.eq(`0x${keccak256('EthFoxVault').toString('hex')}`)
+  })
+
+  it('has version', async () => {
+    expect(await vault.version()).to.eq(1)
   })
 
   describe('set blocklist manager', () => {

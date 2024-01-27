@@ -10,7 +10,7 @@ Object {
 exports[`EthGenesisVault migrate migrates from rewardEthToken 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 79660,
+  "gasUsed": 79671,
 }
 `;
 

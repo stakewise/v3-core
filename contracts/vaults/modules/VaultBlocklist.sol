@@ -22,7 +22,10 @@ abstract contract VaultBlocklist is Initializable, VaultAdmin, IVaultBlocklist {
   /// @inheritdoc IVaultBlocklist
   function updateBlocklist(address account, bool blocked) public virtual override {
     if (msg.sender != blocklistManager) revert Errors.AccessDenied();
-    _updateBlocklist(account, blocked);
+    if (blockedAccounts[account] == blocked) return;
+
+    blockedAccounts[account] = blocked;
+    emit BlocklistUpdated(msg.sender, account, blocked);
   }
 
   /// @inheritdoc IVaultBlocklist
@@ -37,17 +40,6 @@ abstract contract VaultBlocklist is Initializable, VaultAdmin, IVaultBlocklist {
    */
   function _checkBlocklist(address account) internal view {
     if (blockedAccounts[account]) revert Errors.AccessDenied();
-  }
-
-  /**
-   * @notice Internal function for updating blocklist
-   * @param account The address of the account to update
-   * @param blocked Defines whether account is added to the blocklist or removed
-   */
-  function _updateBlocklist(address account, bool blocked) private {
-    if (blockedAccounts[account] == blocked) return;
-    blockedAccounts[account] = blocked;
-    emit BlocklistUpdated(msg.sender, account, blocked);
   }
 
   /**
