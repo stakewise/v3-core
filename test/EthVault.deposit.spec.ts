@@ -7,9 +7,9 @@ import snapshotGasCost from './shared/snapshotGasCost'
 import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { PANIC_CODES, SECURITY_DEPOSIT, ZERO_ADDRESS } from './shared/constants'
-import { getRewardsRootProof, updateRewards } from './shared/rewards'
-import { registerEthValidator } from './shared/validators'
+import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
 import { setBalance } from './shared/utils'
+import { registerEthValidator } from './shared/validators'
 
 const ether = ethers.parseEther('1')
 
@@ -33,11 +33,16 @@ describe('EthVault - deposit', () => {
       validatorsRegistry,
       sharedMevEscrow: mevEscrow,
     } = await loadFixture(ethVaultFixture))
-    vault = await createVault(admin, {
-      capacity,
-      feePercent,
-      metadataIpfsHash,
-    })
+    vault = await createVault(
+      admin,
+      {
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      },
+      false,
+      true
+    )
   })
 
   it('fails to deposit to zero address', async () => {
@@ -110,10 +115,7 @@ describe('EthVault - deposit', () => {
     })
 
     it('fails when not harvested', async () => {
-      await vault
-        .connect(other)
-        .deposit(other.address, referrer, { value: ethers.parseEther('32') })
-      await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       await updateRewards(keeper, [
         {
           reward: ethers.parseEther('5'),
@@ -140,6 +142,7 @@ describe('EthVault - deposit', () => {
         .connect(other)
         .deposit(other.address, referrer, { value: ethers.parseEther('32') })
       await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+      await vault.connect(other).enterExitQueue(ethers.parseEther('32'), other.address)
 
       let vaultReward = ethers.parseEther('10')
       await updateRewards(keeper, [
@@ -171,7 +174,6 @@ describe('EthVault - deposit', () => {
       }
       await setBalance(await mevEscrow.getAddress(), vaultReward)
       await setBalance(await vault.getAddress(), ethers.parseEther('5'))
-      await vault.connect(other).enterExitQueue(ethers.parseEther('32'), other.address)
 
       const amount = ethers.parseEther('100')
       const receipt = await vault

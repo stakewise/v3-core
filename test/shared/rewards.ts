@@ -1,7 +1,7 @@
 import { ethers, network } from 'hardhat'
 import { Contract, Signer } from 'ethers'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
-import { EthVault, IKeeperRewards, Keeper } from '../../typechain-types'
+import { EthVault, IKeeperRewards, Keeper, EthFoxVault } from '../../typechain-types'
 import {
   EIP712Domain,
   EXITING_ASSETS_MIN_DELAY,
@@ -13,8 +13,15 @@ import {
   ZERO_ADDRESS,
 } from './constants'
 import { registerEthValidator } from './validators'
-import { extractExitPositionTicket, getBlockTimestamp, increaseTime, setBalance } from './utils'
+import {
+  extractDepositShares,
+  extractExitPositionTicket,
+  getBlockTimestamp,
+  increaseTime,
+  setBalance,
+} from './utils'
 import { getOraclesSignatures } from './fixtures'
+import { MAINNET_FORK } from '../../helpers/constants'
 
 export type RewardsTree = StandardMerkleTree<[string, bigint, bigint]>
 
@@ -77,6 +84,26 @@ export async function getKeeperRewardsUpdateData(
   }
 }
 
+export function getHarvestParams(
+  vault: string,
+  reward: bigint,
+  unlockedMevReward: bigint
+): VaultReward {
+  const harvestParams = MAINNET_FORK.harvestParams[vault]
+  if (harvestParams) {
+    return {
+      vault,
+      reward: reward + harvestParams.reward,
+      unlockedMevReward: unlockedMevReward + harvestParams.unlockedMevReward,
+    }
+  }
+  return {
+    vault,
+    reward,
+    unlockedMevReward,
+  }
+}
+
 export async function updateRewards(
   keeper: Keeper,
   rewards: VaultReward[],
@@ -106,7 +133,7 @@ export function getRewardsRootProof(tree: RewardsTree, vaultReward: VaultReward)
 }
 
 export async function collateralizeEthVault(
-  vault: EthVault,
+  vault: EthVault | EthFoxVault,
   keeper: Keeper,
   validatorsRegistry: Contract,
   admin: Signer
@@ -117,21 +144,19 @@ export async function collateralizeEthVault(
 
   // register validator
   const validatorDeposit = ethers.parseEther('32')
-  await vault.connect(admin).deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
+  const tx = await vault
+    .connect(admin)
+    .deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
+  const shares = await extractDepositShares(tx)
   await registerEthValidator(vault, keeper, validatorsRegistry, admin)
 
   // update rewards tree
-  const rewardsTree = await updateRewards(keeper, [
-    { vault: vaultAddress, reward: 0n, unlockedMevReward: 0n },
-  ])
-  const proof = getRewardsRootProof(rewardsTree, {
-    vault: vaultAddress,
-    reward: 0n,
-    unlockedMevReward: 0n,
-  })
+  const vaultReward = getHarvestParams(vaultAddress, 0n, 0n)
+  const rewardsTree = await updateRewards(keeper, [vaultReward])
+  const proof = getRewardsRootProof(rewardsTree, vaultReward)
 
   // exit validator
-  const response = await vault.connect(admin).enterExitQueue(validatorDeposit, adminAddr)
+  const response = await vault.connect(admin).enterExitQueue(shares, adminAddr)
   const positionTicket = await extractExitPositionTicket(response)
   const timestamp = await getBlockTimestamp(response)
 
@@ -140,8 +165,8 @@ export async function collateralizeEthVault(
 
   await vault.updateState({
     rewardsRoot: rewardsTree.root,
-    reward: 0n,
-    unlockedMevReward: 0n,
+    reward: vaultReward.reward,
+    unlockedMevReward: vaultReward.unlockedMevReward,
     proof,
   })
 
@@ -160,19 +185,16 @@ export async function setAvgRewardPerSecond(
   avgRewardPerSecond: number
 ) {
   const vaultAddress = await vault.getAddress()
-  const tree = await updateRewards(
-    keeper,
-    [{ vault: vaultAddress, reward: 0n, unlockedMevReward: 0n }],
-    avgRewardPerSecond
-  )
+  const vaultReward = getHarvestParams(vaultAddress, 0n, 0n)
+  const tree = await updateRewards(keeper, [vaultReward], avgRewardPerSecond)
   const harvestParams: IKeeperRewards.HarvestParamsStruct = {
     rewardsRoot: tree.root,
-    reward: 0n,
-    unlockedMevReward: 0n,
+    reward: vaultReward.reward,
+    unlockedMevReward: vaultReward.unlockedMevReward,
     proof: getRewardsRootProof(tree, {
       vault: vaultAddress,
-      unlockedMevReward: 0n,
-      reward: 0n,
+      unlockedMevReward: vaultReward.unlockedMevReward,
+      reward: vaultReward.reward,
     }),
   }
   await vault.connect(dao).updateState(harvestParams)

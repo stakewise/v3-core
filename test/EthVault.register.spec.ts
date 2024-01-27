@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Contract, Wallet } from 'ethers'
+import { Contract, Signer, Wallet } from 'ethers'
 import { UintNumberType } from '@chainsafe/ssz'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { ThenArg } from '../helpers/types'
@@ -37,7 +37,7 @@ describe('EthVault - register', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const deadline = VALIDATORS_DEADLINE
 
-  let admin: Wallet, other: Wallet
+  let admin: Signer, other: Wallet
   let vault: EthVault, keeper: Keeper, validatorsRegistry: Contract
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
@@ -60,6 +60,7 @@ describe('EthVault - register', () => {
       feePercent,
       metadataIpfsHash,
     })
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
@@ -173,8 +174,13 @@ describe('EthVault - register', () => {
       validators = validatorsData.validators
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       const sortedVals = multiProof.leaves.map((v) => v[0])
+      const vaultAddr = await vault.getAddress()
       indexes = validators.map((v) => sortedVals.indexOf(v))
-      await setBalance(await vault.getAddress(), validatorDeposit * BigInt(validators.length))
+      const balance =
+        validatorDeposit * BigInt(validators.length) +
+        (await vault.convertToAssets(await vault.queuedShares())) +
+        (await ethers.provider.getBalance(vaultAddr))
+      await setBalance(vaultAddr, balance)
       signatures = getOraclesSignatures(
         await getEthValidatorsSigningData(
           Buffer.concat(validators),

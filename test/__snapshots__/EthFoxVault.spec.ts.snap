@@ -1,0 +1,57 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthFoxVault blocklist can be updated by blocklist manager 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 53567,
+}
+`;
+
+exports[`EthFoxVault blocklist can be updated by blocklist manager 2`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 31655,
+}
+`;
+
+exports[`EthFoxVault deposit can be called by not blocked user 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 68908,
+}
+`;
+
+exports[`EthFoxVault deposit deposit through receive fallback can be called by not blocked sender 1`] = `
+Object {
+  "calldataByteLength": 4,
+  "gasUsed": 76470,
+}
+`;
+
+exports[`EthFoxVault ejecting user blocklist manager can eject all of the user assets for collateralized vault 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 111891,
+}
+`;
+
+exports[`EthFoxVault ejecting user blocklist manager can eject all of the user assets for not collateralized vault 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 83042,
+}
+`;
+
+exports[`EthFoxVault ejecting user does not fail for user with no vault shares 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 55591,
+}
+`;
+
+exports[`EthFoxVault set blocklist manager admin can update blocklist manager 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 35963,
+}
+`;

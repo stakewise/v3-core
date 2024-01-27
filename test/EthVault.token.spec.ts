@@ -36,13 +36,18 @@ describe('EthVault - token', () => {
 
   beforeEach('deploy fixture', async () => {
     ;({ createEthErc20Vault: createVault } = await loadFixture(ethVaultFixture))
-    vault = await createVault(admin, {
-      capacity,
-      feePercent,
-      name,
-      symbol,
-      metadataIpfsHash,
-    })
+    vault = await createVault(
+      admin,
+      {
+        capacity,
+        feePercent,
+        name,
+        symbol,
+        metadataIpfsHash,
+      },
+      false,
+      true
+    )
     await vault
       .connect(initialHolder)
       .deposit(initialHolder.address, ZERO_ADDRESS, { value: initialSupply })
@@ -62,49 +67,69 @@ describe('EthVault - token', () => {
 
   it('fails to deploy with invalid name length', async () => {
     await expect(
-      createVault(admin, {
-        capacity,
-        feePercent,
-        name: 'a'.repeat(31),
-        symbol,
-        metadataIpfsHash,
-      })
+      createVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          name: 'a'.repeat(31),
+          symbol,
+          metadataIpfsHash,
+        },
+        false,
+        true
+      )
     ).to.be.revertedWithCustomError(vault, 'InvalidTokenMeta')
   })
 
   it('fails to deploy with zero capacity', async () => {
     await expect(
-      createVault(admin, {
-        capacity: 0n,
-        feePercent,
-        name,
-        symbol,
-        metadataIpfsHash,
-      })
+      createVault(
+        admin,
+        {
+          capacity: 0n,
+          feePercent,
+          name,
+          symbol,
+          metadataIpfsHash,
+        },
+        false,
+        true
+      )
     ).to.be.revertedWithCustomError(vault, 'InvalidCapacity')
   })
 
   it('fails to deploy with capacity less than validator deposit amount', async () => {
     await expect(
-      createVault(admin, {
-        capacity: ethers.parseEther('31'),
-        feePercent,
-        name,
-        symbol,
-        metadataIpfsHash,
-      })
+      createVault(
+        admin,
+        {
+          capacity: ethers.parseEther('31'),
+          feePercent,
+          name,
+          symbol,
+          metadataIpfsHash,
+        },
+        false,
+        true
+      )
     ).to.be.revertedWithCustomError(vault, 'InvalidCapacity')
   })
 
   it('fails to deploy with invalid symbol length', async () => {
     await expect(
-      createVault(admin, {
-        capacity,
-        feePercent,
-        name,
-        symbol: 'a'.repeat(21),
-        metadataIpfsHash,
-      })
+      createVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          name,
+          symbol: 'a'.repeat(21),
+          metadataIpfsHash,
+        },
+        false,
+        true
+      )
     ).to.be.revertedWithCustomError(vault, 'InvalidTokenMeta')
   })
 

@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Contract, Wallet } from 'ethers'
+import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
   EthVault,
@@ -14,7 +14,6 @@ import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import {
   MAX_UINT16,
-  ONE_DAY,
   OSTOKEN_LIQ_BONUS,
   OSTOKEN_LIQ_THRESHOLD,
   OSTOKEN_LTV,
@@ -24,19 +23,20 @@ import {
 } from './shared/constants'
 import {
   collateralizeEthVault,
+  getHarvestParams,
   getRewardsRootProof,
   setAvgRewardPerSecond,
   updateRewards,
 } from './shared/rewards'
-import { increaseTime, setBalance } from './shared/utils'
+import { extractDepositShares, setBalance } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { MAINNET_FORK } from '../helpers/constants'
 
 describe('EthVault - redeem osToken', () => {
-  const shares = ethers.parseEther('32')
+  const assets = ethers.parseEther('32')
   const osTokenAssets = ethers.parseEther('28.8')
+  let shares: bigint
   let osTokenShares: bigint
-  const penalty = ethers.parseEther('-0.53')
   const unlockedMevReward = ethers.parseEther('0')
   const redeemedAssets = ethers.parseEther('4.76')
   let redeemedShares: bigint
@@ -45,7 +45,7 @@ describe('EthVault - redeem osToken', () => {
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
-  let owner: Wallet, admin: Wallet, dao: Wallet, redeemer: Wallet, receiver: Wallet
+  let owner: Wallet, admin: Signer, dao: Wallet, redeemer: Wallet, receiver: Wallet
   let vault: EthVault,
     keeper: Keeper,
     osTokenVaultController: OsTokenVaultController,
@@ -66,11 +66,13 @@ describe('EthVault - redeem osToken', () => {
       osTokenConfig,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
     await osTokenVaultController.connect(dao).setFeePercent(0)
 
     // collateralize vault
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
-    await vault.connect(owner).deposit(owner.address, ZERO_ADDRESS, { value: shares })
+    const tx = await vault.connect(owner).deposit(owner.address, ZERO_ADDRESS, { value: assets })
+    shares = await extractDepositShares(tx)
 
     await setAvgRewardPerSecond(dao, vault, keeper, 0)
     await osTokenConfig.connect(dao).updateConfig({
@@ -85,20 +87,15 @@ describe('EthVault - redeem osToken', () => {
     await vault.connect(owner).mintOsToken(owner.address, osTokenShares, ZERO_ADDRESS)
 
     // penalty received
-    const tree = await updateRewards(
-      keeper,
-      [{ vault: await vault.getAddress(), reward: penalty, unlockedMevReward }],
-      0
-    )
+    // slash 1% of assets
+    const penalty = -((await vault.totalAssets()) * 2n) / 100n
+    const vaultReward = getHarvestParams(await vault.getAddress(), penalty, unlockedMevReward)
+    const tree = await updateRewards(keeper, [vaultReward], 0)
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
       rewardsRoot: tree.root,
-      reward: penalty,
-      unlockedMevReward: unlockedMevReward,
-      proof: getRewardsRootProof(tree, {
-        vault: await vault.getAddress(),
-        unlockedMevReward: unlockedMevReward,
-        reward: penalty,
-      }),
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
+      proof: getRewardsRootProof(tree, vaultReward),
     }
     await vault.connect(dao).updateState(harvestParams)
     await osToken.connect(owner).transfer(redeemer.address, osTokenShares)
@@ -171,9 +168,7 @@ describe('EthVault - redeem osToken', () => {
 
   it('cannot redeem osTokens when LTV is below redeemToLtvPercent', async () => {
     await expect(
-      vault
-        .connect(redeemer)
-        .redeemOsToken(redeemedShares + ethers.parseEther('0.01'), owner.address, receiver.address)
+      vault.connect(redeemer).redeemOsToken(osTokenShares, owner.address, receiver.address)
     ).to.be.revertedWithCustomError(vault, 'RedemptionExceeded')
   })
 
@@ -234,24 +229,6 @@ describe('EthVault - redeem osToken', () => {
   })
 
   it('can redeem', async () => {
-    const penalty = ethers.parseEther('-0.530001')
-    const tree = await updateRewards(keeper, [
-      { vault: await vault.getAddress(), reward: penalty, unlockedMevReward },
-    ])
-    const harvestParams: IKeeperRewards.HarvestParamsStruct = {
-      rewardsRoot: tree.root,
-      reward: penalty,
-      unlockedMevReward: unlockedMevReward,
-      proof: getRewardsRootProof(tree, {
-        vault: await vault.getAddress(),
-        unlockedMevReward: unlockedMevReward,
-        reward: penalty,
-      }),
-    }
-    await vault.connect(dao).updateState(harvestParams)
-
-    await increaseTime(ONE_DAY)
-
     const receipt = await vault
       .connect(redeemer)
       .redeemOsToken(redeemedShares, owner.address, receiver.address)

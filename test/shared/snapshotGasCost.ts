@@ -3,6 +3,7 @@ import { BigNumber } from '@ethersproject/bignumber'
 import { ContractTransaction } from '@ethersproject/contracts'
 import { ContractTransactionResponse } from 'ethers'
 import { expect } from './expect'
+import { MAINNET_FORK } from '../../helpers/constants'
 
 const COVERAGE = process.env.COVERAGE === 'true'
 
@@ -24,7 +25,7 @@ export default async function snapshotGasCost(
     | number
     | bigint
 ): Promise<void> {
-  if (COVERAGE) return Promise.resolve()
+  if (COVERAGE || MAINNET_FORK.enabled) return Promise.resolve()
 
   const unpromised = await x
   if (Array.isArray(unpromised)) {

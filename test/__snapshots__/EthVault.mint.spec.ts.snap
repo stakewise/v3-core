@@ -3,7 +3,7 @@
 exports[`EthVault - mint mints osTokens to the receiver 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 150609,
+  "gasUsed": 171574,
 }
 `;
 

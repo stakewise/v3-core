@@ -12,7 +12,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
   async (taskArgs, hre) => {
     const ethers = hre.ethers
     const networkName = hre.network.name
-    const networkConfig: NetworkConfig = NETWORKS[Networks.goerli]
+    const networkConfig: NetworkConfig = NETWORKS[Networks.holesky]
     const accounts = await ethers.getSigners()
     const deployer = accounts[0]
     const governor = accounts[0]

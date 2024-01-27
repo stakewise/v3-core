@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Contract, ContractTransactionReceipt, Wallet } from 'ethers'
+import { Contract, ContractTransactionReceipt, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { EthVault, Keeper, OsTokenVaultController, OsToken } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
@@ -7,7 +7,7 @@ import snapshotGasCost from './shared/snapshotGasCost'
 import { createUnknownVaultMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
-import { collateralizeEthVault } from './shared/rewards'
+import { collateralizeEthVault, setAvgRewardPerSecond } from './shared/rewards'
 import { increaseTime } from './shared/utils'
 
 describe('EthVault - burn', () => {
@@ -19,7 +19,7 @@ describe('EthVault - burn', () => {
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
-  let sender: Wallet, admin: Wallet, owner: Wallet
+  let sender: Wallet, admin: Signer, owner: Wallet
   let vault: EthVault,
     keeper: Keeper,
     osTokenVaultController: OsTokenVaultController,
@@ -38,6 +38,7 @@ describe('EthVault - burn', () => {
       osTokenVaultController,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
 
     // collateralize vault
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
@@ -72,14 +73,13 @@ describe('EthVault - burn', () => {
   })
 
   it('updates position accumulated fee', async () => {
+    await setAvgRewardPerSecond(owner, vault, keeper, 1005987242)
     const treasury = await osTokenVaultController.treasury()
     const currTotalShares = await osTokenVaultController.totalShares()
     const currTotalAssets = await osTokenVaultController.totalAssets()
     const currCumulativeFeePerShare = await osTokenVaultController.cumulativeFeePerShare()
     const currTreasuryShares = await osToken.balanceOf(treasury)
-    const currPositionShares = osTokenShares
-
-    expect(await vault.osTokenPositions(sender.address)).to.eq(currPositionShares)
+    const currPositionShares = await vault.osTokenPositions(sender.address)
 
     await increaseTime(ONE_DAY)
 
@@ -103,6 +103,7 @@ describe('EthVault - burn', () => {
   })
 
   it('burns osTokens', async () => {
+    await setAvgRewardPerSecond(owner, vault, keeper, 1005987242)
     const tx = await vault.connect(sender).burnOsToken(osTokenShares)
     const receipt = (await tx.wait()) as ContractTransactionReceipt
     // eslint-disable-next-line @typescript-eslint/ban-ts-comment

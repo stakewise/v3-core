@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Contract, Wallet } from 'ethers'
+import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { EthPrivErc20Vault, IKeeperRewards, Keeper } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
@@ -17,13 +17,13 @@ describe('EthPrivErc20Vault', () => {
   const feePercent = 1000
   const referrer = ZERO_ADDRESS
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
-  let sender: Wallet, admin: Wallet, other: Wallet
+  let sender: Wallet, admin: Signer, other: Wallet
   let vault: EthPrivErc20Vault, keeper: Keeper, validatorsRegistry: Contract
 
   let createPrivateVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthPrivErc20Vault']
 
   beforeEach('deploy fixtures', async () => {
-    ;[sender, admin, other] = (await (ethers as any).getSigners()).slice(1, 4)
+    ;[sender, admin, other] = await (ethers as any).getSigners()
     ;({
       createEthPrivErc20Vault: createPrivateVault,
       keeper,
@@ -36,6 +36,7 @@ describe('EthPrivErc20Vault', () => {
       feePercent,
       metadataIpfsHash,
     })
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
   })
 
   it('has id', async () => {

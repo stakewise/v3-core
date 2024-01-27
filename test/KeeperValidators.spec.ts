@@ -48,11 +48,16 @@ describe('KeeperValidators', () => {
       validatorsRegistry,
       createEthVault: createVault,
     } = await loadFixture(ethVaultFixture))
-    vault = await createVault(admin, {
-      capacity,
-      feePercent,
-      metadataIpfsHash,
-    })
+    vault = await createVault(
+      admin,
+      {
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      },
+      false,
+      true
+    )
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(admin).setValidatorsRoot(validatorsData.root)

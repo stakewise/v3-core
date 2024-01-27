@@ -16,7 +16,7 @@ export const ONE_DAY = 86400
 
 export const VALIDATORS_DEADLINE = 1914150396n
 
-export const REWARDS_DELAY = ONE_DAY / 2
+export const REWARDS_DELAY = ONE_DAY / 2 // 12 hours
 export const ORACLES = [
   Buffer.from('c2bc8560ffcc278ded2efffaccfc4ce08b2a3a867eb744cec45732603e30ebf7', 'hex'),
   Buffer.from('aff434fa2127355afdf265af1ba7e1d1384ffca4b7c2a8b7b9e04d23e316f395', 'hex'),
