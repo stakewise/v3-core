@@ -45,26 +45,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     uint256 shares,
     address receiver
   ) public virtual override returns (uint256 assets) {
-    _checkNotCollateralized();
-    if (shares == 0) revert Errors.InvalidShares();
-    if (receiver == address(0)) revert Errors.ZeroAddress();
-
-    // calculate amount of assets to burn
-    assets = convertToAssets(shares);
-
-    // reverts in case there are not enough withdrawable assets
-    if (assets > withdrawableAssets()) revert Errors.InsufficientAssets();
-
-    // update total assets
-    _totalAssets -= SafeCast.toUint128(assets);
-
-    // burn owner shares
-    _burnShares(msg.sender, shares);
-
-    // transfer assets to the receiver
-    _transferVaultAssets(receiver, assets);
-
-    emit Redeemed(msg.sender, receiver, assets, shares);
+    return _redeem(msg.sender, shares, receiver);
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -72,28 +53,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     uint256 shares,
     address receiver
   ) public virtual override returns (uint256 positionTicket) {
-    _checkCollateralized();
-    if (shares == 0) revert Errors.InvalidShares();
-    if (receiver == address(0)) revert Errors.ZeroAddress();
-
-    // SLOAD to memory
-    uint256 _queuedShares = queuedShares;
-
-    // calculate position ticket
-    positionTicket = _exitQueue.getLatestTotalTickets() + _queuedShares;
-
-    // add to the exit requests
-    _exitRequests[keccak256(abi.encode(receiver, block.timestamp, positionTicket))] = shares;
-
-    // reverts if owner does not have enough shares
-    _balances[msg.sender] -= shares;
-
-    unchecked {
-      // cannot overflow as it is capped with _totalShares
-      queuedShares = SafeCast.toUint128(_queuedShares + shares);
-    }
-
-    emit ExitQueueEntered(msg.sender, receiver, positionTicket, shares);
+    return _enterExitQueue(msg.sender, shares, receiver);
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -192,6 +152,76 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     _mintShares(to, shares);
 
     emit Deposited(msg.sender, to, assets, shares, referrer);
+  }
+
+  /**
+   * @dev Internal function that must be used to process user withdrawals before first validator registration
+   * @param user The address of the user
+   * @param shares The number of shares to redeem
+   * @param receiver The address that will receive the assets
+   * @return assets The total amount of assets withdrawn
+   */
+  function _redeem(
+    address user,
+    uint256 shares,
+    address receiver
+  ) internal returns (uint256 assets) {
+    _checkNotCollateralized();
+    if (shares == 0) revert Errors.InvalidShares();
+    if (receiver == address(0)) revert Errors.ZeroAddress();
+
+    // calculate amount of assets to burn
+    assets = convertToAssets(shares);
+
+    // reverts in case there are not enough withdrawable assets
+    if (assets > withdrawableAssets()) revert Errors.InsufficientAssets();
+
+    // update total assets
+    _totalAssets -= SafeCast.toUint128(assets);
+
+    // burn owner shares
+    _burnShares(user, shares);
+
+    // transfer assets to the receiver
+    _transferVaultAssets(receiver, assets);
+
+    emit Redeemed(user, receiver, assets, shares);
+  }
+
+  /**
+   * @dev Internal function that must be used to process user withdrawals after first validator registration
+   * @param user The address of the user
+   * @param shares The number of shares to send to exit queue
+   * @param receiver The address that will receive the assets
+   * @return positionTicket The position ticket in the exit queue
+   */
+  function _enterExitQueue(
+    address user,
+    uint256 shares,
+    address receiver
+  ) internal virtual returns (uint256 positionTicket) {
+    _checkCollateralized();
+    if (shares == 0) revert Errors.InvalidShares();
+    if (receiver == address(0)) revert Errors.ZeroAddress();
+
+    // SLOAD to memory
+    uint256 _queuedShares = queuedShares;
+
+    // calculate position ticket
+    positionTicket = _exitQueue.getLatestTotalTickets() + _queuedShares;
+
+    // add to the exit requests
+    _exitRequests[keccak256(abi.encode(receiver, block.timestamp, positionTicket))] = shares;
+
+    // reverts if owner does not have enough shares
+    _balances[user] -= shares;
+
+    unchecked {
+      // cannot overflow as it is capped with _totalShares
+      queuedShares = SafeCast.toUint128(_queuedShares + shares);
+    }
+
+    emit ExitQueueEntered(user, receiver, positionTicket, shares);
   }
 
   /**

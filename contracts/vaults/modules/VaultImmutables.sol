@@ -36,6 +36,14 @@ abstract contract VaultImmutables {
   }
 
   /**
+   * @dev Internal method for checking whether the vault is collateralized
+   * @return true if the vault is collateralized, false otherwise
+   */
+  function _isCollateralized() internal view returns (bool) {
+    return IKeeperRewards(_keeper).isCollateralized(address(this));
+  }
+
+  /**
    * @dev Internal method for checking whether the vault is harvested
    */
   function _checkHarvested() internal view {
@@ -46,13 +54,13 @@ abstract contract VaultImmutables {
    * @dev Internal method for checking whether the vault is collateralized
    */
   function _checkCollateralized() internal view {
-    if (!IKeeperRewards(_keeper).isCollateralized(address(this))) revert Errors.NotCollateralized();
+    if (!_isCollateralized()) revert Errors.NotCollateralized();
   }
 
   /**
    * @dev Internal method for checking whether the vault is not collateralized
    */
   function _checkNotCollateralized() internal view {
-    if (IKeeperRewards(_keeper).isCollateralized(address(this))) revert Errors.Collateralized();
+    if (_isCollateralized()) revert Errors.Collateralized();
   }
 }
