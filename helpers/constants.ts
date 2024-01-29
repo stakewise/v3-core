@@ -1,5 +1,6 @@
 import { NetworkConfig, Networks } from './types'
 import { parseEther } from 'ethers'
+import { MAX_UINT256 } from '../test/shared/constants'
 
 const MAX_UINT16 = 2n ** 16n - 1n
 
@@ -54,6 +55,13 @@ export const NETWORKS: {
       rewardEthToken: '0x413C51fDF65668B3A1d434bC184a479E3B8e0f3f',
       capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
+    },
+    // EthFoxVault
+    foxVault: {
+      admin: '0x0000000000000000000000000000000000000000',
+      capacity: MAX_UINT256, // unlimited
+      feePercent: 500, // 5%
+      metadataIpfsHash: '',
     },
     priceFeedDescription: 'osETH/ETH',
 
@@ -111,6 +119,13 @@ export const NETWORKS: {
       rewardEthToken: '0x20BC832ca081b91433ff6c17f85701B6e92486c5',
       capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
+    },
+    // EthFoxVault
+    foxVault: {
+      admin: '0x0000000000000000000000000000000000000000',
+      capacity: MAX_UINT256, // unlimited
+      feePercent: 500, // 5%
+      metadataIpfsHash: '',
     },
     priceFeedDescription: 'osETH/ETH',
 

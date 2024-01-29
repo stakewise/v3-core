@@ -45,6 +45,14 @@ export type NetworkConfig = {
     feePercent: number
   }
 
+  // EthFoxVault
+  foxVault: {
+    admin: string
+    capacity: bigint
+    feePercent: number
+    metadataIpfsHash: string
+  }
+
   // PriceFeed
   priceFeedDescription: string
 
