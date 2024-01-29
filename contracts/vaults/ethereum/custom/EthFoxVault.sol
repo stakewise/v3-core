@@ -3,18 +3,16 @@
 pragma solidity =0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {IVaultVersion} from '../../../interfaces/IVaultVersion.sol';
-import {IVaultEthStaking} from '../../../interfaces/IVaultEthStaking.sol';
 import {IEthFoxVault} from '../../../interfaces/IEthFoxVault.sol';
 import {Multicall} from '../../../base/Multicall.sol';
 import {VaultValidators} from '../../modules/VaultValidators.sol';
 import {VaultAdmin} from '../../modules/VaultAdmin.sol';
 import {VaultFee} from '../../modules/VaultFee.sol';
-import {VaultVersion} from '../../modules/VaultVersion.sol';
+import {VaultVersion, IVaultVersion} from '../../modules/VaultVersion.sol';
 import {VaultImmutables} from '../../modules/VaultImmutables.sol';
 import {VaultState} from '../../modules/VaultState.sol';
 import {VaultEnterExit} from '../../modules/VaultEnterExit.sol';
-import {VaultEthStaking} from '../../modules/VaultEthStaking.sol';
+import {VaultEthStaking, IVaultEthStaking} from '../../modules/VaultEthStaking.sol';
 import {VaultMev} from '../../modules/VaultMev.sol';
 import {VaultBlocklist} from '../../modules/VaultBlocklist.sol';
 
@@ -80,7 +78,7 @@ contract EthFoxVault is
   function deposit(
     address receiver,
     address referrer
-  ) public payable virtual override returns (uint256 shares) {
+  ) public payable virtual override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
     _checkBlocklist(msg.sender);
     _checkBlocklist(receiver);
     return super.deposit(receiver, referrer);
@@ -113,12 +111,12 @@ contract EthFoxVault is
   }
 
   /// @inheritdoc VaultVersion
-  function vaultId() public pure virtual override returns (bytes32) {
+  function vaultId() public pure virtual override(IVaultVersion, VaultVersion) returns (bytes32) {
     return keccak256('EthFoxVault');
   }
 
   /// @inheritdoc IVaultVersion
-  function version() public pure virtual override returns (uint8) {
+  function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
     return 1;
   }
 
@@ -133,6 +131,7 @@ contract EthFoxVault is
     __VaultState_init(params.capacity);
     __VaultValidators_init();
     __VaultMev_init(params.ownMevEscrow);
+    // blocklist manager is initially set to admin address
     __VaultBlocklist_init(params.admin);
     __VaultEthStaking_init();
   }

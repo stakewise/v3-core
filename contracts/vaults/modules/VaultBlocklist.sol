@@ -20,12 +20,12 @@ abstract contract VaultBlocklist is Initializable, VaultAdmin, IVaultBlocklist {
   mapping(address => bool) public override blockedAccounts;
 
   /// @inheritdoc IVaultBlocklist
-  function updateBlocklist(address account, bool blocked) public virtual override {
+  function updateBlocklist(address account, bool isBlocked) public virtual override {
     if (msg.sender != blocklistManager) revert Errors.AccessDenied();
-    if (blockedAccounts[account] == blocked) return;
+    if (blockedAccounts[account] == isBlocked) return;
 
-    blockedAccounts[account] = blocked;
-    emit BlocklistUpdated(msg.sender, account, blocked);
+    blockedAccounts[account] = isBlocked;
+    emit BlocklistUpdated(msg.sender, account, isBlocked);
   }
 
   /// @inheritdoc IVaultBlocklist

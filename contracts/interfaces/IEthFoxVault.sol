@@ -2,14 +2,37 @@
 
 pragma solidity =0.8.22;
 
+import {IVaultAdmin} from './IVaultAdmin.sol';
+import {IVaultVersion} from './IVaultVersion.sol';
+import {IVaultFee} from './IVaultFee.sol';
+import {IVaultState} from './IVaultState.sol';
+import {IVaultValidators} from './IVaultValidators.sol';
+import {IVaultEnterExit} from './IVaultEnterExit.sol';
+import {IVaultOsToken} from './IVaultOsToken.sol';
+import {IVaultMev} from './IVaultMev.sol';
+import {IVaultEthStaking} from './IVaultEthStaking.sol';
+import {IVaultBlocklist} from './IVaultBlocklist.sol';
+import {IMulticall} from './IMulticall.sol';
+
 /**
  * @title IEthFoxVault
  * @author StakeWise
  * @notice Defines the interface for the EthFoxVault contract
  */
-interface IEthFoxVault {
+interface IEthFoxVault is
+  IVaultAdmin,
+  IVaultVersion,
+  IVaultFee,
+  IVaultState,
+  IVaultValidators,
+  IVaultEnterExit,
+  IVaultMev,
+  IVaultEthStaking,
+  IVaultBlocklist,
+  IMulticall
+{
   /**
-   * @dev Struct for initializing the EthVault contract
+   * @dev Struct for initializing the EthFoxVault contract
    * @param admin The address of the Vault admin
    * @param ownMevEscrow The address of the MEV escrow contract
    * @param capacity The Vault stops accepting deposits after exceeding the capacity

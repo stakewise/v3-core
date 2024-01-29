@@ -14,9 +14,9 @@ interface IVaultBlocklist is IVaultAdmin {
    * @notice Event emitted on blocklist update
    * @param caller The address of the function caller
    * @param account The address of the account updated
-   * @param blocked Whether account is blocked or not
+   * @param isBlocked Whether account is blocked or not
    */
-  event BlocklistUpdated(address indexed caller, address indexed account, bool blocked);
+  event BlocklistUpdated(address indexed caller, address indexed account, bool isBlocked);
 
   /**
    * @notice Event emitted when blocklist manager address is updated
@@ -41,9 +41,9 @@ interface IVaultBlocklist is IVaultAdmin {
   /**
    * @notice Add or remove account from the blocklist. Can only be called by the blocklist manager.
    * @param account The account to add or remove to the blocklist
-   * @param blocked Whether account should be blocked or not
+   * @param isBlocked Whether account should be blocked or not
    */
-  function updateBlocklist(address account, bool blocked) external;
+  function updateBlocklist(address account, bool isBlocked) external;
 
   /**
    * @notice Used to update the blocklist manager. Can only be called by the Vault admin.
