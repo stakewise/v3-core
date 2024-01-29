@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Contract, Wallet } from 'ethers'
+import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
   EthVault,
@@ -20,7 +20,12 @@ import {
   ZERO_BYTES32,
 } from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { getKeeperRewardsUpdateData, getRewardsRootProof, VaultReward } from './shared/rewards'
+import {
+  getHarvestParams,
+  getKeeperRewardsUpdateData,
+  getRewardsRootProof,
+  VaultReward,
+} from './shared/rewards'
 import { increaseTime, setBalance, toHexString } from './shared/utils'
 import { registerEthValidator } from './shared/validators'
 
@@ -31,7 +36,7 @@ describe('KeeperRewards', () => {
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
-  let dao: Wallet, admin: Wallet, oracle: Wallet, other: Wallet
+  let dao: Wallet, admin: Signer, oracle: Wallet, other: Wallet
   let keeper: Keeper,
     validatorsRegistry: Contract,
     sharedMevEscrow: SharedMevEscrow,
@@ -61,11 +66,12 @@ describe('KeeperRewards', () => {
         feePercent,
         metadataIpfsHash,
       })
-      vaultReward = {
-        reward: ethers.parseEther('5'),
-        unlockedMevReward: ethers.parseEther('1'),
-        vault: await vault.getAddress(),
-      }
+      admin = await ethers.getImpersonatedSigner(await vault.admin())
+      vaultReward = getHarvestParams(
+        await vault.getAddress(),
+        ethers.parseEther('5'),
+        ethers.parseEther('1')
+      )
       globalRewardsNonce = Number(await keeper.rewardsNonce())
       const rewardsUpdate = await getKeeperRewardsUpdateData([vaultReward], keeper, {
         nonce: globalRewardsNonce,
@@ -100,11 +106,11 @@ describe('KeeperRewards', () => {
     it('fails with invalid nonce', async () => {
       await keeper.connect(oracle).updateRewards(rewardsUpdateParams)
 
-      const newVaultReward = {
-        reward: ethers.parseEther('3'),
-        unlockedMevReward: ethers.parseEther('2'),
-        vault: await vault.getAddress(),
-      }
+      const newVaultReward = getHarvestParams(
+        await vault.getAddress(),
+        ethers.parseEther('3'),
+        ethers.parseEther('2')
+      )
       const newRewardsUpdate = await getKeeperRewardsUpdateData([newVaultReward], keeper)
       await increaseTime(REWARDS_DELAY)
       await expect(
@@ -120,11 +126,11 @@ describe('KeeperRewards', () => {
 
     it('fails if too early', async () => {
       await keeper.connect(oracle).updateRewards(rewardsUpdateParams)
-      const newVaultReward = {
-        reward: ethers.parseEther('5'),
-        unlockedMevReward: ethers.parseEther('1'),
-        vault: await vault.getAddress(),
-      }
+      const newVaultReward = getHarvestParams(
+        await vault.getAddress(),
+        ethers.parseEther('5'),
+        ethers.parseEther('1')
+      )
       const newRewardsUpdate = await getKeeperRewardsUpdateData([newVaultReward], keeper, {
         nonce: globalRewardsNonce + 1,
         updateTimestamp: 1680255895,
@@ -220,11 +226,11 @@ describe('KeeperRewards', () => {
       await snapshotGasCost(receipt)
 
       // check keeps previous rewards root
-      const newVaultReward = {
-        reward: ethers.parseEther('3'),
-        unlockedMevReward: ethers.parseEther('2'),
-        vault: await vault.getAddress(),
-      }
+      const newVaultReward = getHarvestParams(
+        await vault.getAddress(),
+        ethers.parseEther('3'),
+        ethers.parseEther('2')
+      )
       const newRewardsUpdate = await getKeeperRewardsUpdateData([newVaultReward], keeper, {
         nonce: globalRewardsNonce + 1,
         updateTimestamp: 1670256000,
@@ -258,11 +264,16 @@ describe('KeeperRewards', () => {
     let vault: EthVault
 
     beforeEach(async () => {
-      vault = await createVault(admin, {
-        capacity,
-        feePercent,
-        metadataIpfsHash,
-      })
+      vault = await createVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          metadataIpfsHash,
+        },
+        false,
+        true
+      )
       await increaseTime(REWARDS_DELAY)
     })
 
@@ -276,7 +287,9 @@ describe('KeeperRewards', () => {
     it('returns true for collateralized two times unharvested vault', async () => {
       // collateralize vault
       const validatorDeposit = ethers.parseEther('32')
-      await vault.connect(admin).deposit(admin.address, ZERO_ADDRESS, { value: validatorDeposit })
+      await vault
+        .connect(admin)
+        .deposit(await admin.getAddress(), ZERO_ADDRESS, { value: validatorDeposit })
       await registerEthValidator(vault, keeper, validatorsRegistry, admin)
 
       expect(await keeper.isCollateralized(await vault.getAddress())).to.equal(true)
@@ -286,11 +299,11 @@ describe('KeeperRewards', () => {
       const globalRewardsNonce = Number(await keeper.rewardsNonce())
 
       // update rewards first time
-      let newVaultReward = {
-        reward: ethers.parseEther('3'),
-        unlockedMevReward: ethers.parseEther('0.5'),
-        vault: await vault.getAddress(),
-      }
+      let newVaultReward = getHarvestParams(
+        await vault.getAddress(),
+        ethers.parseEther('3'),
+        ethers.parseEther('0.5')
+      )
       let newRewardsUpdate = await getKeeperRewardsUpdateData([newVaultReward], keeper, {
         updateTimestamp: 1670258895,
         nonce: globalRewardsNonce,
@@ -310,11 +323,11 @@ describe('KeeperRewards', () => {
 
       // update rewards second time
       const newTimestamp = newRewardsUpdate.updateTimestamp + 1
-      newVaultReward = {
-        reward: ethers.parseEther('4'),
-        unlockedMevReward: ethers.parseEther('2'),
-        vault: await vault.getAddress(),
-      }
+      newVaultReward = getHarvestParams(
+        await vault.getAddress(),
+        ethers.parseEther('4'),
+        ethers.parseEther('2')
+      )
       newRewardsUpdate = await getKeeperRewardsUpdateData([newVaultReward], keeper, {
         nonce: globalRewardsNonce + 1,
         updateTimestamp: newTimestamp,
@@ -336,6 +349,7 @@ describe('KeeperRewards', () => {
   })
 
   describe('harvest (own escrow)', () => {
+    const newReward = ethers.parseEther('5')
     let harvestParams: IKeeperRewards.HarvestParamsStruct
     let ownMevVault: EthVault
     let globalRewardsNonce: number
@@ -350,11 +364,9 @@ describe('KeeperRewards', () => {
         },
         true
       )
-      const vaultReward = {
-        reward: ethers.parseEther('5'),
-        unlockedMevReward: 0n,
-        vault: await ownMevVault.getAddress(),
-      }
+      admin = await ethers.getImpersonatedSigner(await ownMevVault.admin())
+
+      const vaultReward = getHarvestParams(await ownMevVault.getAddress(), newReward, 0n)
       const vaultRewards = [vaultReward]
       for (let i = 1; i < 11; i++) {
         const vlt = await createVault(
@@ -364,13 +376,12 @@ describe('KeeperRewards', () => {
             feePercent,
             metadataIpfsHash,
           },
+          true,
           true
         )
-        vaultRewards.push({
-          reward: ethers.parseEther(i.toString()),
-          unlockedMevReward: 0n,
-          vault: await vlt.getAddress(),
-        })
+        vaultRewards.push(
+          getHarvestParams(await vlt.getAddress(), ethers.parseEther(i.toString()), 0n)
+        )
       }
 
       globalRewardsNonce = Number(await keeper.rewardsNonce())
@@ -427,11 +438,12 @@ describe('KeeperRewards', () => {
       await increaseTime(REWARDS_DELAY)
 
       // update rewards root
-      const vaultReward = {
-        reward: ethers.parseEther('10'),
-        vault: await ownMevVault.getAddress(),
-        unlockedMevReward: sharedMevEscrowBalance,
-      }
+      const newReward = ethers.parseEther('10')
+      const vaultReward = getHarvestParams(
+        await ownMevVault.getAddress(),
+        newReward,
+        sharedMevEscrowBalance
+      )
       const rewardsUpdate = await getKeeperRewardsUpdateData([vaultReward], keeper, {
         nonce: globalRewardsNonce,
         updateTimestamp: 1680255895,
@@ -453,12 +465,7 @@ describe('KeeperRewards', () => {
       const receipt = await ownMevVault.updateState(harvestParams)
       await expect(receipt)
         .to.emit(keeper, 'Harvested')
-        .withArgs(
-          await ownMevVault.getAddress(),
-          harvestParams.rewardsRoot,
-          harvestParams.reward,
-          0
-        )
+        .withArgs(await ownMevVault.getAddress(), harvestParams.rewardsRoot, newReward, 0)
       expect(await ethers.provider.getBalance(await sharedMevEscrow.getAddress())).to.equal(
         sharedMevEscrowBalance
       )
@@ -468,12 +475,7 @@ describe('KeeperRewards', () => {
       const receipt = await ownMevVault.updateState(harvestParams)
       await expect(receipt)
         .to.emit(keeper, 'Harvested')
-        .withArgs(
-          await ownMevVault.getAddress(),
-          harvestParams.rewardsRoot,
-          harvestParams.reward,
-          harvestParams.unlockedMevReward
-        )
+        .withArgs(await ownMevVault.getAddress(), harvestParams.rewardsRoot, newReward, 0n)
 
       const rewards = await keeper.rewards(await ownMevVault.getAddress())
       expect(rewards.nonce).to.equal(globalRewardsNonce)
@@ -502,15 +504,16 @@ describe('KeeperRewards', () => {
     })
 
     it('succeeds for previous rewards root', async () => {
+      const prevReward = newReward
       const prevHarvestParams = harvestParams
       await increaseTime(REWARDS_DELAY)
 
       // update rewards root
-      const vaultReward = {
-        reward: ethers.parseEther('10'),
-        vault: await ownMevVault.getAddress(),
-        unlockedMevReward: 0n,
-      }
+      const vaultReward = getHarvestParams(
+        await ownMevVault.getAddress(),
+        ethers.parseEther('10'),
+        0n
+      )
       const rewardsUpdate = await getKeeperRewardsUpdateData([vaultReward], keeper, {
         nonce: globalRewardsNonce,
         updateTimestamp: 1680255895,
@@ -532,12 +535,7 @@ describe('KeeperRewards', () => {
       let receipt = await ownMevVault.updateState(prevHarvestParams)
       await expect(receipt)
         .to.emit(keeper, 'Harvested')
-        .withArgs(
-          await ownMevVault.getAddress(),
-          prevHarvestParams.rewardsRoot,
-          prevHarvestParams.reward,
-          0
-        )
+        .withArgs(await ownMevVault.getAddress(), prevHarvestParams.rewardsRoot, prevReward, 0)
 
       let rewards = await keeper.rewards(await ownMevVault.getAddress())
       expect(rewards.nonce).to.equal(globalRewardsNonce)
@@ -585,9 +583,12 @@ describe('KeeperRewards', () => {
   })
 
   describe('harvest (shared escrow)', () => {
+    let newReward: bigint
+    let newUnlockedReward: bigint
     let harvestParams: IKeeperRewards.HarvestParamsStruct
     let sharedMevVault: EthVault
     let globalRewardsNonce: number
+    let sharedMevBalanceBefore: bigint
 
     beforeEach(async () => {
       sharedMevVault = await createVault(
@@ -599,11 +600,13 @@ describe('KeeperRewards', () => {
         },
         false
       )
-      const vaultReward = {
-        reward: ethers.parseEther('5'),
-        unlockedMevReward: ethers.parseEther('2'),
-        vault: await sharedMevVault.getAddress(),
-      }
+      newReward = ethers.parseEther('5')
+      newUnlockedReward = ethers.parseEther('2')
+      const vaultReward = getHarvestParams(
+        await sharedMevVault.getAddress(),
+        newReward,
+        newUnlockedReward
+      )
       const vaultRewards = [vaultReward]
       for (let i = 1; i < 11; i++) {
         const vlt = await createVault(
@@ -613,6 +616,7 @@ describe('KeeperRewards', () => {
             feePercent,
             metadataIpfsHash,
           },
+          true,
           true
         )
         const amount = ethers.parseEther(i.toString())
@@ -641,7 +645,11 @@ describe('KeeperRewards', () => {
         unlockedMevReward: vaultReward.unlockedMevReward,
         proof: getRewardsRootProof(rewardsUpdate.tree, vaultReward),
       }
-      await setBalance(await sharedMevEscrow.getAddress(), BigInt(harvestParams.unlockedMevReward))
+      sharedMevBalanceBefore = await ethers.provider.getBalance(await sharedMevEscrow.getAddress())
+      await setBalance(
+        await sharedMevEscrow.getAddress(),
+        sharedMevBalanceBefore + newUnlockedReward
+      )
       globalRewardsNonce += 1
       expect(await keeper.rewardsNonce()).to.eq(globalRewardsNonce)
     })
@@ -679,13 +687,15 @@ describe('KeeperRewards', () => {
         .withArgs(
           await sharedMevVault.getAddress(),
           harvestParams.rewardsRoot,
-          harvestParams.reward,
-          harvestParams.unlockedMevReward
+          newReward,
+          newUnlockedReward
         )
-      expect(await ethers.provider.getBalance(await sharedMevEscrow.getAddress())).to.equal(0)
+      expect(await ethers.provider.getBalance(await sharedMevEscrow.getAddress())).to.equal(
+        sharedMevBalanceBefore
+      )
       await expect(receipt)
         .to.emit(sharedMevEscrow, 'Harvested')
-        .withArgs(await sharedMevVault.getAddress(), harvestParams.unlockedMevReward)
+        .withArgs(await sharedMevVault.getAddress(), newUnlockedReward)
 
       const rewards = await keeper.rewards(await sharedMevVault.getAddress())
       expect(rewards.nonce).to.equal(globalRewardsNonce)
@@ -709,12 +719,15 @@ describe('KeeperRewards', () => {
       await increaseTime(REWARDS_DELAY)
 
       // update rewards root
-      const vaultReward = {
-        reward: ethers.parseEther('10'),
-        vault: await sharedMevVault.getAddress(),
-        unlockedMevReward: ethers.parseEther('4'),
-      }
-      await setBalance(await sharedMevEscrow.getAddress(), vaultReward.unlockedMevReward)
+      const vaultReward = getHarvestParams(
+        await sharedMevVault.getAddress(),
+        ethers.parseEther('10'),
+        ethers.parseEther('6')
+      )
+      await setBalance(
+        await sharedMevEscrow.getAddress(),
+        sharedMevBalanceBefore + ethers.parseEther('6')
+      )
       const rewardsUpdate = await getKeeperRewardsUpdateData([vaultReward], keeper, {
         nonce: globalRewardsNonce,
         updateTimestamp: 1680255895,
@@ -739,15 +752,15 @@ describe('KeeperRewards', () => {
         .withArgs(
           await sharedMevVault.getAddress(),
           prevHarvestParams.rewardsRoot,
-          prevHarvestParams.reward,
-          prevHarvestParams.unlockedMevReward
+          newReward,
+          newUnlockedReward
         )
       expect(await ethers.provider.getBalance(await sharedMevEscrow.getAddress())).to.equal(
-        ethers.parseEther('2')
+        sharedMevBalanceBefore + ethers.parseEther('4')
       )
       await expect(receipt)
         .to.emit(sharedMevEscrow, 'Harvested')
-        .withArgs(await sharedMevVault.getAddress(), prevHarvestParams.unlockedMevReward)
+        .withArgs(await sharedMevVault.getAddress(), ethers.parseEther('2'))
 
       let rewards = await keeper.rewards(await sharedMevVault.getAddress())
       expect(rewards.nonce).to.equal(globalRewardsNonce)
@@ -772,7 +785,9 @@ describe('KeeperRewards', () => {
       await expect(receipt)
         .to.emit(sharedMevEscrow, 'Harvested')
         .withArgs(await sharedMevVault.getAddress(), sharedMevDelta)
-      expect(await ethers.provider.getBalance(await sharedMevEscrow.getAddress())).to.equal(0)
+      expect(await ethers.provider.getBalance(await sharedMevEscrow.getAddress())).to.equal(
+        sharedMevBalanceBefore
+      )
 
       rewards = await keeper.rewards(await sharedMevVault.getAddress())
       expect(rewards.nonce).to.equal(globalRewardsNonce + 1)

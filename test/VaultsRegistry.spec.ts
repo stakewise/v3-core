@@ -32,7 +32,7 @@ describe('VaultsRegistry', () => {
     vaultsRegistry = fixture.vaultsRegistry
 
     newVaultImpl = await deployVaultImplementation(
-      'EthVaultV2Mock',
+      'EthVaultV3Mock',
       fixture.keeper,
       fixture.vaultsRegistry,
       await fixture.validatorsRegistry.getAddress(),

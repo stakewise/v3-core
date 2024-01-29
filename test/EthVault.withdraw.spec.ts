@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Contract, Wallet } from 'ethers'
+import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { EthVault, EthVaultMock, IKeeperRewards, Keeper, SharedMevEscrow } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
@@ -15,6 +15,7 @@ import {
   ZERO_ADDRESS,
 } from './shared/constants'
 import {
+  extractDepositShares,
   extractExitPositionTicket,
   getBlockTimestamp,
   increaseTime,
@@ -30,10 +31,10 @@ describe('EthVault - withdraw', () => {
   const feePercent = 1000
   const referrer = '0x' + '1'.repeat(40)
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
-  const holderShares = ethers.parseEther('1')
   const holderAssets = ethers.parseEther('1')
+  let holderShares: bigint
 
-  let holder: Wallet, receiver: Wallet, admin: Wallet, other: Wallet
+  let holder: Wallet, receiver: Wallet, admin: Signer, other: Wallet
   let vault: EthVault,
     keeper: Keeper,
     sharedMevEscrow: SharedMevEscrow,
@@ -51,13 +52,22 @@ describe('EthVault - withdraw', () => {
       validatorsRegistry,
       sharedMevEscrow,
     } = await loadFixture(ethVaultFixture))
-    vault = await createVault(admin, {
-      capacity,
-      feePercent,
-      metadataIpfsHash,
-    })
+    vault = await createVault(
+      admin,
+      {
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      },
+      false,
+      true
+    )
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
 
-    await vault.connect(holder).deposit(holder.address, referrer, { value: holderAssets })
+    const tx = await vault
+      .connect(holder)
+      .deposit(holder.address, referrer, { value: holderAssets })
+    holderShares = await extractDepositShares(tx)
   })
 
   describe('redeem', () => {
@@ -162,11 +172,16 @@ describe('EthVault - withdraw', () => {
     })
 
     it('fails for not collateralized', async () => {
-      const newVault = await createVault(admin, {
-        capacity,
-        feePercent,
-        metadataIpfsHash,
-      })
+      const newVault = await createVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          metadataIpfsHash,
+        },
+        false,
+        true
+      )
       await newVault.connect(holder).deposit(holder.address, referrer, { value: holderAssets })
       await setBalance(await vault.getAddress(), 0n)
       await expect(

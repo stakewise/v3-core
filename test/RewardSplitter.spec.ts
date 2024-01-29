@@ -24,18 +24,28 @@ describe('RewardSplitter', () => {
 
   beforeEach(async () => {
     const fixture = await loadFixture(ethVaultFixture)
-    vault = await fixture.createEthVault(admin, {
-      capacity: ethers.parseEther('1000'),
-      feePercent: 1000,
-      metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
-    })
-    erc20Vault = await fixture.createEthErc20Vault(admin, {
-      capacity: ethers.parseEther('1000'),
-      feePercent: 1000,
-      metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
-      name: 'SW ETH Vault',
-      symbol: 'SW-ETH-1',
-    })
+    vault = await fixture.createEthVault(
+      admin,
+      {
+        capacity: ethers.parseEther('1000'),
+        feePercent: 1000,
+        metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
+      },
+      false,
+      true
+    )
+    erc20Vault = await fixture.createEthErc20Vault(
+      admin,
+      {
+        capacity: ethers.parseEther('1000'),
+        feePercent: 1000,
+        metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
+        name: 'SW ETH Vault',
+        symbol: 'SW-ETH-1',
+      },
+      false,
+      true
+    )
     keeper = fixture.keeper
     await collateralizeEthVault(vault, keeper, fixture.validatorsRegistry, admin)
     await collateralizeEthVault(erc20Vault, keeper, fixture.validatorsRegistry, admin)

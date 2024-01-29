@@ -31,6 +31,6 @@ Object {
 exports[`RewardSplitter withdraw rewards can enter exit queue with multicall 1`] = `
 Object {
   "calldataByteLength": 612,
-  "gasUsed": 168554,
+  "gasUsed": 168565,
 }
 `;

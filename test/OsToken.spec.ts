@@ -1,7 +1,7 @@
 import { ethers, network } from 'hardhat'
-import { Wallet } from 'ethers'
+import { Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { OsTokenVaultController, OsToken } from '../typechain-types'
+import { OsTokenVaultController, OsToken, EthVault, Keeper } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -14,7 +14,7 @@ import {
   PermitSig,
   ZERO_ADDRESS,
 } from './shared/constants'
-import { collateralizeEthVault } from './shared/rewards'
+import { collateralizeEthVault, setAvgRewardPerSecond } from './shared/rewards'
 import EthereumWallet from 'ethereumjs-wallet'
 import {
   domainSeparator,
@@ -27,8 +27,11 @@ describe('OsToken', () => {
   const assets = ethers.parseEther('2')
   const initialHolderShares = 1000n
   let initialSupply: bigint
-  let initialHolder: Wallet, spender: Wallet, admin: Wallet, dao: Wallet, recipient: Wallet
-  let osTokenVaultController: OsTokenVaultController, osToken: OsToken
+  let initialHolder: Wallet, spender: Wallet, admin: Signer, dao: Wallet, recipient: Wallet
+  let osTokenVaultController: OsTokenVaultController,
+    osToken: OsToken,
+    vault: EthVault,
+    keeper: Keeper
 
   before('create fixture loader', async () => {
     ;[dao, initialHolder, admin, spender, recipient] = await (ethers as any).getSigners()
@@ -42,8 +45,10 @@ describe('OsToken', () => {
       metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
     }
     osTokenVaultController = fixture.osTokenVaultController
+    keeper = fixture.keeper
     osToken = fixture.osToken
-    const vault = await fixture.createEthVault(admin, vaultParams)
+    vault = await fixture.createEthVault(admin, vaultParams)
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
 
     // collateralize vault
     await collateralizeEthVault(vault, fixture.keeper, fixture.validatorsRegistry, admin)
@@ -163,6 +168,7 @@ describe('OsToken', () => {
     })
 
     it('owner can change', async () => {
+      await setAvgRewardPerSecond(dao, vault, keeper, 1005987242)
       await increaseTime(ONE_DAY * 1000)
       const receipt = await osTokenVaultController.connect(dao).setFeePercent(100)
       await expect(receipt).to.emit(osTokenVaultController, 'FeePercentUpdated').withArgs(100)

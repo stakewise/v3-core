@@ -29,10 +29,10 @@ const BLOCK_EXPLORER_KEY = process.env.BLOCK_EXPLORER_KEY || ''
 const HARDHATEVM_CHAINID = 31337
 
 // fork
-const mainnetFork = process.env.MAINNET_FORK_RPC_URL
+const mainnetFork = MAINNET_FORK.enabled
   ? {
       blockNumber: MAINNET_FORK.blockNumber,
-      url: process.env.MAINNET_FORK_RPC_URL,
+      url: MAINNET_FORK.rpcUrl,
     }
   : undefined
 if (mainnetFork) {
@@ -72,7 +72,6 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
-    goerli: getCommonNetworkConfig(Networks.goerli),
     holesky: getCommonNetworkConfig(Networks.holesky),
     mainnet: getCommonNetworkConfig(Networks.mainnet),
     hardhat: {

@@ -3,6 +3,6 @@
 exports[`RewardSplitterFactory splitter deployment gas 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 138062,
+  "gasUsed": 138074,
 }
 `;

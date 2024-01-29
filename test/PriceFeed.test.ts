@@ -1,11 +1,16 @@
 import { ethers } from 'hardhat'
-import { Wallet } from 'ethers'
+import { Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { EthVault, IKeeperRewards, OsTokenVaultController, PriceFeed } from '../typechain-types'
 import { expect } from './shared/expect'
 import { createPriceFeed, ethVaultFixture } from './shared/fixtures'
 import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
-import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
+import {
+  collateralizeEthVault,
+  getHarvestParams,
+  getRewardsRootProof,
+  updateRewards,
+} from './shared/rewards'
 import { increaseTime } from './shared/utils'
 import { MAINNET_FORK } from '../helpers/constants'
 
@@ -19,7 +24,7 @@ describe('PriceFeed', () => {
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
-  let sender: Wallet, admin: Wallet, dao: Wallet
+  let sender: Wallet, admin: Signer, dao: Wallet
   let osTokenVaultController: OsTokenVaultController, priceFeed: PriceFeed, vault: EthVault
 
   before('create fixture loader', async () => {
@@ -29,6 +34,7 @@ describe('PriceFeed', () => {
   beforeEach('deploy fixture', async () => {
     const fixture = await loadFixture(ethVaultFixture)
     vault = await fixture.createEthVault(admin, vaultParams)
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
 
     osTokenVaultController = fixture.osTokenVaultController
     priceFeed = await createPriceFeed(osTokenVaultController, description)
@@ -38,18 +44,13 @@ describe('PriceFeed', () => {
     await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: shares })
 
     const reward = ethers.parseEther('1')
-    const tree = await updateRewards(fixture.keeper, [
-      { vault: await vault.getAddress(), reward, unlockedMevReward },
-    ])
+    const vaultReward = getHarvestParams(await vault.getAddress(), reward, unlockedMevReward)
+    const tree = await updateRewards(fixture.keeper, [vaultReward])
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
       rewardsRoot: tree.root,
-      reward,
-      unlockedMevReward: unlockedMevReward,
-      proof: getRewardsRootProof(tree, {
-        vault: await vault.getAddress(),
-        unlockedMevReward: unlockedMevReward,
-        reward,
-      }),
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
+      proof: getRewardsRootProof(tree, vaultReward),
     }
     await vault.connect(dao).updateState(harvestParams)
   })

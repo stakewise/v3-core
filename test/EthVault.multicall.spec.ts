@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Contract, Wallet } from 'ethers'
+import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
   EthVault,
@@ -19,7 +19,12 @@ import {
   increaseTime,
   setBalance,
 } from './shared/utils'
-import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
+import {
+  collateralizeEthVault,
+  getHarvestParams,
+  getRewardsRootProof,
+  updateRewards,
+} from './shared/rewards'
 import { registerEthValidator } from './shared/validators'
 import { ONE_DAY } from './shared/constants'
 
@@ -29,7 +34,7 @@ describe('EthVault - multicall', () => {
   const referrer = '0x' + '1'.repeat(40)
   const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
 
-  let sender: Wallet, admin: Wallet
+  let sender: Wallet, admin: Signer
   let vault: EthVault, keeper: Keeper, validatorsRegistry: Contract
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
@@ -50,10 +55,12 @@ describe('EthVault - multicall', () => {
       },
       true
     )
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
   })
 
   it('can update state and queue for exit', async () => {
     const mevEscrow = OwnMevEscrow__factory.connect(await vault.mevEscrow(), sender)
+    const vaultAddr = await vault.getAddress()
 
     // collateralize vault
     await vault
@@ -65,20 +72,18 @@ describe('EthVault - multicall', () => {
     const userShares = await vault.getShares(sender.address)
 
     // update rewards root for the vault
-    const vaultReward = ethers.parseEther('1')
-    const tree = await updateRewards(keeper, [
-      { reward: vaultReward, unlockedMevReward: 0n, vault: await vault.getAddress() },
-    ])
+    const vaultReward = getHarvestParams(vaultAddr, ethers.parseEther('1'), 0n)
+    const tree = await updateRewards(keeper, [vaultReward])
 
     // retrieve redeemable shares after state update
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
       rewardsRoot: tree.root,
-      reward: vaultReward,
+      reward: vaultReward.reward,
       unlockedMevReward: 0n,
       proof: getRewardsRootProof(tree, {
-        vault: await vault.getAddress(),
-        reward: vaultReward,
-        unlockedMevReward: 0n,
+        vault: vaultReward.vault,
+        reward: vaultReward.reward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
       }),
     }
 
@@ -105,9 +110,7 @@ describe('EthVault - multicall', () => {
       vault.interface.encodeFunctionData('enterExitQueue', [exitQueueShares, sender.address])
     )
 
-    await updateRewards(keeper, [
-      { reward: vaultReward, unlockedMevReward: 0n, vault: await vault.getAddress() },
-    ])
+    await updateRewards(keeper, [vaultReward])
 
     let receipt = await vault.connect(sender).multicall(calls)
     const queueTicket = await extractExitPositionTicket(receipt)
@@ -122,9 +125,7 @@ describe('EthVault - multicall', () => {
 
     // wait for exit queue
     await increaseTime(ONE_DAY)
-    await updateRewards(keeper, [
-      { reward: vaultReward, unlockedMevReward: 0n, vault: await vault.getAddress() },
-    ])
+    await updateRewards(keeper, [vaultReward])
 
     calls = [vault.interface.encodeFunctionData('updateState', [harvestParams])]
     calls.push(vault.interface.encodeFunctionData('getExitQueueIndex', [queueTicket]))
@@ -162,26 +163,25 @@ describe('EthVault - multicall', () => {
     })
 
     it('fails to deposit, enter exit queue, update state and claim in one transaction', async () => {
+      const vaultAddr = await vault.getAddress()
       await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
       expect(await vault.isStateUpdateRequired()).to.eq(false)
-      expect(await keeper.canHarvest(await vault.getAddress())).to.eq(false)
+      expect(await keeper.canHarvest(vaultAddr)).to.eq(false)
 
-      const vaultReward = ethers.parseEther('1')
-      const tree = await updateRewards(keeper, [
-        { reward: vaultReward, unlockedMevReward: 0n, vault: await vault.getAddress() },
-      ])
+      const vaultReward = getHarvestParams(vaultAddr, ethers.parseEther('1'), 0n)
+      const tree = await updateRewards(keeper, [vaultReward])
       await setBalance(await vault.mevEscrow(), ethers.parseEther('1'))
       expect(await vault.isStateUpdateRequired()).to.eq(false)
-      expect(await keeper.canHarvest(await vault.getAddress())).to.eq(true)
+      expect(await keeper.canHarvest(vaultAddr)).to.eq(true)
 
       const harvestParams: IKeeperRewards.HarvestParamsStruct = {
         rewardsRoot: tree.root,
-        reward: vaultReward,
-        unlockedMevReward: 0n,
+        reward: vaultReward.reward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
         proof: getRewardsRootProof(tree, {
-          vault: await vault.getAddress(),
-          reward: vaultReward,
-          unlockedMevReward: 0n,
+          vault: vaultAddr,
+          reward: vaultReward.reward,
+          unlockedMevReward: vaultReward.unlockedMevReward,
         }),
       }
 
@@ -190,7 +190,7 @@ describe('EthVault - multicall', () => {
       await ethers.provider.send('evm_setNextBlockTimestamp', [currentBlockTimestamp + 1])
       const calls = [
         {
-          target: await vault.getAddress(),
+          target: vaultAddr,
           isPayable: true,
           callData: vault.interface.encodeFunctionData('deposit', [
             await multicallMock.getAddress(),
@@ -198,7 +198,7 @@ describe('EthVault - multicall', () => {
           ]),
         },
         {
-          target: await vault.getAddress(),
+          target: vaultAddr,
           isPayable: false,
           callData: vault.interface.encodeFunctionData('enterExitQueue', [
             amount,
@@ -206,12 +206,12 @@ describe('EthVault - multicall', () => {
           ]),
         },
         {
-          target: await vault.getAddress(),
+          target: vaultAddr,
           isPayable: false,
           callData: vault.interface.encodeFunctionData('updateState', [harvestParams]),
         },
         {
-          target: await vault.getAddress(),
+          target: vaultAddr,
           isPayable: false,
           callData: vault.interface.encodeFunctionData('claimExitedAssets', [
             ethers.parseEther('32'),

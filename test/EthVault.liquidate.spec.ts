@@ -1,40 +1,40 @@
 import { ethers } from 'hardhat'
-import { Contract, Wallet } from 'ethers'
+import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
   EthVault,
-  IKeeperRewards,
   Keeper,
   OsToken,
-  OsTokenVaultController,
   OsTokenConfig,
+  OsTokenVaultController,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
+import { ZERO_ADDRESS } from './shared/constants'
 import {
   collateralizeEthVault,
+  getHarvestParams,
   getRewardsRootProof,
   setAvgRewardPerSecond,
   updateRewards,
 } from './shared/rewards'
-import { increaseTime, setBalance } from './shared/utils'
+import { extractDepositShares, setBalance } from './shared/utils'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { MAINNET_FORK } from '../helpers/constants'
 
 describe('EthVault - liquidate', () => {
-  const shares = ethers.parseEther('32')
+  const assets = ethers.parseEther('32')
+  let shares: bigint
   const osTokenAssets = ethers.parseEther('28.8')
   let osTokenShares: bigint
-  const penalty = ethers.parseEther('-2.6')
   const unlockedMevReward = ethers.parseEther('0')
   const vaultParams = {
     capacity: ethers.parseEther('1000'),
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
-  let owner: Wallet, admin: Wallet, dao: Wallet, liquidator: Wallet, receiver: Wallet
+  let owner: Wallet, admin: Signer, dao: Wallet, liquidator: Wallet, receiver: Wallet
   let vault: EthVault,
     keeper: Keeper,
     osTokenVaultController: OsTokenVaultController,
@@ -55,11 +55,13 @@ describe('EthVault - liquidate', () => {
       osTokenConfig,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
     await osTokenVaultController.connect(dao).setFeePercent(0)
 
     // collateralize vault
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
-    await vault.connect(owner).deposit(owner.address, ZERO_ADDRESS, { value: shares })
+    const tx = await vault.connect(owner).deposit(owner.address, ZERO_ADDRESS, { value: assets })
+    shares = await extractDepositShares(tx)
 
     // set avg reward per second to 0
     await setAvgRewardPerSecond(dao, vault, keeper, 0)
@@ -68,21 +70,17 @@ describe('EthVault - liquidate', () => {
     osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
     await vault.connect(owner).mintOsToken(owner.address, osTokenShares, ZERO_ADDRESS)
 
+    // slash 5% of assets
+    const penalty = -((await vault.totalAssets()) * 5n) / 100n
+
     // slashing received
-    const tree = await updateRewards(
-      keeper,
-      [{ vault: await vault.getAddress(), reward: penalty, unlockedMevReward }],
-      0
-    )
+    const vaultReward = getHarvestParams(await vault.getAddress(), penalty, unlockedMevReward)
+    const tree = await updateRewards(keeper, [vaultReward], 0)
     const harvestParams = {
       rewardsRoot: tree.root,
-      reward: penalty,
-      unlockedMevReward: unlockedMevReward,
-      proof: getRewardsRootProof(tree, {
-        vault: await vault.getAddress(),
-        unlockedMevReward: unlockedMevReward,
-        reward: penalty,
-      }),
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
+      proof: getRewardsRootProof(tree, vaultReward),
     }
     await vault.connect(dao).updateState(harvestParams)
     await osToken.connect(owner).transfer(liquidator.address, osTokenShares)
@@ -96,18 +94,10 @@ describe('EthVault - liquidate', () => {
 
   it('cannot liquidate osTokens from not harvested vault', async () => {
     await updateRewards(keeper, [
-      {
-        vault: await vault.getAddress(),
-        reward: ethers.parseEther('1'),
-        unlockedMevReward: ethers.parseEther('0'),
-      },
+      getHarvestParams(await vault.getAddress(), ethers.parseEther('1'), 0n),
     ])
     await updateRewards(keeper, [
-      {
-        vault: await vault.getAddress(),
-        reward: ethers.parseEther('1.2'),
-        unlockedMevReward: ethers.parseEther('0'),
-      },
+      getHarvestParams(await vault.getAddress(), ethers.parseEther('1.2'), 0n),
     ])
     await expect(
       vault.connect(liquidator).liquidateOsToken(osTokenShares, owner.address, receiver.address)
@@ -214,24 +204,6 @@ describe('EthVault - liquidate', () => {
   })
 
   it('can liquidate', async () => {
-    const penalty = ethers.parseEther('-2.6001')
-    const tree = await updateRewards(keeper, [
-      { vault: await vault.getAddress(), reward: penalty, unlockedMevReward },
-    ])
-    const harvestParams: IKeeperRewards.HarvestParamsStruct = {
-      rewardsRoot: tree.root,
-      reward: penalty,
-      unlockedMevReward: unlockedMevReward,
-      proof: getRewardsRootProof(tree, {
-        vault: await vault.getAddress(),
-        unlockedMevReward: unlockedMevReward,
-        reward: penalty,
-      }),
-    }
-    await vault.connect(dao).updateState(harvestParams)
-
-    await increaseTime(ONE_DAY)
-
     const receipt = await vault
       .connect(liquidator)
       .liquidateOsToken(osTokenShares, owner.address, receiver.address)

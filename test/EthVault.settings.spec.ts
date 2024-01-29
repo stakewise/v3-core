@@ -33,17 +33,27 @@ describe('EthVault - settings', () => {
 
   describe('fee percent', () => {
     it('cannot be set to invalid value', async () => {
-      const vault = await createVault(admin, {
-        capacity,
-        feePercent: 10000,
-        metadataIpfsHash,
-      })
-      await expect(
-        createVault(admin, {
+      const vault = await createVault(
+        admin,
+        {
           capacity,
-          feePercent: 10001,
+          feePercent: 10000,
           metadataIpfsHash,
-        })
+        },
+        false,
+        true
+      )
+      await expect(
+        createVault(
+          admin,
+          {
+            capacity,
+            feePercent: 10001,
+            metadataIpfsHash,
+          },
+          false,
+          true
+        )
       ).to.be.revertedWithCustomError(vault, 'InvalidFeePercent')
     })
   })
@@ -53,15 +63,20 @@ describe('EthVault - settings', () => {
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
-      vault = await createVault(admin, {
-        capacity,
-        feePercent,
-        metadataIpfsHash,
-      })
+      vault = await createVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          metadataIpfsHash,
+        },
+        false,
+        true
+      )
       await vault.connect(admin).setKeysManager(keysManager.address)
     })
 
-    it('onlykeys manager can update', async () => {
+    it('only keys manager can update', async () => {
       await expect(
         vault.connect(admin).setValidatorsRoot(newValidatorsRoot)
       ).to.be.revertedWithCustomError(vault, 'AccessDenied')
@@ -80,11 +95,16 @@ describe('EthVault - settings', () => {
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
-      vault = await createVault(admin, {
-        capacity,
-        feePercent,
-        metadataIpfsHash,
-      })
+      vault = await createVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          metadataIpfsHash,
+        },
+        false,
+        true
+      )
     })
 
     it('cannot be updated by anyone', async () => {
@@ -116,11 +136,16 @@ describe('EthVault - settings', () => {
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
-      vault = await createVault(admin, {
-        capacity,
-        feePercent,
-        metadataIpfsHash,
-      })
+      vault = await createVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          metadataIpfsHash,
+        },
+        false,
+        true
+      )
       await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
     })
 
@@ -164,11 +189,16 @@ describe('EthVault - settings', () => {
     const newMetadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
     beforeEach('deploy vault', async () => {
-      vault = await createVault(admin, {
-        capacity,
-        feePercent,
-        metadataIpfsHash,
-      })
+      vault = await createVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          metadataIpfsHash,
+        },
+        false,
+        true
+      )
     })
 
     it('only admin can update', async () => {

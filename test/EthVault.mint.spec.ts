@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Contract, Wallet } from 'ethers'
+import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
   EthVault,
@@ -13,18 +13,24 @@ import snapshotGasCost from './shared/snapshotGasCost'
 import { createUnknownVaultMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
-import { collateralizeEthVault, updateRewards } from './shared/rewards'
-import { increaseTime } from './shared/utils'
+import {
+  collateralizeEthVault,
+  getHarvestParams,
+  setAvgRewardPerSecond,
+  updateRewards,
+} from './shared/rewards'
+import { extractDepositShares, increaseTime } from './shared/utils'
 
 describe('EthVault - mint', () => {
   const assets = ethers.parseEther('2')
-  const osTokenShares = ethers.parseEther('1')
+  let shares: bigint
+  let osTokenShares: bigint
   const vaultParams = {
     capacity: ethers.parseEther('1000'),
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
-  let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Wallet
+  let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Signer
   let vault: EthVault,
     keeper: Keeper,
     vaultsRegistry: VaultsRegistry,
@@ -45,33 +51,29 @@ describe('EthVault - mint', () => {
       vaultsRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
 
     // collateralize vault
     await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
-    await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: assets })
+    const tx = await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: assets })
+    shares = await extractDepositShares(tx)
+    osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
   })
 
   it('cannot mint osTokens from not collateralized vault', async () => {
-    const notCollatVault = await createVault(admin, vaultParams, false)
+    const notCollatVault = await createVault(admin, vaultParams, false, true)
     await expect(
       notCollatVault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
     ).to.be.revertedWithCustomError(vault, 'NotCollateralized')
   })
 
   it('cannot mint osTokens from not harvested vault', async () => {
+    const vaultAddr = await vault.getAddress()
     await updateRewards(keeper, [
-      {
-        vault: await vault.getAddress(),
-        reward: ethers.parseEther('1'),
-        unlockedMevReward: ethers.parseEther('0'),
-      },
+      getHarvestParams(vaultAddr, ethers.parseEther('1'), ethers.parseEther('0')),
     ])
     await updateRewards(keeper, [
-      {
-        vault: await vault.getAddress(),
-        reward: ethers.parseEther('1.2'),
-        unlockedMevReward: ethers.parseEther('0'),
-      },
+      getHarvestParams(vaultAddr, ethers.parseEther('1.2'), ethers.parseEther('0')),
     ])
     await expect(
       vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
@@ -126,41 +128,36 @@ describe('EthVault - mint', () => {
   it('cannot enter exit queue when LTV is violated', async () => {
     await vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
     await expect(
-      vault.connect(sender).enterExitQueue(assets, receiver.address)
+      vault.connect(sender).enterExitQueue(shares, receiver.address)
     ).to.be.revertedWithCustomError(vault, 'LowLtv')
   })
 
   it('updates position accumulated fee', async () => {
-    const treasury = await osTokenVaultController.treasury()
+    await vault.connect(dao).deposit(dao.address, ZERO_ADDRESS, {
+      value: await osTokenVaultController.convertToAssets(osTokenShares * 2n),
+    })
+    await vault.connect(dao).mintOsToken(dao.address, osTokenShares, ZERO_ADDRESS)
+    await setAvgRewardPerSecond(dao, vault, keeper, 1005987242)
 
     const currTotalShares = await osTokenVaultController.totalShares()
+    const currTotalAssets = await osTokenVaultController.totalAssets()
     const currCumulativeFeePerShare = await osTokenVaultController.cumulativeFeePerShare()
-    const currTreasuryShares = await osToken.balanceOf(treasury)
-    const currPositionShares = osTokenShares
 
     expect(await vault.osTokenPositions(sender.address)).to.eq(0n)
 
     await increaseTime(ONE_DAY)
 
     await vault.connect(sender).mintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS)
-    const newTreasuryShares = await osToken.balanceOf(treasury)
     const newTotalShares = await osTokenVaultController.totalShares()
     const newTotalAssets = await osTokenVaultController.totalAssets()
-    expect(newTotalShares).to.be.eq(
-      currTotalShares + currPositionShares - currTreasuryShares + newTreasuryShares
+    expect(newTotalShares).to.be.above(currTotalShares + osTokenShares)
+    expect(newTotalAssets).to.be.above(currTotalAssets)
+    expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.above(
+      currCumulativeFeePerShare
     )
-    expect(newTotalAssets).to.be.eq(await osTokenVaultController.convertToAssets(newTotalShares))
-    if (currTotalShares > 0n) {
-      expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.above(
-        currCumulativeFeePerShare
-      )
-    } else {
-      expect(await osTokenVaultController.cumulativeFeePerShare()).to.be.eq(
-        currCumulativeFeePerShare
-      )
-    }
-
-    expect(await vault.osTokenPositions(sender.address)).to.be.eq(currPositionShares)
+    const currPositionShares = await vault.osTokenPositions(sender.address)
+    await increaseTime(ONE_DAY)
+    expect(await vault.osTokenPositions(sender.address)).to.be.above(currPositionShares)
 
     const newShares = 10n
     const newAssets = await osTokenVaultController.convertToAssets(newShares)

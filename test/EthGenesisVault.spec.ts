@@ -1,24 +1,10 @@
-import hre, { ethers } from 'hardhat'
+import { ethers } from 'hardhat'
 import { Contract, Signer, Wallet } from 'ethers'
-import {
-  EthGenesisVault,
-  Keeper,
-  PoolEscrowMock,
-  RewardEthTokenMock,
-  RewardEthTokenMock__factory,
-  EthGenesisVault__factory,
-  PoolEscrowMock__factory,
-} from '../typechain-types'
-import {
-  createDepositorMock,
-  createPoolEscrow,
-  ethVaultFixture,
-  getOraclesSignatures,
-} from './shared/fixtures'
+import { EthGenesisVault, Keeper, PoolEscrowMock, RewardEthTokenMock } from '../typechain-types'
+import { createDepositorMock, ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
 import keccak256 from 'keccak256'
 import {
-  EXITING_ASSETS_MIN_DELAY,
   ONE_DAY,
   ORACLES,
   SECURITY_DEPOSIT,
@@ -34,27 +20,34 @@ import {
   getValidatorsMultiProof,
   registerEthValidator,
 } from './shared/validators'
-import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
 import {
+  collateralizeEthVault,
+  getHarvestParams,
+  getRewardsRootProof,
+  updateRewards,
+} from './shared/rewards'
+import {
+  extractDepositShares,
   extractExitPositionTicket,
   getBlockTimestamp,
   increaseTime,
   setBalance,
 } from './shared/utils'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { simulateDeployImpl } from '@openzeppelin/hardhat-upgrades/dist/utils'
-import mainnetDeployment from '../deployments/mainnet.json'
-import { MAINNET_FORK, NETWORKS } from '../helpers/constants'
+import { MAINNET_FORK } from '../helpers/constants'
+import { ThenArg } from '../helpers/types'
 
 describe('EthGenesisVault', () => {
   const capacity = ethers.parseEther('1000000')
   const feePercent = 500
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const deadline = VALIDATORS_DEADLINE
-  let dao: Wallet, admin: Signer, other: Wallet
+  let admin: Signer, other: Wallet
   let vault: EthGenesisVault, keeper: Keeper, validatorsRegistry: Contract
   let poolEscrow: PoolEscrowMock
   let rewardEthToken: RewardEthTokenMock
+
+  let createGenesisVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthGenesisVault']
 
   async function acceptPoolEscrowOwnership() {
     if (MAINNET_FORK.enabled) return
@@ -67,69 +60,17 @@ describe('EthGenesisVault', () => {
   }
 
   beforeEach('deploy fixtures', async () => {
-    ;[dao, admin, other] = await (ethers as any).getSigners()
+    ;[admin, other] = await (ethers as any).getSigners()
     const fixture = await loadFixture(ethVaultFixture)
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
-
-    if (MAINNET_FORK.enabled) {
-      admin = await ethers.getImpersonatedSigner(NETWORKS.mainnet.genesisVault.admin)
-      await setBalance(NETWORKS.mainnet.genesisVault.admin, ethers.parseEther('1'))
-      vault = EthGenesisVault__factory.connect(mainnetDeployment.EthGenesisVault, admin)
-      poolEscrow = PoolEscrowMock__factory.connect(NETWORKS.mainnet.genesisVault.poolEscrow, admin)
-      rewardEthToken = RewardEthTokenMock__factory.connect(
-        NETWORKS.mainnet.genesisVault.rewardEthToken,
-        dao
-      )
-      return
-    }
-
-    let factory = await ethers.getContractFactory('RewardEthTokenMock')
-    rewardEthToken = RewardEthTokenMock__factory.connect(
-      await (await factory.deploy()).getAddress(),
-      dao
-    )
-    poolEscrow = await createPoolEscrow(dao.address)
-    factory = await ethers.getContractFactory('EthGenesisVault')
-    const constructorArgs = [
-      await fixture.keeper.getAddress(),
-      await fixture.vaultsRegistry.getAddress(),
-      await fixture.validatorsRegistry.getAddress(),
-      await fixture.osToken.getAddress(),
-      await fixture.osTokenConfig.getAddress(),
-      await fixture.sharedMevEscrow.getAddress(),
-      await poolEscrow.getAddress(),
-      await rewardEthToken.getAddress(),
-      EXITING_ASSETS_MIN_DELAY,
-    ]
-    const contract = await factory.deploy(...constructorArgs)
-    const vaultImpl = await contract.getAddress()
-    await simulateDeployImpl(hre, factory, { constructorArgs }, vaultImpl)
-    const proxyFactory = await ethers.getContractFactory('ERC1967Proxy')
-    const proxy = await proxyFactory.deploy(vaultImpl, '0x')
-    const proxyAddress = await proxy.getAddress()
-
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-    // @ts-ignore
-    vault = factory.attach(proxyAddress) as EthGenesisVault
-    await rewardEthToken.setVault(await vault.getAddress())
-    await poolEscrow.connect(dao).commitOwnershipTransfer(await vault.getAddress())
-    const adminAddr = await admin.getAddress()
-    const tx = await vault.initialize(
-      ethers.AbiCoder.defaultAbiCoder().encode(
-        ['address', 'tuple(uint256 capacity, uint16 feePercent, string metadataIpfsHash)'],
-        [adminAddr, [capacity, feePercent, metadataIpfsHash]]
-      ),
-      { value: SECURITY_DEPOSIT }
-    )
-    await expect(tx).to.emit(vault, 'MetadataUpdated').withArgs(dao.address, metadataIpfsHash)
-    await expect(tx).to.emit(vault, 'FeeRecipientUpdated').withArgs(dao.address, adminAddr)
-    await expect(tx)
-      .to.emit(vault, 'GenesisVaultCreated')
-      .withArgs(adminAddr, capacity, feePercent, metadataIpfsHash)
-    expect(await vault.mevEscrow()).to.be.eq(await fixture.sharedMevEscrow.getAddress())
-
-    await fixture.vaultsRegistry.connect(dao).addVault(await vault.getAddress())
+    ;[vault, rewardEthToken, poolEscrow] = await fixture.createEthGenesisVault(admin, {
+      capacity,
+      feePercent,
+      metadataIpfsHash,
+    })
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
+    createGenesisVault = fixture.createEthGenesisVault
   })
 
   it('initializes correctly', async () => {
@@ -141,7 +82,6 @@ describe('EthGenesisVault', () => {
 
     // VaultAdmin
     const adminAddr = await admin.getAddress()
-    expect(await vault.admin()).to.be.eq(adminAddr)
 
     // VaultVersion
     expect(await vault.version()).to.be.eq(1)
@@ -149,6 +89,7 @@ describe('EthGenesisVault', () => {
 
     // VaultFee
     if (!MAINNET_FORK.enabled) {
+      expect(await vault.admin()).to.be.eq(adminAddr)
       expect(await vault.feeRecipient()).to.be.eq(adminAddr)
     }
     expect(await vault.feePercent()).to.be.eq(feePercent)
@@ -182,7 +123,15 @@ describe('EthGenesisVault', () => {
     })
 
     it('fails when pool escrow ownership is not accepted', async () => {
-      if (MAINNET_FORK.enabled) return
+      const [vault, rewardEthToken] = await createGenesisVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          metadataIpfsHash,
+        },
+        true
+      )
       const assets = ethers.parseEther('10')
       await expect(
         rewardEthToken.connect(other).migrate(other.address, assets, 0)
@@ -219,8 +168,16 @@ describe('EthGenesisVault', () => {
     })
 
     it('fails when not collateralized', async () => {
-      if (MAINNET_FORK.enabled) return
-      await acceptPoolEscrowOwnership()
+      const [vault, rewardEthToken] = await createGenesisVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          metadataIpfsHash,
+        },
+        true
+      )
+      await vault.connect(admin).acceptPoolEscrowOwnership()
       const assets = ethers.parseEther('1')
       await expect(
         rewardEthToken.connect(other).migrate(other.address, assets, assets)
@@ -230,27 +187,13 @@ describe('EthGenesisVault', () => {
     it('fails when not harvested', async () => {
       await acceptPoolEscrowOwnership()
       await collatEthVault()
-      let reward = ethers.parseEther('5')
-      let unlockedMevReward = 0n
-      if (MAINNET_FORK.enabled) {
-        reward += MAINNET_FORK.genesisVaultHarvestParams.proofReward
-        unlockedMevReward += MAINNET_FORK.genesisVaultHarvestParams.proofUnlockedMevReward
-      }
-
+      const reward = ethers.parseEther('5')
+      const unlockedMevReward = 0n
+      const vaultAddr = await vault.getAddress()
+      const vaultReward = getHarvestParams(vaultAddr, reward, unlockedMevReward)
+      await updateRewards(keeper, [vaultReward])
       await updateRewards(keeper, [
-        {
-          reward,
-          unlockedMevReward,
-          vault: await vault.getAddress(),
-        },
-      ])
-      reward += ethers.parseEther('5')
-      await updateRewards(keeper, [
-        {
-          reward,
-          unlockedMevReward,
-          vault: await vault.getAddress(),
-        },
+        getHarvestParams(vaultAddr, reward + ethers.parseEther('5'), unlockedMevReward),
       ])
 
       let holder: Signer
@@ -292,9 +235,9 @@ describe('EthGenesisVault', () => {
     await acceptPoolEscrowOwnership()
     await collatEthVault()
 
-    const shares = ethers.parseEther('10')
-    let assets = await vault.convertToAssets(shares)
-    await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: assets })
+    let assets = ethers.parseEther('10')
+    let tx = await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: assets })
+    const shares = await extractDepositShares(tx)
 
     const vaultAddr = await vault.getAddress()
     const vaultBalance = await ethers.provider.getBalance(vaultAddr)
@@ -309,38 +252,23 @@ describe('EthGenesisVault', () => {
     await setBalance(poolEscrowAddr, poolEscrowBalance + vaultBalance)
 
     await increaseTime(ONE_DAY)
-    let reward = 0n
-    let unlockedMevReward = 0n
-    if (MAINNET_FORK.enabled) {
-      reward += MAINNET_FORK.genesisVaultHarvestParams.proofReward
-      unlockedMevReward += MAINNET_FORK.genesisVaultHarvestParams.proofUnlockedMevReward
-    }
-    const tree = await updateRewards(keeper, [
-      {
-        reward,
-        unlockedMevReward,
-        vault: vaultAddr,
-      },
-    ])
-    const proof = getRewardsRootProof(tree, {
-      vault: vaultAddr,
-      unlockedMevReward,
-      reward,
-    })
+    const reward = 0n
+    const unlockedMevReward = 0n
+    const harvestParams = getHarvestParams(vaultAddr, reward, unlockedMevReward)
+    const tree = await updateRewards(keeper, [harvestParams])
+    const proof = getRewardsRootProof(tree, harvestParams)
     await vault.updateState({
       rewardsRoot: tree.root,
-      reward,
-      unlockedMevReward,
       proof,
+      reward: harvestParams.reward,
+      unlockedMevReward: harvestParams.unlockedMevReward,
     })
     const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
     if (MAINNET_FORK.enabled) {
       assets -= 1n
     }
 
-    const tx = await vault
-      .connect(other)
-      .claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
+    tx = await vault.connect(other).claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
       .withArgs(vaultAddr, vaultAddr, poolEscrowBalance + vaultBalance)
@@ -352,24 +280,33 @@ describe('EthGenesisVault', () => {
   })
 
   it('pulls assets on redeem', async () => {
-    if (MAINNET_FORK.enabled) return
-    await acceptPoolEscrowOwnership()
-    const shares = ethers.parseEther('10')
-    await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: shares })
+    const [vault, , poolEscrow] = await createGenesisVault(
+      admin,
+      {
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      },
+      true
+    )
+    await vault.connect(admin).acceptPoolEscrowOwnership()
+    const assets = ethers.parseEther('10')
+    let tx = await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: assets })
+    const shares = await extractDepositShares(tx)
 
     await setBalance(await vault.getAddress(), 0n)
-    await setBalance(await poolEscrow.getAddress(), shares)
+    await setBalance(await poolEscrow.getAddress(), assets)
 
-    expect(await vault.withdrawableAssets()).to.eq(shares)
+    expect(await vault.withdrawableAssets()).to.eq(assets)
 
-    const tx = await vault.connect(other).redeem(shares, other.address)
+    tx = await vault.connect(other).redeem(shares, other.address)
     await expect(tx)
       .to.emit(vault, 'Redeemed')
       .withArgs(other.address, other.address, shares, shares)
     await expect(tx).to.not.emit(vault, 'Deposited')
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
-      .withArgs(await vault.getAddress(), await vault.getAddress(), shares)
+      .withArgs(await vault.getAddress(), await vault.getAddress(), assets)
     expect(await ethers.provider.getBalance(await poolEscrow.getAddress())).to.eq(0)
   })
 
@@ -446,11 +383,10 @@ describe('EthGenesisVault', () => {
     const amount = ethers.parseEther('100')
     let expectedShares = await vault.convertToShares(amount)
 
-    if (MAINNET_FORK.enabled) {
-      expectedShares += 1n
-    }
-
     const receipt = await depositorMock.connect(other).depositToVault({ value: amount })
+    if (MAINNET_FORK.enabled) {
+      expectedShares += 1n // rounding error
+    }
     expect(await vault.getShares(await depositorMock.getAddress())).to.eq(expectedShares)
 
     await expect(receipt)
@@ -479,20 +415,12 @@ describe('EthGenesisVault', () => {
 
     it('splits reward between rewardEthToken and vault', async () => {
       await acceptPoolEscrowOwnership()
-      let reward = ethers.parseEther('30')
-      let unlockedMevReward = 0n
+      const reward = ethers.parseEther('30')
+      const unlockedMevReward = 0n
       const expectedVaultDelta =
         (reward * totalVaultAssets) / (totalLegacyAssets + totalVaultAssets)
       const expectedLegacyDelta = reward - expectedVaultDelta
-      if (MAINNET_FORK.enabled) {
-        reward += MAINNET_FORK.genesisVaultHarvestParams.proofReward
-        unlockedMevReward += MAINNET_FORK.genesisVaultHarvestParams.proofUnlockedMevReward
-      }
-      const vaultReward = {
-        reward,
-        unlockedMevReward,
-        vault: await vault.getAddress(),
-      }
+      const vaultReward = getHarvestParams(await vault.getAddress(), reward, unlockedMevReward)
       const rewardsTree = await updateRewards(keeper, [vaultReward])
       const proof = getRewardsRootProof(rewardsTree, vaultReward)
       const receipt = await vault.updateState({
@@ -514,13 +442,17 @@ describe('EthGenesisVault', () => {
     })
 
     it('fails when pool escrow ownership not accepted', async () => {
-      if (MAINNET_FORK.enabled) return
+      const [vault] = await createGenesisVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          metadataIpfsHash,
+        },
+        true
+      )
       const totalRewards = ethers.parseEther('30')
-      const vaultReward = {
-        reward: totalRewards,
-        unlockedMevReward: 0n,
-        vault: await vault.getAddress(),
-      }
+      const vaultReward = getHarvestParams(await vault.getAddress(), totalRewards, 0n)
       const rewardsTree = await updateRewards(keeper, [vaultReward])
       const proof = getRewardsRootProof(rewardsTree, vaultReward)
       await expect(
@@ -534,14 +466,18 @@ describe('EthGenesisVault', () => {
     })
 
     it('fails with negative first update', async () => {
-      if (MAINNET_FORK.enabled) return
-      await acceptPoolEscrowOwnership()
+      const [vault] = await createGenesisVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          metadataIpfsHash,
+        },
+        true
+      )
+      await vault.connect(admin).acceptPoolEscrowOwnership()
       const totalPenalty = ethers.parseEther('-5')
-      const vaultReward = {
-        reward: totalPenalty,
-        unlockedMevReward: 0n,
-        vault: await vault.getAddress(),
-      }
+      const vaultReward = getHarvestParams(await vault.getAddress(), totalPenalty, 0n)
       const rewardsTree = await updateRewards(keeper, [vaultReward])
       const proof = getRewardsRootProof(rewardsTree, vaultReward)
       await expect(
@@ -557,20 +493,12 @@ describe('EthGenesisVault', () => {
     it('splits penalty between rewardEthToken and vault', async () => {
       await acceptPoolEscrowOwnership()
       await collatEthVault()
-      let reward = ethers.parseEther('-5')
-      let unlockedMevReward = 0n
+      const reward = ethers.parseEther('-5')
+      const unlockedMevReward = 0n
       const expectedVaultDelta =
         (reward * totalVaultAssets) / (totalLegacyAssets + totalVaultAssets)
       const expectedLegacyDelta = reward - expectedVaultDelta
-      if (MAINNET_FORK.enabled) {
-        reward += MAINNET_FORK.genesisVaultHarvestParams.proofReward
-        unlockedMevReward += MAINNET_FORK.genesisVaultHarvestParams.proofUnlockedMevReward
-      }
-      const vaultReward = {
-        reward,
-        unlockedMevReward,
-        vault: await vault.getAddress(),
-      }
+      const vaultReward = getHarvestParams(await vault.getAddress(), reward, unlockedMevReward)
       const rewardsTree = await updateRewards(keeper, [vaultReward])
       const proof = getRewardsRootProof(rewardsTree, vaultReward)
       const receipt = await vault.updateState({
@@ -588,8 +516,21 @@ describe('EthGenesisVault', () => {
     })
 
     it('deducts rewards on first state update', async () => {
-      if (MAINNET_FORK.enabled) return
-      await acceptPoolEscrowOwnership()
+      const [vault, rewardEthToken] = await createGenesisVault(
+        admin,
+        {
+          capacity,
+          feePercent,
+          metadataIpfsHash,
+        },
+        true
+      )
+      await vault.connect(admin).acceptPoolEscrowOwnership()
+      await vault.deposit(other.address, ZERO_ADDRESS, {
+        value: totalVaultAssets - SECURITY_DEPOSIT,
+      })
+      await rewardEthToken.connect(other).setTotalStaked(totalLegacyAssets)
+
       const totalRewards = ethers.parseEther('25')
       const legacyRewards = ethers.parseEther('5')
       await rewardEthToken.connect(other).setTotalRewards(legacyRewards)
@@ -601,11 +542,7 @@ describe('EthGenesisVault', () => {
         ((totalRewards - legacyRewards) * totalVaultAssets) /
         (totalLegacyAssets + legacyRewards + totalVaultAssets)
       const expectedLegacyDelta = totalRewards - legacyRewards - expectedVaultDelta
-      const vaultReward = {
-        reward: totalRewards,
-        unlockedMevReward: 0n,
-        vault: await vault.getAddress(),
-      }
+      const vaultReward = getHarvestParams(await vault.getAddress(), totalRewards, 0n)
       const rewardsTree = await updateRewards(keeper, [vaultReward])
       const proof = getRewardsRootProof(rewardsTree, vaultReward)
       const receipt = await vault.updateState({
@@ -614,6 +551,12 @@ describe('EthGenesisVault', () => {
         unlockedMevReward: vaultReward.unlockedMevReward,
         proof,
       })
+
+      if (MAINNET_FORK.enabled) {
+        // rounding error
+        totalLegacyAssets -= 1n
+        totalVaultAssets += 1n
+      }
 
       expect(await rewardEthToken.totalAssets()).to.eq(
         totalLegacyAssets + legacyRewards + expectedLegacyDelta

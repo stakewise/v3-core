@@ -1,9 +1,9 @@
 import { ethers } from 'hardhat'
-import { Wallet } from 'ethers'
+import { Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
   EthVault,
-  EthVaultV2Mock,
+  EthVaultV3Mock,
   VaultsRegistry,
   EthVaultV2Mock__factory,
 } from '../typechain-types'
@@ -16,10 +16,8 @@ describe('EthVault - upgrade', () => {
   const capacity = ethers.parseEther('1000')
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7r'
-  let admin: Wallet, dao: Wallet, other: Wallet
-  let vault: EthVault
-  let vaultsRegistry: VaultsRegistry
-  let updatedVault: EthVaultV2Mock
+  let admin: Signer, dao: Wallet, other: Wallet
+  let vault: EthVault, vaultsRegistry: VaultsRegistry, updatedVault: EthVaultV3Mock
   let currImpl: string
   let newImpl: string
   let callData: string
@@ -34,6 +32,7 @@ describe('EthVault - upgrade', () => {
       feePercent,
       metadataIpfsHash,
     })
+    admin = await ethers.getImpersonatedSigner(await vault.admin())
 
     newImpl = await deployVaultImplementation(
       'EthVaultV2Mock',

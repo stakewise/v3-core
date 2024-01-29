@@ -2,7 +2,6 @@ export type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 
 export enum Networks {
   mainnet = 'mainnet',
-  goerli = 'goerli',
   holesky = 'holesky',
 }
 
@@ -44,6 +43,14 @@ export type NetworkConfig = {
     rewardEthToken: string
     capacity: bigint
     feePercent: number
+  }
+
+  // EthFoxVault
+  foxVault: {
+    admin: string
+    capacity: bigint
+    feePercent: number
+    metadataIpfsHash: string
   }
 
   // PriceFeed
