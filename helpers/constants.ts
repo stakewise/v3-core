@@ -58,7 +58,7 @@ export const NETWORKS: {
     },
     // EthFoxVault
     foxVault: {
-      admin: '0x0000000000000000000000000000000000000000',
+      admin: '0xd23D393167e391e62d464CD5ef09e52Ed58BC889',
       capacity: MAX_UINT256, // unlimited
       feePercent: 500, // 5%
       metadataIpfsHash: '',
