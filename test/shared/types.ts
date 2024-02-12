@@ -1,3 +1,12 @@
+import {
+  EthErc20Vault,
+  EthFoxVault,
+  EthGenesisVault,
+  EthPrivErc20Vault,
+  EthPrivVault,
+  EthVault,
+} from '../../typechain-types'
+
 export type EthVaultInitParamsStruct = {
   capacity: bigint
   feePercent: number
@@ -11,3 +20,11 @@ export type EthErc20VaultInitParamsStruct = {
   symbol: string
   metadataIpfsHash: string
 }
+
+export type VaultType =
+  | EthVault
+  | EthPrivVault
+  | EthErc20Vault
+  | EthPrivErc20Vault
+  | EthGenesisVault
+  | EthFoxVault

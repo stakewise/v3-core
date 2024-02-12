@@ -3,13 +3,13 @@
 exports[`EthVault - register multiple validators succeeds 1`] = `
 Object {
   "calldataByteLength": 3332,
-  "gasUsed": 671554,
+  "gasUsed": 673647,
 }
 `;
 
 exports[`EthVault - register single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 1156,
-  "gasUsed": 322033,
+  "gasUsed": 324126,
 }
 `;

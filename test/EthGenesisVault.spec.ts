@@ -84,7 +84,7 @@ describe('EthGenesisVault', () => {
     const adminAddr = await admin.getAddress()
 
     // VaultVersion
-    expect(await vault.version()).to.be.eq(1)
+    expect(await vault.version()).to.be.eq(2)
     expect(await vault.vaultId()).to.be.eq(`0x${keccak256('EthGenesisVault').toString('hex')}`)
 
     // VaultFee
@@ -96,23 +96,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(1)
-  })
-
-  it('applies ownership transfer', async () => {
-    await acceptPoolEscrowOwnership()
-    expect(await poolEscrow.owner()).to.eq(await vault.getAddress())
-  })
-
-  it('apply ownership cannot be called second time', async () => {
-    await acceptPoolEscrowOwnership()
-    await expect(vault.connect(other).acceptPoolEscrowOwnership()).to.be.revertedWithCustomError(
-      vault,
-      'AccessDenied'
-    )
-    await expect(vault.connect(admin).acceptPoolEscrowOwnership()).to.be.revertedWith(
-      'PoolEscrow: caller is not the future owner'
-    )
+    expect(await vault.version()).to.eq(2)
   })
 
   describe('migrate', () => {
@@ -235,7 +219,7 @@ describe('EthGenesisVault', () => {
     await acceptPoolEscrowOwnership()
     await collatEthVault()
 
-    let assets = ethers.parseEther('10')
+    const assets = ethers.parseEther('10')
     let tx = await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: assets })
     const shares = await extractDepositShares(tx)
 
@@ -264,50 +248,14 @@ describe('EthGenesisVault', () => {
       unlockedMevReward: harvestParams.unlockedMevReward,
     })
     const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
-    if (MAINNET_FORK.enabled) {
-      assets -= 1n
-    }
 
     tx = await vault.connect(other).claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
       .withArgs(vaultAddr, vaultAddr, poolEscrowBalance + vaultBalance)
-    await expect(tx)
-      .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(other.address, positionTicket, 0, assets)
+    await expect(tx).to.emit(vault, 'ExitedAssetsClaimed').withArgs(other.address, 0, assets)
     expect(await ethers.provider.getBalance(await poolEscrow.getAddress())).to.eq(0)
     await snapshotGasCost(tx)
-  })
-
-  it('pulls assets on redeem', async () => {
-    const [vault, , poolEscrow] = await createGenesisVault(
-      admin,
-      {
-        capacity,
-        feePercent,
-        metadataIpfsHash,
-      },
-      true
-    )
-    await vault.connect(admin).acceptPoolEscrowOwnership()
-    const assets = ethers.parseEther('10')
-    let tx = await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: assets })
-    const shares = await extractDepositShares(tx)
-
-    await setBalance(await vault.getAddress(), 0n)
-    await setBalance(await poolEscrow.getAddress(), assets)
-
-    expect(await vault.withdrawableAssets()).to.eq(assets)
-
-    tx = await vault.connect(other).redeem(shares, other.address)
-    await expect(tx)
-      .to.emit(vault, 'Redeemed')
-      .withArgs(other.address, other.address, shares, shares)
-    await expect(tx).to.not.emit(vault, 'Deposited')
-    await expect(tx)
-      .to.emit(poolEscrow, 'Withdrawn')
-      .withArgs(await vault.getAddress(), await vault.getAddress(), assets)
-    expect(await ethers.provider.getBalance(await poolEscrow.getAddress())).to.eq(0)
   })
 
   it('pulls assets on single validator registration', async () => {

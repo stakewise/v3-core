@@ -49,7 +49,7 @@ interface IEthErc20Vault is
   }
 
   /**
-   * @notice Initializes the EthErc20Vault contract. Must transfer security deposit together with a call.
+   * @notice Initializes or upgrades the EthErc20Vault contract. Must transfer security deposit during the deployment.
    * @param params The encoded parameters for initializing the EthErc20Vault contract
    */
   function initialize(bytes calldata params) external payable;

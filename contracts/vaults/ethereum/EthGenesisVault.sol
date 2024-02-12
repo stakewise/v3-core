@@ -5,9 +5,7 @@ pragma solidity =0.8.22;
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
-import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
-import {IVaultState} from '../../interfaces/IVaultState.sol';
 import {IPoolEscrow} from '../../interfaces/IPoolEscrow.sol';
 import {IEthGenesisVault} from '../../interfaces/IEthGenesisVault.sol';
 import {IRewardEthToken} from '../../interfaces/IRewardEthToken.sol';
@@ -16,8 +14,8 @@ import {Errors} from '../../libraries/Errors.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
 import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
-import {VaultState} from '../modules/VaultState.sol';
-import {EthVault} from './EthVault.sol';
+import {VaultState, IVaultState} from '../modules/VaultState.sol';
+import {EthVault, IEthVault} from './EthVault.sol';
 
 /**
  * @title EthGenesisVault
@@ -25,6 +23,8 @@ import {EthVault} from './EthVault.sol';
  * @notice Defines the Genesis Vault for Ethereum staking migrated from StakeWise v2
  */
 contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
+  uint8 private constant _version = 2;
+
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IPoolEscrow private immutable _poolEscrow;
 
@@ -76,15 +76,21 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   /// @inheritdoc IEthVault
   function initialize(
     bytes calldata params
-  ) external payable virtual override(IEthVault, EthVault) initializer {
-    (address admin, EthVaultInitParams memory initParams) = abi.decode(
+  ) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
+    // if admin is already set, it's an upgrade
+    if (admin != address(0)) {
+      __EthVault_initV2();
+      return;
+    }
+    // initialize deployed vault
+    (address _admin, EthVaultInitParams memory initParams) = abi.decode(
       params,
       (address, EthVaultInitParams)
     );
     // use shared MEV escrow
-    __EthVault_init(admin, address(0), initParams);
+    __EthVault_init(_admin, address(0), initParams);
     emit GenesisVaultCreated(
-      admin,
+      _admin,
       initParams.capacity,
       initParams.feePercent,
       initParams.metadataIpfsHash
@@ -104,7 +110,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
 
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, EthVault) returns (uint8) {
-    return 1;
+    return _version;
   }
 
   /// @inheritdoc IVaultState

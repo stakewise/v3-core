@@ -3,13 +3,48 @@
 exports[`EthPrivErc20Vault deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 71069,
+  "gasUsed": 71137,
 }
 `;
 
 exports[`EthPrivErc20Vault deposit deposit through receive fallback can be called by whitelisted sender 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 78288,
+  "gasUsed": 78318,
+}
+`;
+
+exports[`EthPrivErc20Vault ejecting user does not fail for user with no osToken shares 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 98634,
+}
+`;
+
+exports[`EthPrivErc20Vault ejecting user does not fail for user with no vault shares 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 34188,
+}
+`;
+
+exports[`EthPrivErc20Vault ejecting user whitelister can eject all of the user assets 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 98634,
+}
+`;
+
+exports[`EthPrivErc20Vault ejecting user whitelister can eject some of the user assets 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 124911,
+}
+`;
+
+exports[`EthPrivErc20Vault transfer can transfer to whitelisted user 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 59040,
 }
 `;

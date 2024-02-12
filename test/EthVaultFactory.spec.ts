@@ -188,7 +188,7 @@ describe('EthVaultFactory', () => {
           .withArgs(await factory.getAddress(), metadataIpfsHash)
 
         // VaultVersion
-        expect(await vault.version()).to.be.eq(1)
+        expect(await vault.version()).to.be.eq(2)
         expect(await vault.vaultId()).to.be.eq(toHexString(keccak256(vaultClass)))
         expect(await factory.implementation()).to.be.eq(await vault.implementation())
 

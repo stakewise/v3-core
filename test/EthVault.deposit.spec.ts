@@ -182,7 +182,6 @@ describe('EthVault - deposit', () => {
       await expect(receipt).to.emit(vault, 'Deposited')
       await expect(receipt).to.emit(keeper, 'Harvested')
       await expect(receipt).to.emit(mevEscrow, 'Harvested')
-      await expect(receipt).to.emit(vault, 'CheckpointCreated')
       await snapshotGasCost(receipt)
     })
 

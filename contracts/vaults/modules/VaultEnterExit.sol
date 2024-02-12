@@ -36,16 +36,13 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
 
   /// @inheritdoc IVaultEnterExit
   function getExitQueueIndex(uint256 positionTicket) external view override returns (int256) {
-    uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionTicket);
-    return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
-  }
-
-  /// @inheritdoc IVaultEnterExit
-  function redeem(
-    uint256 shares,
-    address receiver
-  ) public virtual override returns (uint256 assets) {
-    return _redeem(msg.sender, shares, receiver);
+    if (_exitQueue.isV1Position(_queuedShares, positionTicket)) {
+      uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionTicket);
+      return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
+    }
+    // calculate total exited tickets
+    uint256 totalExitedTickets = _totalExitedTickets + _getTotalExitableTickets();
+    return (totalExitedTickets > positionTicket) ? int256(0) : -1;
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -66,19 +63,26 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     public
     view
     override
-    returns (uint256 leftShares, uint256 claimedShares, uint256 claimedAssets)
+    returns (uint256 leftTickets, uint256 exitedTickets, uint256 exitedAssets)
   {
-    uint256 requestedShares = _exitRequests[
+    uint256 exitingTickets = _exitRequests[
       keccak256(abi.encode(receiver, timestamp, positionTicket))
     ];
+    if (exitingTickets == 0) return (0, 0, 0);
+    if (block.timestamp < timestamp + _exitingAssetsClaimDelay) return (exitingTickets, 0, 0);
 
-    // calculate exited shares and assets
-    (claimedShares, claimedAssets) = _exitQueue.calculateExitedAssets(
-      exitQueueIndex,
-      positionTicket,
-      requestedShares
-    );
-    leftShares = requestedShares - claimedShares;
+    if (_exitQueue.isV1Position(_queuedShares, positionTicket)) {
+      // calculate exited assets in V1 exit queue
+      (exitedTickets, exitedAssets) = _exitQueue.calculateExitedAssets(
+        exitQueueIndex,
+        positionTicket,
+        exitingTickets
+      );
+    } else {
+      // calculate exited assets
+      (exitedTickets, exitedAssets) = _calculateExitedTickets(exitingTickets, positionTicket);
+    }
+    leftTickets = exitingTickets - exitedTickets;
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -86,39 +90,58 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     uint256 positionTicket,
     uint256 timestamp,
     uint256 exitQueueIndex
-  )
-    external
-    override
-    returns (uint256 newPositionTicket, uint256 claimedShares, uint256 claimedAssets)
-  {
-    if (block.timestamp < timestamp + _exitingAssetsClaimDelay) revert Errors.ClaimTooEarly();
-    bytes32 queueId = keccak256(abi.encode(msg.sender, timestamp, positionTicket));
-
-    // calculate exited shares and assets
-    uint256 leftShares;
-    (leftShares, claimedShares, claimedAssets) = calculateExitedAssets(
+  ) external override {
+    // calculate exited tickets and assets
+    (uint256 leftTickets, uint256 exitedTickets, uint256 exitedAssets) = calculateExitedAssets(
       msg.sender,
       positionTicket,
       timestamp,
       exitQueueIndex
     );
-    // nothing to claim
-    if (claimedShares == 0) return (positionTicket, claimedShares, claimedAssets);
+    if (exitedTickets == 0 || exitedAssets == 0) revert Errors.ExitRequestNotProcessed();
+
+    if (_exitQueue.isV1Position(_queuedShares, positionTicket)) {
+      // update unclaimed assets
+      _unclaimedAssets -= SafeCast.toUint128(exitedAssets);
+    } else {
+      // vault must be harvested to calculate exact withdrawable amount
+      _checkHarvested();
+
+      // update state
+      totalExitingAssets -= SafeCast.toUint128(exitedAssets);
+      _totalExitingTickets -= SafeCast.toUint128(exitedTickets);
+      _totalExitedTickets += exitedTickets;
+    }
 
     // clean up current exit request
-    delete _exitRequests[queueId];
+    delete _exitRequests[keccak256(abi.encode(msg.sender, timestamp, positionTicket))];
 
-    // skip creating new position for the shares rounding error
-    if (leftShares > 1) {
+    // skip creating new position for the tickets rounding error
+    uint256 newPositionTicket;
+    if (leftTickets > 1) {
       // update user's queue position
-      newPositionTicket = positionTicket + claimedShares;
-      _exitRequests[keccak256(abi.encode(msg.sender, timestamp, newPositionTicket))] = leftShares;
+      newPositionTicket = positionTicket + exitedTickets;
+      _exitRequests[keccak256(abi.encode(msg.sender, timestamp, newPositionTicket))] = leftTickets;
     }
 
     // transfer assets to the receiver
-    _unclaimedAssets -= SafeCast.toUint128(claimedAssets);
-    _transferVaultAssets(msg.sender, claimedAssets);
-    emit ExitedAssetsClaimed(msg.sender, positionTicket, newPositionTicket, claimedAssets);
+    _transferVaultAssets(msg.sender, exitedAssets);
+    emit ExitedAssetsClaimed(msg.sender, newPositionTicket, exitedAssets);
+  }
+
+  function _calculateExitedTickets(
+    uint256 exitingTickets,
+    uint256 positionTicket
+  ) private view returns (uint256 exitedTickets, uint256 exitedAssets) {
+    // calculate total exitable tickets
+    uint256 exitableTickets = _getTotalExitableTickets();
+    // calculate total exited tickets
+    uint256 totalExitedTickets = _totalExitedTickets + exitableTickets;
+    if (totalExitedTickets <= positionTicket) return (0, 0);
+
+    // calculate exited tickets and assets
+    exitedTickets = Math.min(exitingTickets, totalExitedTickets - positionTicket);
+    return (exitedTickets, _convertExitTicketsToAssets(exitedTickets));
   }
 
   /**
@@ -155,74 +178,70 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   }
 
   /**
-   * @dev Internal function that must be used to process user withdrawals before first validator registration
+   * @dev Internal function for sending user shares to the exit queue
    * @param user The address of the user
-   * @param shares The number of shares to redeem
-   * @param receiver The address that will receive the assets
-   * @return assets The total amount of assets withdrawn
-   */
-  function _redeem(
-    address user,
-    uint256 shares,
-    address receiver
-  ) internal returns (uint256 assets) {
-    _checkNotCollateralized();
-    if (shares == 0) revert Errors.InvalidShares();
-    if (receiver == address(0)) revert Errors.ZeroAddress();
-
-    // calculate amount of assets to burn
-    assets = convertToAssets(shares);
-    if (assets == 0) revert Errors.InvalidAssets();
-
-    // reverts in case there are not enough withdrawable assets
-    if (assets > withdrawableAssets()) revert Errors.InsufficientAssets();
-
-    // update total assets
-    _totalAssets -= SafeCast.toUint128(assets);
-
-    // burn owner shares
-    _burnShares(user, shares);
-
-    // transfer assets to the receiver
-    _transferVaultAssets(receiver, assets);
-
-    emit Redeemed(user, receiver, assets, shares);
-  }
-
-  /**
-   * @dev Internal function that must be used to process user withdrawals after first validator registration
-   * @param user The address of the user
-   * @param shares The number of shares to send to exit queue
-   * @param receiver The address that will receive the assets
-   * @return positionTicket The position ticket in the exit queue
+   * @param shares The number of shares to lock
+   * @param receiver The address that will receive assets upon withdrawal
+   * @return positionTicket The position ticket of the exit queue
    */
   function _enterExitQueue(
     address user,
     uint256 shares,
     address receiver
-  ) internal virtual returns (uint256 positionTicket) {
-    _checkCollateralized();
+  ) internal returns (uint256 positionTicket) {
+    _checkHarvested();
     if (shares == 0) revert Errors.InvalidShares();
     if (receiver == address(0)) revert Errors.ZeroAddress();
 
+    // calculate amount of assets to lock
+    uint256 assets = convertToAssets(shares);
+    if (assets == 0) revert Errors.InvalidAssets();
+
+    // convert assets to exiting tickets
+    uint256 exitingTickets = _convertAssetsToExitTickets(assets);
+
+    // reduce total assets
+    _totalAssets -= SafeCast.toUint128(assets);
+
+    // burn shares
+    _burnShares(user, shares);
+
     // SLOAD to memory
-    uint256 _queuedShares = queuedShares;
+    uint256 totalExitingTickets = _totalExitingTickets;
 
     // calculate position ticket
-    positionTicket = _exitQueue.getLatestTotalTickets() + _queuedShares;
+    positionTicket = _totalExitedTickets + totalExitingTickets;
+
+    // increase total exiting assets and tickets
+    totalExitingAssets += SafeCast.toUint128(assets);
+    _totalExitingTickets = SafeCast.toUint128(totalExitingTickets + exitingTickets);
 
     // add to the exit requests
-    _exitRequests[keccak256(abi.encode(receiver, block.timestamp, positionTicket))] = shares;
+    _exitRequests[
+      keccak256(abi.encode(receiver, block.timestamp, positionTicket))
+    ] = exitingTickets;
 
-    // reverts if owner does not have enough shares
-    _balances[user] -= shares;
+    emit ExitQueueEntered(user, receiver, positionTicket, assets);
+  }
 
-    unchecked {
-      // cannot overflow as it is capped with _totalShares
-      queuedShares = SafeCast.toUint128(_queuedShares + shares);
+  /**
+   * @dev Internal function for calculating the number of assets that can be withdrawn
+   * @return assets The number of assets that can be withdrawn
+   */
+  function _getTotalExitableTickets() private view returns (uint256) {
+    // calculate available assets
+    uint256 availableAssets = _vaultAssets() - _unclaimedAssets;
+    uint256 queuedAssets = convertToAssets(_queuedShares);
+    if (queuedAssets > 0) {
+      unchecked {
+        // cannot underflow as availableAssets >= queuedV1Assets
+        availableAssets = availableAssets > queuedAssets ? availableAssets - queuedAssets : 0;
+      }
     }
+    if (availableAssets == 0) return 0;
 
-    emit ExitQueueEntered(user, receiver, positionTicket, shares);
+    // calculate number of tickets that can be withdrawn based on available assets
+    return _convertAssetsToExitTickets(Math.min(availableAssets, totalExitingAssets));
   }
 
   /**

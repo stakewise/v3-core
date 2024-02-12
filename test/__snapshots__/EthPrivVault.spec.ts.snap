@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthPrivVault ejecting user does not fail for user with no osToken shares 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 96619,
+}
+`;
+
+exports[`EthPrivVault ejecting user does not fail for user with no vault shares 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 33968,
+}
+`;
+
+exports[`EthPrivVault ejecting user whitelister can eject all of the user assets 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 96619,
+}
+`;
+
+exports[`EthPrivVault ejecting user whitelister can eject some of the user assets 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 122896,
+}
+`;
+
+exports[`EthPrivVault mint osToken can mint from not whitelisted user 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 173886,
+}
+`;

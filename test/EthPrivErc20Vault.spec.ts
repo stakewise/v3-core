@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Contract, Signer, Wallet } from 'ethers'
+import { Contract, parseEther, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { EthPrivErc20Vault, IKeeperRewards, Keeper } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
@@ -17,13 +17,13 @@ describe('EthPrivErc20Vault', () => {
   const feePercent = 1000
   const referrer = ZERO_ADDRESS
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
-  let sender: Wallet, admin: Signer, other: Wallet
+  let sender: Wallet, admin: Signer, other: Wallet, whitelister: Wallet
   let vault: EthPrivErc20Vault, keeper: Keeper, validatorsRegistry: Contract
 
   let createPrivateVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthPrivErc20Vault']
 
   beforeEach('deploy fixtures', async () => {
-    ;[sender, admin, other] = await (ethers as any).getSigners()
+    ;[sender, admin, other, whitelister] = await (ethers as any).getSigners()
     ;({
       createEthPrivErc20Vault: createPrivateVault,
       keeper,
@@ -44,13 +44,14 @@ describe('EthPrivErc20Vault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(1)
+    expect(await vault.version()).to.eq(2)
   })
 
   describe('deposit', () => {
     const amount = ethers.parseEther('1')
 
     beforeEach(async () => {
+      await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
       await vault.connect(admin).updateWhitelist(sender.address, true)
     })
 
@@ -132,6 +133,161 @@ describe('EthPrivErc20Vault', () => {
           ZERO_ADDRESS
         )
       await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('transfer', () => {
+    const amount = ethers.parseEther('1')
+
+    beforeEach(async () => {
+      await vault.connect(admin).updateWhitelist(sender.address, true)
+      await vault.connect(sender).deposit(sender.address, referrer, { value: amount })
+    })
+
+    it('cannot transfer to not whitelisted user', async () => {
+      await expect(
+        vault.connect(sender).transfer(other.address, amount)
+      ).to.revertedWithCustomError(vault, 'AccessDenied')
+    })
+
+    it('cannot transfer from not whitelisted user', async () => {
+      await vault.connect(admin).updateWhitelist(other.address, true)
+      await vault.connect(sender).transfer(other.address, amount)
+      await vault.connect(admin).updateWhitelist(sender.address, false)
+      await expect(
+        vault.connect(other).transfer(sender.address, amount)
+      ).to.revertedWithCustomError(vault, 'AccessDenied')
+    })
+
+    it('can transfer to whitelisted user', async () => {
+      await vault.connect(admin).updateWhitelist(other.address, true)
+      const receipt = await vault.connect(sender).transfer(other.address, amount)
+      expect(await vault.balanceOf(sender.address)).to.eq(0)
+      expect(await vault.balanceOf(other.address)).to.eq(amount)
+
+      await expect(receipt)
+        .to.emit(vault, 'Transfer')
+        .withArgs(sender.address, other.address, amount)
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('ejecting user', () => {
+    const senderAssets = parseEther('1')
+
+    beforeEach(async () => {
+      await vault.connect(admin).updateWhitelist(sender.address, true)
+      await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
+      await vault.connect(sender).deposit(sender.address, referrer, { value: senderAssets })
+      await vault.connect(admin).setWhitelister(whitelister.address)
+    })
+
+    it('fails for not whitelister', async () => {
+      await expect(vault.connect(other).ejectUser(sender.address)).to.revertedWithCustomError(
+        vault,
+        'AccessDenied'
+      )
+    })
+
+    it('fails when not harvested', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await vault.connect(sender).mintOsToken(sender.address, senderAssets / 2n, ZERO_ADDRESS)
+      await updateRewards(keeper, [
+        {
+          vault: await vault.getAddress(),
+          reward: ethers.parseEther('1'),
+          unlockedMevReward: ethers.parseEther('0'),
+        },
+      ])
+      await updateRewards(keeper, [
+        {
+          vault: await vault.getAddress(),
+          reward: ethers.parseEther('1.2'),
+          unlockedMevReward: ethers.parseEther('0'),
+        },
+      ])
+      await expect(vault.connect(whitelister).ejectUser(sender.address)).to.revertedWithCustomError(
+        vault,
+        'NotHarvested'
+      )
+    })
+
+    it('does not fail for user with no vault shares', async () => {
+      await vault.connect(whitelister).updateWhitelist(other.address, true)
+
+      expect(await vault.getShares(other.address)).to.eq(0)
+      expect(await vault.whitelistedAccounts(other.address)).to.eq(true)
+
+      const tx = await vault.connect(whitelister).ejectUser(other.address)
+      await expect(tx)
+        .to.emit(vault, 'WhitelistUpdated')
+        .withArgs(whitelister.address, other.address, false)
+      expect(await vault.whitelistedAccounts(other.address)).to.eq(false)
+      await snapshotGasCost(tx)
+    })
+
+    it('does not fail for user with no osToken shares', async () => {
+      expect(await vault.osTokenPositions(sender.address)).to.eq(0)
+      expect(await vault.whitelistedAccounts(sender.address)).to.eq(true)
+      expect(await vault.getShares(sender.address)).to.eq(senderAssets)
+
+      const tx = await vault.connect(whitelister).ejectUser(sender.address)
+      await expect(tx)
+        .to.emit(vault, 'WhitelistUpdated')
+        .withArgs(whitelister.address, sender.address, false)
+      await expect(tx)
+        .to.emit(vault, 'ExitQueueEntered')
+        .withArgs(sender.address, sender.address, 0n, senderAssets)
+
+      expect(await vault.whitelistedAccounts(sender.address)).to.eq(false)
+      expect(await vault.getShares(sender.address)).to.eq(0)
+      await snapshotGasCost(tx)
+    })
+
+    it('whitelister can eject some of the user assets', async () => {
+      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      const osTokenShares = senderAssets / 2n
+      const senderShares = await vault.getShares(sender.address)
+      await vault.connect(sender).mintOsToken(sender.address, osTokenShares, ZERO_ADDRESS)
+
+      expect(await vault.osTokenPositions(sender.address)).to.eq(osTokenShares)
+      expect(await vault.whitelistedAccounts(sender.address)).to.eq(true)
+      expect(await vault.getShares(sender.address)).to.eq(senderShares)
+
+      const tx = await vault.connect(whitelister).ejectUser(sender.address)
+      const ejectedShares = senderShares - (await vault.getShares(sender.address))
+      expect(ejectedShares).to.be.lessThan(senderShares)
+
+      const ejectedAssets = await vault.convertToAssets(ejectedShares)
+      expect(ejectedAssets).to.be.lessThan(senderAssets)
+
+      await expect(tx)
+        .to.emit(vault, 'WhitelistUpdated')
+        .withArgs(whitelister.address, sender.address, false)
+      await expect(tx)
+        .to.emit(vault, 'ExitQueueEntered')
+        .withArgs(sender.address, sender.address, parseEther('32'), ejectedAssets)
+
+      expect(await vault.whitelistedAccounts(sender.address)).to.eq(false)
+      expect(await vault.getShares(sender.address)).to.eq(senderShares - ejectedShares)
+      await snapshotGasCost(tx)
+    })
+
+    it('whitelister can eject all of the user assets', async () => {
+      expect(await vault.osTokenPositions(sender.address)).to.eq(0)
+      expect(await vault.whitelistedAccounts(sender.address)).to.eq(true)
+
+      const tx = await vault.connect(whitelister).ejectUser(sender.address)
+      await expect(tx)
+        .to.emit(vault, 'WhitelistUpdated')
+        .withArgs(whitelister.address, sender.address, false)
+      await expect(tx)
+        .to.emit(vault, 'ExitQueueEntered')
+        .withArgs(sender.address, sender.address, 0n, senderAssets)
+
+      expect(await vault.whitelistedAccounts(sender.address)).to.eq(false)
+      expect(await vault.getShares(sender.address)).to.eq(0)
+      await snapshotGasCost(tx)
     })
   })
 })

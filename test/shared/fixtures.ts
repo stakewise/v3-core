@@ -1,5 +1,5 @@
 import hre, { ethers } from 'hardhat'
-import { BigNumberish, Contract, parseEther, Signer, Wallet } from 'ethers'
+import { BigNumberish, Contract, ContractFactory, parseEther, Signer, Wallet } from 'ethers'
 import { simulateDeployImpl } from '@openzeppelin/hardhat-upgrades/dist/utils'
 import {
   impersonateAccount,
@@ -10,8 +10,14 @@ import EthereumWallet from 'ethereumjs-wallet'
 import {
   CumulativeMerkleDrop,
   CumulativeMerkleDrop__factory,
+  EthBlocklistErc20Vault,
+  EthBlocklistErc20Vault__factory,
+  EthBlocklistVault,
+  EthBlocklistVault__factory,
   EthErc20Vault,
   EthErc20Vault__factory,
+  EthFoxVault,
+  EthFoxVault__factory,
   EthGenesisVault,
   EthGenesisVault__factory,
   EthPrivErc20Vault,
@@ -19,7 +25,6 @@ import {
   EthPrivVault,
   EthPrivVault__factory,
   EthVault,
-  EthFoxVault,
   EthVault__factory,
   EthVaultFactory,
   EthVaultFactory__factory,
@@ -30,10 +35,10 @@ import {
   Keeper__factory,
   OsToken,
   OsToken__factory,
-  OsTokenVaultController,
-  OsTokenVaultController__factory,
   OsTokenConfig,
   OsTokenConfig__factory,
+  OsTokenVaultController,
+  OsTokenVaultController__factory,
   PoolEscrowMock,
   PoolEscrowMock__factory,
   PriceFeed,
@@ -46,7 +51,6 @@ import {
   SharedMevEscrow__factory,
   VaultsRegistry,
   VaultsRegistry__factory,
-  EthFoxVault__factory,
 } from '../../typechain-types'
 import { getValidatorsRegistryFactory } from './contracts'
 import {
@@ -68,7 +72,7 @@ import {
   SECURITY_DEPOSIT,
   VALIDATORS_MIN_ORACLES,
 } from './constants'
-import { EthErc20VaultInitParamsStruct, EthVaultInitParamsStruct } from './types'
+import { EthErc20VaultInitParamsStruct, EthVaultInitParamsStruct, VaultType } from './types'
 import { DepositorMock } from '../../typechain-types/contracts/mocks/DepositorMock'
 import { DepositorMock__factory } from '../../typechain-types/factories/contracts/mocks/DepositorMock__factory'
 import { UnknownVaultMock } from '../../typechain-types/contracts/mocks/UnknownVaultMock'
@@ -103,9 +107,20 @@ export const transferOwnership = async function (
   await contract.connect(newOwner).acceptOwnership()
 }
 
+export const upgradeVaultToV2 = async function (
+  vault: VaultType,
+  implementation: string
+): Promise<VaultType> {
+  const adminAddr = await vault.admin()
+  const admin = await ethers.getImpersonatedSigner(adminAddr)
+  await setBalance(adminAddr, ethers.parseEther('1'))
+  await vault.connect(admin).upgradeToAndCall(implementation, '0x')
+  return vault
+}
+
 export const updateVaultState = async function (
   keeper: Keeper,
-  vault: EthVault | EthPrivVault | EthErc20Vault | EthPrivErc20Vault | EthGenesisVault,
+  vault: VaultType,
   harvestParams: IKeeperRewards.HarvestParamsStruct
 ) {
   if (!(await keeper.canHarvest(await vault.getAddress()))) {
@@ -114,9 +129,7 @@ export const updateVaultState = async function (
   await vault.updateState(harvestParams)
 }
 
-export const createDepositorMock = async function (
-  vault: EthVault | EthFoxVault
-): Promise<DepositorMock> {
+export const createDepositorMock = async function (vault: VaultType): Promise<DepositorMock> {
   const depositorMockFactory = await ethers.getContractFactory('DepositorMock')
   const contract = await depositorMockFactory.deploy(await vault.getAddress())
   return DepositorMock__factory.connect(
@@ -383,7 +396,7 @@ export const deployGenesisVaultImpl = async function (
   keeper: Keeper,
   vaultsRegistry: VaultsRegistry,
   validatorsRegistry: Contract,
-  osToken: OsToken,
+  osTokenVaultController: OsTokenVaultController,
   osTokenConfig: OsTokenConfig,
   sharedMevEscrow: SharedMevEscrow,
   poolEscrow: PoolEscrowMock,
@@ -394,7 +407,7 @@ export const deployGenesisVaultImpl = async function (
     await keeper.getAddress(),
     await vaultsRegistry.getAddress(),
     await validatorsRegistry.getAddress(),
-    await osToken.getAddress(),
+    await osTokenVaultController.getAddress(),
     await osTokenConfig.getAddress(),
     await sharedMevEscrow.getAddress(),
     await poolEscrow.getAddress(),
@@ -431,6 +444,44 @@ export const deployVaultImplementation = async function (
   const vaultImpl = await contract.getAddress()
   await simulateDeployImpl(hre, factory, { constructorArgs }, vaultImpl)
   return vaultImpl
+}
+
+export async function deployEthVaultV1(
+  implFactory: ContractFactory,
+  admin: Signer,
+  keeper: Keeper,
+  vaultsRegistry: VaultsRegistry,
+  validatorsRegistry: Contract,
+  osTokenVaultController: OsTokenVaultController,
+  osTokenConfig: OsTokenConfig,
+  sharedMevEscrow: SharedMevEscrow,
+  encodedParams: string,
+  isOwnMevEscrow = false
+): Promise<Contract> {
+  const constructorArgs = [
+    await keeper.getAddress(),
+    await vaultsRegistry.getAddress(),
+    await validatorsRegistry.getAddress(),
+    await osTokenVaultController.getAddress(),
+    await osTokenConfig.getAddress(),
+    await sharedMevEscrow.getAddress(),
+    EXITING_ASSETS_MIN_DELAY,
+  ]
+  const vaultImpl = await implFactory.deploy(...constructorArgs)
+  const vaultImplAddr = await vaultImpl.getAddress()
+  await vaultsRegistry.addVaultImpl(vaultImplAddr)
+
+  const vaultFactory = await createEthVaultFactory(vaultImplAddr, vaultsRegistry)
+  await vaultsRegistry.addFactory(await vaultFactory.getAddress())
+
+  const tx = await vaultFactory.connect(admin).createVault(encodedParams, isOwnMevEscrow, {
+    value: SECURITY_DEPOSIT,
+  })
+  return new Contract(
+    await extractVaultAddress(tx),
+    implFactory.interface,
+    await ethers.provider.getSigner()
+  )
 }
 
 export const encodeEthVaultInitParams = function (vaultParams: EthVaultInitParamsStruct): string {
@@ -495,6 +546,8 @@ interface EthVaultFixture {
   ethPrivVaultFactory: EthVaultFactory
   ethErc20VaultFactory: EthVaultFactory
   ethPrivErc20VaultFactory: EthVaultFactory
+  ethBlocklistVaultFactory: EthVaultFactory
+  ethBlocklistErc20VaultFactory: EthVaultFactory
   osToken: OsToken
   osTokenVaultController: OsTokenVaultController
   osTokenConfig: OsTokenConfig
@@ -509,7 +562,7 @@ interface EthVaultFixture {
   createEthFoxVault(admin: Signer, vaultParams: EthVaultInitParamsStruct): Promise<EthFoxVault>
 
   createEthVaultMock(
-    admin: Wallet,
+    admin: Signer,
     vaultParams: EthVaultInitParamsStruct,
     isOwnMevEscrow?: boolean
   ): Promise<EthVaultMock>
@@ -519,6 +572,12 @@ interface EthVaultFixture {
     vaultParams: EthVaultInitParamsStruct,
     isOwnMevEscrow?: boolean
   ): Promise<EthPrivVault>
+
+  createEthBlocklistVault(
+    admin: Signer,
+    vaultParams: EthVaultInitParamsStruct,
+    isOwnMevEscrow?: boolean
+  ): Promise<EthBlocklistVault>
 
   createEthErc20Vault(
     admin: Signer,
@@ -532,6 +591,12 @@ interface EthVaultFixture {
     vaultParams: EthErc20VaultInitParamsStruct,
     isOwnMevEscrow?: boolean
   ): Promise<EthPrivErc20Vault>
+
+  createEthBlocklistErc20Vault(
+    admin: Signer,
+    vaultParams: EthErc20VaultInitParamsStruct,
+    isOwnMevEscrow?: boolean
+  ): Promise<EthBlocklistErc20Vault>
 
   createEthGenesisVault(
     admin: Signer,
@@ -617,6 +682,8 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
     'EthPrivVault',
     'EthErc20Vault',
     'EthPrivErc20Vault',
+    'EthBlocklistVault',
+    'EthBlocklistErc20Vault',
     'EthVaultMock',
   ]) {
     const vaultImpl = await deployVaultImplementation(
@@ -645,6 +712,8 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
   const ethPrivVaultFactory = factories['EthPrivVault']
   const ethErc20VaultFactory = factories['EthErc20Vault']
   const ethPrivErc20VaultFactory = factories['EthPrivErc20Vault']
+  const ethBlocklistVaultFactory = factories['EthBlocklistVault']
+  const ethBlocklistErc20VaultFactory = factories['EthBlocklistErc20Vault']
   const ethVaultMockFactory = factories['EthVaultMock']
 
   return {
@@ -657,6 +726,8 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
     ethErc20VaultFactory,
     ethPrivErc20VaultFactory,
     ethVaultMockFactory,
+    ethBlocklistVaultFactory,
+    ethBlocklistErc20VaultFactory,
     osTokenVaultController,
     osTokenConfig,
     osToken,
@@ -681,6 +752,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
         vaultAddress = MAINNET_FORK.vaults.ethVaultSharedMevEscrow
       }
       const vault = EthVault__factory.connect(vaultAddress, await ethers.provider.getSigner())
+      await upgradeVaultToV2(vault, implementations['EthVault'])
       await updateVaultState(keeper, vault, MAINNET_FORK.harvestParams[vaultAddress])
       await setBalance(await vault.admin(), parseEther('1000'))
       return vault
@@ -733,7 +805,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
       return vault
     },
     createEthVaultMock: async (
-      admin: Wallet,
+      admin: Signer,
       vaultParams: EthVaultInitParamsStruct,
       isOwnMevEscrow = false
     ): Promise<EthVaultMock> => {
@@ -765,9 +837,23 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
         vaultAddress = MAINNET_FORK.vaults.ethPrivVaultSharedMevEscrow
       }
       const vault = EthPrivVault__factory.connect(vaultAddress, await ethers.provider.getSigner())
+      await upgradeVaultToV2(vault, implementations['EthPrivVault'])
       await updateVaultState(keeper, vault, MAINNET_FORK.harvestParams[vaultAddress])
       await setBalance(await vault.admin(), parseEther('1000'))
       return vault
+    },
+    createEthBlocklistVault: async (
+      admin: Signer,
+      vaultParams: EthVaultInitParamsStruct,
+      isOwnMevEscrow = false
+    ): Promise<EthBlocklistVault> => {
+      const tx = await ethBlocklistVaultFactory
+        .connect(admin)
+        .createVault(encodeEthVaultInitParams(vaultParams), isOwnMevEscrow, {
+          value: SECURITY_DEPOSIT,
+        })
+      const vaultAddress = await extractVaultAddress(tx)
+      return EthBlocklistVault__factory.connect(vaultAddress, await ethers.provider.getSigner())
     },
     createEthErc20Vault: async (
       admin: Signer,
@@ -790,6 +876,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
         vaultAddress = MAINNET_FORK.vaults.ethErc20VaultSharedMevEscrow
       }
       const vault = EthErc20Vault__factory.connect(vaultAddress, await ethers.provider.getSigner())
+      await upgradeVaultToV2(vault, implementations['EthErc20Vault'])
       await updateVaultState(keeper, vault, MAINNET_FORK.harvestParams[vaultAddress])
       await setBalance(await vault.admin(), parseEther('1000'))
       return vault
@@ -817,8 +904,25 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
         vaultAddress,
         await ethers.provider.getSigner()
       )
+      await upgradeVaultToV2(vault, implementations['EthPrivErc20Vault'])
       await setBalance(await vault.admin(), parseEther('1000'))
       return vault
+    },
+    createEthBlocklistErc20Vault: async (
+      admin: Wallet,
+      vaultParams: EthErc20VaultInitParamsStruct,
+      isOwnMevEscrow = false
+    ): Promise<EthBlocklistErc20Vault> => {
+      const tx = await ethBlocklistErc20VaultFactory
+        .connect(admin)
+        .createVault(encodeEthErc20VaultInitParams(vaultParams), isOwnMevEscrow, {
+          value: SECURITY_DEPOSIT,
+        })
+      const vaultAddress = await extractVaultAddress(tx)
+      return EthBlocklistErc20Vault__factory.connect(
+        vaultAddress,
+        await ethers.provider.getSigner()
+      )
     },
     createEthGenesisVault: async (
       admin: Signer,
@@ -846,7 +950,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
         keeper,
         vaultsRegistry,
         validatorsRegistry,
-        osToken,
+        osTokenVaultController,
         osTokenConfig,
         sharedMevEscrow,
         poolEscrow,
@@ -879,6 +983,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
           mainnetDeployment.EthGenesisVault,
           await ethers.provider.getSigner()
         )
+        await upgradeVaultToV2(vault, vaultImpl)
         await updateVaultState(
           keeper,
           vault,

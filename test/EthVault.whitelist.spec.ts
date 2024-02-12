@@ -74,9 +74,10 @@ describe('EthVault - whitelist', () => {
 
     it('cannot be updated twice', async () => {
       await vault.connect(whitelister).updateWhitelist(sender.address, true)
-      await expect(
-        vault.connect(whitelister).updateWhitelist(sender.address, true)
-      ).to.revertedWithCustomError(vault, 'WhitelistAlreadyUpdated')
+      await expect(vault.connect(whitelister).updateWhitelist(sender.address, true)).to.not.emit(
+        vault,
+        'WhitelistUpdated'
+      )
     })
 
     it('can be updated by whitelister', async () => {
@@ -102,6 +103,7 @@ describe('EthVault - whitelist', () => {
     const amount = ethers.parseEther('1')
 
     beforeEach(async () => {
+      await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
       await vault.connect(admin).updateWhitelist(sender.address, true)
     })
 

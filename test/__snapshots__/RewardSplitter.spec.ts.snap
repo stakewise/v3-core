@@ -3,34 +3,34 @@
 exports[`RewardSplitter decrease shares owner can decrease shares 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 67101,
+  "gasUsed": 67079,
 }
 `;
 
 exports[`RewardSplitter increase shares owner can increase shares 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 78767,
+  "gasUsed": 78745,
 }
 `;
 
 exports[`RewardSplitter sync rewards anyone can sync rewards 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 73126,
+  "gasUsed": 73104,
 }
 `;
 
 exports[`RewardSplitter withdraw rewards can claim vault tokens for ERC-20 vault 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 78224,
+  "gasUsed": 78205,
 }
 `;
 
 exports[`RewardSplitter withdraw rewards can enter exit queue with multicall 1`] = `
 Object {
   "calldataByteLength": 612,
-  "gasUsed": 168565,
+  "gasUsed": 170678,
 }
 `;

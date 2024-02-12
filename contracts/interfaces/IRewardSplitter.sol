@@ -133,14 +133,6 @@ interface IRewardSplitter is IMulticall {
   ) external returns (uint256 positionTicket);
 
   /**
-   * @notice Redeems available assets from the vault
-   * @param rewards The amount of rewards to redeem
-   * @param receiver The address that will receive the redeemed assets
-   * @return assets The amount of assets that were redeemed
-   */
-  function redeem(uint256 rewards, address receiver) external returns (uint256 assets);
-
-  /**
    * @notice Syncs the rewards from the vault to the splitter. The vault state must be up-to-date.
    */
   function syncRewards() external;

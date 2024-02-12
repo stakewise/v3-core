@@ -178,7 +178,7 @@ describe('EthVault - register', () => {
       indexes = validators.map((v) => sortedVals.indexOf(v))
       const balance =
         validatorDeposit * BigInt(validators.length) +
-        (await vault.convertToAssets(await vault.queuedShares())) +
+        (await vault.totalExitingAssets()) +
         (await ethers.provider.getBalance(vaultAddr))
       await setBalance(vaultAddr, balance)
       signatures = getOraclesSignatures(

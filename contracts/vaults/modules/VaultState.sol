@@ -23,8 +23,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   uint128 internal _totalShares;
   uint128 internal _totalAssets;
 
-  /// @inheritdoc IVaultState
-  uint128 public override queuedShares;
+  uint128 internal _queuedShares;
   uint128 internal _unclaimedAssets;
 
   ExitQueue.History internal _exitQueue;
@@ -32,6 +31,10 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   mapping(address => uint256) internal _balances;
 
   uint256 private _capacity;
+
+  uint128 public override totalExitingAssets;
+  uint128 internal _totalExitingTickets;
+  uint256 internal _totalExitedTickets;
 
   /// @inheritdoc IVaultState
   function totalShares() external view override returns (uint256) {
@@ -74,7 +77,9 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     unchecked {
       // calculate assets that are reserved by users who queued for exit
       // cannot overflow as it is capped with underlying asset total supply
-      uint256 reservedAssets = convertToAssets(queuedShares) + _unclaimedAssets;
+      uint256 reservedAssets = convertToAssets(_queuedShares) +
+        totalExitingAssets +
+        _unclaimedAssets;
       return vaultAssets > reservedAssets ? vaultAssets - reservedAssets : 0;
     }
   }
@@ -106,11 +111,31 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     // SLOAD to memory
     uint256 newTotalAssets = _totalAssets;
     if (totalAssetsDelta < 0) {
-      // add penalty to total assets
-      newTotalAssets -= uint256(-totalAssetsDelta);
+      uint256 penalty = uint256(-totalAssetsDelta);
 
-      // update state
-      _totalAssets = SafeCast.toUint128(newTotalAssets);
+      // SLOAD to memory
+      uint256 _totalExitingAssets = totalExitingAssets;
+      // apply penalty to exiting assets
+      uint256 exitingAssetsPenalty = Math.mulDiv(
+        penalty,
+        _totalExitingAssets,
+        _totalExitingAssets + newTotalAssets
+      );
+
+      unchecked {
+        // cannot underflow as exitingAssetsPenalty <= penalty
+        penalty -= exitingAssetsPenalty;
+      }
+
+      // subtract penalty from total assets (excludes exiting assets)
+      if (penalty > 0) {
+        _totalAssets = SafeCast.toUint128(newTotalAssets - penalty);
+      }
+
+      // subtract penalty from total exiting assets
+      if (exitingAssetsPenalty > 0) {
+        totalExitingAssets = SafeCast.toUint128(_totalExitingAssets - exitingAssetsPenalty);
+      }
       return;
     }
 
@@ -157,14 +182,14 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
    */
   function _updateExitQueue() internal virtual returns (uint256 burnedShares) {
     // SLOAD to memory
-    uint256 _queuedShares = queuedShares;
-    if (_queuedShares == 0) return 0;
+    uint256 queuedShares = _queuedShares;
+    if (queuedShares == 0) return 0;
 
     // calculate the amount of assets that can be exited
     uint256 unclaimedAssets = _unclaimedAssets;
     uint256 exitedAssets = Math.min(
       _vaultAssets() - unclaimedAssets,
-      convertToAssets(_queuedShares)
+      convertToAssets(queuedShares)
     );
     if (exitedAssets == 0) return 0;
 
@@ -173,7 +198,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     if (burnedShares == 0) return 0;
 
     // update queued shares and unclaimed assets
-    queuedShares = SafeCast.toUint128(_queuedShares - burnedShares);
+    _queuedShares = SafeCast.toUint128(queuedShares - burnedShares);
     _unclaimedAssets = SafeCast.toUint128(unclaimedAssets + exitedAssets);
 
     // push checkpoint so that exited assets could be claimed
@@ -235,6 +260,30 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   }
 
   /**
+   * @dev Internal conversion function (from assets to exit tickets)
+   */
+  function _convertAssetsToExitTickets(uint256 assets) internal view returns (uint256 exitTickets) {
+    uint256 totalExitingTickets = _totalExitingTickets;
+    // Will revert if assets > 0, totalExitingTickets > 0 and totalExitingAssets = 0.
+    // That corresponds to a case where any asset would represent an infinite amount of tickets.
+    return
+      (assets == 0 || totalExitingTickets == 0)
+        ? assets
+        : Math.mulDiv(assets, totalExitingTickets, totalExitingAssets, Math.Rounding.Floor);
+  }
+
+  /**
+   * @dev Internal conversion function (from exit tickets to assets)
+   */
+  function _convertExitTicketsToAssets(uint256 exitTickets) internal view returns (uint256 assets) {
+    uint256 totalExitingTickets = _totalExitingTickets;
+    return
+      (totalExitingTickets == 0)
+        ? exitTickets
+        : Math.mulDiv(exitTickets, totalExitingAssets, totalExitingTickets);
+  }
+
+  /**
    * @dev Internal function for harvesting Vaults' new assets
    * @return The total assets delta after harvest
    * @return `true` when the rewards were harvested, `false` otherwise
@@ -261,9 +310,17 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   }
 
   /**
+   * @dev Initializes the VaultState contract V2
+   */
+  function __VaultState_initV2() internal onlyInitializing {
+    // set initial value for total exited tickets
+    _totalExitedTickets = _exitQueue.getLatestTotalTickets() + _queuedShares;
+  }
+
+  /**
    * @dev This empty reserved space is put in place to allow future versions to add new
    * variables without shifting down storage in the inheritance chain.
    * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
    */
-  uint256[50] private __gap;
+  uint256[48] private __gap;
 }

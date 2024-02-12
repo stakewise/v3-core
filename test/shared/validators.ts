@@ -4,7 +4,7 @@ import { ethers, network } from 'hardhat'
 import { Buffer } from 'buffer'
 import { BytesLike, Contract, ContractTransactionResponse, Signer } from 'ethers'
 import bls from 'bls-eth-wasm'
-import { EthVault, Keeper, EthFoxVault } from '../../typechain-types'
+import { EthVault, Keeper } from '../../typechain-types'
 import {
   EIP712Domain,
   KeeperUpdateExitSignaturesSig,
@@ -13,6 +13,7 @@ import {
   VALIDATORS_MIN_ORACLES,
 } from './constants'
 import { getOraclesSignatures } from './fixtures'
+import { VaultType } from './types'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -187,9 +188,7 @@ export function appendDepositData(
   return Buffer.concat([validator, DepositData.hashTreeRoot(depositData)])
 }
 
-export async function createEthValidatorsData(
-  vault: EthVault | EthFoxVault
-): Promise<EthValidatorsData> {
+export async function createEthValidatorsData(vault: VaultType): Promise<EthValidatorsData> {
   const validatorDeposit = ethers.parseEther('32')
   const validators = await createValidators(validatorDeposit, await vault.getAddress())
   const tree = StandardMerkleTree.of(
@@ -210,7 +209,7 @@ export async function getEthValidatorsSigningData(
   deadline: bigint,
   exitSignaturesIpfsHash: string,
   keeper: Keeper,
-  vault: EthVault | EthFoxVault,
+  vault: VaultType,
   validatorsRegistryRoot: BytesLike
 ) {
   return {
@@ -278,7 +277,7 @@ export function getValidatorsMultiProof(
 }
 
 export async function registerEthValidator(
-  vault: EthVault | EthFoxVault,
+  vault: VaultType,
   keeper: Keeper,
   validatorsRegistry: Contract,
   admin: Signer

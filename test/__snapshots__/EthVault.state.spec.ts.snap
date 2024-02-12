@@ -10,7 +10,14 @@ Object {
 exports[`EthVault - state applies penalty when delta is below zero 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 115144,
+  "gasUsed": 117653,
+}
+`;
+
+exports[`EthVault - state splits penalty between exiting assets and staking assets 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 107206,
 }
 `;
 

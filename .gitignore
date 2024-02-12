@@ -21,7 +21,7 @@ npm-debug.log
 
 # Hardhat
 cache
-artifacts
+/artifacts
 
 # Typechain
 /typechain-types

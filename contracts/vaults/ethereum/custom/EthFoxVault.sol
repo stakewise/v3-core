@@ -36,6 +36,8 @@ contract EthFoxVault is
   Multicall,
   IEthFoxVault
 {
+  uint8 private constant _version = 2;
+
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -62,7 +64,15 @@ contract EthFoxVault is
   }
 
   /// @inheritdoc IEthFoxVault
-  function initialize(bytes calldata params) external payable virtual override initializer {
+  function initialize(
+    bytes calldata params
+  ) external payable virtual override reinitializer(_version) {
+    // if admin is already set, it's an upgrade
+    if (admin != address(0)) {
+      __EthFoxVault_initV2();
+      return;
+    }
+    // initialize deployed vault
     EthFoxVaultInitParams memory initParams = abi.decode(params, (EthFoxVaultInitParams));
     __EthFoxVault_init(initParams);
     emit EthFoxVaultCreated(
@@ -93,14 +103,9 @@ contract EthFoxVault is
     uint256 userShares = _balances[user];
     if (userShares == 0) return;
 
-    if (_isCollateralized()) {
-      // send user shares to exit queue
-      _enterExitQueue(user, userShares, user);
-    } else {
-      // redeem user shares
-      _redeem(user, userShares, user);
-    }
-    emit UserEjected(user, userShares);
+    // send user shares to exit queue
+    _enterExitQueue(user, userShares, user);
+		emit UserEjected(user, userShares);
   }
 
   /**
@@ -118,7 +123,7 @@ contract EthFoxVault is
 
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
-    return 1;
+    return _version;
   }
 
   /**
@@ -135,6 +140,13 @@ contract EthFoxVault is
     // blocklist manager is initially set to admin address
     __VaultBlocklist_init(params.admin);
     __VaultEthStaking_init();
+  }
+
+  /**
+   * @dev Initializes the EthFoxVault V2 contract
+   */
+  function __EthFoxVault_initV2() internal onlyInitializing {
+    __VaultState_initV2();
   }
 
   /**

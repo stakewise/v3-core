@@ -7,10 +7,9 @@ import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {IOsTokenVaultController} from '../../interfaces/IOsTokenVaultController.sol';
 import {IOsTokenConfig} from '../../interfaces/IOsTokenConfig.sol';
 import {IVaultOsToken} from '../../interfaces/IVaultOsToken.sol';
-import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
-import {VaultEnterExit} from './VaultEnterExit.sol';
+import {VaultEnterExit, IVaultEnterExit} from './VaultEnterExit.sol';
 import {VaultState} from './VaultState.sol';
 
 /**
@@ -45,7 +44,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   }
 
   /// @inheritdoc IVaultOsToken
-  function osTokenPositions(address user) external view override returns (uint128 shares) {
+  function osTokenPositions(address user) public view override returns (uint128 shares) {
     OsTokenPosition memory position = _positions[user];
     if (position.shares != 0) _syncPositionFee(position);
     return position.shares;
@@ -56,7 +55,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     address receiver,
     uint256 osTokenShares,
     address referrer
-  ) external override returns (uint256 assets) {
+  ) public virtual override returns (uint256 assets) {
     _checkCollateralized();
     _checkHarvested();
 
@@ -143,15 +142,6 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
       false
     );
     emit OsTokenRedeemed(msg.sender, owner, receiver, osTokenShares, burnedShares, receivedAssets);
-  }
-
-  /// @inheritdoc IVaultEnterExit
-  function redeem(
-    uint256 shares,
-    address receiver
-  ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 assets) {
-    assets = super.redeem(shares, receiver);
-    _checkOsTokenPosition(msg.sender);
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -282,27 +272,40 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   }
 
   /**
-   * @notice Internal function for checking position validity. Reverts if it is invalid.
+   * @dev Internal function for retrieving the amount of locked shares for a given user.
+   *      Reverts if the vault is not harvested.
    * @param user The address of the user
+   * @return The amount of locked shares
    */
-  function _checkOsTokenPosition(address user) internal view {
-    // fetch user position
-    OsTokenPosition memory position = _positions[user];
-    if (position.shares == 0) return;
+  function _getLockedShares(address user) internal view returns (uint256) {
+    uint256 osTokenShares = osTokenPositions(user);
+    if (osTokenShares == 0) return 0;
+
+    // calculate locked assets
+    uint256 lockedAssets = Math.mulDiv(
+      _osTokenVaultController.convertToAssets(osTokenShares),
+      _maxPercent,
+      _osTokenConfig.ltvPercent()
+    );
+    if (lockedAssets == 0) return 0;
 
     // check whether vault assets are up to date
     _checkHarvested();
 
-    // sync fee
-    _syncPositionFee(position);
+    // convert to vault shares
+    return convertToShares(lockedAssets);
+  }
 
-    // calculate and validate position LTV
-    if (
-      Math.mulDiv(convertToAssets(_balances[user]), _osTokenConfig.ltvPercent(), _maxPercent) <
-      _osTokenVaultController.convertToAssets(position.shares)
-    ) {
-      revert Errors.LowLtv();
-    }
+  /**
+   * @notice Internal function for checking position validity
+   * @param user The address of the user
+   */
+  function _checkOsTokenPosition(address user) internal view {
+    uint256 lockedShares = _getLockedShares(user);
+    if (lockedShares == 0) return;
+
+    // validate position LTV
+    if (lockedShares > _balances[user]) revert Errors.LowLtv();
   }
 
   /**

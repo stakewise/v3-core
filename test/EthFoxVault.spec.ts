@@ -56,7 +56,7 @@ describe('EthFoxVault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(1)
+    expect(await vault.version()).to.eq(2)
   })
 
   describe('set blocklist manager', () => {
@@ -216,21 +216,6 @@ describe('EthFoxVault', () => {
         .withArgs(blocklistManager.address, other.address, true)
       expect(await vault.blockedAccounts(other.address)).to.eq(true)
       await expect(tx).to.not.emit(vault, 'ExitQueueEntered')
-      await expect(tx).to.not.emit(vault, 'Redeemed')
-      await snapshotGasCost(tx)
-    })
-
-    it('blocklist manager can eject all of the user assets for not collateralized vault', async () => {
-      const tx = await vault.connect(blocklistManager).ejectUser(sender.address)
-      await expect(tx)
-        .to.emit(vault, 'BlocklistUpdated')
-        .withArgs(blocklistManager.address, sender.address, true)
-      expect(await vault.blockedAccounts(sender.address)).to.eq(true)
-      await expect(tx)
-        .to.emit(vault, 'Redeemed')
-        .withArgs(sender.address, sender.address, senderAssets, senderShares)
-      await expect(tx).to.emit(vault, 'UserEjected').withArgs(sender.address, senderShares)
-      expect(await vault.getShares(sender.address)).to.eq(0)
       await snapshotGasCost(tx)
     })
 

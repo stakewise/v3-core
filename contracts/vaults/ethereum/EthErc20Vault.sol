@@ -3,9 +3,6 @@
 pragma solidity =0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
-import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
-import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
 import {IEthErc20Vault} from '../../interfaces/IEthErc20Vault.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
@@ -14,10 +11,10 @@ import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultAdmin} from '../modules/VaultAdmin.sol';
 import {VaultFee} from '../modules/VaultFee.sol';
-import {VaultVersion} from '../modules/VaultVersion.sol';
+import {VaultVersion, IVaultVersion} from '../modules/VaultVersion.sol';
 import {VaultImmutables} from '../modules/VaultImmutables.sol';
 import {VaultState} from '../modules/VaultState.sol';
-import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
+import {VaultEnterExit, IVaultEnterExit} from '../modules/VaultEnterExit.sol';
 import {VaultOsToken} from '../modules/VaultOsToken.sol';
 import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
 import {VaultMev} from '../modules/VaultMev.sol';
@@ -44,6 +41,8 @@ contract EthErc20Vault is
   Multicall,
   IEthErc20Vault
 {
+  uint8 private constant _version = 2;
+
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -75,7 +74,15 @@ contract EthErc20Vault is
   }
 
   /// @inheritdoc IEthErc20Vault
-  function initialize(bytes calldata params) external payable virtual override initializer {
+  function initialize(
+    bytes calldata params
+  ) external payable virtual override reinitializer(_version) {
+    // if admin is already set, it's an upgrade
+    if (admin != address(0)) {
+      __EthErc20Vault_initV2();
+      return;
+    }
+    // initialize deployed vault
     __EthErc20Vault_init(
       IEthVaultFactory(msg.sender).vaultAdmin(),
       IEthVaultFactory(msg.sender).ownMevEscrow(),
@@ -105,19 +112,6 @@ contract EthErc20Vault is
   }
 
   /// @inheritdoc IVaultEnterExit
-  function redeem(
-    uint256 shares,
-    address receiver
-  )
-    public
-    virtual
-    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
-    returns (uint256 assets)
-  {
-    return super.redeem(shares, receiver);
-  }
-
-  /// @inheritdoc IVaultEnterExit
   function enterExitQueue(
     uint256 shares,
     address receiver
@@ -127,8 +121,7 @@ contract EthErc20Vault is
     override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
     returns (uint256 positionTicket)
   {
-    positionTicket = super.enterExitQueue(shares, receiver);
-    emit Transfer(msg.sender, address(this), shares);
+    return super.enterExitQueue(shares, receiver);
   }
 
   /// @inheritdoc IVaultVersion
@@ -138,17 +131,7 @@ contract EthErc20Vault is
 
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
-    return 1;
-  }
-
-  /// @inheritdoc VaultState
-  function _updateExitQueue()
-    internal
-    virtual
-    override(VaultState, VaultToken)
-    returns (uint256 burnedShares)
-  {
-    return super._updateExitQueue();
+    return _version;
   }
 
   /// @inheritdoc VaultState
@@ -186,6 +169,13 @@ contract EthErc20Vault is
     __VaultMev_init(ownMevEscrow);
     __VaultToken_init(params.name, params.symbol);
     __VaultEthStaking_init();
+  }
+
+  /**
+   * @dev Initializes the EthErc20Vault V2 contract
+   */
+  function __EthErc20Vault_initV2() internal onlyInitializing {
+    __VaultState_initV2();
   }
 
   /**
