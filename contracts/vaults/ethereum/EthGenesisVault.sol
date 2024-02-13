@@ -45,7 +45,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param poolEscrow The address of the pool escrow from StakeWise v2
    * @param rewardEthToken The address of the rETH2 token from StakeWise v2
-   * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
+   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(

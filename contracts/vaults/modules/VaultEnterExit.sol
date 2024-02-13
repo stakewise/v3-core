@@ -27,7 +27,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
+   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(uint256 exitingAssetsClaimDelay) {
