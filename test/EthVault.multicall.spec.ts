@@ -144,7 +144,7 @@ describe('EthVault - multicall', () => {
     receipt = await vault.connect(sender).multicall(calls)
     await expect(receipt)
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(sender.address, 0, userAssets - 1n) // 1 wei is left in the vault
+      .withArgs(sender.address, queueTicket, 0, userAssets - 1n) // 1 wei is left in the vault
     await snapshotGasCost(receipt)
   })
 

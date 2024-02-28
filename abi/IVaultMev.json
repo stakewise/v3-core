@@ -217,6 +217,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "queuedShares",
+    "outputs": [
+      {
+        "internalType": "uint128",
+        "name": "",
+        "type": "uint128"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",

@@ -6,7 +6,7 @@ import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
-import {IPoolEscrow} from '../../interfaces/IPoolEscrow.sol';
+import {IEthPoolEscrow} from '../../interfaces/IEthPoolEscrow.sol';
 import {IEthGenesisVault} from '../../interfaces/IEthGenesisVault.sol';
 import {IRewardEthToken} from '../../interfaces/IRewardEthToken.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
@@ -26,7 +26,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   uint8 private constant _version = 2;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IPoolEscrow private immutable _poolEscrow;
+  IEthPoolEscrow private immutable _poolEscrow;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IRewardEthToken private immutable _rewardEthToken;
@@ -69,7 +69,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       exitingAssetsClaimDelay
     )
   {
-    _poolEscrow = IPoolEscrow(poolEscrow);
+    _poolEscrow = IEthPoolEscrow(poolEscrow);
     _rewardEthToken = IRewardEthToken(rewardEthToken);
   }
 
@@ -131,31 +131,8 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       }
     }
 
-    // fetch total assets controlled by legacy pool
-    uint256 legacyPrincipal = _rewardEthToken.totalAssets() - _rewardEthToken.totalPenalty();
-
-    // calculate total principal
-    uint256 totalPrincipal = _totalAssets + legacyPrincipal;
-    if (totalAssetsDelta < 0) {
-      // calculate and update penalty for legacy pool
-      int256 legacyPenalty = SafeCast.toInt256(
-        Math.mulDiv(uint256(-totalAssetsDelta), legacyPrincipal, totalPrincipal)
-      );
-      _rewardEthToken.updateTotalRewards(-legacyPenalty);
-      // deduct penalty from total assets delta
-      totalAssetsDelta += legacyPenalty;
-    } else {
-      // calculate and update reward for legacy pool
-      int256 legacyReward = SafeCast.toInt256(
-        Math.mulDiv(uint256(totalAssetsDelta), legacyPrincipal, totalPrincipal)
-      );
-      _rewardEthToken.updateTotalRewards(legacyReward);
-      // deduct reward from total assets delta
-      totalAssetsDelta -= legacyReward;
-    }
-
-    // process total assets delta if it has changed
-    if (totalAssetsDelta != 0) _processTotalAssetsDelta(totalAssetsDelta);
+    // process total assets delta
+    _processTotalAssetsDelta(totalAssetsDelta);
 
     // update exit queue every time new update is harvested
     if (harvested) _updateExitQueue();
@@ -189,6 +166,43 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     if (msg.sender != address(_poolEscrow)) {
       _deposit(msg.sender, msg.value, address(0));
     }
+  }
+
+  /// @inheritdoc VaultState
+  function _processTotalAssetsDelta(int256 totalAssetsDelta) internal override {
+    // skip processing if there is no change in assets
+    if (totalAssetsDelta == 0) return;
+
+    // fetch total assets controlled by legacy pool
+    uint256 legacyPrincipal = _rewardEthToken.totalAssets() - _rewardEthToken.totalPenalty();
+    if (legacyPrincipal == 0) {
+      // legacy pool has no assets, process total assets delta as usual
+      super._processTotalAssetsDelta(totalAssetsDelta);
+      return;
+    }
+
+    // calculate total principal
+    uint256 totalPrincipal = _totalAssets + legacyPrincipal;
+    if (totalAssetsDelta < 0) {
+      // calculate and update penalty for legacy pool
+      int256 legacyPenalty = SafeCast.toInt256(
+        Math.mulDiv(uint256(-totalAssetsDelta), legacyPrincipal, totalPrincipal)
+      );
+      _rewardEthToken.updateTotalRewards(-legacyPenalty);
+      // deduct penalty from total assets delta
+      totalAssetsDelta += legacyPenalty;
+    } else {
+      // calculate and update reward for legacy pool
+      int256 legacyReward = SafeCast.toInt256(
+        Math.mulDiv(uint256(totalAssetsDelta), legacyPrincipal, totalPrincipal)
+      );
+      _rewardEthToken.updateTotalRewards(legacyReward);
+      // deduct reward from total assets delta
+      totalAssetsDelta -= legacyReward;
+    }
+
+    // process total assets delta
+    super._processTotalAssetsDelta(totalAssetsDelta);
   }
 
   /// @inheritdoc VaultEnterExit

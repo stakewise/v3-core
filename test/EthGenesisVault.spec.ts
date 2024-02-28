@@ -253,7 +253,9 @@ describe('EthGenesisVault', () => {
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
       .withArgs(vaultAddr, vaultAddr, poolEscrowBalance + vaultBalance)
-    await expect(tx).to.emit(vault, 'ExitedAssetsClaimed').withArgs(other.address, 0, assets)
+    await expect(tx)
+      .to.emit(vault, 'ExitedAssetsClaimed')
+      .withArgs(other.address, positionTicket, 0, assets)
     expect(await ethers.provider.getBalance(await poolEscrow.getAddress())).to.eq(0)
     await snapshotGasCost(tx)
   })
@@ -386,6 +388,32 @@ describe('EthGenesisVault', () => {
 
       expect(await rewardEthToken.totalAssets()).to.eq(totalLegacyAssets + expectedLegacyDelta)
       expect(await vault.totalAssets()).to.eq(totalVaultAssets + expectedVaultDelta)
+      await snapshotGasCost(receipt)
+    })
+
+    it('skips updating legacy with zero total assets', async () => {
+      await acceptPoolEscrowOwnership()
+      await rewardEthToken.setTotalStaked(0n)
+      await rewardEthToken.setTotalRewards(0n)
+      await rewardEthToken.setTotalPenalty(0n)
+
+      const reward = ethers.parseEther('5')
+      const unlockedMevReward = 0n
+
+      const vaultReward = getHarvestParams(await vault.getAddress(), reward, unlockedMevReward)
+      const rewardsTree = await updateRewards(keeper, [vaultReward])
+      const proof = getRewardsRootProof(rewardsTree, vaultReward)
+
+      const totalLegacyAssetsBefore = await rewardEthToken.totalAssets()
+      const totalVaultAssetsBefore = await vault.totalAssets()
+      const receipt = await vault.updateState({
+        rewardsRoot: rewardsTree.root,
+        reward: vaultReward.reward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
+        proof,
+      })
+      expect(await rewardEthToken.totalAssets()).to.eq(totalLegacyAssetsBefore)
+      expect(await vault.totalAssets()).to.eq(totalVaultAssetsBefore + reward)
       await snapshotGasCost(receipt)
     })
 

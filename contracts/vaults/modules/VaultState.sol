@@ -23,7 +23,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   uint128 internal _totalShares;
   uint128 internal _totalAssets;
 
-  uint128 internal _queuedShares;
+  uint128 public override queuedShares;
   uint128 internal _unclaimedAssets;
 
   ExitQueue.History internal _exitQueue;
@@ -77,7 +77,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     unchecked {
       // calculate assets that are reserved by users who queued for exit
       // cannot overflow as it is capped with underlying asset total supply
-      uint256 reservedAssets = convertToAssets(_queuedShares) +
+      uint256 reservedAssets = convertToAssets(queuedShares) +
         totalExitingAssets +
         _unclaimedAssets;
       return vaultAssets > reservedAssets ? vaultAssets - reservedAssets : 0;
@@ -97,7 +97,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
 
     // process total assets delta if it has changed
-    if (totalAssetsDelta != 0) _processTotalAssetsDelta(totalAssetsDelta);
+    _processTotalAssetsDelta(totalAssetsDelta);
 
     // update exit queue every time new update is harvested
     if (harvested) _updateExitQueue();
@@ -107,7 +107,10 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
    * @dev Internal function for processing rewards and penalties
    * @param totalAssetsDelta The number of assets earned or lost
    */
-  function _processTotalAssetsDelta(int256 totalAssetsDelta) internal {
+  function _processTotalAssetsDelta(int256 totalAssetsDelta) internal virtual {
+    // skip processing if there is no change in assets
+    if (totalAssetsDelta == 0) return;
+
     // SLOAD to memory
     uint256 newTotalAssets = _totalAssets;
     if (totalAssetsDelta < 0) {
@@ -182,14 +185,14 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
    */
   function _updateExitQueue() internal virtual returns (uint256 burnedShares) {
     // SLOAD to memory
-    uint256 queuedShares = _queuedShares;
-    if (queuedShares == 0) return 0;
+    uint256 _queuedShares = queuedShares;
+    if (_queuedShares == 0) return 0;
 
     // calculate the amount of assets that can be exited
     uint256 unclaimedAssets = _unclaimedAssets;
     uint256 exitedAssets = Math.min(
       _vaultAssets() - unclaimedAssets,
-      convertToAssets(queuedShares)
+      convertToAssets(_queuedShares)
     );
     if (exitedAssets == 0) return 0;
 
@@ -198,7 +201,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     if (burnedShares == 0) return 0;
 
     // update queued shares and unclaimed assets
-    _queuedShares = SafeCast.toUint128(queuedShares - burnedShares);
+    queuedShares = SafeCast.toUint128(_queuedShares - burnedShares);
     _unclaimedAssets = SafeCast.toUint128(unclaimedAssets + exitedAssets);
 
     // push checkpoint so that exited assets could be claimed
@@ -314,7 +317,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
    */
   function __VaultState_initV2() internal onlyInitializing {
     // set initial value for total exited tickets
-    _totalExitedTickets = _exitQueue.getLatestTotalTickets() + _queuedShares;
+    _totalExitedTickets = _exitQueue.getLatestTotalTickets() + queuedShares;
   }
 
   /**

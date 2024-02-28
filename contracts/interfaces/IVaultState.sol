@@ -27,6 +27,12 @@ interface IVaultState is IVaultFee {
   event FeeSharesMinted(address receiver, uint256 shares, uint256 assets);
 
   /**
+   * @notice Queued Shares
+   * @return The total number of shares queued for exit
+   */
+  function queuedShares() external view returns (uint128);
+
+  /**
    * @notice Total assets in the Vault
    * @return The total amount of the underlying asset that is "managed" by Vault
    */

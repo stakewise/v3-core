@@ -147,7 +147,7 @@ describe('EthVault - withdraw', () => {
     const balanceBefore = await ethers.provider.getBalance(holderV2.address)
     await expect(vault.connect(holderV2).claimExitedAssets(positionTicket, timestamp, 0n))
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(holderV2.address, 0n, holderV2Assets)
+      .withArgs(holderV2.address, positionTicket, 0n, holderV2Assets)
     expect(await ethers.provider.getBalance(holderV2.address)).to.be.greaterThan(
       balanceBefore + holderV2Assets - parseEther('0.0001') // gas
     )
@@ -688,10 +688,10 @@ describe('EthVault - withdraw', () => {
           )
       )
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holderV1.address, 0n, holderV1Assets)
+        .withArgs(holderV1.address, positionTicketV1, 0n, holderV1Assets)
       await expect(vault.connect(holderV2).claimExitedAssets(positionTicketV2, timestampV2, 0n))
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holderV2.address, 0n, halfHolderV2Assets + halfSecurityDeposit)
+        .withArgs(holderV2.address, positionTicketV2, 0n, halfHolderV2Assets + halfSecurityDeposit)
       expect(await vault.totalExitingAssets()).to.be.eq(0)
     })
 
@@ -736,7 +736,7 @@ describe('EthVault - withdraw', () => {
           )
       )
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holderV2.address, 0n, halfHolderV2Assets)
+        .withArgs(holderV2.address, positionTicket, 0n, halfHolderV2Assets)
       expect(await vault.totalExitingAssets()).to.be.eq(0)
     })
 
@@ -751,7 +751,7 @@ describe('EthVault - withdraw', () => {
         .claimExitedAssets(positionTicketV1, timestampV1, checkpointIndex)
       await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holderV1.address, 0, holderV1Assets)
+        .withArgs(holderV1.address, positionTicketV1, 0, holderV1Assets)
       const tx = (await receipt.wait()) as any
       const gasUsed = BigInt(tx.cumulativeGasUsed * tx.gasPrice)
       expect(await ethers.provider.getBalance(holderV1.address)).to.be.eq(
@@ -788,7 +788,7 @@ describe('EthVault - withdraw', () => {
 
       await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holderV1.address, 0, holderV1Assets)
+        .withArgs(holderV1.address, positionTicketV1, 0, holderV1Assets)
 
       const tx = (await receipt.wait()) as any
       const gasUsed = BigInt(tx.cumulativeGasUsed * tx.gasPrice)
@@ -820,7 +820,7 @@ describe('EthVault - withdraw', () => {
       const newPositionTicket = validatorDeposit + halfHolderShares
       await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holderV1.address, newPositionTicket, halfHolderAssets)
+        .withArgs(holderV1.address, positionTicketV1, newPositionTicket, halfHolderAssets)
 
       let tx = (await receipt.wait()) as any
       let gasUsed = BigInt(tx.cumulativeGasUsed * tx.gasPrice)
@@ -846,7 +846,7 @@ describe('EthVault - withdraw', () => {
         .claimExitedAssets(newPositionTicket, timestampV1, newCheckpointIndex)
       await expect(receipt)
         .to.emit(vault, 'ExitedAssetsClaimed')
-        .withArgs(holderV1.address, 0, halfHolderAssets)
+        .withArgs(holderV1.address, newPositionTicket, 0, halfHolderAssets)
 
       tx = (await receipt.wait()) as any
       gasUsed += BigInt(tx.cumulativeGasUsed * tx.gasPrice)
@@ -1208,7 +1208,7 @@ describe('EthVault - withdraw', () => {
       vault.connect(bob).claimExitedAssets(bobPositionTicket, bobTimestamp, bobCheckpointIdx)
     )
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(bob.address, bobPositionTicket + 3779n, 3779n)
+      .withArgs(bob.address, bobPositionTicket, bobPositionTicket + 3779n, 3779n)
 
     bobPositionTicket += 3779n
     vaultLiquidAssets -= 3779n
@@ -1223,7 +1223,7 @@ describe('EthVault - withdraw', () => {
         .claimExitedAssets(alicePositionTicket, aliceTimestamp, aliceCheckpointIdx)
     )
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(alice.address, 0n, 1821)
+      .withArgs(alice.address, alicePositionTicket, 0n, 1821)
 
     vaultLiquidAssets -= 1821n
     totalExitingAssets -= 1821n
@@ -1258,7 +1258,7 @@ describe('EthVault - withdraw', () => {
       vault.connect(bob).claimExitedAssets(bobPositionTicket, bobTimestamp, bobCheckpointIdx)
     )
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(bob.address, 0, 4221)
+      .withArgs(bob.address, bobPositionTicket, 0, 4221)
 
     vaultLiquidAssets -= 4221n
     totalExitingAssets -= 4221n
@@ -1272,7 +1272,7 @@ describe('EthVault - withdraw', () => {
         .claimExitedAssets(alicePositionTicket, aliceTimestamp, aliceCheckpointIdx)
     )
       .to.emit(vault, 'ExitedAssetsClaimed')
-      .withArgs(alice.address, 0, 6824)
+      .withArgs(alice.address, alicePositionTicket, 0, 6824)
     vaultLiquidAssets -= 6824n
     totalExitingAssets -= 6824n
     await checkVaultState()

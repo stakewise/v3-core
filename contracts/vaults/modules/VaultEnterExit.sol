@@ -36,7 +36,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
 
   /// @inheritdoc IVaultEnterExit
   function getExitQueueIndex(uint256 positionTicket) external view override returns (int256) {
-    if (_exitQueue.isV1Position(_queuedShares, positionTicket)) {
+    if (_exitQueue.isV1Position(queuedShares, positionTicket)) {
       uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionTicket);
       return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
     }
@@ -71,7 +71,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     if (exitingTickets == 0) return (0, 0, 0);
     if (block.timestamp < timestamp + _exitingAssetsClaimDelay) return (exitingTickets, 0, 0);
 
-    if (_exitQueue.isV1Position(_queuedShares, positionTicket)) {
+    if (_exitQueue.isV1Position(queuedShares, positionTicket)) {
       // calculate exited assets in V1 exit queue
       (exitedTickets, exitedAssets) = _exitQueue.calculateExitedAssets(
         exitQueueIndex,
@@ -100,7 +100,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     );
     if (exitedTickets == 0 || exitedAssets == 0) revert Errors.ExitRequestNotProcessed();
 
-    if (_exitQueue.isV1Position(_queuedShares, positionTicket)) {
+    if (_exitQueue.isV1Position(queuedShares, positionTicket)) {
       // update unclaimed assets
       _unclaimedAssets -= SafeCast.toUint128(exitedAssets);
     } else {
@@ -126,7 +126,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
 
     // transfer assets to the receiver
     _transferVaultAssets(msg.sender, exitedAssets);
-    emit ExitedAssetsClaimed(msg.sender, newPositionTicket, exitedAssets);
+    emit ExitedAssetsClaimed(msg.sender, positionTicket, newPositionTicket, exitedAssets);
   }
 
   function _calculateExitedTickets(
@@ -231,7 +231,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   function _getTotalExitableTickets() private view returns (uint256) {
     // calculate available assets
     uint256 availableAssets = _vaultAssets() - _unclaimedAssets;
-    uint256 queuedAssets = convertToAssets(_queuedShares);
+    uint256 queuedAssets = convertToAssets(queuedShares);
     if (queuedAssets > 0) {
       unchecked {
         // cannot underflow as availableAssets >= queuedV1Assets
