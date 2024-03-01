@@ -13,7 +13,7 @@ import {
   VALIDATORS_MIN_ORACLES,
 } from './constants'
 import { getOraclesSignatures } from './fixtures'
-import { VaultType } from './types'
+import { EthVaultType } from './types'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -144,11 +144,10 @@ export function getWithdrawalCredentials(vaultAddress: string): Buffer {
 
 export async function createValidators(
   depositAmount: bigint,
-  vaultAddress: string
+  withdrawalCredentials: Buffer
 ): Promise<Buffer[]> {
   await bls.init(bls.BLS12_381)
 
-  const withdrawalCredentials = getWithdrawalCredentials(vaultAddress)
   const validators: Buffer[] = []
   for (let i = 0; i < secretKeys.length; i++) {
     const secretKey = new bls.SecretKey()
@@ -188,9 +187,15 @@ export function appendDepositData(
   return Buffer.concat([validator, DepositData.hashTreeRoot(depositData)])
 }
 
-export async function createEthValidatorsData(vault: VaultType): Promise<EthValidatorsData> {
+export async function createEthValidatorsData(
+  vault: EthVaultType,
+  genesisVaultPoolEscrow: string | null = null
+): Promise<EthValidatorsData> {
   const validatorDeposit = ethers.parseEther('32')
-  const validators = await createValidators(validatorDeposit, await vault.getAddress())
+  const withdrawalCredentials = getWithdrawalCredentials(
+    genesisVaultPoolEscrow !== null ? genesisVaultPoolEscrow : await vault.getAddress()
+  )
+  const validators = await createValidators(validatorDeposit, withdrawalCredentials)
   const tree = StandardMerkleTree.of(
     validators.map((v, i) => [v, i]),
     ['bytes', 'uint256']
@@ -209,7 +214,7 @@ export async function getEthValidatorsSigningData(
   deadline: bigint,
   exitSignaturesIpfsHash: string,
   keeper: Keeper,
-  vault: VaultType,
+  vault: EthVaultType,
   validatorsRegistryRoot: BytesLike
 ) {
   return {
@@ -277,12 +282,13 @@ export function getValidatorsMultiProof(
 }
 
 export async function registerEthValidator(
-  vault: VaultType,
+  vault: EthVaultType,
   keeper: Keeper,
   validatorsRegistry: Contract,
-  admin: Signer
+  admin: Signer,
+  genesisVaultPoolEscrow: string | null = null
 ): Promise<ContractTransactionResponse> {
-  const validatorsData = await createEthValidatorsData(vault)
+  const validatorsData = await createEthValidatorsData(vault, genesisVaultPoolEscrow)
   const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
   await vault.connect(admin).setValidatorsRoot(validatorsData.root)
   const validator = validatorsData.validators[0]

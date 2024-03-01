@@ -21,7 +21,7 @@ export type EthErc20VaultInitParamsStruct = {
   metadataIpfsHash: string
 }
 
-export type VaultType =
+export type EthVaultType =
   | EthVault
   | EthPrivVault
   | EthErc20Vault

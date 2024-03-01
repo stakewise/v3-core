@@ -96,30 +96,6 @@ contract EthBlocklistVault is Initializable, EthVault, VaultBlocklist, IEthBlock
     return super.mintOsToken(receiver, osTokenShares, referrer);
   }
 
-  /// @inheritdoc IEthBlocklistVault
-  function ejectUser(address user) external override {
-    // add user to blocklist
-    updateBlocklist(user, true);
-
-    // fetch shares of the user
-    uint256 userShares = _balances[user];
-    if (userShares == 0) return;
-
-    // calculated shares that are locked due to minted osToken
-    uint256 lockedShares = _getLockedShares(user);
-    if (lockedShares >= userShares) return;
-
-    // calculate shares to eject
-    uint256 ejectedShares;
-    unchecked {
-      // cannot underflow as lockedShares < userShares
-      ejectedShares = userShares - lockedShares;
-    }
-
-    // eject shares that are not locked
-    _enterExitQueue(user, ejectedShares, user);
-  }
-
   /// @inheritdoc IVaultVersion
   function vaultId() public pure virtual override(IVaultVersion, EthVault) returns (bytes32) {
     return keccak256('EthBlocklistVault');

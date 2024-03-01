@@ -7,7 +7,7 @@ import EthPrivErc20VaultV1 from './artifacts/EthPrivErc20Vault.json'
 import EthPrivVaultV1 from './artifacts/EthPrivVault.json'
 import EthGenesisVaultV1 from './artifacts/EthGenesisVault.json'
 
-export async function getValidatorsRegistryFactory(): Promise<ContractFactory> {
+export async function getEthValidatorsRegistryFactory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthValidatorsRegistry.abi, EthValidatorsRegistry.bytecode)
 }
 

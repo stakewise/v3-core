@@ -210,7 +210,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     address receiver,
     uint256 assets
   ) internal virtual override(VaultEnterExit, VaultEthStaking) {
-    if (assets > super._vaultAssets()) _pullAssets();
+    if (assets > super._vaultAssets()) _pullWithdrawals();
     return super._transferVaultAssets(receiver, assets);
   }
 
@@ -232,7 +232,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   function _registerSingleValidator(
     bytes calldata validator
   ) internal virtual override(VaultValidators, VaultEthStaking) {
-    _pullAssets();
+    _pullWithdrawals();
     super._registerSingleValidator(validator);
   }
 
@@ -241,16 +241,21 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     bytes calldata validators,
     uint256[] calldata indexes
   ) internal virtual override(VaultValidators, VaultEthStaking) returns (bytes32[] memory leaves) {
-    _pullAssets();
+    _pullWithdrawals();
     return super._registerMultipleValidators(validators, indexes);
   }
 
   /**
    * @dev Pulls assets from pool escrow
    */
-  function _pullAssets() private {
+  function _pullWithdrawals() private {
     uint256 escrowBalance = address(_poolEscrow).balance;
     if (escrowBalance != 0) _poolEscrow.withdraw(payable(this), escrowBalance);
+  }
+
+  /// @inheritdoc VaultValidators
+  function _withdrawalCredentials() internal view override returns (bytes memory) {
+    return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(_poolEscrow));
   }
 
   /**

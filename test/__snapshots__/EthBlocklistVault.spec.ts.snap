@@ -3,7 +3,7 @@
 exports[`EthBlocklistVault deposit can be called by not blocked user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 69078,
+  "gasUsed": 69056,
 }
 `;
 
@@ -11,34 +11,6 @@ exports[`EthBlocklistVault deposit deposit through receive fallback can be calle
 Object {
   "calldataByteLength": 4,
   "gasUsed": 76519,
-}
-`;
-
-exports[`EthBlocklistVault ejecting user blocklist manager can eject all of the user assets 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 118535,
-}
-`;
-
-exports[`EthBlocklistVault ejecting user blocklist manager can eject some of the user assets 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 144812,
-}
-`;
-
-exports[`EthBlocklistVault ejecting user does not fail for user with no osToken shares 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 118535,
-}
-`;
-
-exports[`EthBlocklistVault ejecting user does not fail for user with no vault shares 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 55884,
 }
 `;
 

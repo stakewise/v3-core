@@ -17,7 +17,7 @@ import {
   deployEthVaultV1,
   encodeEthVaultInitParams,
   ethVaultFixture,
-  upgradeVaultToV2,
+  upgradeVault,
 } from './shared/fixtures'
 import { expect } from './shared/expect'
 import {
@@ -108,7 +108,7 @@ describe('EthVault - withdraw', () => {
     positionTicketV1 = await extractExitPositionTicket(tx)
     timestampV1 = await getBlockTimestamp(tx)
 
-    await upgradeVaultToV2(vaultV1, vaultImpl)
+    await upgradeVault(vaultV1, vaultImpl)
     vault = EthVault__factory.connect(await vaultV1.getAddress(), admin)
     expect(await vault.version()).to.be.eq(2)
 

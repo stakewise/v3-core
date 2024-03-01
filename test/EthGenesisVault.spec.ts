@@ -1,6 +1,6 @@
 import { ethers } from 'hardhat'
 import { Contract, Signer, Wallet } from 'ethers'
-import { EthGenesisVault, Keeper, PoolEscrowMock, RewardEthTokenMock } from '../typechain-types'
+import { EthGenesisVault, Keeper, PoolEscrowMock, LegacyRewardTokenMock } from '../typechain-types'
 import { createDepositorMock, ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
 import keccak256 from 'keccak256'
@@ -45,7 +45,7 @@ describe('EthGenesisVault', () => {
   let admin: Signer, other: Wallet
   let vault: EthGenesisVault, keeper: Keeper, validatorsRegistry: Contract
   let poolEscrow: PoolEscrowMock
-  let rewardEthToken: RewardEthTokenMock
+  let rewardEthToken: LegacyRewardTokenMock
 
   let createGenesisVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthGenesisVault']
 
@@ -56,7 +56,13 @@ describe('EthGenesisVault', () => {
 
   async function collatEthVault() {
     if (MAINNET_FORK.enabled) return
-    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+    await collateralizeEthVault(
+      vault,
+      keeper,
+      validatorsRegistry,
+      admin,
+      await poolEscrow.getAddress()
+    )
   }
 
   beforeEach('deploy fixtures', async () => {
@@ -215,7 +221,7 @@ describe('EthGenesisVault', () => {
     })
   })
 
-  it('pulls assets on claim exited assets', async () => {
+  it('pulls withdrawals on claim exited assets', async () => {
     await acceptPoolEscrowOwnership()
     await collatEthVault()
 
@@ -260,7 +266,7 @@ describe('EthGenesisVault', () => {
     await snapshotGasCost(tx)
   })
 
-  it('pulls assets on single validator registration', async () => {
+  it('pulls withdrawals on single validator registration', async () => {
     await acceptPoolEscrowOwnership()
     await collatEthVault()
     const validatorDeposit = ethers.parseEther('32')
@@ -272,17 +278,17 @@ describe('EthGenesisVault', () => {
     await setBalance(vaultAddr, 0n)
     await setBalance(poolEscrowAddr, validatorDeposit + vaultBalance + poolEscrowBalance)
     expect(await vault.withdrawableAssets()).to.be.greaterThanOrEqual(validatorDeposit)
-    const tx = await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+    const tx = await registerEthValidator(vault, keeper, validatorsRegistry, admin, poolEscrowAddr)
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
       .withArgs(vaultAddr, vaultAddr, validatorDeposit + vaultBalance + poolEscrowBalance)
     await snapshotGasCost(tx)
   })
 
-  it('pulls assets on multiple validators registration', async () => {
+  it('pulls withdrawals on multiple validators registration', async () => {
     await acceptPoolEscrowOwnership()
     await collatEthVault()
-    const validatorsData = await createEthValidatorsData(vault)
+    const validatorsData = await createEthValidatorsData(vault, await poolEscrow.getAddress())
     const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(admin).setValidatorsRoot(validatorsData.root)
     const proof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators, [

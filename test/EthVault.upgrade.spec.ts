@@ -15,7 +15,7 @@ import {
 import snapshotGasCost from './shared/snapshotGasCost'
 import {
   deployEthVaultV1,
-  deployVaultImplementation,
+  deployEthVaultImplementation,
   encodeEthErc20VaultInitParams,
   encodeEthVaultInitParams,
   ethVaultFixture,
@@ -82,7 +82,7 @@ describe('EthVault - upgrade', () => {
     })
     admin = await ethers.getImpersonatedSigner(await vault.admin())
 
-    mockImpl = await deployVaultImplementation(
+    mockImpl = await deployEthVaultImplementation(
       'EthVaultV3Mock',
       fixture.keeper,
       fixture.vaultsRegistry,
@@ -131,7 +131,7 @@ describe('EthVault - upgrade', () => {
   })
 
   it('fails for implementation with different vault id', async () => {
-    const newImpl = await deployVaultImplementation(
+    const newImpl = await deployEthVaultImplementation(
       'EthPrivVaultV3Mock',
       fixture.keeper,
       fixture.vaultsRegistry,
@@ -150,7 +150,7 @@ describe('EthVault - upgrade', () => {
   })
 
   it('fails for implementation with too high version', async () => {
-    const newImpl = await deployVaultImplementation(
+    const newImpl = await deployEthVaultImplementation(
       'EthVaultV4Mock',
       fixture.keeper,
       fixture.vaultsRegistry,

@@ -22,7 +22,7 @@ import {
 } from './utils'
 import { getOraclesSignatures } from './fixtures'
 import { MAINNET_FORK } from '../../helpers/constants'
-import { VaultType } from './types'
+import { EthVaultType } from './types'
 
 export type RewardsTree = StandardMerkleTree<[string, bigint, bigint]>
 
@@ -180,10 +180,11 @@ export async function collateralizeEthV1Vault(
 }
 
 export async function collateralizeEthVault(
-  vault: VaultType,
+  vault: EthVaultType,
   keeper: Keeper,
   validatorsRegistry: Contract,
-  admin: Signer
+  admin: Signer,
+  genesisVaultPoolEscrow: string | null = null
 ) {
   const vaultAddress = await vault.getAddress()
   const balanceBefore = await ethers.provider.getBalance(vaultAddress)
@@ -195,7 +196,7 @@ export async function collateralizeEthVault(
     .connect(admin)
     .deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
   const receivedShares = await extractDepositShares(tx)
-  await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+  await registerEthValidator(vault, keeper, validatorsRegistry, admin, genesisVaultPoolEscrow)
 
   // exit validator
   const response = await vault.connect(admin).enterExitQueue(receivedShares, adminAddr)

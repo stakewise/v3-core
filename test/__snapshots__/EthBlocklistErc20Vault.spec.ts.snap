@@ -3,7 +3,7 @@
 exports[`EthBlocklistErc20Vault deposit can be called by not blocked user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 71171,
+  "gasUsed": 71149,
 }
 `;
 
@@ -11,34 +11,6 @@ exports[`EthBlocklistErc20Vault deposit deposit through receive fallback can be 
 Object {
   "calldataByteLength": 4,
   "gasUsed": 78315,
-}
-`;
-
-exports[`EthBlocklistErc20Vault ejecting user blocklist manager can eject all of the user assets 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 120550,
-}
-`;
-
-exports[`EthBlocklistErc20Vault ejecting user blocklist manager can eject some of the user assets 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 146827,
-}
-`;
-
-exports[`EthBlocklistErc20Vault ejecting user does not fail for user with no osToken shares 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 120550,
-}
-`;
-
-exports[`EthBlocklistErc20Vault ejecting user does not fail for user with no vault shares 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 56104,
 }
 `;
 

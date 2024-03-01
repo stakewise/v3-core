@@ -3,7 +3,7 @@
 exports[`EthPrivErc20Vault deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 71159,
+  "gasUsed": 71137,
 }
 `;
 
@@ -14,31 +14,10 @@ Object {
 }
 `;
 
-exports[`EthPrivErc20Vault ejecting user does not fail for user with no osToken shares 1`] = `
+exports[`EthPrivErc20Vault mint osToken can mint from whitelisted user 1`] = `
 Object {
-  "calldataByteLength": 36,
-  "gasUsed": 98634,
-}
-`;
-
-exports[`EthPrivErc20Vault ejecting user does not fail for user with no vault shares 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 34188,
-}
-`;
-
-exports[`EthPrivErc20Vault ejecting user whitelister can eject all of the user assets 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 98634,
-}
-`;
-
-exports[`EthPrivErc20Vault ejecting user whitelister can eject some of the user assets 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 124911,
+  "calldataByteLength": 100,
+  "gasUsed": 174096,
 }
 `;
 

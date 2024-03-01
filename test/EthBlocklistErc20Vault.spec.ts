@@ -1,11 +1,11 @@
 import { ethers } from 'hardhat'
-import { Contract, parseEther, Signer, Wallet } from 'ethers'
+import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
   EthBlocklistErc20Vault,
+  IKeeperRewards,
   Keeper,
   OsTokenVaultController,
-  IKeeperRewards,
 } from '../typechain-types'
 import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -201,119 +201,6 @@ describe('EthBlocklistErc20Vault', () => {
         .connect(sender)
         .mintOsToken(sender.address, osTokenShares, ZERO_ADDRESS)
       await expect(tx).to.emit(vault, 'OsTokenMinted')
-      await snapshotGasCost(tx)
-    })
-  })
-
-  describe('ejecting user', () => {
-    const senderAssets = parseEther('1')
-
-    beforeEach(async () => {
-      await vault.connect(sender).deposit(sender.address, referrer, { value: senderAssets })
-      await vault.connect(admin).setBlocklistManager(blocklistManager.address)
-    })
-
-    it('fails for not blocklister', async () => {
-      await expect(vault.connect(other).ejectUser(sender.address)).to.revertedWithCustomError(
-        vault,
-        'AccessDenied'
-      )
-    })
-
-    it('fails when not harvested', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
-      await vault.connect(sender).mintOsToken(sender.address, senderAssets / 2n, ZERO_ADDRESS)
-      await updateRewards(keeper, [
-        {
-          vault: await vault.getAddress(),
-          reward: ethers.parseEther('1'),
-          unlockedMevReward: ethers.parseEther('0'),
-        },
-      ])
-      await updateRewards(keeper, [
-        {
-          vault: await vault.getAddress(),
-          reward: ethers.parseEther('1.2'),
-          unlockedMevReward: ethers.parseEther('0'),
-        },
-      ])
-      await expect(
-        vault.connect(blocklistManager).ejectUser(sender.address)
-      ).to.revertedWithCustomError(vault, 'NotHarvested')
-    })
-
-    it('does not fail for user with no vault shares', async () => {
-      expect(await vault.getShares(other.address)).to.eq(0)
-
-      const tx = await vault.connect(blocklistManager).ejectUser(other.address)
-      await expect(tx)
-        .to.emit(vault, 'BlocklistUpdated')
-        .withArgs(blocklistManager.address, other.address, true)
-      expect(await vault.blockedAccounts(other.address)).to.eq(true)
-      await snapshotGasCost(tx)
-    })
-
-    it('does not fail for user with no osToken shares', async () => {
-      expect(await vault.osTokenPositions(sender.address)).to.eq(0)
-      expect(await vault.getShares(sender.address)).to.eq(senderAssets)
-      expect(await vault.blockedAccounts(sender.address)).to.eq(false)
-
-      const tx = await vault.connect(blocklistManager).ejectUser(sender.address)
-      await expect(tx)
-        .to.emit(vault, 'BlocklistUpdated')
-        .withArgs(blocklistManager.address, sender.address, true)
-      await expect(tx)
-        .to.emit(vault, 'ExitQueueEntered')
-        .withArgs(sender.address, sender.address, 0n, senderAssets)
-
-      expect(await vault.blockedAccounts(sender.address)).to.eq(true)
-      expect(await vault.getShares(sender.address)).to.eq(0)
-      await snapshotGasCost(tx)
-    })
-
-    it('blocklist manager can eject some of the user assets', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
-      const osTokenShares = senderAssets / 2n
-      const senderShares = await vault.getShares(sender.address)
-      await vault.connect(sender).mintOsToken(sender.address, osTokenShares, ZERO_ADDRESS)
-
-      expect(await vault.osTokenPositions(sender.address)).to.eq(osTokenShares)
-      expect(await vault.blockedAccounts(sender.address)).to.eq(false)
-      expect(await vault.getShares(sender.address)).to.eq(senderShares)
-
-      const tx = await vault.connect(blocklistManager).ejectUser(sender.address)
-      const ejectedShares = senderShares - (await vault.getShares(sender.address))
-      expect(ejectedShares).to.be.lessThan(senderShares)
-
-      const ejectedAssets = await vault.convertToAssets(ejectedShares)
-      expect(ejectedAssets).to.be.lessThan(senderAssets)
-
-      await expect(tx)
-        .to.emit(vault, 'BlocklistUpdated')
-        .withArgs(blocklistManager.address, sender.address, true)
-      await expect(tx)
-        .to.emit(vault, 'ExitQueueEntered')
-        .withArgs(sender.address, sender.address, parseEther('32'), ejectedAssets)
-
-      expect(await vault.blockedAccounts(sender.address)).to.eq(true)
-      expect(await vault.getShares(sender.address)).to.eq(senderShares - ejectedShares)
-      await snapshotGasCost(tx)
-    })
-
-    it('blocklist manager can eject all of the user assets', async () => {
-      expect(await vault.osTokenPositions(sender.address)).to.eq(0)
-      expect(await vault.blockedAccounts(sender.address)).to.eq(false)
-
-      const tx = await vault.connect(blocklistManager).ejectUser(sender.address)
-      await expect(tx)
-        .to.emit(vault, 'BlocklistUpdated')
-        .withArgs(blocklistManager.address, sender.address, true)
-      await expect(tx)
-        .to.emit(vault, 'ExitQueueEntered')
-        .withArgs(sender.address, sender.address, 0n, senderAssets)
-
-      expect(await vault.blockedAccounts(sender.address)).to.eq(true)
-      expect(await vault.getShares(sender.address)).to.eq(0)
       await snapshotGasCost(tx)
     })
   })

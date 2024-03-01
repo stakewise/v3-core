@@ -101,30 +101,6 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
     return super.mintOsToken(receiver, osTokenShares, referrer);
   }
 
-  /// @inheritdoc IEthPrivErc20Vault
-  function ejectUser(address user) external override {
-    // remove user from the whitelist
-    updateWhitelist(user, false);
-
-    // fetch shares of the user
-    uint256 userShares = _balances[user];
-    if (userShares == 0) return;
-
-    // calculated shares that are locked due to minted osToken
-    uint256 lockedShares = _getLockedShares(user);
-    if (lockedShares >= userShares) return;
-
-    // calculate shares to eject
-    uint256 ejectedShares;
-    unchecked {
-      // cannot underflow as lockedShares < userShares
-      ejectedShares = userShares - lockedShares;
-    }
-
-    // eject shares that are not locked
-    _enterExitQueue(user, ejectedShares, user);
-  }
-
   /// @inheritdoc IVaultVersion
   function vaultId() public pure virtual override(IVaultVersion, EthErc20Vault) returns (bytes32) {
     return keccak256('EthPrivErc20Vault');
