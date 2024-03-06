@@ -17,6 +17,7 @@ import {EthVault, IEthVault} from './EthVault.sol';
  * @notice Defines the Ethereum staking Vault with blocking addresses functionality
  */
 contract EthBlocklistVault is Initializable, EthVault, VaultBlocklist, IEthBlocklistVault {
+  // slither-disable-next-line shadowing-state
   uint8 private constant _version = 2;
 
   /**

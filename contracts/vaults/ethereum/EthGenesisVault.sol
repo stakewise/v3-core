@@ -23,6 +23,7 @@ import {EthVault, IEthVault} from './EthVault.sol';
  * @notice Defines the Genesis Vault for Ethereum staking migrated from StakeWise v2
  */
 contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
+  // slither-disable-next-line shadowing-state
   uint8 private constant _version = 2;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable

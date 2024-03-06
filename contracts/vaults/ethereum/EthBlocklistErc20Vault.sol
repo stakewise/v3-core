@@ -23,6 +23,7 @@ contract EthBlocklistErc20Vault is
   VaultBlocklist,
   IEthBlocklistErc20Vault
 {
+  // slither-disable-next-line shadowing-state
   uint8 private constant _version = 2;
 
   /**

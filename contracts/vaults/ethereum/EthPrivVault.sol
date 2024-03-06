@@ -17,6 +17,7 @@ import {EthVault, IEthVault} from './EthVault.sol';
  * @notice Defines the Ethereum staking Vault with whitelist
  */
 contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault {
+  // slither-disable-next-line shadowing-state
   uint8 private constant _version = 2;
 
   /**

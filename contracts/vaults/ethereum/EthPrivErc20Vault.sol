@@ -18,6 +18,7 @@ import {EthErc20Vault, IEthErc20Vault} from './EthErc20Vault.sol';
  * @notice Defines the Ethereum staking Vault with whitelist and ERC-20 token
  */
 contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEthPrivErc20Vault {
+  // slither-disable-next-line shadowing-state
   uint8 private constant _version = 2;
 
   /**
