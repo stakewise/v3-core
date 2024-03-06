@@ -105,7 +105,7 @@ contract EthFoxVault is
 
     // send user shares to exit queue
     _enterExitQueue(user, userShares, user);
-		emit UserEjected(user, userShares);
+    emit UserEjected(user, userShares);
   }
 
   /**
