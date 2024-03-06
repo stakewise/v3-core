@@ -73,6 +73,16 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
     __VaultWhitelist_init(_admin);
   }
 
+  /// @inheritdoc IVaultVersion
+  function vaultId() public pure virtual override(IVaultVersion, EthErc20Vault) returns (bytes32) {
+    return keccak256('EthPrivErc20Vault');
+  }
+
+  /// @inheritdoc IVaultVersion
+  function version() public pure virtual override(IVaultVersion, EthErc20Vault) returns (uint8) {
+    return _version;
+  }
+
   /// @inheritdoc IVaultEthStaking
   function deposit(
     address receiver,
@@ -99,16 +109,6 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
   ) public virtual override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
     _checkWhitelist(msg.sender);
     return super.mintOsToken(receiver, osTokenShares, referrer);
-  }
-
-  /// @inheritdoc IVaultVersion
-  function vaultId() public pure virtual override(IVaultVersion, EthErc20Vault) returns (bytes32) {
-    return keccak256('EthPrivErc20Vault');
-  }
-
-  /// @inheritdoc IVaultVersion
-  function version() public pure virtual override(IVaultVersion, EthErc20Vault) returns (uint8) {
-    return _version;
   }
 
   /// @inheritdoc ERC20Upgradeable

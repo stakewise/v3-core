@@ -44,7 +44,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   }
 
   /// @inheritdoc IVaultOsToken
-  function osTokenPositions(address user) public view override returns (uint128 shares) {
+  function osTokenPositions(address user) external view override returns (uint128 shares) {
     OsTokenPosition memory position = _positions[user];
     if (position.shares != 0) _syncPositionFee(position);
     return position.shares;
@@ -272,40 +272,27 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   }
 
   /**
-   * @dev Internal function for retrieving the amount of locked shares for a given user.
-   *      Reverts if the vault is not harvested.
+   * @notice Internal function for checking position validity. Reverts if it is invalid.
    * @param user The address of the user
-   * @return The amount of locked shares
    */
-  function _getLockedShares(address user) internal view returns (uint256) {
-    uint256 osTokenShares = osTokenPositions(user);
-    if (osTokenShares == 0) return 0;
-
-    // calculate locked assets
-    uint256 lockedAssets = Math.mulDiv(
-      _osTokenVaultController.convertToAssets(osTokenShares),
-      _maxPercent,
-      _osTokenConfig.ltvPercent()
-    );
-    if (lockedAssets == 0) return 0;
+  function _checkOsTokenPosition(address user) internal view {
+    // fetch user position
+    OsTokenPosition memory position = _positions[user];
+    if (position.shares == 0) return;
 
     // check whether vault assets are up to date
     _checkHarvested();
 
-    // convert to vault shares
-    return convertToShares(lockedAssets);
-  }
+    // sync fee
+    _syncPositionFee(position);
 
-  /**
-   * @notice Internal function for checking position validity
-   * @param user The address of the user
-   */
-  function _checkOsTokenPosition(address user) internal view {
-    uint256 lockedShares = _getLockedShares(user);
-    if (lockedShares == 0) return;
-
-    // validate position LTV
-    if (lockedShares > _balances[user]) revert Errors.LowLtv();
+    // calculate and validate position LTV
+    if (
+      Math.mulDiv(convertToAssets(_balances[user]), _osTokenConfig.ltvPercent(), _maxPercent) <
+      _osTokenVaultController.convertToAssets(position.shares)
+    ) {
+      revert Errors.LowLtv();
+    }
   }
 
   /**

@@ -140,7 +140,10 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     if (totalExitedTickets <= positionTicket) return (0, 0);
 
     // calculate exited tickets and assets
-    exitedTickets = Math.min(exitingTickets, totalExitedTickets - positionTicket);
+    unchecked {
+      // cannot underflow as totalExitedTickets > positionTicket
+      exitedTickets = Math.min(exitingTickets, totalExitedTickets - positionTicket);
+    }
     return (exitedTickets, _convertExitTicketsToAssets(exitedTickets));
   }
 

@@ -31,7 +31,7 @@ Object {
 exports[`EthVault - withdraw enter exit queue locks assets for the time of exit 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 77184,
+  "gasUsed": 77127,
 }
 `;
 

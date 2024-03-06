@@ -398,6 +398,7 @@ describe('EthGenesisVault', () => {
     })
 
     it('skips updating legacy with zero total assets', async () => {
+      if (MAINNET_FORK.enabled) return
       await acceptPoolEscrowOwnership()
       await rewardEthToken.setTotalStaked(0n)
       await rewardEthToken.setTotalRewards(0n)

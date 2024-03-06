@@ -24,13 +24,13 @@ Object {
 exports[`RewardSplitter withdraw rewards can claim vault tokens for ERC-20 vault 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 78205,
+  "gasUsed": 78180,
 }
 `;
 
 exports[`RewardSplitter withdraw rewards can enter exit queue with multicall 1`] = `
 Object {
   "calldataByteLength": 612,
-  "gasUsed": 170686,
+  "gasUsed": 170629,
 }
 `;

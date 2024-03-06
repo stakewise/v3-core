@@ -23,6 +23,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   uint128 internal _totalShares;
   uint128 internal _totalAssets;
 
+  /// @inheritdoc IVaultState
   uint128 public override queuedShares;
   uint128 internal _unclaimedAssets;
 
@@ -32,6 +33,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
 
   uint256 private _capacity;
 
+  /// @inheritdoc IVaultState
   uint128 public override totalExitingAssets;
   uint128 internal _totalExitingTickets;
   uint256 internal _totalExitedTickets;
@@ -118,26 +120,26 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
 
       // SLOAD to memory
       uint256 _totalExitingAssets = totalExitingAssets;
-      // apply penalty to exiting assets
-      uint256 exitingAssetsPenalty = Math.mulDiv(
-        penalty,
-        _totalExitingAssets,
-        _totalExitingAssets + newTotalAssets
-      );
+      if (_totalExitingAssets > 0) {
+        // apply penalty to exiting assets
+        uint256 exitingAssetsPenalty = Math.mulDiv(
+          penalty,
+          _totalExitingAssets,
+          _totalExitingAssets + newTotalAssets
+        );
 
-      unchecked {
-        // cannot underflow as exitingAssetsPenalty <= penalty
-        penalty -= exitingAssetsPenalty;
+        // apply penalty to total exiting assets
+        unchecked {
+          // cannot underflow as exitingAssetsPenalty <= penalty
+          penalty -= exitingAssetsPenalty;
+          // cannot underflow as exitingAssetsPenalty <= _totalExitingAssets
+          totalExitingAssets = SafeCast.toUint128(_totalExitingAssets - exitingAssetsPenalty);
+        }
       }
 
       // subtract penalty from total assets (excludes exiting assets)
       if (penalty > 0) {
         _totalAssets = SafeCast.toUint128(newTotalAssets - penalty);
-      }
-
-      // subtract penalty from total exiting assets
-      if (exitingAssetsPenalty > 0) {
-        totalExitingAssets = SafeCast.toUint128(_totalExitingAssets - exitingAssetsPenalty);
       }
       return;
     }

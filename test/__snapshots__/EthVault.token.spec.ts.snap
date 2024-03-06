@@ -24,27 +24,27 @@ Object {
 exports[`EthVault - token transfer from when the spender has enough allowance when the token owner has enough balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 54827,
+  "gasUsed": 54802,
 }
 `;
 
 exports[`EthVault - token transfer from when the spender has unlimited allowance does not decrease the spender allowance 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 61303,
+  "gasUsed": 61278,
 }
 `;
 
 exports[`EthVault - token transfer when the sender transfers all balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 54490,
+  "gasUsed": 54465,
 }
 `;
 
 exports[`EthVault - token transfer when the sender transfers zero tokens transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 36566,
+  "gasUsed": 36541,
 }
 `;

@@ -17,7 +17,7 @@ Object {
 exports[`EthGenesisVault pulls withdrawals on claim exited assets 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 77231,
+  "gasUsed": 77206,
 }
 `;
 
@@ -52,7 +52,7 @@ Object {
 exports[`EthGenesisVault update state splits penalty between rewardEthToken and vault 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 119951,
+  "gasUsed": 119650,
 }
 `;
 

@@ -135,6 +135,16 @@ contract EthErc20Vault is
   }
 
   /// @inheritdoc VaultState
+  function _updateExitQueue()
+    internal
+    virtual
+    override(VaultState, VaultToken)
+    returns (uint256 burnedShares)
+  {
+    return super._updateExitQueue();
+  }
+
+  /// @inheritdoc VaultState
   function _mintShares(
     address owner,
     uint256 shares

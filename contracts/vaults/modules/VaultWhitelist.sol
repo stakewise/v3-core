@@ -20,7 +20,7 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
   mapping(address => bool) public override whitelistedAccounts;
 
   /// @inheritdoc IVaultWhitelist
-  function updateWhitelist(address account, bool approved) public override {
+  function updateWhitelist(address account, bool approved) external override {
     if (msg.sender != whitelister) revert Errors.AccessDenied();
     if (whitelistedAccounts[account] == approved) return;
     whitelistedAccounts[account] = approved;
