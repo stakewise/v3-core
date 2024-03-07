@@ -211,8 +211,8 @@ describe('EthVault - withdraw', () => {
       const positionTicket = await extractExitPositionTicket(receipt)
       const timestamp = await getBlockTimestamp(receipt)
       await expect(receipt)
-        .to.emit(vault, 'ExitQueueEntered')
-        .withArgs(holder.address, receiver.address, positionTicket, holderAssets)
+        .to.emit(vault, 'V2ExitQueueEntered')
+        .withArgs(holder.address, receiver.address, positionTicket, holderShares, holderAssets)
 
       expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore - holderAssets)
       expect(await vault.totalShares()).to.be.eq(totalSharesBefore - holderShares)
@@ -1149,8 +1149,8 @@ describe('EthVault - withdraw', () => {
     alicePositionTicket = await extractExitPositionTicket(response)
     aliceTimestamp = await getBlockTimestamp(response)
     await expect(response)
-      .to.emit(vault, 'ExitQueueEntered')
-      .withArgs(alice.address, alice.address, alicePositionTicket, 1821)
+      .to.emit(vault, 'V2ExitQueueEntered')
+      .withArgs(alice.address, alice.address, alicePositionTicket, 1000, 1821)
 
     aliceShares -= 1000n
     totalShares -= 1000n
@@ -1168,8 +1168,8 @@ describe('EthVault - withdraw', () => {
     bobTimestamp = await getBlockTimestamp(response)
 
     await expect(response)
-      .to.emit(vault, 'ExitQueueEntered')
-      .withArgs(bob.address, bob.address, bobPositionTicket, 8000)
+      .to.emit(vault, 'V2ExitQueueEntered')
+      .withArgs(bob.address, bob.address, bobPositionTicket, 4393, 8000)
 
     aliceAssets += 1n // rounding error
     bobShares -= 4393n
@@ -1234,8 +1234,8 @@ describe('EthVault - withdraw', () => {
     alicePositionTicket = await extractExitPositionTicket(response)
     aliceTimestamp = await getBlockTimestamp(response)
     await expect(response)
-      .to.emit(vault, 'ExitQueueEntered')
-      .withArgs(alice.address, alice.address, latestPositionTicket, 6824n)
+      .to.emit(vault, 'V2ExitQueueEntered')
+      .withArgs(alice.address, alice.address, latestPositionTicket, 1001, 6824)
 
     expect(alicePositionTicket).to.be.eq(latestPositionTicket)
     aliceShares -= 1001n

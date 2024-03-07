@@ -31,7 +31,7 @@ Object {
 exports[`EthFoxVault ejecting user blocklist manager can eject all of the user assets for collateralized vault 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 119385,
+  "gasUsed": 119659,
 }
 `;
 

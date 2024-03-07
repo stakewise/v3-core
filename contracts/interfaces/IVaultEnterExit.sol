@@ -36,16 +36,31 @@ interface IVaultEnterExit is IVaultState {
   event Redeemed(address indexed owner, address indexed receiver, uint256 assets, uint256 shares);
 
   /**
-   * @notice Event emitted on shares added to the exit queue
+   * @notice Event emitted on shares added to the V1 exit queue
    * @param owner The address that owns the shares
    * @param receiver The address that will receive withdrawn assets
    * @param positionTicket The exit queue ticket that was assigned to the position
-   * @param assets The number of assets that queued for the exit
+   * @param shares The number of shares that queued for the exit
    */
   event ExitQueueEntered(
     address indexed owner,
     address indexed receiver,
     uint256 positionTicket,
+    uint256 shares
+  );
+
+  /**
+   * @notice Event emitted on shares added to the V2 exit queue
+   * @param owner The address that owns the shares
+   * @param receiver The address that will receive withdrawn assets
+   * @param positionTicket The exit queue ticket that was assigned to the position
+   * @param assets The number of assets that queued for the exit
+   */
+  event V2ExitQueueEntered(
+    address indexed owner,
+    address indexed receiver,
+    uint256 positionTicket,
+    uint256 shares,
     uint256 assets
   );
 

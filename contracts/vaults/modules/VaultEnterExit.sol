@@ -224,7 +224,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
       keccak256(abi.encode(receiver, block.timestamp, positionTicket))
     ] = exitingTickets;
 
-    emit ExitQueueEntered(user, receiver, positionTicket, assets);
+    emit V2ExitQueueEntered(user, receiver, positionTicket, shares, assets);
   }
 
   /**
