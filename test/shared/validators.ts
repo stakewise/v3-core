@@ -285,10 +285,9 @@ export async function registerEthValidator(
   vault: EthVaultType,
   keeper: Keeper,
   validatorsRegistry: Contract,
-  admin: Signer,
-  genesisVaultPoolEscrow: string | null = null
+  admin: Signer
 ): Promise<ContractTransactionResponse> {
-  const validatorsData = await createEthValidatorsData(vault, genesisVaultPoolEscrow)
+  const validatorsData = await createEthValidatorsData(vault)
   const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
   await vault.connect(admin).setValidatorsRoot(validatorsData.root)
   const validator = validatorsData.validators[0]

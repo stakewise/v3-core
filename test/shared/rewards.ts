@@ -183,8 +183,7 @@ export async function collateralizeEthVault(
   vault: EthVaultType,
   keeper: Keeper,
   validatorsRegistry: Contract,
-  admin: Signer,
-  genesisVaultPoolEscrow: string | null = null
+  admin: Signer
 ) {
   const vaultAddress = await vault.getAddress()
   const balanceBefore = await ethers.provider.getBalance(vaultAddress)
@@ -196,7 +195,7 @@ export async function collateralizeEthVault(
     .connect(admin)
     .deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
   const receivedShares = await extractDepositShares(tx)
-  await registerEthValidator(vault, keeper, validatorsRegistry, admin, genesisVaultPoolEscrow)
+  await registerEthValidator(vault, keeper, validatorsRegistry, admin)
 
   // exit validator
   const response = await vault.connect(admin).enterExitQueue(receivedShares, adminAddr)

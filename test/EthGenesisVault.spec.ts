@@ -278,7 +278,7 @@ describe('EthGenesisVault', () => {
     await setBalance(vaultAddr, 0n)
     await setBalance(poolEscrowAddr, validatorDeposit + vaultBalance + poolEscrowBalance)
     expect(await vault.withdrawableAssets()).to.be.greaterThanOrEqual(validatorDeposit)
-    const tx = await registerEthValidator(vault, keeper, validatorsRegistry, admin, poolEscrowAddr)
+    const tx = await registerEthValidator(vault, keeper, validatorsRegistry, admin)
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
       .withArgs(vaultAddr, vaultAddr, validatorDeposit + vaultBalance + poolEscrowBalance)
@@ -288,7 +288,7 @@ describe('EthGenesisVault', () => {
   it('pulls withdrawals on multiple validators registration', async () => {
     await acceptPoolEscrowOwnership()
     await collatEthVault()
-    const validatorsData = await createEthValidatorsData(vault, await poolEscrow.getAddress())
+    const validatorsData = await createEthValidatorsData(vault)
     const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(admin).setValidatorsRoot(validatorsData.root)
     const proof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators, [

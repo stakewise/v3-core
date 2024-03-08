@@ -157,7 +157,7 @@ abstract contract VaultValidators is
    * @dev Internal function for calculating Vault withdrawal credentials
    * @return The credentials used for the validators withdrawals
    */
-  function _withdrawalCredentials() internal view virtual returns (bytes memory) {
+  function _withdrawalCredentials() internal view returns (bytes memory) {
     return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
   }
 

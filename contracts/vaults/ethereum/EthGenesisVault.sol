@@ -254,11 +254,6 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     if (escrowBalance != 0) _poolEscrow.withdraw(payable(this), escrowBalance);
   }
 
-  /// @inheritdoc VaultValidators
-  function _withdrawalCredentials() internal view override returns (bytes memory) {
-    return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(_poolEscrow));
-  }
-
   /**
    * @dev This empty reserved space is put in place to allow future versions to add new
    * variables without shifting down storage in the inheritance chain.
