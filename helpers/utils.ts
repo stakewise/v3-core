@@ -6,9 +6,10 @@ export async function deployContract(
   hre: HardhatRuntimeEnvironment,
   contractName: string,
   constructorArgs: any[],
-  path?: string
+  path?: string,
+  options?: any
 ): Promise<Contract> {
-  const contract = await hre.ethers.deployContract(contractName, constructorArgs)
+  const contract = await hre.ethers.deployContract(contractName, constructorArgs, options)
   await contract.waitForDeployment()
 
   const contractAddress = await contract.getAddress()

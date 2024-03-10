@@ -100,6 +100,7 @@ contract EthFoxVault is
       // redeem user shares
       _redeem(user, userShares, user);
     }
+    emit UserEjected(user, userShares);
   }
 
   /**

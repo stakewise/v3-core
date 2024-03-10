@@ -244,38 +244,44 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const foxVaultFactory = await ethers.getContractFactory('EthFoxVault')
   await simulateDeployImpl(hre, foxVaultFactory, { constructorArgs }, foxVaultImplAddress)
 
-  // Deploy EthFoxVault proxy
+  // calculate EthFoxVault address
+  const foxVaultAddress = ethers.getCreateAddress({
+    from: deployer.address,
+    nonce: (await ethers.provider.getTransactionCount(deployer.address)) + 1,
+  })
+
+  // Deploy OwnMevEscrow for EthFoxVault
+  const ownMevEscrowFactory = await ethers.getContractFactory('OwnMevEscrow')
+  const ownMevEscrow = await ownMevEscrowFactory.deploy(foxVaultAddress)
+
+  // Deploy and initialize EthFoxVault proxy
+  const initCall = ethers.AbiCoder.defaultAbiCoder().encode(
+    [
+      'tuple(address admin, address ownMevEscrow, uint256 capacity, uint16 feePercent, string metadataIpfsHash)',
+    ],
+    [
+      [
+        networkConfig.foxVault.admin,
+        await ownMevEscrow.getAddress(),
+        networkConfig.foxVault.capacity,
+        networkConfig.foxVault.feePercent,
+        networkConfig.foxVault.metadataIpfsHash,
+      ],
+    ]
+  )
+
   proxy = await deployContract(
     hre,
     'ERC1967Proxy',
-    [foxVaultImplAddress, '0x'],
-    '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy'
+    [foxVaultImplAddress, foxVaultFactory.interface.encodeFunctionData('initialize', [initCall])],
+    '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy',
+    {
+      value: networkConfig.securityDeposit,
+    }
   )
-  const foxVaultAddress = await proxy.getAddress()
-  const foxVault = foxVaultFactory.attach(foxVaultAddress)
-
-  // Initialize EthFoxVault
-  const ownMevEscrowFactory = await ethers.getContractFactory('OwnMevEscrow')
-  const ownMevEscrow = await ownMevEscrowFactory.deploy(foxVaultAddress)
-  await callContract(
-    foxVault.initialize(
-      ethers.AbiCoder.defaultAbiCoder().encode(
-        [
-          'tuple(address admin, address ownMevEscrow, uint256 capacity, uint16 feePercent, string metadataIpfsHash)',
-        ],
-        [
-          [
-            networkConfig.foxVault.admin,
-            await ownMevEscrow.getAddress(),
-            networkConfig.foxVault.capacity,
-            networkConfig.foxVault.feePercent,
-            networkConfig.foxVault.metadataIpfsHash,
-          ],
-        ]
-      ),
-      { value: networkConfig.securityDeposit }
-    )
-  )
+  if ((await proxy.getAddress()) !== foxVaultAddress) {
+    throw new Error('EthFoxVault address mismatch')
+  }
 
   await callContract(vaultsRegistry.addVault(foxVaultAddress))
   console.log('Added EthFoxVault to VaultsRegistry')

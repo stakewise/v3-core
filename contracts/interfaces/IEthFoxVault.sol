@@ -32,6 +32,13 @@ interface IEthFoxVault is
   IMulticall
 {
   /**
+   * @notice Event emitted when a user is ejected from the Vault
+   * @param user The address of the user
+   * @param shares The amount of shares ejected
+   */
+  event UserEjected(address user, uint256 shares);
+
+  /**
    * @dev Struct for initializing the EthFoxVault contract
    * @param admin The address of the Vault admin
    * @param ownMevEscrow The address of the MEV escrow contract
