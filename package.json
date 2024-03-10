@@ -23,10 +23,9 @@
     "coverage": "COVERAGE=true npm run compile && COVERAGE=true hardhat coverage",
     "precommit": "lint-staged",
     "node": "hardhat node",
-    "full-deploy:goerli": "hardhat eth-full-deploy --network goerli",
     "full-deploy:holesky": "hardhat eth-full-deploy --network holesky",
     "full-deploy:mainnet": "hardhat eth-full-deploy --network mainnet",
-    "full-deploy:local": "hardhat eth-full-deploy-local --network local"
+    "full-deploy:eth-local": "hardhat eth-full-deploy-local --network local"
   },
   "repository": {
     "type": "git",

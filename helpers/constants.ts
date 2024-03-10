@@ -51,8 +51,8 @@ export const NETWORKS: {
     // EthGenesisVault
     genesisVault: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
-      poolEscrow: '0x253368DEBd5B3894D5A53516bE94CE4104bA4BD3',
-      rewardEthToken: '0x413C51fDF65668B3A1d434bC184a479E3B8e0f3f',
+      poolEscrow: '0x9f990e463674B9ABAeC2F19Abf18dAc4F523B48b',
+      rewardToken: '0xd57c19f20168406d162852515030e00e49bB7781',
       capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
     },
@@ -116,7 +116,7 @@ export const NETWORKS: {
     genesisVault: {
       admin: '0xf330b5fE72E91d1a3782E65eED876CF3624c7802',
       poolEscrow: '0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079',
-      rewardEthToken: '0x20BC832ca081b91433ff6c17f85701B6e92486c5',
+      rewardToken: '0x20BC832ca081b91433ff6c17f85701B6e92486c5',
       capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
     },

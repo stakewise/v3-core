@@ -8,7 +8,7 @@ import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
 import {VaultEthStaking, IVaultEthStaking} from '../modules/VaultEthStaking.sol';
 import {VaultOsToken, IVaultOsToken} from '../modules/VaultOsToken.sol';
 import {VaultWhitelist} from '../modules/VaultWhitelist.sol';
-import {VaultVersion, IVaultVersion} from '../modules/VaultVersion.sol';
+import {IVaultVersion} from '../modules/VaultVersion.sol';
 import {EthVault, IEthVault} from './EthVault.sol';
 
 /**
