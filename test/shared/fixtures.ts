@@ -939,7 +939,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
       } else {
         poolEscrow = PoolEscrowMock__factory.connect(NETWORKS.mainnet.genesisVault.poolEscrow, dao)
         rewardEthToken = LegacyRewardTokenMock__factory.connect(
-          NETWORKS.mainnet.genesisVault.rewardEthToken,
+          NETWORKS.mainnet.genesisVault.rewardToken,
           dao
         )
       }
