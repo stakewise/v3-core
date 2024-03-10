@@ -14,7 +14,7 @@ import {
   ZERO_BYTES32,
 } from './constants'
 import { getOraclesSignatures } from './fixtures'
-import { EthVaultType } from './types'
+import { EthVaultType, GnoVaultType } from './types'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -189,7 +189,7 @@ export function appendDepositData(
 }
 
 export async function createEthValidatorsData(
-  vault: EthVaultType,
+  vault: EthVaultType | GnoVaultType,
   genesisVaultPoolEscrow: string | null = null
 ): Promise<EthValidatorsData> {
   const validatorDeposit = ethers.parseEther('32')
@@ -215,7 +215,7 @@ export async function getEthValidatorsSigningData(
   deadline: bigint,
   exitSignaturesIpfsHash: string,
   keeper: Keeper,
-  vault: EthVaultType,
+  vault: EthVaultType | GnoVaultType,
   validatorsRegistryRoot: BytesLike
 ) {
   return {
@@ -283,7 +283,7 @@ export function getValidatorsMultiProof(
 }
 
 export async function registerEthValidator(
-  vault: EthVaultType,
+  vault: EthVaultType | GnoVaultType,
   keeper: Keeper,
   depositDataRegistry: DepositDataRegistry,
   admin: Signer,

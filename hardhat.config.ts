@@ -73,6 +73,7 @@ const config: HardhatUserConfig = {
   networks: {
     holesky: getCommonNetworkConfig(Networks.holesky),
     mainnet: getCommonNetworkConfig(Networks.mainnet),
+    chiado: getCommonNetworkConfig(Networks.chiado),
     hardhat: {
       blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,
       gas: DEFAULT_BLOCK_GAS_LIMIT,

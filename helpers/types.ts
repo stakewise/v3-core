@@ -3,6 +3,7 @@ export type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 export enum Networks {
   mainnet = 'mainnet',
   holesky = 'holesky',
+  chiado = 'chiado',
 }
 
 export type NetworkConfig = {
@@ -51,6 +52,13 @@ export type NetworkConfig = {
     capacity: bigint
     feePercent: number
     metadataIpfsHash: string
+  }
+
+  // Gnosis data
+  gnosis?: {
+    gnoToken: string
+    balancerVault: string
+    balancerPoolId: string
   }
 
   // PriceFeed

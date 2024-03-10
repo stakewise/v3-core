@@ -1,6 +1,6 @@
 import { NetworkConfig, Networks } from './types'
 import { parseEther } from 'ethers'
-import { MAX_UINT256 } from '../test/shared/constants'
+import { MAX_UINT256, ZERO_BYTES32 } from '../test/shared/constants'
 
 const MAX_UINT16 = 2n ** 16n - 1n
 
@@ -132,6 +132,70 @@ export const NETWORKS: {
     // Cumulative MerkleDrop
     liquidityCommittee: '0x189Cb93839AD52b5e955ddA254Ed7212ae1B1f61',
     swiseToken: '0x48C3399719B582dD63eB5AADf12A40B4C3f52FA2',
+  },
+  [Networks.chiado]: {
+    url: process.env.NETWORK_RPC_URL || '',
+    chainId: 10200,
+
+    governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
+    validatorsRegistry: '0xb97036A26259B7147018913bD58a774cf91acf25',
+    securityDeposit: 1000000000n, // 1 gwei of GNO
+    exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
+
+    // Keeper
+    oracles: [
+      '0xf1a2f8E2FaE384566Fe10f9a960f52fe4a103737',
+      '0xF1091485531122c2cd0Beb6fD998FBCcCf42b38C',
+      '0x51182c9B66F5Cb2394511006851aE9b1Ea7f1B5D',
+      '0x675eD17F58b15CD2C31F6d9bfb0b4DfcCA264eC1',
+      '0x6bAfFEE3c8B59E5bA19c26Cd409B2a232abb57Cb',
+      '0x36a2E8FF08f801caB399eab2fEe9E6A8C49A9C2A',
+      '0x3EC6676fa4D07C1f31d088ae1DE96240eC56D1D9',
+      '0x893e1c16fE47DF676Fd344d44c074096675B6aF6',
+      '0x3eEC4A51cbB2De4e8Cc6c9eE859Ad16E8a8693FC',
+      '0x9772Ef6AbC2Dfd879ebd88aeAA9Cf1e69a16fCF4',
+      '0x18991d6F877eF0c0920BFF9B14D994D80d2E7B0c',
+    ],
+    rewardsDelay: 12 * 60 * 60, // 12 hours
+    rewardsMinOracles: 6,
+    validatorsMinOracles: 6,
+    maxAvgRewardPerSecond: MAX_UINT256, // unlimited
+    oraclesConfigIpfsHash: 'QmNP7hT3Q2YB3kPpNKU9orthkeLvZWQpUi8Gf8PQDLVNJm',
+
+    // OsToken
+    treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
+    osTokenFeePercent: 1000, // 10 %
+    osTokenCapacity: parseEther('200000'), // 200k osGNO
+    osTokenName: 'Staked GNO',
+    osTokenSymbol: 'osGNO',
+
+    // OsTokenConfig
+    redeemFromLtvPercent: MAX_UINT16, // disable redeems
+    redeemToLtvPercent: MAX_UINT16, // disable redeems
+    liqThresholdPercent: 6600, // 66%
+    liqBonusPercent: 10100, // 101%
+    ltvPercent: 6400, // 64%
+
+    // GnoGenesisVault
+    genesisVault: {
+      admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
+      poolEscrow: '0x3c5634a5437A394353F49fe04FE5db11961c5c2D',
+      rewardToken: '0xfe076029B7D46fbe2ad4B9CBf377aA10B309e560',
+      capacity: parseEther('200000'), // 200k GNO
+      feePercent: 2000, // 20%
+    },
+    priceFeedDescription: 'osGNO/GNO',
+
+    // Gnosis data
+    gnosis: {
+      gnoToken: '0x19C653Da7c37c66208fbfbE8908A5051B57b4C70',
+      balancerVault: '0x8b6c2C9E09c6022780D164F3cFd882808b8bDBF0',
+      balancerPoolId: ZERO_BYTES32,
+    },
+
+    // Cumulative MerkleDrop
+    liquidityCommittee: '0x0000000000000000000000000000000000000000',
+    swiseToken: '0x0000000000000000000000000000000000000000',
   },
 }
 
