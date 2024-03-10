@@ -1,6 +1,7 @@
 import { ContractFactory } from 'ethers'
 import { ethers } from 'hardhat'
 import EthValidatorsRegistry from './artifacts/EthValidatorsRegistry.json'
+import GnoValidatorsRegistry from './artifacts/GnoValidatorsRegistry.json'
 import EthVaultV1 from './artifacts/EthVault.json'
 import EthErc20VaultV1 from './artifacts/EthErc20Vault.json'
 import EthPrivErc20VaultV1 from './artifacts/EthPrivErc20Vault.json'
@@ -9,6 +10,10 @@ import EthGenesisVaultV1 from './artifacts/EthGenesisVault.json'
 
 export async function getEthValidatorsRegistryFactory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthValidatorsRegistry.abi, EthValidatorsRegistry.bytecode)
+}
+
+export async function getGnoValidatorsRegistryFactory(): Promise<ContractFactory> {
+  return await ethers.getContractFactory(GnoValidatorsRegistry.abi, GnoValidatorsRegistry.bytecode)
 }
 
 export async function getEthVaultV1Factory(): Promise<ContractFactory> {
