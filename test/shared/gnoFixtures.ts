@@ -109,8 +109,7 @@ export async function collateralizeGnoVault(
   gnoToken: ERC20Mock,
   keeper: Keeper,
   validatorsRegistry: Contract,
-  admin: Wallet,
-  genesisVaultPoolEscrow: string | null = null
+  admin: Wallet
 ) {
   const adminAddr = await admin.getAddress()
 
@@ -118,7 +117,7 @@ export async function collateralizeGnoVault(
   const validatorDeposit = ethers.parseEther('1')
   const tx = await depositGno(vault, gnoToken, validatorDeposit, admin, admin, ZERO_ADDRESS)
   const receivedShares = await extractDepositShares(tx)
-  await registerEthValidator(vault, keeper, validatorsRegistry, admin, genesisVaultPoolEscrow)
+  await registerEthValidator(vault, keeper, validatorsRegistry, admin)
 
   // exit validator
   const response = await vault.connect(admin).enterExitQueue(receivedShares, adminAddr)
@@ -378,7 +377,7 @@ interface GnoVaultFixture {
 
 export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
   const dao = await (ethers as any).provider.getSigner()
-  const vaultsRegistry = await createVaultsRegistry()
+  const vaultsRegistry = await createVaultsRegistry(true)
 
   const factory = await ethers.getContractFactory('ERC20Mock')
   const contract = await factory.connect(dao).deploy()
@@ -407,11 +406,18 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
     dao,
     dao,
     OSTOKEN_FEE,
-    OSTOKEN_CAPACITY
+    OSTOKEN_CAPACITY,
+    true
   )
 
   // 4. deploy osToken
-  const osToken = await createOsToken(dao, osTokenVaultController, OSTOKEN_NAME, OSTOKEN_SYMBOL)
+  const osToken = await createOsToken(
+    dao,
+    osTokenVaultController,
+    OSTOKEN_NAME,
+    OSTOKEN_SYMBOL,
+    true
+  )
   if (_osTokenAddress != (await osToken.getAddress())) {
     throw new Error('Invalid calculated OsToken address')
   }
@@ -432,7 +438,8 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
     MAX_AVG_REWARD_PER_SECOND,
     REWARDS_MIN_ORACLES,
     validatorsRegistry,
-    VALIDATORS_MIN_ORACLES
+    VALIDATORS_MIN_ORACLES,
+    true
   )
   if (_keeperAddress != (await keeper.getAddress())) {
     throw new Error('Invalid calculated Keeper address')
@@ -445,7 +452,8 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
     OSTOKEN_REDEEM_TO_LTV,
     OSTOKEN_LIQ_THRESHOLD,
     OSTOKEN_LIQ_BONUS,
-    OSTOKEN_LTV
+    OSTOKEN_LTV,
+    true
   )
 
   // 7. deploy Balancer vault
@@ -603,7 +611,7 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
       admin: Signer,
       vaultParams: GnoVaultInitParamsStruct
     ): Promise<[GnoGenesisVault, LegacyRewardTokenMock, PoolEscrowMock]> => {
-      const poolEscrow = await createPoolEscrow(dao.address)
+      const poolEscrow = await createPoolEscrow(dao.address, true)
       const legacyRewardTokenMockFactory = await ethers.getContractFactory('LegacyRewardTokenMock')
       const legacyRewardTokenMock = await legacyRewardTokenMockFactory.deploy()
       const rewardGnoToken = LegacyRewardTokenMock__factory.connect(

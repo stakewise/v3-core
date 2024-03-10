@@ -188,10 +188,12 @@ export const createPoolEscrow = async function (
   return PoolEscrowMock__factory.connect(await contract.getAddress(), signer)
 }
 
-export const createVaultsRegistry = async function (): Promise<VaultsRegistry> {
+export const createVaultsRegistry = async function (
+  skipFork: boolean = false
+): Promise<VaultsRegistry> {
   const signer = await ethers.provider.getSigner()
 
-  if (MAINNET_FORK.enabled) {
+  if (MAINNET_FORK.enabled && !skipFork) {
     const contract = VaultsRegistry__factory.connect(mainnetDeployment.VaultsRegistry, signer)
     await transferOwnership(contract, signer)
     return contract
@@ -257,10 +259,11 @@ export const createOsTokenVaultController = async function (
   treasury: Wallet,
   governor: Wallet,
   feePercent: BigNumberish,
-  capacity: BigNumberish
+  capacity: BigNumberish,
+  skipFork: boolean = false
 ): Promise<OsTokenVaultController> {
   const signer = await ethers.provider.getSigner()
-  if (MAINNET_FORK.enabled) {
+  if (MAINNET_FORK.enabled && !skipFork) {
     const contract = OsTokenVaultController__factory.connect(
       mainnetDeployment.OsTokenVaultController,
       signer
@@ -286,10 +289,11 @@ export const createOsToken = async function (
   governor: Wallet,
   vaultController: OsTokenVaultController,
   name: string,
-  symbol: string
+  symbol: string,
+  skipFork: boolean = false
 ): Promise<OsToken> {
   const signer = await ethers.provider.getSigner()
-  if (MAINNET_FORK.enabled) {
+  if (MAINNET_FORK.enabled && !skipFork) {
     const contract = OsToken__factory.connect(mainnetDeployment.OsToken, signer)
     await transferOwnership(contract, governor)
     return contract
@@ -310,10 +314,11 @@ export const createOsTokenConfig = async function (
   redeemToLtvPercent: BigNumberish,
   liqThresholdPercent: BigNumberish,
   liqBonusPercent: BigNumberish,
-  ltvPercent: BigNumberish
+  ltvPercent: BigNumberish,
+  skipFork: boolean = false
 ): Promise<OsTokenConfig> {
   const signer = await ethers.provider.getSigner()
-  if (MAINNET_FORK.enabled) {
+  if (MAINNET_FORK.enabled && !skipFork) {
     const contract = OsTokenConfig__factory.connect(mainnetDeployment.OsTokenConfig, signer)
     await transferOwnership(contract, owner)
     return contract
@@ -351,11 +356,12 @@ export const createKeeper = async function (
   maxAvgRewardPerSecond: BigNumberish,
   rewardsMinOracles: BigNumberish,
   validatorsRegistry: Contract,
-  validatorsMinOracles: BigNumberish
+  validatorsMinOracles: BigNumberish,
+  skipFork: boolean = false
 ): Promise<Keeper> {
   const signer = await ethers.provider.getSigner()
   let keeper: Keeper
-  if (MAINNET_FORK.enabled) {
+  if (MAINNET_FORK.enabled && !skipFork) {
     keeper = Keeper__factory.connect(mainnetDeployment.Keeper, signer)
   } else {
     const factory = await ethers.getContractFactory('Keeper')
@@ -371,7 +377,7 @@ export const createKeeper = async function (
     await keeper.connect(signer).initialize(signer.address)
   }
 
-  if (MAINNET_FORK.enabled) {
+  if (MAINNET_FORK.enabled && !skipFork) {
     // transfer dao ownership
     await transferOwnership(keeper, signer)
 
