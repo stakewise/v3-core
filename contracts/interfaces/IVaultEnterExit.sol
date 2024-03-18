@@ -104,16 +104,16 @@ interface IVaultEnterExit is IVaultState {
    * @param timestamp The timestamp when the assets entered the exit queue
    * @param exitQueueIndex The exit queue index at which the shares were burned.
    *        It can be looked up by calling `getExitQueueIndex`. Only relevant for V1 positions, otherwise pass 0.
-   * @return leftShares The number of shares that are still in the queue
-   * @return claimedShares The number of claimed shares
-   * @return claimedAssets The number of claimed assets
+   * @return leftTickets The number of tickets left in the queue
+   * @return exitedTickets The number of tickets that have already exited
+   * @return exitedAssets The number of assets that can be claimed
    */
   function calculateExitedAssets(
     address receiver,
     uint256 positionTicket,
     uint256 timestamp,
     uint256 exitQueueIndex
-  ) external view returns (uint256 leftShares, uint256 claimedShares, uint256 claimedAssets);
+  ) external view returns (uint256 leftTickets, uint256 exitedTickets, uint256 exitedAssets);
 
   /**
    * @notice Claims assets that were withdrawn by the Vault. It can be called only after the `enterExitQueue` call by the `receiver`.
