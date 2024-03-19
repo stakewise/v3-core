@@ -172,8 +172,8 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
   for (const vaultType of [
     'GnoVault',
     'GnoPrivVault',
-    'GnoErc20Vault',
     'GnoBlocklistVault',
+    'GnoErc20Vault',
     'GnoPrivErc20Vault',
     'GnoBlocklistErc20Vault',
   ]) {
