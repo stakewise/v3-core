@@ -6,6 +6,7 @@ import {
   GnoBlocklistErc20Vault,
   Keeper,
   OsTokenVaultController,
+  DepositDataManager,
 } from '../../typechain-types'
 import { collateralizeGnoVault, depositGno, gnoVaultFixture } from '../shared/gnoFixtures'
 import { expect } from '../shared/expect'
@@ -26,7 +27,8 @@ describe('GnoBlocklistErc20Vault', () => {
     keeper: Keeper,
     validatorsRegistry: Contract,
     osTokenVaultController: OsTokenVaultController,
-    gnoToken: ERC20Mock
+    gnoToken: ERC20Mock,
+    depositDataManager: DepositDataManager
 
   beforeEach('deploy fixtures', async () => {
     ;[sender, receiver, admin, other, blocklistManager] = await (ethers as any).getSigners()
@@ -42,6 +44,7 @@ describe('GnoBlocklistErc20Vault', () => {
     validatorsRegistry = fixture.validatorsRegistry
     osTokenVaultController = fixture.osTokenVaultController
     gnoToken = fixture.gnoToken
+    depositDataManager = fixture.depositDataManager
   })
 
   it('has id', async () => {
@@ -131,7 +134,14 @@ describe('GnoBlocklistErc20Vault', () => {
     let osTokenShares: bigint
 
     beforeEach(async () => {
-      await collateralizeGnoVault(vault, gnoToken, keeper, validatorsRegistry, admin)
+      await collateralizeGnoVault(
+        vault,
+        gnoToken,
+        keeper,
+        depositDataManager,
+        admin,
+        validatorsRegistry
+      )
       await depositGno(vault, gnoToken, assets, sender, sender, referrer)
       osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
     })

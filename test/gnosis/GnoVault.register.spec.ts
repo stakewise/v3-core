@@ -3,7 +3,13 @@ import { Contract, Signer, Wallet } from 'ethers'
 import { UintNumberType } from '@chainsafe/ssz'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { ThenArg } from '../../helpers/types'
-import { ERC20Mock, GnoVault, IKeeperValidators, Keeper } from '../../typechain-types'
+import {
+  DepositDataManager,
+  ERC20Mock,
+  GnoVault,
+  IKeeperValidators,
+  Keeper,
+} from '../../typechain-types'
 import snapshotGasCost from '../shared/snapshotGasCost'
 import { expect } from '../shared/expect'
 import { toHexString } from '../shared/utils'
@@ -27,6 +33,7 @@ import {
   VALIDATORS_DEADLINE,
   VALIDATORS_MIN_ORACLES,
   ZERO_ADDRESS,
+  ZERO_BYTES32,
 } from '../shared/constants'
 import { gnoVaultFixture, setGnoWithdrawals } from '../shared/gnoFixtures'
 
@@ -42,7 +49,11 @@ describe('GnoVault - register', () => {
   const deadline = VALIDATORS_DEADLINE
 
   let admin: Signer, other: Wallet
-  let vault: GnoVault, keeper: Keeper, validatorsRegistry: Contract, gnoToken: ERC20Mock
+  let vault: GnoVault,
+    keeper: Keeper,
+    validatorsRegistry: Contract,
+    gnoToken: ERC20Mock,
+    depositDataManager: DepositDataManager
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
 
@@ -58,6 +69,7 @@ describe('GnoVault - register', () => {
       createGnoVault: createVault,
       keeper,
       gnoToken,
+      depositDataManager,
     } = await loadFixture(gnoVaultFixture))
 
     vault = await createVault(admin, {
@@ -67,10 +79,11 @@ describe('GnoVault - register', () => {
     })
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
+    const vaultAddr = await vault.getAddress()
     await gnoToken.mint(other.address, vaultDeposit)
-    await gnoToken.connect(other).approve(await vault.getAddress(), vaultDeposit)
+    await gnoToken.connect(other).approve(vaultAddr, vaultDeposit)
     await vault.connect(other).deposit(vaultDeposit, other.address, ZERO_ADDRESS)
-    await vault.connect(admin).setValidatorsRoot(validatorsData.root)
+    await depositDataManager.connect(admin).setDepositDataRoot(vaultAddr, validatorsData.root)
   })
 
   describe('single validator', () => {
@@ -104,17 +117,9 @@ describe('GnoVault - register', () => {
 
     it('fails with not enough withdrawable assets', async () => {
       await vault.connect(other).enterExitQueue(await vault.getShares(other.address), other.address)
-      await expect(vault.registerValidator(approvalParams, proof)).to.be.revertedWithCustomError(
-        vault,
-        'InsufficientAssets'
-      )
-    })
-
-    it('fails with invalid proof', async () => {
-      const invalidProof = getValidatorProof(validatorsData.tree, validatorsData.validators[1], 1)
       await expect(
-        vault.registerValidator(approvalParams, invalidProof)
-      ).to.be.revertedWithCustomError(vault, 'InvalidProof')
+        depositDataManager.registerValidator(await vault.getAddress(), approvalParams, proof)
+      ).to.be.revertedWithCustomError(vault, 'InsufficientAssets')
     })
 
     it('fails with invalid validator length', async () => {
@@ -125,7 +130,8 @@ describe('GnoVault - register', () => {
       )
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.registerValidator(
+        depositDataManager.registerValidator(
+          await vault.getAddress(),
           {
             validatorsRegistryRoot,
             validators: appendDepositData(validator, validatorDeposit, await vault.getAddress()),
@@ -145,7 +151,7 @@ describe('GnoVault - register', () => {
           },
           proof
         )
-      ).to.be.revertedWithCustomError(vault, 'InvalidValidator')
+      ).to.be.revertedWithCustomError(vault, 'InvalidValidators')
     })
 
     it('pulls withdrawals on single validator registration', async () => {
@@ -154,13 +160,23 @@ describe('GnoVault - register', () => {
       await setGnoWithdrawals(validatorsRegistry, gnoToken, vault, vaultDeposit)
       expect(await vault.withdrawableAssets()).to.be.eq(vaultDeposit + SECURITY_DEPOSIT)
 
-      const tx = await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+      const tx = await registerEthValidator(
+        vault,
+        keeper,
+        depositDataManager,
+        admin,
+        validatorsRegistry
+      )
       await snapshotGasCost(tx)
     })
 
     it('succeeds', async () => {
       const index = await validatorsRegistry.get_deposit_count()
-      const receipt = await vault.registerValidator(approvalParams, proof)
+      const receipt = await depositDataManager.registerValidator(
+        await vault.getAddress(),
+        approvalParams,
+        proof
+      )
       const publicKey = `0x${validator.subarray(0, 48).toString('hex')}`
       await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
       await expect(receipt)
@@ -197,7 +213,14 @@ describe('GnoVault - register', () => {
       await gnoToken.mint(other.address, missingGno)
       await gnoToken.connect(other).approve(await vault.getAddress(), missingGno)
       await vault.connect(other).deposit(missingGno, other.address, ZERO_ADDRESS)
-      await vault.connect(admin).setValidatorsRoot(validatorsData.root)
+
+      // reset validator index
+      await depositDataManager
+        .connect(admin)
+        .setDepositDataRoot(await vault.getAddress(), ZERO_BYTES32)
+      await depositDataManager
+        .connect(admin)
+        .setDepositDataRoot(await vault.getAddress(), validatorsData.root)
 
       signatures = getOraclesSignatures(
         await getEthValidatorsSigningData(
@@ -222,14 +245,21 @@ describe('GnoVault - register', () => {
     it('fails with not enough withdrawable assets', async () => {
       await vault.connect(other).enterExitQueue(vaultDeposit, other.address)
       await expect(
-        vault.registerValidators(approvalParams, indexes, multiProof.proofFlags, multiProof.proof)
+        depositDataManager.registerValidators(
+          await vault.getAddress(),
+          approvalParams,
+          indexes,
+          multiProof.proofFlags,
+          multiProof.proof
+        )
       ).to.be.revertedWithCustomError(vault, 'InsufficientAssets')
     })
 
     it('fails with invalid validators count', async () => {
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.registerValidators(
+        depositDataManager.registerValidators(
+          await vault.getAddress(),
           {
             validatorsRegistryRoot,
             validators: Buffer.from(''),
@@ -267,7 +297,8 @@ describe('GnoVault - register', () => {
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.registerValidators(
+        depositDataManager.registerValidators(
+          await vault.getAddress(),
           {
             validatorsRegistryRoot,
             deadline,
@@ -306,7 +337,8 @@ describe('GnoVault - register', () => {
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.registerValidators(
+        depositDataManager.registerValidators(
+          await vault.getAddress(),
           {
             validatorsRegistryRoot,
             validators: invalidValidatorsConcat,
@@ -345,7 +377,8 @@ describe('GnoVault - register', () => {
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.registerValidators(
+        depositDataManager.registerValidators(
+          await vault.getAddress(),
           {
             validatorsRegistryRoot,
             validators: invalidValidatorsConcat,
@@ -372,30 +405,20 @@ describe('GnoVault - register', () => {
       )
     })
 
-    it('fails with invalid proof', async () => {
-      const invalidMultiProof = getValidatorsMultiProof(
-        validatorsData.tree,
-        validators.slice(1),
-        [...Array(validatorsData.validators.length).keys()].slice(1)
-      )
-
-      await expect(
-        vault.registerValidators(
-          approvalParams,
-          indexes,
-          invalidMultiProof.proofFlags,
-          invalidMultiProof.proof
-        )
-      ).to.be.revertedWithCustomError(vault, 'MerkleProofInvalidMultiproof')
-    })
-
     it('fails with invalid indexes', async () => {
       await expect(
-        vault.registerValidators(approvalParams, [], multiProof.proofFlags, multiProof.proof)
+        depositDataManager.registerValidators(
+          await vault.getAddress(),
+          approvalParams,
+          [],
+          multiProof.proofFlags,
+          multiProof.proof
+        )
       ).to.be.revertedWithCustomError(vault, 'InvalidValidators')
 
       await expect(
-        vault.registerValidators(
+        depositDataManager.registerValidators(
+          await vault.getAddress(),
           approvalParams,
           indexes.map((i) => i + 1),
           multiProof.proofFlags,
@@ -404,22 +427,14 @@ describe('GnoVault - register', () => {
       ).to.be.revertedWithPanic(PANIC_CODES.OUT_OF_BOUND_INDEX)
 
       await expect(
-        vault.registerValidators(
-          approvalParams,
-          indexes.slice(1),
-          multiProof.proofFlags,
-          multiProof.proof
-        )
-      ).to.be.revertedWithCustomError(vault, 'InvalidValidators')
-
-      await expect(
-        vault.registerValidators(
+        depositDataManager.registerValidators(
+          await vault.getAddress(),
           approvalParams,
           indexes.sort(() => 0.5 - Math.random()),
           multiProof.proofFlags,
           multiProof.proof
         )
-      ).to.be.revertedWithCustomError(vault, 'InvalidProof')
+      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidProof')
     })
 
     it('fails with invalid validator length', async () => {
@@ -431,7 +446,8 @@ describe('GnoVault - register', () => {
 
       for (let i = 0; i < invalidValidators.length; i++) {
         await expect(
-          vault.registerValidators(
+          depositDataManager.registerValidators(
+            await vault.getAddress(),
             {
               validatorsRegistryRoot,
               validators: invalidValidators[i],
@@ -464,7 +480,8 @@ describe('GnoVault - register', () => {
       await setGnoWithdrawals(validatorsRegistry, gnoToken, vault, withdrawals)
       expect(await vault.withdrawableAssets()).to.be.eq(withdrawals + SECURITY_DEPOSIT)
 
-      const tx = await vault.registerValidators(
+      const tx = await depositDataManager.registerValidators(
+        await vault.getAddress(),
         approvalParams,
         indexes,
         multiProof.proofFlags,
@@ -477,7 +494,8 @@ describe('GnoVault - register', () => {
       const startIndex = uintSerializer.deserialize(
         ethers.getBytes(await validatorsRegistry.get_deposit_count())
       )
-      const receipt = await vault.registerValidators(
+      const receipt = await depositDataManager.registerValidators(
+        await vault.getAddress(),
         approvalParams,
         indexes,
         multiProof.proofFlags,

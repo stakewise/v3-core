@@ -110,58 +110,47 @@ abstract contract VaultGnoStaking is
 
     // register single validator
     bytes calldata publicKey = validator[:48];
-    _gnoToken.approve(_validatorsRegistry, _validatorDeposit());
+    uint256 depositAmount = _validatorDeposit();
+    _gnoToken.approve(_validatorsRegistry, depositAmount);
     IGnoValidatorsRegistry(_validatorsRegistry).deposit(
       publicKey,
       _withdrawalCredentials(),
       validator[48:144],
-      bytes32(validator[144:_validatorLength]),
-      _validatorDeposit()
+      bytes32(validator[144:_validatorLength()]),
+      depositAmount
     );
 
     emit ValidatorRegistered(publicKey);
   }
 
   /// @inheritdoc VaultValidators
-  function _registerMultipleValidators(
-    bytes calldata validators,
-    uint256[] calldata indexes
-  ) internal virtual override returns (bytes32[] memory leaves) {
+  function _registerMultipleValidators(bytes calldata validators) internal virtual override {
     // pull withdrawals from the deposit contract
     _pullWithdrawals();
-
-    // define leaves
-    uint256 validatorsCount = indexes.length;
-    leaves = new bytes32[](validatorsCount);
 
     // variables used for batch deposit
     bytes memory publicKeys;
     bytes memory signatures;
+
+    // prepare deposit data
+    uint256 startIndex;
+    uint256 endIndex;
+    bytes calldata validator;
+    uint256 validatorLength = _validatorLength();
+    uint256 validatorsCount = validators.length / validatorLength;
     bytes32[] memory depositDataRoots = new bytes32[](validatorsCount);
-
-    {
-      // SLOAD to memory
-      uint256 currentValIndex = validatorIndex;
-
-      // process validators
-      uint256 startIndex;
-      uint256 endIndex;
-      bytes calldata validator;
-      for (uint256 i = 0; i < validatorsCount; i++) {
-        endIndex += _validatorLength;
-        validator = validators[startIndex:endIndex];
-        leaves[indexes[i]] = keccak256(
-          bytes.concat(keccak256(abi.encode(validator, currentValIndex)))
-        );
-        publicKeys = bytes.concat(publicKeys, validator[:48]);
-        signatures = bytes.concat(signatures, validator[48:144]);
-        depositDataRoots[i] = bytes32(validator[144:_validatorLength]);
-        startIndex = endIndex;
-        unchecked {
-          // cannot realistically overflow
-          ++currentValIndex;
-        }
-        emit ValidatorRegistered(validator[:48]);
+    for (uint256 i = 0; i < validatorsCount; ) {
+      endIndex += validatorLength;
+      validator = validators[startIndex:endIndex];
+      publicKeys = bytes.concat(publicKeys, validator[:48]);
+      signatures = bytes.concat(signatures, validator[48:144]);
+      depositDataRoots[i] = bytes32(validator[144:validatorLength]);
+      startIndex = endIndex;
+      emit ValidatorRegistered(validator[:48]);
+      startIndex = endIndex;
+      unchecked {
+        // cannot realistically overflow
+        ++i;
       }
     }
 
@@ -194,8 +183,21 @@ abstract contract VaultGnoStaking is
   }
 
   /// @inheritdoc VaultValidators
-  function _validatorDeposit() internal pure override returns (uint256) {
+  function _validatorLength() internal pure virtual override returns (uint256) {
+    return 176;
+  }
+
+  /// @inheritdoc VaultValidators
+  function _validatorDeposit() internal pure virtual override returns (uint256) {
     return 1 ether;
+  }
+
+  /**
+   * @dev Internal function for calculating Vault withdrawal credentials
+   * @return The credentials used for the validators withdrawals
+   */
+  function _withdrawalCredentials() internal view virtual returns (bytes memory) {
+    return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
   }
 
   /**

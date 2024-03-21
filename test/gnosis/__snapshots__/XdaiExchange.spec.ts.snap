@@ -3,6 +3,6 @@
 exports[`XdaiExchange upgrade upgrades 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 36983,
+  "gasUsed": 36971,
 }
 `;
