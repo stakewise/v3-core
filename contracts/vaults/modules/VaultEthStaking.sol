@@ -67,7 +67,7 @@ abstract contract VaultEthStaking is
       publicKey,
       _withdrawalCredentials(),
       validator[48:144],
-      bytes32(validator[144:validator.length])
+      bytes32(validator[144:_validatorLength()])
     );
     emit ValidatorRegistered(publicKey);
   }

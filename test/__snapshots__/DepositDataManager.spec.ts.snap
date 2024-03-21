@@ -31,6 +31,6 @@ Object {
 exports[`DepositDataManager single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 1156,
-  "gasUsed": 331930,
+  "gasUsed": 331879,
 }
 `;
