@@ -3,34 +3,34 @@
 exports[`GnoVault deposit deposit 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 80394,
+  "gasUsed": 80406,
 }
 `;
 
 exports[`GnoVault pulls withdrawals on claim exited assets 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 124820,
+  "gasUsed": 124788,
 }
 `;
 
 exports[`GnoVault swap xdai to gno manager can swap all xdai to gno 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 119517,
+  "gasUsed": 119495,
 }
 `;
 
 exports[`GnoVault swap xdai to gno manager can swap some xdai to gno 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 124305,
+  "gasUsed": 124283,
 }
 `;
 
 exports[`GnoVault xdai manager can be set by the admin 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 52684,
+  "gasUsed": 52662,
 }
 `;

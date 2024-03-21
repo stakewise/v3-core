@@ -9,6 +9,7 @@ import {
   GnoSharedMevEscrow,
   GnoVault,
   Keeper,
+  DepositDataManager,
 } from '../../typechain-types'
 import { collateralizeGnoVault, gnoVaultFixture } from '../shared/gnoFixtures'
 import { expect } from '../shared/expect'
@@ -29,7 +30,8 @@ describe('GnoVault', () => {
     balancerVault: BalancerVaultMock,
     sharedMevEscrow: GnoSharedMevEscrow,
     keeper: Keeper,
-    validatorsRegistry: Contract
+    validatorsRegistry: Contract,
+    depositDataManager: DepositDataManager
   let xdaiGnoRate: bigint
 
   let createVault: ThenArg<ReturnType<typeof gnoVaultFixture>>['createGnoVault']
@@ -42,6 +44,7 @@ describe('GnoVault', () => {
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
     sharedMevEscrow = fixture.sharedMevEscrow
+    depositDataManager = fixture.depositDataManager
     createVault = fixture.createGnoVault
   })
 
@@ -51,7 +54,14 @@ describe('GnoVault', () => {
     beforeEach('deploy vault', async () => {
       vault = await createVault(admin, vaultParams, false)
       await vault.connect(admin).setXdaiManager(xdaiManager.address)
-      await collateralizeGnoVault(vault, gnoToken, keeper, validatorsRegistry, admin)
+      await collateralizeGnoVault(
+        vault,
+        gnoToken,
+        keeper,
+        depositDataManager,
+        admin,
+        validatorsRegistry
+      )
       xdaiGnoRate = await balancerVault.xdaiGnoRate()
     })
 
@@ -100,7 +110,14 @@ describe('GnoVault', () => {
       const mevEscrowAddr = await vault.mevEscrow()
       mevEscrow = GnoOwnMevEscrow__factory.connect(mevEscrowAddr, admin)
       await vault.connect(admin).setXdaiManager(xdaiManager.address)
-      await collateralizeGnoVault(vault, gnoToken, keeper, validatorsRegistry, admin)
+      await collateralizeGnoVault(
+        vault,
+        gnoToken,
+        keeper,
+        depositDataManager,
+        admin,
+        validatorsRegistry
+      )
       xdaiGnoRate = await balancerVault.xdaiGnoRate()
     })
 

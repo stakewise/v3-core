@@ -2,7 +2,13 @@ import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import keccak256 from 'keccak256'
-import { ERC20Mock, GnoErc20Vault, Keeper, OsTokenVaultController } from '../../typechain-types'
+import {
+  ERC20Mock,
+  GnoErc20Vault,
+  Keeper,
+  OsTokenVaultController,
+  DepositDataManager,
+} from '../../typechain-types'
 import { collateralizeGnoVault, depositGno, gnoVaultFixture } from '../shared/gnoFixtures'
 import { expect } from '../shared/expect'
 import { ZERO_ADDRESS } from '../shared/constants'
@@ -22,7 +28,8 @@ describe('GnoErc20Vault', () => {
     keeper: Keeper,
     validatorsRegistry: Contract,
     osTokenVaultController: OsTokenVaultController,
-    gnoToken: ERC20Mock
+    gnoToken: ERC20Mock,
+    depositDataManager: DepositDataManager
 
   beforeEach('deploy fixtures', async () => {
     ;[sender, receiver, admin, other] = await (ethers as any).getSigners()
@@ -38,6 +45,7 @@ describe('GnoErc20Vault', () => {
     validatorsRegistry = fixture.validatorsRegistry
     osTokenVaultController = fixture.osTokenVaultController
     gnoToken = fixture.gnoToken
+    depositDataManager = fixture.depositDataManager
   })
 
   it('has id', async () => {
@@ -71,7 +79,14 @@ describe('GnoErc20Vault', () => {
   })
 
   it('enter exit queue emits transfer event', async () => {
-    await collateralizeGnoVault(vault, gnoToken, keeper, validatorsRegistry, admin)
+    await collateralizeGnoVault(
+      vault,
+      gnoToken,
+      keeper,
+      depositDataManager,
+      admin,
+      validatorsRegistry
+    )
     expect(await vault.totalExitingAssets()).to.be.eq(0)
     const totalExitingBefore = await vault.totalExitingAssets()
     const totalAssetsBefore = await vault.totalAssets()
@@ -97,7 +112,14 @@ describe('GnoErc20Vault', () => {
   })
 
   it('cannot transfer vault shares when unharvested and osToken minted', async () => {
-    await collateralizeGnoVault(vault, gnoToken, keeper, validatorsRegistry, admin)
+    await collateralizeGnoVault(
+      vault,
+      gnoToken,
+      keeper,
+      depositDataManager,
+      admin,
+      validatorsRegistry
+    )
     const assets = ethers.parseEther('1')
     const shares = await vault.convertToShares(assets)
     const osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
@@ -117,7 +139,14 @@ describe('GnoErc20Vault', () => {
   })
 
   it('cannot transfer vault shares when LTV is violated', async () => {
-    await collateralizeGnoVault(vault, gnoToken, keeper, validatorsRegistry, admin)
+    await collateralizeGnoVault(
+      vault,
+      gnoToken,
+      keeper,
+      depositDataManager,
+      admin,
+      validatorsRegistry
+    )
     const assets = ethers.parseEther('2')
     const shares = await vault.convertToShares(assets)
     const osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
@@ -134,7 +163,14 @@ describe('GnoErc20Vault', () => {
   })
 
   it('can transfer vault shares when LTV is not violated', async () => {
-    await collateralizeGnoVault(vault, gnoToken, keeper, validatorsRegistry, admin)
+    await collateralizeGnoVault(
+      vault,
+      gnoToken,
+      keeper,
+      depositDataManager,
+      admin,
+      validatorsRegistry
+    )
     const assets = ethers.parseEther('2')
     const osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
     const transferShares = await vault.convertToShares(ethers.parseEther('0.1'))

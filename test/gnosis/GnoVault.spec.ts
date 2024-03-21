@@ -8,6 +8,7 @@ import {
   Keeper,
   VaultsRegistry,
   XdaiExchange,
+  DepositDataManager,
 } from '../../typechain-types'
 import { gnoVaultFixture, setGnoWithdrawals } from '../shared/gnoFixtures'
 import { expect } from '../shared/expect'
@@ -46,7 +47,8 @@ describe('GnoVault', () => {
     vault: GnoVault,
     vaultsRegistry: VaultsRegistry,
     keeper: Keeper,
-    validatorsRegistry: Contract
+    validatorsRegistry: Contract,
+    depositDataManager: DepositDataManager
 
   beforeEach('deploy fixtures', async () => {
     ;[dao, admin, xdaiManager, sender, receiver, other] = await (ethers as any).getSigners()
@@ -57,6 +59,7 @@ describe('GnoVault', () => {
     vaultsRegistry = fixture.vaultsRegistry
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
+    depositDataManager = fixture.depositDataManager
     vault = await fixture.createGnoVault(admin, vaultParams)
   })
 
@@ -207,7 +210,7 @@ describe('GnoVault', () => {
     expect(await vault.getShares(sender.address)).to.eq(shares)
 
     // register validator
-    await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+    await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
     expect(await gnoToken.balanceOf(await vault.getAddress())).to.eq(0n)
 
     // enter exit queue

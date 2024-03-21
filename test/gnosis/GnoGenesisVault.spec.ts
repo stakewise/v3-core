@@ -7,6 +7,7 @@ import {
   Keeper,
   LegacyRewardTokenMock,
   PoolEscrowMock,
+  DepositDataManager,
 } from '../../typechain-types'
 import { expect } from '../shared/expect'
 import keccak256 from 'keccak256'
@@ -40,7 +41,7 @@ describe('GnoGenesisVault', () => {
   let admin: Wallet, other: Wallet
   let vault: GnoGenesisVault, keeper: Keeper, validatorsRegistry: Contract, gnoToken: ERC20Mock
   let poolEscrow: PoolEscrowMock
-  let rewardToken: LegacyRewardTokenMock
+  let rewardToken: LegacyRewardTokenMock, depositDataManager: DepositDataManager
 
   let createGenesisVault: ThenArg<ReturnType<typeof gnoVaultFixture>>['createGnoGenesisVault']
 
@@ -53,9 +54,9 @@ describe('GnoGenesisVault', () => {
       vault,
       gnoToken,
       keeper,
-      validatorsRegistry,
+      depositDataManager,
       admin,
-      await poolEscrow.getAddress()
+      validatorsRegistry
     )
   }
 
@@ -65,6 +66,7 @@ describe('GnoGenesisVault', () => {
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
     gnoToken = fixture.gnoToken
+    depositDataManager = fixture.depositDataManager
     ;[vault, rewardToken, poolEscrow] = await fixture.createGnoGenesisVault(admin, {
       capacity,
       feePercent,
@@ -104,15 +106,11 @@ describe('GnoGenesisVault', () => {
     })
 
     it('fails when pool escrow ownership is not accepted', async () => {
-      const [vault, rewardToken] = await createGenesisVault(
-        admin,
-        {
-          capacity,
-          feePercent,
-          metadataIpfsHash,
-        },
-        true
-      )
+      const [vault, rewardToken] = await createGenesisVault(admin, {
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      })
       const assets = ethers.parseEther('10')
       await expect(
         rewardToken.connect(other).migrate(other.address, assets, 0)
@@ -137,15 +135,11 @@ describe('GnoGenesisVault', () => {
     })
 
     it('fails when not collateralized', async () => {
-      const [vault, rewardToken] = await createGenesisVault(
-        admin,
-        {
-          capacity,
-          feePercent,
-          metadataIpfsHash,
-        },
-        true
-      )
+      const [vault, rewardToken] = await createGenesisVault(admin, {
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      })
       await vault.connect(admin).acceptPoolEscrowOwnership()
       const assets = ethers.parseEther('1')
       await expect(
@@ -197,13 +191,7 @@ describe('GnoGenesisVault', () => {
     expect(await vault.getShares(other.address)).to.eq(shares)
 
     // register validator
-    await registerEthValidator(
-      vault,
-      keeper,
-      validatorsRegistry,
-      admin,
-      await poolEscrow.getAddress()
-    )
+    await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
     expect(await gnoToken.balanceOf(await vault.getAddress())).to.eq(0n)
 
     // enter exit queue
@@ -294,15 +282,11 @@ describe('GnoGenesisVault', () => {
     })
 
     it('fails when pool escrow ownership not accepted', async () => {
-      const [vault] = await createGenesisVault(
-        admin,
-        {
-          capacity,
-          feePercent,
-          metadataIpfsHash,
-        },
-        true
-      )
+      const [vault] = await createGenesisVault(admin, {
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      })
       const totalRewards = ethers.parseEther('30')
       const vaultReward = getHarvestParams(await vault.getAddress(), totalRewards, 0n)
       const rewardsTree = await updateRewards(keeper, [vaultReward])
@@ -318,15 +302,11 @@ describe('GnoGenesisVault', () => {
     })
 
     it('fails with negative first update', async () => {
-      const [vault] = await createGenesisVault(
-        admin,
-        {
-          capacity,
-          feePercent,
-          metadataIpfsHash,
-        },
-        true
-      )
+      const [vault] = await createGenesisVault(admin, {
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      })
       await vault.connect(admin).acceptPoolEscrowOwnership()
       const totalPenalty = ethers.parseEther('-5')
       const vaultReward = getHarvestParams(await vault.getAddress(), totalPenalty, 0n)
@@ -368,15 +348,11 @@ describe('GnoGenesisVault', () => {
     })
 
     it('deducts rewards on first state update', async () => {
-      const [vault, rewardToken] = await createGenesisVault(
-        admin,
-        {
-          capacity,
-          feePercent,
-          metadataIpfsHash,
-        },
-        true
-      )
+      const [vault, rewardToken] = await createGenesisVault(admin, {
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      })
       await vault.connect(admin).acceptPoolEscrowOwnership()
       await depositGno(
         vault,

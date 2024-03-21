@@ -1,7 +1,13 @@
 import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { ERC20Mock, GnoPrivErc20Vault, Keeper, OsTokenVaultController } from '../../typechain-types'
+import {
+  ERC20Mock,
+  GnoPrivErc20Vault,
+  Keeper,
+  OsTokenVaultController,
+  DepositDataManager,
+} from '../../typechain-types'
 import { collateralizeGnoVault, depositGno, gnoVaultFixture } from '../shared/gnoFixtures'
 import { expect } from '../shared/expect'
 import { ZERO_ADDRESS } from '../shared/constants'
@@ -21,7 +27,8 @@ describe('GnoPrivErc20Vault', () => {
     keeper: Keeper,
     validatorsRegistry: Contract,
     osTokenVaultController: OsTokenVaultController,
-    gnoToken: ERC20Mock
+    gnoToken: ERC20Mock,
+    depositDataManager: DepositDataManager
 
   beforeEach('deploy fixtures', async () => {
     ;[sender, receiver, admin, other, whitelister] = await (ethers as any).getSigners()
@@ -37,6 +44,7 @@ describe('GnoPrivErc20Vault', () => {
     validatorsRegistry = fixture.validatorsRegistry
     osTokenVaultController = fixture.osTokenVaultController
     gnoToken = fixture.gnoToken
+    depositDataManager = fixture.depositDataManager
   })
 
   it('has id', async () => {
@@ -91,7 +99,14 @@ describe('GnoPrivErc20Vault', () => {
 
     beforeEach(async () => {
       await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
-      await collateralizeGnoVault(vault, gnoToken, keeper, validatorsRegistry, admin)
+      await collateralizeGnoVault(
+        vault,
+        gnoToken,
+        keeper,
+        depositDataManager,
+        admin,
+        validatorsRegistry
+      )
       await vault.connect(admin).updateWhitelist(sender.address, true)
       await depositGno(vault, gnoToken, assets, sender, sender, referrer)
       osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
