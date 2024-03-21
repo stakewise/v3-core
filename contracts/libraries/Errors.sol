@@ -29,7 +29,6 @@ library Errors {
   error InvalidReceivedAssets();
   error InvalidTokenMeta();
   error UpgradeFailed();
-  error InvalidValidator();
   error InvalidValidators();
   error DeadlineExpired();
   error PermitInvalidSigner();

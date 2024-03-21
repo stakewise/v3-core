@@ -151,11 +151,6 @@
   },
   {
     "inputs": [],
-    "name": "InvalidValidator",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidValidators",
     "type": "error"
   },
