@@ -26,6 +26,41 @@
   },
   {
     "inputs": [],
+    "name": "EigenInvalidWithdrawalCredentials",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EigenOperatorUpdateInvalidWithdrawal",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EigenOperatorUpdateNoChange",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EigenOperatorUpdateNotCompleted",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EigenOperatorUpdateNotInitiated",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EigenOperatorUpdateUndelegationFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "EigenPodNotFound",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "ExitRequestNotProcessed",
     "type": "error"
   },
