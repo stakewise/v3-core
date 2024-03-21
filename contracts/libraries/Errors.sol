@@ -52,4 +52,5 @@ library Errors {
   error InvalidCheckpointValue();
   error MaxOraclesExceeded();
   error ExitRequestNotProcessed();
+  error ValueNotChanged();
 }

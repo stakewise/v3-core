@@ -1,7 +1,13 @@
 import { ethers } from 'hardhat'
 import { Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthVault, IKeeperRewards, OsTokenVaultController, PriceFeed } from '../typechain-types'
+import {
+  EthVault,
+  IKeeperRewards,
+  OsTokenVaultController,
+  PriceFeed,
+  DepositDataManager,
+} from '../typechain-types'
 import { expect } from './shared/expect'
 import { createPriceFeed, ethVaultFixture } from './shared/fixtures'
 import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
@@ -25,7 +31,10 @@ describe('PriceFeed', () => {
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
   let sender: Wallet, admin: Signer, dao: Wallet
-  let osTokenVaultController: OsTokenVaultController, priceFeed: PriceFeed, vault: EthVault
+  let osTokenVaultController: OsTokenVaultController,
+    priceFeed: PriceFeed,
+    vault: EthVault,
+    depositDataManager: DepositDataManager
 
   before('create fixture loader', async () => {
     ;[sender, dao, admin] = await (ethers as any).getSigners()
@@ -37,10 +46,17 @@ describe('PriceFeed', () => {
     admin = await ethers.getImpersonatedSigner(await vault.admin())
 
     osTokenVaultController = fixture.osTokenVaultController
+    depositDataManager = fixture.depositDataManager
     priceFeed = await createPriceFeed(osTokenVaultController, description)
 
     // collateralize vault
-    await collateralizeEthVault(vault, fixture.keeper, fixture.validatorsRegistry, admin)
+    await collateralizeEthVault(
+      vault,
+      fixture.keeper,
+      depositDataManager,
+      admin,
+      fixture.validatorsRegistry
+    )
     await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: shares })
 
     const reward = ethers.parseEther('1')

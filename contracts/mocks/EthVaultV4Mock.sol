@@ -13,6 +13,7 @@ contract EthVaultV4Mock is EthVaultV3Mock {
     address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
+    address depositDataManager,
     uint256 exitingAssetsClaimDelay
   )
     EthVaultV3Mock(
@@ -22,6 +23,7 @@ contract EthVaultV4Mock is EthVaultV3Mock {
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
+      depositDataManager,
       exitingAssetsClaimDelay
     )
   {}

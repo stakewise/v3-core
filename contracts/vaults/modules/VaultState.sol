@@ -24,10 +24,10 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   uint128 internal _totalAssets;
 
   /// @inheritdoc IVaultState
-  uint128 public override queuedShares;
-  uint128 internal _unclaimedAssets;
+  uint128 public override queuedShares; // deprecated
+  uint128 internal _unclaimedAssets; // deprecated
+  ExitQueue.History internal _exitQueue; // deprecated
 
-  ExitQueue.History internal _exitQueue;
   mapping(bytes32 => uint256) internal _exitRequests;
   mapping(address => uint256) internal _balances;
 

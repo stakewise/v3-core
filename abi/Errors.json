@@ -216,6 +216,11 @@
   },
   {
     "inputs": [],
+    "name": "ValueNotChanged",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "ZeroAddress",
     "type": "error"
   }

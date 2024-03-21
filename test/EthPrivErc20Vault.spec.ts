@@ -6,6 +6,7 @@ import {
   IKeeperRewards,
   Keeper,
   OsTokenVaultController,
+  DepositDataManager,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
@@ -26,7 +27,8 @@ describe('EthPrivErc20Vault', () => {
   let vault: EthPrivErc20Vault,
     keeper: Keeper,
     validatorsRegistry: Contract,
-    osTokenVaultController: OsTokenVaultController
+    osTokenVaultController: OsTokenVaultController,
+    depositDataManager: DepositDataManager
 
   let createPrivateVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthPrivErc20Vault']
 
@@ -37,6 +39,7 @@ describe('EthPrivErc20Vault', () => {
       keeper,
       validatorsRegistry,
       osTokenVaultController,
+      depositDataManager,
     } = await loadFixture(ethVaultFixture))
     vault = await createPrivateVault(admin, {
       capacity,
@@ -71,7 +74,7 @@ describe('EthPrivErc20Vault', () => {
     })
 
     it('cannot update state and call', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
       const vaultReward = ethers.parseEther('1')
       const tree = await updateRewards(keeper, [
         { reward: vaultReward, unlockedMevReward: 0n, vault: await vault.getAddress() },
@@ -188,7 +191,7 @@ describe('EthPrivErc20Vault', () => {
     beforeEach(async () => {
       await vault.connect(admin).updateWhitelist(sender.address, true)
       await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
       await vault.connect(sender).deposit(sender.address, referrer, { value: assets })
       osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
     })

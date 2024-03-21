@@ -1,7 +1,7 @@
 import { ethers, network } from 'hardhat'
 import { Contract, Signer } from 'ethers'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
-import { EthVault, IKeeperRewards, Keeper } from '../../typechain-types'
+import { EthVault, IKeeperRewards, Keeper, DepositDataManager } from '../../typechain-types'
 import {
   EIP712Domain,
   EXITING_ASSETS_MIN_DELAY,
@@ -149,7 +149,7 @@ export async function collateralizeEthV1Vault(
     .connect(admin)
     .deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
   const shares = await extractDepositShares(tx)
-  await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+  await registerEthValidator(vault, keeper, null, admin, validatorsRegistry)
 
   // update rewards tree
   const vaultReward = getHarvestParams(vaultAddress, 0n, 0n)
@@ -182,8 +182,9 @@ export async function collateralizeEthV1Vault(
 export async function collateralizeEthVault(
   vault: EthVaultType,
   keeper: Keeper,
-  validatorsRegistry: Contract,
-  admin: Signer
+  depositDataManager: DepositDataManager,
+  admin: Signer,
+  validatorsRegistry: Contract
 ) {
   const vaultAddress = await vault.getAddress()
   const balanceBefore = await ethers.provider.getBalance(vaultAddress)
@@ -195,7 +196,7 @@ export async function collateralizeEthVault(
     .connect(admin)
     .deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
   const receivedShares = await extractDepositShares(tx)
-  await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+  await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
 
   // exit validator
   const response = await vault.connect(admin).enterExitQueue(receivedShares, adminAddr)

@@ -44,6 +44,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
+   * @param depositDataManager The address of the DepositDataManager contract
    * @param poolEscrow The address of the pool escrow from StakeWise v2
    * @param rewardEthToken The address of the rETH2 token from StakeWise v2
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
@@ -56,6 +57,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
+    address depositDataManager,
     address poolEscrow,
     address rewardEthToken,
     uint256 exitingAssetsClaimDelay
@@ -67,6 +69,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
+      depositDataManager,
       exitingAssetsClaimDelay
     )
   {
@@ -239,11 +242,10 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
 
   /// @inheritdoc VaultValidators
   function _registerMultipleValidators(
-    bytes calldata validators,
-    uint256[] calldata indexes
-  ) internal virtual override(VaultValidators, VaultEthStaking) returns (bytes32[] memory leaves) {
+    bytes calldata validators
+  ) internal virtual override(VaultValidators, VaultEthStaking) {
     _pullWithdrawals();
-    return super._registerMultipleValidators(validators, indexes);
+    return super._registerMultipleValidators(validators);
   }
 
   /**

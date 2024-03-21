@@ -36,6 +36,7 @@ contract EthBlocklistErc20Vault is
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
+   * @param depositDataManager The address of the DepositDataManager contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -46,6 +47,7 @@ contract EthBlocklistErc20Vault is
     address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
+    address depositDataManager,
     uint256 exitingAssetsClaimDelay
   )
     EthErc20Vault(
@@ -55,6 +57,7 @@ contract EthBlocklistErc20Vault is
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
+      depositDataManager,
       exitingAssetsClaimDelay
     )
   {}
@@ -72,7 +75,6 @@ contract EthBlocklistErc20Vault is
     );
     // blocklist manager is initially set to admin address
     __VaultBlocklist_init(_admin);
-    __EthErc20Vault_initV2();
   }
 
   /// @inheritdoc IVaultEthStaking

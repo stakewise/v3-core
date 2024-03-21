@@ -9,6 +9,7 @@ import {
   VaultsRegistry,
   OsTokenVaultController,
   OsTokenConfig,
+  DepositDataManager,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
@@ -44,7 +45,8 @@ describe('EthVault - state', () => {
     validatorsRegistry: Contract,
     vaultsRegistry: VaultsRegistry,
     osTokenVaultController: OsTokenVaultController,
-    osTokenConfig: OsTokenConfig
+    osTokenConfig: OsTokenConfig,
+    depositDataManager: DepositDataManager
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
   let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVaultMock']
@@ -60,6 +62,7 @@ describe('EthVault - state', () => {
       vaultsRegistry,
       osTokenVaultController,
       osTokenConfig,
+      depositDataManager,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
@@ -138,7 +141,7 @@ describe('EthVault - state', () => {
     )
     const securityDeposit = 1000000000n
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: 1 })
-    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+    await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
     await vault._setTotalAssets(1)
     expect(await vault.totalAssets()).to.eq(1)
     expect(await vault.totalShares()).to.eq(securityDeposit + 1n)

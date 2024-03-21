@@ -1,6 +1,12 @@
 import { ethers } from 'hardhat'
 import { Contract, Signer, Wallet } from 'ethers'
-import { EthGenesisVault, Keeper, PoolEscrowMock, LegacyRewardTokenMock } from '../typechain-types'
+import {
+  EthGenesisVault,
+  Keeper,
+  PoolEscrowMock,
+  LegacyRewardTokenMock,
+  DepositDataManager,
+} from '../typechain-types'
 import { createDepositorMock, ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
 import keccak256 from 'keccak256'
@@ -43,7 +49,10 @@ describe('EthGenesisVault', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const deadline = VALIDATORS_DEADLINE
   let admin: Signer, other: Wallet
-  let vault: EthGenesisVault, keeper: Keeper, validatorsRegistry: Contract
+  let vault: EthGenesisVault,
+    keeper: Keeper,
+    validatorsRegistry: Contract,
+    depositDataManager: DepositDataManager
   let poolEscrow: PoolEscrowMock
   let rewardEthToken: LegacyRewardTokenMock
 
@@ -56,13 +65,7 @@ describe('EthGenesisVault', () => {
 
   async function collatEthVault() {
     if (MAINNET_FORK.enabled) return
-    await collateralizeEthVault(
-      vault,
-      keeper,
-      validatorsRegistry,
-      admin,
-      await poolEscrow.getAddress()
-    )
+    await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
   }
 
   beforeEach('deploy fixtures', async () => {
@@ -70,6 +73,7 @@ describe('EthGenesisVault', () => {
     const fixture = await loadFixture(ethVaultFixture)
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
+    depositDataManager = fixture.depositDataManager
     ;[vault, rewardEthToken, poolEscrow] = await fixture.createEthGenesisVault(admin, {
       capacity,
       feePercent,
@@ -278,7 +282,13 @@ describe('EthGenesisVault', () => {
     await setBalance(vaultAddr, 0n)
     await setBalance(poolEscrowAddr, validatorDeposit + vaultBalance + poolEscrowBalance)
     expect(await vault.withdrawableAssets()).to.be.greaterThanOrEqual(validatorDeposit)
-    const tx = await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+    const tx = await registerEthValidator(
+      vault,
+      keeper,
+      depositDataManager,
+      admin,
+      validatorsRegistry
+    )
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
       .withArgs(vaultAddr, vaultAddr, validatorDeposit + vaultBalance + poolEscrowBalance)
@@ -290,7 +300,10 @@ describe('EthGenesisVault', () => {
     await collatEthVault()
     const validatorsData = await createEthValidatorsData(vault)
     const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
-    await vault.connect(admin).setValidatorsRoot(validatorsData.root)
+    const vaultAddr = await vault.getAddress()
+    // reset validator index
+    await depositDataManager.connect(admin).setDepositDataRoot(vaultAddr, ZERO_BYTES32)
+    await depositDataManager.connect(admin).setDepositDataRoot(vaultAddr, validatorsData.root)
     const proof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators, [
       ...Array(validatorsData.validators.length).keys(),
     ])
@@ -318,7 +331,6 @@ describe('EthGenesisVault', () => {
       deadline,
     }
 
-    const vaultAddr = await vault.getAddress()
     const vaultBalance = await ethers.provider.getBalance(vaultAddr)
     const poolEscrowAddr = await poolEscrow.getAddress()
     const poolEscrowBalance = await ethers.provider.getBalance(poolEscrowAddr)
@@ -326,7 +338,9 @@ describe('EthGenesisVault', () => {
     await setBalance(vaultAddr, 0n)
     await setBalance(poolEscrowAddr, assets + vaultBalance + poolEscrowBalance)
 
-    const tx = await vault.registerValidators(approveParams, indexes, proof.proofFlags, proof.proof)
+    const tx = await depositDataManager
+      .connect(admin)
+      .registerValidators(vaultAddr, approveParams, indexes, proof.proofFlags, proof.proof)
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
       .withArgs(vaultAddr, vaultAddr, assets + vaultBalance + poolEscrowBalance)

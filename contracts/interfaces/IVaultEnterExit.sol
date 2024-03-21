@@ -27,7 +27,7 @@ interface IVaultEnterExit is IVaultState {
   );
 
   /**
-   * @notice Event emitted on redeem
+   * @notice Event emitted on redeem (deprecated)
    * @param owner The address that owns the shares
    * @param receiver The address that received withdrawn assets
    * @param assets The total number of withdrawn assets
@@ -36,7 +36,7 @@ interface IVaultEnterExit is IVaultState {
   event Redeemed(address indexed owner, address indexed receiver, uint256 assets, uint256 shares);
 
   /**
-   * @notice Event emitted on shares added to the V1 exit queue
+   * @notice Event emitted on shares added to the V1 exit queue (deprecated)
    * @param owner The address that owns the shares
    * @param receiver The address that will receive withdrawn assets
    * @param positionTicket The exit queue ticket that was assigned to the position
@@ -90,7 +90,7 @@ interface IVaultEnterExit is IVaultState {
   ) external returns (uint256 positionTicket);
 
   /**
-   * @notice Get the exit queue index to claim exited assets from
+   * @notice Get the exit queue index to claim exited assets from (deprecated)
    * @param positionTicket The exit queue position ticket to get the index for
    * @return The exit queue index that should be used to claim exited assets.
    *         Returns -1 in case such index does not exist.

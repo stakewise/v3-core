@@ -39,6 +39,7 @@ describe('VaultsRegistry', () => {
       fixture.osTokenVaultController,
       fixture.osTokenConfig,
       fixture.sharedMevEscrow,
+      fixture.depositDataManager,
       EXITING_ASSETS_MIN_DELAY
     )
   })

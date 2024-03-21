@@ -2,7 +2,7 @@ import { ethers } from 'hardhat'
 import keccak256 from 'keccak256'
 import { Contract, parseEther, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { Keeper, IKeeperRewards, EthFoxVault } from '../typechain-types'
+import { Keeper, IKeeperRewards, EthFoxVault, DepositDataManager } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -22,7 +22,10 @@ describe('EthFoxVault', () => {
   const referrer = ZERO_ADDRESS
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   let sender: Wallet, blocklistManager: Wallet, admin: Signer, other: Wallet
-  let vault: EthFoxVault, keeper: Keeper, validatorsRegistry: Contract
+  let vault: EthFoxVault,
+    keeper: Keeper,
+    validatorsRegistry: Contract,
+    depositDataManager: DepositDataManager
 
   let createFoxVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthFoxVault']
 
@@ -35,6 +38,7 @@ describe('EthFoxVault', () => {
       createEthFoxVault: createFoxVault,
       keeper,
       validatorsRegistry,
+      depositDataManager,
     } = await loadFixture(ethVaultFixture))
     vault = await createFoxVault(admin, {
       capacity,
@@ -127,7 +131,7 @@ describe('EthFoxVault', () => {
     })
 
     it('cannot update state and call', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
       const vaultReward = getHarvestParams(await vault.getAddress(), ethers.parseEther('1'), 0n)
       const tree = await updateRewards(keeper, [vaultReward])
 
@@ -220,7 +224,7 @@ describe('EthFoxVault', () => {
     })
 
     it('blocklist manager can eject all of the user assets for collateralized vault', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
 
       const tx = await vault.connect(blocklistManager).ejectUser(sender.address)
       const positionTicket = await extractExitPositionTicket(tx)

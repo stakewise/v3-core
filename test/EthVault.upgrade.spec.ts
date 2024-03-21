@@ -11,6 +11,7 @@ import {
   OsTokenVaultController,
   SharedMevEscrow,
   VaultsRegistry,
+  DepositDataManager,
 } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import {
@@ -50,6 +51,7 @@ describe('EthVault - upgrade', () => {
     sharedMevEscrow: SharedMevEscrow,
     osTokenConfig: OsTokenConfig,
     osTokenVaultController: OsTokenVaultController,
+    depositDataManager: DepositDataManager,
     ethVaultFactory: EthVaultFactory,
     ethPrivVaultFactory: EthVaultFactory,
     ethErc20VaultFactory: EthVaultFactory,
@@ -70,6 +72,7 @@ describe('EthVault - upgrade', () => {
     sharedMevEscrow = fixture.sharedMevEscrow
     osTokenConfig = fixture.osTokenConfig
     osTokenVaultController = fixture.osTokenVaultController
+    depositDataManager = fixture.depositDataManager
     ethVaultFactory = fixture.ethVaultFactory
     ethPrivVaultFactory = fixture.ethPrivVaultFactory
     ethErc20VaultFactory = fixture.ethErc20VaultFactory
@@ -90,6 +93,7 @@ describe('EthVault - upgrade', () => {
       fixture.osTokenVaultController,
       fixture.osTokenConfig,
       fixture.sharedMevEscrow,
+      fixture.depositDataManager,
       EXITING_ASSETS_MIN_DELAY
     )
     currImpl = await vault.implementation()
@@ -139,6 +143,7 @@ describe('EthVault - upgrade', () => {
       fixture.osTokenVaultController,
       fixture.osTokenConfig,
       fixture.sharedMevEscrow,
+      fixture.depositDataManager,
       EXITING_ASSETS_MIN_DELAY
     )
     callData = ethers.AbiCoder.defaultAbiCoder().encode(['uint128'], [100])
@@ -158,6 +163,7 @@ describe('EthVault - upgrade', () => {
       fixture.osTokenVaultController,
       fixture.osTokenConfig,
       fixture.sharedMevEscrow,
+      fixture.depositDataManager,
       EXITING_ASSETS_MIN_DELAY
     )
     callData = ethers.AbiCoder.defaultAbiCoder().encode(['uint128'], [100])
@@ -265,12 +271,12 @@ describe('EthVault - upgrade', () => {
       const userShares = await vault.getShares(other.address)
       const userAssets = await vault.convertToAssets(userShares)
       const osTokenPosition = await vault.osTokenPositions(other.address)
-      const keysManager = await vault.keysManager()
       const mevEscrow = await vault.mevEscrow()
       const totalAssets = await vault.totalAssets()
       const totalShares = await vault.totalShares()
       const validatorIndex = await vault.validatorIndex()
       const validatorsRoot = await vault.validatorsRoot()
+      const vaultAddress = await vault.getAddress()
       expect(await vault.version()).to.be.eq(1)
 
       const receipt = await vault.connect(admin).upgradeToAndCall(newImpl, '0x')
@@ -279,12 +285,12 @@ describe('EthVault - upgrade', () => {
       expect(await vault.getShares(other.address)).to.be.eq(userShares)
       expect(await vault.convertToAssets(userShares)).to.be.deep.eq(userAssets)
       expect(await vault.osTokenPositions(other.address)).to.be.above(osTokenPosition)
-      expect(await vault.keysManager()).to.be.eq(keysManager)
+      expect(await vault.keysManager()).to.be.eq(await depositDataManager.getAddress())
       expect(await vault.mevEscrow()).to.be.eq(mevEscrow)
       expect(await vault.totalAssets()).to.be.eq(totalAssets)
       expect(await vault.totalShares()).to.be.eq(totalShares)
-      expect(await vault.validatorIndex()).to.be.eq(validatorIndex)
-      expect(await vault.validatorsRoot()).to.be.eq(validatorsRoot)
+      expect(await depositDataManager.depositDataIndexes(vaultAddress)).to.be.eq(validatorIndex)
+      expect(await depositDataManager.depositDataRoots(vaultAddress)).to.be.eq(validatorsRoot)
       await snapshotGasCost(receipt)
     }
     await checkVault(vaults[0], await ethVaultFactory.implementation())

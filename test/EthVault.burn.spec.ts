@@ -1,7 +1,13 @@
 import { ethers } from 'hardhat'
 import { Contract, ContractTransactionReceipt, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthVault, Keeper, OsTokenVaultController, OsToken } from '../typechain-types'
+import {
+  EthVault,
+  Keeper,
+  OsTokenVaultController,
+  OsToken,
+  DepositDataManager,
+} from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { createUnknownVaultMock, ethVaultFixture } from './shared/fixtures'
@@ -24,7 +30,8 @@ describe('EthVault - burn', () => {
     keeper: Keeper,
     osTokenVaultController: OsTokenVaultController,
     osToken: OsToken,
-    validatorsRegistry: Contract
+    validatorsRegistry: Contract,
+    depositDataManager: DepositDataManager
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
@@ -36,12 +43,13 @@ describe('EthVault - burn', () => {
       validatorsRegistry,
       osToken,
       osTokenVaultController,
+      depositDataManager,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
     admin = await ethers.getImpersonatedSigner(await vault.admin())
 
     // collateralize vault
-    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+    await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
     await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: assets })
     osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
     await vault.connect(sender).mintOsToken(sender.address, osTokenShares, ZERO_ADDRESS)

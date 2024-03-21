@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`DepositDataManager deposit data manager update succeeds 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 62126,
+}
+`;
+
+exports[`DepositDataManager deposit data root update success 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 56000,
+}
+`;
+
+exports[`DepositDataManager migrate succeeds 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 118756,
+}
+`;
+
+exports[`DepositDataManager multiple validators succeeds 1`] = `
+Object {
+  "calldataByteLength": 3364,
+  "gasUsed": 684817,
+}
+`;
+
+exports[`DepositDataManager single validator succeeds 1`] = `
+Object {
+  "calldataByteLength": 1156,
+  "gasUsed": 331930,
+}
+`;

@@ -53,6 +53,7 @@ contract EthErc20Vault is
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
+   * @param depositDataManager The address of the DepositDataManager contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -63,9 +64,11 @@ contract EthErc20Vault is
     address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
+    address depositDataManager,
     uint256 exitingAssetsClaimDelay
   )
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
+    VaultValidators(depositDataManager)
     VaultEnterExit(exitingAssetsClaimDelay)
     VaultOsToken(osTokenVaultController, osTokenConfig)
     VaultMev(sharedMevEscrow)
@@ -186,6 +189,7 @@ contract EthErc20Vault is
    */
   function __EthErc20Vault_initV2() internal onlyInitializing {
     __VaultState_initV2();
+    __VaultValidators_initV2();
   }
 
   /**

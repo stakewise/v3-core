@@ -1,7 +1,12 @@
 import { ethers } from 'hardhat'
 import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthPrivVault, Keeper, OsTokenVaultController } from '../typechain-types'
+import {
+  EthPrivVault,
+  Keeper,
+  OsTokenVaultController,
+  DepositDataManager,
+} from '../typechain-types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { ZERO_ADDRESS } from './shared/constants'
@@ -18,7 +23,8 @@ describe('EthPrivVault', () => {
   let vault: EthPrivVault,
     keeper: Keeper,
     validatorsRegistry: Contract,
-    osTokenVaultController: OsTokenVaultController
+    osTokenVaultController: OsTokenVaultController,
+    depositDataManager: DepositDataManager
 
   beforeEach('deploy fixtures', async () => {
     ;[sender, admin, other] = await (ethers as any).getSigners()
@@ -32,6 +38,7 @@ describe('EthPrivVault', () => {
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
     osTokenVaultController = fixture.osTokenVaultController
+    depositDataManager = fixture.depositDataManager
   })
 
   it('has id', async () => {
@@ -55,7 +62,7 @@ describe('EthPrivVault', () => {
 
     beforeEach(async () => {
       await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
       await vault.connect(admin).updateWhitelist(sender.address, true)
       await vault.connect(sender).deposit(sender.address, referrer, { value: assets })
       osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)

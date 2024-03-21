@@ -30,6 +30,7 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
+   * @param depositDataManager The address of the DepositDataManager contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -40,6 +41,7 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
     address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
+    address depositDataManager,
     uint256 exitingAssetsClaimDelay
   )
     EthVault(
@@ -49,6 +51,7 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
+      depositDataManager,
       exitingAssetsClaimDelay
     )
   {}

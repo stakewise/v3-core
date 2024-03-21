@@ -3,13 +3,13 @@
 exports[`EthVault - mint mints osTokens to the receiver 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 171574,
+  "gasUsed": 171564,
 }
 `;
 
 exports[`EthVault - mint updates position accumulated fee 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 116686,
+  "gasUsed": 116676,
 }
 `;

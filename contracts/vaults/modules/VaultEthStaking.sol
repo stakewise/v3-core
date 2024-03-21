@@ -67,52 +67,38 @@ abstract contract VaultEthStaking is
       publicKey,
       _withdrawalCredentials(),
       validator[48:144],
-      bytes32(validator[144:_validatorLength])
+      bytes32(validator[144:validator.length])
     );
-
     emit ValidatorRegistered(publicKey);
   }
 
   /// @inheritdoc VaultValidators
-  function _registerMultipleValidators(
-    bytes calldata validators,
-    uint256[] calldata indexes
-  ) internal virtual override returns (bytes32[] memory leaves) {
-    // SLOAD to memory
-    uint256 currentValIndex = validatorIndex;
-
+  function _registerMultipleValidators(bytes calldata validators) internal virtual override {
     uint256 startIndex;
     uint256 endIndex;
+    uint256 validatorsCount = validators.length / _validatorLength();
+    bytes memory withdrawalCredentials = _withdrawalCredentials();
     bytes calldata validator;
     bytes calldata publicKey;
-    uint256 validatorsCount = indexes.length;
-    leaves = new bytes32[](validatorsCount);
-    uint256 validatorDeposit = _validatorDeposit();
-    bytes memory withdrawalCreds = _withdrawalCredentials();
-
-    for (uint256 i = 0; i < validatorsCount; i++) {
+    for (uint256 i = 0; i < validatorsCount; ) {
       unchecked {
         // cannot realistically overflow
-        endIndex += _validatorLength;
+        endIndex += _validatorLength();
       }
       validator = validators[startIndex:endIndex];
-      leaves[indexes[i]] = keccak256(
-        bytes.concat(keccak256(abi.encode(validator, currentValIndex)))
-      );
       publicKey = validator[:48];
-      // slither-disable-next-line arbitrary-send-eth
-      IEthValidatorsRegistry(_validatorsRegistry).deposit{value: validatorDeposit}(
+      IEthValidatorsRegistry(_validatorsRegistry).deposit{value: _validatorDeposit()}(
         publicKey,
-        withdrawalCreds,
+        withdrawalCredentials,
         validator[48:144],
-        bytes32(validator[144:_validatorLength])
+        bytes32(validator[144:_validatorLength()])
       );
+      emit ValidatorRegistered(publicKey);
       startIndex = endIndex;
       unchecked {
         // cannot realistically overflow
-        ++currentValIndex;
+        ++i;
       }
-      emit ValidatorRegistered(publicKey);
     }
   }
 
@@ -130,8 +116,21 @@ abstract contract VaultEthStaking is
   }
 
   /// @inheritdoc VaultValidators
-  function _validatorDeposit() internal pure override returns (uint256) {
+  function _validatorLength() internal pure virtual override returns (uint256) {
+    return 176;
+  }
+
+  /// @inheritdoc VaultValidators
+  function _validatorDeposit() internal pure virtual override returns (uint256) {
     return 32 ether;
+  }
+
+  /**
+   * @dev Internal function for calculating Vault withdrawal credentials
+   * @return The credentials used for the validators withdrawals
+   */
+  function _withdrawalCredentials() internal view virtual returns (bytes memory) {
+    return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
   }
 
   /**

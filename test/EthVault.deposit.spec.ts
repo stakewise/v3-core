@@ -1,7 +1,14 @@
 import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthVault, EthVaultMock, IKeeperRewards, Keeper, SharedMevEscrow } from '../typechain-types'
+import {
+  EthVault,
+  EthVaultMock,
+  IKeeperRewards,
+  Keeper,
+  SharedMevEscrow,
+  DepositDataManager,
+} from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
@@ -19,7 +26,11 @@ describe('EthVault - deposit', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const referrer = '0x' + '1'.repeat(40)
   let sender: Wallet, receiver: Wallet, admin: Wallet, other: Wallet
-  let vault: EthVault, keeper: Keeper, mevEscrow: SharedMevEscrow, validatorsRegistry: Contract
+  let vault: EthVault,
+    keeper: Keeper,
+    mevEscrow: SharedMevEscrow,
+    validatorsRegistry: Contract,
+    depositDataManager: DepositDataManager
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
   let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVaultMock']
@@ -32,6 +43,7 @@ describe('EthVault - deposit', () => {
       keeper,
       validatorsRegistry,
       sharedMevEscrow: mevEscrow,
+      depositDataManager,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(
       admin,
@@ -115,7 +127,7 @@ describe('EthVault - deposit', () => {
     })
 
     it('fails when not harvested', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
       await updateRewards(keeper, [
         {
           reward: ethers.parseEther('5'),
@@ -141,7 +153,7 @@ describe('EthVault - deposit', () => {
       await vault
         .connect(other)
         .deposit(other.address, referrer, { value: ethers.parseEther('32') })
-      await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+      await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
       await vault.connect(other).enterExitQueue(ethers.parseEther('32'), other.address)
 
       let vaultReward = ethers.parseEther('10')

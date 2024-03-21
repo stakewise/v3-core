@@ -51,6 +51,8 @@ import {
   SharedMevEscrow__factory,
   VaultsRegistry,
   VaultsRegistry__factory,
+  DepositDataManager,
+  DepositDataManager__factory,
 } from '../../typechain-types'
 import { getEthValidatorsRegistryFactory } from './contracts'
 import {
@@ -239,6 +241,15 @@ export const createRewardSplitterFactory = async function (): Promise<RewardSpli
   return RewardSplitterFactory__factory.connect(await contract.getAddress(), signer)
 }
 
+export const createDepositDataManager = async function (
+  vaultsRegistry: VaultsRegistry
+): Promise<DepositDataManager> {
+  const signer = await ethers.provider.getSigner()
+  const factory = await ethers.getContractFactory('DepositDataManager')
+  const contract = await factory.deploy(await vaultsRegistry.getAddress())
+  return DepositDataManager__factory.connect(await contract.getAddress(), signer)
+}
+
 export const createOsTokenVaultController = async function (
   keeperAddress: string,
   registry: VaultsRegistry,
@@ -399,6 +410,7 @@ export const deployEthGenesisVaultImpl = async function (
   osTokenVaultController: OsTokenVaultController,
   osTokenConfig: OsTokenConfig,
   sharedMevEscrow: SharedMevEscrow,
+  depositDataManager: DepositDataManager,
   poolEscrow: PoolEscrowMock,
   rewardEthToken: LegacyRewardTokenMock
 ): Promise<string> {
@@ -410,6 +422,7 @@ export const deployEthGenesisVaultImpl = async function (
     await osTokenVaultController.getAddress(),
     await osTokenConfig.getAddress(),
     await sharedMevEscrow.getAddress(),
+    await depositDataManager.getAddress(),
     await poolEscrow.getAddress(),
     await rewardEthToken.getAddress(),
     EXITING_ASSETS_MIN_DELAY,
@@ -428,6 +441,7 @@ export const deployEthVaultImplementation = async function (
   osTokenVaultController: OsTokenVaultController,
   osTokenConfig: OsTokenConfig,
   sharedMevEscrow: SharedMevEscrow,
+  depositDataManager: DepositDataManager,
   exitingAssetsMinDelay: number
 ): Promise<string> {
   const factory = await ethers.getContractFactory(vaultType)
@@ -438,6 +452,7 @@ export const deployEthVaultImplementation = async function (
     await osTokenVaultController.getAddress(),
     await osTokenConfig.getAddress(),
     await sharedMevEscrow.getAddress(),
+    await depositDataManager.getAddress(),
     exitingAssetsMinDelay,
   ]
   const contract = await factory.deploy(...constructorArgs)
@@ -540,6 +555,7 @@ interface EthVaultFixture {
   vaultsRegistry: VaultsRegistry
   keeper: Keeper
   sharedMevEscrow: SharedMevEscrow
+  depositDataManager: DepositDataManager
   validatorsRegistry: Contract
   ethVaultFactory: EthVaultFactory
   ethPrivVaultFactory: EthVaultFactory
@@ -672,7 +688,10 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
     OSTOKEN_LTV
   )
 
-  // 7. deploy implementations and factories
+  // 7. deploy depositDataManager
+  const depositDataManager = await createDepositDataManager(vaultsRegistry)
+
+  // 8. deploy implementations and factories
   const factories = {}
   const implementations = {}
 
@@ -693,6 +712,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
+      depositDataManager,
       EXITING_ASSETS_MIN_DELAY
     )
     await vaultsRegistry.addVaultImpl(vaultImpl)
@@ -717,6 +737,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
   return {
     vaultsRegistry,
     sharedMevEscrow,
+    depositDataManager,
     keeper,
     validatorsRegistry,
     ethVaultFactory,
@@ -764,6 +785,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
         await vaultsRegistry.getAddress(),
         await validatorsRegistry.getAddress(),
         await sharedMevEscrow.getAddress(),
+        await depositDataManager.getAddress(),
         EXITING_ASSETS_MIN_DELAY,
       ]
       const contract = await factory.deploy(...constructorArgs)
@@ -951,6 +973,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
         osTokenVaultController,
         osTokenConfig,
         sharedMevEscrow,
+        depositDataManager,
         poolEscrow,
         rewardEthToken
       )
