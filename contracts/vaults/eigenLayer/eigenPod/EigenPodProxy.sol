@@ -17,10 +17,13 @@ contract EigenPodProxy is IEigenPodProxy {
   error TransferFailed();
   error CallFailed();
 
+  address private immutable _eigenPods;
+
   address public immutable override vault;
 
   /// @dev Constructor
-  constructor(address _vault) {
+  constructor(address eigenPods, address _vault) {
+    _eigenPods = eigenPods;
     vault = _vault;
   }
 

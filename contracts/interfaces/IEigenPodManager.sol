@@ -14,4 +14,11 @@ interface IEigenPodManager {
    * @return The address of the new EigenPod contract
    */
   function createPod() external returns (address);
+
+  /**
+   * @notice Pod owner to deployed EigenPod address.
+   * @param owner The address of the owner
+   * @return The address of the EigenPod contract
+   */
+  function ownerToPod(address owner) external view returns (address);
 }

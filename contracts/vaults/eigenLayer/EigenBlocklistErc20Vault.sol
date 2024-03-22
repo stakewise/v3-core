@@ -34,9 +34,7 @@ contract EigenBlocklistErc20Vault is
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataManager The address of the DepositDataManager contract
-   * @param eigenDelegationManager The address of the EigenDelegationManager contract
-   * @param eigenDelayedWithdrawalRouter The address of the EigenDelayedWithdrawalRouter contract
-   * @param eigenPodProxyFactory The address of the EigenPodProxyFactory contract
+   * @param eigenPods The address of the EigenPods contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -46,10 +44,7 @@ contract EigenBlocklistErc20Vault is
     address _validatorsRegistry,
     address sharedMevEscrow,
     address depositDataManager,
-    address eigenPodManager,
-    address eigenDelegationManager,
-    address eigenDelayedWithdrawalRouter,
-    address eigenPodProxyFactory,
+    address eigenPods,
     uint256 exitingAssetsClaimDelay
   )
     EigenErc20Vault(
@@ -58,10 +53,7 @@ contract EigenBlocklistErc20Vault is
       _validatorsRegistry,
       sharedMevEscrow,
       depositDataManager,
-      eigenPodManager,
-      eigenDelegationManager,
-      eigenDelayedWithdrawalRouter,
-      eigenPodProxyFactory,
+      eigenPods,
       exitingAssetsClaimDelay
     )
   {}
