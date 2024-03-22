@@ -7,6 +7,7 @@ import {
   Keeper,
   RewardSplitter,
   RewardSplitter__factory,
+  DepositDataManager,
 } from '../typechain-types'
 import { createRewardSplitterFactory, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -16,7 +17,11 @@ import snapshotGasCost from './shared/snapshotGasCost'
 
 describe('RewardSplitter', () => {
   let admin: Wallet, other: Wallet
-  let vault: EthVault, keeper: Keeper, rewardSplitter: RewardSplitter, erc20Vault: EthErc20Vault
+  let vault: EthVault,
+    keeper: Keeper,
+    rewardSplitter: RewardSplitter,
+    erc20Vault: EthErc20Vault,
+    depositDataManager: DepositDataManager
 
   before('create fixture loader', async () => {
     ;[admin, other] = (await (ethers as any).getSigners()).slice(1, 3)
@@ -47,8 +52,21 @@ describe('RewardSplitter', () => {
       true
     )
     keeper = fixture.keeper
-    await collateralizeEthVault(vault, keeper, fixture.validatorsRegistry, admin)
-    await collateralizeEthVault(erc20Vault, keeper, fixture.validatorsRegistry, admin)
+    depositDataManager = fixture.depositDataManager
+    await collateralizeEthVault(
+      vault,
+      keeper,
+      depositDataManager,
+      admin,
+      fixture.validatorsRegistry
+    )
+    await collateralizeEthVault(
+      erc20Vault,
+      keeper,
+      depositDataManager,
+      admin,
+      fixture.validatorsRegistry
+    )
 
     const rewardSplitterFactory = await createRewardSplitterFactory()
     const rewardSplitterAddress = await rewardSplitterFactory

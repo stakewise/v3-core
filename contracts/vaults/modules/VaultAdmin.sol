@@ -29,6 +29,7 @@ abstract contract VaultAdmin is Initializable, IVaultAdmin {
     address _admin,
     string memory metadataIpfsHash
   ) internal onlyInitializing {
+    if (_admin == address(0)) revert Errors.ZeroAddress();
     admin = _admin;
     emit MetadataUpdated(msg.sender, metadataIpfsHash);
   }

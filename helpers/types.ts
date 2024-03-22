@@ -40,13 +40,13 @@ export type NetworkConfig = {
   genesisVault: {
     admin: string
     poolEscrow: string
-    rewardEthToken: string
+    rewardToken: string
     capacity: bigint
     feePercent: number
   }
 
   // EthFoxVault
-  foxVault: {
+  foxVault?: {
     admin: string
     capacity: bigint
     feePercent: number

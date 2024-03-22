@@ -20,7 +20,6 @@ library Errors {
   error InvalidFeePercent();
   error NotHarvested();
   error NotCollateralized();
-  error Collateralized();
   error InvalidProof();
   error LowLtv();
   error RedemptionExceeded();
@@ -30,9 +29,7 @@ library Errors {
   error InvalidReceivedAssets();
   error InvalidTokenMeta();
   error UpgradeFailed();
-  error InvalidValidator();
   error InvalidValidators();
-  error WhitelistAlreadyUpdated();
   error DeadlineExpired();
   error PermitInvalidSigner();
   error InvalidValidatorsRegistryRoot();
@@ -53,5 +50,6 @@ library Errors {
   error InvalidCheckpointIndex();
   error InvalidCheckpointValue();
   error MaxOraclesExceeded();
-  error ClaimTooEarly();
+  error ExitRequestNotProcessed();
+  error ValueNotChanged();
 }

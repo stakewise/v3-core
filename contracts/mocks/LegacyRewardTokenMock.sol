@@ -5,7 +5,7 @@ pragma solidity 0.8.22;
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IEthGenesisVault} from '../interfaces/IEthGenesisVault.sol';
 
-contract RewardEthTokenMock {
+contract LegacyRewardTokenMock {
   address public vault;
   uint256 public totalStaked;
   uint256 public totalRewards;

@@ -3,12 +3,12 @@
 pragma solidity 0.8.22;
 
 /**
- * @title IPoolEscrow
+ * @title IEthPoolEscrow
  * @author StakeWise
  * @dev Copied from https://github.com/stakewise/contracts/blob/master/contracts/interfaces/IPoolEscrow.sol
- * @notice Defines the interface for the PoolEscrow contract
+ * @notice Defines the interface for the PoolEscrow contract on Ethereum
  */
-interface IPoolEscrow {
+interface IEthPoolEscrow {
   /**
    * @notice Event for tracking withdrawn ether
    * @param sender The address of the transaction sender

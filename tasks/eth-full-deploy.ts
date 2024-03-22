@@ -14,6 +14,10 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const networkConfig: NetworkConfig = NETWORKS[networkName]
   const deployer = await ethers.provider.getSigner()
 
+  if (networkConfig.foxVault === undefined) {
+    throw new Error('FoxVault config is missing')
+  }
+
   // Create the signer for the mnemonic, connected to the provider with hardcoded fee data
   console.log('Deploying StakeWise V3 for Ethereum to', networkName, 'from', deployer.address)
 
@@ -130,7 +134,14 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const osTokenConfigAddress = await osTokenConfig.getAddress()
 
   const factories: string[] = []
-  for (const vaultType of ['EthVault', 'EthPrivVault', 'EthErc20Vault', 'EthPrivErc20Vault']) {
+  for (const vaultType of [
+    'EthVault',
+    'EthPrivVault',
+    'EthBlocklistVault',
+    'EthErc20Vault',
+    'EthPrivErc20Vault',
+    'EthBlocklistErc20Vault',
+  ]) {
     // Deploy Vault Implementation
     const constructorArgs = [
       keeperAddress,
@@ -183,7 +194,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     osTokenConfigAddress,
     sharedMevEscrowAddress,
     networkConfig.genesisVault.poolEscrow,
-    networkConfig.genesisVault.rewardEthToken,
+    networkConfig.genesisVault.rewardToken,
     networkConfig.exitedAssetsClaimDelay,
   ]
   const genesisVaultImpl = await deployContract(
@@ -334,10 +345,13 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     VaultsRegistry: vaultsRegistryAddress,
     Keeper: keeperAddress,
     EthGenesisVault: genesisVaultAddress,
+    EthFoxVault: foxVaultAddress,
     EthVaultFactory: factories[0],
     EthPrivVaultFactory: factories[1],
-    EthErc20VaultFactory: factories[2],
-    EthPrivErc20VaultFactory: factories[3],
+    EthBlocklistVaultFactory: factories[2],
+    EthErc20VaultFactory: factories[3],
+    EthPrivErc20VaultFactory: factories[4],
+    EthBlocklistErc20VaultFactory: factories[5],
     SharedMevEscrow: sharedMevEscrowAddress,
     OsToken: osTokenAddress,
     OsTokenConfig: osTokenConfigAddress,

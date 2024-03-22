@@ -1,7 +1,7 @@
 import { ethers, network } from 'hardhat'
 import { Contract, Signer } from 'ethers'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
-import { EthVault, IKeeperRewards, Keeper, EthFoxVault } from '../../typechain-types'
+import { EthVault, IKeeperRewards, Keeper, DepositDataManager } from '../../typechain-types'
 import {
   EIP712Domain,
   EXITING_ASSETS_MIN_DELAY,
@@ -22,6 +22,7 @@ import {
 } from './utils'
 import { getOraclesSignatures } from './fixtures'
 import { MAINNET_FORK } from '../../helpers/constants'
+import { EthVaultType } from './types'
 
 export type RewardsTree = StandardMerkleTree<[string, bigint, bigint]>
 
@@ -132,8 +133,8 @@ export function getRewardsRootProof(tree: RewardsTree, vaultReward: VaultReward)
   return tree.getProof([vaultReward.vault, vaultReward.reward, vaultReward.unlockedMevReward])
 }
 
-export async function collateralizeEthVault(
-  vault: EthVault | EthFoxVault,
+export async function collateralizeEthV1Vault(
+  vault: Contract,
   keeper: Keeper,
   validatorsRegistry: Contract,
   admin: Signer
@@ -148,7 +149,7 @@ export async function collateralizeEthVault(
     .connect(admin)
     .deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
   const shares = await extractDepositShares(tx)
-  await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+  await registerEthValidator(vault, keeper, null, admin, validatorsRegistry)
 
   // update rewards tree
   const vaultReward = getHarvestParams(vaultAddress, 0n, 0n)
@@ -175,6 +176,38 @@ export async function collateralizeEthVault(
   await vault.connect(admin).claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
 
   await increaseTime(ONE_DAY)
+  await setBalance(vaultAddress, balanceBefore)
+}
+
+export async function collateralizeEthVault(
+  vault: EthVaultType,
+  keeper: Keeper,
+  depositDataManager: DepositDataManager,
+  admin: Signer,
+  validatorsRegistry: Contract
+) {
+  const vaultAddress = await vault.getAddress()
+  const balanceBefore = await ethers.provider.getBalance(vaultAddress)
+  const adminAddr = await admin.getAddress()
+
+  // register validator
+  const validatorDeposit = ethers.parseEther('32')
+  const tx = await vault
+    .connect(admin)
+    .deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
+  const receivedShares = await extractDepositShares(tx)
+  await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
+
+  // exit validator
+  const response = await vault.connect(admin).enterExitQueue(receivedShares, adminAddr)
+  const positionTicket = await extractExitPositionTicket(response)
+  const timestamp = await getBlockTimestamp(response)
+
+  await increaseTime(EXITING_ASSETS_MIN_DELAY)
+  await setBalance(vaultAddress, balanceBefore + (await vault.totalExitingAssets()))
+
+  // claim exited assets
+  await vault.connect(admin).claimExitedAssets(positionTicket, timestamp, 0)
   await setBalance(vaultAddress, balanceBefore)
 }
 

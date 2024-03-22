@@ -53,6 +53,9 @@ jobs:
       - run: npm run test:gas
         env:
           SKIP_LOAD: true
+      - run: npm run test:fork
+        env:
+          SKIP_LOAD: true
           MAINNET_FORK_RPC_URL: ${{ secrets.MAINNET_FORK_RPC_URL }}
       - run: npm run coverage
         env: { SKIP_LOAD: true }

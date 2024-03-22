@@ -7,10 +7,9 @@ import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {IOsTokenVaultController} from '../../interfaces/IOsTokenVaultController.sol';
 import {IOsTokenConfig} from '../../interfaces/IOsTokenConfig.sol';
 import {IVaultOsToken} from '../../interfaces/IVaultOsToken.sol';
-import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
-import {VaultEnterExit} from './VaultEnterExit.sol';
+import {VaultEnterExit, IVaultEnterExit} from './VaultEnterExit.sol';
 import {VaultState} from './VaultState.sol';
 
 /**
@@ -56,7 +55,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     address receiver,
     uint256 osTokenShares,
     address referrer
-  ) external override returns (uint256 assets) {
+  ) public virtual override returns (uint256 assets) {
     _checkCollateralized();
     _checkHarvested();
 
@@ -143,15 +142,6 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
       false
     );
     emit OsTokenRedeemed(msg.sender, owner, receiver, osTokenShares, burnedShares, receivedAssets);
-  }
-
-  /// @inheritdoc IVaultEnterExit
-  function redeem(
-    uint256 shares,
-    address receiver
-  ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 assets) {
-    assets = super.redeem(shares, receiver);
-    _checkOsTokenPosition(msg.sender);
   }
 
   /// @inheritdoc IVaultEnterExit

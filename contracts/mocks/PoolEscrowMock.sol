@@ -2,8 +2,8 @@
 
 pragma solidity 0.8.22;
 
-import '@openzeppelin/contracts/utils/Address.sol';
-import '../interfaces/IPoolEscrow.sol';
+import {Address} from '@openzeppelin/contracts/utils/Address.sol';
+import {IEthPoolEscrow} from '../interfaces/IEthPoolEscrow.sol';
 
 /**
  * @title PoolEscrowMock
@@ -13,7 +13,7 @@ import '../interfaces/IPoolEscrow.sol';
  * https://github.com/ethereum/eth2.0-specs/blob/v1.1.0-alpha.2/specs/phase0/validator.md#eth1_address_withdrawal_prefix
  * using the address of this contract as a destination.
  */
-contract PoolEscrowMock is IPoolEscrow {
+contract PoolEscrowMock is IEthPoolEscrow {
   using Address for address payable;
 
   // @dev The address of the current contract owner.

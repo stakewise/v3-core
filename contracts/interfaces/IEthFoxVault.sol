@@ -71,7 +71,7 @@ interface IEthFoxVault is
   );
 
   /**
-   * @notice Initializes the EthFoxVault contract. Must transfer security deposit together with a call.
+   * @notice Initializes or upgrades the EthFoxVault contract. Must transfer security deposit during the deployment.
    * @param params The encoded parameters for initializing the EthFoxVault contract
    */
   function initialize(bytes calldata params) external payable;

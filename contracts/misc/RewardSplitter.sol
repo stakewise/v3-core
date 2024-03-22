@@ -134,12 +134,6 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   }
 
   /// @inheritdoc IRewardSplitter
-  function redeem(uint256 rewards, address receiver) external override returns (uint256 assets) {
-    _withdrawRewards(msg.sender, rewards);
-    return IVaultEnterExit(vault).redeem(rewards, receiver);
-  }
-
-  /// @inheritdoc IRewardSplitter
   function syncRewards() public override {
     // SLOAD to memory
     uint256 _totalShares = totalShares;
