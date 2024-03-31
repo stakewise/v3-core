@@ -202,7 +202,7 @@
         "type": "address"
       },
       {
-        "indexed": true,
+        "indexed": false,
         "internalType": "address",
         "name": "keysManager",
         "type": "address"
@@ -482,6 +482,25 @@
       }
     ],
     "name": "ValidatorRegistered",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "validatorsManager",
+        "type": "address"
+      }
+    ],
+    "name": "ValidatorsManagerUpdated",
     "type": "event"
   },
   {
@@ -855,19 +874,6 @@
     "type": "function"
   },
   {
-    "inputs": [],
-    "name": "keysManager",
-    "outputs": [
-      {
-        "internalType": "address",
-        "name": "",
-        "type": "address"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -1099,12 +1105,12 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "_keysManager",
-        "type": "address"
+        "internalType": "string",
+        "name": "metadataIpfsHash",
+        "type": "string"
       }
     ],
-    "name": "setKeysManager",
+    "name": "setMetadata",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1112,12 +1118,12 @@
   {
     "inputs": [
       {
-        "internalType": "string",
-        "name": "metadataIpfsHash",
-        "type": "string"
+        "internalType": "address",
+        "name": "_validatorsManager",
+        "type": "address"
       }
     ],
-    "name": "setMetadata",
+    "name": "setValidatorsManager",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"
@@ -1236,6 +1242,19 @@
     "name": "updateState",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "validatorsManager",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
