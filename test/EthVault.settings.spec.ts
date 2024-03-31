@@ -16,11 +16,13 @@ describe('EthVault - settings', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
-  let admin: Wallet, keysManager: Wallet, other: Wallet, newFeeRecipient: Wallet
+  let admin: Wallet, validatorsManager: Wallet, other: Wallet, newFeeRecipient: Wallet
   let keeper: Keeper, validatorsRegistry: Contract, depositDataManager: DepositDataManager
 
   before('create fixture loader', async () => {
-    ;[admin, keysManager, other, newFeeRecipient] = (await (ethers as any).getSigners()).slice(1, 5)
+    ;[admin, validatorsManager, other, newFeeRecipient] = (
+      await (ethers as any).getSigners()
+    ).slice(1, 5)
   })
 
   beforeEach('deploy fixture', async () => {
@@ -59,7 +61,7 @@ describe('EthVault - settings', () => {
     })
   })
 
-  describe('keys manager', () => {
+  describe('validators manager', () => {
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
@@ -77,18 +79,18 @@ describe('EthVault - settings', () => {
 
     it('cannot be updated by anyone', async () => {
       await expect(
-        vault.connect(other).setKeysManager(keysManager.address)
+        vault.connect(other).setValidatorsManager(validatorsManager.address)
       ).to.be.revertedWithCustomError(vault, 'AccessDenied')
     })
 
     it('can be updated by admin', async () => {
       // initially equals to admin
-      expect(await vault.keysManager()).to.be.eq(await depositDataManager.getAddress())
-      const receipt = await vault.connect(admin).setKeysManager(keysManager.address)
+      expect(await vault.validatorsManager()).to.be.eq(await depositDataManager.getAddress())
+      const receipt = await vault.connect(admin).setValidatorsManager(validatorsManager.address)
       await expect(receipt)
-        .to.emit(vault, 'KeysManagerUpdated')
-        .withArgs(admin.address, keysManager.address)
-      expect(await vault.keysManager()).to.be.eq(keysManager.address)
+        .to.emit(vault, 'ValidatorsManagerUpdated')
+        .withArgs(admin.address, validatorsManager.address)
+      expect(await vault.validatorsManager()).to.be.eq(validatorsManager.address)
       await snapshotGasCost(receipt)
     })
   })

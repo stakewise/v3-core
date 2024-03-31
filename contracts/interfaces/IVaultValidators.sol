@@ -19,11 +19,18 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   event ValidatorRegistered(bytes publicKey);
 
   /**
-   * @notice Event emitted on keys manager address update
+   * @notice Event emitted on keys manager address update (deprecated)
    * @param caller The address of the function caller
    * @param keysManager The address of the new keys manager
    */
-  event KeysManagerUpdated(address indexed caller, address indexed keysManager);
+  event KeysManagerUpdated(address indexed caller, address keysManager);
+
+  /**
+   * @notice Event emitted on validators manager address update
+   * @param caller The address of the function caller
+   * @param validatorsManager The address of the new validators manager
+   */
+  event ValidatorsManagerUpdated(address indexed caller, address indexed validatorsManager);
 
   /**
    * @notice Event emitted on validators merkle tree root update (deprecated)
@@ -33,10 +40,10 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   event ValidatorsRootUpdated(address indexed caller, bytes32 indexed validatorsRoot);
 
   /**
-   * @notice The Vault keys manager address
+   * @notice The Vault validators manager address
    * @return The address that can register validators
    */
-  function keysManager() external view returns (address);
+  function validatorsManager() external view returns (address);
 
   /**
    * @notice Function for registering single or multiple validators
@@ -45,8 +52,8 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   function registerValidators(IKeeperValidators.ApprovalParams calldata keeperParams) external;
 
   /**
-   * @notice Function for updating the keys manager. Can only be called by the admin. Default is the deposit data manager contract.
-   * @param _keysManager The new keys manager address
+   * @notice Function for updating the validators manager. Can only be called by the admin. Default is the deposit data manager contract.
+   * @param _validatorsManager The new validators manager address
    */
-  function setKeysManager(address _keysManager) external;
+  function setValidatorsManager(address _validatorsManager) external;
 }

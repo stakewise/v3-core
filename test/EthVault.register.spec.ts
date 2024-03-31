@@ -34,7 +34,7 @@ describe('EthVault - register', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const deadline = VALIDATORS_DEADLINE
 
-  let admin: Signer, other: Wallet, keysManager: Wallet
+  let admin: Signer, other: Wallet, validatorsManager: Wallet
   let vault: EthVault, keeper: Keeper, validatorsRegistry: Contract
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
@@ -42,7 +42,7 @@ describe('EthVault - register', () => {
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
   before('create fixture loader', async () => {
-    ;[admin, other, keysManager] = (await (ethers as any).getSigners()).slice(1, 4)
+    ;[admin, other, validatorsManager] = (await (ethers as any).getSigners()).slice(1, 4)
   })
 
   beforeEach('deploy fixture', async () => {
@@ -61,7 +61,7 @@ describe('EthVault - register', () => {
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
-    await vault.connect(admin).setKeysManager(keysManager.address)
+    await vault.connect(admin).setValidatorsManager(validatorsManager.address)
   })
 
   describe('single validator', () => {
@@ -91,7 +91,7 @@ describe('EthVault - register', () => {
       }
     })
 
-    it('fails from non-keys manager', async () => {
+    it('fails from non-validators manager', async () => {
       await expect(
         vault.connect(other).registerValidators(approvalParams)
       ).to.be.revertedWithCustomError(vault, 'AccessDenied')
@@ -100,7 +100,7 @@ describe('EthVault - register', () => {
     it('fails with not enough withdrawable assets', async () => {
       await setBalance(await vault.getAddress(), ethers.parseEther('31.9'))
       await expect(
-        vault.connect(keysManager).registerValidators(approvalParams)
+        vault.connect(validatorsManager).registerValidators(approvalParams)
       ).to.be.revertedWithCustomError(vault, 'InsufficientAssets')
     })
 
@@ -124,7 +124,7 @@ describe('EthVault - register', () => {
       await updateRewards(keeper, [vaultReward])
       await updateRewards(keeper, [vaultReward])
       await expect(
-        vault.connect(keysManager).registerValidators(approvalParams)
+        vault.connect(validatorsManager).registerValidators(approvalParams)
       ).to.be.revertedWithCustomError(vault, 'NotHarvested')
     })
 
@@ -136,7 +136,7 @@ describe('EthVault - register', () => {
       )
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.connect(keysManager).registerValidators({
+        vault.connect(validatorsManager).registerValidators({
           validatorsRegistryRoot,
           validators: invalidValidator,
           deadline,
@@ -158,7 +158,7 @@ describe('EthVault - register', () => {
 
     it('succeeds', async () => {
       const index = await validatorsRegistry.get_deposit_count()
-      const receipt = await vault.connect(keysManager).registerValidators(approvalParams)
+      const receipt = await vault.connect(validatorsManager).registerValidators(approvalParams)
       const publicKey = `0x${validator.subarray(0, 48).toString('hex')}`
       await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
       await expect(receipt)
@@ -211,14 +211,14 @@ describe('EthVault - register', () => {
     it('fails with not enough withdrawable assets', async () => {
       await setBalance(await vault.getAddress(), validatorDeposit * BigInt(validators.length - 1))
       await expect(
-        vault.connect(keysManager).registerValidators(approvalParams)
+        vault.connect(validatorsManager).registerValidators(approvalParams)
       ).to.be.revertedWithCustomError(vault, 'InsufficientAssets')
     })
 
     it('fails with invalid validators count', async () => {
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.connect(keysManager).registerValidators({
+        vault.connect(validatorsManager).registerValidators({
           validatorsRegistryRoot,
           validators: Buffer.from(''),
           deadline,
@@ -251,7 +251,7 @@ describe('EthVault - register', () => {
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.connect(keysManager).registerValidators({
+        vault.connect(validatorsManager).registerValidators({
           validatorsRegistryRoot,
           deadline,
           validators: invalidValidatorsConcat,
@@ -285,7 +285,7 @@ describe('EthVault - register', () => {
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.connect(keysManager).registerValidators({
+        vault.connect(validatorsManager).registerValidators({
           validatorsRegistryRoot,
           validators: invalidValidatorsConcat,
           deadline,
@@ -319,7 +319,7 @@ describe('EthVault - register', () => {
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.connect(keysManager).registerValidators({
+        vault.connect(validatorsManager).registerValidators({
           validatorsRegistryRoot,
           validators: invalidValidatorsConcat,
           deadline,
@@ -350,7 +350,7 @@ describe('EthVault - register', () => {
 
       for (let i = 0; i < invalidValidators.length; i++) {
         await expect(
-          vault.connect(keysManager).registerValidators({
+          vault.connect(validatorsManager).registerValidators({
             validatorsRegistryRoot,
             validators: invalidValidators[i],
             deadline,
@@ -375,7 +375,7 @@ describe('EthVault - register', () => {
       const startIndex = uintSerializer.deserialize(
         ethers.getBytes(await validatorsRegistry.get_deposit_count())
       )
-      const receipt = await vault.connect(keysManager).registerValidators(approvalParams)
+      const receipt = await vault.connect(validatorsManager).registerValidators(approvalParams)
       for (let i = 0; i < validators.length; i++) {
         const validator = validators[i]
         const publicKey = toHexString(validator.subarray(0, 48))

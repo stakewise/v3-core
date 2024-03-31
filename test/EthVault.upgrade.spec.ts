@@ -2,7 +2,9 @@ import { ethers } from 'hardhat'
 import { Contract, parseEther, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
+  DepositDataManager,
   EthVault,
+  EthVault__factory,
   EthVaultFactory,
   EthVaultV3Mock,
   EthVaultV3Mock__factory,
@@ -11,12 +13,11 @@ import {
   OsTokenVaultController,
   SharedMevEscrow,
   VaultsRegistry,
-  DepositDataManager,
 } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import {
-  deployEthVaultV1,
   deployEthVaultImplementation,
+  deployEthVaultV1,
   encodeEthErc20VaultInitParams,
   encodeEthVaultInitParams,
   ethVaultFixture,
@@ -280,15 +281,16 @@ describe('EthVault - upgrade', () => {
       expect(await vault.version()).to.be.eq(1)
 
       const receipt = await vault.connect(admin).upgradeToAndCall(newImpl, '0x')
-      expect(await vault.version()).to.be.eq(2)
-      expect(await vault.implementation()).to.be.eq(newImpl)
-      expect(await vault.getShares(other.address)).to.be.eq(userShares)
-      expect(await vault.convertToAssets(userShares)).to.be.deep.eq(userAssets)
-      expect(await vault.osTokenPositions(other.address)).to.be.above(osTokenPosition)
-      expect(await vault.keysManager()).to.be.eq(await depositDataManager.getAddress())
-      expect(await vault.mevEscrow()).to.be.eq(mevEscrow)
-      expect(await vault.totalAssets()).to.be.eq(totalAssets)
-      expect(await vault.totalShares()).to.be.eq(totalShares)
+      const vaultV2 = EthVault__factory.connect(vaultAddress, admin)
+      expect(await vaultV2.version()).to.be.eq(2)
+      expect(await vaultV2.implementation()).to.be.eq(newImpl)
+      expect(await vaultV2.getShares(other.address)).to.be.eq(userShares)
+      expect(await vaultV2.convertToAssets(userShares)).to.be.deep.eq(userAssets)
+      expect(await vaultV2.osTokenPositions(other.address)).to.be.above(osTokenPosition)
+      expect(await vaultV2.validatorsManager()).to.be.eq(await depositDataManager.getAddress())
+      expect(await vaultV2.mevEscrow()).to.be.eq(mevEscrow)
+      expect(await vaultV2.totalAssets()).to.be.eq(totalAssets)
+      expect(await vaultV2.totalShares()).to.be.eq(totalShares)
       expect(await depositDataManager.depositDataIndexes(vaultAddress)).to.be.eq(validatorIndex)
       expect(await depositDataManager.depositDataRoots(vaultAddress)).to.be.eq(validatorsRoot)
       await snapshotGasCost(receipt)

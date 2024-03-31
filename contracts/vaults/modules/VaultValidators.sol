@@ -33,7 +33,7 @@ abstract contract VaultValidators is
   /// deprecated. Deposit data management is moved to DepositDataManager contract
   uint256 private _validatorIndex;
 
-  address private _keysManager;
+  address private _validatorsManager;
 
   /**
    * @dev Constructor
@@ -47,11 +47,11 @@ abstract contract VaultValidators is
   }
 
   /// @inheritdoc IVaultValidators
-  function keysManager() public view override returns (address) {
+  function validatorsManager() public view override returns (address) {
     // SLOAD to memory
-    address keysManager_ = _keysManager;
-    // if keysManager is not set, use deposit data manager contract address
-    return keysManager_ == address(0) ? _depositDataManager : keysManager_;
+    address validatorsManager_ = _validatorsManager;
+    // if validatorsManager is not set, use deposit data manager contract address
+    return validatorsManager_ == address(0) ? _depositDataManager : validatorsManager_;
   }
 
   /// @inheritdoc IVaultValidators
@@ -65,7 +65,7 @@ abstract contract VaultValidators is
     _checkHarvested();
 
     // check access
-    if (msg.sender != keysManager()) revert Errors.AccessDenied();
+    if (msg.sender != validatorsManager()) revert Errors.AccessDenied();
 
     // check validators length is valid
     uint256 validatorLength = _validatorLength();
@@ -93,11 +93,11 @@ abstract contract VaultValidators is
   }
 
   /// @inheritdoc IVaultValidators
-  function setKeysManager(address keysManager_) external override {
+  function setValidatorsManager(address validatorsManager_) external override {
     _checkAdmin();
-    // update keysManager address
-    _keysManager = keysManager_;
-    emit KeysManagerUpdated(msg.sender, keysManager_);
+    // update validatorsManager address
+    _validatorsManager = validatorsManager_;
+    emit ValidatorsManagerUpdated(msg.sender, validatorsManager_);
   }
 
   /**
@@ -138,13 +138,13 @@ abstract contract VaultValidators is
     IDepositDataManager(_depositDataManager).migrate(
       _validatorsRoot,
       _validatorIndex,
-      _keysManager
+      _validatorsManager
     );
 
     // clean up variables
     delete _validatorsRoot;
     delete _validatorIndex;
-    delete _keysManager;
+    delete _validatorsManager;
   }
 
   /**
