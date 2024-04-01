@@ -23,14 +23,7 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
    * @param caller The address of the function caller
    * @param keysManager The address of the new keys manager
    */
-  event KeysManagerUpdated(address indexed caller, address keysManager);
-
-  /**
-   * @notice Event emitted on validators manager address update
-   * @param caller The address of the function caller
-   * @param validatorsManager The address of the new validators manager
-   */
-  event ValidatorsManagerUpdated(address indexed caller, address indexed validatorsManager);
+  event KeysManagerUpdated(address indexed caller, address indexed keysManager);
 
   /**
    * @notice Event emitted on validators merkle tree root update (deprecated)
@@ -38,6 +31,13 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
    * @param validatorsRoot The new validators merkle tree root
    */
   event ValidatorsRootUpdated(address indexed caller, bytes32 indexed validatorsRoot);
+
+  /**
+   * @notice Event emitted on validators manager address update
+   * @param caller The address of the function caller
+   * @param validatorsManager The address of the new validators manager
+   */
+  event ValidatorsManagerUpdated(address indexed caller, address indexed validatorsManager);
 
   /**
    * @notice The Vault validators manager address
