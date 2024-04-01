@@ -3,34 +3,34 @@
 exports[`DepositDataManager deposit data manager update succeeds 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 62126,
+  "gasUsed": 63461,
 }
 `;
 
 exports[`DepositDataManager deposit data root update success 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 56000,
+  "gasUsed": 64335,
 }
 `;
 
 exports[`DepositDataManager migrate succeeds 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 118756,
+  "gasUsed": 142125,
 }
 `;
 
 exports[`DepositDataManager multiple validators succeeds 1`] = `
 Object {
   "calldataByteLength": 3364,
-  "gasUsed": 684817,
+  "gasUsed": 686159,
 }
 `;
 
 exports[`DepositDataManager single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 1156,
-  "gasUsed": 331879,
+  "gasUsed": 333213,
 }
 `;

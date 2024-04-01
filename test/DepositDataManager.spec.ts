@@ -2,8 +2,13 @@ import { ethers } from 'hardhat'
 import { Contract, Signer, Wallet } from 'ethers'
 import { UintNumberType } from '@chainsafe/ssz'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { ThenArg } from '../helpers/types'
-import { EthVault, IKeeperValidators, Keeper, DepositDataManager } from '../typechain-types'
+import {
+  DepositDataManager,
+  EthVault,
+  IKeeperValidators,
+  Keeper,
+  VaultsRegistry,
+} from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
 import { setBalance, toHexString } from './shared/utils'
@@ -17,7 +22,12 @@ import {
   getWithdrawalCredentials,
   ValidatorsMultiProof,
 } from './shared/validators'
-import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
+import {
+  deployEthVaultV1,
+  encodeEthVaultInitParams,
+  ethVaultFixture,
+  getOraclesSignatures,
+} from './shared/fixtures'
 import {
   MAX_UINT256,
   PANIC_CODES,
@@ -26,6 +36,7 @@ import {
   ZERO_ADDRESS,
   ZERO_BYTES32,
 } from './shared/constants'
+import { getEthVaultV1Factory } from './shared/contracts'
 
 const gwei = 1000000000n
 const uintSerializer = new UintNumberType(8)
@@ -41,31 +52,43 @@ describe('DepositDataManager', () => {
   let vault: EthVault,
     keeper: Keeper,
     validatorsRegistry: Contract,
-    vaultsRegistry: VaultRegistry,
-    depositDataManager: DepositDataManager
+    vaultsRegistry: VaultsRegistry,
+    depositDataManager: DepositDataManager,
+    v1Vault: Contract
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
-
-  let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
   before('create fixture loader', async () => {
     ;[dao, admin, other, manager] = await (ethers as any).getSigners()
   })
 
   beforeEach('deploy fixture', async () => {
-    ;({
-      validatorsRegistry,
-      createEthVault: createVault,
-      keeper,
-      depositDataManager,
-      vaultsRegistry,
-    } = await loadFixture(ethVaultFixture))
+    const fixture = await loadFixture(ethVaultFixture)
+    validatorsRegistry = fixture.validatorsRegistry
+    keeper = fixture.keeper
+    depositDataManager = fixture.depositDataManager
+    vaultsRegistry = fixture.vaultsRegistry
 
-    vault = await createVault(admin, {
+    vault = await fixture.createEthVault(admin, {
       capacity,
       feePercent,
       metadataIpfsHash,
     })
+    v1Vault = await deployEthVaultV1(
+      await getEthVaultV1Factory(),
+      admin,
+      keeper,
+      vaultsRegistry,
+      validatorsRegistry,
+      fixture.osTokenVaultController,
+      fixture.osTokenConfig,
+      fixture.sharedMevEscrow,
+      encodeEthVaultInitParams({
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      })
+    )
     admin = await ethers.getImpersonatedSigner(await vault.admin())
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
@@ -76,6 +99,14 @@ describe('DepositDataManager', () => {
     it('fails for non-vault', async () => {
       await expect(
         depositDataManager.connect(admin).setDepositDataManager(other.address, manager.address)
+      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
+    })
+
+    it('fails for V1 vault', async () => {
+      await expect(
+        depositDataManager
+          .connect(admin)
+          .setDepositDataManager(await v1Vault.getAddress(), manager.address)
       ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
     })
 
@@ -112,6 +143,14 @@ describe('DepositDataManager', () => {
     it('fails for invalid vault', async () => {
       await expect(
         depositDataManager.connect(manager).setDepositDataRoot(other.address, validatorsData.root)
+      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
+    })
+
+    it('fails for V1 vault', async () => {
+      await expect(
+        depositDataManager
+          .connect(admin)
+          .setDepositDataRoot(await v1Vault.getAddress(), validatorsData.root)
       ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
     })
 
@@ -382,42 +421,30 @@ describe('DepositDataManager', () => {
   })
 
   describe('migrate', () => {
-    const validatorIndex = 2
-
     beforeEach('set manager', async () => {
       await vaultsRegistry.connect(dao).addVault(other.address)
     })
 
     it('fails for non-vault', async () => {
       await expect(
-        depositDataManager
-          .connect(admin)
-          .migrate(validatorsData.root, validatorIndex, manager.address)
-      ).to.be.revertedWithCustomError(depositDataManager, 'AccessDenied')
-    })
-
-    it('fails for already migrated', async () => {
-      await depositDataManager
-        .connect(other)
-        .migrate(validatorsData.root, validatorIndex, manager.address)
-
-      await expect(
-        depositDataManager
-          .connect(other)
-          .migrate(validatorsData.root, validatorIndex, manager.address)
-      ).to.be.revertedWithCustomError(depositDataManager, 'AccessDenied')
+        depositDataManager.connect(admin).migrate(validatorsData.root, 0, manager.address)
+      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
     })
 
     it('succeeds', async () => {
-      const receipt = await depositDataManager
-        .connect(other)
-        .migrate(validatorsData.root, validatorIndex, manager.address)
+      const v1VaultAddress = await v1Vault.getAddress()
+      await vaultsRegistry.connect(dao).addVault(v1VaultAddress)
+      await v1Vault.connect(admin).setValidatorsRoot(validatorsData.root)
+      await v1Vault.connect(admin).setKeysManager(manager.address)
+      const receipt = await v1Vault
+        .connect(admin)
+        .upgradeToAndCall(await vault.implementation(), '0x')
       await expect(receipt)
         .to.emit(depositDataManager, 'DepositDataMigrated')
-        .withArgs(other.address, validatorsData.root, validatorIndex, manager.address)
-      expect(await depositDataManager.getDepositDataManager(other.address)).to.eq(manager.address)
-      expect(await depositDataManager.depositDataRoots(other.address)).to.eq(validatorsData.root)
-      expect(await depositDataManager.depositDataIndexes(other.address)).to.eq(validatorIndex)
+        .withArgs(v1VaultAddress, validatorsData.root, 0, manager.address)
+      expect(await depositDataManager.getDepositDataManager(v1VaultAddress)).to.eq(manager.address)
+      expect(await depositDataManager.depositDataRoots(v1VaultAddress)).to.eq(validatorsData.root)
+      expect(await depositDataManager.depositDataIndexes(v1VaultAddress)).to.eq(0)
       await snapshotGasCost(receipt)
     })
   })

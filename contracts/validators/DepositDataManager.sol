@@ -7,6 +7,7 @@ import {IDepositDataManager} from '../interfaces/IDepositDataManager.sol';
 import {IKeeperValidators} from '../interfaces/IKeeperValidators.sol';
 import {IVaultAdmin} from '../interfaces/IVaultAdmin.sol';
 import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
+import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {Errors} from '../libraries/Errors.sol';
 
@@ -28,6 +29,17 @@ contract DepositDataManager is IDepositDataManager {
   mapping(address => bool) private _migrated;
 
   /**
+   * @dev Modifier to check if the caller is a valid vault
+   * @param vault The address of the vault
+   */
+  modifier onlyValidVault(address vault) {
+    if (!_vaultsRegistry.vaults(vault) || IVaultVersion(vault).version() < 2) {
+      revert Errors.InvalidVault();
+    }
+    _;
+  }
+
+  /**
    * @dev Constructor
    * @param vaultsRegistry The address of the vaults registry contract
    */
@@ -42,8 +54,10 @@ contract DepositDataManager is IDepositDataManager {
   }
 
   /// @inheritdoc IDepositDataManager
-  function setDepositDataManager(address vault, address depositDataManager) external override {
-    if (!_vaultsRegistry.vaults(vault)) revert Errors.InvalidVault();
+  function setDepositDataManager(
+    address vault,
+    address depositDataManager
+  ) external override onlyValidVault(vault) {
     // only vault admin can set deposit data manager
     if (msg.sender != IVaultAdmin(vault).admin()) revert Errors.AccessDenied();
 
@@ -53,8 +67,10 @@ contract DepositDataManager is IDepositDataManager {
   }
 
   /// @inheritdoc IDepositDataManager
-  function setDepositDataRoot(address vault, bytes32 depositDataRoot) external override {
-    if (!_vaultsRegistry.vaults(vault)) revert Errors.InvalidVault();
+  function setDepositDataRoot(
+    address vault,
+    bytes32 depositDataRoot
+  ) external override onlyValidVault(vault) {
     if (msg.sender != getDepositDataManager(vault)) revert Errors.AccessDenied();
     if (depositDataRoots[vault] == depositDataRoot) revert Errors.ValueNotChanged();
 
@@ -69,9 +85,7 @@ contract DepositDataManager is IDepositDataManager {
     address vault,
     IKeeperValidators.ApprovalParams calldata keeperParams,
     bytes32[] calldata proof
-  ) external override {
-    if (!_vaultsRegistry.vaults(vault)) revert Errors.InvalidVault();
-
+  ) external override onlyValidVault(vault) {
     // register validator
     IVaultValidators(vault).registerValidators(keeperParams);
 
@@ -104,9 +118,7 @@ contract DepositDataManager is IDepositDataManager {
     uint256[] calldata indexes,
     bool[] calldata proofFlags,
     bytes32[] calldata proof
-  ) external override {
-    if (!_vaultsRegistry.vaults(vault)) revert Errors.InvalidVault();
-
+  ) external override onlyValidVault(vault) {
     // register validator
     IVaultValidators(vault).registerValidators(keeperParams);
 
@@ -158,10 +170,9 @@ contract DepositDataManager is IDepositDataManager {
     bytes32 depositDataRoot,
     uint256 validatorIndex,
     address depositDataManager
-  ) external override {
-    if (!_vaultsRegistry.vaults(msg.sender) || _migrated[msg.sender]) {
-      revert Errors.AccessDenied();
-    }
+  ) external override onlyValidVault(msg.sender) {
+    if (_migrated[msg.sender]) revert Errors.AccessDenied();
+
     depositDataRoots[msg.sender] = depositDataRoot;
     depositDataIndexes[msg.sender] = validatorIndex;
     _depositDataManagers[msg.sender] = depositDataManager;
