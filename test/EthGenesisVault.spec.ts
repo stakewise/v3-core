@@ -5,7 +5,7 @@ import {
   Keeper,
   PoolEscrowMock,
   LegacyRewardTokenMock,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { createDepositorMock, ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -52,7 +52,7 @@ describe('EthGenesisVault', () => {
   let vault: EthGenesisVault,
     keeper: Keeper,
     validatorsRegistry: Contract,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
   let poolEscrow: PoolEscrowMock
   let rewardEthToken: LegacyRewardTokenMock
 
@@ -65,7 +65,7 @@ describe('EthGenesisVault', () => {
 
   async function collatEthVault() {
     if (MAINNET_FORK.enabled) return
-    await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+    await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
   }
 
   beforeEach('deploy fixtures', async () => {
@@ -73,7 +73,7 @@ describe('EthGenesisVault', () => {
     const fixture = await loadFixture(ethVaultFixture)
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
     ;[vault, rewardEthToken, poolEscrow] = await fixture.createEthGenesisVault(admin, {
       capacity,
       feePercent,
@@ -285,7 +285,7 @@ describe('EthGenesisVault', () => {
     const tx = await registerEthValidator(
       vault,
       keeper,
-      depositDataManager,
+      depositDataRegistry,
       admin,
       validatorsRegistry
     )
@@ -302,8 +302,8 @@ describe('EthGenesisVault', () => {
     const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     const vaultAddr = await vault.getAddress()
     // reset validator index
-    await depositDataManager.connect(admin).setDepositDataRoot(vaultAddr, ZERO_BYTES32)
-    await depositDataManager.connect(admin).setDepositDataRoot(vaultAddr, validatorsData.root)
+    await depositDataRegistry.connect(admin).setDepositDataRoot(vaultAddr, ZERO_BYTES32)
+    await depositDataRegistry.connect(admin).setDepositDataRoot(vaultAddr, validatorsData.root)
     const proof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators, [
       ...Array(validatorsData.validators.length).keys(),
     ])
@@ -338,7 +338,7 @@ describe('EthGenesisVault', () => {
     await setBalance(vaultAddr, 0n)
     await setBalance(poolEscrowAddr, assets + vaultBalance + poolEscrowBalance)
 
-    const tx = await depositDataManager
+    const tx = await depositDataRegistry
       .connect(admin)
       .registerValidators(vaultAddr, approveParams, indexes, proof.proofFlags, proof.proof)
     await expect(tx)

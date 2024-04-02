@@ -51,8 +51,8 @@ import {
   SharedMevEscrow__factory,
   VaultsRegistry,
   VaultsRegistry__factory,
-  DepositDataManager,
-  DepositDataManager__factory,
+  DepositDataRegistry,
+  DepositDataRegistry__factory,
 } from '../../typechain-types'
 import { getEthValidatorsRegistryFactory } from './contracts'
 import {
@@ -241,13 +241,13 @@ export const createRewardSplitterFactory = async function (): Promise<RewardSpli
   return RewardSplitterFactory__factory.connect(await contract.getAddress(), signer)
 }
 
-export const createDepositDataManager = async function (
+export const createDepositDataRegistry = async function (
   vaultsRegistry: VaultsRegistry
-): Promise<DepositDataManager> {
+): Promise<DepositDataRegistry> {
   const signer = await ethers.provider.getSigner()
-  const factory = await ethers.getContractFactory('DepositDataManager')
+  const factory = await ethers.getContractFactory('DepositDataRegistry')
   const contract = await factory.deploy(await vaultsRegistry.getAddress())
-  return DepositDataManager__factory.connect(await contract.getAddress(), signer)
+  return DepositDataRegistry__factory.connect(await contract.getAddress(), signer)
 }
 
 export const createOsTokenVaultController = async function (
@@ -410,7 +410,7 @@ export const deployEthGenesisVaultImpl = async function (
   osTokenVaultController: OsTokenVaultController,
   osTokenConfig: OsTokenConfig,
   sharedMevEscrow: SharedMevEscrow,
-  depositDataManager: DepositDataManager,
+  depositDataRegistry: DepositDataRegistry,
   poolEscrow: PoolEscrowMock,
   rewardEthToken: LegacyRewardTokenMock
 ): Promise<string> {
@@ -422,7 +422,7 @@ export const deployEthGenesisVaultImpl = async function (
     await osTokenVaultController.getAddress(),
     await osTokenConfig.getAddress(),
     await sharedMevEscrow.getAddress(),
-    await depositDataManager.getAddress(),
+    await depositDataRegistry.getAddress(),
     await poolEscrow.getAddress(),
     await rewardEthToken.getAddress(),
     EXITING_ASSETS_MIN_DELAY,
@@ -441,7 +441,7 @@ export const deployEthVaultImplementation = async function (
   osTokenVaultController: OsTokenVaultController,
   osTokenConfig: OsTokenConfig,
   sharedMevEscrow: SharedMevEscrow,
-  depositDataManager: DepositDataManager,
+  depositDataRegistry: DepositDataRegistry,
   exitingAssetsMinDelay: number
 ): Promise<string> {
   const factory = await ethers.getContractFactory(vaultType)
@@ -452,7 +452,7 @@ export const deployEthVaultImplementation = async function (
     await osTokenVaultController.getAddress(),
     await osTokenConfig.getAddress(),
     await sharedMevEscrow.getAddress(),
-    await depositDataManager.getAddress(),
+    await depositDataRegistry.getAddress(),
     exitingAssetsMinDelay,
   ]
   const contract = await factory.deploy(...constructorArgs)
@@ -555,7 +555,7 @@ interface EthVaultFixture {
   vaultsRegistry: VaultsRegistry
   keeper: Keeper
   sharedMevEscrow: SharedMevEscrow
-  depositDataManager: DepositDataManager
+  depositDataRegistry: DepositDataRegistry
   validatorsRegistry: Contract
   ethVaultFactory: EthVaultFactory
   ethPrivVaultFactory: EthVaultFactory
@@ -688,8 +688,8 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
     OSTOKEN_LTV
   )
 
-  // 7. deploy depositDataManager
-  const depositDataManager = await createDepositDataManager(vaultsRegistry)
+  // 7. deploy depositDataRegistry
+  const depositDataRegistry = await createDepositDataRegistry(vaultsRegistry)
 
   // 8. deploy implementations and factories
   const factories = {}
@@ -712,7 +712,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
-      depositDataManager,
+      depositDataRegistry,
       EXITING_ASSETS_MIN_DELAY
     )
     await vaultsRegistry.addVaultImpl(vaultImpl)
@@ -737,7 +737,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
   return {
     vaultsRegistry,
     sharedMevEscrow,
-    depositDataManager,
+    depositDataRegistry,
     keeper,
     validatorsRegistry,
     ethVaultFactory,
@@ -785,7 +785,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
         await vaultsRegistry.getAddress(),
         await validatorsRegistry.getAddress(),
         await sharedMevEscrow.getAddress(),
-        await depositDataManager.getAddress(),
+        await depositDataRegistry.getAddress(),
         EXITING_ASSETS_MIN_DELAY,
       ]
       const contract = await factory.deploy(...constructorArgs)
@@ -973,7 +973,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
         osTokenVaultController,
         osTokenConfig,
         sharedMevEscrow,
-        depositDataManager,
+        depositDataRegistry,
         poolEscrow,
         rewardEthToken
       )

@@ -1,7 +1,7 @@
 import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 
-import { EthVault, Keeper, DepositDataManager } from '../typechain-types'
+import { EthVault, Keeper, DepositDataRegistry } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -17,7 +17,7 @@ describe('EthVault - settings', () => {
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
   let admin: Wallet, validatorsManager: Wallet, other: Wallet, newFeeRecipient: Wallet
-  let keeper: Keeper, validatorsRegistry: Contract, depositDataManager: DepositDataManager
+  let keeper: Keeper, validatorsRegistry: Contract, depositDataRegistry: DepositDataRegistry
 
   before('create fixture loader', async () => {
     ;[admin, validatorsManager, other, newFeeRecipient] = (
@@ -29,7 +29,7 @@ describe('EthVault - settings', () => {
     ;({
       keeper,
       validatorsRegistry,
-      depositDataManager,
+      depositDataRegistry,
       createEthVault: createVault,
     } = await loadFixture(ethVaultFixture))
   })
@@ -85,7 +85,7 @@ describe('EthVault - settings', () => {
 
     it('can be updated by admin', async () => {
       // initially equals to admin
-      expect(await vault.validatorsManager()).to.be.eq(await depositDataManager.getAddress())
+      expect(await vault.validatorsManager()).to.be.eq(await depositDataRegistry.getAddress())
       const receipt = await vault.connect(admin).setValidatorsManager(validatorsManager.address)
       await expect(receipt)
         .to.emit(vault, 'ValidatorsManagerUpdated')
@@ -109,7 +109,7 @@ describe('EthVault - settings', () => {
         false,
         true
       )
-      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     })
 
     it('only admin can update', async () => {

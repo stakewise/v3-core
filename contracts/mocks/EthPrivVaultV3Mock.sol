@@ -15,7 +15,7 @@ contract EthPrivVaultV3Mock is EthPrivVault {
     address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
-    address depositDataManager,
+    address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
     EthPrivVault(
@@ -25,7 +25,7 @@ contract EthPrivVaultV3Mock is EthPrivVault {
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
-      depositDataManager,
+      depositDataRegistry,
       exitingAssetsClaimDelay
     )
   {}

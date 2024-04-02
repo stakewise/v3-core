@@ -7,7 +7,7 @@ import {
   Keeper,
   OsTokenVaultController,
   SharedMevEscrow,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
@@ -42,7 +42,7 @@ describe('KeeperRewards', () => {
     validatorsRegistry: Contract,
     sharedMevEscrow: SharedMevEscrow,
     osTokenVaultController: OsTokenVaultController,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
   let globalRewardsNonce: number
 
   beforeEach(async () => {
@@ -53,7 +53,7 @@ describe('KeeperRewards', () => {
       validatorsRegistry,
       sharedMevEscrow,
       osTokenVaultController,
-      depositDataManager,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     await setBalance(oracle.address, ethers.parseEther('10000'))
   })
@@ -293,7 +293,7 @@ describe('KeeperRewards', () => {
       await vault
         .connect(admin)
         .deposit(await admin.getAddress(), ZERO_ADDRESS, { value: validatorDeposit })
-      await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
+      await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
       expect(await keeper.isCollateralized(await vault.getAddress())).to.equal(true)
       expect(await keeper.canHarvest(await vault.getAddress())).to.equal(false)

@@ -46,7 +46,7 @@ contract EthFoxVault is
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataManager The address of the DepositDataManager contract
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -55,11 +55,11 @@ contract EthFoxVault is
     address _vaultsRegistry,
     address _validatorsRegistry,
     address sharedMevEscrow,
-    address depositDataManager,
+    address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
-    VaultValidators(depositDataManager)
+    VaultValidators(depositDataRegistry)
     VaultEnterExit(exitingAssetsClaimDelay)
     VaultMev(sharedMevEscrow)
   {

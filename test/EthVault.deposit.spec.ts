@@ -7,7 +7,7 @@ import {
   IKeeperRewards,
   Keeper,
   SharedMevEscrow,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
@@ -30,7 +30,7 @@ describe('EthVault - deposit', () => {
     keeper: Keeper,
     mevEscrow: SharedMevEscrow,
     validatorsRegistry: Contract,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
   let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVaultMock']
@@ -43,7 +43,7 @@ describe('EthVault - deposit', () => {
       keeper,
       validatorsRegistry,
       sharedMevEscrow: mevEscrow,
-      depositDataManager,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(
       admin,
@@ -127,7 +127,7 @@ describe('EthVault - deposit', () => {
     })
 
     it('fails when not harvested', async () => {
-      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       await updateRewards(keeper, [
         {
           reward: ethers.parseEther('5'),
@@ -153,7 +153,7 @@ describe('EthVault - deposit', () => {
       await vault
         .connect(other)
         .deposit(other.address, referrer, { value: ethers.parseEther('32') })
-      await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
+      await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       await vault.connect(other).enterExitQueue(ethers.parseEther('32'), other.address)
 
       let vaultReward = ethers.parseEther('10')

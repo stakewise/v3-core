@@ -5,7 +5,7 @@ pragma solidity =0.8.22;
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {IKeeperValidators} from '../../interfaces/IKeeperValidators.sol';
-import {IDepositDataManager} from '../../interfaces/IDepositDataManager.sol';
+import {IDepositDataRegistry} from '../../interfaces/IDepositDataRegistry.sol';
 import {IVaultValidators} from '../../interfaces/IVaultValidators.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
@@ -25,12 +25,12 @@ abstract contract VaultValidators is
   IVaultValidators
 {
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  address private immutable _depositDataManager;
+  address private immutable _depositDataRegistry;
 
-  /// deprecated. Deposit data management is moved to DepositDataManager contract
+  /// deprecated. Deposit data management is moved to DepositDataRegistry contract
   bytes32 private _validatorsRoot;
 
-  /// deprecated. Deposit data management is moved to DepositDataManager contract
+  /// deprecated. Deposit data management is moved to DepositDataRegistry contract
   uint256 private _validatorIndex;
 
   address private _validatorsManager;
@@ -39,19 +39,19 @@ abstract contract VaultValidators is
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param depositDataManager The address of the deposit data manager contract
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address depositDataManager) {
-    _depositDataManager = depositDataManager;
+  constructor(address depositDataRegistry) {
+    _depositDataRegistry = depositDataRegistry;
   }
 
   /// @inheritdoc IVaultValidators
   function validatorsManager() public view override returns (address) {
     // SLOAD to memory
     address validatorsManager_ = _validatorsManager;
-    // if validatorsManager is not set, use deposit data manager contract address
-    return validatorsManager_ == address(0) ? _depositDataManager : validatorsManager_;
+    // if validatorsManager is not set, use DepositDataRegistry contract address
+    return validatorsManager_ == address(0) ? _depositDataRegistry : validatorsManager_;
   }
 
   /// @inheritdoc IVaultValidators
@@ -135,7 +135,7 @@ abstract contract VaultValidators is
    * @dev Initializes the V2 of the VaultValidators contract
    */
   function __VaultValidators_initV2() internal onlyInitializing {
-    IDepositDataManager(_depositDataManager).migrate(
+    IDepositDataRegistry(_depositDataRegistry).migrate(
       _validatorsRoot,
       _validatorIndex,
       _validatorsManager

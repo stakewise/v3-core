@@ -3,7 +3,7 @@ import { Contract, Signer, Wallet } from 'ethers'
 import { UintNumberType } from '@chainsafe/ssz'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
-  DepositDataManager,
+  DepositDataRegistry,
   EthVault,
   IKeeperValidators,
   Keeper,
@@ -41,7 +41,7 @@ import { getEthVaultV1Factory } from './shared/contracts'
 const gwei = 1000000000n
 const uintSerializer = new UintNumberType(8)
 
-describe('DepositDataManager', () => {
+describe('DepositDataRegistry', () => {
   const validatorDeposit = ethers.parseEther('32')
   const capacity = MAX_UINT256
   const feePercent = 1000
@@ -53,7 +53,7 @@ describe('DepositDataManager', () => {
     keeper: Keeper,
     validatorsRegistry: Contract,
     vaultsRegistry: VaultsRegistry,
-    depositDataManager: DepositDataManager,
+    depositDataRegistry: DepositDataRegistry,
     v1Vault: Contract
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
@@ -66,7 +66,7 @@ describe('DepositDataManager', () => {
     const fixture = await loadFixture(ethVaultFixture)
     validatorsRegistry = fixture.validatorsRegistry
     keeper = fixture.keeper
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
     vaultsRegistry = fixture.vaultsRegistry
 
     vault = await fixture.createEthVault(admin, {
@@ -98,85 +98,85 @@ describe('DepositDataManager', () => {
   describe('deposit data manager update', () => {
     it('fails for non-vault', async () => {
       await expect(
-        depositDataManager.connect(admin).setDepositDataManager(other.address, manager.address)
-      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
+        depositDataRegistry.connect(admin).setDepositDataManager(other.address, manager.address)
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidVault')
     })
 
     it('fails for V1 vault', async () => {
       await expect(
-        depositDataManager
+        depositDataRegistry
           .connect(admin)
           .setDepositDataManager(await v1Vault.getAddress(), manager.address)
-      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidVault')
     })
 
     it('fails for non-admin', async () => {
       await expect(
-        depositDataManager
+        depositDataRegistry
           .connect(other)
           .setDepositDataManager(await vault.getAddress(), manager.address)
-      ).to.be.revertedWithCustomError(depositDataManager, 'AccessDenied')
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'AccessDenied')
     })
 
     it('succeeds', async () => {
       const vaultAddr = await vault.getAddress()
       const adminAddr = await admin.getAddress()
-      expect(await depositDataManager.getDepositDataManager(vaultAddr)).to.eq(adminAddr)
-      const receipt = await depositDataManager
+      expect(await depositDataRegistry.getDepositDataManager(vaultAddr)).to.eq(adminAddr)
+      const receipt = await depositDataRegistry
         .connect(admin)
         .setDepositDataManager(vaultAddr, manager.address)
       await expect(receipt)
-        .to.emit(depositDataManager, 'DepositDataManagerUpdated')
+        .to.emit(depositDataRegistry, 'DepositDataManagerUpdated')
         .withArgs(vaultAddr, manager.address)
-      expect(await depositDataManager.getDepositDataManager(vaultAddr)).to.eq(manager.address)
+      expect(await depositDataRegistry.getDepositDataManager(vaultAddr)).to.eq(manager.address)
       await snapshotGasCost(receipt)
     })
   })
 
   describe('deposit data root update', () => {
     beforeEach('set manager', async () => {
-      await depositDataManager
+      await depositDataRegistry
         .connect(admin)
         .setDepositDataManager(await vault.getAddress(), manager.address)
     })
 
     it('fails for invalid vault', async () => {
       await expect(
-        depositDataManager.connect(manager).setDepositDataRoot(other.address, validatorsData.root)
-      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
+        depositDataRegistry.connect(manager).setDepositDataRoot(other.address, validatorsData.root)
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidVault')
     })
 
     it('fails for V1 vault', async () => {
       await expect(
-        depositDataManager
+        depositDataRegistry
           .connect(admin)
           .setDepositDataRoot(await v1Vault.getAddress(), validatorsData.root)
-      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidVault')
     })
 
     it('fails from non-manager', async () => {
       await expect(
-        depositDataManager
+        depositDataRegistry
           .connect(admin)
           .setDepositDataRoot(await vault.getAddress(), validatorsData.root)
-      ).to.be.revertedWithCustomError(depositDataManager, 'AccessDenied')
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'AccessDenied')
     })
 
     it('fails for same root', async () => {
       const vaultAddr = await vault.getAddress()
-      await depositDataManager.connect(manager).setDepositDataRoot(vaultAddr, validatorsData.root)
+      await depositDataRegistry.connect(manager).setDepositDataRoot(vaultAddr, validatorsData.root)
       await expect(
-        depositDataManager.connect(manager).setDepositDataRoot(vaultAddr, validatorsData.root)
-      ).to.be.revertedWithCustomError(depositDataManager, 'ValueNotChanged')
+        depositDataRegistry.connect(manager).setDepositDataRoot(vaultAddr, validatorsData.root)
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'ValueNotChanged')
     })
 
     it('success', async () => {
       const vaultAddr = await vault.getAddress()
-      const receipt = await depositDataManager
+      const receipt = await depositDataRegistry
         .connect(manager)
         .setDepositDataRoot(vaultAddr, validatorsData.root)
       await expect(receipt)
-        .to.emit(depositDataManager, 'DepositDataRootUpdated')
+        .to.emit(depositDataRegistry, 'DepositDataRootUpdated')
         .withArgs(vaultAddr, validatorsData.root)
       await snapshotGasCost(receipt)
     })
@@ -190,7 +190,7 @@ describe('DepositDataManager', () => {
     beforeEach(async () => {
       validator = validatorsData.validators[0]
       proof = getValidatorProof(validatorsData.tree, validator, 0)
-      await depositDataManager
+      await depositDataRegistry
         .connect(admin)
         .setDepositDataRoot(await vault.getAddress(), validatorsData.root)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
@@ -216,20 +216,24 @@ describe('DepositDataManager', () => {
 
     it('fails for invalid vault', async () => {
       await expect(
-        depositDataManager.registerValidator(other.address, approvalParams, proof)
-      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
+        depositDataRegistry.registerValidator(other.address, approvalParams, proof)
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidVault')
     })
 
     it('fails with invalid proof', async () => {
       const invalidProof = getValidatorProof(validatorsData.tree, validatorsData.validators[1], 1)
       await expect(
-        depositDataManager.registerValidator(await vault.getAddress(), approvalParams, invalidProof)
-      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidProof')
+        depositDataRegistry.registerValidator(
+          await vault.getAddress(),
+          approvalParams,
+          invalidProof
+        )
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidProof')
     })
 
     it('succeeds', async () => {
       const index = await validatorsRegistry.get_deposit_count()
-      const receipt = await depositDataManager.registerValidator(
+      const receipt = await depositDataRegistry.registerValidator(
         await vault.getAddress(),
         approvalParams,
         proof
@@ -245,12 +249,12 @@ describe('DepositDataManager', () => {
           toHexString(validator.subarray(48, 144)),
           index
         )
-      expect(await depositDataManager.depositDataIndexes(await vault.getAddress())).to.eq(1)
+      expect(await depositDataRegistry.depositDataIndexes(await vault.getAddress())).to.eq(1)
 
-      await depositDataManager
+      await depositDataRegistry
         .connect(admin)
         .setDepositDataRoot(await vault.getAddress(), ZERO_BYTES32)
-      expect(await depositDataManager.depositDataIndexes(await vault.getAddress())).to.eq(0)
+      expect(await depositDataRegistry.depositDataIndexes(await vault.getAddress())).to.eq(0)
       await snapshotGasCost(receipt)
     })
   })
@@ -270,7 +274,7 @@ describe('DepositDataManager', () => {
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       const sortedVals = multiProof.leaves.map((v) => v[0])
       const vaultAddr = await vault.getAddress()
-      await depositDataManager.connect(admin).setDepositDataRoot(vaultAddr, validatorsData.root)
+      await depositDataRegistry.connect(admin).setDepositDataRoot(vaultAddr, validatorsData.root)
       indexes = validators.map((v) => sortedVals.indexOf(v))
       const balance =
         validatorDeposit * BigInt(validators.length) +
@@ -299,20 +303,20 @@ describe('DepositDataManager', () => {
 
     it('fails for invalid vault', async () => {
       await expect(
-        depositDataManager.registerValidators(
+        depositDataRegistry.registerValidators(
           other.address,
           approvalParams,
           indexes,
           multiProof.proofFlags,
           multiProof.proof
         )
-      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidVault')
     })
 
     it('fails with invalid validators count', async () => {
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        depositDataManager.registerValidators(
+        depositDataRegistry.registerValidators(
           await vault.getAddress(),
           {
             validatorsRegistryRoot,
@@ -346,30 +350,30 @@ describe('DepositDataManager', () => {
       )
 
       await expect(
-        depositDataManager.registerValidators(
+        depositDataRegistry.registerValidators(
           await vault.getAddress(),
           approvalParams,
           indexes,
           invalidMultiProof.proofFlags,
           invalidMultiProof.proof
         )
-      ).to.be.revertedWithCustomError(depositDataManager, 'MerkleProofInvalidMultiproof')
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'MerkleProofInvalidMultiproof')
     })
 
     it('fails with invalid indexes', async () => {
       const vaultAddr = await vault.getAddress()
       await expect(
-        depositDataManager.registerValidators(
+        depositDataRegistry.registerValidators(
           vaultAddr,
           approvalParams,
           [],
           multiProof.proofFlags,
           multiProof.proof
         )
-      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidValidators')
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidValidators')
 
       await expect(
-        depositDataManager.registerValidators(
+        depositDataRegistry.registerValidators(
           vaultAddr,
           approvalParams,
           indexes.map((i) => i + 1),
@@ -379,14 +383,14 @@ describe('DepositDataManager', () => {
       ).to.be.revertedWithPanic(PANIC_CODES.OUT_OF_BOUND_INDEX)
 
       await expect(
-        depositDataManager.registerValidators(
+        depositDataRegistry.registerValidators(
           vaultAddr,
           approvalParams,
           indexes.sort(() => 0.5 - Math.random()),
           multiProof.proofFlags,
           multiProof.proof
         )
-      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidProof')
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidProof')
     })
 
     it('succeeds', async () => {
@@ -394,7 +398,7 @@ describe('DepositDataManager', () => {
         ethers.getBytes(await validatorsRegistry.get_deposit_count())
       )
       const vaultAddress = await vault.getAddress()
-      const receipt = await depositDataManager.registerValidators(
+      const receipt = await depositDataRegistry.registerValidators(
         vaultAddress,
         approvalParams,
         indexes,
@@ -415,7 +419,7 @@ describe('DepositDataManager', () => {
             toHexString(Buffer.from(uintSerializer.serialize(startIndex + i)))
           )
       }
-      expect(await depositDataManager.depositDataIndexes(vaultAddress)).to.eq(validators.length)
+      expect(await depositDataRegistry.depositDataIndexes(vaultAddress)).to.eq(validators.length)
       await snapshotGasCost(receipt)
     })
   })
@@ -427,8 +431,8 @@ describe('DepositDataManager', () => {
 
     it('fails for non-vault', async () => {
       await expect(
-        depositDataManager.connect(admin).migrate(validatorsData.root, 0, manager.address)
-      ).to.be.revertedWithCustomError(depositDataManager, 'InvalidVault')
+        depositDataRegistry.connect(admin).migrate(validatorsData.root, 0, manager.address)
+      ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidVault')
     })
 
     it('succeeds', async () => {
@@ -440,11 +444,11 @@ describe('DepositDataManager', () => {
         .connect(admin)
         .upgradeToAndCall(await vault.implementation(), '0x')
       await expect(receipt)
-        .to.emit(depositDataManager, 'DepositDataMigrated')
+        .to.emit(depositDataRegistry, 'DepositDataMigrated')
         .withArgs(v1VaultAddress, validatorsData.root, 0, manager.address)
-      expect(await depositDataManager.getDepositDataManager(v1VaultAddress)).to.eq(manager.address)
-      expect(await depositDataManager.depositDataRoots(v1VaultAddress)).to.eq(validatorsData.root)
-      expect(await depositDataManager.depositDataIndexes(v1VaultAddress)).to.eq(0)
+      expect(await depositDataRegistry.getDepositDataManager(v1VaultAddress)).to.eq(manager.address)
+      expect(await depositDataRegistry.depositDataRoots(v1VaultAddress)).to.eq(validatorsData.root)
+      expect(await depositDataRegistry.depositDataIndexes(v1VaultAddress)).to.eq(0)
       await snapshotGasCost(receipt)
     })
   })

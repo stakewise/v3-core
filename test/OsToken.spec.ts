@@ -6,7 +6,7 @@ import {
   OsToken,
   EthVault,
   Keeper,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
@@ -38,7 +38,7 @@ describe('OsToken', () => {
     osToken: OsToken,
     vault: EthVault,
     keeper: Keeper,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   before('create fixture loader', async () => {
     ;[dao, initialHolder, admin, spender, recipient] = await (ethers as any).getSigners()
@@ -54,7 +54,7 @@ describe('OsToken', () => {
     osTokenVaultController = fixture.osTokenVaultController
     keeper = fixture.keeper
     osToken = fixture.osToken
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
 
     vault = await fixture.createEthVault(admin, vaultParams)
     admin = await ethers.getImpersonatedSigner(await vault.admin())
@@ -63,7 +63,7 @@ describe('OsToken', () => {
     await collateralizeEthVault(
       vault,
       fixture.keeper,
-      depositDataManager,
+      depositDataRegistry,
       admin,
       fixture.validatorsRegistry
     )

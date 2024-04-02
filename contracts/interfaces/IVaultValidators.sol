@@ -52,7 +52,7 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   function registerValidators(IKeeperValidators.ApprovalParams calldata keeperParams) external;
 
   /**
-   * @notice Function for updating the validators manager. Can only be called by the admin. Default is the deposit data manager contract.
+   * @notice Function for updating the validators manager. Can only be called by the admin. Default is the DepositDataRegistry contract.
    * @param _validatorsManager The new validators manager address
    */
   function setValidatorsManager(address _validatorsManager) external;

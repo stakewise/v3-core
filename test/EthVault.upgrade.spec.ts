@@ -2,7 +2,7 @@ import { ethers } from 'hardhat'
 import { Contract, parseEther, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
-  DepositDataManager,
+  DepositDataRegistry,
   EthVault,
   EthVault__factory,
   EthVaultFactory,
@@ -52,7 +52,7 @@ describe('EthVault - upgrade', () => {
     sharedMevEscrow: SharedMevEscrow,
     osTokenConfig: OsTokenConfig,
     osTokenVaultController: OsTokenVaultController,
-    depositDataManager: DepositDataManager,
+    depositDataRegistry: DepositDataRegistry,
     ethVaultFactory: EthVaultFactory,
     ethPrivVaultFactory: EthVaultFactory,
     ethErc20VaultFactory: EthVaultFactory,
@@ -73,7 +73,7 @@ describe('EthVault - upgrade', () => {
     sharedMevEscrow = fixture.sharedMevEscrow
     osTokenConfig = fixture.osTokenConfig
     osTokenVaultController = fixture.osTokenVaultController
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
     ethVaultFactory = fixture.ethVaultFactory
     ethPrivVaultFactory = fixture.ethPrivVaultFactory
     ethErc20VaultFactory = fixture.ethErc20VaultFactory
@@ -94,7 +94,7 @@ describe('EthVault - upgrade', () => {
       fixture.osTokenVaultController,
       fixture.osTokenConfig,
       fixture.sharedMevEscrow,
-      fixture.depositDataManager,
+      fixture.depositDataRegistry,
       EXITING_ASSETS_MIN_DELAY
     )
     currImpl = await vault.implementation()
@@ -144,7 +144,7 @@ describe('EthVault - upgrade', () => {
       fixture.osTokenVaultController,
       fixture.osTokenConfig,
       fixture.sharedMevEscrow,
-      fixture.depositDataManager,
+      fixture.depositDataRegistry,
       EXITING_ASSETS_MIN_DELAY
     )
     callData = ethers.AbiCoder.defaultAbiCoder().encode(['uint128'], [100])
@@ -164,7 +164,7 @@ describe('EthVault - upgrade', () => {
       fixture.osTokenVaultController,
       fixture.osTokenConfig,
       fixture.sharedMevEscrow,
-      fixture.depositDataManager,
+      fixture.depositDataRegistry,
       EXITING_ASSETS_MIN_DELAY
     )
     callData = ethers.AbiCoder.defaultAbiCoder().encode(['uint128'], [100])
@@ -287,12 +287,12 @@ describe('EthVault - upgrade', () => {
       expect(await vaultV2.getShares(other.address)).to.be.eq(userShares)
       expect(await vaultV2.convertToAssets(userShares)).to.be.deep.eq(userAssets)
       expect(await vaultV2.osTokenPositions(other.address)).to.be.above(osTokenPosition)
-      expect(await vaultV2.validatorsManager()).to.be.eq(await depositDataManager.getAddress())
+      expect(await vaultV2.validatorsManager()).to.be.eq(await depositDataRegistry.getAddress())
       expect(await vaultV2.mevEscrow()).to.be.eq(mevEscrow)
       expect(await vaultV2.totalAssets()).to.be.eq(totalAssets)
       expect(await vaultV2.totalShares()).to.be.eq(totalShares)
-      expect(await depositDataManager.depositDataIndexes(vaultAddress)).to.be.eq(validatorIndex)
-      expect(await depositDataManager.depositDataRoots(vaultAddress)).to.be.eq(validatorsRoot)
+      expect(await depositDataRegistry.depositDataIndexes(vaultAddress)).to.be.eq(validatorIndex)
+      expect(await depositDataRegistry.depositDataRoots(vaultAddress)).to.be.eq(validatorsRoot)
       await snapshotGasCost(receipt)
     }
     await checkVault(vaults[0], await ethVaultFactory.implementation())

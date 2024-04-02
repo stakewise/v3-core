@@ -1,7 +1,7 @@
 import { ethers, network } from 'hardhat'
 import { Contract, Signer } from 'ethers'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
-import { EthVault, IKeeperRewards, Keeper, DepositDataManager } from '../../typechain-types'
+import { EthVault, IKeeperRewards, Keeper, DepositDataRegistry } from '../../typechain-types'
 import {
   EIP712Domain,
   EXITING_ASSETS_MIN_DELAY,
@@ -182,7 +182,7 @@ export async function collateralizeEthV1Vault(
 export async function collateralizeEthVault(
   vault: EthVaultType,
   keeper: Keeper,
-  depositDataManager: DepositDataManager,
+  depositDataRegistry: DepositDataRegistry,
   admin: Signer,
   validatorsRegistry: Contract
 ) {
@@ -196,7 +196,7 @@ export async function collateralizeEthVault(
     .connect(admin)
     .deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
   const receivedShares = await extractDepositShares(tx)
-  await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
+  await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
   // exit validator
   const response = await vault.connect(admin).enterExitQueue(receivedShares, adminAddr)

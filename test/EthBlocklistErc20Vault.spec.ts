@@ -5,7 +5,7 @@ import {
   EthBlocklistErc20Vault,
   IKeeperRewards,
   Keeper,
-  DepositDataManager,
+  DepositDataRegistry,
   OsTokenVaultController,
 } from '../typechain-types'
 import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
@@ -33,7 +33,7 @@ describe('EthBlocklistErc20Vault', () => {
     keeper: Keeper,
     validatorsRegistry: Contract,
     osTokenVaultController: OsTokenVaultController,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   beforeEach('deploy fixtures', async () => {
     ;[sender, admin, other, blocklistManager] = await (ethers as any).getSigners()
@@ -49,7 +49,7 @@ describe('EthBlocklistErc20Vault', () => {
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
     osTokenVaultController = fixture.osTokenVaultController
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
   })
 
   it('has id', async () => {
@@ -117,7 +117,7 @@ describe('EthBlocklistErc20Vault', () => {
     })
 
     it('cannot update state and call by blocked sender', async () => {
-      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       const vaultReward = getHarvestParams(await vault.getAddress(), ethers.parseEther('1'), 0n)
       const tree = await updateRewards(keeper, [vaultReward])
 
@@ -187,7 +187,7 @@ describe('EthBlocklistErc20Vault', () => {
     let osTokenShares: bigint
 
     beforeEach(async () => {
-      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       await vault.connect(sender).deposit(sender.address, referrer, { value: assets })
       osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
     })

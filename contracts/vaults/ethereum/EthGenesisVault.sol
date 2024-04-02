@@ -44,7 +44,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataManager The address of the DepositDataManager contract
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param poolEscrow The address of the pool escrow from StakeWise v2
    * @param rewardEthToken The address of the rETH2 token from StakeWise v2
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
@@ -57,7 +57,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
-    address depositDataManager,
+    address depositDataRegistry,
     address poolEscrow,
     address rewardEthToken,
     uint256 exitingAssetsClaimDelay
@@ -69,7 +69,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
-      depositDataManager,
+      depositDataRegistry,
       exitingAssetsClaimDelay
     )
   {

@@ -6,11 +6,11 @@ import {IKeeperValidators} from './IKeeperValidators.sol';
 import {IMulticall} from './IMulticall.sol';
 
 /**
- * @title IDepositDataManager
+ * @title IDepositDataRegistry
  * @author StakeWise
- * @notice Defines the interface for DepositDataManager
+ * @notice Defines the interface for DepositDataRegistry
  */
-interface IDepositDataManager is IMulticall {
+interface IDepositDataRegistry is IMulticall {
   /**
    * @notice Event emitted on deposit data manager update
    * @param vault The address of the vault

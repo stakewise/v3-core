@@ -8,7 +8,7 @@ import {
   OsToken,
   OsTokenConfig,
   OsTokenVaultController,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
@@ -53,7 +53,7 @@ describe('EthVault - redeem osToken', () => {
     osToken: OsToken,
     osTokenConfig: OsTokenConfig,
     validatorsRegistry: Contract,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
@@ -66,14 +66,14 @@ describe('EthVault - redeem osToken', () => {
       osTokenVaultController,
       osToken,
       osTokenConfig,
-      depositDataManager,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
     admin = await ethers.getImpersonatedSigner(await vault.admin())
     await osTokenVaultController.connect(dao).setFeePercent(0)
 
     // collateralize vault
-    await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+    await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     const tx = await vault.connect(owner).deposit(owner.address, ZERO_ADDRESS, { value: assets })
     shares = await extractDepositShares(tx)
 

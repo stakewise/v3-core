@@ -6,7 +6,7 @@ import {
   IKeeperRewards,
   OsTokenVaultController,
   PriceFeed,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { expect } from './shared/expect'
 import { createPriceFeed, ethVaultFixture } from './shared/fixtures'
@@ -34,7 +34,7 @@ describe('PriceFeed', () => {
   let osTokenVaultController: OsTokenVaultController,
     priceFeed: PriceFeed,
     vault: EthVault,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   before('create fixture loader', async () => {
     ;[sender, dao, admin] = await (ethers as any).getSigners()
@@ -46,14 +46,14 @@ describe('PriceFeed', () => {
     admin = await ethers.getImpersonatedSigner(await vault.admin())
 
     osTokenVaultController = fixture.osTokenVaultController
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
     priceFeed = await createPriceFeed(osTokenVaultController, description)
 
     // collateralize vault
     await collateralizeEthVault(
       vault,
       fixture.keeper,
-      depositDataManager,
+      depositDataRegistry,
       admin,
       fixture.validatorsRegistry
     )

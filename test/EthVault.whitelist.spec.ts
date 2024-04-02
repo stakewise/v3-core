@@ -25,7 +25,7 @@ describe('EthVault - whitelist', () => {
   let vault: EthPrivVault,
     keeper: Keeper,
     validatorsRegistry: Contract,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   let createPrivateVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthPrivVault']
 
@@ -38,7 +38,7 @@ describe('EthVault - whitelist', () => {
       createEthPrivVault: createPrivateVault,
       keeper,
       validatorsRegistry,
-      depositDataManager,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createPrivateVault(admin, {
       capacity,
@@ -118,7 +118,7 @@ describe('EthVault - whitelist', () => {
     })
 
     it('cannot update state and call', async () => {
-      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       const vaultReward = getHarvestParams(await vault.getAddress(), ethers.parseEther('1'), 0n)
       const tree = await updateRewards(keeper, [vaultReward])
 

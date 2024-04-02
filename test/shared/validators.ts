@@ -4,7 +4,7 @@ import { ethers, network } from 'hardhat'
 import { Buffer } from 'buffer'
 import { BytesLike, Contract, ContractTransactionResponse, Signer } from 'ethers'
 import bls from 'bls-eth-wasm'
-import { EthVault, Keeper, DepositDataManager } from '../../typechain-types'
+import { EthVault, Keeper, DepositDataRegistry } from '../../typechain-types'
 import {
   EIP712Domain,
   KeeperUpdateExitSignaturesSig,
@@ -285,7 +285,7 @@ export function getValidatorsMultiProof(
 export async function registerEthValidator(
   vault: EthVaultType,
   keeper: Keeper,
-  depositDataManager: DepositDataManager,
+  depositDataRegistry: DepositDataRegistry,
   admin: Signer,
   validatorsRegistry: Contract
 ): Promise<ContractTransactionResponse> {
@@ -293,11 +293,11 @@ export async function registerEthValidator(
   const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
   const vaultAddress = await vault.getAddress()
   if ((await vault.version()) > 1) {
-    if ((await depositDataManager.depositDataRoots(vaultAddress)) != ZERO_BYTES32) {
+    if ((await depositDataRegistry.depositDataRoots(vaultAddress)) != ZERO_BYTES32) {
       // reset validator index
-      await depositDataManager.connect(admin).setDepositDataRoot(vaultAddress, ZERO_BYTES32)
+      await depositDataRegistry.connect(admin).setDepositDataRoot(vaultAddress, ZERO_BYTES32)
     }
-    await depositDataManager.connect(admin).setDepositDataRoot(vaultAddress, validatorsData.root)
+    await depositDataRegistry.connect(admin).setDepositDataRoot(vaultAddress, validatorsData.root)
   } else {
     await vault.connect(admin).setValidatorsRoot(validatorsData.root)
   }
@@ -314,7 +314,7 @@ export async function registerEthValidator(
   const signatures = getOraclesSignatures(signingData, VALIDATORS_MIN_ORACLES)
   const proof = getValidatorProof(validatorsData.tree, validator, 0)
   if ((await vault.version()) > 1) {
-    return await depositDataManager.connect(admin).registerValidator(
+    return await depositDataRegistry.connect(admin).registerValidator(
       vaultAddress,
       {
         validatorsRegistryRoot,

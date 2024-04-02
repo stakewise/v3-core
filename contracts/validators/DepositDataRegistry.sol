@@ -3,7 +3,7 @@
 pragma solidity =0.8.22;
 
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import {IDepositDataManager} from '../interfaces/IDepositDataManager.sol';
+import {IDepositDataRegistry} from '../interfaces/IDepositDataRegistry.sol';
 import {IKeeperValidators} from '../interfaces/IKeeperValidators.sol';
 import {IVaultAdmin} from '../interfaces/IVaultAdmin.sol';
 import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
@@ -13,17 +13,17 @@ import {Errors} from '../libraries/Errors.sol';
 import {Multicall} from '../base/Multicall.sol';
 
 /**
- * @title DepositDataManager
+ * @title DepositDataRegistry
  * @author StakeWise
  * @notice Defines the functionality for the Vault's deposit data management
  */
-contract DepositDataManager is Multicall, IDepositDataManager {
+contract DepositDataRegistry is Multicall, IDepositDataRegistry {
   IVaultsRegistry private immutable _vaultsRegistry;
 
-  /// @inheritdoc IDepositDataManager
+  /// @inheritdoc IDepositDataRegistry
   mapping(address => uint256) public override depositDataIndexes;
 
-  /// @inheritdoc IDepositDataManager
+  /// @inheritdoc IDepositDataRegistry
   mapping(address => bytes32) public override depositDataRoots;
 
   mapping(address => address) private _depositDataManagers;
@@ -48,13 +48,13 @@ contract DepositDataManager is Multicall, IDepositDataManager {
     _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
   }
 
-  /// @inheritdoc IDepositDataManager
+  /// @inheritdoc IDepositDataRegistry
   function getDepositDataManager(address vault) public view override returns (address) {
     address depositDataManager = _depositDataManagers[vault];
     return depositDataManager == address(0) ? IVaultAdmin(vault).admin() : depositDataManager;
   }
 
-  /// @inheritdoc IDepositDataManager
+  /// @inheritdoc IDepositDataRegistry
   function setDepositDataManager(
     address vault,
     address depositDataManager
@@ -67,7 +67,7 @@ contract DepositDataManager is Multicall, IDepositDataManager {
     emit DepositDataManagerUpdated(vault, depositDataManager);
   }
 
-  /// @inheritdoc IDepositDataManager
+  /// @inheritdoc IDepositDataRegistry
   function setDepositDataRoot(
     address vault,
     bytes32 depositDataRoot
@@ -81,7 +81,7 @@ contract DepositDataManager is Multicall, IDepositDataManager {
     emit DepositDataRootUpdated(vault, depositDataRoot);
   }
 
-  /// @inheritdoc IDepositDataManager
+  /// @inheritdoc IDepositDataRegistry
   function registerValidator(
     address vault,
     IKeeperValidators.ApprovalParams calldata keeperParams,
@@ -112,7 +112,7 @@ contract DepositDataManager is Multicall, IDepositDataManager {
     }
   }
 
-  /// @inheritdoc IDepositDataManager
+  /// @inheritdoc IDepositDataRegistry
   function registerValidators(
     address vault,
     IKeeperValidators.ApprovalParams calldata keeperParams,
@@ -166,7 +166,7 @@ contract DepositDataManager is Multicall, IDepositDataManager {
     depositDataIndexes[vault] = currentIndex;
   }
 
-  /// @inheritdoc IDepositDataManager
+  /// @inheritdoc IDepositDataRegistry
   function migrate(
     bytes32 depositDataRoot,
     uint256 validatorIndex,

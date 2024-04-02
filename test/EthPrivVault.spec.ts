@@ -5,7 +5,7 @@ import {
   EthPrivVault,
   Keeper,
   OsTokenVaultController,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -24,7 +24,7 @@ describe('EthPrivVault', () => {
     keeper: Keeper,
     validatorsRegistry: Contract,
     osTokenVaultController: OsTokenVaultController,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   beforeEach('deploy fixtures', async () => {
     ;[sender, admin, other] = await (ethers as any).getSigners()
@@ -38,7 +38,7 @@ describe('EthPrivVault', () => {
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
     osTokenVaultController = fixture.osTokenVaultController
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
   })
 
   it('has id', async () => {
@@ -62,7 +62,7 @@ describe('EthPrivVault', () => {
 
     beforeEach(async () => {
       await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
-      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       await vault.connect(admin).updateWhitelist(sender.address, true)
       await vault.connect(sender).deposit(sender.address, referrer, { value: assets })
       osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)

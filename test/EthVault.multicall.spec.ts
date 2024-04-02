@@ -7,7 +7,7 @@ import {
   Keeper,
   MulticallMock,
   OwnMevEscrow__factory,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
@@ -39,7 +39,7 @@ describe('EthVault - multicall', () => {
   let vault: EthVault,
     keeper: Keeper,
     validatorsRegistry: Contract,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
@@ -49,7 +49,7 @@ describe('EthVault - multicall', () => {
       createEthVault: createVault,
       keeper,
       validatorsRegistry,
-      depositDataManager,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(
       admin,
@@ -71,7 +71,7 @@ describe('EthVault - multicall', () => {
     await vault
       .connect(sender)
       .deposit(sender.address, referrer, { value: ethers.parseEther('32') })
-    await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
+    await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     await setBalance(await mevEscrow.getAddress(), ethers.parseEther('10'))
 
     const userShares = await vault.getShares(sender.address)
@@ -169,7 +169,7 @@ describe('EthVault - multicall', () => {
 
     it('fails to deposit, enter exit queue, update state and claim in one transaction', async () => {
       const vaultAddr = await vault.getAddress()
-      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       expect(await vault.isStateUpdateRequired()).to.eq(false)
       expect(await keeper.canHarvest(vaultAddr)).to.eq(false)
 

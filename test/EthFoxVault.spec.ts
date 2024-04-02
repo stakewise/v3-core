@@ -2,7 +2,7 @@ import { ethers } from 'hardhat'
 import keccak256 from 'keccak256'
 import { Contract, parseEther, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { Keeper, IKeeperRewards, EthFoxVault, DepositDataManager } from '../typechain-types'
+import { Keeper, IKeeperRewards, EthFoxVault, DepositDataRegistry } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -25,7 +25,7 @@ describe('EthFoxVault', () => {
   let vault: EthFoxVault,
     keeper: Keeper,
     validatorsRegistry: Contract,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   let createFoxVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthFoxVault']
 
@@ -38,7 +38,7 @@ describe('EthFoxVault', () => {
       createEthFoxVault: createFoxVault,
       keeper,
       validatorsRegistry,
-      depositDataManager,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createFoxVault(admin, {
       capacity,
@@ -131,7 +131,7 @@ describe('EthFoxVault', () => {
     })
 
     it('cannot update state and call', async () => {
-      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       const vaultReward = getHarvestParams(await vault.getAddress(), ethers.parseEther('1'), 0n)
       const tree = await updateRewards(keeper, [vaultReward])
 
@@ -224,7 +224,7 @@ describe('EthFoxVault', () => {
     })
 
     it('blocklist manager can eject all of the user assets for collateralized vault', async () => {
-      await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
       const tx = await vault.connect(blocklistManager).ejectUser(sender.address)
       const positionTicket = await extractExitPositionTicket(tx)

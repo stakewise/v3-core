@@ -7,7 +7,7 @@ import {
   OsToken,
   VaultsRegistry,
   OsTokenVaultController,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
@@ -38,7 +38,7 @@ describe('EthVault - mint', () => {
     osTokenVaultController: OsTokenVaultController,
     osToken: OsToken,
     validatorsRegistry: Contract,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
@@ -51,13 +51,13 @@ describe('EthVault - mint', () => {
       osToken,
       osTokenVaultController,
       vaultsRegistry,
-      depositDataManager,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
     admin = await ethers.getImpersonatedSigner(await vault.admin())
 
     // collateralize vault
-    await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+    await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     const tx = await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: assets })
     shares = await extractDepositShares(tx)
     osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)

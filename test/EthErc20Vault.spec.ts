@@ -8,7 +8,7 @@ import {
   VaultsRegistry,
   OsTokenConfig,
   SharedMevEscrow,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import {
@@ -46,7 +46,7 @@ describe('EthErc20Vault', () => {
     vaultsRegistry: VaultsRegistry,
     osTokenConfig: OsTokenConfig,
     sharedMevEscrow: SharedMevEscrow,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   beforeEach('deploy fixtures', async () => {
     ;[sender, receiver, admin] = (await (ethers as any).getSigners()).slice(1, 4)
@@ -65,7 +65,7 @@ describe('EthErc20Vault', () => {
     osTokenConfig = fixture.osTokenConfig
     vaultsRegistry = fixture.vaultsRegistry
     sharedMevEscrow = fixture.sharedMevEscrow
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
   })
 
   it('has id', async () => {
@@ -121,7 +121,7 @@ describe('EthErc20Vault', () => {
   })
 
   it('enter exit queue emits transfer event', async () => {
-    await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+    await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     expect(await vault.totalExitingAssets()).to.be.eq(0)
     const totalExitingBefore = await vault.totalExitingAssets()
     const totalAssetsBefore = await vault.totalAssets()
@@ -171,7 +171,7 @@ describe('EthErc20Vault', () => {
     await vault
       .connect(admin)
       .deposit(await admin.getAddress(), ZERO_ADDRESS, { value: validatorDeposit })
-    await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
+    await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
     const rewardsTree = await updateRewards(keeper, [
       { vault: await vault.getAddress(), reward: 0n, unlockedMevReward: 0n },
@@ -200,7 +200,7 @@ describe('EthErc20Vault', () => {
   })
 
   it('cannot transfer vault shares when unharvested and osToken minted', async () => {
-    await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+    await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     const assets = ethers.parseEther('1')
     const shares = await vault.convertToShares(assets)
     const osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
@@ -220,7 +220,7 @@ describe('EthErc20Vault', () => {
   })
 
   it('cannot transfer vault shares when LTV is violated', async () => {
-    await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+    await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     const assets = ethers.parseEther('2')
     const shares = await vault.convertToShares(assets)
     const osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
@@ -237,7 +237,7 @@ describe('EthErc20Vault', () => {
   })
 
   it('can transfer vault shares when LTV is not violated', async () => {
-    await collateralizeEthVault(vault, keeper, depositDataManager, admin, validatorsRegistry)
+    await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     const assets = ethers.parseEther('2')
     const osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
     const transferShares = await vault.convertToShares(ethers.parseEther('0.1'))

@@ -7,7 +7,7 @@ import {
   Keeper,
   RewardSplitter,
   RewardSplitter__factory,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { createRewardSplitterFactory, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -21,7 +21,7 @@ describe('RewardSplitter', () => {
     keeper: Keeper,
     rewardSplitter: RewardSplitter,
     erc20Vault: EthErc20Vault,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   before('create fixture loader', async () => {
     ;[admin, other] = (await (ethers as any).getSigners()).slice(1, 3)
@@ -52,18 +52,18 @@ describe('RewardSplitter', () => {
       true
     )
     keeper = fixture.keeper
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
     await collateralizeEthVault(
       vault,
       keeper,
-      depositDataManager,
+      depositDataRegistry,
       admin,
       fixture.validatorsRegistry
     )
     await collateralizeEthVault(
       erc20Vault,
       keeper,
-      depositDataManager,
+      depositDataRegistry,
       admin,
       fixture.validatorsRegistry
     )
