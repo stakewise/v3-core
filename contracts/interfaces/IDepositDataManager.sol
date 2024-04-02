@@ -3,13 +3,14 @@
 pragma solidity =0.8.22;
 
 import {IKeeperValidators} from './IKeeperValidators.sol';
+import {IMulticall} from './IMulticall.sol';
 
 /**
  * @title IDepositDataManager
  * @author StakeWise
  * @notice Defines the interface for DepositDataManager
  */
-interface IDepositDataManager {
+interface IDepositDataManager is IMulticall {
   /**
    * @notice Event emitted on deposit data manager update
    * @param vault The address of the vault
