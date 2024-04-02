@@ -10,13 +10,14 @@ import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
 import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {Errors} from '../libraries/Errors.sol';
+import {Multicall} from '../base/Multicall.sol';
 
 /**
  * @title DepositDataManager
  * @author StakeWise
  * @notice Defines the functionality for the Vault's deposit data management
  */
-contract DepositDataManager is IDepositDataManager {
+contract DepositDataManager is Multicall, IDepositDataManager {
   IVaultsRegistry private immutable _vaultsRegistry;
 
   /// @inheritdoc IDepositDataManager
