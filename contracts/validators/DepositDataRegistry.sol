@@ -9,6 +9,8 @@ import {IVaultAdmin} from '../interfaces/IVaultAdmin.sol';
 import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
 import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
+import {IVaultState} from '../interfaces/IVaultState.sol';
+import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {Errors} from '../libraries/Errors.sol';
 import {Multicall} from '../base/Multicall.sol';
 
@@ -79,6 +81,14 @@ contract DepositDataRegistry is Multicall, IDepositDataRegistry {
     // reset validator index on every root update
     depositDataIndexes[vault] = 0;
     emit DepositDataRootUpdated(vault, depositDataRoot);
+  }
+
+  /// @inheritdoc IDepositDataRegistry
+  function updateVaultState(
+    address vault,
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) external override {
+    IVaultState(vault).updateState(harvestParams);
   }
 
   /// @inheritdoc IDepositDataRegistry

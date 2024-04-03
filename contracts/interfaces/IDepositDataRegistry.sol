@@ -3,6 +3,7 @@
 pragma solidity =0.8.22;
 
 import {IKeeperValidators} from './IKeeperValidators.sol';
+import {IKeeperRewards} from './IKeeperRewards.sol';
 import {IMulticall} from './IMulticall.sol';
 
 /**
@@ -73,6 +74,16 @@ interface IDepositDataRegistry is IMulticall {
    * @param depositDataRoot The new deposit data Merkle tree root
    */
   function setDepositDataRoot(address vault, bytes32 depositDataRoot) external;
+
+  /**
+   * @notice Updates the vault state. Can be used in multicall to update state and register validator(s).
+   * @param vault The address of the vault
+   * @param harvestParams The harvest params to use for updating the vault state
+   */
+  function updateVaultState(
+    address vault,
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) external;
 
   /**
    * @notice Function for registering single validator

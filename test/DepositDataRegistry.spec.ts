@@ -8,6 +8,7 @@ import {
   IKeeperValidators,
   Keeper,
   VaultsRegistry,
+  IKeeperRewards,
 } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
@@ -37,6 +38,7 @@ import {
   ZERO_BYTES32,
 } from './shared/constants'
 import { getEthVaultV1Factory } from './shared/contracts'
+import { getHarvestParams, getRewardsRootProof, updateRewards } from './shared/rewards'
 
 const gwei = 1000000000n
 const uintSerializer = new UintNumberType(8)
@@ -229,6 +231,34 @@ describe('DepositDataRegistry', () => {
           invalidProof
         )
       ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidProof')
+    })
+
+    it('can update state and register validator', async () => {
+      const vaultAddress = await vault.getAddress()
+      const vaultReward = getHarvestParams(await vault.getAddress(), ethers.parseEther('1'), 0n)
+      const tree = await updateRewards(keeper, [vaultReward])
+      const harvestParams: IKeeperRewards.HarvestParamsStruct = {
+        rewardsRoot: tree.root,
+        reward: vaultReward.reward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
+        proof: getRewardsRootProof(tree, vaultReward),
+      }
+
+      const calls: string[] = [
+        depositDataRegistry.interface.encodeFunctionData('updateVaultState', [
+          vaultAddress,
+          harvestParams,
+        ]),
+        depositDataRegistry.interface.encodeFunctionData('registerValidator', [
+          vaultAddress,
+          approvalParams,
+          proof,
+        ]),
+      ]
+      const receipt = await depositDataRegistry.multicall(calls)
+      const publicKey = `0x${validator.subarray(0, 48).toString('hex')}`
+      await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
+      await snapshotGasCost(receipt)
     })
 
     it('succeeds', async () => {
