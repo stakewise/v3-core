@@ -7,11 +7,12 @@ import {
   BalancerVaultMock,
   XdaiExchangeV2Mock,
   XdaiExchangeV2Mock__factory,
+  PriceFeedMock,
   VaultsRegistry,
 } from '../../typechain-types'
 import { gnoVaultFixture } from '../shared/gnoFixtures'
 import { expect } from '../shared/expect'
-import { ZERO_BYTES32 } from '../shared/constants'
+import { XDAI_EXCHANGE_MAX_SLIPPAGE, ZERO_BYTES32 } from '../shared/constants'
 import snapshotGasCost from '../shared/snapshotGasCost'
 
 describe('XdaiExchange', () => {
@@ -19,6 +20,8 @@ describe('XdaiExchange', () => {
   let xdaiExchange: XdaiExchange,
     gnoToken: ERC20Mock,
     balancerVault: BalancerVaultMock,
+    gnoPriceFeed: PriceFeedMock,
+    daiPriceFeed: PriceFeedMock,
     vaultsRegistry: VaultsRegistry
 
   beforeEach('deploy fixtures', async () => {
@@ -28,13 +31,42 @@ describe('XdaiExchange', () => {
     gnoToken = fixture.gnoToken
     balancerVault = fixture.balancerVault
     vaultsRegistry = fixture.vaultsRegistry
+    gnoPriceFeed = fixture.gnoPriceFeed
+    daiPriceFeed = fixture.daiPriceFeed
   })
 
   it('cannot initialize twice', async () => {
     await expect(
-      xdaiExchange.connect(other).initialize(other.address)
+      xdaiExchange.connect(other).initialize(other.address, XDAI_EXCHANGE_MAX_SLIPPAGE)
     ).to.be.revertedWithCustomError(xdaiExchange, 'InvalidInitialization')
     expect(await xdaiExchange.owner()).to.eq(dao.address)
+  })
+
+  describe('max slippage', () => {
+    it('is set during deployment', async () => {
+      expect(await xdaiExchange.maxSlippage()).to.eq(XDAI_EXCHANGE_MAX_SLIPPAGE)
+    })
+
+    it('cannot be set by non-admin', async () => {
+      await expect(xdaiExchange.connect(other).setMaxSlippage(0)).to.be.revertedWithCustomError(
+        xdaiExchange,
+        'OwnableUnauthorizedAccount'
+      )
+    })
+
+    it('cannot be larger than 100.00', async () => {
+      await expect(xdaiExchange.connect(dao).setMaxSlippage(10001)).to.be.revertedWithCustomError(
+        xdaiExchange,
+        'InvalidSlippage'
+      )
+    })
+
+    it('can be set by the admin', async () => {
+      const tx = await xdaiExchange.connect(dao).setMaxSlippage(100)
+      await expect(tx).to.emit(xdaiExchange, 'MaxSlippageUpdated').withArgs(100)
+      expect(await xdaiExchange.maxSlippage()).to.eq(100)
+      await snapshotGasCost(tx)
+    })
   })
 
   describe('upgrade', () => {
@@ -46,7 +78,9 @@ describe('XdaiExchange', () => {
         await gnoToken.getAddress(),
         ZERO_BYTES32,
         await balancerVault.getAddress(),
-        await vaultsRegistry.getAddress()
+        await vaultsRegistry.getAddress(),
+        await daiPriceFeed.getAddress(),
+        await gnoPriceFeed.getAddress()
       )
       newImpl = XdaiExchangeV2Mock__factory.connect(await contract.getAddress(), dao)
     })
@@ -60,6 +94,11 @@ describe('XdaiExchange', () => {
     it('upgrades', async () => {
       const tx = await xdaiExchange.connect(dao).upgradeToAndCall(await newImpl.getAddress(), '0x')
       await expect(tx).to.emit(xdaiExchange, 'Upgraded')
+      const xdaiExchangeMock = XdaiExchangeV2Mock__factory.connect(
+        await xdaiExchange.getAddress(),
+        dao
+      )
+      expect(await xdaiExchangeMock.newVar()).to.eq(0)
       await snapshotGasCost(tx)
     })
   })
@@ -67,17 +106,27 @@ describe('XdaiExchange', () => {
   describe('swap', () => {
     it('fails for not vault', async () => {
       await expect(
-        xdaiExchange.connect(other).swap(1, 1, {
+        xdaiExchange.connect(other).swap({
           value: parseEther('1'),
         })
       ).to.be.revertedWithCustomError(xdaiExchange, 'AccessDenied')
     })
 
     it('fails with zero amount', async () => {
-      await expect(xdaiExchange.connect(dao).swap(1, 1)).to.be.revertedWithCustomError(
+      await expect(xdaiExchange.connect(dao).swap()).to.be.revertedWithCustomError(
         xdaiExchange,
         'InvalidAssets'
       )
+    })
+
+    it('fails with invalid limit', async () => {
+      await vaultsRegistry.connect(dao).addVault(dao.address)
+      await daiPriceFeed.connect(dao).setRate(0)
+      await expect(
+        xdaiExchange.connect(dao).swap({
+          value: parseEther('1'),
+        })
+      ).to.be.revertedWithCustomError(xdaiExchange, 'InvalidLimit')
     })
   })
 })

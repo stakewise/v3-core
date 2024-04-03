@@ -3,21 +3,20 @@ import { Contract, parseEther, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
   BalancerVaultMock,
+  DepositDataRegistry,
   ERC20Mock,
   GnoOwnMevEscrow,
   GnoOwnMevEscrow__factory,
   GnoSharedMevEscrow,
   GnoVault,
   Keeper,
-  DepositDataManager,
 } from '../../typechain-types'
 import { collateralizeGnoVault, gnoVaultFixture } from '../shared/gnoFixtures'
 import { expect } from '../shared/expect'
 import { ThenArg } from '../../helpers/types'
 import { getHarvestParams, getRewardsRootProof, updateRewards } from '../shared/rewards'
-import { getLatestBlockTimestamp, setBalance } from '../shared/utils'
+import { setBalance } from '../shared/utils'
 import snapshotGasCost from '../shared/snapshotGasCost'
-import { ONE_DAY } from '../shared/constants'
 
 describe('GnoVault', () => {
   const vaultParams = {
@@ -31,7 +30,7 @@ describe('GnoVault', () => {
     sharedMevEscrow: GnoSharedMevEscrow,
     keeper: Keeper,
     validatorsRegistry: Contract,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
   let xdaiGnoRate: bigint
 
   let createVault: ThenArg<ReturnType<typeof gnoVaultFixture>>['createGnoVault']
@@ -44,7 +43,7 @@ describe('GnoVault', () => {
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
     sharedMevEscrow = fixture.sharedMevEscrow
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
     createVault = fixture.createGnoVault
   })
 
@@ -53,12 +52,11 @@ describe('GnoVault', () => {
 
     beforeEach('deploy vault', async () => {
       vault = await createVault(admin, vaultParams, false)
-      await vault.connect(admin).setXdaiManager(xdaiManager.address)
       await collateralizeGnoVault(
         vault,
         gnoToken,
         keeper,
-        depositDataManager,
+        depositDataRegistry,
         admin,
         validatorsRegistry
       )
@@ -92,10 +90,9 @@ describe('GnoVault', () => {
       await snapshotGasCost(receipt)
 
       const swappedGno = (executionReward * xdaiGnoRate) / parseEther('1')
-      const deadline = (await getLatestBlockTimestamp()) + ONE_DAY
       await gnoToken.mint(await balancerVault.getAddress(), swappedGno)
 
-      await vault.connect(xdaiManager).swapXdaiToGno(executionReward, swappedGno, deadline)
+      await vault.connect(xdaiManager).swapXdaiToGno()
       expect(await ethers.provider.getBalance(vaultAddr)).to.eq(0n)
       expect(await vault.totalAssets()).to.eq(totalAssetsBefore + consensusReward + swappedGno)
     })
@@ -109,12 +106,11 @@ describe('GnoVault', () => {
       vault = await createVault(admin, vaultParams, true)
       const mevEscrowAddr = await vault.mevEscrow()
       mevEscrow = GnoOwnMevEscrow__factory.connect(mevEscrowAddr, admin)
-      await vault.connect(admin).setXdaiManager(xdaiManager.address)
       await collateralizeGnoVault(
         vault,
         gnoToken,
         keeper,
-        depositDataManager,
+        depositDataRegistry,
         admin,
         validatorsRegistry
       )
@@ -145,10 +141,9 @@ describe('GnoVault', () => {
       await snapshotGasCost(receipt)
 
       const swappedGno = (executionReward * xdaiGnoRate) / parseEther('1')
-      const deadline = (await getLatestBlockTimestamp()) + ONE_DAY
       await gnoToken.mint(await balancerVault.getAddress(), swappedGno)
 
-      await vault.connect(xdaiManager).swapXdaiToGno(executionReward, swappedGno, deadline)
+      await vault.connect(xdaiManager).swapXdaiToGno()
       expect(await ethers.provider.getBalance(vaultAddr)).to.eq(0n)
       expect(await vault.totalAssets()).to.eq(totalAssetsBefore + consensusReward + swappedGno)
     })

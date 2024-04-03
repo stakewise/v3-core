@@ -11,13 +11,19 @@ contract XdaiExchangeV2Mock is XdaiExchange {
     address gnoToken,
     bytes32 balancerPoolId,
     address balancerVault,
-    address vaultsRegistry
-  ) XdaiExchange(gnoToken, balancerPoolId, balancerVault, vaultsRegistry) {}
+    address vaultsRegistry,
+    address daiPriceFeed,
+    address gnoPriceFeed
+  )
+    XdaiExchange(
+      gnoToken,
+      balancerPoolId,
+      balancerVault,
+      vaultsRegistry,
+      daiPriceFeed,
+      gnoPriceFeed
+    )
+  {}
 
   function initializeV2(address initialOwner) external reinitializer(2) {}
-
-  // invalid swap function
-  function swap(uint256 limit, uint256) external payable override returns (uint256 assets) {
-    return limit;
-  }
 }

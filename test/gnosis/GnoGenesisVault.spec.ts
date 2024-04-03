@@ -7,7 +7,7 @@ import {
   Keeper,
   LegacyRewardTokenMock,
   PoolEscrowMock,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../../typechain-types'
 import { expect } from '../shared/expect'
 import keccak256 from 'keccak256'
@@ -41,7 +41,7 @@ describe('GnoGenesisVault', () => {
   let admin: Wallet, other: Wallet
   let vault: GnoGenesisVault, keeper: Keeper, validatorsRegistry: Contract, gnoToken: ERC20Mock
   let poolEscrow: PoolEscrowMock
-  let rewardToken: LegacyRewardTokenMock, depositDataManager: DepositDataManager
+  let rewardToken: LegacyRewardTokenMock, depositDataRegistry: DepositDataRegistry
 
   let createGenesisVault: ThenArg<ReturnType<typeof gnoVaultFixture>>['createGnoGenesisVault']
 
@@ -54,7 +54,7 @@ describe('GnoGenesisVault', () => {
       vault,
       gnoToken,
       keeper,
-      depositDataManager,
+      depositDataRegistry,
       admin,
       validatorsRegistry
     )
@@ -66,7 +66,7 @@ describe('GnoGenesisVault', () => {
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
     gnoToken = fixture.gnoToken
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
     ;[vault, rewardToken, poolEscrow] = await fixture.createGnoGenesisVault(admin, {
       capacity,
       feePercent,
@@ -191,7 +191,7 @@ describe('GnoGenesisVault', () => {
     expect(await vault.getShares(other.address)).to.eq(shares)
 
     // register validator
-    await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
+    await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     expect(await gnoToken.balanceOf(await vault.getAddress())).to.eq(0n)
 
     // enter exit queue

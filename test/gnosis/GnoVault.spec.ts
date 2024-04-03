@@ -6,9 +6,7 @@ import {
   ERC20Mock,
   GnoVault,
   Keeper,
-  VaultsRegistry,
-  XdaiExchange,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../../typechain-types'
 import { gnoVaultFixture, setGnoWithdrawals } from '../shared/gnoFixtures'
 import { expect } from '../shared/expect'
@@ -16,16 +14,10 @@ import snapshotGasCost from '../shared/snapshotGasCost'
 import {
   extractExitPositionTicket,
   getBlockTimestamp,
-  getLatestBlockTimestamp,
   increaseTime,
+  setBalance,
 } from '../shared/utils'
-import {
-  EXITING_ASSETS_MIN_DELAY,
-  ONE_DAY,
-  SECURITY_DEPOSIT,
-  ZERO_ADDRESS,
-  ZERO_BYTES32,
-} from '../shared/constants'
+import { EXITING_ASSETS_MIN_DELAY, SECURITY_DEPOSIT, ZERO_ADDRESS } from '../shared/constants'
 import { registerEthValidator } from '../shared/validators'
 import keccak256 from 'keccak256'
 
@@ -35,31 +27,22 @@ describe('GnoVault', () => {
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
-  let dao: Wallet,
-    other: Wallet,
-    admin: Wallet,
-    xdaiManager: Wallet,
-    sender: Wallet,
-    receiver: Wallet
-  let xdaiExchange: XdaiExchange,
-    gnoToken: ERC20Mock,
+  let other: Wallet, admin: Wallet, sender: Wallet, receiver: Wallet
+  let gnoToken: ERC20Mock,
     balancerVault: BalancerVaultMock,
     vault: GnoVault,
-    vaultsRegistry: VaultsRegistry,
     keeper: Keeper,
     validatorsRegistry: Contract,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   beforeEach('deploy fixtures', async () => {
-    ;[dao, admin, xdaiManager, sender, receiver, other] = await (ethers as any).getSigners()
+    ;[admin, sender, receiver, other] = (await (ethers as any).getSigners()).slice(1, 5)
     const fixture = await loadFixture(gnoVaultFixture)
-    xdaiExchange = fixture.xdaiExchange
     gnoToken = fixture.gnoToken
     balancerVault = fixture.balancerVault
-    vaultsRegistry = fixture.vaultsRegistry
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
     vault = await fixture.createGnoVault(admin, vaultParams)
   })
 
@@ -78,30 +61,10 @@ describe('GnoVault', () => {
     )
   })
 
-  describe('xdai manager', () => {
-    it('initially is set to the admin', async () => {
-      expect(await vault.xdaiManager()).to.eq(admin.address)
-    })
-
-    it('cannot be set by non-admin', async () => {
-      await expect(
-        vault.connect(other).setXdaiManager(other.address)
-      ).to.be.revertedWithCustomError(vault, 'AccessDenied')
-    })
-
-    it('can be set by the admin', async () => {
-      const tx = await vault.connect(admin).setXdaiManager(other.address)
-      expect(await vault.xdaiManager()).to.eq(other.address)
-      await expect(tx).to.emit(vault, 'XdaiManagerUpdated').withArgs(admin.address, other.address)
-      await snapshotGasCost(tx)
-    })
-  })
-
   describe('swap xdai to gno', () => {
     const maxXdaiSwap = ethers.parseEther('12000')
     let maxGnoSwap: bigint
     let xdaiGnoRate: bigint
-    let deadline: number
 
     beforeEach(async () => {
       xdaiGnoRate = await balancerVault.xdaiGnoRate()
@@ -111,45 +74,20 @@ describe('GnoVault', () => {
         to: await vault.getAddress(),
         value: maxXdaiSwap,
       })
-      await vault.connect(admin).setXdaiManager(xdaiManager.address)
-      deadline = (await getLatestBlockTimestamp()) + ONE_DAY
     })
 
-    it('cannot be called by non-xdai manager', async () => {
-      await expect(
-        vault.connect(other).swapXdaiToGno(maxXdaiSwap, maxGnoSwap, deadline)
-      ).to.be.revertedWithCustomError(vault, 'AccessDenied')
-    })
-
-    it('cannot swap when below limit', async () => {
-      const factory = await ethers.getContractFactory('XdaiExchangeV2Mock')
-      const contract = await factory.deploy(
-        await gnoToken.getAddress(),
-        ZERO_BYTES32,
-        await balancerVault.getAddress(),
-        await vaultsRegistry.getAddress()
-      )
-      await xdaiExchange.connect(dao).upgradeToAndCall(await contract.getAddress(), '0x')
-      await expect(
-        vault.connect(xdaiManager).swapXdaiToGno(maxXdaiSwap, maxGnoSwap, deadline)
-      ).to.be.revertedWithCustomError(vault, 'InvalidAssets')
-    })
-
-    it('manager can swap some xdai to gno', async () => {
-      const xdaiAmount = maxXdaiSwap / 2n
-      const gnoAmount = (xdaiAmount * xdaiGnoRate) / parseEther('1')
-      const totalAssetsBefore = await vault.totalAssets()
-      const tx = await vault.connect(xdaiManager).swapXdaiToGno(xdaiAmount, gnoAmount, deadline)
-      expect(await vault.totalAssets()).to.eq(totalAssetsBefore + gnoAmount)
-      await expect(tx).to.emit(vault, 'XdaiSwapped').withArgs(xdaiAmount, gnoAmount)
+    it('skips swapping when balance less than 1 gwei xdai', async () => {
+      await setBalance(await vault.getAddress(), parseEther('0.0000000009'))
+      const tx = await vault.swapXdaiToGno()
+      await expect(tx).to.not.emit(vault, 'XdaiSwapped')
       await snapshotGasCost(tx)
     })
 
-    it('manager can swap all xdai to gno', async () => {
+    it('can swap all xdai to gno', async () => {
       const xdaiAmount = maxXdaiSwap
       const gnoAmount = maxGnoSwap
       const totalAssetsBefore = await vault.totalAssets()
-      const tx = await vault.connect(xdaiManager).swapXdaiToGno(xdaiAmount, gnoAmount, deadline)
+      const tx = await vault.swapXdaiToGno()
       expect(await vault.totalAssets()).to.eq(totalAssetsBefore + gnoAmount)
       await expect(tx).to.emit(vault, 'XdaiSwapped').withArgs(xdaiAmount, gnoAmount)
       await snapshotGasCost(tx)
@@ -210,7 +148,7 @@ describe('GnoVault', () => {
     expect(await vault.getShares(sender.address)).to.eq(shares)
 
     // register validator
-    await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
+    await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     expect(await gnoToken.balanceOf(await vault.getAddress())).to.eq(0n)
 
     // enter exit queue

@@ -12,7 +12,7 @@ import EthereumWallet from 'ethereumjs-wallet'
 import {
   BalancerVaultMock,
   BalancerVaultMock__factory,
-  DepositDataManager,
+  DepositDataRegistry,
   ERC20Mock,
   ERC20Mock__factory,
   GnoBlocklistErc20Vault,
@@ -44,6 +44,8 @@ import {
   VaultsRegistry,
   XdaiExchange,
   XdaiExchange__factory,
+  PriceFeedMock,
+  PriceFeedMock__factory,
 } from '../../typechain-types'
 import { getGnoValidatorsRegistryFactory } from './contracts'
 import {
@@ -64,6 +66,7 @@ import {
   REWARDS_MIN_ORACLES,
   SECURITY_DEPOSIT,
   VALIDATORS_MIN_ORACLES,
+  XDAI_EXCHANGE_MAX_SLIPPAGE,
   ZERO_ADDRESS,
   ZERO_BYTES32,
 } from './constants'
@@ -77,7 +80,7 @@ import {
   setBalance,
 } from './utils'
 import {
-  createDepositDataManager,
+  createDepositDataRegistry,
   createKeeper,
   createOsToken,
   createOsTokenConfig,
@@ -110,7 +113,7 @@ export async function collateralizeGnoVault(
   vault: GnoVaultType,
   gnoToken: ERC20Mock,
   keeper: Keeper,
-  depositDataManager: DepositDataManager,
+  depositDataRegistry: DepositDataRegistry,
   admin: Wallet,
   validatorsRegistry: Contract
 ) {
@@ -120,7 +123,7 @@ export async function collateralizeGnoVault(
   const validatorDeposit = ethers.parseEther('1')
   const tx = await depositGno(vault, gnoToken, validatorDeposit, admin, admin, ZERO_ADDRESS)
   const receivedShares = await extractDepositShares(tx)
-  await registerEthValidator(vault, keeper, depositDataManager, admin, validatorsRegistry)
+  await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
   // exit validator
   const response = await vault.connect(admin).enterExitQueue(receivedShares, adminAddr)
@@ -186,10 +189,22 @@ export const createBalancerVaultMock = async function (
   return BalancerVaultMock__factory.connect(await contract.getAddress(), dao)
 }
 
+export const createPriceFeedMock = async function (
+  dao: Signer,
+  description: string
+): Promise<PriceFeedMock> {
+  const factory = await ethers.getContractFactory('PriceFeedMock')
+  const contract = await factory.connect(dao).deploy(description)
+  return PriceFeedMock__factory.connect(await contract.getAddress(), dao)
+}
+
 export const createXdaiExchange = async function (
   gnoToken: ERC20Mock,
+  daiPriceFeed: PriceFeedMock,
+  gnoPriceFeed: PriceFeedMock,
   balancerVault: BalancerVaultMock,
   balancerPoolId: string,
+  maxSlippage: number,
   vaultsRegistry: VaultsRegistry,
   dao: Signer
 ): Promise<XdaiExchange> {
@@ -200,6 +215,8 @@ export const createXdaiExchange = async function (
     balancerPoolId,
     await balancerVault.getAddress(),
     await vaultsRegistry.getAddress(),
+    await daiPriceFeed.getAddress(),
+    await gnoPriceFeed.getAddress(),
   ]
   const contract = await factory.deploy(...constructorArgs)
   const impl = await contract.getAddress()
@@ -209,7 +226,7 @@ export const createXdaiExchange = async function (
   const proxy = await proxyFactory.deploy(impl, '0x')
   const proxyAddress = await proxy.getAddress()
   const xdaiExchange = XdaiExchange__factory.connect(proxyAddress, dao)
-  await xdaiExchange.initialize(await dao.getAddress())
+  await xdaiExchange.initialize(await dao.getAddress(), maxSlippage)
   return xdaiExchange
 }
 
@@ -237,7 +254,7 @@ export const deployGnoGenesisVaultImpl = async function (
   osTokenVaultController: OsTokenVaultController,
   osTokenConfig: OsTokenConfig,
   sharedMevEscrow: SharedMevEscrow,
-  depositDataManager: DepositDataManager,
+  depositDataRegistry: DepositDataRegistry,
   gnoToken: ERC20Mock,
   xdaiExchange: XdaiExchange,
   poolEscrow: PoolEscrowMock,
@@ -251,7 +268,7 @@ export const deployGnoGenesisVaultImpl = async function (
     await osTokenVaultController.getAddress(),
     await osTokenConfig.getAddress(),
     await sharedMevEscrow.getAddress(),
-    await depositDataManager.getAddress(),
+    await depositDataRegistry.getAddress(),
     await gnoToken.getAddress(),
     await xdaiExchange.getAddress(),
     await poolEscrow.getAddress(),
@@ -272,7 +289,7 @@ export const deployGnoVaultImplementation = async function (
   osTokenVaultController: OsTokenVaultController,
   osTokenConfig: OsTokenConfig,
   sharedMevEscrow: GnoSharedMevEscrow,
-  depositDataManager: DepositDataManager,
+  depositDataRegistry: DepositDataRegistry,
   gnoToken: ERC20Mock,
   xdaiExchange: XdaiExchange,
   exitingAssetsMinDelay: number
@@ -285,7 +302,7 @@ export const deployGnoVaultImplementation = async function (
     await osTokenVaultController.getAddress(),
     await osTokenConfig.getAddress(),
     await sharedMevEscrow.getAddress(),
-    await depositDataManager.getAddress(),
+    await depositDataRegistry.getAddress(),
     await gnoToken.getAddress(),
     await xdaiExchange.getAddress(),
     exitingAssetsMinDelay,
@@ -326,7 +343,7 @@ interface GnoVaultFixture {
   vaultsRegistry: VaultsRegistry
   keeper: Keeper
   sharedMevEscrow: SharedMevEscrow
-  depositDataManager: DepositDataManager
+  depositDataRegistry: DepositDataRegistry
   validatorsRegistry: Contract
   gnoVaultFactory: GnoVaultFactory
   gnoPrivVaultFactory: GnoVaultFactory
@@ -338,6 +355,8 @@ interface GnoVaultFixture {
   osTokenVaultController: OsTokenVaultController
   osTokenConfig: OsTokenConfig
   xdaiExchange: XdaiExchange
+  gnoPriceFeed: PriceFeedMock
+  daiPriceFeed: PriceFeedMock
   gnoToken: ERC20Mock
   balancerVault: BalancerVaultMock
 
@@ -465,19 +484,26 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
   )
 
   // 7. deploy Balancer vault
-  const balancerVault = await createBalancerVaultMock(gnoToken, parseEther('0.003'), dao)
+  const balancerVault = await createBalancerVaultMock(gnoToken, parseEther('0.0025'), dao)
 
-  // 8. deploy XDai exchange
+  // 8. deploy GNO, XDAI price feeds, XdaiExchange
+  const gnoPriceFeed = await createPriceFeedMock(dao, 'GNO / USD')
+  await gnoPriceFeed.setRate(parseEther('0.00000004'))
+  const daiPriceFeed = await createPriceFeedMock(dao, 'DAI / USD')
+  await daiPriceFeed.setRate(parseEther('0.0000000001'))
   const xdaiExchange = await createXdaiExchange(
     gnoToken,
+    daiPriceFeed,
+    gnoPriceFeed,
     balancerVault,
     ZERO_BYTES32,
+    XDAI_EXCHANGE_MAX_SLIPPAGE,
     vaultsRegistry,
     dao
   )
 
-  // 9. deploy DepositDataManager
-  const depositDataManager = await createDepositDataManager(vaultsRegistry)
+  // 9. deploy DepositDataRegistry
+  const depositDataRegistry = await createDepositDataRegistry(vaultsRegistry)
 
   // 10. deploy implementations and factories
   const factories = {}
@@ -499,7 +525,7 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
-      depositDataManager,
+      depositDataRegistry,
       gnoToken,
       xdaiExchange,
       EXITING_ASSETS_MIN_DELAY
@@ -526,7 +552,7 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
   return {
     vaultsRegistry,
     sharedMevEscrow,
-    depositDataManager,
+    depositDataRegistry,
     keeper,
     validatorsRegistry,
     gnoVaultFactory,
@@ -538,6 +564,8 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
     osTokenVaultController,
     osTokenConfig,
     osToken,
+    gnoPriceFeed,
+    daiPriceFeed,
     xdaiExchange,
     gnoToken,
     balancerVault,
@@ -639,7 +667,7 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
         osTokenVaultController,
         osTokenConfig,
         sharedMevEscrow,
-        depositDataManager,
+        depositDataRegistry,
         gnoToken,
         xdaiExchange,
         poolEscrow,

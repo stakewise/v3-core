@@ -45,7 +45,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataManager The address of the DepositDataManager contract
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param gnoToken The address of the GNO token
    * @param xdaiExchange The address of the xDAI exchange
    * @param poolEscrow The address of the pool escrow from StakeWise v2
@@ -60,7 +60,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
-    address depositDataManager,
+    address depositDataRegistry,
     address gnoToken,
     address xdaiExchange,
     address poolEscrow,
@@ -74,7 +74,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
-      depositDataManager,
+      depositDataRegistry,
       gnoToken,
       xdaiExchange,
       exitingAssetsClaimDelay
@@ -213,6 +213,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
 
   /// @inheritdoc VaultGnoStaking
   function _pullWithdrawals() internal override {
+    super._pullWithdrawals();
     IGnoValidatorsRegistry(_validatorsRegistry).claimWithdrawal(address(_poolEscrow));
     uint256 escrowAssets = _gnoToken.balanceOf(address(_poolEscrow));
     if (escrowAssets != 0) {

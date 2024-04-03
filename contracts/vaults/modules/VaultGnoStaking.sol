@@ -36,8 +36,6 @@ abstract contract VaultGnoStaking is
   IERC20 internal immutable _gnoToken;
   address private immutable _xdaiExchange;
 
-  address private _xdaiManager;
-
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -52,14 +50,6 @@ abstract contract VaultGnoStaking is
   }
 
   /// @inheritdoc IVaultGnoStaking
-  function xdaiManager() public view override returns (address) {
-    // SLOAD to memory
-    address xdaiManager_ = _xdaiManager;
-    // if xdaiManager is not set, use admin address
-    return xdaiManager_ == address(0) ? admin : xdaiManager_;
-  }
-
-  /// @inheritdoc IVaultGnoStaking
   function deposit(
     uint256 assets,
     address receiver,
@@ -71,31 +61,17 @@ abstract contract VaultGnoStaking is
   }
 
   /// @inheritdoc IVaultGnoStaking
-  function swapXdaiToGno(
-    uint256 amount,
-    uint256 limit,
-    uint256 deadline
-  ) external override nonReentrant returns (uint256 assets) {
-    if (msg.sender != xdaiManager()) revert Errors.AccessDenied();
+  function swapXdaiToGno() external override nonReentrant {
+    uint256 balance = address(this).balance;
+    // skip swapping for small amounts
+    if (balance < 1 gwei) return;
 
-    // check and swap assets
-    uint256 assetsBefore = _vaultAssets();
-    assets = IXdaiExchange(_xdaiExchange).swap{value: amount}(limit, deadline);
-    if (_vaultAssets() < assetsBefore + limit) {
-      revert Errors.InvalidAssets();
-    }
+    // swap through xDAI exchange
+    uint256 assets = IXdaiExchange(_xdaiExchange).swap{value: balance}();
 
     // update total assets
     _processTotalAssetsDelta(SafeCast.toInt256(assets));
-    emit XdaiSwapped(amount, assets);
-  }
-
-  /// @inheritdoc IVaultGnoStaking
-  function setXdaiManager(address xdaiManager_) external override {
-    _checkAdmin();
-    // update xdaiManager address
-    _xdaiManager = xdaiManager_;
-    emit XdaiManagerUpdated(msg.sender, xdaiManager_);
+    emit XdaiSwapped(balance, assets);
   }
 
   /**

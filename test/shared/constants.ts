@@ -48,6 +48,8 @@ export const OSTOKEN_REDEEM_FROM_LTV = 9150 // 91.5%
 export const OSTOKEN_REDEEM_TO_LTV = 9000 // 90%
 export const MAX_AVG_REWARD_PER_SECOND = 6341958397 // 20% APY
 
+export const XDAI_EXCHANGE_MAX_SLIPPAGE = 50 // 0.5%
+
 export const EIP712Domain = [
   { name: 'name', type: 'string' },
   { name: 'version', type: 'string' },

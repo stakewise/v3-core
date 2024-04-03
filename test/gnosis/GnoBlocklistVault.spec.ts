@@ -6,7 +6,7 @@ import {
   GnoBlocklistVault,
   Keeper,
   OsTokenVaultController,
-  DepositDataManager,
+  DepositDataRegistry,
 } from '../../typechain-types'
 import { collateralizeGnoVault, depositGno, gnoVaultFixture } from '../shared/gnoFixtures'
 import { expect } from '../shared/expect'
@@ -26,7 +26,7 @@ describe('GnoBlocklistVault', () => {
     validatorsRegistry: Contract,
     osTokenVaultController: OsTokenVaultController,
     gnoToken: ERC20Mock,
-    depositDataManager: DepositDataManager
+    depositDataRegistry: DepositDataRegistry
 
   beforeEach('deploy fixtures', async () => {
     ;[sender, receiver, admin, other, blocklistManager] = await (ethers as any).getSigners()
@@ -40,7 +40,7 @@ describe('GnoBlocklistVault', () => {
     validatorsRegistry = fixture.validatorsRegistry
     osTokenVaultController = fixture.osTokenVaultController
     gnoToken = fixture.gnoToken
-    depositDataManager = fixture.depositDataManager
+    depositDataRegistry = fixture.depositDataRegistry
   })
 
   it('has id', async () => {
@@ -99,7 +99,7 @@ describe('GnoBlocklistVault', () => {
         vault,
         gnoToken,
         keeper,
-        depositDataManager,
+        depositDataRegistry,
         admin,
         validatorsRegistry
       )
