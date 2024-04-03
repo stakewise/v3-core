@@ -34,6 +34,7 @@ cache
 
 # VS Code
 .vscode
+*.code-workspace
 
 # Coverage
 coverage
