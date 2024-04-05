@@ -57,7 +57,8 @@ describe('EthValidatorsChecker', () => {
     validatorsRegistry: Contract,
     vaultsRegistry: VaultsRegistry,
     ethValidatorsChecker: EthValidatorsChecker,
-    v1Vault: Contract
+    v1Vault: Contract,
+    vaultNotDeposited: EthVault
   let validatorsForValidatorsManager: Buffer
   let validatorsRegistryRoot: string
 
@@ -65,7 +66,7 @@ describe('EthValidatorsChecker', () => {
     ;[dao, admin, other, manager] = await (ethers as any).getSigners()
   })
 
-  beforeEach('deploy fixture', async () => {
+  before('deploy fixture', async () => {
     const fixture = await loadFixture(ethVaultFixture)
     validatorsRegistry = fixture.validatorsRegistry
     keeper = fixture.keeper
@@ -96,6 +97,18 @@ describe('EthValidatorsChecker', () => {
     validatorsForValidatorsManager = await createValidatorsForValidatorsManager()
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
+
+    vaultNotDeposited = await fixture.createEthVault(admin, {
+      capacity,
+      feePercent,
+      metadataIpfsHash,
+    })
+    // await vaultsRegistry.addVault(await vaultNotDeposited.getAddress())
+    await vaultNotDeposited.connect(other).deposit(
+      other.address, 
+      ZERO_ADDRESS,
+      { value: ethers.parseEther('31') }
+    )
   })
 
   describe('check validators manager signature', () => {
@@ -104,10 +117,34 @@ describe('EthValidatorsChecker', () => {
         ethValidatorsChecker.connect(admin).checkValidatorsManagerSignature(
           other.address,
           validatorsRegistryRoot,
-          validatorsForValidatorsManager,
+          Buffer.from('', 'utf-8'),
           Buffer.from('', 'utf-8')
         )
       ).to.be.revertedWithCustomError(ethValidatorsChecker, 'InvalidVault')
     })
+
+    it('fails for vault v1', async () => {
+      await expect(
+        ethValidatorsChecker.connect(admin).checkValidatorsManagerSignature(
+          await v1Vault.getAddress(),
+          validatorsRegistryRoot,
+          Buffer.from('', 'utf-8'),
+          Buffer.from('', 'utf-8')
+        )
+      ).to.be.revertedWithCustomError(ethValidatorsChecker, 'InvalidVault')
+    })
+
+    it('fails for vault not collateralized not deposited', async () => {      
+      await expect(
+        ethValidatorsChecker.connect(admin).checkValidatorsManagerSignature(
+          await vaultNotDeposited.getAddress(),
+          validatorsRegistryRoot,
+          Buffer.from('', 'utf-8'),
+          Buffer.from('', 'utf-8')
+        )
+      ).to.be.revertedWithCustomError(ethValidatorsChecker, 'AccessDenied')
+    })
   })
+
+
 })
