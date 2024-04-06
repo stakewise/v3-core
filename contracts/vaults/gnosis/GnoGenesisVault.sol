@@ -207,7 +207,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     returns (uint256)
   {
     return
-      _gnoToken.balanceOf(address(this)) +
+      super._vaultAssets() +
       IGnoValidatorsRegistry(_validatorsRegistry).withdrawableAmount(address(_poolEscrow));
   }
 
