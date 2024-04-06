@@ -3,13 +3,27 @@
 exports[`XdaiExchange max slippage can be set by the admin 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 34480,
+  "gasUsed": 34815,
+}
+`;
+
+exports[`XdaiExchange stale price time delta can be set by the admin 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 34737,
+}
+`;
+
+exports[`XdaiExchange swap successfully swaps 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 68132,
 }
 `;
 
 exports[`XdaiExchange upgrade upgrades 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 37015,
+  "gasUsed": 36983,
 }
 `;

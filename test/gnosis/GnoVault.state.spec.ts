@@ -17,6 +17,7 @@ import { ThenArg } from '../../helpers/types'
 import { getHarvestParams, getRewardsRootProof, updateRewards } from '../shared/rewards'
 import { setBalance } from '../shared/utils'
 import snapshotGasCost from '../shared/snapshotGasCost'
+import { ONE_DAY } from '../shared/constants'
 
 describe('GnoVault', () => {
   const vaultParams = {
@@ -24,7 +25,7 @@ describe('GnoVault', () => {
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
-  let admin: Wallet, xdaiManager: Wallet
+  let admin: Wallet
   let gnoToken: ERC20Mock,
     balancerVault: BalancerVaultMock,
     sharedMevEscrow: GnoSharedMevEscrow,
@@ -36,7 +37,7 @@ describe('GnoVault', () => {
   let createVault: ThenArg<ReturnType<typeof gnoVaultFixture>>['createGnoVault']
 
   beforeEach('deploy fixtures', async () => {
-    ;[admin, xdaiManager] = (await (ethers as any).getSigners()).slice(1, 3)
+    ;[admin] = (await (ethers as any).getSigners()).slice(1, 2)
     const fixture = await loadFixture(gnoVaultFixture)
     gnoToken = fixture.gnoToken
     balancerVault = fixture.balancerVault
@@ -45,6 +46,7 @@ describe('GnoVault', () => {
     sharedMevEscrow = fixture.sharedMevEscrow
     depositDataRegistry = fixture.depositDataRegistry
     createVault = fixture.createGnoVault
+    await fixture.xdaiExchange.setStalePriceTimeDelta(ONE_DAY * 10)
   })
 
   describe('Shared MEV Escrow', () => {
@@ -92,7 +94,7 @@ describe('GnoVault', () => {
       const swappedGno = (executionReward * xdaiGnoRate) / parseEther('1')
       await gnoToken.mint(await balancerVault.getAddress(), swappedGno)
 
-      await vault.connect(xdaiManager).swapXdaiToGno()
+      await vault.swapXdaiToGno()
       expect(await ethers.provider.getBalance(vaultAddr)).to.eq(0n)
       expect(await vault.totalAssets()).to.eq(totalAssetsBefore + consensusReward + swappedGno)
     })
@@ -143,7 +145,7 @@ describe('GnoVault', () => {
       const swappedGno = (executionReward * xdaiGnoRate) / parseEther('1')
       await gnoToken.mint(await balancerVault.getAddress(), swappedGno)
 
-      await vault.connect(xdaiManager).swapXdaiToGno()
+      await vault.swapXdaiToGno()
       expect(await ethers.provider.getBalance(vaultAddr)).to.eq(0n)
       expect(await vault.totalAssets()).to.eq(totalAssetsBefore + consensusReward + swappedGno)
     })

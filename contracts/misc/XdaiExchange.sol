@@ -11,7 +11,7 @@ import {Ownable2StepUpgradeable} from '@openzeppelin/contracts-upgradeable/acces
 import {IXdaiExchange} from '../interfaces/IXdaiExchange.sol';
 import {IBalancerVault} from '../interfaces/IBalancerVault.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
-import {IChainlinkAggregator} from '../interfaces/IChainlinkAggregator.sol';
+import {IChainlinkV3Aggregator} from '../interfaces/IChainlinkV3Aggregator.sol';
 import {Errors} from '../libraries/Errors.sol';
 
 /**
@@ -27,7 +27,7 @@ contract XdaiExchange is
   IXdaiExchange
 {
   error InvalidSlippage();
-  error InvalidLimit();
+  error PriceFeedError();
 
   uint256 private constant _maxPercent = 10_000; // @dev 100.00 %
 
@@ -35,10 +35,10 @@ contract XdaiExchange is
   address private immutable _gnoToken;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IChainlinkAggregator private immutable _daiPriceFeed;
+  IChainlinkV3Aggregator private immutable _daiPriceFeed;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IChainlinkAggregator private immutable _gnoPriceFeed;
+  IChainlinkV3Aggregator private immutable _gnoPriceFeed;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IBalancerVault private immutable _balancerVault;
@@ -50,7 +50,10 @@ contract XdaiExchange is
   bytes32 private immutable _balancerPoolId;
 
   /// @inheritdoc IXdaiExchange
-  uint16 public override maxSlippage;
+  uint128 public override maxSlippage;
+
+  /// @inheritdoc IXdaiExchange
+  uint128 public override stalePriceTimeDelta;
 
   /**
    * @dev Constructor
@@ -76,21 +79,31 @@ contract XdaiExchange is
     _balancerPoolId = balancerPoolId;
     _balancerVault = IBalancerVault(balancerVault);
     _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
-    _daiPriceFeed = IChainlinkAggregator(daiPriceFeed);
-    _gnoPriceFeed = IChainlinkAggregator(gnoPriceFeed);
+    _daiPriceFeed = IChainlinkV3Aggregator(daiPriceFeed);
+    _gnoPriceFeed = IChainlinkV3Aggregator(gnoPriceFeed);
     _disableInitializers();
   }
 
   /// @inheritdoc IXdaiExchange
-  function initialize(address initialOwner, uint16 _maxSlippage) external override initializer {
+  function initialize(
+    address initialOwner,
+    uint128 _maxSlippage,
+    uint128 _stalePriceTimeDelta
+  ) external override initializer {
     __ReentrancyGuard_init();
     __Ownable_init(initialOwner);
     _setMaxSlippage(_maxSlippage);
+    _setStalePriceTimeDelta(_stalePriceTimeDelta);
   }
 
   /// @inheritdoc IXdaiExchange
-  function setMaxSlippage(uint16 newMaxSlippage) external override onlyOwner {
+  function setMaxSlippage(uint128 newMaxSlippage) external override onlyOwner {
     _setMaxSlippage(newMaxSlippage);
+  }
+
+  /// @inheritdoc IXdaiExchange
+  function setStalePriceTimeDelta(uint128 newStalePriceTimeDelta) external override onlyOwner {
+    _setStalePriceTimeDelta(newStalePriceTimeDelta);
   }
 
   /// @inheritdoc IXdaiExchange
@@ -98,16 +111,24 @@ contract XdaiExchange is
     if (msg.value == 0) revert Errors.InvalidAssets();
     if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.AccessDenied();
 
+    // SLOAD to memory
+    uint256 _maxSlippage = maxSlippage;
+    uint256 _stalePriceTimeDelta = stalePriceTimeDelta;
+
     // fetch prices from oracles
-    uint256 daiUsdPrice = SafeCast.toUint256(_daiPriceFeed.latestAnswer());
-    uint256 gnoUsdPrice = SafeCast.toUint256(_gnoPriceFeed.latestAnswer());
+    (, int256 answer, , uint256 updatedAt, ) = _daiPriceFeed.latestRoundData();
+    if (answer <= 0 || block.timestamp - updatedAt > _stalePriceTimeDelta) revert PriceFeedError();
+    uint256 daiUsdPrice = uint256(answer);
+
+    (, answer, , updatedAt, ) = _gnoPriceFeed.latestRoundData();
+    if (answer <= 0 || block.timestamp - updatedAt > _stalePriceTimeDelta) revert PriceFeedError();
+    uint256 gnoUsdPrice = uint256(answer);
 
     // calculate xDAI <-> GNO exchange rate from the price feeds
     uint256 limit = Math.mulDiv(msg.value, daiUsdPrice, gnoUsdPrice);
-    if (limit == 0) revert InvalidLimit();
 
     // apply slippage
-    limit = Math.mulDiv(limit, _maxPercent - maxSlippage, _maxPercent);
+    limit = Math.mulDiv(limit, _maxPercent - _maxSlippage, _maxPercent);
 
     // define balancer swap
     IBalancerVault.SingleSwap memory singleSwap = IBalancerVault.SingleSwap({
@@ -135,10 +156,19 @@ contract XdaiExchange is
    * @dev Internal function to set the maximum slippage for the exchange
    * @param newMaxSlippage The new maximum slippage
    */
-  function _setMaxSlippage(uint16 newMaxSlippage) private {
+  function _setMaxSlippage(uint128 newMaxSlippage) private {
     if (newMaxSlippage >= _maxPercent) revert InvalidSlippage();
     maxSlippage = newMaxSlippage;
     emit MaxSlippageUpdated(newMaxSlippage);
+  }
+
+  /**
+   * @dev Internal function to set the stale price time delta for the exchange
+   * @param newStalePriceTimeDelta The new stale price time delta
+   */
+  function _setStalePriceTimeDelta(uint128 newStalePriceTimeDelta) private {
+    stalePriceTimeDelta = newStalePriceTimeDelta;
+    emit StalePriceTimeDeltaUpdated(newStalePriceTimeDelta);
   }
 
   /// @inheritdoc UUPSUpgradeable

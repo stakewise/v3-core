@@ -67,6 +67,7 @@ import {
   SECURITY_DEPOSIT,
   VALIDATORS_MIN_ORACLES,
   XDAI_EXCHANGE_MAX_SLIPPAGE,
+  XDAI_EXCHANGE_STALE_PRICE_TIME_DELTA,
   ZERO_ADDRESS,
   ZERO_BYTES32,
 } from './constants'
@@ -76,6 +77,7 @@ import {
   extractExitPositionTicket,
   extractVaultAddress,
   getBlockTimestamp,
+  getLatestBlockTimestamp,
   increaseTime,
   setBalance,
 } from './utils'
@@ -205,6 +207,7 @@ export const createXdaiExchange = async function (
   balancerVault: BalancerVaultMock,
   balancerPoolId: string,
   maxSlippage: number,
+  stalePriceTimeDelta: number,
   vaultsRegistry: VaultsRegistry,
   dao: Signer
 ): Promise<XdaiExchange> {
@@ -226,7 +229,7 @@ export const createXdaiExchange = async function (
   const proxy = await proxyFactory.deploy(impl, '0x')
   const proxyAddress = await proxy.getAddress()
   const xdaiExchange = XdaiExchange__factory.connect(proxyAddress, dao)
-  await xdaiExchange.initialize(await dao.getAddress(), maxSlippage)
+  await xdaiExchange.initialize(await dao.getAddress(), maxSlippage, stalePriceTimeDelta)
   return xdaiExchange
 }
 
@@ -488,9 +491,12 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
 
   // 8. deploy GNO, XDAI price feeds, XdaiExchange
   const gnoPriceFeed = await createPriceFeedMock(dao, 'GNO / USD')
-  await gnoPriceFeed.setRate(parseEther('0.00000004'))
+  const latestTimestamp = await getLatestBlockTimestamp()
+  await gnoPriceFeed.setLatestAnswer(parseEther('0.00000004'))
+  await gnoPriceFeed.setLatestTimestamp(latestTimestamp)
   const daiPriceFeed = await createPriceFeedMock(dao, 'DAI / USD')
-  await daiPriceFeed.setRate(parseEther('0.0000000001'))
+  await daiPriceFeed.setLatestAnswer(parseEther('0.0000000001'))
+  await daiPriceFeed.setLatestTimestamp(latestTimestamp)
   const xdaiExchange = await createXdaiExchange(
     gnoToken,
     daiPriceFeed,
@@ -498,6 +504,7 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
     balancerVault,
     ZERO_BYTES32,
     XDAI_EXCHANGE_MAX_SLIPPAGE,
+    XDAI_EXCHANGE_STALE_PRICE_TIME_DELTA,
     vaultsRegistry,
     dao
   )

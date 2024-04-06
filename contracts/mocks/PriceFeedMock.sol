@@ -3,6 +3,7 @@
 pragma solidity =0.8.22;
 
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
+import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {IChainlinkAggregator} from '../interfaces/IChainlinkAggregator.sol';
 import {IChainlinkV3Aggregator} from '../interfaces/IChainlinkV3Aggregator.sol';
 import {IBalancerRateProvider} from '../interfaces/IBalancerRateProvider.sol';
@@ -24,7 +25,8 @@ contract PriceFeedMock is
   /// @inheritdoc IChainlinkV3Aggregator
   string public override description;
 
-  uint256 private _rate;
+  int256 private _latestAnswer;
+  uint256 private _latestTimestamp;
 
   /**
    * @dev Constructor
@@ -36,18 +38,20 @@ contract PriceFeedMock is
 
   /// @inheritdoc IBalancerRateProvider
   function getRate() public view override returns (uint256) {
-    return _rate;
+    return SafeCast.toUint256(latestAnswer());
   }
 
-  function setRate(uint256 rate) external onlyOwner {
-    _rate = rate;
+  function setLatestAnswer(int256 latestAnswer_) external onlyOwner {
+    _latestAnswer = latestAnswer_;
+  }
+
+  function setLatestTimestamp(uint256 latestTimestamp_) external onlyOwner {
+    _latestTimestamp = latestTimestamp_;
   }
 
   /// @inheritdoc IChainlinkAggregator
   function latestAnswer() public view override returns (int256) {
-    uint256 value = getRate();
-    // cannot realistically overflow, but better to check
-    return (value > uint256(type(int256).max)) ? type(int256).max : int256(value);
+    return _latestAnswer;
   }
 
   /// @inheritdoc IChainlinkAggregator
@@ -72,6 +76,6 @@ contract PriceFeedMock is
       uint80 answeredInRound
     )
   {
-    return (0, latestAnswer(), block.timestamp, block.timestamp, 0);
+    return (0, latestAnswer(), _latestTimestamp, _latestTimestamp, 0);
   }
 }

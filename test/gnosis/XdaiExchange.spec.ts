@@ -12,8 +12,13 @@ import {
 } from '../../typechain-types'
 import { gnoVaultFixture } from '../shared/gnoFixtures'
 import { expect } from '../shared/expect'
-import { XDAI_EXCHANGE_MAX_SLIPPAGE, ZERO_BYTES32 } from '../shared/constants'
+import {
+  XDAI_EXCHANGE_MAX_SLIPPAGE,
+  XDAI_EXCHANGE_STALE_PRICE_TIME_DELTA,
+  ZERO_BYTES32,
+} from '../shared/constants'
 import snapshotGasCost from '../shared/snapshotGasCost'
+import { getLatestBlockTimestamp } from '../shared/utils'
 
 describe('XdaiExchange', () => {
   let dao: Wallet, other: Wallet
@@ -37,7 +42,9 @@ describe('XdaiExchange', () => {
 
   it('cannot initialize twice', async () => {
     await expect(
-      xdaiExchange.connect(other).initialize(other.address, XDAI_EXCHANGE_MAX_SLIPPAGE)
+      xdaiExchange
+        .connect(other)
+        .initialize(other.address, XDAI_EXCHANGE_MAX_SLIPPAGE, XDAI_EXCHANGE_STALE_PRICE_TIME_DELTA)
     ).to.be.revertedWithCustomError(xdaiExchange, 'InvalidInitialization')
     expect(await xdaiExchange.owner()).to.eq(dao.address)
   })
@@ -65,6 +72,25 @@ describe('XdaiExchange', () => {
       const tx = await xdaiExchange.connect(dao).setMaxSlippage(100)
       await expect(tx).to.emit(xdaiExchange, 'MaxSlippageUpdated').withArgs(100)
       expect(await xdaiExchange.maxSlippage()).to.eq(100)
+      await snapshotGasCost(tx)
+    })
+  })
+
+  describe('stale price time delta', () => {
+    it('is set during deployment', async () => {
+      expect(await xdaiExchange.stalePriceTimeDelta()).to.eq(XDAI_EXCHANGE_STALE_PRICE_TIME_DELTA)
+    })
+
+    it('cannot be set by non-admin', async () => {
+      await expect(
+        xdaiExchange.connect(other).setStalePriceTimeDelta(0)
+      ).to.be.revertedWithCustomError(xdaiExchange, 'OwnableUnauthorizedAccount')
+    })
+
+    it('can be set by the admin', async () => {
+      const tx = await xdaiExchange.connect(dao).setStalePriceTimeDelta(1)
+      await expect(tx).to.emit(xdaiExchange, 'StalePriceTimeDeltaUpdated').withArgs(1)
+      expect(await xdaiExchange.stalePriceTimeDelta()).to.eq(1)
       await snapshotGasCost(tx)
     })
   })
@@ -104,10 +130,18 @@ describe('XdaiExchange', () => {
   })
 
   describe('swap', () => {
+    const value = parseEther('1')
+
+    beforeEach(async () => {
+      const currentTimestamp = await getLatestBlockTimestamp()
+      await daiPriceFeed.setLatestTimestamp(currentTimestamp)
+      await gnoPriceFeed.setLatestTimestamp(currentTimestamp)
+    })
+
     it('fails for not vault', async () => {
       await expect(
         xdaiExchange.connect(other).swap({
-          value: parseEther('1'),
+          value,
         })
       ).to.be.revertedWithCustomError(xdaiExchange, 'AccessDenied')
     })
@@ -119,14 +153,58 @@ describe('XdaiExchange', () => {
       )
     })
 
-    it('fails with invalid limit', async () => {
+    it('fails with zero DAI price feed answer', async () => {
       await vaultsRegistry.connect(dao).addVault(dao.address)
-      await daiPriceFeed.connect(dao).setRate(0)
+      await daiPriceFeed.connect(dao).setLatestAnswer(0)
       await expect(
         xdaiExchange.connect(dao).swap({
-          value: parseEther('1'),
+          value,
         })
-      ).to.be.revertedWithCustomError(xdaiExchange, 'InvalidLimit')
+      ).to.be.revertedWithCustomError(xdaiExchange, 'PriceFeedError')
+    })
+
+    it('fails with stale DAI price feed answer', async () => {
+      await vaultsRegistry.connect(dao).addVault(dao.address)
+      const currentTimestamp = await getLatestBlockTimestamp()
+      await daiPriceFeed
+        .connect(dao)
+        .setLatestTimestamp(currentTimestamp - XDAI_EXCHANGE_STALE_PRICE_TIME_DELTA - 1)
+      await expect(
+        xdaiExchange.connect(dao).swap({
+          value,
+        })
+      ).to.be.revertedWithCustomError(xdaiExchange, 'PriceFeedError')
+    })
+
+    it('fails with zero GNO price feed answer', async () => {
+      await vaultsRegistry.connect(dao).addVault(dao.address)
+      await gnoPriceFeed.connect(dao).setLatestAnswer(0)
+      await expect(
+        xdaiExchange.connect(dao).swap({
+          value,
+        })
+      ).to.be.revertedWithCustomError(xdaiExchange, 'PriceFeedError')
+    })
+
+    it('fails with stale price feed answer', async () => {
+      await vaultsRegistry.connect(dao).addVault(dao.address)
+      const currentTimestamp = await getLatestBlockTimestamp()
+      await gnoPriceFeed
+        .connect(dao)
+        .setLatestTimestamp(currentTimestamp - XDAI_EXCHANGE_STALE_PRICE_TIME_DELTA - 1)
+      await expect(
+        xdaiExchange.connect(dao).swap({
+          value,
+        })
+      ).to.be.revertedWithCustomError(xdaiExchange, 'PriceFeedError')
+    })
+
+    it('successfully swaps', async () => {
+      await vaultsRegistry.connect(dao).addVault(dao.address)
+      const receipt = await gnoToken
+        .connect(dao)
+        .mint(await balancerVault.getAddress(), parseEther('100'))
+      await snapshotGasCost(receipt)
     })
   })
 })

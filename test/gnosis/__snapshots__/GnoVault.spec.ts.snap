@@ -17,7 +17,7 @@ Object {
 exports[`GnoVault swap xdai to gno can swap all xdai to gno 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 123186,
+  "gasUsed": 128441,
 }
 `;
 

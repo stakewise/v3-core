@@ -10,7 +10,7 @@ Object {
 exports[`GnoGenesisVault pulls withdrawals on claim exited assets 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 154334,
+  "gasUsed": 155203,
 }
 `;
 
@@ -38,6 +38,6 @@ Object {
 exports[`GnoGenesisVault update state splits reward between rewardToken and vault 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 165136,
+  "gasUsed": 165112,
 }
 `;

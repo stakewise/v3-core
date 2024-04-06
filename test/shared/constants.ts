@@ -50,6 +50,8 @@ export const MAX_AVG_REWARD_PER_SECOND = 6341958397 // 20% APY
 
 export const XDAI_EXCHANGE_MAX_SLIPPAGE = 50 // 0.5%
 
+export const XDAI_EXCHANGE_STALE_PRICE_TIME_DELTA = 86400 // 1 day
+
 export const EIP712Domain = [
   { name: 'name', type: 'string' },
   { name: 'version', type: 'string' },
