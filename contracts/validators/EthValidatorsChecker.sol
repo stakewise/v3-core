@@ -71,7 +71,8 @@ contract EthValidatorsChecker is IEthValidatorsChecker {
     if (!_keeper.isCollateralized(vault)) {
       if (IVaultState(vault).withdrawableAssets() < 32 ether) revert Errors.AccessDenied();
     }
-    address validatorsManager = ECDSA.recover(
+
+    address signer = ECDSA.recover(
       keccak256(
         abi.encode(
           validatorsRegistryRoot,
@@ -81,7 +82,8 @@ contract EthValidatorsChecker is IEthValidatorsChecker {
       ),
       signature
     );
-    if (IVaultValidators(vault).validatorsManager() != validatorsManager) revert Errors.AccessDenied();
+
+    if (IVaultValidators(vault).validatorsManager() != signer) revert Errors.AccessDenied();
   }
 
   /// @inheritdoc IEthValidatorsChecker
