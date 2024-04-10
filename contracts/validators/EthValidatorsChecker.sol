@@ -4,6 +4,8 @@ pragma solidity =0.8.22;
 
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
+import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
+
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {Errors} from '../libraries/Errors.sol';
 import {IKeeper} from "../interfaces/IKeeper.sol";
@@ -14,7 +16,7 @@ import {IVaultVersion} from "../interfaces/IVaultVersion.sol";
 import {IDepositDataRegistry} from "../interfaces/IDepositDataRegistry.sol";
 import {IVaultsRegistry} from "../interfaces/IVaultsRegistry.sol";
 import {IVaultValidators} from "../interfaces/IVaultValidators.sol";
-
+import "hardhat/console.sol";
 
 interface IVaultValidatorsV1 {
   function validatorsRoot() external view returns (bytes32);
@@ -52,6 +54,21 @@ contract EthValidatorsChecker is IEthValidatorsChecker {
     _depositDataRegistry = IDepositDataRegistry(depositDataRegistry);
   }
 
+  function iToHex(bytes memory buffer) public pure returns (string memory) {
+
+      // Fixed buffer size for hexadecimal convertion
+      bytes memory converted = new bytes(buffer.length * 2);
+
+      bytes memory _base = "0123456789abcdef";
+
+      for (uint256 i = 0; i < buffer.length; i++) {
+          converted[i * 2] = _base[uint8(buffer[i]) / _base.length];
+          converted[i * 2 + 1] = _base[uint8(buffer[i]) % _base.length];
+      }
+
+      return string(abi.encodePacked("0x", converted));
+  }
+
   /// @inheritdoc IEthValidatorsChecker
   function checkValidatorsManagerSignature(
     address vault,
@@ -72,14 +89,16 @@ contract EthValidatorsChecker is IEthValidatorsChecker {
       if (IVaultState(vault).withdrawableAssets() < 32 ether) revert Errors.AccessDenied();
     }
 
+    bytes32 message = keccak256(
+      abi.encode(
+        validatorsRegistryRoot,
+        keccak256(publicKeys),
+        vault
+      )
+    );
+
     address signer = ECDSA.recover(
-      keccak256(
-        abi.encode(
-          validatorsRegistryRoot,
-          keccak256(publicKeys),
-          vault
-        )
-      ),
+      MessageHashUtils.toEthSignedMessageHash(message),
       signature
     );
 
