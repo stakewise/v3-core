@@ -4,6 +4,7 @@ pragma solidity =0.8.22;
 
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
+import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
 
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
@@ -29,11 +30,16 @@ interface IVaultValidatorsV1 {
  * @author StakeWise
  * @notice Defines the functionality for validators checking
  */
-contract EthValidatorsChecker is IEthValidatorsChecker {
+contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
   IValidatorsRegistry private immutable _validatorsRegistry;
   IKeeper private immutable _keeper;
   IVaultsRegistry private immutable _vaultsRegistry;
   IDepositDataRegistry private immutable _depositDataRegistry;
+
+  bytes32 private constant _checkValidatorsManagerSignatureTypeHash =
+    keccak256(
+      'EthValidatorsCheckerData(bytes32 validatorsRegistryRoot,address vault,bytes validators)'
+    );
 
 
   /**
@@ -47,7 +53,7 @@ contract EthValidatorsChecker is IEthValidatorsChecker {
     address keeper,
     address vaultsRegistry,
     address depositDataRegistry
-  ) {
+  ) EIP712('EthValidatorsChecker', '1') {
     _validatorsRegistry = IValidatorsRegistry(validatorsRegistry);
     _keeper = IKeeper(keeper);
     _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
@@ -91,14 +97,16 @@ contract EthValidatorsChecker is IEthValidatorsChecker {
 
     bytes32 message = keccak256(
       abi.encode(
+        _checkValidatorsManagerSignatureTypeHash,
         validatorsRegistryRoot,
-        keccak256(publicKeys),
-        vault
+        vault,
+        keccak256(publicKeys)
       )
     );
+    bytes32 digest = _hashTypedDataV4(message);
 
     address signer = ECDSA.recover(
-      MessageHashUtils.toEthSignedMessageHash(message),
+      digest,
       signature
     );
 

@@ -23,6 +23,7 @@ import {
   getValidatorsMultiProof,
   getWithdrawalCredentials,
   ValidatorsMultiProof,
+  getEthValidatorsCheckerSigningData,
 } from './shared/validators'
 import {
   deployEthVaultV1,
@@ -40,6 +41,7 @@ import {
 } from './shared/constants'
 import { getEthVaultV1Factory } from './shared/contracts'
 import keccak256 from 'keccak256'
+import { signTypedData, SignTypedDataVersion } from '@metamask/eth-sig-util'
 
 const gwei = 1000000000n
 const uintSerializer = new UintNumberType(8)
@@ -52,7 +54,8 @@ describe('EthValidatorsChecker', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const deadline = VALIDATORS_DEADLINE
 
-  let admin: Signer, other: Wallet, depositDataManager: Wallet, dao: Wallet, validatorsManager: Wallet
+  let admin: Signer, other: Wallet, depositDataManager: Wallet, dao: Wallet, validatorsManager: Wallet,
+    fakeValidatorsManager: Wallet
   let vault: EthVault,
     keeper: Keeper,
     validatorsRegistry: Contract,
@@ -63,11 +66,13 @@ describe('EthValidatorsChecker', () => {
   let validators: any[]
   let validatorsRegistryRoot: string
 
-  before('create fixture loader', async () => {
-    ;[dao, admin, other, depositDataManager, validatorsManager] = await (ethers as any).getSigners()
-  })
-
   before('deploy fixture', async () => {
+    [dao, admin, other, depositDataManager] = await (ethers as any).getSigners()
+
+    // privateKey attribute non-empty
+    validatorsManager = new Wallet('0x798ce32ec683f3287dab0594b9ead26403a6da9c1d216d00e5aa088c9cf36864')
+    fakeValidatorsManager = new Wallet('0xb4942e4f87ddfd23ddf833a47ebcf6bb37e0da344a2d6e229fd593c0b22bdb68')
+
     const fixture = await loadFixture(ethVaultFixture)
     validatorsRegistry = fixture.validatorsRegistry
     keeper = fixture.keeper
@@ -79,7 +84,6 @@ describe('EthValidatorsChecker', () => {
       feePercent,
       metadataIpfsHash,
     })
-    console.log('validatorsManager.address %s', validatorsManager.address)
     await vault.connect(admin).setValidatorsManager(validatorsManager.address)
     v1Vault = await deployEthVaultV1(
       await getEthVaultV1Factory(),
@@ -147,26 +151,26 @@ describe('EthValidatorsChecker', () => {
       ).to.be.revertedWithCustomError(ethValidatorsChecker, 'AccessDenied')
     })
 
-    it('fails with wrong signature', async () => {
-      const abiCoder = ethers.AbiCoder.defaultAbiCoder()
-      
+    it('fails for signer who is not validators manager', async () => {      
       const publicKeys: any[] = []
       for (let validator of validators) {
         publicKeys.push(validator.publicKey)
       }
-      const message = keccak256(
-        abiCoder.encode([
-          'bytes32', 'bytes32', 'address'
-        ],[
-          validatorsRegistryRoot,
-          keccak256(Buffer.concat(publicKeys)),
-          await vault.getAddress()
-        ])
+      const vaultAddress = await vault.getAddress();
+      const typedData = await getEthValidatorsCheckerSigningData(
+        keccak256(Buffer.concat(publicKeys)),
+        ethValidatorsChecker,
+        vault,
+        validatorsRegistryRoot,
       )
-      const signature = await other.signMessage(message)
+      const signature = signTypedData({
+        privateKey: Buffer.from(ethers.getBytes(fakeValidatorsManager.privateKey)),
+        data: typedData,
+        version: SignTypedDataVersion.V4,
+      })
       await expect(
         ethValidatorsChecker.connect(admin).checkValidatorsManagerSignature(
-          await vault.getAddress(),
+          vaultAddress,
           validatorsRegistryRoot,
           Buffer.concat(publicKeys),
           ethers.getBytes(signature)
@@ -175,28 +179,23 @@ describe('EthValidatorsChecker', () => {
     })
   })
 
-  it('succeeds 1', async () => {
-    const abiCoder = ethers.AbiCoder.defaultAbiCoder()
-    
+  it('succeeds', async () => {
     const publicKeys: any[] = []
     for (let validator of validators) {
       publicKeys.push(validator.publicKey)
     }
     const vaultAddress = await vault.getAddress();
-    const message = keccak256(
-        abiCoder.encode([
-        'bytes32', 'bytes32', 'address'
-      ],[
-        validatorsRegistryRoot,
-        keccak256(Buffer.concat(publicKeys)),
-        vaultAddress
-      ])
+    const typedData = await getEthValidatorsCheckerSigningData(
+      Buffer.concat(publicKeys),
+      ethValidatorsChecker,
+      vault,
+      validatorsRegistryRoot,
     )
-    const signature = await validatorsManager.signMessage(message)
-
-    console.log('test signature %s', signature)
-    console.log('test message hash %s', message.toString('hex'))
-    console.log('test: vaultAddress %s', vaultAddress)
+    const signature = signTypedData({
+      privateKey: Buffer.from(ethers.getBytes(validatorsManager.privateKey)),
+      data: typedData,
+      version: SignTypedDataVersion.V4,
+    })
 
     await expect(
       ethValidatorsChecker.connect(admin).checkValidatorsManagerSignature(
