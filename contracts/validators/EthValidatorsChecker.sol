@@ -127,7 +127,7 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
     if (_validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
       revert Errors.InvalidValidatorsRegistryRoot();
     }
-    if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.AccessDenied();
+    if (!_vaultsRegistry.vaults(vault)) revert Errors.InvalidVault();
 
     if (!_keeper.isCollateralized(vault)) {
       if (IVaultState(vault).withdrawableAssets() < 32 ether) revert Errors.AccessDenied();
@@ -151,6 +151,7 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
       currentIndex = IVaultValidatorsV1(vault).validatorIndex();
       depositDataRoot = IVaultValidatorsV1(vault).validatorsRoot();
     }
+
     // define leaves for multiproof
     uint256 validatorsCount = proofIndexes.length;
     if (validatorsCount == 0) revert Errors.InvalidValidators();
