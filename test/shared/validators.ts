@@ -173,10 +173,8 @@ export async function createValidators(
   return validators
 }
 
-
-export async function createValidatorsForValidatorsChecker(
-): Promise<any[]> {
-  const validators: any[] = []
+export async function createValidatorPublicKeys(): Promise<any[]> {
+  const publicKeys: Uint8Array[] = []
   await bls.init(bls.BLS12_381)
 
   for (let i = 0; i < secretKeys.length; i++) {
@@ -184,13 +182,10 @@ export async function createValidatorsForValidatorsChecker(
     secretKey.deserialize(ethers.getBytes(secretKeys[i]))
     const publicKey = secretKey.getPublicKey().serialize()
 
-    validators.push({
-      'publicKey': publicKey,
-      'secretKey': secretKey
-    })
+    publicKeys.push(publicKey)
   }
-  
-  return validators
+
+  return publicKeys
 }
 
 export function appendDepositData(

@@ -9,26 +9,26 @@ import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/Messa
 
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {Errors} from '../libraries/Errors.sol';
-import {IKeeper} from "../interfaces/IKeeper.sol";
-import {IEthValidatorsChecker} from "../interfaces/IEthValidatorsChecker.sol";
-import {IVaultState} from "../interfaces/IVaultState.sol";
-import {IVaultVersion} from "../interfaces/IVaultVersion.sol";
-import {IVaultVersion} from "../interfaces/IVaultVersion.sol";
-import {IDepositDataRegistry} from "../interfaces/IDepositDataRegistry.sol";
-import {IVaultsRegistry} from "../interfaces/IVaultsRegistry.sol";
-import {IVaultValidators} from "../interfaces/IVaultValidators.sol";
-import "hardhat/console.sol";
+import {IKeeper} from '../interfaces/IKeeper.sol';
+import {IEthValidatorsChecker} from '../interfaces/IEthValidatorsChecker.sol';
+import {IVaultState} from '../interfaces/IVaultState.sol';
+import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
+import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
+import {IDepositDataRegistry} from '../interfaces/IDepositDataRegistry.sol';
+import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
+import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
 
 interface IVaultValidatorsV1 {
   function validatorsRoot() external view returns (bytes32);
   function validatorIndex() external view returns (uint256);
 }
 
-
 /**
  * @title EthValidatorsChecker
  * @author StakeWise
- * @notice Defines the functionality for validators checking
+ * @notice Defines the functionality for:
+ *  * checking validators manager signature
+ *  * checking deposit data root
  */
 contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
   IValidatorsRegistry private immutable _validatorsRegistry;
@@ -36,17 +36,17 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
   IVaultsRegistry private immutable _vaultsRegistry;
   IDepositDataRegistry private immutable _depositDataRegistry;
 
-  bytes32 private constant _checkValidatorsManagerSignatureTypeHash =
+  bytes32 private constant _validatorsManagerSignatureTypeHash =
     keccak256(
       'EthValidatorsCheckerData(bytes32 validatorsRegistryRoot,address vault,bytes validators)'
     );
-
 
   /**
    * @dev Constructor
    * @param validatorsRegistry The address of the beacon chain validators registry contract
    * @param keeper The address of the Keeper contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
    */
   constructor(
     address validatorsRegistry,
@@ -58,21 +58,6 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
     _keeper = IKeeper(keeper);
     _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
     _depositDataRegistry = IDepositDataRegistry(depositDataRegistry);
-  }
-
-  function iToHex(bytes memory buffer) public pure returns (string memory) {
-
-      // Fixed buffer size for hexadecimal convertion
-      bytes memory converted = new bytes(buffer.length * 2);
-
-      bytes memory _base = "0123456789abcdef";
-
-      for (uint256 i = 0; i < buffer.length; i++) {
-          converted[i * 2] = _base[uint8(buffer[i]) / _base.length];
-          converted[i * 2 + 1] = _base[uint8(buffer[i]) % _base.length];
-      }
-
-      return string(abi.encodePacked("0x", converted));
   }
 
   /// @inheritdoc IEthValidatorsChecker
@@ -97,7 +82,7 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
 
     bytes32 message = keccak256(
       abi.encode(
-        _checkValidatorsManagerSignatureTypeHash,
+        _validatorsManagerSignatureTypeHash,
         validatorsRegistryRoot,
         vault,
         keccak256(publicKeys)
@@ -105,22 +90,19 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
     );
     bytes32 digest = _hashTypedDataV4(message);
 
-    address signer = ECDSA.recover(
-      digest,
-      signature
-    );
+    address signer = ECDSA.recover(digest, signature);
 
     if (IVaultValidators(vault).validatorsManager() != signer) revert Errors.AccessDenied();
   }
 
   /// @inheritdoc IEthValidatorsChecker
   function checkDepositDataRoot(
-      address vault,
-      bytes32 validatorsRegistryRoot,
-      bytes calldata validators,
-      bytes32[] calldata proof,
-      bool[] calldata proofFlags,
-      uint256[] calldata proofIndexes
+    address vault,
+    bytes32 validatorsRegistryRoot,
+    bytes calldata validators,
+    bytes32[] calldata proof,
+    bool[] calldata proofFlags,
+    uint256[] calldata proofIndexes
   ) external view override returns (uint256 blockNumber) {
     blockNumber = block.number;
 
@@ -168,9 +150,7 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
       for (uint256 i = 0; i < validatorsCount; ) {
         endIndex += validatorLength;
         leaves[proofIndexes[i]] = keccak256(
-          bytes.concat(
-            keccak256(abi.encode(validators[startIndex:endIndex], currentIndex))
-          )
+          bytes.concat(keccak256(abi.encode(validators[startIndex:endIndex], currentIndex)))
         );
 
         startIndex = endIndex;

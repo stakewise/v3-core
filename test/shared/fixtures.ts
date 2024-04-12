@@ -54,7 +54,7 @@ import {
   DepositDataRegistry,
   DepositDataRegistry__factory,
   EthValidatorsChecker,
-  EthValidatorsChecker__factory
+  EthValidatorsChecker__factory,
 } from '../../typechain-types'
 import { getEthValidatorsRegistryFactory, getOsTokenConfigV1Factory } from './contracts'
 import {
