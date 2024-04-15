@@ -118,9 +118,8 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
     uint8 vaultVersion = IVaultVersion(vault).version();
     if (vaultVersion >= 2) {
       address validatorsManager = IVaultValidators(vault).validatorsManager();
-      address vaultDepositDataManager = _depositDataRegistry.getDepositDataManager(vault);
 
-      if (validatorsManager != vaultDepositDataManager) revert Errors.AccessDenied();
+      if (validatorsManager != address(_depositDataRegistry)) revert Errors.AccessDenied();
     }
 
     uint256 currentIndex;

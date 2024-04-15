@@ -42,7 +42,8 @@ describe('EthValidatorsChecker', () => {
     ethValidatorsChecker: EthValidatorsChecker,
     vaultV1: Contract,
     vaultNotDeposited: EthVault,
-    vaultWithDepositDataManager: EthVault
+    vaultWithDepositDataManager: EthVault,
+    vaultWithValidatorsManager: EthVault
   let validatorsData: EthValidatorsData
   let publicKeys: Uint8Array[]
   let validatorsRegistryRoot: string
@@ -78,7 +79,12 @@ describe('EthValidatorsChecker', () => {
       feePercent,
       metadataIpfsHash,
     })
-    await vault.connect(admin).setValidatorsManager(validatorsManager.address)
+    vaultWithValidatorsManager = await fixture.createEthVault(admin, {
+      capacity,
+      feePercent,
+      metadataIpfsHash,
+    })
+    await vaultWithValidatorsManager.connect(admin).setValidatorsManager(validatorsManager.address)
     vaultV1 = await deployEthVaultV1(
       await getEthVaultV1Factory(),
       admin,
@@ -100,6 +106,12 @@ describe('EthValidatorsChecker', () => {
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
     await vaultV1.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
+    await vaultWithDepositDataManager
+      .connect(other)
+      .deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
+    await vaultWithValidatorsManager
+      .connect(other)
+      .deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
 
     vaultNotDeposited = await fixture.createEthVault(admin, {
       capacity,
@@ -110,7 +122,6 @@ describe('EthValidatorsChecker', () => {
       .connect(other)
       .deposit(other.address, ZERO_ADDRESS, { value: ethers.parseEther('31') })
 
-    await vaultWithDepositDataManager.connect(admin).setValidatorsManager(validatorsManager.address)
     depositDataRegistry
       .connect(admin)
       .setDepositDataManager(
@@ -218,11 +229,11 @@ describe('EthValidatorsChecker', () => {
     })
 
     it('succeeds', async () => {
-      const vaultAddress = await vault.getAddress()
+      const vaultAddress = await vaultWithValidatorsManager.getAddress()
       const typedData = await getEthValidatorsCheckerSigningData(
         Buffer.concat(publicKeys),
         ethValidatorsChecker,
-        vault,
+        vaultWithValidatorsManager,
         validatorsRegistryRoot
       )
       const signature = signTypedData({
@@ -291,12 +302,12 @@ describe('EthValidatorsChecker', () => {
       ).to.be.revertedWithCustomError(ethValidatorsChecker, 'AccessDenied')
     })
 
-    it('fails for validators manager not equal to deposit data manager', async () => {
+    it('fails for validators manager not equal to deposit data registry', async () => {
       await expect(
         ethValidatorsChecker
           .connect(admin)
           .checkDepositDataRoot(
-            await vaultWithDepositDataManager.getAddress(),
+            await vaultWithValidatorsManager.getAddress(),
             validatorsRegistryRoot,
             Buffer.concat(validatorsData.validators),
             multiProof.proof,
