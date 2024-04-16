@@ -27,7 +27,7 @@ interface IEthValidatorsChecker {
    * @notice Function for checking deposit data root
    * @param vault The address of the vault
    * @param validatorsRegistryRoot The validators registry root
-   * @param validators The concatenation of the validators' public key, deposit signature and deposit root
+   * @param validators The concatenation of the validators' public key, deposit signature, deposit root and optionally withdrawal address
    * @param proof The proof used for the merkle tree verification
    * @param proofFlags The multi proof flags for the merkle tree verification
    * @param proofIndexes The indexes of the leaves for the merkle tree multi proof verification
