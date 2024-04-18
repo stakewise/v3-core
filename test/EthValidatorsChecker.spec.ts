@@ -16,7 +16,6 @@ import { expect } from './shared/expect'
 import { deployEthVaultV1, encodeEthVaultInitParams, ethVaultFixture } from './shared/fixtures'
 import {
   EthValidatorsData,
-  ValidatorsMultiProof,
   createEthValidatorsData,
   createValidatorPublicKeys,
   getEthValidatorsCheckerSigningData,
@@ -41,9 +40,6 @@ describe('EthValidatorsChecker', () => {
   let validatorsData: EthValidatorsData
   let publicKeys: Uint8Array[]
   let validatorsRegistryRoot: string
-
-  let multiProof: ValidatorsMultiProof
-  let proofIndexes: number[]
 
   beforeEach('deploy fixture', async () => {
     ;[admin, other] = await (ethers as any).getSigners()
@@ -90,14 +86,6 @@ describe('EthValidatorsChecker', () => {
     await vaultNotDeposited
       .connect(other)
       .deposit(other.address, ZERO_ADDRESS, { value: ethers.parseEther('31') })
-
-    const validators = validatorsData.validators
-
-    multiProof = getValidatorsMultiProof(validatorsData.tree, validators, [
-      ...Array(validators.length).keys(),
-    ])
-    const sortedVals = multiProof.leaves.map((v) => v[0])
-    proofIndexes = validators.map((v) => sortedVals.indexOf(v))
 
     await depositDataRegistry
       .connect(admin)
@@ -232,8 +220,26 @@ describe('EthValidatorsChecker', () => {
   })
 
   describe('check deposit data root', () => {
+    function getMultiProofArgs() {
+      const validators = validatorsData.validators
+
+      const multiProof = getValidatorsMultiProof(validatorsData.tree, validators, [
+        ...Array(validators.length).keys(),
+      ])
+      const sortedVals = multiProof.leaves.map((v) => v[0])
+      const proofIndexes = validators.map((v) => sortedVals.indexOf(v))
+
+      return {
+        proof: multiProof.proof,
+        proofFlags: multiProof.proofFlags,
+        proofIndexes,
+      }
+    }
+
     it('fails for invalid validators registry root', async () => {
       const fakeRoot = Buffer.alloc(32).fill(1)
+      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
+
       await expect(
         ethValidatorsChecker
           .connect(admin)
@@ -241,14 +247,16 @@ describe('EthValidatorsChecker', () => {
             await vault.getAddress(),
             fakeRoot,
             Buffer.concat(validatorsData.validators),
-            multiProof.proof,
-            multiProof.proofFlags,
+            proof,
+            proofFlags,
             proofIndexes
           )
       ).to.be.revertedWithCustomError(ethValidatorsChecker, 'InvalidValidatorsRegistryRoot')
     })
 
     it('fails for non-vault', async () => {
+      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
+
       await expect(
         ethValidatorsChecker
           .connect(admin)
@@ -256,14 +264,16 @@ describe('EthValidatorsChecker', () => {
             other.address,
             validatorsRegistryRoot,
             Buffer.concat(validatorsData.validators),
-            multiProof.proof,
-            multiProof.proofFlags,
+            proof,
+            proofFlags,
             proofIndexes
           )
       ).to.be.revertedWithCustomError(ethValidatorsChecker, 'InvalidVault')
     })
 
     it('fails for vault not collateralized not deposited', async () => {
+      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
+
       await expect(
         ethValidatorsChecker
           .connect(admin)
@@ -271,8 +281,8 @@ describe('EthValidatorsChecker', () => {
             await vaultNotDeposited.getAddress(),
             validatorsRegistryRoot,
             Buffer.concat(validatorsData.validators),
-            multiProof.proof,
-            multiProof.proofFlags,
+            proof,
+            proofFlags,
             proofIndexes
           )
       ).to.be.revertedWithCustomError(ethValidatorsChecker, 'AccessDenied')
@@ -281,6 +291,7 @@ describe('EthValidatorsChecker', () => {
     it('fails for validators manager not equal to deposit data registry', async () => {
       const [validatorsManager] = await ethers.getSigners()
       await vault.setValidatorsManager(validatorsManager.address)
+      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
 
       await expect(
         ethValidatorsChecker
@@ -289,14 +300,16 @@ describe('EthValidatorsChecker', () => {
             await vault.getAddress(),
             validatorsRegistryRoot,
             Buffer.concat(validatorsData.validators),
-            multiProof.proof,
-            multiProof.proofFlags,
+            proof,
+            proofFlags,
             proofIndexes
           )
       ).to.be.revertedWithCustomError(ethValidatorsChecker, 'AccessDenied')
     })
 
     it('succeeds for vault v1', async () => {
+      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
+
       await expect(
         ethValidatorsChecker
           .connect(admin)
@@ -304,14 +317,16 @@ describe('EthValidatorsChecker', () => {
             await vaultV1.getAddress(),
             validatorsRegistryRoot,
             Buffer.concat(validatorsData.validators),
-            multiProof.proof,
-            multiProof.proofFlags,
+            proof,
+            proofFlags,
             proofIndexes
           )
       ).to.eventually.be.greaterThan(0)
     })
 
     it('succeeds for vault v2', async () => {
+      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
+
       await expect(
         ethValidatorsChecker
           .connect(admin)
@@ -319,8 +334,8 @@ describe('EthValidatorsChecker', () => {
             await vault.getAddress(),
             validatorsRegistryRoot,
             Buffer.concat(validatorsData.validators),
-            multiProof.proof,
-            multiProof.proofFlags,
+            proof,
+            proofFlags,
             proofIndexes
           )
       ).to.eventually.be.greaterThan(0)
