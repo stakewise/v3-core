@@ -29,7 +29,7 @@ describe('EthValidatorsChecker', () => {
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
-  let admin: Signer, other: Wallet, depositDataManager: Wallet
+  let admin: Signer, other: Wallet
   let vault: EthVault,
     keeper: Keeper,
     validatorsRegistry: Contract,
@@ -37,8 +37,7 @@ describe('EthValidatorsChecker', () => {
     depositDataRegistry: DepositDataRegistry,
     ethValidatorsChecker: EthValidatorsChecker,
     vaultV1: Contract,
-    vaultNotDeposited: EthVault,
-    vaultWithDepositDataManager: EthVault
+    vaultNotDeposited: EthVault
   let validatorsData: EthValidatorsData
   let publicKeys: Uint8Array[]
   let validatorsRegistryRoot: string
@@ -47,7 +46,7 @@ describe('EthValidatorsChecker', () => {
   let proofIndexes: number[]
 
   beforeEach('deploy fixture', async () => {
-    ;[admin, other, depositDataManager] = await (ethers as any).getSigners()
+    ;[admin, other] = await (ethers as any).getSigners()
 
     const fixture = await loadFixture(ethVaultFixture)
     validatorsRegistry = fixture.validatorsRegistry
@@ -57,11 +56,6 @@ describe('EthValidatorsChecker', () => {
     vaultsRegistry = fixture.vaultsRegistry
 
     vault = await fixture.createEthVault(admin, {
-      capacity,
-      feePercent,
-      metadataIpfsHash,
-    })
-    vaultWithDepositDataManager = await fixture.createEthVault(admin, {
       capacity,
       feePercent,
       metadataIpfsHash,
@@ -87,9 +81,6 @@ describe('EthValidatorsChecker', () => {
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
     await vaultV1.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
-    await vaultWithDepositDataManager
-      .connect(other)
-      .deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
 
     vaultNotDeposited = await fixture.createEthVault(admin, {
       capacity,
@@ -99,13 +90,6 @@ describe('EthValidatorsChecker', () => {
     await vaultNotDeposited
       .connect(other)
       .deposit(other.address, ZERO_ADDRESS, { value: ethers.parseEther('31') })
-
-    depositDataRegistry
-      .connect(admin)
-      .setDepositDataManager(
-        await vaultWithDepositDataManager.getAddress(),
-        depositDataManager.address
-      )
 
     const validators = validatorsData.validators
 
@@ -122,9 +106,6 @@ describe('EthValidatorsChecker', () => {
     await depositDataRegistry
       .connect(admin)
       .setDepositDataRoot(await vaultNotDeposited.getAddress(), validatorsData.root)
-    await depositDataRegistry
-      .connect(depositDataManager)
-      .setDepositDataRoot(await vaultWithDepositDataManager.getAddress(), validatorsData.root)
   })
 
   describe('check validators manager signature', () => {
