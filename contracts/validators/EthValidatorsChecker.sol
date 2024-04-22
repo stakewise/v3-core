@@ -76,10 +76,12 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
       revert Errors.InvalidVault();
     }
 
+    // verify vault has enough assets
     if (!_keeper.isCollateralized(vault)) {
       if (IVaultState(vault).withdrawableAssets() < 32 ether) revert Errors.AccessDenied();
     }
 
+    // compose signing message
     bytes32 message = keccak256(
       abi.encode(
         _validatorsManagerSignatureTypeHash,
@@ -92,6 +94,7 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
 
     address signer = ECDSA.recover(digest, signature);
 
+    // verify validators manager ECDSA signature
     if (IVaultValidators(vault).validatorsManager() != signer) revert Errors.AccessDenied();
   }
 
@@ -111,6 +114,7 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
     }
     if (!_vaultsRegistry.vaults(vault)) revert Errors.InvalidVault();
 
+    // verify vault has enough assets
     if (!_keeper.isCollateralized(vault)) {
       if (IVaultState(vault).withdrawableAssets() < 32 ether) revert Errors.AccessDenied();
     }
@@ -119,6 +123,7 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
     if (vaultVersion >= 2) {
       address validatorsManager = IVaultValidators(vault).validatorsManager();
 
+      // verify vault did not set custom validators manager
       if (validatorsManager != address(_depositDataRegistry)) revert Errors.AccessDenied();
     }
 
