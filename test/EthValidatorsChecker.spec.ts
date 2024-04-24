@@ -28,7 +28,7 @@ describe('EthValidatorsChecker', () => {
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
-  let admin: Signer, other: Wallet
+  let admin: Signer, adminV1: Signer, other: Wallet
   let vault: EthVault,
     keeper: Keeper,
     validatorsRegistry: Contract,
@@ -42,7 +42,7 @@ describe('EthValidatorsChecker', () => {
   let validatorsRegistryRoot: string
 
   beforeEach('deploy fixture', async () => {
-    ;[admin, other] = await (ethers as any).getSigners()
+    ;[admin, adminV1, other] = await (ethers as any).getSigners()
 
     const fixture = await loadFixture(ethVaultFixture)
     validatorsRegistry = fixture.validatorsRegistry
@@ -58,7 +58,7 @@ describe('EthValidatorsChecker', () => {
     })
     vaultV1 = await deployEthVaultV1(
       await getEthVaultV1Factory(),
-      admin,
+      adminV1,
       keeper,
       vaultsRegistry,
       validatorsRegistry,
@@ -71,18 +71,25 @@ describe('EthValidatorsChecker', () => {
         metadataIpfsHash,
       })
     )
+    // get real admin in the case of mainnet fork
     admin = await ethers.getImpersonatedSigner(await vault.admin())
+
     validatorsData = await createEthValidatorsData(vault)
     publicKeys = await createValidatorPublicKeys()
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
     await vaultV1.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
 
-    vaultNotDeposited = await fixture.createEthVault(admin, {
-      capacity,
-      feePercent,
-      metadataIpfsHash,
-    })
+    vaultNotDeposited = await fixture.createEthVault(
+      admin,
+      {
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      },
+      true, // own mev escrow
+      true // skip fork
+    )
     await vaultNotDeposited
       .connect(other)
       .deposit(other.address, ZERO_ADDRESS, { value: ethers.parseEther('31') })
@@ -90,7 +97,8 @@ describe('EthValidatorsChecker', () => {
     await depositDataRegistry
       .connect(admin)
       .setDepositDataRoot(await vault.getAddress(), validatorsData.root)
-    await vaultV1.connect(admin).setValidatorsRoot(validatorsData.root)
+
+    await vaultV1.connect(adminV1).setValidatorsRoot(validatorsData.root)
     await depositDataRegistry
       .connect(admin)
       .setDepositDataRoot(await vaultNotDeposited.getAddress(), validatorsData.root)
@@ -98,7 +106,7 @@ describe('EthValidatorsChecker', () => {
 
   describe('check validators manager signature', () => {
     async function validatorsManagerSetup() {
-      // privateKey attribute non-empty
+      // I need explicit privateKey to create EIP-712 signature
       const validatorsManager = new Wallet(
         '0x798ce32ec683f3287dab0594b9ead26403a6da9c1d216d00e5aa088c9cf36864'
       )
@@ -290,7 +298,7 @@ describe('EthValidatorsChecker', () => {
 
     it('fails for validators manager not equal to deposit data registry', async () => {
       const [validatorsManager] = await ethers.getSigners()
-      await vault.setValidatorsManager(validatorsManager.address)
+      await vault.connect(admin).setValidatorsManager(validatorsManager.address)
       const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
 
       await expect(
