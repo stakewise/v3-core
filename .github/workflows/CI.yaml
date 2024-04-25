@@ -58,6 +58,7 @@ jobs:
         env:
           SKIP_LOAD: true
           MAINNET_FORK_RPC_URL: ${{ secrets.MAINNET_FORK_RPC_URL }}
+          RUST_BACKTRACE: full
       - run: npm run coverage
         env:
           SKIP_LOAD: true
