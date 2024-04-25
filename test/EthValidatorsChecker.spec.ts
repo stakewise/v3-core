@@ -174,7 +174,7 @@ describe('EthValidatorsChecker', () => {
     })
 
     it('fails for signer who is not validators manager', async () => {
-      const { fakeValidatorsManager } = await loadFixture(validatorsManagerSetup)
+      const { fakeValidatorsManager } = await validatorsManagerSetup()
       const vaultAddress = await vault.getAddress()
       const typedData = await getEthValidatorsCheckerSigningData(
         keccak256(Buffer.concat(publicKeys)),
@@ -200,7 +200,7 @@ describe('EthValidatorsChecker', () => {
     })
 
     it('succeeds', async () => {
-      const { validatorsManager } = await loadFixture(validatorsManagerSetup)
+      const { validatorsManager } = await validatorsManagerSetup()
       const vaultAddress = await vault.getAddress()
       const typedData = await getEthValidatorsCheckerSigningData(
         Buffer.concat(publicKeys),
