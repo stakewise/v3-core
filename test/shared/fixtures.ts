@@ -264,7 +264,7 @@ export const createEthValidatorsChecker = async function (
   keeper: Keeper,
   vaultsRegistry: VaultsRegistry,
   depositDataRegistry: DepositDataRegistry
-) {
+): Promise<EthValidatorsChecker> {
   const signer = await ethers.provider.getSigner()
   const factory = await ethers.getContractFactory('EthValidatorsChecker')
   const contract = await factory.deploy(
@@ -603,7 +603,6 @@ interface EthVaultFixture {
   osToken: OsToken
   osTokenVaultController: OsTokenVaultController
   osTokenConfig: OsTokenConfig
-  ethValidatorsChecker: EthValidatorsChecker
 
   createEthVault(
     admin: Signer,
@@ -728,14 +727,6 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
   // 7. deploy depositDataRegistry
   const depositDataRegistry = await createDepositDataRegistry(vaultsRegistry)
 
-  // 8. deploy ethValidatorsChecker
-  const ethValidatorsChecker = await createEthValidatorsChecker(
-    validatorsRegistry,
-    keeper,
-    vaultsRegistry,
-    depositDataRegistry
-  )
-
   // 9. deploy implementations and factories
   const factories = {}
   const implementations = {}
@@ -794,7 +785,6 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
     osTokenVaultController,
     osTokenConfig,
     osToken,
-    ethValidatorsChecker,
     createEthVault: async (
       admin: Signer,
       vaultParams: EthVaultInitParamsStruct,
