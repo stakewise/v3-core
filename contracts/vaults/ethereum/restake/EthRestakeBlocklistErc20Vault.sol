@@ -2,26 +2,29 @@
 
 pragma solidity =0.8.22;
 
+import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {IEigenBlocklistErc20Vault} from '../../interfaces/IEigenBlocklistErc20Vault.sol';
-import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
-import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
-import {VaultEthStaking, IVaultEthStaking} from '../modules/VaultEthStaking.sol';
-import {VaultVersion, IVaultVersion} from '../modules/VaultVersion.sol';
-import {VaultBlocklist} from '../modules/VaultBlocklist.sol';
-import {EigenErc20Vault, IEigenErc20Vault} from './EigenErc20Vault.sol';
+import {IEthRestakeBlocklistErc20Vault} from '../../../interfaces/IEthRestakeBlocklistErc20Vault.sol';
+import {IEthVaultFactory} from '../../../interfaces/IEthVaultFactory.sol';
+import {ERC20Upgradeable} from '../../../base/ERC20Upgradeable.sol';
+import {VaultEthStaking, IVaultEthStaking} from '../../modules/VaultEthStaking.sol';
+import {VaultVersion, IVaultVersion} from '../../modules/VaultVersion.sol';
+import {VaultBlocklist} from '../../modules/VaultBlocklist.sol';
+import {EthRestakeErc20Vault, IEthRestakeErc20Vault} from './EthRestakeErc20Vault.sol';
 
 /**
- * @title EigenBlocklistErc20Vault
+ * @title EthRestakeBlocklistErc20Vault
  * @author StakeWise
- * @notice Defines the EigenLayer staking Vault with blocking and ERC-20 functionality
+ * @notice Defines the native restaking Vault with blocking and ERC-20 functionality on Ethereum
  */
-contract EigenBlocklistErc20Vault is
+contract EthRestakeBlocklistErc20Vault is
   Initializable,
-  EigenErc20Vault,
+  EthRestakeErc20Vault,
   VaultBlocklist,
-  IEigenBlocklistErc20Vault
+  IEthRestakeBlocklistErc20Vault
 {
+  using EnumerableSet for EnumerableSet.AddressSet;
+
   // slither-disable-next-line shadowing-state
   uint8 private constant _version = 2;
 
@@ -33,8 +36,8 @@ contract EigenBlocklistErc20Vault is
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataManager The address of the DepositDataManager contract
-   * @param eigenPods The address of the EigenPods contract
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
+   * @param eigenPodOwnerImplementation The address of the EigenPodOwner implementation contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -43,31 +46,37 @@ contract EigenBlocklistErc20Vault is
     address _vaultsRegistry,
     address _validatorsRegistry,
     address sharedMevEscrow,
-    address depositDataManager,
-    address eigenPods,
+    address depositDataRegistry,
+    address eigenPodOwnerImplementation,
     uint256 exitingAssetsClaimDelay
   )
-    EigenErc20Vault(
+    EthRestakeErc20Vault(
       _keeper,
       _vaultsRegistry,
       _validatorsRegistry,
       sharedMevEscrow,
-      depositDataManager,
-      eigenPods,
+      depositDataRegistry,
+      eigenPodOwnerImplementation,
       exitingAssetsClaimDelay
     )
   {}
 
-  /// @inheritdoc IEigenErc20Vault
+  /// @inheritdoc IEthRestakeErc20Vault
   function initialize(
     bytes calldata params
-  ) external payable virtual override(IEigenErc20Vault, EigenErc20Vault) reinitializer(_version) {
+  )
+    external
+    payable
+    virtual
+    override(IEthRestakeErc20Vault, EthRestakeErc20Vault)
+    reinitializer(_version)
+  {
     // initialize deployed vault
     address _admin = IEthVaultFactory(msg.sender).vaultAdmin();
-    __EigenErc20Vault_init(
+    __EthRestakeErc20Vault_init(
       _admin,
       IEthVaultFactory(msg.sender).ownMevEscrow(),
-      abi.decode(params, (EigenErc20VaultInitParams))
+      abi.decode(params, (EthRestakeErc20VaultInitParams))
     );
     // blocklist manager is initially set to admin address
     __VaultBlocklist_init(_admin);
@@ -83,12 +92,13 @@ contract EigenBlocklistErc20Vault is
     return super.deposit(receiver, referrer);
   }
 
-  /**
-   * @dev Function for depositing using fallback function
-   */
+  /// @inheritdoc VaultEthStaking
   receive() external payable virtual override {
-    _checkBlocklist(msg.sender);
-    _deposit(msg.sender, msg.value, address(0));
+    if (!_eigenPodOwners.contains(msg.sender)) {
+      // if the sender is not an EigenPod owner, deposit the received assets
+      _checkBlocklist(msg.sender);
+      _deposit(msg.sender, msg.value, address(0));
+    }
   }
 
   /// @inheritdoc IVaultVersion
@@ -96,14 +106,20 @@ contract EigenBlocklistErc20Vault is
     public
     pure
     virtual
-    override(IVaultVersion, EigenErc20Vault)
+    override(IVaultVersion, EthRestakeErc20Vault)
     returns (bytes32)
   {
-    return keccak256('EigenBlocklistErc20Vault');
+    return keccak256('EthRestakeBlocklistErc20Vault');
   }
 
   /// @inheritdoc IVaultVersion
-  function version() public pure virtual override(IVaultVersion, EigenErc20Vault) returns (uint8) {
+  function version()
+    public
+    pure
+    virtual
+    override(IVaultVersion, EthRestakeErc20Vault)
+    returns (uint8)
+  {
     return _version;
   }
 

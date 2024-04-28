@@ -55,9 +55,9 @@ interface IEigenDelegationManager {
   function delegatedTo(address staker) external view returns (address);
 
   /**
-   * @notice Returns whether the delegation withdrawal is pending or not.
-   * @param withdrawalRoot The calculated hash root of the withdrawal.
-   * @return True if the withdrawal is pending, false otherwise.
+   * @notice Returns whether a withdrawal is pending.
+   * @param withdrawalRoot The hash of the withdrawal data.
+   * @return Whether the withdrawal is pending.
    */
   function pendingWithdrawals(bytes32 withdrawalRoot) external view returns (bool);
 
@@ -112,7 +112,7 @@ interface IEigenDelegationManager {
    * @param receiveAsTokens If true, the shares specified in the withdrawal will be withdrawn from the specified strategies themselves
    * and sent to the caller, through calls to `withdrawal.strategies[i].withdraw`. If false, then the shares in the specified strategies
    * will simply be transferred to the caller directly.
-   * @dev middlewareTimesIndex is unused, but will be used in the Slasher eventually
+   * @dev middlewareTimesIndex should be calculated off chain before calling this function by finding the first index that satisfies `slasher.canWithdraw`
    * @dev beaconChainETHStrategy shares are non-transferrable, so if `receiveAsTokens = false` and `withdrawal.withdrawer != withdrawal.staker`, note that
    * any beaconChainETHStrategy shares in the `withdrawal` will be _returned to the staker_, rather than transferred to the withdrawer, unlike shares in
    * any other strategies, which will be transferred to the withdrawer.
@@ -122,20 +122,5 @@ interface IEigenDelegationManager {
     address[] calldata tokens,
     uint256 middlewareTimesIndex,
     bool receiveAsTokens
-  ) external;
-
-  /**
-   * @notice Array-ified version of `completeQueuedWithdrawal`.
-   * Used to complete the specified `withdrawals`. The function caller must match `withdrawals[...].withdrawer`
-   * @param withdrawals The Withdrawals to complete.
-   * @param tokens Array of tokens for each Withdrawal. See `completeQueuedWithdrawal` for the usage of a single array.
-   * @param middlewareTimesIndexes One index to reference per Withdrawal. See `completeQueuedWithdrawal` for the usage of a single index.
-   * @param receiveAsTokens Whether or not to complete each withdrawal as tokens. See `completeQueuedWithdrawal` for the usage of a single boolean.
-   */
-  function completeQueuedWithdrawals(
-    Withdrawal[] calldata withdrawals,
-    address[][] calldata tokens,
-    uint256[] calldata middlewareTimesIndexes,
-    bool[] calldata receiveAsTokens
   ) external;
 }

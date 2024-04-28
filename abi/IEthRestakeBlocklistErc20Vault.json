@@ -128,6 +128,25 @@
     "anonymous": false,
     "inputs": [
       {
+        "indexed": false,
+        "internalType": "address",
+        "name": "eigenPodOwner",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "eigenPod",
+        "type": "address"
+      }
+    ],
+    "name": "EigenPodCreated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
         "indexed": true,
         "internalType": "address",
         "name": "owner",
@@ -240,7 +259,7 @@
         "type": "address"
       },
       {
-        "indexed": false,
+        "indexed": true,
         "internalType": "address",
         "name": "keysManager",
         "type": "address"
@@ -297,6 +316,32 @@
       }
     ],
     "name": "Redeemed",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "newRestakeOperatorsManager",
+        "type": "address"
+      }
+    ],
+    "name": "RestakeOperatorsManagerUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "newRestakeWithdrawalsManager",
+        "type": "address"
+      }
+    ],
+    "name": "RestakeWithdrawalsManagerUpdated",
     "type": "event"
   },
   {
@@ -657,6 +702,13 @@
   },
   {
     "inputs": [],
+    "name": "createEigenPod",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "decimals",
     "outputs": [
       {
@@ -743,6 +795,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "getEigenPods",
+    "outputs": [
+      {
+        "internalType": "address[]",
+        "name": "",
+        "type": "address[]"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -804,19 +869,6 @@
     "name": "initialize",
     "outputs": [],
     "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "isEigenVault",
-    "outputs": [
-      {
-        "internalType": "bool",
-        "name": "",
-        "type": "bool"
-      }
-    ],
-    "stateMutability": "pure",
     "type": "function"
   },
   {
@@ -967,13 +1019,6 @@
   },
   {
     "inputs": [],
-    "name": "receiveEigenAssets",
-    "outputs": [],
-    "stateMutability": "payable",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "receiveFromMevEscrow",
     "outputs": [],
     "stateMutability": "payable",
@@ -1020,6 +1065,32 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "restakeOperatorsManager",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "restakeWithdrawalsManager",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -1054,6 +1125,32 @@
       }
     ],
     "name": "setMetadata",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_restakeOperatorsManager",
+        "type": "address"
+      }
+    ],
+    "name": "setRestakeOperatorsManager",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "_restakeWithdrawalsManager",
+        "type": "address"
+      }
+    ],
+    "name": "setRestakeWithdrawalsManager",
     "outputs": [],
     "stateMutability": "nonpayable",
     "type": "function"

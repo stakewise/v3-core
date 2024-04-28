@@ -52,11 +52,9 @@ library Errors {
   error MaxOraclesExceeded();
   error ExitRequestNotProcessed();
   error ValueNotChanged();
-  error EigenOperatorUpdateNotCompleted();
-  error EigenOperatorUpdateNoChange();
-  error EigenOperatorUpdateUndelegationFailed();
-  error EigenOperatorUpdateNotInitiated();
-  error EigenOperatorUpdateInvalidWithdrawal();
-  error EigenInvalidWithdrawalCredentials();
+  error EigenInvalidWithdrawal();
+  error EigenInvalidReallocations();
+  error InvalidEigenQueuedWithdrawals();
+  error InvalidWithdrawalCredentials();
   error EigenPodNotFound();
 }

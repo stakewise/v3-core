@@ -26,32 +26,12 @@
   },
   {
     "inputs": [],
-    "name": "EigenInvalidWithdrawalCredentials",
+    "name": "EigenInvalidReallocations",
     "type": "error"
   },
   {
     "inputs": [],
-    "name": "EigenOperatorUpdateInvalidWithdrawal",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "EigenOperatorUpdateNoChange",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "EigenOperatorUpdateNotCompleted",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "EigenOperatorUpdateNotInitiated",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "EigenOperatorUpdateUndelegationFailed",
+    "name": "EigenInvalidWithdrawal",
     "type": "error"
   },
   {
@@ -97,6 +77,11 @@
   {
     "inputs": [],
     "name": "InvalidCheckpointValue",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidEigenQueuedWithdrawals",
     "type": "error"
   },
   {
@@ -197,6 +182,11 @@
   {
     "inputs": [],
     "name": "InvalidVault",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidWithdrawalCredentials",
     "type": "error"
   },
   {

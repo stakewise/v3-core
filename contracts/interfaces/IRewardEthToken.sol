@@ -6,7 +6,7 @@ pragma solidity 0.8.22;
  * @title IRewardEthToken
  * @author StakeWise
  * @dev Copied from https://github.com/stakewise/contracts/blob/master/contracts/interfaces/IRewardEthToken.sol
- * @notice Defines the interface for the IRewardEthToken contract
+ * @notice Defines the interface for the RewardEthToken contract
  */
 interface IRewardEthToken {
   /**

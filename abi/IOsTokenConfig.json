@@ -4,6 +4,32 @@
     "inputs": [
       {
         "indexed": false,
+        "internalType": "address",
+        "name": "newLiquidator",
+        "type": "address"
+      }
+    ],
+    "name": "LiquidatorUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      }
+    ],
+    "name": "LtvDisabled",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
         "internalType": "uint16",
         "name": "redeemFromLtvPercent",
         "type": "uint16"
@@ -35,6 +61,32 @@
     ],
     "name": "OsTokenConfigUpdated",
     "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "newRedeemer",
+        "type": "address"
+      }
+    ],
+    "name": "RedeemerUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      }
+    ],
+    "name": "disableLtv",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
   },
   {
     "inputs": [],
@@ -97,6 +149,19 @@
   },
   {
     "inputs": [],
+    "name": "liquidator",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "ltvPercent",
     "outputs": [
       {
@@ -132,6 +197,45 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "redeemer",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newLiquidator",
+        "type": "address"
+      }
+    ],
+    "name": "setLiquidator",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newRedeemer",
+        "type": "address"
+      }
+    ],
+    "name": "setRedeemer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

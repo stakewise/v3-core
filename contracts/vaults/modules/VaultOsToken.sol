@@ -117,6 +117,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     address owner,
     address receiver
   ) external override {
+    if (msg.sender != _osTokenConfig.liquidator()) revert Errors.AccessDenied();
     (uint256 burnedShares, uint256 receivedAssets) = _redeemOsToken(
       owner,
       receiver,
@@ -135,6 +136,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
 
   /// @inheritdoc IVaultOsToken
   function redeemOsToken(uint256 osTokenShares, address owner, address receiver) external override {
+    if (msg.sender != _osTokenConfig.redeemer()) revert Errors.AccessDenied();
     (uint256 burnedShares, uint256 receivedAssets) = _redeemOsToken(
       owner,
       receiver,

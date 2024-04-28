@@ -6,7 +6,7 @@ pragma solidity 0.8.22;
  * @title IRewardGnoToken
  * @author StakeWise
  * @dev Copied from https://github.com/stakewise/contracts/blob/gnosis-chain/contracts/interfaces/IRewardToken.sol
- * @notice Defines the interface for the IRewardGnoToken contract
+ * @notice Defines the interface for the RewardGnoToken contract
  */
 interface IRewardGnoToken {
   /**

@@ -101,7 +101,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     // process total assets delta if it has changed
     _processTotalAssetsDelta(totalAssetsDelta);
 
-    // update exit queue every time new update is harvested
+    // update exit queue every time new update is harvested (deprecated)
     if (harvested) _updateExitQueue();
   }
 

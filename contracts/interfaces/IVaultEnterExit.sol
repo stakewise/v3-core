@@ -54,6 +54,7 @@ interface IVaultEnterExit is IVaultState {
    * @param owner The address that owns the shares
    * @param receiver The address that will receive withdrawn assets
    * @param positionTicket The exit queue ticket that was assigned to the position
+   * @param shares The number of shares that queued for the exit
    * @param assets The number of assets that queued for the exit
    */
   event V2ExitQueueEntered(

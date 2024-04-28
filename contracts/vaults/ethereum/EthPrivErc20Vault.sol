@@ -97,9 +97,7 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
     return super.deposit(receiver, referrer);
   }
 
-  /**
-   * @dev Function for depositing using fallback function
-   */
+  /// @inheritdoc VaultEthStaking
   receive() external payable virtual override {
     _checkWhitelist(msg.sender);
     _deposit(msg.sender, msg.value, address(0));

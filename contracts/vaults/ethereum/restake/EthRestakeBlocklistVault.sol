@@ -2,20 +2,28 @@
 
 pragma solidity =0.8.22;
 
+import {EnumerableSet} from '@openzeppelin/contracts/utils/structs/EnumerableSet.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {IEigenPrivVault} from '../../interfaces/IEigenPrivVault.sol';
-import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
-import {VaultEthStaking, IVaultEthStaking} from '../modules/VaultEthStaking.sol';
-import {VaultWhitelist} from '../modules/VaultWhitelist.sol';
-import {IVaultVersion} from '../modules/VaultVersion.sol';
-import {EigenVault, IEigenVault} from './EigenVault.sol';
+import {IEthRestakeBlocklistVault} from '../../../interfaces/IEthRestakeBlocklistVault.sol';
+import {IEthVaultFactory} from '../../../interfaces/IEthVaultFactory.sol';
+import {VaultEthStaking, IVaultEthStaking} from '../../modules/VaultEthStaking.sol';
+import {VaultBlocklist} from '../../modules/VaultBlocklist.sol';
+import {VaultVersion, IVaultVersion} from '../../modules/VaultVersion.sol';
+import {EthRestakeVault, IEthRestakeVault} from './EthRestakeVault.sol';
 
 /**
- * @title EigenPrivVault
+ * @title EthRestakeBlocklistVault
  * @author StakeWise
- * @notice Defines the EigenLayer staking Vault with whitelist
+ * @notice Defines the native restaking Vault with blocking addresses functionality on Ethereum
  */
-contract EigenPrivVault is Initializable, EigenVault, VaultWhitelist, IEigenPrivVault {
+contract EthRestakeBlocklistVault is
+  Initializable,
+  EthRestakeVault,
+  VaultBlocklist,
+  IEthRestakeBlocklistVault
+{
+  using EnumerableSet for EnumerableSet.AddressSet;
+
   // slither-disable-next-line shadowing-state
   uint8 private constant _version = 2;
 
@@ -27,8 +35,8 @@ contract EigenPrivVault is Initializable, EigenVault, VaultWhitelist, IEigenPriv
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataManager The address of the DepositDataManager contract
-   * @param eigenPods The address of the EigenPods contract
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
+   * @param eigenPodOwnerImplementation The address of the EigenPodOwner implementation contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -37,34 +45,34 @@ contract EigenPrivVault is Initializable, EigenVault, VaultWhitelist, IEigenPriv
     address _vaultsRegistry,
     address _validatorsRegistry,
     address sharedMevEscrow,
-    address depositDataManager,
-    address eigenPods,
+    address depositDataRegistry,
+    address eigenPodOwnerImplementation,
     uint256 exitingAssetsClaimDelay
   )
-    EigenVault(
+    EthRestakeVault(
       _keeper,
       _vaultsRegistry,
       _validatorsRegistry,
       sharedMevEscrow,
-      depositDataManager,
-      eigenPods,
+      depositDataRegistry,
+      eigenPodOwnerImplementation,
       exitingAssetsClaimDelay
     )
   {}
 
-  /// @inheritdoc IEigenVault
+  /// @inheritdoc IEthRestakeVault
   function initialize(
     bytes calldata params
-  ) external payable virtual override(IEigenVault, EigenVault) reinitializer(_version) {
+  ) external payable virtual override(IEthRestakeVault, EthRestakeVault) reinitializer(_version) {
     // initialize deployed vault
     address _admin = IEthVaultFactory(msg.sender).vaultAdmin();
-    __EigenVault_init(
+    __EthRestakeVault_init(
       _admin,
       IEthVaultFactory(msg.sender).ownMevEscrow(),
-      abi.decode(params, (EigenVaultInitParams))
+      abi.decode(params, (EthRestakeVaultInitParams))
     );
-    // whitelister is initially set to admin address
-    __VaultWhitelist_init(_admin);
+    // blocklist manager is initially set to admin address
+    __VaultBlocklist_init(_admin);
   }
 
   /// @inheritdoc IVaultEthStaking
@@ -72,26 +80,30 @@ contract EigenPrivVault is Initializable, EigenVault, VaultWhitelist, IEigenPriv
     address receiver,
     address referrer
   ) public payable virtual override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
-    _checkWhitelist(msg.sender);
-    _checkWhitelist(receiver);
+    _checkBlocklist(msg.sender);
+    _checkBlocklist(receiver);
     return super.deposit(receiver, referrer);
   }
 
-  /**
-   * @dev Function for depositing using fallback function
-   */
+  /// @inheritdoc VaultEthStaking
   receive() external payable virtual override {
-    _checkWhitelist(msg.sender);
+    _checkBlocklist(msg.sender);
     _deposit(msg.sender, msg.value, address(0));
   }
 
   /// @inheritdoc IVaultVersion
-  function vaultId() public pure virtual override(IVaultVersion, EigenVault) returns (bytes32) {
-    return keccak256('EigenPrivVault');
+  function vaultId()
+    public
+    pure
+    virtual
+    override(IVaultVersion, EthRestakeVault)
+    returns (bytes32)
+  {
+    return keccak256('EthRestakeBlocklistVault');
   }
 
   /// @inheritdoc IVaultVersion
-  function version() public pure virtual override(IVaultVersion, EigenVault) returns (uint8) {
+  function version() public pure virtual override(IVaultVersion, EthRestakeVault) returns (uint8) {
     return _version;
   }
 

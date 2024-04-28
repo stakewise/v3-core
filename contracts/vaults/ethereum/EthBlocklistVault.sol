@@ -81,9 +81,7 @@ contract EthBlocklistVault is Initializable, EthVault, VaultBlocklist, IEthBlock
     return super.deposit(receiver, referrer);
   }
 
-  /**
-   * @dev Function for depositing using fallback function
-   */
+  /// @inheritdoc VaultEthStaking
   receive() external payable virtual override {
     _checkBlocklist(msg.sender);
     _deposit(msg.sender, msg.value, address(0));

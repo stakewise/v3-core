@@ -17,15 +17,37 @@ contract OsTokenConfig is Ownable2Step, IOsTokenConfig {
 
   Config private _config;
 
+  /// @inheritdoc IOsTokenConfig
+  address public override redeemer;
+
+  address private _liquidator;
+
+  mapping(address vault => bool isDisabled) private _disabledLtvs;
+
   /**
    * @dev Constructor
    * @param _owner The address of the contract owner
    * @param config The OsToken configuration
+   * @param liquidator_ The address of the liquidator
+   * @param _redeemer The address of the redeemer
    */
-  constructor(address _owner, Config memory config) Ownable(msg.sender) {
+  constructor(
+    address _owner,
+    Config memory config,
+    address liquidator_,
+    address _redeemer
+  ) Ownable(msg.sender) {
     if (_owner == address(0)) revert Errors.ZeroAddress();
     updateConfig(config);
+    setLiquidator(liquidator_);
+    setRedeemer(_redeemer);
     _transferOwnership(_owner);
+  }
+
+  /// @inheritdoc IOsTokenConfig
+  function liquidator() external view override returns (address) {
+    // if vault LTV is disabled, then liquidation is disabled
+    return _disabledLtvs[msg.sender] ? address(0) : _liquidator;
   }
 
   /// @inheritdoc IOsTokenConfig
@@ -40,17 +62,19 @@ contract OsTokenConfig is Ownable2Step, IOsTokenConfig {
 
   /// @inheritdoc IOsTokenConfig
   function liqThresholdPercent() external view override returns (uint256) {
-    return _config.liqThresholdPercent;
+    // if vault LTV is disabled, then liquidation is disabled
+    return _disabledLtvs[msg.sender] ? type(uint256).max : _config.liqThresholdPercent;
   }
 
   /// @inheritdoc IOsTokenConfig
   function ltvPercent() external view override returns (uint256) {
-    return _config.ltvPercent;
+    return _disabledLtvs[msg.sender] ? _maxPercent : _config.ltvPercent;
   }
 
   /// @inheritdoc IOsTokenConfig
   function liqBonusPercent() external view override returns (uint256) {
-    return _config.liqBonusPercent;
+    // if vault LTV is disabled, then liquidation is disabled
+    return _disabledLtvs[msg.sender] ? 0 : _config.liqBonusPercent;
   }
 
   /// @inheritdoc IOsTokenConfig
@@ -61,6 +85,15 @@ contract OsTokenConfig is Ownable2Step, IOsTokenConfig {
     returns (uint256, uint256, uint256, uint256, uint256)
   {
     Config memory config = _config;
+    if (_disabledLtvs[msg.sender]) {
+      return (
+        config.redeemFromLtvPercent,
+        config.redeemToLtvPercent,
+        type(uint256).max,
+        0,
+        _maxPercent
+      );
+    }
     return (
       config.redeemFromLtvPercent,
       config.redeemToLtvPercent,
@@ -68,6 +101,26 @@ contract OsTokenConfig is Ownable2Step, IOsTokenConfig {
       config.liqBonusPercent,
       config.ltvPercent
     );
+  }
+
+  /// @inheritdoc IOsTokenConfig
+  function disableLtv(address vault) external override onlyOwner {
+    _disabledLtvs[vault] = true;
+    emit LtvDisabled(vault);
+  }
+
+  /// @inheritdoc IOsTokenConfig
+  function setLiquidator(address newLiquidator) public override onlyOwner {
+    if (_liquidator == newLiquidator) revert Errors.ValueNotChanged();
+    _liquidator = newLiquidator;
+    emit LiquidatorUpdated(newLiquidator);
+  }
+
+  /// @inheritdoc IOsTokenConfig
+  function setRedeemer(address newRedeemer) public override onlyOwner {
+    if (redeemer == newRedeemer) revert Errors.ValueNotChanged();
+    redeemer = newRedeemer;
+    emit RedeemerUpdated(newRedeemer);
   }
 
   /// @inheritdoc IOsTokenConfig
