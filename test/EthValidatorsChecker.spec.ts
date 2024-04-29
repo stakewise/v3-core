@@ -228,8 +228,13 @@ describe('EthValidatorsChecker', () => {
   })
 
   describe('check deposit data root', () => {
-    function getMultiProofArgs() {
-      const validators = validatorsData.validators
+    function getMultiProofArgs(options?: any) {
+      options = options || {}
+      let validators = validatorsData.validators
+
+      if (options.numValidators !== undefined) {
+        validators = validators.slice(0, options.numValidators)
+      }
 
       const multiProof = getValidatorsMultiProof(validatorsData.tree, validators, [
         ...Array(validators.length).keys(),
@@ -313,6 +318,24 @@ describe('EthValidatorsChecker', () => {
             proofIndexes
           )
       ).to.be.revertedWithCustomError(ethValidatorsChecker, 'AccessDenied')
+    })
+
+    it('fails for invalid proof', async () => {
+      const { proof, proofFlags, proofIndexes } = getMultiProofArgs({ numValidators: 1 })
+      proof[0] = '0x' + '1'.repeat(64)
+
+      await expect(
+        ethValidatorsChecker
+          .connect(admin)
+          .checkDepositDataRoot(
+            await vault.getAddress(),
+            validatorsRegistryRoot,
+            Buffer.concat(validatorsData.validators),
+            proof,
+            proofFlags,
+            proofIndexes
+          )
+      ).to.be.revertedWithCustomError(ethValidatorsChecker, 'InvalidProof')
     })
 
     it('succeeds for vault v1', async () => {
