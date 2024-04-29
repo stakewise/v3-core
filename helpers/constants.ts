@@ -210,10 +210,6 @@ export const NETWORKS: {
   },
 }
 
-if (process.env.MAINNET_FORK_RPC_URL) {
-  console.log('MAINNET_FORK_RPC_URL %s', process.env.MAINNET_FORK_RPC_URL)
-}
-
 export const MAINNET_FORK = {
   enabled: process.env.ENABLE_MAINNET_FORK === 'true',
   blockNumber: 19767930,
