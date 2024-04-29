@@ -3,6 +3,6 @@
 exports[`OsTokenConfig owner can update config 1`] = `
 Object {
   "calldataByteLength": 164,
-  "gasUsed": 32418,
+  "gasUsed": 32520,
 }
 `;

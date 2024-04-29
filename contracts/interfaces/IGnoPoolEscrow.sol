@@ -3,10 +3,10 @@
 pragma solidity 0.8.22;
 
 /**
- * @title IPoolEscrow
+ * @title IGnoPoolEscrow
  * @author StakeWise
  * @dev Copied from https://github.com/stakewise/contracts/blob/gnosis-chain/contracts/interfaces/IPoolEscrow.sol
- * @notice Defines the interface for the PoolEscrow contract
+ * @notice Defines the interface for the PoolEscrow contract on Gnosis
  */
 interface IGnoPoolEscrow {
   /**

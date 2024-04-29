@@ -102,6 +102,14 @@ describe('EthVault - redeem osToken', () => {
     }
     await vault.connect(dao).updateState(harvestParams)
     await osToken.connect(owner).transfer(redeemer.address, osTokenShares)
+    await osTokenConfig.connect(dao).setRedeemer(redeemer.address)
+  })
+
+  it('cannot redeem osTokens from not redeemer', async () => {
+    await osTokenConfig.connect(dao).setRedeemer(dao.address)
+    await expect(
+      vault.connect(redeemer).redeemOsToken(redeemedShares, owner.address, ZERO_ADDRESS)
+    ).to.be.revertedWithCustomError(vault, 'AccessDenied')
   })
 
   it('cannot redeem osTokens to zero receiver', async () => {

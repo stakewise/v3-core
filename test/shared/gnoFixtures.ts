@@ -483,7 +483,8 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
     OSTOKEN_LIQ_THRESHOLD,
     OSTOKEN_LIQ_BONUS,
     OSTOKEN_LTV,
-    true
+    dao,
+    dao
   )
 
   // 7. deploy Balancer vault

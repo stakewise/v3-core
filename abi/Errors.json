@@ -26,11 +26,6 @@
   },
   {
     "inputs": [],
-    "name": "EigenInvalidReallocations",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "EigenInvalidWithdrawal",
     "type": "error"
   },

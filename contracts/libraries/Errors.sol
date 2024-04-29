@@ -53,7 +53,6 @@ library Errors {
   error ExitRequestNotProcessed();
   error ValueNotChanged();
   error EigenInvalidWithdrawal();
-  error EigenInvalidReallocations();
   error InvalidEigenQueuedWithdrawals();
   error InvalidWithdrawalCredentials();
   error EigenPodNotFound();

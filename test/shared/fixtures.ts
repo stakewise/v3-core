@@ -315,22 +315,23 @@ export const createOsTokenConfig = async function (
   liqThresholdPercent: BigNumberish,
   liqBonusPercent: BigNumberish,
   ltvPercent: BigNumberish,
-  skipFork: boolean = false
+  liquidator: Wallet,
+  redeemer: Wallet
 ): Promise<OsTokenConfig> {
   const signer = await ethers.provider.getSigner()
-  if (MAINNET_FORK.enabled && !skipFork) {
-    const contract = OsTokenConfig__factory.connect(mainnetDeployment.OsTokenConfig, signer)
-    await transferOwnership(contract, owner)
-    return contract
-  }
   const factory = await ethers.getContractFactory('OsTokenConfig')
-  const contract = await factory.deploy(owner.address, {
-    redeemFromLtvPercent,
-    redeemToLtvPercent,
-    liqThresholdPercent,
-    liqBonusPercent,
-    ltvPercent,
-  })
+  const contract = await factory.deploy(
+    owner.address,
+    {
+      redeemFromLtvPercent,
+      redeemToLtvPercent,
+      liqThresholdPercent,
+      liqBonusPercent,
+      ltvPercent,
+    },
+    await liquidator.getAddress(),
+    await redeemer.getAddress()
+  )
   return OsTokenConfig__factory.connect(await contract.getAddress(), signer)
 }
 
@@ -691,7 +692,9 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
     OSTOKEN_REDEEM_TO_LTV,
     OSTOKEN_LIQ_THRESHOLD,
     OSTOKEN_LIQ_BONUS,
-    OSTOKEN_LTV
+    OSTOKEN_LTV,
+    dao,
+    dao
   )
 
   // 7. deploy depositDataRegistry

@@ -87,6 +87,14 @@ describe('EthVault - liquidate', () => {
     }
     await vault.connect(dao).updateState(harvestParams)
     await osToken.connect(owner).transfer(liquidator.address, osTokenShares)
+    await osTokenConfig.connect(dao).setLiquidator(liquidator.address)
+  })
+
+  it('cannot liquidate osTokens from not liquidator', async () => {
+    await osTokenConfig.connect(dao).setLiquidator(dao.address)
+    await expect(
+      vault.connect(liquidator).liquidateOsToken(osTokenShares, owner.address, ZERO_ADDRESS)
+    ).to.be.revertedWithCustomError(vault, 'AccessDenied')
   })
 
   it('cannot liquidate osTokens to zero receiver', async () => {
