@@ -3,7 +3,7 @@
 exports[`EthVault - state allocates fee to recipient when delta is above zero 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 117534,
+  "gasUsed": 117522,
 }
 `;
 

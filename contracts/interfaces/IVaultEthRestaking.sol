@@ -55,13 +55,13 @@ interface IVaultEthRestaking is IVaultAdmin, IVaultEthStaking {
 
   /**
    * @notice Sets the address of the restakeWithdrawalsManager. Can only be called by the admin.
-   * @param _restakeWithdrawalsManager The address of the new restakeWithdrawalsManager
+   * @param newRestakeWithdrawalsManager The address of the new restakeWithdrawalsManager
    */
-  function setRestakeWithdrawalsManager(address _restakeWithdrawalsManager) external;
+  function setRestakeWithdrawalsManager(address newRestakeWithdrawalsManager) external;
 
   /**
    * @notice Sets the address of the restakeOperatorsManager. Can only be called by the admin.
-   * @param _restakeOperatorsManager The address of the new restakeOperatorsManager
+   * @param newRestakeOperatorsManager The address of the new restakeOperatorsManager
    */
-  function setRestakeOperatorsManager(address _restakeOperatorsManager) external;
+  function setRestakeOperatorsManager(address newRestakeOperatorsManager) external;
 }

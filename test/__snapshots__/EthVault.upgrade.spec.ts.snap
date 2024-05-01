@@ -3,7 +3,7 @@
 exports[`EthVault - upgrade does not modify the state variables 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 164439,
+  "gasUsed": 164451,
 }
 `;
 
@@ -24,7 +24,7 @@ Object {
 exports[`EthVault - upgrade does not modify the state variables 4`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 165511,
+  "gasUsed": 165499,
 }
 `;
 

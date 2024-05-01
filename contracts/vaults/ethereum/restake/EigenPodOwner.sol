@@ -85,7 +85,7 @@ contract EigenPodOwner is Initializable, UUPSUpgradeable, Multicall, IEigenPodOw
   }
 
   /// @inheritdoc IEigenPodOwner
-  function initialize(bytes calldata) external override initializer {
+  function initialize(bytes calldata) external virtual override initializer {
     vault = msg.sender;
     eigenPod = _eigenPodManager.createPod();
   }
@@ -116,24 +116,6 @@ contract EigenPodOwner is Initializable, UUPSUpgradeable, Multicall, IEigenPodOw
   }
 
   /// @inheritdoc IEigenPodOwner
-  function withdrawNonBeaconChainETHBalanceWei() external override {
-    // SLOAD to memory
-    IEigenPod _eigenPod = IEigenPod(eigenPod);
-    _eigenPod.withdrawNonBeaconChainETHBalanceWei(
-      address(this),
-      _eigenPod.nonBeaconChainETHBalanceWei()
-    );
-  }
-
-  /// @inheritdoc IEigenPodOwner
-  function withdrawRestakedBeaconChainETH() external override {
-    // SLOAD to memory
-    IEigenPod _eigenPod = IEigenPod(eigenPod);
-    uint256 withdrawableAssetsGwei = _eigenPod.withdrawableRestakedExecutionLayerGwei();
-    _eigenPod.withdrawRestakedBeaconChainETH(address(this), withdrawableAssetsGwei * 1 gwei);
-  }
-
-  /// @inheritdoc IEigenPodOwner
   function delegateTo(
     address operator,
     IEigenDelegationManager.SignatureWithExpiry memory approverSignatureAndExpiry,
@@ -148,23 +130,54 @@ contract EigenPodOwner is Initializable, UUPSUpgradeable, Multicall, IEigenPodOw
   }
 
   /// @inheritdoc IEigenPodOwner
-  function queueWithdrawals(
-    IEigenDelegationManager.QueuedWithdrawalParams[] calldata queuedWithdrawalParams
-  ) external override onlyWithdrawalsManager {
-    _validateQueuedWithdrawals(queuedWithdrawalParams);
-    _eigenDelegationManager.queueWithdrawals(queuedWithdrawalParams);
+  function queueWithdrawal(uint256 shares) external override onlyWithdrawalsManager {
+    // construct the withdrawal parameters
+    IEigenDelegationManager.QueuedWithdrawalParams memory withdrawal = IEigenDelegationManager
+      .QueuedWithdrawalParams({
+        withdrawer: address(this),
+        strategies: new address[](1),
+        shares: new uint256[](1)
+      });
+    withdrawal.strategies[0] = _eigenPodStrategy;
+    withdrawal.shares[0] = shares;
+
+    // create the array of withdrawals
+    IEigenDelegationManager.QueuedWithdrawalParams[]
+      memory withdrawals = new IEigenDelegationManager.QueuedWithdrawalParams[](1);
+    withdrawals[0] = withdrawal;
+
+    // queue the withdrawal
+    _eigenDelegationManager.queueWithdrawals(withdrawals);
   }
 
   /// @inheritdoc IEigenPodOwner
   function completeQueuedWithdrawal(
-    IEigenDelegationManager.Withdrawal calldata withdrawal,
+    address delegatedTo,
+    uint256 nonce,
+    uint256 shares,
+    uint32 startBlock,
     uint256 middlewareTimesIndex,
     bool receiveAsTokens
   ) external override onlyWithdrawalsManager {
-    _validateEigenWithdrawal(withdrawal);
+    IEigenDelegationManager.Withdrawal memory withdrawal = IEigenDelegationManager.Withdrawal({
+      staker: address(this),
+      delegatedTo: delegatedTo,
+      withdrawer: address(this),
+      nonce: nonce,
+      startBlock: startBlock,
+      strategies: new address[](1),
+      shares: new uint256[](1)
+    });
+    withdrawal.strategies[0] = _eigenPodStrategy;
+    withdrawal.shares[0] = shares;
+
+    // tokens are not used for the EigenPod, but should match the length of the strategies array
+    address[] memory tokens = new address[](1);
+    tokens[0] = address(0);
+
     _eigenDelegationManager.completeQueuedWithdrawal(
       withdrawal,
-      new address[](0),
+      tokens,
       middlewareTimesIndex,
       receiveAsTokens
     );
@@ -215,54 +228,11 @@ contract EigenPodOwner is Initializable, UUPSUpgradeable, Multicall, IEigenPodOw
    * @dev Function for receiving assets and forwarding them to the Vault
    */
   receive() external payable {
+    if (msg.sender != address(_eigenDelayedWithdrawalRouter) && msg.sender != eigenPod) {
+      revert Errors.AccessDenied();
+    }
     // forward received assets to the vault
     Address.sendValue(payable(vault), msg.value);
-  }
-
-  /**
-   * @dev Validates the queued withdrawals
-   * @param queuedWithdrawalParams An array of queued withdrawal parameters
-   */
-  function _validateQueuedWithdrawals(
-    IEigenDelegationManager.QueuedWithdrawalParams[] calldata queuedWithdrawalParams
-  ) private view {
-    IEigenDelegationManager.QueuedWithdrawalParams memory params;
-    uint256 queuedWithdrawalsCount = queuedWithdrawalParams.length;
-    for (uint256 i = 0; i < queuedWithdrawalsCount; ) {
-      params = queuedWithdrawalParams[i];
-      if (
-        params.withdrawer != address(this) ||
-        params.strategies.length != 1 ||
-        params.strategies[0] != _eigenPodStrategy
-      ) {
-        revert Errors.InvalidEigenQueuedWithdrawals();
-      }
-
-      unchecked {
-        // cannot realistically overflow
-        i++;
-      }
-    }
-  }
-
-  /**
-   * @dev Validates the Eigen withdrawal
-   * @param withdrawal The withdrawal parameters
-   */
-  function _validateEigenWithdrawal(
-    IEigenDelegationManager.Withdrawal calldata withdrawal
-  ) private view {
-    // check the withdrawal data
-    if (
-      withdrawal.staker != address(this) ||
-      withdrawal.withdrawer != address(this) ||
-      withdrawal.strategies.length != 1 ||
-      withdrawal.strategies[0] != _eigenPodStrategy ||
-      withdrawal.shares.length != 1 ||
-      withdrawal.shares[0] == 0
-    ) {
-      revert Errors.EigenInvalidWithdrawal();
-    }
   }
 
   /// @inheritdoc UUPSUpgradeable

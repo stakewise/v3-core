@@ -3,7 +3,7 @@
 exports[`GnoVault Own MEV Escrow does not include MEV rewards in total assets delta 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 99617,
+  "gasUsed": 99629,
 }
 `;
 

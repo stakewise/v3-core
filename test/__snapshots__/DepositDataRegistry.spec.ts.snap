@@ -17,27 +17,27 @@ Object {
 exports[`DepositDataRegistry migrate succeeds 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 142380,
+  "gasUsed": 142392,
 }
 `;
 
 exports[`DepositDataRegistry multiple validators succeeds 1`] = `
 Object {
   "calldataByteLength": 3364,
-  "gasUsed": 688109,
+  "gasUsed": 688085,
 }
 `;
 
 exports[`DepositDataRegistry single validator can update state and register validator 1`] = `
 Object {
   "calldataByteLength": 1636,
-  "gasUsed": 407165,
+  "gasUsed": 407133,
 }
 `;
 
 exports[`DepositDataRegistry single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 1156,
-  "gasUsed": 333737,
+  "gasUsed": 333705,
 }
 `;

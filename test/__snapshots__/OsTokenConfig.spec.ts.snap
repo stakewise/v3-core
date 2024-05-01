@@ -1,8 +1,29 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`OsTokenConfig disable ltv owner can disable ltv 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 47429,
+}
+`;
+
 exports[`OsTokenConfig owner can update config 1`] = `
 Object {
   "calldataByteLength": 164,
   "gasUsed": 32520,
+}
+`;
+
+exports[`OsTokenConfig owner can update liquidator 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 29883,
+}
+`;
+
+exports[`OsTokenConfig owner can update redeemer 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 29977,
 }
 `;

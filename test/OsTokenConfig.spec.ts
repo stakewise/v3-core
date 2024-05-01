@@ -11,6 +11,8 @@ import {
   OSTOKEN_REDEEM_TO_LTV,
   OSTOKEN_REDEEM_FROM_LTV,
   MAX_UINT16,
+  MAX_UINT256,
+  ZERO_ADDRESS,
 } from './shared/constants'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { MAINNET_FORK } from '../helpers/constants'
@@ -113,6 +115,46 @@ describe('OsTokenConfig', () => {
     ).to.revertedWithCustomError(osTokenConfig, 'InvalidLtvPercent')
   })
 
+  it('not owner cannot update liquidator', async () => {
+    await expect(
+      osTokenConfig.connect(other).setLiquidator(other.address)
+    ).to.revertedWithCustomError(osTokenConfig, 'OwnableUnauthorizedAccount')
+  })
+
+  it('cannot set liquidator to the same address', async () => {
+    await expect(osTokenConfig.connect(dao).setLiquidator(dao.address)).to.revertedWithCustomError(
+      osTokenConfig,
+      'ValueNotChanged'
+    )
+  })
+
+  it('owner can update liquidator', async () => {
+    const tx = await osTokenConfig.connect(dao).setLiquidator(other.address)
+    await expect(tx).to.emit(osTokenConfig, 'LiquidatorUpdated').withArgs(other.address)
+    expect(await osTokenConfig.liquidator()).to.be.eq(other.address)
+    await snapshotGasCost(tx)
+  })
+
+  it('not owner cannot update redeemer', async () => {
+    await expect(
+      osTokenConfig.connect(other).setRedeemer(other.address)
+    ).to.revertedWithCustomError(osTokenConfig, 'OwnableUnauthorizedAccount')
+  })
+
+  it('cannot set redeemer to the same address', async () => {
+    await expect(osTokenConfig.connect(dao).setRedeemer(dao.address)).to.revertedWithCustomError(
+      osTokenConfig,
+      'ValueNotChanged'
+    )
+  })
+
+  it('owner can update redeemer', async () => {
+    const tx = await osTokenConfig.connect(dao).setRedeemer(other.address)
+    await expect(tx).to.emit(osTokenConfig, 'RedeemerUpdated').withArgs(other.address)
+    expect(await osTokenConfig.redeemer()).to.be.eq(other.address)
+    await snapshotGasCost(tx)
+  })
+
   it('owner can update config', async () => {
     const tx = await osTokenConfig.connect(dao).updateConfig(newConfig)
     await expect(tx)
@@ -138,5 +180,39 @@ describe('OsTokenConfig', () => {
     expect(await osTokenConfig.liqBonusPercent()).to.be.eq(newConfig.liqBonusPercent)
     expect(await osTokenConfig.ltvPercent()).to.be.eq(newConfig.ltvPercent)
     await snapshotGasCost(tx)
+  })
+
+  describe('disable ltv', () => {
+    it('not owner cannot disable ltv', async () => {
+      await expect(
+        osTokenConfig.connect(other).disableLtv(other.address)
+      ).to.revertedWithCustomError(osTokenConfig, 'OwnableUnauthorizedAccount')
+    })
+
+    it('cannot disable ltv twice', async () => {
+      await osTokenConfig.connect(dao).disableLtv(other.address)
+      await expect(osTokenConfig.connect(dao).disableLtv(other.address)).to.revertedWithCustomError(
+        osTokenConfig,
+        'ValueNotChanged'
+      )
+    })
+
+    it('owner can disable ltv', async () => {
+      const tx = await osTokenConfig.connect(dao).disableLtv(other.address)
+      await expect(tx).to.emit(osTokenConfig, 'LtvDisabled').withArgs(other.address)
+
+      expect(await osTokenConfig.connect(other).liquidator()).to.be.eq(ZERO_ADDRESS)
+      expect(await osTokenConfig.connect(other).liqThresholdPercent()).to.be.eq(MAX_UINT256)
+      expect(await osTokenConfig.connect(other).ltvPercent()).to.be.eq(10_000)
+      expect(await osTokenConfig.connect(other).liqBonusPercent()).to.be.eq(0)
+      expect(await osTokenConfig.connect(other).getConfig()).to.be.deep.eq([
+        OSTOKEN_REDEEM_FROM_LTV,
+        OSTOKEN_REDEEM_TO_LTV,
+        MAX_UINT256,
+        0,
+        10_000,
+      ])
+      await snapshotGasCost(tx)
+    })
   })
 })

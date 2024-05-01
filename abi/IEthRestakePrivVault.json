@@ -870,7 +870,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "_restakeOperatorsManager",
+        "name": "newRestakeOperatorsManager",
         "type": "address"
       }
     ],
@@ -883,7 +883,7 @@
     "inputs": [
       {
         "internalType": "address",
-        "name": "_restakeWithdrawalsManager",
+        "name": "newRestakeWithdrawalsManager",
         "type": "address"
       }
     ],

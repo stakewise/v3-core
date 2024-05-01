@@ -28,15 +28,11 @@ const BLOCK_EXPLORER_KEY = process.env.BLOCK_EXPLORER_KEY || ''
 const HARDHATEVM_CHAINID = 31337
 
 // fork
-const mainnetFork = MAINNET_FORK.enabled
-  ? {
-      blockNumber: MAINNET_FORK.blockNumber,
-      url: MAINNET_FORK.rpcUrl,
-    }
-  : undefined
-if (mainnetFork) {
-  console.log(`Using mainnet fork at block ${mainnetFork.blockNumber}`)
+const mainnetFork = {
+  blockNumber: MAINNET_FORK.blockNumber,
+  url: MAINNET_FORK.rpcUrl,
 }
+console.log(`Using mainnet fork at block ${mainnetFork.blockNumber}`)
 
 const getCommonNetworkConfig = (networkName) => {
   return {

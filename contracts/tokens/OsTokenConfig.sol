@@ -105,6 +105,7 @@ contract OsTokenConfig is Ownable2Step, IOsTokenConfig {
 
   /// @inheritdoc IOsTokenConfig
   function disableLtv(address vault) external override onlyOwner {
+    if (_disabledLtvs[vault]) revert Errors.ValueNotChanged();
     _disabledLtvs[vault] = true;
     emit LtvDisabled(vault);
   }

@@ -1,4 +1,4 @@
-import { ContractFactory } from 'ethers'
+import { Contract, ContractFactory } from 'ethers'
 import { ethers } from 'hardhat'
 import EthValidatorsRegistry from './artifacts/EthValidatorsRegistry.json'
 import GnoValidatorsRegistry from './artifacts/GnoValidatorsRegistry.json'
@@ -7,6 +7,10 @@ import EthErc20VaultV1 from './artifacts/EthErc20Vault.json'
 import EthPrivErc20VaultV1 from './artifacts/EthPrivErc20Vault.json'
 import EthPrivVaultV1 from './artifacts/EthPrivVault.json'
 import EthGenesisVaultV1 from './artifacts/EthGenesisVault.json'
+import EigenPodManager from './artifacts/EigenPodManager.json'
+import EigenDelegationManager from './artifacts/EigenDelegationManager.json'
+import EigenDelayedWithdrawalRouter from './artifacts/EigenDelayedWithdrawalRouter.json'
+import { MAINNET_FORK } from '../../helpers/constants'
 
 export async function getEthValidatorsRegistryFactory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthValidatorsRegistry.abi, EthValidatorsRegistry.bytecode)
@@ -34,4 +38,19 @@ export async function getEthPrivVaultV1Factory(): Promise<ContractFactory> {
 
 export async function getEthGenesisVaultV1Factory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthGenesisVaultV1.abi, EthGenesisVaultV1.bytecode)
+}
+
+export async function getEigenPodManager(): Promise<Contract> {
+  return await ethers.getContractAt(EigenPodManager.abi, MAINNET_FORK.eigenPodManager)
+}
+
+export async function getEigenDelegationManager(): Promise<Contract> {
+  return await ethers.getContractAt(EigenDelegationManager.abi, MAINNET_FORK.eigenDelegationManager)
+}
+
+export async function getEigenDelayedWithdrawalRouter(): Promise<Contract> {
+  return await ethers.getContractAt(
+    EigenDelayedWithdrawalRouter.abi,
+    MAINNET_FORK.eigenDelayedWithdrawalRouter
+  )
 }

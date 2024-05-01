@@ -35,18 +35,6 @@ interface IEigenPod {
   }
 
   /**
-   * @notice Tracks any ETH deposited into this contract via the `receive` fallback function
-   * @return The non beacon chain ETH balance of this contract
-   */
-  function nonBeaconChainETHBalanceWei() external view returns (uint256);
-
-  /**
-   * @notice The amount of execution layer ETH in this contract that is staked in EigenLayer (i.e. withdrawn from beaconchain but not EigenLayer)
-   * @return The total withdrawn ETH balance of this contract
-   */
-  function withdrawableRestakedExecutionLayerGwei() external view returns (uint64);
-
-  /**
    * @notice This function verifies that the withdrawal credentials of validator(s) owned by the podOwner are pointed to
    * this contract. It also verifies the effective balance  of the validator.  It verifies the provided proof of the ETH validator against the beacon chain state
    * root, marks the validator as 'active' in EigenLayer, and credits the restaked ETH in Eigenlayer.
@@ -64,25 +52,6 @@ interface IEigenPod {
     bytes[] calldata validatorFieldsProofs,
     bytes32[][] calldata validatorFields
   ) external;
-
-  /**
-   * @notice Called by the pod owner to withdraw the nonBeaconChainETHBalanceWei
-   * @param recipient The address to which the ETH will be sent
-   * @param amountToWithdraw The amount of ETH to withdraw
-   */
-  function withdrawNonBeaconChainETHBalanceWei(
-    address recipient,
-    uint256 amountToWithdraw
-  ) external;
-
-  /**
-   * @notice Transfers `amount` in ether from this contract to the specified `recipient` address
-   * @notice Called by EigenPodManager to withdrawBeaconChainETH that has been added to the EigenPod's balance due to a withdrawal from the beacon chain.
-   * @dev The podOwner must have already proved sufficient withdrawals, so that this pod's `withdrawableRestakedExecutionLayerGwei` exceeds the
-   * `amountWei` input (when converted to GWEI).
-   * @dev Reverts if `amountWei` is not a whole Gwei amount
-   */
-  function withdrawRestakedBeaconChainETH(address recipient, uint256 amount) external;
 
   /**
    * @notice This function records an update (either increase or decrease) in a validator's balance.

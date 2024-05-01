@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthRestakeVault create eigen pod succeeds 1`] = `
+Object {
+  "calldataByteLength": 4,
+  "gasUsed": 675235,
+}
+`;
+
+exports[`EthRestakeVault multiple validators succeeds 1`] = `
+Object {
+  "calldataByteLength": 2756,
+  "gasUsed": 558258,
+}
+`;
+
+exports[`EthRestakeVault restake operators manager succeeds 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 52674,
+}
+`;
+
+exports[`EthRestakeVault restake withdrawals manager succeeds 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 51882,
+}
+`;
+
+exports[`EthRestakeVault single validator succeeds 1`] = `
+Object {
+  "calldataByteLength": 996,
+  "gasUsed": 271939,
+}
+`;

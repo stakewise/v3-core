@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthRestakePrivErc20Vault deposit can be called by whitelisted user 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 71091,
+}
+`;
+
+exports[`EthRestakePrivErc20Vault transfer can transfer to whitelisted user 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 56432,
+}
+`;

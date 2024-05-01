@@ -10,7 +10,7 @@ Object {
 exports[`VaultsRegistry owner can add factory 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 47318,
+  "gasUsed": 47306,
 }
 `;
 
@@ -31,7 +31,7 @@ Object {
 exports[`VaultsRegistry owner can remove factory 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 25481,
+  "gasUsed": 25469,
 }
 `;
 

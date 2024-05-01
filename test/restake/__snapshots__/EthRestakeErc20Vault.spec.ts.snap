@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthRestakeErc20Vault deposit emits transfer event 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 68558,
+}
+`;
+
+exports[`EthRestakeErc20Vault enter exit queue emits transfer event 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 93769,
+}
+`;

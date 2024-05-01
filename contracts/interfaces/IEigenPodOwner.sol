@@ -54,16 +54,6 @@ interface IEigenPodOwner is IERC1822Proxiable, IMulticall {
   ) external;
 
   /**
-   * @notice Withdraws the non beacon chain ETH balance from EigenPod
-   */
-  function withdrawNonBeaconChainETHBalanceWei() external;
-
-  /**
-   * @notice Withdraws the restaked beacon chain ETH from EigenPod
-   */
-  function withdrawRestakedBeaconChainETH() external;
-
-  /**
    * @notice Delegates to an operator. Can only be called by the OperatorsManager.
    * @param operator The operator address
    * @param approverSignatureAndExpiry The signature and expiry of the approver
@@ -82,20 +72,25 @@ interface IEigenPodOwner is IERC1822Proxiable, IMulticall {
 
   /**
    * @notice Adds a new withdrawal to the queue. Can only be called by the WithdrawalsManager.
-   * @param queuedWithdrawalParams An array of queued withdrawal parameters
+   * @param shares The number of shares to withdraw
    */
-  function queueWithdrawals(
-    IEigenDelegationManager.QueuedWithdrawalParams[] calldata queuedWithdrawalParams
-  ) external;
+  function queueWithdrawal(uint256 shares) external;
 
   /**
    * @notice Completes a queued withdrawal
-   * @param withdrawal The withdrawal parameters
+   * @param delegatedTo The address that the staker was delegated to at the time that the Withdrawal was created
+   * @param nonce The nonce used to guarantee that otherwise identical withdrawals have unique hashes
+   * @param shares The amount of shares in the withdrawal
+   * @param startBlock The block number when the withdrawal was created
    * @param middlewareTimesIndex The middleware times index
-   * @param receiveAsTokens Whether to receive as tokens
+   * @param receiveAsTokens Whether to receive the withdrawal as tokens
+   *
    */
   function completeQueuedWithdrawal(
-    IEigenDelegationManager.Withdrawal calldata withdrawal,
+    address delegatedTo,
+    uint256 nonce,
+    uint256 shares,
+    uint32 startBlock,
     uint256 middlewareTimesIndex,
     bool receiveAsTokens
   ) external;

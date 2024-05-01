@@ -1,0 +1,8 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthRestakePrivVault deposit can be called by whitelisted user 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 70978,
+}
+`;

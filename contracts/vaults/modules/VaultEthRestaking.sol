@@ -22,11 +22,8 @@ abstract contract VaultEthRestaking is VaultAdmin, VaultEthStaking, IVaultEthRes
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address private immutable _eigenPodOwnerImplementation;
 
-  /// @inheritdoc IVaultEthRestaking
-  address public override restakeOperatorsManager;
-
-  /// @inheritdoc IVaultEthRestaking
-  address public override restakeWithdrawalsManager;
+  address private _restakeOperatorsManager;
+  address private _restakeWithdrawalsManager;
 
   EnumerableSet.AddressSet private _eigenPods;
   EnumerableSet.AddressSet internal _eigenPodOwners;
@@ -43,13 +40,29 @@ abstract contract VaultEthRestaking is VaultAdmin, VaultEthStaking, IVaultEthRes
   }
 
   /// @inheritdoc IVaultEthRestaking
+  function restakeOperatorsManager() public view override returns (address) {
+    // SLOAD to memory
+    address restakeOperatorsManager_ = _restakeOperatorsManager;
+    // if restakeOperatorsManager is not set, use admin address
+    return restakeOperatorsManager_ == address(0) ? admin : restakeOperatorsManager_;
+  }
+
+  /// @inheritdoc IVaultEthRestaking
+  function restakeWithdrawalsManager() public view override returns (address) {
+    // SLOAD to memory
+    address restakeWithdrawalsManager_ = _restakeWithdrawalsManager;
+    // if restakeWithdrawalsManager is not set, use admin address
+    return restakeWithdrawalsManager_ == address(0) ? admin : restakeWithdrawalsManager_;
+  }
+
+  /// @inheritdoc IVaultEthRestaking
   function getEigenPods() external view override returns (address[] memory) {
     return _eigenPods.values();
   }
 
   /// @inheritdoc IVaultEthRestaking
   function createEigenPod() external override {
-    if (msg.sender != restakeOperatorsManager) revert Errors.AccessDenied();
+    if (msg.sender != restakeOperatorsManager()) revert Errors.AccessDenied();
 
     // create a new EigenPodOwner
     address eigenPodOwner = address(new ERC1967Proxy(_eigenPodOwnerImplementation, ''));
@@ -65,19 +78,19 @@ abstract contract VaultEthRestaking is VaultAdmin, VaultEthStaking, IVaultEthRes
   }
 
   /// @inheritdoc IVaultEthRestaking
-  function setRestakeOperatorsManager(address _restakeOperatorsManager) external override {
-    if (restakeOperatorsManager == _restakeOperatorsManager) revert Errors.ValueNotChanged();
+  function setRestakeOperatorsManager(address newRestakeOperatorsManager) external override {
+    if (_restakeOperatorsManager == newRestakeOperatorsManager) revert Errors.ValueNotChanged();
     _checkAdmin();
-    restakeOperatorsManager = _restakeOperatorsManager;
-    emit RestakeOperatorsManagerUpdated(_restakeOperatorsManager);
+    _restakeOperatorsManager = newRestakeOperatorsManager;
+    emit RestakeOperatorsManagerUpdated(newRestakeOperatorsManager);
   }
 
   /// @inheritdoc IVaultEthRestaking
-  function setRestakeWithdrawalsManager(address _restakeWithdrawalsManager) external override {
-    if (restakeWithdrawalsManager == _restakeWithdrawalsManager) revert Errors.ValueNotChanged();
+  function setRestakeWithdrawalsManager(address newRestakeWithdrawalsManager) external override {
+    if (_restakeWithdrawalsManager == newRestakeWithdrawalsManager) revert Errors.ValueNotChanged();
     _checkAdmin();
-    restakeWithdrawalsManager = _restakeWithdrawalsManager;
-    emit RestakeWithdrawalsManagerUpdated(_restakeWithdrawalsManager);
+    _restakeWithdrawalsManager = newRestakeWithdrawalsManager;
+    emit RestakeWithdrawalsManagerUpdated(newRestakeWithdrawalsManager);
   }
 
   /// @inheritdoc VaultEthStaking
@@ -138,10 +151,8 @@ abstract contract VaultEthRestaking is VaultAdmin, VaultEthStaking, IVaultEthRes
     if (withdrawalAddress.length != 20) revert Errors.InvalidWithdrawalCredentials();
 
     // check if the EigenPod exists
-    address eigenPod = abi.decode(withdrawalAddress, (address));
-    if (!_eigenPods.contains(eigenPod)) {
-      revert Errors.EigenPodNotFound();
-    }
+    address eigenPod = address(uint160(bytes20(withdrawalAddress)));
+    if (!_eigenPods.contains(eigenPod)) revert Errors.EigenPodNotFound();
     return abi.encodePacked(bytes1(0x01), bytes11(0x0), eigenPod);
   }
 
