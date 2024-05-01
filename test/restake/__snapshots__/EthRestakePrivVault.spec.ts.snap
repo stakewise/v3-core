@@ -6,3 +6,10 @@ Object {
   "gasUsed": 70978,
 }
 `;
+
+exports[`EthRestakePrivVault deposit deposit through receive fallback can be called by whitelisted sender 1`] = `
+Object {
+  "calldataByteLength": 4,
+  "gasUsed": 78702,
+}
+`;
