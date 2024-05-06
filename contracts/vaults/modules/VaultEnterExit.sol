@@ -69,7 +69,6 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
       keccak256(abi.encode(receiver, timestamp, positionTicket))
     ];
     if (exitingTickets == 0) return (0, 0, 0);
-    if (block.timestamp < timestamp + _exitingAssetsClaimDelay) return (exitingTickets, 0, 0);
 
     if (_exitQueue.isV1Position(queuedShares, positionTicket)) {
       // calculate exited assets in V1 exit queue
@@ -98,7 +97,13 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
       timestamp,
       exitQueueIndex
     );
-    if (exitedTickets == 0 || exitedAssets == 0) revert Errors.ExitRequestNotProcessed();
+    if (
+      block.timestamp < timestamp + _exitingAssetsClaimDelay ||
+      exitedTickets == 0 ||
+      exitedAssets == 0
+    ) {
+      revert Errors.ExitRequestNotProcessed();
+    }
 
     if (_exitQueue.isV1Position(queuedShares, positionTicket)) {
       // update unclaimed assets
