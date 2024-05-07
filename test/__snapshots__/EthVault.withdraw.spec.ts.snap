@@ -3,7 +3,7 @@
 exports[`EthVault - withdraw claim exited assets for single user in multiple checkpoints in multiple transactions 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 75905,
+  "gasUsed": 75917,
 }
 `;
 
