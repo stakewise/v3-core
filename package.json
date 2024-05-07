@@ -25,6 +25,8 @@
     "node": "hardhat node",
     "full-deploy:holesky": "hardhat eth-full-deploy --network holesky",
     "full-deploy:mainnet": "hardhat eth-full-deploy --network mainnet",
+    "upgrade:holesky": "hardhat eth-upgrade --network holesky",
+    "upgrade:mainnet": "hardhat eth-upgrade --network mainnet",
     "full-deploy:eth-local": "hardhat eth-full-deploy-local --network local",
     "full-deploy:chiado": "hardhat gno-full-deploy --network chiado"
   },

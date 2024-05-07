@@ -57,8 +57,12 @@ export type NetworkConfig = {
   // Gnosis data
   gnosis?: {
     gnoToken: string
+    gnoPriceFeed: string
+    daiPriceFeed: string
     balancerVault: string
     balancerPoolId: string
+    maxSlippage: number
+    stalePriceTimeDelta: bigint
   }
 
   // PriceFeed
@@ -67,4 +71,9 @@ export type NetworkConfig = {
   // Cumulative MerkleDrop
   liquidityCommittee: string
   swiseToken: string
+
+  // Restake vault settings
+  eigenPodManager: string
+  eigenDelegationManager: string
+  eigenDelayedWithdrawalRouter: string
 }
