@@ -2,26 +2,27 @@
 
 pragma solidity =0.8.22;
 
-import {IKeeperValidators} from './IKeeperValidators.sol';
+import {IERC5267} from '@openzeppelin/contracts/interfaces/IERC5267.sol';
 
 /**
  * @title IEthValidatorsChecker
  * @author StakeWise
  * @notice Defines the interface for EthValidatorsChecker
  */
-interface IEthValidatorsChecker {
+interface IEthValidatorsChecker is IERC5267 {
   /**
    * @notice Function for checking validators manager signature
    * @param vault The address of the vault
    * @param validatorsRegistryRoot The validators registry root
    * @param publicKeys The concatenation of the validators' public keys
+   * @return Current block number
    */
   function checkValidatorsManagerSignature(
     address vault,
     bytes32 validatorsRegistryRoot,
     bytes calldata publicKeys,
     bytes calldata signature
-  ) external view returns (uint256 blockNumber);
+  ) external view returns (uint256);
 
   /**
    * @notice Function for checking deposit data root
@@ -31,6 +32,7 @@ interface IEthValidatorsChecker {
    * @param proof The proof used for the merkle tree verification
    * @param proofFlags The multi proof flags for the merkle tree verification
    * @param proofIndexes The indexes of the leaves for the merkle tree multi proof verification
+   * @return Current block number
    */
   function checkDepositDataRoot(
     address vault,
@@ -39,5 +41,5 @@ interface IEthValidatorsChecker {
     bytes32[] calldata proof,
     bool[] calldata proofFlags,
     uint256[] calldata proofIndexes
-  ) external view returns (uint256 blockNumber);
+  ) external view returns (uint256);
 }

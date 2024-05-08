@@ -8,15 +8,15 @@ import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
 
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
-import {Errors} from '../libraries/Errors.sol';
 import {IKeeper} from '../interfaces/IKeeper.sol';
 import {IEthValidatorsChecker} from '../interfaces/IEthValidatorsChecker.sol';
 import {IVaultState} from '../interfaces/IVaultState.sol';
 import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
-import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IDepositDataRegistry} from '../interfaces/IDepositDataRegistry.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
+
+import {Errors} from '../libraries/Errors.sol';
 
 interface IVaultValidatorsV1 {
   function validatorsRoot() external view returns (bytes32);
@@ -35,11 +35,6 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
   IKeeper private immutable _keeper;
   IVaultsRegistry private immutable _vaultsRegistry;
   IDepositDataRegistry private immutable _depositDataRegistry;
-
-  bytes32 private constant _validatorsManagerSignatureTypeHash =
-    keccak256(
-      'EthValidatorsCheckerData(bytes32 validatorsRegistryRoot,address vault,bytes validators)'
-    );
 
   /**
    * @dev Constructor
@@ -66,9 +61,7 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
     bytes32 validatorsRegistryRoot,
     bytes calldata publicKeys,
     bytes calldata signature
-  ) external view override returns (uint256 blockNumber) {
-    blockNumber = block.number;
-
+  ) external view override returns (uint256) {
     if (_validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
       revert Errors.InvalidValidatorsRegistryRoot();
     }
@@ -77,14 +70,16 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
     }
 
     // verify vault has enough assets
-    if (!_keeper.isCollateralized(vault)) {
-      if (IVaultState(vault).withdrawableAssets() < 32 ether) revert Errors.AccessDenied();
+    if (
+      !_keeper.isCollateralized(vault) && IVaultState(vault).withdrawableAssets() < depositAmount()
+    ) {
+      revert Errors.InsufficientAssets();
     }
 
     // compose signing message
     bytes32 message = keccak256(
       abi.encode(
-        _validatorsManagerSignatureTypeHash,
+        validatorsManagerSignatureTypeHash(),
         validatorsRegistryRoot,
         vault,
         keccak256(publicKeys)
@@ -96,6 +91,8 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
 
     // verify validators manager ECDSA signature
     if (IVaultValidators(vault).validatorsManager() != signer) revert Errors.AccessDenied();
+
+    return block.number;
   }
 
   /// @inheritdoc IEthValidatorsChecker
@@ -106,17 +103,17 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
     bytes32[] calldata proof,
     bool[] calldata proofFlags,
     uint256[] calldata proofIndexes
-  ) external view override returns (uint256 blockNumber) {
-    blockNumber = block.number;
-
+  ) external view override returns (uint256) {
     if (_validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
       revert Errors.InvalidValidatorsRegistryRoot();
     }
     if (!_vaultsRegistry.vaults(vault)) revert Errors.InvalidVault();
 
     // verify vault has enough assets
-    if (!_keeper.isCollateralized(vault)) {
-      if (IVaultState(vault).withdrawableAssets() < 32 ether) revert Errors.AccessDenied();
+    if (
+      !_keeper.isCollateralized(vault) && IVaultState(vault).withdrawableAssets() < depositAmount()
+    ) {
+      revert Errors.InsufficientAssets();
     }
 
     uint8 vaultVersion = IVaultVersion(vault).version();
@@ -170,5 +167,18 @@ contract EthValidatorsChecker is IEthValidatorsChecker, EIP712 {
     if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, depositDataRoot, leaves)) {
       revert Errors.InvalidProof();
     }
+
+    return block.number;
+  }
+
+  function validatorsManagerSignatureTypeHash() public pure virtual returns (bytes32) {
+    return
+      keccak256(
+        'EthValidatorsChecker(bytes32 validatorsRegistryRoot,address vault,bytes validators)'
+      );
+  }
+
+  function depositAmount() public pure virtual returns (uint256) {
+    return 32 ether;
   }
 }

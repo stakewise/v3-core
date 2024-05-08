@@ -125,12 +125,7 @@ describe('EthValidatorsChecker', () => {
       await expect(
         ethValidatorsChecker
           .connect(admin)
-          .checkValidatorsManagerSignature(
-            await vault.getAddress(),
-            fakeRoot,
-            Buffer.from('', 'utf-8'),
-            Buffer.from('', 'utf-8')
-          )
+          .checkValidatorsManagerSignature(await vault.getAddress(), fakeRoot, '0x', '0x')
       ).to.be.revertedWithCustomError(ethValidatorsChecker, 'InvalidValidatorsRegistryRoot')
     })
 
@@ -138,12 +133,7 @@ describe('EthValidatorsChecker', () => {
       await expect(
         ethValidatorsChecker
           .connect(admin)
-          .checkValidatorsManagerSignature(
-            other.address,
-            validatorsRegistryRoot,
-            Buffer.from('', 'utf-8'),
-            Buffer.from('', 'utf-8')
-          )
+          .checkValidatorsManagerSignature(other.address, validatorsRegistryRoot, '0x', '0x')
       ).to.be.revertedWithCustomError(ethValidatorsChecker, 'InvalidVault')
     })
 
@@ -154,8 +144,8 @@ describe('EthValidatorsChecker', () => {
           .checkValidatorsManagerSignature(
             await vaultV1.getAddress(),
             validatorsRegistryRoot,
-            Buffer.from('', 'utf-8'),
-            Buffer.from('', 'utf-8')
+            '0x',
+            '0x'
           )
       ).to.be.revertedWithCustomError(ethValidatorsChecker, 'InvalidVault')
     })
@@ -167,10 +157,10 @@ describe('EthValidatorsChecker', () => {
           .checkValidatorsManagerSignature(
             await vaultNotDeposited.getAddress(),
             validatorsRegistryRoot,
-            Buffer.from('', 'utf-8'),
-            Buffer.from('', 'utf-8')
+            '0x',
+            '0x'
           )
-      ).to.be.revertedWithCustomError(ethValidatorsChecker, 'AccessDenied')
+      ).to.be.revertedWithCustomError(ethValidatorsChecker, 'InsufficientAssets')
     })
 
     it('fails for signer who is not validators manager', async () => {
@@ -213,9 +203,10 @@ describe('EthValidatorsChecker', () => {
         data: typedData,
         version: SignTypedDataVersion.V4,
       })
+      const blockNumber = await ethers.provider.getBlockNumber()
 
-      await expect(
-        ethValidatorsChecker
+      expect(
+        await ethValidatorsChecker
           .connect(admin)
           .checkValidatorsManagerSignature(
             vaultAddress,
@@ -223,7 +214,7 @@ describe('EthValidatorsChecker', () => {
             Buffer.concat(publicKeys),
             ethers.getBytes(signature)
           )
-      ).to.eventually.be.greaterThan(0)
+      ).to.eq(blockNumber)
     })
   })
 
@@ -298,12 +289,11 @@ describe('EthValidatorsChecker', () => {
             proofFlags,
             proofIndexes
           )
-      ).to.be.revertedWithCustomError(ethValidatorsChecker, 'AccessDenied')
+      ).to.be.revertedWithCustomError(ethValidatorsChecker, 'InsufficientAssets')
     })
 
     it('fails for validators manager not equal to deposit data registry', async () => {
-      const [validatorsManager] = await ethers.getSigners()
-      await vault.connect(admin).setValidatorsManager(validatorsManager.address)
+      await vault.connect(admin).setValidatorsManager(other.address)
       const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
 
       await expect(
@@ -340,9 +330,10 @@ describe('EthValidatorsChecker', () => {
 
     it('succeeds for vault v1', async () => {
       const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
+      const blockNumber = await ethers.provider.getBlockNumber()
 
-      await expect(
-        ethValidatorsChecker
+      expect(
+        await ethValidatorsChecker
           .connect(admin)
           .checkDepositDataRoot(
             await vaultV1.getAddress(),
@@ -352,14 +343,15 @@ describe('EthValidatorsChecker', () => {
             proofFlags,
             proofIndexes
           )
-      ).to.eventually.be.greaterThan(0)
+      ).to.eq(blockNumber)
     })
 
     it('succeeds for vault v2', async () => {
       const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
+      const blockNumber = await ethers.provider.getBlockNumber()
 
-      await expect(
-        ethValidatorsChecker
+      expect(
+        await ethValidatorsChecker
           .connect(admin)
           .checkDepositDataRoot(
             await vault.getAddress(),
@@ -369,7 +361,7 @@ describe('EthValidatorsChecker', () => {
             proofFlags,
             proofIndexes
           )
-      ).to.eventually.be.greaterThan(0)
+      ).to.eq(blockNumber)
     })
   })
 })

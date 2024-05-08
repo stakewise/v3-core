@@ -324,8 +324,8 @@ export async function getEthValidatorsCheckerSigningData(
   validatorsRegistryRoot: BytesLike
 ) {
   return {
-    primaryType: 'EthValidatorsCheckerData',
-    types: { EIP712Domain, EthValidatorsCheckerData: EthValidatorsCheckerSig },
+    primaryType: 'EthValidatorsChecker',
+    types: { EIP712Domain, EthValidatorsChecker: EthValidatorsCheckerSig },
     domain: {
       name: 'EthValidatorsChecker',
       version: '1',
