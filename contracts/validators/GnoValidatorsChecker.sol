@@ -12,11 +12,11 @@ import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {ValidatorsChecker} from './ValidatorsChecker.sol';
 
 /**
- * @title EthValidatorsChecker
+ * @title GnoValidatorsChecker
  * @author StakeWise
- * @notice Defines Ethereum-specific settings for ValidatorsChecker contract
+ * @notice Defines Gnosis-specific settings for ValidatorsChecker contract
  */
-contract EthValidatorsChecker is ValidatorsChecker {
+contract GnoValidatorsChecker is ValidatorsChecker {
   IValidatorsRegistry private immutable _validatorsRegistry;
   IKeeper private immutable _keeper;
   IVaultsRegistry private immutable _vaultsRegistry;
@@ -36,17 +36,17 @@ contract EthValidatorsChecker is ValidatorsChecker {
     address depositDataRegistry
   )
     ValidatorsChecker(validatorsRegistry, keeper, vaultsRegistry, depositDataRegistry)
-    EIP712('EthValidatorsChecker', '1')
+    EIP712('GnoValidatorsChecker', '1')
   {}
 
   function validatorsManagerSignatureTypeHash() public pure override returns (bytes32) {
     return
       keccak256(
-        'EthValidatorsChecker(bytes32 validatorsRegistryRoot,address vault,bytes validators)'
+        'GnoValidatorsChecker(bytes32 validatorsRegistryRoot,address vault,bytes validators)'
       );
   }
 
   function depositAmount() public pure override returns (uint256) {
-    return 32 ether;
+    return 1 ether;
   }
 }

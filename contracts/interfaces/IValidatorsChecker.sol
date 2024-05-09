@@ -5,11 +5,11 @@ pragma solidity =0.8.22;
 import {IERC5267} from '@openzeppelin/contracts/interfaces/IERC5267.sol';
 
 /**
- * @title IEthValidatorsChecker
+ * @title IValidatorsChecker
  * @author StakeWise
  * @notice Defines the interface for EthValidatorsChecker
  */
-interface IEthValidatorsChecker is IERC5267 {
+interface IValidatorsChecker is IERC5267 {
   /**
    * @notice Function for checking validators manager signature
    * @param vault The address of the vault
