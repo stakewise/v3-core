@@ -105,20 +105,17 @@ describe('EthValidatorsChecker', () => {
   })
 
   describe('check validators manager signature', () => {
-    async function validatorsManagerSetup() {
-      // I need explicit privateKey to create EIP-712 signature
-      const validatorsManager = new Wallet(
-        '0x798ce32ec683f3287dab0594b9ead26403a6da9c1d216d00e5aa088c9cf36864'
-      )
-      const fakeValidatorsManager = new Wallet(
-        '0xb4942e4f87ddfd23ddf833a47ebcf6bb37e0da344a2d6e229fd593c0b22bdb68'
-      )
+    // I need explicit privateKey to create EIP-712 signature
+    const validatorsManager = new Wallet(
+      '0x798ce32ec683f3287dab0594b9ead26403a6da9c1d216d00e5aa088c9cf36864'
+    )
+    const fakeValidatorsManager = new Wallet(
+      '0xb4942e4f87ddfd23ddf833a47ebcf6bb37e0da344a2d6e229fd593c0b22bdb68'
+    )
+
+    beforeEach('set validators manager', async () => {
       await vault.connect(admin).setValidatorsManager(validatorsManager.address)
-      return {
-        validatorsManager,
-        fakeValidatorsManager,
-      }
-    }
+    })
 
     it('fails for invalid validators registry root', async () => {
       const fakeRoot = Buffer.alloc(32).fill(1)
@@ -164,7 +161,6 @@ describe('EthValidatorsChecker', () => {
     })
 
     it('fails for signer who is not validators manager', async () => {
-      const { fakeValidatorsManager } = await validatorsManagerSetup()
       const vaultAddress = await vault.getAddress()
       const typedData = await getEthValidatorsCheckerSigningData(
         keccak256(Buffer.concat(publicKeys)),
@@ -190,7 +186,6 @@ describe('EthValidatorsChecker', () => {
     })
 
     it('succeeds', async () => {
-      const { validatorsManager } = await validatorsManagerSetup()
       const vaultAddress = await vault.getAddress()
       const typedData = await getEthValidatorsCheckerSigningData(
         Buffer.concat(publicKeys),
@@ -219,30 +214,28 @@ describe('EthValidatorsChecker', () => {
   })
 
   describe('check deposit data root', () => {
-    function getMultiProofArgs(options?: any) {
-      options = options || {}
-      let validators = validatorsData.validators
+    let proof: string[], proofFlags: boolean[], proofIndexes: number[], validators: Buffer[]
 
-      if (options.numValidators !== undefined) {
-        validators = validators.slice(0, options.numValidators)
-      }
+    beforeEach('set multiproof', () => {
+      // Proof is empty list when passing all validators
+      // I need non-empty proof for some test cases
+      // Slice validators because of that
+
+      const numValidators = 5
+      validators = validatorsData.validators.slice(0, numValidators)
 
       const multiProof = getValidatorsMultiProof(validatorsData.tree, validators, [
         ...Array(validators.length).keys(),
       ])
       const sortedVals = multiProof.leaves.map((v) => v[0])
-      const proofIndexes = validators.map((v) => sortedVals.indexOf(v))
 
-      return {
-        proof: multiProof.proof,
-        proofFlags: multiProof.proofFlags,
-        proofIndexes,
-      }
-    }
+      ;(proof = multiProof.proof),
+        (proofFlags = multiProof.proofFlags),
+        (proofIndexes = validators.map((v) => sortedVals.indexOf(v)))
+    })
 
     it('fails for invalid validators registry root', async () => {
       const fakeRoot = Buffer.alloc(32).fill(1)
-      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
 
       await expect(
         ethValidatorsChecker
@@ -250,7 +243,7 @@ describe('EthValidatorsChecker', () => {
           .checkDepositDataRoot(
             await vault.getAddress(),
             fakeRoot,
-            Buffer.concat(validatorsData.validators),
+            Buffer.concat(validators),
             proof,
             proofFlags,
             proofIndexes
@@ -259,15 +252,13 @@ describe('EthValidatorsChecker', () => {
     })
 
     it('fails for non-vault', async () => {
-      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
-
       await expect(
         ethValidatorsChecker
           .connect(admin)
           .checkDepositDataRoot(
             other.address,
             validatorsRegistryRoot,
-            Buffer.concat(validatorsData.validators),
+            Buffer.concat(validators),
             proof,
             proofFlags,
             proofIndexes
@@ -276,15 +267,13 @@ describe('EthValidatorsChecker', () => {
     })
 
     it('fails for vault not collateralized not deposited', async () => {
-      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
-
       await expect(
         ethValidatorsChecker
           .connect(admin)
           .checkDepositDataRoot(
             await vaultNotDeposited.getAddress(),
             validatorsRegistryRoot,
-            Buffer.concat(validatorsData.validators),
+            Buffer.concat(validators),
             proof,
             proofFlags,
             proofIndexes
@@ -294,7 +283,6 @@ describe('EthValidatorsChecker', () => {
 
     it('fails for validators manager not equal to deposit data registry', async () => {
       await vault.connect(admin).setValidatorsManager(other.address)
-      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
 
       await expect(
         ethValidatorsChecker
@@ -302,7 +290,7 @@ describe('EthValidatorsChecker', () => {
           .checkDepositDataRoot(
             await vault.getAddress(),
             validatorsRegistryRoot,
-            Buffer.concat(validatorsData.validators),
+            Buffer.concat(validators),
             proof,
             proofFlags,
             proofIndexes
@@ -311,7 +299,6 @@ describe('EthValidatorsChecker', () => {
     })
 
     it('fails for invalid proof', async () => {
-      const { proof, proofFlags, proofIndexes } = getMultiProofArgs({ numValidators: 1 })
       proof[0] = '0x' + '1'.repeat(64)
 
       await expect(
@@ -320,7 +307,7 @@ describe('EthValidatorsChecker', () => {
           .checkDepositDataRoot(
             await vault.getAddress(),
             validatorsRegistryRoot,
-            Buffer.concat(validatorsData.validators),
+            Buffer.concat(validators),
             proof,
             proofFlags,
             proofIndexes
@@ -329,7 +316,6 @@ describe('EthValidatorsChecker', () => {
     })
 
     it('succeeds for vault v1', async () => {
-      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
       const blockNumber = await ethers.provider.getBlockNumber()
 
       expect(
@@ -338,7 +324,7 @@ describe('EthValidatorsChecker', () => {
           .checkDepositDataRoot(
             await vaultV1.getAddress(),
             validatorsRegistryRoot,
-            Buffer.concat(validatorsData.validators),
+            Buffer.concat(validators),
             proof,
             proofFlags,
             proofIndexes
@@ -347,7 +333,6 @@ describe('EthValidatorsChecker', () => {
     })
 
     it('succeeds for vault v2', async () => {
-      const { proof, proofFlags, proofIndexes } = getMultiProofArgs()
       const blockNumber = await ethers.provider.getBlockNumber()
 
       expect(
@@ -356,7 +341,7 @@ describe('EthValidatorsChecker', () => {
           .checkDepositDataRoot(
             await vault.getAddress(),
             validatorsRegistryRoot,
-            Buffer.concat(validatorsData.validators),
+            Buffer.concat(validators),
             proof,
             proofFlags,
             proofIndexes
