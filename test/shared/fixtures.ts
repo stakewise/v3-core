@@ -55,6 +55,8 @@ import {
   DepositDataRegistry__factory,
   EthValidatorsChecker,
   EthValidatorsChecker__factory,
+  GnoValidatorsChecker,
+  GnoValidatorsChecker__factory,
 } from '../../typechain-types'
 import { getEthValidatorsRegistryFactory, getOsTokenConfigV1Factory } from './contracts'
 import {
@@ -274,6 +276,23 @@ export const createEthValidatorsChecker = async function (
     await depositDataRegistry.getAddress()
   )
   return EthValidatorsChecker__factory.connect(await contract.getAddress(), signer)
+}
+
+export const createGnoValidatorsChecker = async function (
+  validatorsRegistry: Contract,
+  keeper: Keeper,
+  vaultsRegistry: VaultsRegistry,
+  depositDataRegistry: DepositDataRegistry
+) {
+  const signer = await ethers.provider.getSigner()
+  const factory = await ethers.getContractFactory('GnoValidatorsChecker')
+  const contract = await factory.deploy(
+    await validatorsRegistry.getAddress(),
+    await keeper.getAddress(),
+    await vaultsRegistry.getAddress(),
+    await depositDataRegistry.getAddress()
+  )
+  return GnoValidatorsChecker__factory.connect(await contract.getAddress(), signer)
 }
 
 export const createOsTokenVaultController = async function (
@@ -604,6 +623,7 @@ interface EthVaultFixture {
   osTokenVaultController: OsTokenVaultController
   osTokenConfig: OsTokenConfig
   ethValidatorsChecker: EthValidatorsChecker
+  gnoValidatorsChecker: GnoValidatorsChecker
 
   createEthVault(
     admin: Signer,
@@ -657,6 +677,8 @@ interface EthVaultFixture {
     skipFork?: boolean
   ): Promise<[EthGenesisVault, LegacyRewardTokenMock, PoolEscrowMock]>
 }
+
+export type { EthVaultFixture }
 
 export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
   const dao = await (ethers as any).provider.getSigner()
@@ -728,8 +750,14 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
   // 7. deploy depositDataRegistry
   const depositDataRegistry = await createDepositDataRegistry(vaultsRegistry)
 
-  // 8. deploy ethValidatorsChecker
+  // 8. deploy ValidatorsCheckers for Ethereum and Gnosis
   const ethValidatorsChecker = await createEthValidatorsChecker(
+    validatorsRegistry,
+    keeper,
+    vaultsRegistry,
+    depositDataRegistry
+  )
+  const gnoValidatorsChecker = await createGnoValidatorsChecker(
     validatorsRegistry,
     keeper,
     vaultsRegistry,
@@ -795,6 +823,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
     osTokenConfig,
     osToken,
     ethValidatorsChecker,
+    gnoValidatorsChecker,
     createEthVault: async (
       admin: Signer,
       vaultParams: EthVaultInitParamsStruct,

@@ -94,7 +94,7 @@ export const KeeperUpdateExitSignaturesSig = [
   { name: 'deadline', type: 'uint256' },
 ]
 
-export const EthValidatorsCheckerSig = [
+export const ValidatorsCheckerSig = [
   { name: 'validatorsRegistryRoot', type: 'bytes32' },
   { name: 'vault', type: 'address' },
   { name: 'validators', type: 'bytes' },
