@@ -10,34 +10,34 @@ Object {
 exports[`VaultsRegistry owner can add factory 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 47306,
+  "gasUsed": 47318,
 }
 `;
 
 exports[`VaultsRegistry owner can add vault 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 49672,
+  "gasUsed": 49660,
 }
 `;
 
 exports[`VaultsRegistry owner can register implementation contract 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 47489,
+  "gasUsed": 47477,
 }
 `;
 
 exports[`VaultsRegistry owner can remove factory 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 25469,
+  "gasUsed": 25481,
 }
 `;
 
 exports[`VaultsRegistry owner can remove implementation 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 25432,
+  "gasUsed": 25420,
 }
 `;
