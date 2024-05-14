@@ -59,7 +59,9 @@ jobs:
           SKIP_LOAD: true
           MAINNET_FORK_RPC_URL: ${{ secrets.MAINNET_FORK_RPC_URL }}
       - run: npm run coverage
-        env: { SKIP_LOAD: true }
+        env:
+          SKIP_LOAD: true
+          MAINNET_FORK_RPC_URL: ${{ secrets.MAINNET_FORK_RPC_URL }}
       - uses: codecov/codecov-action@v3
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -71,6 +71,14 @@ describe('EthRestakeVaultFactory', () => {
     ).to.be.revertedWithCustomError(ethRestakeVaultFactory, 'OwnableUnauthorizedAccount')
   })
 
+  it('fails to create with zero admin address', async () => {
+    await expect(
+      ethRestakeVaultFactory.createVault(ZERO_ADDRESS, ethRestakeVaultInitParamsEncoded, false, {
+        value: SECURITY_DEPOSIT,
+      })
+    ).to.be.revertedWithCustomError(ethRestakeVaultFactory, 'ZeroAddress')
+  })
+
   describe('EthRestakeVault', () => {
     it('public vault deployment with own escrow gas', async () => {
       const receipt = await ethRestakeVaultFactory.createVault(
