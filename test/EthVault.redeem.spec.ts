@@ -14,12 +14,9 @@ import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import {
-  MAX_UINT16,
   OSTOKEN_LIQ_BONUS,
   OSTOKEN_LIQ_THRESHOLD,
   OSTOKEN_LTV,
-  OSTOKEN_REDEEM_FROM_LTV,
-  OSTOKEN_REDEEM_TO_LTV,
   ZERO_ADDRESS,
 } from './shared/constants'
 import {
@@ -78,9 +75,7 @@ describe('EthVault - redeem osToken', () => {
     shares = await extractDepositShares(tx)
 
     await setAvgRewardPerSecond(dao, vault, keeper, 0)
-    await osTokenConfig.connect(dao).updateConfig({
-      redeemFromLtvPercent: OSTOKEN_REDEEM_FROM_LTV,
-      redeemToLtvPercent: OSTOKEN_REDEEM_TO_LTV,
+    await osTokenConfig.connect(dao).updateConfig(await vault.getAddress(), {
       liqThresholdPercent: OSTOKEN_LIQ_THRESHOLD,
       liqBonusPercent: OSTOKEN_LIQ_BONUS,
       ltvPercent: OSTOKEN_LTV,
@@ -155,32 +150,6 @@ describe('EthVault - redeem osToken', () => {
     await expect(
       vault.connect(redeemer).redeemOsToken(osTokenShares + 1n, owner.address, receiver.address)
     ).to.be.revertedWithCustomError(osToken, 'ERC20InsufficientBalance')
-  })
-
-  it('cannot redeem osTokens when LTV is below redeemFromLtvPercent', async () => {
-    await osToken.connect(redeemer).transfer(owner.address, redeemedShares)
-    await vault.connect(owner).burnOsToken(redeemedShares)
-    await expect(
-      vault.connect(redeemer).redeemOsToken(redeemedShares, owner.address, receiver.address)
-    ).to.be.revertedWithCustomError(vault, 'InvalidLtv')
-
-    // check with redeems disabled
-    await osTokenConfig.connect(dao).updateConfig({
-      redeemFromLtvPercent: MAX_UINT16,
-      redeemToLtvPercent: MAX_UINT16,
-      liqThresholdPercent: OSTOKEN_LIQ_THRESHOLD,
-      liqBonusPercent: OSTOKEN_LIQ_BONUS,
-      ltvPercent: OSTOKEN_LTV,
-    })
-    await expect(
-      vault.connect(redeemer).redeemOsToken(redeemedShares, owner.address, receiver.address)
-    ).to.be.revertedWithCustomError(vault, 'InvalidLtv')
-  })
-
-  it('cannot redeem osTokens when LTV is below redeemToLtvPercent', async () => {
-    await expect(
-      vault.connect(redeemer).redeemOsToken(osTokenShares, owner.address, receiver.address)
-    ).to.be.revertedWithCustomError(vault, 'RedemptionExceeded')
   })
 
   it('cannot redeem zero osToken shares', async () => {

@@ -285,7 +285,7 @@ export const MAINNET_FORK = {
     '0xD66A71A68392767F26b7EE47e9a0293191A23072': {
       rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
       reward: 17651468000000000n,
-      unlockedMevReward: 0,
+      unlockedMevReward: 0n,
       proof: [
         '0x963d6cd98d8aa8c3e1d4cb1f387db3722846dc9aeceb98dcf3b4be367dbab22b',
         '0x8ae8d4d934c7f4831aa7246514adb826972cb6103e7230b2aedea4d4142c629a',
@@ -297,7 +297,7 @@ export const MAINNET_FORK = {
     '0x3102B4013cB506481e959c8F4500B994D2bFF22e': {
       rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
       reward: 271531083000000000n,
-      unlockedMevReward: 0,
+      unlockedMevReward: 0n,
       proof: [
         '0xa890ed09db09b75b5a2e14d78f6129884daf9d63505f8dad1af12f36e56921e8',
         '0x0b3b2488077d45732138e88da27320bb53abb1b172c9c59347704e6a794729ba',
@@ -309,7 +309,7 @@ export const MAINNET_FORK = {
     '0x9c29c571847A68A947AceC8bacd303e36bC72ec5': {
       rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
       reward: 350451159567197326n,
-      unlockedMevReward: 0,
+      unlockedMevReward: 0n,
       proof: [
         '0x50c78f43bfb03d41de939985630a6ac6a69d8df763b0494be0d283574533cb72',
         '0xef1addafb983ccd1b10c65bd3b771f3ae6b7a3808ae44a4136e7a4ba233ec3e2',

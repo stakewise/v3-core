@@ -9,7 +9,6 @@ import {
   EthVaultV3Mock,
   EthVaultV3Mock__factory,
   Keeper,
-  OsTokenConfig,
   OsTokenVaultController,
   SharedMevEscrow,
   VaultsRegistry,
@@ -18,6 +17,7 @@ import snapshotGasCost from './shared/snapshotGasCost'
 import {
   deployEthVaultImplementation,
   deployEthVaultV1,
+  deployOsTokenConfigV1,
   encodeEthErc20VaultInitParams,
   encodeEthVaultInitParams,
   ethVaultFixture,
@@ -50,7 +50,7 @@ describe('EthVault - upgrade', () => {
     validatorsRegistry: Contract,
     updatedVault: EthVaultV3Mock,
     sharedMevEscrow: SharedMevEscrow,
-    osTokenConfig: OsTokenConfig,
+    osTokenConfigV1: Contract,
     osTokenVaultController: OsTokenVaultController,
     depositDataRegistry: DepositDataRegistry,
     ethVaultFactory: EthVaultFactory,
@@ -71,7 +71,6 @@ describe('EthVault - upgrade', () => {
     validatorsRegistry = fixture.validatorsRegistry
     keeper = fixture.keeper
     sharedMevEscrow = fixture.sharedMevEscrow
-    osTokenConfig = fixture.osTokenConfig
     osTokenVaultController = fixture.osTokenVaultController
     depositDataRegistry = fixture.depositDataRegistry
     ethVaultFactory = fixture.ethVaultFactory
@@ -84,6 +83,7 @@ describe('EthVault - upgrade', () => {
       feePercent,
       metadataIpfsHash,
     })
+    osTokenConfigV1 = await deployOsTokenConfigV1(dao)
     admin = await ethers.getImpersonatedSigner(await vault.admin())
 
     mockImpl = await deployEthVaultImplementation(
@@ -203,22 +203,6 @@ describe('EthVault - upgrade', () => {
     await snapshotGasCost(receipt)
   })
 
-  it('works with valid call data', async () => {
-    const receipt = await vault.connect(admin).upgradeToAndCall(mockImpl, callData)
-    expect(await vault.version()).to.be.eq(3)
-    expect(await vault.implementation()).to.be.eq(mockImpl)
-    expect(await updatedVault.newVar()).to.be.eq(100)
-    expect(await updatedVault.somethingNew()).to.be.eq(true)
-    await expect(
-      vault.connect(admin).upgradeToAndCall(mockImpl, callData)
-    ).to.revertedWithCustomError(vault, 'UpgradeFailed')
-    await expect(updatedVault.connect(admin).initialize(callData)).to.revertedWithCustomError(
-      updatedVault,
-      'InvalidInitialization'
-    )
-    await snapshotGasCost(receipt)
-  })
-
   it('does not modify the state variables', async () => {
     const vaults: Contract[] = []
     for (const factory of [await getEthVaultV1Factory(), await getEthPrivVaultV1Factory()]) {
@@ -229,7 +213,7 @@ describe('EthVault - upgrade', () => {
         vaultsRegistry,
         validatorsRegistry,
         osTokenVaultController,
-        osTokenConfig,
+        osTokenConfigV1,
         sharedMevEscrow,
         encodeEthVaultInitParams({
           capacity,
@@ -250,7 +234,7 @@ describe('EthVault - upgrade', () => {
         vaultsRegistry,
         validatorsRegistry,
         osTokenVaultController,
-        osTokenConfig,
+        osTokenConfigV1,
         sharedMevEscrow,
         encodeEthErc20VaultInitParams({
           capacity,
@@ -319,7 +303,7 @@ describe('EthVault - upgrade', () => {
       await vaultsRegistry.getAddress(),
       await validatorsRegistry.getAddress(),
       await osTokenVaultController.getAddress(),
-      await osTokenConfig.getAddress(),
+      await osTokenConfigV1.getAddress(),
       await sharedMevEscrow.getAddress(),
       await poolEscrow.getAddress(),
       await rewardEthToken.getAddress(),

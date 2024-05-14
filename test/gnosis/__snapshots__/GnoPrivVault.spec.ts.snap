@@ -10,6 +10,6 @@ Object {
 exports[`GnoPrivVault mint osToken can mint from not whitelisted user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 176103,
+  "gasUsed": 177152,
 }
 `;

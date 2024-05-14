@@ -20,7 +20,8 @@ import {VaultState} from './VaultState.sol';
 abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, IVaultOsToken {
   uint256 private constant _wad = 1e18;
   uint256 private constant _hfLiqThreshold = 1e18;
-  uint256 private constant _maxPercent = 10_000; // @dev 100.00 %
+  uint256 private constant _maxPercent = 1e18;
+  uint256 private constant _disabledLiqThreshold = type(uint64).max;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IOsTokenVaultController private immutable _osTokenVaultController;
@@ -79,7 +80,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     if (
       Math.mulDiv(
         convertToAssets(_balances[msg.sender]),
-        _osTokenConfig.ltvPercent(),
+        _osTokenConfig.getConfig(address(this)).ltvPercent,
         _maxPercent
       ) < _osTokenVaultController.convertToAssets(position.shares)
     ) {
@@ -117,7 +118,6 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     address owner,
     address receiver
   ) external override {
-    if (msg.sender != _osTokenConfig.liquidator()) revert Errors.AccessDenied();
     (uint256 burnedShares, uint256 receivedAssets) = _redeemOsToken(
       owner,
       receiver,
@@ -182,19 +182,16 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     _syncPositionFee(position);
 
     // SLOAD to memory
-    (
-      uint256 redeemFromLtvPercent,
-      uint256 redeemToLtvPercent,
-      uint256 liqThresholdPercent,
-      uint256 liqBonusPercent,
-
-    ) = _osTokenConfig.getConfig();
+    IOsTokenConfig.Config memory osTokenConfig = _osTokenConfig.getConfig(address(this));
+    if (isLiquidation && osTokenConfig.liqThresholdPercent == _disabledLiqThreshold) {
+      revert Errors.LiquidationDisabled();
+    }
 
     // calculate received assets
     if (isLiquidation) {
       receivedAssets = Math.mulDiv(
         _osTokenVaultController.convertToAssets(osTokenShares),
-        liqBonusPercent,
+        osTokenConfig.liqBonusPercent,
         _maxPercent
       );
     } else {
@@ -212,16 +209,14 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
       if (isLiquidation) {
         // check health factor violation in case of liquidation
         if (
-          Math.mulDiv(depositedAssets * _wad, liqThresholdPercent, mintedAssets * _maxPercent) >=
-          _hfLiqThreshold
+          Math.mulDiv(
+            depositedAssets * _wad,
+            osTokenConfig.liqThresholdPercent,
+            mintedAssets * _maxPercent
+          ) >= _hfLiqThreshold
         ) {
           revert Errors.InvalidHealthFactor();
         }
-      } else if (
-        // check ltv violation in case of redemption
-        Math.mulDiv(depositedAssets, redeemFromLtvPercent, _maxPercent) > mintedAssets
-      ) {
-        revert Errors.InvalidLtv();
       }
     }
 
@@ -241,15 +236,6 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
 
     // burn owner shares
     _burnShares(owner, burnedShares);
-
-    // check ltv violation in case of redemption
-    if (
-      !isLiquidation &&
-      Math.mulDiv(convertToAssets(_balances[owner]), redeemToLtvPercent, _maxPercent) >
-      _osTokenVaultController.convertToAssets(position.shares)
-    ) {
-      revert Errors.RedemptionExceeded();
-    }
 
     // transfer assets to the receiver
     _transferVaultAssets(receiver, receivedAssets);
@@ -290,8 +276,11 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
 
     // calculate and validate position LTV
     if (
-      Math.mulDiv(convertToAssets(_balances[user]), _osTokenConfig.ltvPercent(), _maxPercent) <
-      _osTokenVaultController.convertToAssets(position.shares)
+      Math.mulDiv(
+        convertToAssets(_balances[user]),
+        _osTokenConfig.getConfig(address(this)).ltvPercent,
+        _maxPercent
+      ) < _osTokenVaultController.convertToAssets(position.shares)
     ) {
       revert Errors.LowLtv();
     }

@@ -31,20 +31,13 @@ Object {
 exports[`EthVault - upgrade does not modify the state variables 5`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 164535,
+  "gasUsed": 164523,
 }
 `;
 
 exports[`EthVault - upgrade works with valid call data 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 76046,
-}
-`;
-
-exports[`EthVault - upgrade works with valid call data 2`] = `
-Object {
-  "calldataByteLength": 132,
-  "gasUsed": 76046,
+  "gasUsed": 76091,
 }
 `;

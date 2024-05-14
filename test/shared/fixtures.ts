@@ -54,7 +54,7 @@ import {
   DepositDataRegistry,
   DepositDataRegistry__factory,
 } from '../../typechain-types'
-import { getEthValidatorsRegistryFactory } from './contracts'
+import { getEthValidatorsRegistryFactory, getOsTokenConfigV1Factory } from './contracts'
 import {
   EXITING_ASSETS_MIN_DELAY,
   MAX_AVG_REWARD_PER_SECOND,
@@ -66,8 +66,6 @@ import {
   OSTOKEN_LIQ_THRESHOLD,
   OSTOKEN_LTV,
   OSTOKEN_NAME,
-  OSTOKEN_REDEEM_FROM_LTV,
-  OSTOKEN_REDEEM_TO_LTV,
   OSTOKEN_SYMBOL,
   REWARDS_DELAY,
   REWARDS_MIN_ORACLES,
@@ -317,12 +315,9 @@ export const createOsToken = async function (
 
 export const createOsTokenConfig = async function (
   owner: Wallet,
-  redeemFromLtvPercent: BigNumberish,
-  redeemToLtvPercent: BigNumberish,
   liqThresholdPercent: BigNumberish,
   liqBonusPercent: BigNumberish,
   ltvPercent: BigNumberish,
-  liquidator: Wallet,
   redeemer: Wallet
 ): Promise<OsTokenConfig> {
   const signer = await ethers.provider.getSigner()
@@ -330,13 +325,10 @@ export const createOsTokenConfig = async function (
   const contract = await factory.deploy(
     owner.address,
     {
-      redeemFromLtvPercent,
-      redeemToLtvPercent,
-      liqThresholdPercent,
       liqBonusPercent,
+      liqThresholdPercent,
       ltvPercent,
     },
-    await liquidator.getAddress(),
     await redeemer.getAddress()
   )
   return OsTokenConfig__factory.connect(await contract.getAddress(), signer)
@@ -475,6 +467,18 @@ export const deployEthVaultImplementation = async function (
   return vaultImpl
 }
 
+export async function deployOsTokenConfigV1(dao: Signer): Promise<Contract> {
+  const factory = await getOsTokenConfigV1Factory()
+  const contract = await factory.deploy(await dao.getAddress(), {
+    redeemFromLtvPercent: 9150,
+    redeemToLtvPercent: 9000,
+    liqBonusPercent: 10100,
+    liqThresholdPercent: 9200,
+    ltvPercent: 9000,
+  })
+  return new Contract(await contract.getAddress(), factory.interface, dao)
+}
+
 export async function deployEthVaultV1(
   implFactory: ContractFactory,
   admin: Signer,
@@ -482,7 +486,7 @@ export async function deployEthVaultV1(
   vaultsRegistry: VaultsRegistry,
   validatorsRegistry: Contract,
   osTokenVaultController: OsTokenVaultController,
-  osTokenConfig: OsTokenConfig,
+  osTokenConfig: Contract,
   sharedMevEscrow: SharedMevEscrow,
   encodedParams: string,
   isOwnMevEscrow = false
@@ -695,12 +699,9 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
   // 6. deploy osTokenConfig
   const osTokenConfig = await createOsTokenConfig(
     dao,
-    OSTOKEN_REDEEM_FROM_LTV,
-    OSTOKEN_REDEEM_TO_LTV,
     OSTOKEN_LIQ_THRESHOLD,
     OSTOKEN_LIQ_BONUS,
     OSTOKEN_LTV,
-    dao,
     dao
   )
 
