@@ -7,7 +7,7 @@ import {IERC5267} from '@openzeppelin/contracts/interfaces/IERC5267.sol';
 /**
  * @title IValidatorsChecker
  * @author StakeWise
- * @notice Defines the interface for EthValidatorsChecker
+ * @notice Defines the interface for ValidatorsChecker
  */
 interface IValidatorsChecker is IERC5267 {
   /**
@@ -15,6 +15,7 @@ interface IValidatorsChecker is IERC5267 {
    * @param vault The address of the vault
    * @param validatorsRegistryRoot The validators registry root
    * @param publicKeys The concatenation of the validators' public keys
+   * @param signature The validators manager signature
    * @return Current block number
    */
   function checkValidatorsManagerSignature(

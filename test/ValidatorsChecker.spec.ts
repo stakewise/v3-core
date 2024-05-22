@@ -14,7 +14,12 @@ import {
 import { MAX_UINT256, ZERO_ADDRESS } from './shared/constants'
 import { getEthVaultV1Factory } from './shared/contracts'
 import { expect } from './shared/expect'
-import { deployEthVaultV1, encodeEthVaultInitParams, ethVaultFixture } from './shared/fixtures'
+import {
+  createEthValidatorsChecker,
+  deployEthVaultV1,
+  encodeEthVaultInitParams,
+  ethVaultFixture,
+} from './shared/fixtures'
 import {
   EthValidatorsData,
   createEthValidatorsData,
@@ -22,11 +27,12 @@ import {
   getValidatorsCheckerSigningData,
   getValidatorsMultiProof,
 } from './shared/validators'
+import { createGnoValidatorsChecker } from './shared/gnoFixtures'
 
 const networks = ['ETHEREUM', 'GNOSIS']
 
 networks.forEach((network) => {
-  describe(`EthValidatorsChecker [${network}]`, () => {
+  describe(`ValidatorsChecker [${network}]`, () => {
     let validatorDeposit = ethers.parseEther('32')
     if (network == 'GNOSIS') {
       validatorDeposit = ethers.parseEther('1')
@@ -57,16 +63,27 @@ networks.forEach((network) => {
       validatorsRegistry = fixture.validatorsRegistry
       keeper = fixture.keeper
       depositDataRegistry = fixture.depositDataRegistry
-
-      validatorsCheckerTypeName = 'EthValidatorsChecker'
-      validatorsChecker = fixture.ethValidatorsChecker
-
-      if (network == 'GNOSIS') {
-        validatorsCheckerTypeName = 'GnoValidatorsChecker'
-        validatorsChecker = fixture.gnoValidatorsChecker
-      }
-
       vaultsRegistry = fixture.vaultsRegistry
+
+      if (network == 'ETHEREUM') {
+        validatorsCheckerTypeName = 'EthValidatorsChecker'
+        validatorsChecker = await createEthValidatorsChecker(
+          validatorsRegistry,
+          keeper,
+          vaultsRegistry,
+          depositDataRegistry
+        )
+      } else if (network == 'GNOSIS') {
+        validatorsCheckerTypeName = 'GnoValidatorsChecker'
+        validatorsChecker = await createGnoValidatorsChecker(
+          validatorsRegistry,
+          keeper,
+          vaultsRegistry,
+          depositDataRegistry
+        )
+      } else {
+        throw Error('unknown network')
+      }
 
       vault = await fixture.createEthVault(admin, {
         capacity,

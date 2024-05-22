@@ -171,7 +171,7 @@ abstract contract ValidatorsChecker is IValidatorsChecker, EIP712 {
     return block.number;
   }
 
-  function validatorsManagerSignatureTypeHash() public pure virtual returns (bytes32);
+  function validatorsManagerSignatureTypeHash() internal pure virtual returns (bytes32);
 
-  function depositAmount() public pure virtual returns (uint256);
+  function depositAmount() internal pure virtual returns (uint256);
 }

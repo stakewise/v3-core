@@ -46,6 +46,7 @@ import {
   XdaiExchange__factory,
   PriceFeedMock,
   PriceFeedMock__factory,
+  GnoValidatorsChecker__factory,
 } from '../../typechain-types'
 import { getGnoValidatorsRegistryFactory } from './contracts'
 import {
@@ -709,4 +710,21 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
       return [vault, rewardGnoToken, poolEscrow]
     },
   }
+}
+
+export const createGnoValidatorsChecker = async function (
+  validatorsRegistry: Contract,
+  keeper: Keeper,
+  vaultsRegistry: VaultsRegistry,
+  depositDataRegistry: DepositDataRegistry
+) {
+  const signer = await ethers.provider.getSigner()
+  const factory = await ethers.getContractFactory('GnoValidatorsChecker')
+  const contract = await factory.deploy(
+    await validatorsRegistry.getAddress(),
+    await keeper.getAddress(),
+    await vaultsRegistry.getAddress(),
+    await depositDataRegistry.getAddress()
+  )
+  return GnoValidatorsChecker__factory.connect(await contract.getAddress(), signer)
 }

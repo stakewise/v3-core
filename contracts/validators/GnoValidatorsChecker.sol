@@ -3,12 +3,10 @@
 pragma solidity =0.8.22;
 
 import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
-
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IKeeper} from '../interfaces/IKeeper.sol';
 import {IDepositDataRegistry} from '../interfaces/IDepositDataRegistry.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
-
 import {ValidatorsChecker} from './ValidatorsChecker.sol';
 
 /**
@@ -17,11 +15,6 @@ import {ValidatorsChecker} from './ValidatorsChecker.sol';
  * @notice Defines Gnosis-specific settings for ValidatorsChecker contract
  */
 contract GnoValidatorsChecker is ValidatorsChecker {
-  IValidatorsRegistry private immutable _validatorsRegistry;
-  IKeeper private immutable _keeper;
-  IVaultsRegistry private immutable _vaultsRegistry;
-  IDepositDataRegistry private immutable _depositDataRegistry;
-
   /**
    * @dev Constructor
    * @param validatorsRegistry The address of the beacon chain validators registry contract
@@ -39,14 +32,14 @@ contract GnoValidatorsChecker is ValidatorsChecker {
     EIP712('GnoValidatorsChecker', '1')
   {}
 
-  function validatorsManagerSignatureTypeHash() public pure override returns (bytes32) {
+  function validatorsManagerSignatureTypeHash() internal pure override returns (bytes32) {
     return
       keccak256(
         'GnoValidatorsChecker(bytes32 validatorsRegistryRoot,address vault,bytes validators)'
       );
   }
 
-  function depositAmount() public pure override returns (uint256) {
+  function depositAmount() internal pure override returns (uint256) {
     return 1 ether;
   }
 }
