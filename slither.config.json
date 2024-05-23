@@ -1,3 +1,7 @@
 {
-  "filter_paths": "node_modules/@openzeppelin/contracts-upgradeable|node_modules/@openzeppelin/contracts|contracts/mocks"
+  "filter_paths": "node_modules/@openzeppelin/contracts-upgradeable|node_modules/@openzeppelin/contracts|contracts/mocks",
+  "hardhat_ignore_compile": true,
+  "exclude_informational": true,
+  "exclude_low": true,
+  "exclude_medium": true
 }
