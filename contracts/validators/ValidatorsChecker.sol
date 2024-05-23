@@ -4,9 +4,7 @@ pragma solidity =0.8.22;
 
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
-import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
 import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
-
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IKeeper} from '../interfaces/IKeeper.sol';
 import {IValidatorsChecker} from '../interfaces/IValidatorsChecker.sol';
@@ -15,7 +13,6 @@ import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IDepositDataRegistry} from '../interfaces/IDepositDataRegistry.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
-
 import {Errors} from '../libraries/Errors.sol';
 
 interface IVaultValidatorsV1 {
