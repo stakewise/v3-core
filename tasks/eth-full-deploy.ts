@@ -141,6 +141,15 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   )
   const depositDataRegistryAddress = await depositDataRegistry.getAddress()
 
+  // Deploy ValidatorsChecker
+  const ethValidatorsChecker = await deployContract(hre, 'EthValidatorsChecker', [
+    networkConfig.validatorsRegistry,
+    keeperAddress,
+    vaultsRegistryAddress,
+    depositDataRegistryAddress,
+  ])
+  const ethValidatorsCheckerAddress = await ethValidatorsChecker.getAddress()
+
   const factories: string[] = []
   for (const vaultType of [
     'EthVault',
@@ -408,6 +417,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     VaultsRegistry: vaultsRegistryAddress,
     Keeper: keeperAddress,
     DepositDataRegistry: depositDataRegistryAddress,
+    EthValidatorsChecker: ethValidatorsCheckerAddress,
     EthGenesisVault: genesisVaultAddress,
     EthFoxVault: foxVaultAddress,
     EthVaultFactory: factories[0],
