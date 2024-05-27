@@ -32,14 +32,14 @@ contract EthValidatorsChecker is ValidatorsChecker {
     EIP712('EthValidatorsChecker', '1')
   {}
 
-  function validatorsManagerSignatureTypeHash() internal pure override returns (bytes32) {
+  function _validatorsManagerSignatureTypeHash() internal pure override returns (bytes32) {
     return
       keccak256(
         'EthValidatorsChecker(bytes32 validatorsRegistryRoot,address vault,bytes validators)'
       );
   }
 
-  function depositAmount() internal pure override returns (uint256) {
+  function _depositAmount() internal pure override returns (uint256) {
     return 32 ether;
   }
 }

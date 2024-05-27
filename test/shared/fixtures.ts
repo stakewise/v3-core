@@ -656,8 +656,6 @@ interface EthVaultFixture {
   ): Promise<[EthGenesisVault, LegacyRewardTokenMock, PoolEscrowMock]>
 }
 
-export type { EthVaultFixture }
-
 export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
   const dao = await (ethers as any).provider.getSigner()
   const vaultsRegistry = await createVaultsRegistry()

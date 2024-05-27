@@ -68,7 +68,7 @@ abstract contract ValidatorsChecker is IValidatorsChecker, EIP712 {
 
     // verify vault has enough assets
     if (
-      !_keeper.isCollateralized(vault) && IVaultState(vault).withdrawableAssets() < depositAmount()
+      !_keeper.isCollateralized(vault) && IVaultState(vault).withdrawableAssets() < _depositAmount()
     ) {
       revert Errors.InsufficientAssets();
     }
@@ -76,7 +76,7 @@ abstract contract ValidatorsChecker is IValidatorsChecker, EIP712 {
     // compose signing message
     bytes32 message = keccak256(
       abi.encode(
-        validatorsManagerSignatureTypeHash(),
+        _validatorsManagerSignatureTypeHash(),
         validatorsRegistryRoot,
         vault,
         keccak256(publicKeys)
@@ -108,7 +108,7 @@ abstract contract ValidatorsChecker is IValidatorsChecker, EIP712 {
 
     // verify vault has enough assets
     if (
-      !_keeper.isCollateralized(vault) && IVaultState(vault).withdrawableAssets() < depositAmount()
+      !_keeper.isCollateralized(vault) && IVaultState(vault).withdrawableAssets() < _depositAmount()
     ) {
       revert Errors.InsufficientAssets();
     }
@@ -168,7 +168,7 @@ abstract contract ValidatorsChecker is IValidatorsChecker, EIP712 {
     return block.number;
   }
 
-  function validatorsManagerSignatureTypeHash() internal pure virtual returns (bytes32);
+  function _validatorsManagerSignatureTypeHash() internal pure virtual returns (bytes32);
 
-  function depositAmount() internal pure virtual returns (uint256);
+  function _depositAmount() internal pure virtual returns (uint256);
 }
