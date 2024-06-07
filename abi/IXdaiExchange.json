@@ -4,6 +4,19 @@
     "inputs": [
       {
         "indexed": false,
+        "internalType": "bytes32",
+        "name": "balancerPoolId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "BalancerPoolIdUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
         "internalType": "uint128",
         "name": "maxSlippage",
         "type": "uint128"
@@ -26,6 +39,19 @@
     "type": "event"
   },
   {
+    "inputs": [],
+    "name": "balancerPoolId",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "address",
@@ -41,6 +67,11 @@
         "internalType": "uint128",
         "name": "_stalePriceTimeDelta",
         "type": "uint128"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_balancerPoolId",
+        "type": "bytes32"
       }
     ],
     "name": "initialize",
@@ -59,6 +90,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "newBalancerPoolId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "setBalancerPoolId",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

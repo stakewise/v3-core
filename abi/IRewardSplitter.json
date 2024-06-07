@@ -265,6 +265,19 @@
   },
   {
     "inputs": [],
+    "name": "totalRewards",
+    "outputs": [
+      {
+        "internalType": "uint128",
+        "name": "",
+        "type": "uint128"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "totalShares",
     "outputs": [
       {

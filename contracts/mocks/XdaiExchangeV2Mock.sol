@@ -13,15 +13,7 @@ contract XdaiExchangeV2Mock is XdaiExchange {
     address vaultsRegistry,
     address daiPriceFeed,
     address gnoPriceFeed
-  )
-    XdaiExchange(
-      gnoToken,
-      balancerVault,
-      vaultsRegistry,
-      daiPriceFeed,
-      gnoPriceFeed
-    )
-  {}
+  ) XdaiExchange(gnoToken, balancerVault, vaultsRegistry, daiPriceFeed, gnoPriceFeed) {}
 
   function initializeV2(address initialOwner) external reinitializer(2) {}
 }

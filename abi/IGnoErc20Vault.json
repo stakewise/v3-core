@@ -631,9 +631,9 @@
   {
     "inputs": [
       {
-        "internalType": "uint128",
+        "internalType": "uint256",
         "name": "osTokenShares",
-        "type": "uint128"
+        "type": "uint256"
       }
     ],
     "name": "burnOsToken",
@@ -1194,6 +1194,11 @@
         "internalType": "struct IKeeperValidators.ApprovalParams",
         "name": "keeperParams",
         "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "validatorsManagerSignature",
+        "type": "bytes"
       }
     ],
     "name": "registerValidators",

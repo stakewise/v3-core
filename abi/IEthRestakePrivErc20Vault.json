@@ -1025,6 +1025,11 @@
         "internalType": "struct IKeeperValidators.ApprovalParams",
         "name": "keeperParams",
         "type": "tuple"
+      },
+      {
+        "internalType": "bytes",
+        "name": "validatorsManagerSignature",
+        "type": "bytes"
       }
     ],
     "name": "registerValidators",
