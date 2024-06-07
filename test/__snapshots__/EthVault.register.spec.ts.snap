@@ -24,6 +24,6 @@ Object {
 exports[`EthVault - register single validator succeeds using validators manager signature 1`] = `
 Object {
   "calldataByteLength": 1124,
-  "gasUsed": 306655,
+  "gasUsed": 306643,
 }
 `;
