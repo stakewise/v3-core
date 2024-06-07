@@ -46,8 +46,8 @@ contract XdaiExchange is
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IVaultsRegistry private immutable _vaultsRegistry;
 
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  bytes32 private immutable _balancerPoolId;
+  /// @inheritdoc IXdaiExchange
+  bytes32 public override balancerPoolId;
 
   /// @inheritdoc IXdaiExchange
   uint128 public override maxSlippage;
@@ -60,7 +60,6 @@ contract XdaiExchange is
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param gnoToken The address of the GNO token
-   * @param balancerPoolId The Balancer pool ID for the xDAI to GNO exchange
    * @param balancerVault The address of the Balancer Vault
    * @param vaultsRegistry The address of the Vaults Registry
    * @param daiPriceFeed The address of the DAI <-> USD price feed
@@ -69,14 +68,12 @@ contract XdaiExchange is
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     address gnoToken,
-    bytes32 balancerPoolId,
     address balancerVault,
     address vaultsRegistry,
     address daiPriceFeed,
     address gnoPriceFeed
   ) {
     _gnoToken = gnoToken;
-    _balancerPoolId = balancerPoolId;
     _balancerVault = IBalancerVault(balancerVault);
     _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
     _daiPriceFeed = IChainlinkV3Aggregator(daiPriceFeed);
@@ -88,12 +85,14 @@ contract XdaiExchange is
   function initialize(
     address initialOwner,
     uint128 _maxSlippage,
-    uint128 _stalePriceTimeDelta
+    uint128 _stalePriceTimeDelta,
+    bytes32 _balancerPoolId
   ) external override initializer {
     __ReentrancyGuard_init();
     __Ownable_init(initialOwner);
     _setMaxSlippage(_maxSlippage);
     _setStalePriceTimeDelta(_stalePriceTimeDelta);
+    _setBalancerPoolId(_balancerPoolId);
   }
 
   /// @inheritdoc IXdaiExchange
@@ -104,6 +103,11 @@ contract XdaiExchange is
   /// @inheritdoc IXdaiExchange
   function setStalePriceTimeDelta(uint128 newStalePriceTimeDelta) external override onlyOwner {
     _setStalePriceTimeDelta(newStalePriceTimeDelta);
+  }
+
+  /// @inheritdoc IXdaiExchange
+  function setBalancerPoolId(bytes32 newBalancerPoolId) external override onlyOwner {
+    _setBalancerPoolId(newBalancerPoolId);
   }
 
   /// @inheritdoc IXdaiExchange
@@ -132,7 +136,7 @@ contract XdaiExchange is
 
     // define balancer swap
     IBalancerVault.SingleSwap memory singleSwap = IBalancerVault.SingleSwap({
-      poolId: _balancerPoolId,
+      poolId: balancerPoolId,
       kind: IBalancerVault.SwapKind.GIVEN_IN,
       assetIn: address(0),
       assetOut: _gnoToken,
@@ -169,6 +173,15 @@ contract XdaiExchange is
   function _setStalePriceTimeDelta(uint128 newStalePriceTimeDelta) private {
     stalePriceTimeDelta = newStalePriceTimeDelta;
     emit StalePriceTimeDeltaUpdated(newStalePriceTimeDelta);
+  }
+
+  /**
+   * @dev Internal function to set the Balancer pool ID for the exchange
+   * @param newBalancerPoolId The new Balancer pool ID
+   */
+  function _setBalancerPoolId(bytes32 newBalancerPoolId) private {
+    balancerPoolId = newBalancerPoolId;
+    emit BalancerPoolIdUpdated(newBalancerPoolId);
   }
 
   /// @inheritdoc UUPSUpgradeable

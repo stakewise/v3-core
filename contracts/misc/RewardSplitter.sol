@@ -46,6 +46,11 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   }
 
   /// @inheritdoc IRewardSplitter
+  function totalRewards() external view override returns (uint128) {
+    return _totalRewards;
+  }
+
+  /// @inheritdoc IRewardSplitter
   function sharesOf(address account) external view override returns (uint256) {
     return _shareHolders[account].shares;
   }
@@ -147,7 +152,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
     uint256 prevTotalRewards = _totalRewards;
 
     // retrieve new total rewards
-    // NB! make sure vault has balanceOf function to retrieve number of shares assigned
+    // NB! make sure vault has getShares function to retrieve number of shares assigned
     uint256 newTotalRewards = IVaultState(_vault).getShares(address(this));
     if (newTotalRewards == prevTotalRewards) return;
 

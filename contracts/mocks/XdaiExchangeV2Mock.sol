@@ -9,7 +9,6 @@ contract XdaiExchangeV2Mock is XdaiExchange {
 
   constructor(
     address gnoToken,
-    bytes32 balancerPoolId,
     address balancerVault,
     address vaultsRegistry,
     address daiPriceFeed,
@@ -17,7 +16,6 @@ contract XdaiExchangeV2Mock is XdaiExchange {
   )
     XdaiExchange(
       gnoToken,
-      balancerPoolId,
       balancerVault,
       vaultsRegistry,
       daiPriceFeed,

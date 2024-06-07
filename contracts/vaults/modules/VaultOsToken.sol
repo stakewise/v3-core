@@ -95,7 +95,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   }
 
   /// @inheritdoc IVaultOsToken
-  function burnOsToken(uint128 osTokenShares) external override returns (uint256 assets) {
+  function burnOsToken(uint256 osTokenShares) external override returns (uint256 assets) {
     // burn osToken shares
     assets = _osTokenVaultController.burnShares(msg.sender, osTokenShares);
 

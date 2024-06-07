@@ -106,7 +106,7 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
    * @param osTokenShares The number of shares to burn
    * @return assets The number of assets burned
    */
-  function burnOsToken(uint128 osTokenShares) external returns (uint256 assets);
+  function burnOsToken(uint256 osTokenShares) external returns (uint256 assets);
 
   /**
    * @notice Liquidates a user position and returns the number of received assets.

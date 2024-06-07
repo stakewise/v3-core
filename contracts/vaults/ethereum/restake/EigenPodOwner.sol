@@ -21,7 +21,6 @@ import {Multicall} from '../../../base/Multicall.sol';
  * @notice Defines the EigenLayer Pod owner contract functionality
  */
 contract EigenPodOwner is Initializable, UUPSUpgradeable, Multicall, IEigenPodOwner {
-  bytes4 private constant _initSelector = bytes4(keccak256('initialize(bytes)'));
   address private constant _eigenPodStrategy = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
@@ -90,14 +89,6 @@ contract EigenPodOwner is Initializable, UUPSUpgradeable, Multicall, IEigenPodOw
   function initialize(bytes calldata) external virtual override initializer {
     vault = msg.sender;
     eigenPod = _eigenPodManager.createPod();
-  }
-
-  /// @inheritdoc UUPSUpgradeable
-  function upgradeToAndCall(
-    address newImplementation,
-    bytes memory data
-  ) public payable override onlyProxy {
-    super.upgradeToAndCall(newImplementation, abi.encodeWithSelector(_initSelector, data));
   }
 
   /// @inheritdoc IEigenPodOwner

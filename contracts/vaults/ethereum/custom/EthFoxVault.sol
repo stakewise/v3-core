@@ -104,7 +104,7 @@ contract EthFoxVault is
 
     // fetch shares of the user
     uint256 userShares = _balances[user];
-    if (userShares == 0) return;
+    if (userShares == 0 || convertToAssets(userShares) == 0) return;
 
     // send user shares to exit queue
     _enterExitQueue(user, userShares, user);

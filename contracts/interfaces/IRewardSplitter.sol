@@ -67,6 +67,12 @@ interface IRewardSplitter is IMulticall {
   function totalShares() external returns (uint256);
 
   /**
+   * @notice The total amount of unclaimed rewards in the splitter
+   * @return The total amount of rewards
+   */
+  function totalRewards() external returns (uint128);
+
+  /**
    * @notice Initializes the RewardSplitter contract
    * @param owner The address of the owner of the RewardSplitter contract
    * @param _vault The address of the vault to which the RewardSplitter will be connected
