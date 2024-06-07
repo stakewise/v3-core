@@ -43,7 +43,7 @@ library Errors {
   error InvalidAvgRewardPerSecond();
   error InvalidRewardsRoot();
   error HarvestFailed();
-  error InvalidRedeemFromLtvPercent();
+  error LiquidationDisabled();
   error InvalidLiqThresholdPercent();
   error InvalidLiqBonusPercent();
   error InvalidLtvPercent();
