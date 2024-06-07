@@ -144,7 +144,6 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
   // Deploy XdaiExchange implementation
   const xdaiExchangeConstructorArgs = [
     networkConfig.gnosis.gnoToken,
-    networkConfig.gnosis.balancerPoolId,
     networkConfig.gnosis.balancerVault,
     vaultsRegistryAddress,
     networkConfig.gnosis.daiPriceFeed,
@@ -175,6 +174,7 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
         networkConfig.governor,
         networkConfig.gnosis.maxSlippage,
         networkConfig.gnosis.stalePriceTimeDelta,
+        networkConfig.gnosis.balancerPoolId,
       ]),
     ],
     '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy'

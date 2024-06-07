@@ -44,7 +44,12 @@ describe('XdaiExchange', () => {
     await expect(
       xdaiExchange
         .connect(other)
-        .initialize(other.address, XDAI_EXCHANGE_MAX_SLIPPAGE, XDAI_EXCHANGE_STALE_PRICE_TIME_DELTA)
+        .initialize(
+          other.address,
+          XDAI_EXCHANGE_MAX_SLIPPAGE,
+          XDAI_EXCHANGE_STALE_PRICE_TIME_DELTA,
+          ZERO_BYTES32
+        )
     ).to.be.revertedWithCustomError(xdaiExchange, 'InvalidInitialization')
     expect(await xdaiExchange.owner()).to.eq(dao.address)
   })
@@ -95,6 +100,27 @@ describe('XdaiExchange', () => {
     })
   })
 
+  describe('balancer pool id', () => {
+    const poolId = '0xc5263ec0cf13b2a75c287991506f86fe917a6a467242bf57520d5d71a6e647f7'
+
+    it('is set during deployment', async () => {
+      expect(await xdaiExchange.balancerPoolId()).to.eq(ZERO_BYTES32)
+    })
+
+    it('cannot be set by non-admin', async () => {
+      await expect(
+        xdaiExchange.connect(other).setBalancerPoolId(poolId)
+      ).to.be.revertedWithCustomError(xdaiExchange, 'OwnableUnauthorizedAccount')
+    })
+
+    it('can be set by the admin', async () => {
+      const tx = await xdaiExchange.connect(dao).setBalancerPoolId(poolId)
+      await expect(tx).to.emit(xdaiExchange, 'BalancerPoolIdUpdated').withArgs(poolId)
+      expect(await xdaiExchange.balancerPoolId()).to.eq(poolId)
+      await snapshotGasCost(tx)
+    })
+  })
+
   describe('upgrade', () => {
     let newImpl: XdaiExchangeV2Mock
 
@@ -102,7 +128,6 @@ describe('XdaiExchange', () => {
       const factory = await ethers.getContractFactory('XdaiExchangeV2Mock')
       const contract = await factory.deploy(
         await gnoToken.getAddress(),
-        ZERO_BYTES32,
         await balancerVault.getAddress(),
         await vaultsRegistry.getAddress(),
         await daiPriceFeed.getAddress(),

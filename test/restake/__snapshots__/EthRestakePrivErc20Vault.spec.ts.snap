@@ -17,6 +17,6 @@ Object {
 exports[`EthRestakePrivErc20Vault transfer can transfer to whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 56432,
+  "gasUsed": 56454,
 }
 `;

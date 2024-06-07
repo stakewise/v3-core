@@ -3,14 +3,14 @@
 exports[`GnoPrivErc20Vault deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 84571,
+  "gasUsed": 84549,
 }
 `;
 
 exports[`GnoPrivErc20Vault mint osToken can mint from not whitelisted user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 177341,
+  "gasUsed": 177274,
 }
 `;
 

@@ -3,7 +3,7 @@
 exports[`GnoErc20Vault deposit emits transfer event 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 82082,
+  "gasUsed": 82060,
 }
 `;
 

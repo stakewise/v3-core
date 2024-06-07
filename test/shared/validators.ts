@@ -9,6 +9,7 @@ import {
   EIP712Domain,
   KeeperUpdateExitSignaturesSig,
   KeeperValidatorsSig,
+  VaultValidatorsSig,
   VALIDATORS_DEADLINE,
   VALIDATORS_MIN_ORACLES,
   ZERO_BYTES32,
@@ -250,6 +251,27 @@ export async function getEthValidatorsSigningData(
       validators,
       exitSignaturesIpfsHash,
       deadline,
+    },
+  }
+}
+
+export async function getValidatorsManagerSigningData(
+  validators: Buffer,
+  vault: EthVaultType | GnoVaultType | EthRestakeVaultType,
+  validatorsRegistryRoot: BytesLike
+) {
+  return {
+    primaryType: 'VaultValidators',
+    types: { EIP712Domain, VaultValidators: VaultValidatorsSig },
+    domain: {
+      name: 'VaultValidators',
+      version: '1',
+      chainId: network.config.chainId,
+      verifyingContract: await vault.getAddress(),
+    },
+    message: {
+      validatorsRegistryRoot,
+      validators,
     },
   }
 }

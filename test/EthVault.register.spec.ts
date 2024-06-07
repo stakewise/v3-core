@@ -13,6 +13,7 @@ import {
   EthValidatorsData,
   exitSignatureIpfsHashes,
   getEthValidatorsSigningData,
+  getValidatorsManagerSigningData,
   getWithdrawalCredentials,
 } from './shared/validators'
 import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
@@ -23,6 +24,7 @@ import {
   ZERO_ADDRESS,
 } from './shared/constants'
 import { getHarvestParams, updateRewards } from './shared/rewards'
+import { signTypedData, SignTypedDataVersion } from '@metamask/eth-sig-util'
 
 const gwei = 1000000000n
 const uintSerializer = new UintNumberType(8)
@@ -93,15 +95,32 @@ describe('EthVault - register', () => {
 
     it('fails from non-validators manager', async () => {
       await expect(
-        vault.connect(other).registerValidators(approvalParams)
+        vault.connect(other).registerValidators(approvalParams, '0x')
       ).to.be.revertedWithCustomError(vault, 'AccessDenied')
     })
 
     it('fails with not enough withdrawable assets', async () => {
       await setBalance(await vault.getAddress(), ethers.parseEther('31.9'))
       await expect(
-        vault.connect(validatorsManager).registerValidators(approvalParams)
+        vault.connect(validatorsManager).registerValidators(approvalParams, '0x')
       ).to.be.revertedWithCustomError(vault, 'InsufficientAssets')
+    })
+
+    it('fails with invalid validators manager signature', async () => {
+      const invalidManager = Wallet.createRandom()
+      const signingData = await getValidatorsManagerSigningData(
+        approvalParams.validators,
+        vault,
+        approvalParams.validatorsRegistryRoot
+      )
+      const signature = signTypedData({
+        privateKey: invalidManager.privateKey.slice(2),
+        data: signingData,
+        version: SignTypedDataVersion.V4,
+      })
+      await expect(
+        vault.connect(other).registerValidators(approvalParams, signature)
+      ).to.be.revertedWithCustomError(vault, 'AccessDenied')
     })
 
     it('fails when not harvested', async () => {
@@ -124,7 +143,7 @@ describe('EthVault - register', () => {
       await updateRewards(keeper, [vaultReward])
       await updateRewards(keeper, [vaultReward])
       await expect(
-        vault.connect(validatorsManager).registerValidators(approvalParams)
+        vault.connect(validatorsManager).registerValidators(approvalParams, '0x')
       ).to.be.revertedWithCustomError(vault, 'NotHarvested')
     })
 
@@ -136,29 +155,63 @@ describe('EthVault - register', () => {
       )
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.connect(validatorsManager).registerValidators({
-          validatorsRegistryRoot,
-          validators: invalidValidator,
-          deadline,
-          signatures: getOraclesSignatures(
-            await getEthValidatorsSigningData(
-              invalidValidator,
-              deadline,
-              exitSignaturesIpfsHash,
-              keeper,
-              vault,
-              validatorsRegistryRoot
+        vault.connect(validatorsManager).registerValidators(
+          {
+            validatorsRegistryRoot,
+            validators: invalidValidator,
+            deadline,
+            signatures: getOraclesSignatures(
+              await getEthValidatorsSigningData(
+                invalidValidator,
+                deadline,
+                exitSignaturesIpfsHash,
+                keeper,
+                vault,
+                validatorsRegistryRoot
+              ),
+              VALIDATORS_MIN_ORACLES
             ),
-            VALIDATORS_MIN_ORACLES
-          ),
-          exitSignaturesIpfsHash,
-        })
+            exitSignaturesIpfsHash,
+          },
+          '0x'
+        )
       ).to.be.revertedWithCustomError(vault, 'InvalidValidators')
     })
 
-    it('succeeds', async () => {
+    it('succeeds from validators manager', async () => {
       const index = await validatorsRegistry.get_deposit_count()
-      const receipt = await vault.connect(validatorsManager).registerValidators(approvalParams)
+      const receipt = await vault
+        .connect(validatorsManager)
+        .registerValidators(approvalParams, '0x')
+      const publicKey = `0x${validator.subarray(0, 48).toString('hex')}`
+      await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
+      await expect(receipt)
+        .to.emit(validatorsRegistry, 'DepositEvent')
+        .withArgs(
+          publicKey,
+          toHexString(getWithdrawalCredentials(await vault.getAddress())),
+          toHexString(Buffer.from(uintSerializer.serialize(Number(validatorDeposit / gwei)))),
+          toHexString(validator.subarray(48, 144)),
+          index
+        )
+      await snapshotGasCost(receipt)
+    })
+
+    it('succeeds using validators manager signature', async () => {
+      const index = await validatorsRegistry.get_deposit_count()
+      const manager = Wallet.createRandom()
+      await vault.connect(admin).setValidatorsManager(await manager.getAddress())
+      const signingData = await getValidatorsManagerSigningData(
+        approvalParams.validators,
+        vault,
+        approvalParams.validatorsRegistryRoot
+      )
+      const signature = signTypedData({
+        privateKey: manager.privateKey.slice(2),
+        data: signingData,
+        version: SignTypedDataVersion.V4,
+      })
+      const receipt = await vault.connect(other).registerValidators(approvalParams, signature)
       const publicKey = `0x${validator.subarray(0, 48).toString('hex')}`
       await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
       await expect(receipt)
@@ -211,30 +264,33 @@ describe('EthVault - register', () => {
     it('fails with not enough withdrawable assets', async () => {
       await setBalance(await vault.getAddress(), validatorDeposit * BigInt(validators.length - 1))
       await expect(
-        vault.connect(validatorsManager).registerValidators(approvalParams)
+        vault.connect(validatorsManager).registerValidators(approvalParams, '0x')
       ).to.be.revertedWithCustomError(vault, 'InsufficientAssets')
     })
 
     it('fails with invalid validators count', async () => {
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.connect(validatorsManager).registerValidators({
-          validatorsRegistryRoot,
-          validators: Buffer.from(''),
-          deadline,
-          signatures: getOraclesSignatures(
-            await getEthValidatorsSigningData(
-              Buffer.from(''),
-              deadline,
-              exitSignaturesIpfsHash,
-              keeper,
-              vault,
-              validatorsRegistryRoot
+        vault.connect(validatorsManager).registerValidators(
+          {
+            validatorsRegistryRoot,
+            validators: Buffer.from(''),
+            deadline,
+            signatures: getOraclesSignatures(
+              await getEthValidatorsSigningData(
+                Buffer.from(''),
+                deadline,
+                exitSignaturesIpfsHash,
+                keeper,
+                vault,
+                validatorsRegistryRoot
+              ),
+              VALIDATORS_MIN_ORACLES
             ),
-            VALIDATORS_MIN_ORACLES
-          ),
-          exitSignaturesIpfsHash,
-        })
+            exitSignaturesIpfsHash,
+          },
+          '0x'
+        )
       ).to.be.revertedWithCustomError(vault, 'InvalidValidators')
     })
 
@@ -251,23 +307,26 @@ describe('EthVault - register', () => {
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.connect(validatorsManager).registerValidators({
-          validatorsRegistryRoot,
-          deadline,
-          validators: invalidValidatorsConcat,
-          signatures: getOraclesSignatures(
-            await getEthValidatorsSigningData(
-              invalidValidatorsConcat,
-              deadline,
-              exitSignaturesIpfsHash,
-              keeper,
-              vault,
-              validatorsRegistryRoot
+        vault.connect(validatorsManager).registerValidators(
+          {
+            validatorsRegistryRoot,
+            deadline,
+            validators: invalidValidatorsConcat,
+            signatures: getOraclesSignatures(
+              await getEthValidatorsSigningData(
+                invalidValidatorsConcat,
+                deadline,
+                exitSignaturesIpfsHash,
+                keeper,
+                vault,
+                validatorsRegistryRoot
+              ),
+              VALIDATORS_MIN_ORACLES
             ),
-            VALIDATORS_MIN_ORACLES
-          ),
-          exitSignaturesIpfsHash,
-        })
+            exitSignaturesIpfsHash,
+          },
+          '0x'
+        )
       ).to.be.revertedWith(
         'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
       )
@@ -285,23 +344,26 @@ describe('EthVault - register', () => {
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.connect(validatorsManager).registerValidators({
-          validatorsRegistryRoot,
-          validators: invalidValidatorsConcat,
-          deadline,
-          signatures: getOraclesSignatures(
-            await getEthValidatorsSigningData(
-              invalidValidatorsConcat,
-              deadline,
-              exitSignaturesIpfsHash,
-              keeper,
-              vault,
-              validatorsRegistryRoot
+        vault.connect(validatorsManager).registerValidators(
+          {
+            validatorsRegistryRoot,
+            validators: invalidValidatorsConcat,
+            deadline,
+            signatures: getOraclesSignatures(
+              await getEthValidatorsSigningData(
+                invalidValidatorsConcat,
+                deadline,
+                exitSignaturesIpfsHash,
+                keeper,
+                vault,
+                validatorsRegistryRoot
+              ),
+              VALIDATORS_MIN_ORACLES
             ),
-            VALIDATORS_MIN_ORACLES
-          ),
-          exitSignaturesIpfsHash,
-        })
+            exitSignaturesIpfsHash,
+          },
+          '0x'
+        )
       ).to.be.revertedWith(
         'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
       )
@@ -319,23 +381,26 @@ describe('EthVault - register', () => {
       const invalidValidatorsConcat = Buffer.concat(invalidValidators)
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       await expect(
-        vault.connect(validatorsManager).registerValidators({
-          validatorsRegistryRoot,
-          validators: invalidValidatorsConcat,
-          deadline,
-          signatures: getOraclesSignatures(
-            await getEthValidatorsSigningData(
-              invalidValidatorsConcat,
-              deadline,
-              exitSignaturesIpfsHash,
-              keeper,
-              vault,
-              validatorsRegistryRoot
+        vault.connect(validatorsManager).registerValidators(
+          {
+            validatorsRegistryRoot,
+            validators: invalidValidatorsConcat,
+            deadline,
+            signatures: getOraclesSignatures(
+              await getEthValidatorsSigningData(
+                invalidValidatorsConcat,
+                deadline,
+                exitSignaturesIpfsHash,
+                keeper,
+                vault,
+                validatorsRegistryRoot
+              ),
+              VALIDATORS_MIN_ORACLES
             ),
-            VALIDATORS_MIN_ORACLES
-          ),
-          exitSignaturesIpfsHash,
-        })
+            exitSignaturesIpfsHash,
+          },
+          '0x'
+        )
       ).to.be.revertedWith(
         'DepositContract: reconstructed DepositData does not match supplied deposit_data_root'
       )
@@ -350,32 +415,73 @@ describe('EthVault - register', () => {
 
       for (let i = 0; i < invalidValidators.length; i++) {
         await expect(
-          vault.connect(validatorsManager).registerValidators({
-            validatorsRegistryRoot,
-            validators: invalidValidators[i],
-            deadline,
-            signatures: getOraclesSignatures(
-              await getEthValidatorsSigningData(
-                invalidValidators[i],
-                deadline,
-                exitSignaturesIpfsHash,
-                keeper,
-                vault,
-                validatorsRegistryRoot
+          vault.connect(validatorsManager).registerValidators(
+            {
+              validatorsRegistryRoot,
+              validators: invalidValidators[i],
+              deadline,
+              signatures: getOraclesSignatures(
+                await getEthValidatorsSigningData(
+                  invalidValidators[i],
+                  deadline,
+                  exitSignaturesIpfsHash,
+                  keeper,
+                  vault,
+                  validatorsRegistryRoot
+                ),
+                VALIDATORS_MIN_ORACLES
               ),
-              VALIDATORS_MIN_ORACLES
-            ),
-            exitSignaturesIpfsHash,
-          })
+              exitSignaturesIpfsHash,
+            },
+            '0x'
+          )
         ).to.be.revertedWithCustomError(vault, 'InvalidValidators')
       }
     })
 
-    it('succeeds', async () => {
+    it('succeeds from validators manager', async () => {
       const startIndex = uintSerializer.deserialize(
         ethers.getBytes(await validatorsRegistry.get_deposit_count())
       )
-      const receipt = await vault.connect(validatorsManager).registerValidators(approvalParams)
+      const receipt = await vault
+        .connect(validatorsManager)
+        .registerValidators(approvalParams, '0x')
+      for (let i = 0; i < validators.length; i++) {
+        const validator = validators[i]
+        const publicKey = toHexString(validator.subarray(0, 48))
+        await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
+        await expect(receipt)
+          .to.emit(validatorsRegistry, 'DepositEvent')
+          .withArgs(
+            publicKey,
+            toHexString(getWithdrawalCredentials(await vault.getAddress())),
+            toHexString(Buffer.from(uintSerializer.serialize(Number(validatorDeposit / gwei)))),
+            toHexString(validator.subarray(48, 144)),
+            toHexString(Buffer.from(uintSerializer.serialize(startIndex + i)))
+          )
+      }
+      await snapshotGasCost(receipt)
+    })
+
+    it('succeeds using validators manager signature', async () => {
+      const manager = Wallet.createRandom()
+      await vault.connect(admin).setValidatorsManager(await manager.getAddress())
+      const signingData = await getValidatorsManagerSigningData(
+        approvalParams.validators,
+        vault,
+        approvalParams.validatorsRegistryRoot
+      )
+      const signature = signTypedData({
+        privateKey: manager.privateKey.slice(2),
+        data: signingData,
+        version: SignTypedDataVersion.V4,
+      })
+      const startIndex = uintSerializer.deserialize(
+        ethers.getBytes(await validatorsRegistry.get_deposit_count())
+      )
+      const receipt = await vault
+        .connect(validatorsManager)
+        .registerValidators(approvalParams, signature)
       for (let i = 0; i < validators.length; i++) {
         const validator = validators[i]
         const publicKey = toHexString(validator.subarray(0, 48))

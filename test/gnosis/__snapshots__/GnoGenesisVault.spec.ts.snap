@@ -17,27 +17,27 @@ Object {
 exports[`GnoGenesisVault update state deducts rewards on first state update 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 148036,
+  "gasUsed": 147998,
 }
 `;
 
 exports[`GnoGenesisVault update state skips updating legacy with zero total assets 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 143605,
+  "gasUsed": 143567,
 }
 `;
 
 exports[`GnoGenesisVault update state splits penalty between rewardToken and vault 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 117411,
+  "gasUsed": 117367,
 }
 `;
 
 exports[`GnoGenesisVault update state splits reward between rewardToken and vault 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 165136,
+  "gasUsed": 165098,
 }
 `;

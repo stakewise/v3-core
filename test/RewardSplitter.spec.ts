@@ -343,6 +343,7 @@ describe('RewardSplitter', () => {
       const feeShares = await vault.convertToShares(fee)
       expect(await rewardSplitter.canSyncRewards()).to.eq(true)
       const receipt = await rewardSplitter.syncRewards()
+      expect(await rewardSplitter.totalRewards()).to.eq(feeShares)
       await expect(receipt)
         .to.emit(rewardSplitter, 'RewardsSynced')
         .withArgs(feeShares, (feeShares * ethers.parseEther('1')) / shares)

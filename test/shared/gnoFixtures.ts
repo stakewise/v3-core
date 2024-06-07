@@ -213,7 +213,6 @@ export const createXdaiExchange = async function (
 
   const constructorArgs = [
     await gnoToken.getAddress(),
-    balancerPoolId,
     await balancerVault.getAddress(),
     await vaultsRegistry.getAddress(),
     await daiPriceFeed.getAddress(),
@@ -227,7 +226,12 @@ export const createXdaiExchange = async function (
   const proxy = await proxyFactory.deploy(impl, '0x')
   const proxyAddress = await proxy.getAddress()
   const xdaiExchange = XdaiExchange__factory.connect(proxyAddress, dao)
-  await xdaiExchange.initialize(await dao.getAddress(), maxSlippage, stalePriceTimeDelta)
+  await xdaiExchange.initialize(
+    await dao.getAddress(),
+    maxSlippage,
+    stalePriceTimeDelta,
+    balancerPoolId
+  )
   return xdaiExchange
 }
 

@@ -82,6 +82,11 @@ export const KeeperValidatorsSig = [
   { name: 'deadline', type: 'uint256' },
 ]
 
+export const VaultValidatorsSig = [
+  { name: 'validatorsRegistryRoot', type: 'bytes32' },
+  { name: 'validators', type: 'bytes' },
+]
+
 export const KeeperUpdateExitSignaturesSig = [
   { name: 'vault', type: 'address' },
   { name: 'exitSignaturesIpfsHash', type: 'string' },

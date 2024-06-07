@@ -10,6 +10,6 @@ Object {
 exports[`EthRestakeErc20Vault enter exit queue emits transfer event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 93769,
+  "gasUsed": 93791,
 }
 `;

@@ -3,14 +3,14 @@
 exports[`EthFoxVault blocklist can be updated by blocklist manager 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 53677,
+  "gasUsed": 53699,
 }
 `;
 
 exports[`EthFoxVault blocklist can be updated by blocklist manager 2`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 31765,
+  "gasUsed": 31787,
 }
 `;
 
@@ -31,14 +31,14 @@ Object {
 exports[`EthFoxVault ejecting user blocklist manager can eject all of the user assets for collateralized vault 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 119593,
+  "gasUsed": 120023,
 }
 `;
 
 exports[`EthFoxVault ejecting user does not fail for user with no vault shares 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 55725,
+  "gasUsed": 55767,
 }
 `;
 

@@ -200,13 +200,16 @@ describe('EthRestakeVault', () => {
       )
 
       await expect(
-        vault.connect(validatorsManager).registerValidators({
-          validatorsRegistryRoot,
-          validators: invalidValidator,
-          deadline,
-          signatures,
-          exitSignaturesIpfsHash,
-        })
+        vault.connect(validatorsManager).registerValidators(
+          {
+            validatorsRegistryRoot,
+            validators: invalidValidator,
+            deadline,
+            signatures,
+            exitSignaturesIpfsHash,
+          },
+          '0x'
+        )
       ).to.be.revertedWithCustomError(vault, 'InvalidValidators')
     })
 
@@ -230,13 +233,16 @@ describe('EthRestakeVault', () => {
       )
 
       await expect(
-        vault.connect(validatorsManager).registerValidators({
-          validatorsRegistryRoot,
-          validators: invalidValidator,
-          deadline,
-          signatures,
-          exitSignaturesIpfsHash,
-        })
+        vault.connect(validatorsManager).registerValidators(
+          {
+            validatorsRegistryRoot,
+            validators: invalidValidator,
+            deadline,
+            signatures,
+            exitSignaturesIpfsHash,
+          },
+          '0x'
+        )
       ).to.be.revertedWithCustomError(vault, 'EigenPodNotFound')
     })
 
@@ -256,13 +262,16 @@ describe('EthRestakeVault', () => {
         VALIDATORS_MIN_ORACLES
       )
 
-      const receipt = await vault.connect(validatorsManager).registerValidators({
-        validatorsRegistryRoot,
-        validators: validator,
-        deadline,
-        signatures,
-        exitSignaturesIpfsHash: exitSignatureIpfsHashes[0],
-      })
+      const receipt = await vault.connect(validatorsManager).registerValidators(
+        {
+          validatorsRegistryRoot,
+          validators: validator,
+          deadline,
+          signatures,
+          exitSignaturesIpfsHash: exitSignatureIpfsHashes[0],
+        },
+        '0x'
+      )
       const publicKey = `0x${validator.subarray(0, 48).toString('hex')}`
       await expect(receipt).to.emit(vault, 'ValidatorRegistered').withArgs(publicKey)
       await expect(receipt)
@@ -318,7 +327,9 @@ describe('EthRestakeVault', () => {
       const startIndex = uintSerializer.deserialize(
         ethers.getBytes(await validatorsRegistry.get_deposit_count())
       )
-      const receipt = await vault.connect(validatorsManager).registerValidators(approvalParams)
+      const receipt = await vault
+        .connect(validatorsManager)
+        .registerValidators(approvalParams, '0x')
       for (let i = 0; i < validatorsData.validators.length; i++) {
         const validator = validatorsData.validators[i]
         const publicKey = toHexString(validator.subarray(0, 48))

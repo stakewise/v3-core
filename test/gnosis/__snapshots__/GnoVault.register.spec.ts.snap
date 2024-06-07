@@ -3,27 +3,27 @@
 exports[`GnoVault - register multiple validators pulls withdrawals on multiple validators registration 1`] = `
 Object {
   "calldataByteLength": 3364,
-  "gasUsed": 701676,
+  "gasUsed": 701720,
 }
 `;
 
 exports[`GnoVault - register multiple validators succeeds 1`] = `
 Object {
   "calldataByteLength": 3364,
-  "gasUsed": 721872,
+  "gasUsed": 721916,
 }
 `;
 
 exports[`GnoVault - register single validator pulls withdrawals on single validator registration 1`] = `
 Object {
   "calldataByteLength": 1156,
-  "gasUsed": 360005,
+  "gasUsed": 360055,
 }
 `;
 
 exports[`GnoVault - register single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 1156,
-  "gasUsed": 380201,
+  "gasUsed": 380251,
 }
 `;
