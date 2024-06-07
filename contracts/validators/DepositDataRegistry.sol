@@ -98,7 +98,7 @@ contract DepositDataRegistry is Multicall, IDepositDataRegistry {
     bytes32[] calldata proof
   ) external override onlyValidVault(vault) {
     // register validator
-    IVaultValidators(vault).registerValidators(keeperParams);
+    IVaultValidators(vault).registerValidators(keeperParams, '');
 
     // SLOAD to memory
     uint256 currentIndex = depositDataIndexes[vault];
@@ -131,7 +131,7 @@ contract DepositDataRegistry is Multicall, IDepositDataRegistry {
     bytes32[] calldata proof
   ) external override onlyValidVault(vault) {
     // register validator
-    IVaultValidators(vault).registerValidators(keeperParams);
+    IVaultValidators(vault).registerValidators(keeperParams, '');
 
     // SLOAD to memory
     uint256 currentIndex = depositDataIndexes[vault];

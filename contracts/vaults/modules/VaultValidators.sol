@@ -4,6 +4,8 @@ pragma solidity =0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
+import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
+import {SignatureChecker} from '@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol';
 import {IKeeperValidators} from '../../interfaces/IKeeperValidators.sol';
 import {IDepositDataRegistry} from '../../interfaces/IDepositDataRegistry.sol';
 import {IVaultValidators} from '../../interfaces/IVaultValidators.sol';
@@ -24,8 +26,14 @@ abstract contract VaultValidators is
   VaultState,
   IVaultValidators
 {
+  bytes32 private constant _registerValidatorsTypeHash =
+    keccak256('VaultValidators(bytes32 validatorsRegistryRoot,bytes validators)');
+
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address private immutable _depositDataRegistry;
+
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  uint256 private immutable _initialChainId;
 
   /// deprecated. Deposit data management is moved to DepositDataRegistry contract
   bytes32 private _validatorsRoot;
@@ -34,6 +42,8 @@ abstract contract VaultValidators is
   uint256 private _validatorIndex;
 
   address private _validatorsManager;
+
+  bytes32 private _initialDomainSeparator;
 
   /**
    * @dev Constructor
@@ -44,6 +54,7 @@ abstract contract VaultValidators is
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(address depositDataRegistry) {
     _depositDataRegistry = depositDataRegistry;
+    _initialChainId = block.chainid;
   }
 
   /// @inheritdoc IVaultValidators
@@ -56,7 +67,8 @@ abstract contract VaultValidators is
 
   /// @inheritdoc IVaultValidators
   function registerValidators(
-    IKeeperValidators.ApprovalParams calldata keeperParams
+    IKeeperValidators.ApprovalParams calldata keeperParams,
+    bytes calldata validatorsManagerSignature
   ) external override {
     // get approval from oracles
     IKeeperValidators(_keeper).approveValidators(keeperParams);
@@ -65,7 +77,17 @@ abstract contract VaultValidators is
     _checkHarvested();
 
     // check access
-    if (msg.sender != validatorsManager()) revert Errors.AccessDenied();
+    address validatorsManager_ = validatorsManager();
+    if (
+      msg.sender != validatorsManager_ &&
+      !SignatureChecker.isValidSignatureNow(
+        validatorsManager_,
+        _getSignedMessageHash(keeperParams),
+        validatorsManagerSignature
+      )
+    ) {
+      revert Errors.AccessDenied();
+    }
 
     // check validators length is valid
     uint256 validatorLength = _validatorLength();
@@ -127,14 +149,20 @@ abstract contract VaultValidators is
    * @dev Initializes the VaultValidators contract
    * @dev NB! This initializer must be called after VaultState initializer
    */
-  function __VaultValidators_init() internal view onlyInitializing {
+  function __VaultValidators_init() internal onlyInitializing {
     if (capacity() < _validatorDeposit()) revert Errors.InvalidCapacity();
+    // initialize domain separator
+    _initialDomainSeparator = _computeVaultValidatorsDomain();
   }
 
   /**
    * @dev Initializes the V2 of the VaultValidators contract
    */
   function __VaultValidators_initV2() internal onlyInitializing {
+    // initialize domain separator
+    _initialDomainSeparator = _computeVaultValidatorsDomain();
+
+    // migrate deposit data variables to DepositDataRegistry contract
     IDepositDataRegistry(_depositDataRegistry).migrate(
       _validatorsRoot,
       _validatorIndex,
@@ -148,9 +176,53 @@ abstract contract VaultValidators is
   }
 
   /**
+   * @notice Get the hash to be signed by the validators manager
+   * @param keeperParams The keeper approval parameters
+   * @return The hash to be signed
+   */
+  function _getSignedMessageHash(
+    IKeeperValidators.ApprovalParams calldata keeperParams
+  ) private view returns (bytes32) {
+    bytes32 domainSeparator = block.chainid == _initialChainId
+      ? _initialDomainSeparator
+      : _computeVaultValidatorsDomain();
+
+    return
+      MessageHashUtils.toTypedDataHash(
+        domainSeparator,
+        keccak256(
+          abi.encode(
+            _registerValidatorsTypeHash,
+            keeperParams.validatorsRegistryRoot,
+            keccak256(keeperParams.validators)
+          )
+        )
+      );
+  }
+
+  /**
+   * @notice Computes the hash of the EIP712 typed data
+   * @dev This function is used to compute the hash of the EIP712 typed data
+   */
+  function _computeVaultValidatorsDomain() private view returns (bytes32) {
+    return
+      keccak256(
+        abi.encode(
+          keccak256(
+            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
+          ),
+          keccak256(bytes('VaultValidators')),
+          keccak256('1'),
+          block.chainid,
+          address(this)
+        )
+      );
+  }
+
+  /**
    * @dev This empty reserved space is put in place to allow future versions to add new
    * variables without shifting down storage in the inheritance chain.
    * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
    */
-  uint256[50] private __gap;
+  uint256[49] private __gap;
 }

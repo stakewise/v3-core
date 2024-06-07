@@ -48,8 +48,12 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   /**
    * @notice Function for registering single or multiple validators
    * @param keeperParams The parameters for getting approval from Keeper oracles
+   * @param validatorsManagerSignature The optional signature from the validators manager
    */
-  function registerValidators(IKeeperValidators.ApprovalParams calldata keeperParams) external;
+  function registerValidators(
+    IKeeperValidators.ApprovalParams calldata keeperParams,
+    bytes calldata validatorsManagerSignature
+  ) external;
 
   /**
    * @notice Function for updating the validators manager. Can only be called by the admin. Default is the DepositDataRegistry contract.
