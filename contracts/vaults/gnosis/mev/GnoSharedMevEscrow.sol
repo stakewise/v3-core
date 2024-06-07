@@ -15,7 +15,10 @@ import {Errors} from '../../../libraries/Errors.sol';
 contract GnoSharedMevEscrow is ISharedMevEscrow {
   IVaultsRegistry private immutable _vaultsRegistry;
 
-  /// @dev Constructor
+  /**
+   * @dev Constructor
+   * @param vaultsRegistry The address of the VaultsRegistry contract
+   */
   constructor(address vaultsRegistry) {
     _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
   }

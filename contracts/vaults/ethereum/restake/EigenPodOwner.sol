@@ -34,9 +34,11 @@ contract EigenPodOwner is Initializable, UUPSUpgradeable, Multicall, IEigenPodOw
   IEigenDelayedWithdrawalRouter private immutable _eigenDelayedWithdrawalRouter;
 
   /// @inheritdoc IEigenPodOwner
+  // slither-disable-next-line uninitialized-state
   address public override vault;
 
   /// @inheritdoc IEigenPodOwner
+  // slither-disable-next-line uninitialized-state
   address public override eigenPod;
 
   /**
