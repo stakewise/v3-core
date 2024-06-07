@@ -33,6 +33,7 @@ import {
   updateRewards,
 } from './shared/rewards'
 import {
+  extractCheckpointAssets,
   extractDepositShares,
   extractExitPositionTicket,
   getBlockTimestamp,
@@ -237,13 +238,18 @@ describe('EthGenesisVault', () => {
     const vaultBalance = await ethers.provider.getBalance(vaultAddr)
     const poolEscrowAddr = await poolEscrow.getAddress()
     const poolEscrowBalance = await ethers.provider.getBalance(poolEscrowAddr)
+    const vaultTotalBalance =
+      vaultBalance +
+      poolEscrowBalance +
+      (await vault.totalExitingAssets()) +
+      (await vault.convertToAssets(await vault.queuedShares()))
 
     await setBalance(vaultAddr, 0n)
     const response = await vault.connect(other).enterExitQueue(shares, other.address)
     const positionTicket = await extractExitPositionTicket(response)
     const timestamp = await getBlockTimestamp(response)
 
-    await setBalance(poolEscrowAddr, poolEscrowBalance + vaultBalance)
+    await setBalance(poolEscrowAddr, vaultTotalBalance)
 
     await increaseTime(ONE_DAY)
     const reward = 0n
@@ -262,7 +268,7 @@ describe('EthGenesisVault', () => {
     tx = await vault.connect(other).claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
-      .withArgs(vaultAddr, vaultAddr, poolEscrowBalance + vaultBalance)
+      .withArgs(vaultAddr, vaultAddr, vaultTotalBalance)
     await expect(tx)
       .to.emit(vault, 'ExitedAssetsClaimed')
       .withArgs(other.address, positionTicket, 0, assets)
@@ -278,9 +284,15 @@ describe('EthGenesisVault', () => {
     const vaultBalance = await ethers.provider.getBalance(vaultAddr)
     const poolEscrowAddr = await poolEscrow.getAddress()
     const poolEscrowBalance = await ethers.provider.getBalance(poolEscrowAddr)
+    const vaultTotalBalance =
+      validatorDeposit +
+      vaultBalance +
+      poolEscrowBalance +
+      (await vault.totalExitingAssets()) +
+      (await vault.convertToAssets(await vault.queuedShares()))
 
     await setBalance(vaultAddr, 0n)
-    await setBalance(poolEscrowAddr, validatorDeposit + vaultBalance + poolEscrowBalance)
+    await setBalance(poolEscrowAddr, vaultTotalBalance)
     expect(await vault.withdrawableAssets()).to.be.greaterThanOrEqual(validatorDeposit)
     const tx = await registerEthValidator(
       vault,
@@ -291,7 +303,7 @@ describe('EthGenesisVault', () => {
     )
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
-      .withArgs(vaultAddr, vaultAddr, validatorDeposit + vaultBalance + poolEscrowBalance)
+      .withArgs(vaultAddr, vaultAddr, vaultTotalBalance)
     await snapshotGasCost(tx)
   })
 
@@ -334,16 +346,21 @@ describe('EthGenesisVault', () => {
     const vaultBalance = await ethers.provider.getBalance(vaultAddr)
     const poolEscrowAddr = await poolEscrow.getAddress()
     const poolEscrowBalance = await ethers.provider.getBalance(poolEscrowAddr)
+    const vaultTotalBalance =
+      vaultBalance +
+      poolEscrowBalance +
+      (await vault.totalExitingAssets()) +
+      (await vault.convertToAssets(await vault.queuedShares()))
 
     await setBalance(vaultAddr, 0n)
-    await setBalance(poolEscrowAddr, assets + vaultBalance + poolEscrowBalance)
+    await setBalance(poolEscrowAddr, vaultTotalBalance)
 
     const tx = await depositDataRegistry
       .connect(admin)
       .registerValidators(vaultAddr, approveParams, indexes, proof.proofFlags, proof.proof)
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
-      .withArgs(vaultAddr, vaultAddr, assets + vaultBalance + poolEscrowBalance)
+      .withArgs(vaultAddr, vaultAddr, vaultTotalBalance)
     await snapshotGasCost(tx)
   })
 
@@ -399,6 +416,7 @@ describe('EthGenesisVault', () => {
         unlockedMevReward: vaultReward.unlockedMevReward,
         proof,
       })
+      const exitQueueAssets = await extractCheckpointAssets(receipt)
 
       if (MAINNET_FORK.enabled) {
         // rounding error
@@ -407,7 +425,9 @@ describe('EthGenesisVault', () => {
       }
 
       expect(await rewardEthToken.totalAssets()).to.eq(totalLegacyAssets + expectedLegacyDelta)
-      expect(await vault.totalAssets()).to.eq(totalVaultAssets + expectedVaultDelta)
+      expect(await vault.totalAssets()).to.eq(
+        totalVaultAssets + expectedVaultDelta - exitQueueAssets
+      )
       await snapshotGasCost(receipt)
     })
 
@@ -504,11 +524,14 @@ describe('EthGenesisVault', () => {
         unlockedMevReward: vaultReward.unlockedMevReward,
         proof,
       })
+      const exitQueueAssets = await extractCheckpointAssets(receipt)
 
       expect((await rewardEthToken.totalAssets()) - (await rewardEthToken.totalPenalty())).to.eq(
         totalLegacyAssets + expectedLegacyDelta + 1n // rounding error
       )
-      expect(await vault.totalAssets()).to.eq(totalVaultAssets + expectedVaultDelta - 1n) // rounding error
+      expect(await vault.totalAssets()).to.eq(
+        totalVaultAssets + expectedVaultDelta - exitQueueAssets - 1n // rounding error
+      )
       await snapshotGasCost(receipt)
     })
 

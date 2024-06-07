@@ -82,7 +82,7 @@ describe('EthRestakePrivErc20Vault', () => {
     it('deposit through receive fallback can be called by whitelisted sender', async () => {
       const depositorMock = await createDepositorMock(vault)
       const depositorMockAddress = await depositorMock.getAddress()
-      await vault.connect(admin).updateWhitelist(depositorMockAddress, true)
+      await vault.connect(whitelister).updateWhitelist(depositorMockAddress, true)
 
       const amount = ethers.parseEther('100')
       const expectedShares = await vault.convertToShares(amount)

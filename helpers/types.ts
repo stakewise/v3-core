@@ -31,11 +31,9 @@ export type NetworkConfig = {
   osTokenSymbol: string
 
   // OsTokenConfig
-  redeemFromLtvPercent: bigint
-  redeemToLtvPercent: bigint
-  liqThresholdPercent: number
-  liqBonusPercent: number
-  ltvPercent: number
+  liqThresholdPercent: bigint
+  liqBonusPercent: bigint
+  ltvPercent: bigint
 
   // EthGenesisVault
   genesisVault: {
@@ -57,8 +55,12 @@ export type NetworkConfig = {
   // Gnosis data
   gnosis?: {
     gnoToken: string
+    gnoPriceFeed: string
+    daiPriceFeed: string
     balancerVault: string
     balancerPoolId: string
+    maxSlippage: number
+    stalePriceTimeDelta: bigint
   }
 
   // PriceFeed
@@ -67,4 +69,9 @@ export type NetworkConfig = {
   // Cumulative MerkleDrop
   liquidityCommittee: string
   swiseToken: string
+
+  // Restake vault settings
+  eigenPodManager: string
+  eigenDelegationManager: string
+  eigenDelayedWithdrawalRouter: string
 }

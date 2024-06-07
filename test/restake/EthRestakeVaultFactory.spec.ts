@@ -1,119 +1,172 @@
 import { ethers } from 'hardhat'
 import { Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthVaultFactory, SharedMevEscrow, VaultsRegistry } from '../typechain-types'
-import snapshotGasCost from './shared/snapshotGasCost'
-import { expect } from './shared/expect'
+import { EthRestakeVaultFactory, SharedMevEscrow, VaultsRegistry } from '../../typechain-types'
+import snapshotGasCost from '../shared/snapshotGasCost'
+import { expect } from '../shared/expect'
 import {
-  encodeEthErc20VaultInitParams,
-  encodeEthVaultInitParams,
-  ethVaultFixture,
-} from './shared/fixtures'
-import { SECURITY_DEPOSIT, ZERO_ADDRESS, ZERO_BYTES32 } from './shared/constants'
-import { extractMevEscrowAddress, extractVaultAddress, toHexString } from './shared/utils'
+  encodeEthRestakeVaultInitParams,
+  encodeEthRestakeErc20VaultInitParams,
+  ethRestakeVaultFixture,
+} from '../shared/restakeFixtures'
+import { SECURITY_DEPOSIT, ZERO_ADDRESS, ZERO_BYTES32 } from '../shared/constants'
+import { extractMevEscrowAddress, extractVaultAddress, toHexString } from '../shared/utils'
 import keccak256 from 'keccak256'
 
-describe('EthVaultFactory', () => {
+describe('EthRestakeVaultFactory', () => {
   const capacity = ethers.parseEther('1000')
   const feePercent = 1000
   const name = 'SW ETH Vault'
   const symbol = 'SW-ETH-1'
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
-  const ethVaultInitParams = {
+  const ethRestakeVaultInitParams = {
     capacity,
     feePercent,
     metadataIpfsHash,
   }
-  const ethVaultInitParamsEncoded = encodeEthVaultInitParams(ethVaultInitParams)
-  const ethErc20VaultInitParams = {
+  const ethRestakeVaultInitParamsEncoded =
+    encodeEthRestakeVaultInitParams(ethRestakeVaultInitParams)
+  const ethRestakeErc20VaultInitParams = {
     capacity,
     feePercent,
     name,
     symbol,
     metadataIpfsHash,
   }
-  const ethErc20VaultInitParamsEncoded = encodeEthErc20VaultInitParams(ethErc20VaultInitParams)
-  let admin: Wallet
-  let ethVaultFactory: EthVaultFactory,
-    ethPrivVaultFactory: EthVaultFactory,
-    ethErc20VaultFactory: EthVaultFactory,
-    ethPrivErc20VaultFactory: EthVaultFactory,
-    ethBlocklistVaultFactory: EthVaultFactory,
-    ethBlocklistErc20VaultFactory: EthVaultFactory
+  const ethRestakeErc20VaultInitParamsEncoded = encodeEthRestakeErc20VaultInitParams(
+    ethRestakeErc20VaultInitParams
+  )
+  let admin: Wallet, other: Wallet
+  let ethRestakeVaultFactory: EthRestakeVaultFactory,
+    ethRestakePrivVaultFactory: EthRestakeVaultFactory,
+    ethRestakeErc20VaultFactory: EthRestakeVaultFactory,
+    ethRestakePrivErc20VaultFactory: EthRestakeVaultFactory,
+    ethRestakeBlocklistVaultFactory: EthRestakeVaultFactory,
+    ethRestakeBlocklistErc20VaultFactory: EthRestakeVaultFactory
   let sharedMevEscrow: SharedMevEscrow
   let vaultsRegistry: VaultsRegistry
 
   beforeEach(async () => {
-    ;[admin] = (await (ethers as any).getSigners()).slice(1, 2)
+    ;[admin, other] = (await (ethers as any).getSigners()).slice(1, 3)
     ;({
-      ethVaultFactory,
-      ethPrivVaultFactory,
-      ethErc20VaultFactory,
-      ethPrivErc20VaultFactory,
-      ethBlocklistVaultFactory,
-      ethBlocklistErc20VaultFactory,
+      ethRestakeVaultFactory,
+      ethRestakePrivVaultFactory,
+      ethRestakeErc20VaultFactory,
+      ethRestakePrivErc20VaultFactory,
+      ethRestakeBlocklistVaultFactory,
+      ethRestakeBlocklistErc20VaultFactory,
       vaultsRegistry,
       sharedMevEscrow,
-    } = await loadFixture(ethVaultFixture))
+    } = await loadFixture(ethRestakeVaultFixture))
   })
 
-  describe('EthVault', () => {
+  it('not dao fails to create vault', async () => {
+    await expect(
+      ethRestakeVaultFactory
+        .connect(other)
+        .createVault(admin.address, ethRestakeVaultInitParamsEncoded, false, {
+          value: SECURITY_DEPOSIT,
+        })
+    ).to.be.revertedWithCustomError(ethRestakeVaultFactory, 'OwnableUnauthorizedAccount')
+  })
+
+  it('fails to create with zero admin address', async () => {
+    await expect(
+      ethRestakeVaultFactory.createVault(ZERO_ADDRESS, ethRestakeVaultInitParamsEncoded, false, {
+        value: SECURITY_DEPOSIT,
+      })
+    ).to.be.revertedWithCustomError(ethRestakeVaultFactory, 'ZeroAddress')
+  })
+
+  describe('EthRestakeVault', () => {
     it('public vault deployment with own escrow gas', async () => {
-      const receipt = await ethVaultFactory
-        .connect(admin)
-        .createVault(ethVaultInitParamsEncoded, true, { value: SECURITY_DEPOSIT })
+      const receipt = await ethRestakeVaultFactory.createVault(
+        admin.address,
+        ethRestakeVaultInitParamsEncoded,
+        true,
+        { value: SECURITY_DEPOSIT }
+      )
       await snapshotGasCost(receipt)
     })
 
     it('public vault deployment with shared escrow gas', async () => {
-      const receipt = await ethVaultFactory
-        .connect(admin)
-        .createVault(ethVaultInitParamsEncoded, false, { value: SECURITY_DEPOSIT })
+      const receipt = await ethRestakeVaultFactory.createVault(
+        admin.address,
+        ethRestakeVaultInitParamsEncoded,
+        false,
+        { value: SECURITY_DEPOSIT }
+      )
       await snapshotGasCost(receipt)
     })
 
     it('private vault deployment with own escrow gas', async () => {
-      const receipt = await ethPrivVaultFactory
-        .connect(admin)
-        .createVault(ethVaultInitParamsEncoded, true, { value: SECURITY_DEPOSIT })
+      const receipt = await ethRestakePrivVaultFactory.createVault(
+        admin.address,
+        ethRestakeVaultInitParamsEncoded,
+        true,
+        { value: SECURITY_DEPOSIT }
+      )
       await snapshotGasCost(receipt)
     })
 
     it('private vault deployment with shared escrow gas', async () => {
-      const receipt = await ethPrivVaultFactory
-        .connect(admin)
-        .createVault(ethVaultInitParamsEncoded, false, { value: SECURITY_DEPOSIT })
+      const receipt = await ethRestakePrivVaultFactory.createVault(
+        admin.address,
+        ethRestakeVaultInitParamsEncoded,
+        false,
+        { value: SECURITY_DEPOSIT }
+      )
       await snapshotGasCost(receipt)
     })
   })
 
   describe('EthErc20Vault', () => {
     it('public vault deployment with own escrow gas', async () => {
-      const receipt = await ethErc20VaultFactory
-        .connect(admin)
-        .createVault(ethErc20VaultInitParamsEncoded, true, { value: SECURITY_DEPOSIT })
+      const receipt = await ethRestakeErc20VaultFactory.createVault(
+        admin.address,
+        ethRestakeErc20VaultInitParamsEncoded,
+        true,
+        {
+          value: SECURITY_DEPOSIT,
+        }
+      )
       await snapshotGasCost(receipt)
     })
 
     it('public vault deployment with shared escrow gas', async () => {
-      const receipt = await ethErc20VaultFactory
-        .connect(admin)
-        .createVault(ethErc20VaultInitParamsEncoded, false, { value: SECURITY_DEPOSIT })
+      const receipt = await ethRestakeErc20VaultFactory.createVault(
+        admin.address,
+        ethRestakeErc20VaultInitParamsEncoded,
+        false,
+        {
+          value: SECURITY_DEPOSIT,
+        }
+      )
       await snapshotGasCost(receipt)
     })
 
     it('private vault deployment with own escrow gas', async () => {
-      const receipt = await ethPrivErc20VaultFactory
-        .connect(admin)
-        .createVault(ethErc20VaultInitParamsEncoded, true, { value: SECURITY_DEPOSIT })
+      const receipt = await ethRestakePrivErc20VaultFactory.createVault(
+        admin.address,
+        ethRestakeErc20VaultInitParamsEncoded,
+        true,
+        {
+          value: SECURITY_DEPOSIT,
+        }
+      )
       await snapshotGasCost(receipt)
     })
 
     it('private vault deployment with shared escrow gas', async () => {
-      const receipt = await ethPrivErc20VaultFactory
-        .connect(admin)
-        .createVault(ethErc20VaultInitParamsEncoded, false, { value: SECURITY_DEPOSIT })
+      const receipt = await ethRestakePrivErc20VaultFactory.createVault(
+        admin.address,
+        ethRestakeErc20VaultInitParamsEncoded,
+        false,
+        {
+          value: SECURITY_DEPOSIT,
+        }
+      )
       await snapshotGasCost(receipt)
     })
   })
@@ -121,43 +174,43 @@ describe('EthVaultFactory', () => {
   it('creates vaults correctly', async () => {
     for (const config of [
       {
-        factory: ethVaultFactory,
-        vaultClass: 'EthVault',
+        factory: ethRestakeVaultFactory,
+        vaultClass: 'EthRestakeVault',
         isErc20: false,
         isPrivate: false,
         isBlocklist: false,
       },
       {
-        factory: ethPrivVaultFactory,
-        vaultClass: 'EthPrivVault',
+        factory: ethRestakePrivVaultFactory,
+        vaultClass: 'EthRestakePrivVault',
         isErc20: false,
         isPrivate: true,
         isBlocklist: false,
       },
       {
-        factory: ethBlocklistVaultFactory,
-        vaultClass: 'EthBlocklistVault',
+        factory: ethRestakeBlocklistVaultFactory,
+        vaultClass: 'EthRestakeBlocklistVault',
         isErc20: false,
         isPrivate: false,
         isBlocklist: true,
       },
       {
-        factory: ethErc20VaultFactory,
-        vaultClass: 'EthErc20Vault',
+        factory: ethRestakeErc20VaultFactory,
+        vaultClass: 'EthRestakeErc20Vault',
         isErc20: true,
         isPrivate: false,
         isBlocklist: false,
       },
       {
-        factory: ethPrivErc20VaultFactory,
-        vaultClass: 'EthPrivErc20Vault',
+        factory: ethRestakePrivErc20VaultFactory,
+        vaultClass: 'EthRestakePrivErc20Vault',
         isErc20: true,
         isPrivate: true,
         isBlocklist: false,
       },
       {
-        factory: ethBlocklistErc20VaultFactory,
-        vaultClass: 'EthBlocklistErc20Vault',
+        factory: ethRestakeBlocklistErc20VaultFactory,
+        vaultClass: 'EthRestakeBlocklistErc20Vault',
         isErc20: true,
         isPrivate: false,
         isBlocklist: true,
@@ -166,15 +219,17 @@ describe('EthVaultFactory', () => {
       for (const isOwnEscrow of [false, true]) {
         const { factory, isErc20, vaultClass, isPrivate, isBlocklist } = config
         const initParamsEncoded = isErc20
-          ? encodeEthErc20VaultInitParams(ethErc20VaultInitParams)
-          : encodeEthVaultInitParams(ethVaultInitParams)
+          ? encodeEthRestakeErc20VaultInitParams(ethRestakeErc20VaultInitParams)
+          : encodeEthRestakeVaultInitParams(ethRestakeVaultInitParams)
 
         // fails without security deposit
-        await expect(factory.connect(admin).createVault(initParamsEncoded, isOwnEscrow)).to.reverted
+        await expect(
+          factory.connect(admin).createVault(admin.address, initParamsEncoded, isOwnEscrow)
+        ).to.reverted
 
-        const tx = await factory
-          .connect(admin)
-          .createVault(initParamsEncoded, isOwnEscrow, { value: SECURITY_DEPOSIT })
+        const tx = await factory.createVault(admin.address, initParamsEncoded, isOwnEscrow, {
+          value: SECURITY_DEPOSIT,
+        })
         const vaultAddress = await extractVaultAddress(tx)
         const mevEscrow = isOwnEscrow
           ? await extractMevEscrowAddress(tx)

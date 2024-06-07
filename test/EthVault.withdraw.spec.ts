@@ -226,9 +226,9 @@ describe('EthVault - withdraw', () => {
         timestamp,
         0
       )
-      expect(result.exitedAssets).to.eq(0)
-      expect(result.exitedTickets).to.eq(0)
-      expect(result.leftTickets).to.eq(holderAssets)
+      expect(result.exitedAssets).to.eq(holderAssets)
+      expect(result.exitedTickets).to.eq(holderAssets)
+      expect(result.leftTickets).to.eq(0)
       await snapshotGasCost(receipt)
     })
   })
@@ -247,28 +247,6 @@ describe('EthVault - withdraw', () => {
 
       result = await vault.calculateExitedAssets(other.address, positionTicketV2, timestampV2, 0n)
       expect(result.leftTickets).to.eq(0)
-      expect(result.exitedTickets).to.eq(0)
-      expect(result.exitedAssets).to.eq(0)
-    })
-
-    it('returns zero when delay has not passed', async () => {
-      let result = await vault.calculateExitedAssets(
-        holderV1.address,
-        positionTicketV1,
-        timestampV1,
-        0n
-      )
-      expect(result.leftTickets).to.eq(holderV1Shares)
-      expect(result.exitedTickets).to.eq(0)
-      expect(result.exitedAssets).to.eq(0)
-
-      result = await vault.calculateExitedAssets(
-        holderV2.address,
-        positionTicketV2,
-        timestampV2,
-        0n
-      )
-      expect(result.leftTickets).to.eq(holderV2Assets)
       expect(result.exitedTickets).to.eq(0)
       expect(result.exitedAssets).to.eq(0)
     })
@@ -644,6 +622,22 @@ describe('EthVault - withdraw', () => {
       expect(result.exitedAssets).to.eq(0)
       await expect(
         vault.connect(holderV2).claimExitedAssets(positionTicketV2, timestampV1, 0n)
+      ).to.be.revertedWithCustomError(vault, 'ExitRequestNotProcessed')
+    })
+
+    it('fails with delay not passed', async () => {
+      await vault.updateState(harvestParams)
+      const result = await vault.calculateExitedAssets(
+        other.address,
+        positionTicketV2,
+        timestampV2,
+        0n
+      )
+      expect(result.leftTickets).to.eq(0)
+      expect(result.exitedTickets).to.eq(0)
+      expect(result.exitedAssets).to.eq(0)
+      await expect(
+        vault.connect(holderV2).claimExitedAssets(positionTicketV2, timestampV2, 0n)
       ).to.be.revertedWithCustomError(vault, 'ExitRequestNotProcessed')
     })
 

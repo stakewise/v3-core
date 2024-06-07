@@ -16,13 +16,14 @@ import {
   EthRestakePrivVault__factory,
   EthRestakeVault,
   EthRestakeVault__factory,
-  EthVaultFactory,
   Keeper,
   SharedMevEscrow,
   VaultsRegistry,
   VaultsRegistry__factory,
   SharedMevEscrow__factory,
   Keeper__factory,
+  EthRestakeVaultFactory,
+  EthRestakeVaultFactory__factory,
 } from '../../typechain-types'
 import {
   EXITING_ASSETS_MIN_DELAY,
@@ -34,11 +35,27 @@ import {
 } from './constants'
 import { EthRestakeErc20VaultInitParamsStruct, EthRestakeVaultInitParamsStruct } from './types'
 import { extractVaultAddress } from './utils'
-import { createDepositDataRegistry, createEthVaultFactory, transferOwnership } from './fixtures'
+import { createDepositDataRegistry, transferOwnership } from './fixtures'
 import { MAINNET_FORK, NETWORKS } from '../../helpers/constants'
 import { getEthValidatorsRegistryFactory } from './contracts'
 import mainnetDeployment from '../../deployments/mainnet.json'
 
+export const createEthRestakeVaultFactory = async function (
+  dao: Signer,
+  implementation: string,
+  vaultsRegistry: VaultsRegistry
+): Promise<EthRestakeVaultFactory> {
+  const factory = await ethers.getContractFactory('EthRestakeVaultFactory')
+  const contract = await factory.deploy(
+    await dao.getAddress(),
+    implementation,
+    await vaultsRegistry.getAddress()
+  )
+  return EthRestakeVaultFactory__factory.connect(
+    await contract.getAddress(),
+    await ethers.provider.getSigner()
+  )
+}
 export const deployEigenPodOwnerImplementation = async function (
   eigenPodManagerAddr: string,
   eigenDelegationManagerAddr: string,
@@ -116,12 +133,12 @@ interface EthRestakeVaultFixture {
   sharedMevEscrow: SharedMevEscrow
   depositDataRegistry: DepositDataRegistry
   validatorsRegistry: Contract
-  ethRestakeVaultFactory: EthVaultFactory
-  ethRestakePrivVaultFactory: EthVaultFactory
-  ethRestakeErc20VaultFactory: EthVaultFactory
-  ethRestakePrivErc20VaultFactory: EthVaultFactory
-  ethRestakeBlocklistVaultFactory: EthVaultFactory
-  ethRestakeBlocklistErc20VaultFactory: EthVaultFactory
+  ethRestakeVaultFactory: EthRestakeVaultFactory
+  ethRestakePrivVaultFactory: EthRestakeVaultFactory
+  ethRestakeErc20VaultFactory: EthRestakeVaultFactory
+  ethRestakePrivErc20VaultFactory: EthRestakeVaultFactory
+  ethRestakeBlocklistVaultFactory: EthRestakeVaultFactory
+  ethRestakeBlocklistErc20VaultFactory: EthRestakeVaultFactory
 
   createEthRestakeVault(
     admin: Signer,
@@ -180,7 +197,9 @@ export const ethRestakeVaultFixture = async function (): Promise<EthRestakeVault
 
   // drop mainnet oracles
   for (const oracleAddr of MAINNET_FORK.oracles) {
-    await keeper.removeOracle(oracleAddr)
+    if (await keeper.isOracle(oracleAddr)) {
+      await keeper.removeOracle(oracleAddr)
+    }
   }
 
   // add test oracles
@@ -191,7 +210,9 @@ export const ethRestakeVaultFixture = async function (): Promise<EthRestakeVault
   })
   const sortedOraclesAddresses = sortedOracles.map((s) => new EthereumWallet(s).getAddressString())
   for (let i = 0; i < sortedOraclesAddresses.length; i++) {
-    await keeper.addOracle(sortedOraclesAddresses[i])
+    if (!(await keeper.isOracle(sortedOraclesAddresses[i]))) {
+      await keeper.addOracle(sortedOraclesAddresses[i])
+    }
   }
 
   await keeper.updateConfig(ORACLES_CONFIG)
@@ -229,7 +250,7 @@ export const ethRestakeVaultFixture = async function (): Promise<EthRestakeVault
     await vaultsRegistry.addVaultImpl(vaultImpl)
     implementations[vaultType] = vaultImpl
 
-    const vaultFactory = await createEthVaultFactory(vaultImpl, vaultsRegistry)
+    const vaultFactory = await createEthRestakeVaultFactory(dao, vaultImpl, vaultsRegistry)
     await vaultsRegistry.addFactory(await vaultFactory.getAddress())
     factories[vaultType] = vaultFactory
   }
@@ -258,11 +279,14 @@ export const ethRestakeVaultFixture = async function (): Promise<EthRestakeVault
       vaultParams: EthRestakeVaultInitParamsStruct,
       isOwnMevEscrow = false
     ): Promise<EthRestakeVault> => {
-      const tx = await ethRestakeVaultFactory
-        .connect(admin)
-        .createVault(encodeEthRestakeVaultInitParams(vaultParams), isOwnMevEscrow, {
+      const tx = await ethRestakeVaultFactory.createVault(
+        await admin.getAddress(),
+        encodeEthRestakeVaultInitParams(vaultParams),
+        isOwnMevEscrow,
+        {
           value: SECURITY_DEPOSIT,
-        })
+        }
+      )
       const vaultAddress = await extractVaultAddress(tx)
       return EthRestakeVault__factory.connect(vaultAddress, await ethers.provider.getSigner())
     },
@@ -271,11 +295,14 @@ export const ethRestakeVaultFixture = async function (): Promise<EthRestakeVault
       vaultParams: EthRestakeVaultInitParamsStruct,
       isOwnMevEscrow = false
     ): Promise<EthRestakePrivVault> => {
-      const tx = await ethRestakePrivVaultFactory
-        .connect(admin)
-        .createVault(encodeEthRestakeVaultInitParams(vaultParams), isOwnMevEscrow, {
+      const tx = await ethRestakePrivVaultFactory.createVault(
+        await admin.getAddress(),
+        encodeEthRestakeVaultInitParams(vaultParams),
+        isOwnMevEscrow,
+        {
           value: SECURITY_DEPOSIT,
-        })
+        }
+      )
       const vaultAddress = await extractVaultAddress(tx)
       return EthRestakePrivVault__factory.connect(vaultAddress, await ethers.provider.getSigner())
     },
@@ -284,11 +311,14 @@ export const ethRestakeVaultFixture = async function (): Promise<EthRestakeVault
       vaultParams: EthRestakeVaultInitParamsStruct,
       isOwnMevEscrow = false
     ): Promise<EthRestakeBlocklistVault> => {
-      const tx = await ethRestakeBlocklistVaultFactory
-        .connect(admin)
-        .createVault(encodeEthRestakeVaultInitParams(vaultParams), isOwnMevEscrow, {
+      const tx = await ethRestakeBlocklistVaultFactory.createVault(
+        await admin.getAddress(),
+        encodeEthRestakeVaultInitParams(vaultParams),
+        isOwnMevEscrow,
+        {
           value: SECURITY_DEPOSIT,
-        })
+        }
+      )
       const vaultAddress = await extractVaultAddress(tx)
       return EthRestakeBlocklistVault__factory.connect(
         vaultAddress,
@@ -300,11 +330,14 @@ export const ethRestakeVaultFixture = async function (): Promise<EthRestakeVault
       vaultParams: EthRestakeErc20VaultInitParamsStruct,
       isOwnMevEscrow = false
     ): Promise<EthRestakeErc20Vault> => {
-      const tx = await ethRestakeErc20VaultFactory
-        .connect(admin)
-        .createVault(encodeEthRestakeErc20VaultInitParams(vaultParams), isOwnMevEscrow, {
+      const tx = await ethRestakeErc20VaultFactory.createVault(
+        await admin.getAddress(),
+        encodeEthRestakeErc20VaultInitParams(vaultParams),
+        isOwnMevEscrow,
+        {
           value: SECURITY_DEPOSIT,
-        })
+        }
+      )
       const vaultAddress = await extractVaultAddress(tx)
       return EthRestakeErc20Vault__factory.connect(vaultAddress, await ethers.provider.getSigner())
     },
@@ -313,11 +346,14 @@ export const ethRestakeVaultFixture = async function (): Promise<EthRestakeVault
       vaultParams: EthRestakeErc20VaultInitParamsStruct,
       isOwnMevEscrow = false
     ): Promise<EthRestakePrivErc20Vault> => {
-      const tx = await ethRestakePrivErc20VaultFactory
-        .connect(admin)
-        .createVault(encodeEthRestakeErc20VaultInitParams(vaultParams), isOwnMevEscrow, {
+      const tx = await ethRestakePrivErc20VaultFactory.createVault(
+        await admin.getAddress(),
+        encodeEthRestakeErc20VaultInitParams(vaultParams),
+        isOwnMevEscrow,
+        {
           value: SECURITY_DEPOSIT,
-        })
+        }
+      )
       const vaultAddress = await extractVaultAddress(tx)
       return EthRestakePrivErc20Vault__factory.connect(
         vaultAddress,
@@ -329,11 +365,14 @@ export const ethRestakeVaultFixture = async function (): Promise<EthRestakeVault
       vaultParams: EthRestakeErc20VaultInitParamsStruct,
       isOwnMevEscrow = false
     ): Promise<EthRestakeBlocklistErc20Vault> => {
-      const tx = await ethRestakeBlocklistErc20VaultFactory
-        .connect(admin)
-        .createVault(encodeEthRestakeErc20VaultInitParams(vaultParams), isOwnMevEscrow, {
+      const tx = await ethRestakeBlocklistErc20VaultFactory.createVault(
+        await admin.getAddress(),
+        encodeEthRestakeErc20VaultInitParams(vaultParams),
+        isOwnMevEscrow,
+        {
           value: SECURITY_DEPOSIT,
-        })
+        }
+      )
       const vaultAddress = await extractVaultAddress(tx)
       return EthRestakeBlocklistErc20Vault__factory.connect(
         vaultAddress,

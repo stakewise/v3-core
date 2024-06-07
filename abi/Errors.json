@@ -141,11 +141,6 @@
   },
   {
     "inputs": [],
-    "name": "InvalidRedeemFromLtvPercent",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidRewardsRoot",
     "type": "error"
   },
@@ -182,6 +177,11 @@
   {
     "inputs": [],
     "name": "InvalidWithdrawalCredentials",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "LiquidationDisabled",
     "type": "error"
   },
   {

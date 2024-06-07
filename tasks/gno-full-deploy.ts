@@ -18,7 +18,7 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
     throw new Error('Gnosis data is required for this network')
   }
 
-  // Create the signer for the mnemonic, connected to the provider with hardcoded fee data
+  // Create the signer for the mnemonic
   console.log('Deploying StakeWise V3 for Gnosis to', networkName, 'from', deployer.address)
 
   // deploy VaultsRegistry
@@ -62,7 +62,7 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
       networkConfig.osTokenFeePercent,
       networkConfig.osTokenCapacity,
     ],
-    'contracts/osToken/OsTokenVaultController.sol:OsTokenVaultController'
+    'contracts/tokens/OsTokenVaultController.sol:OsTokenVaultController'
   )
   const osTokenVaultControllerAddress = await osTokenVaultController.getAddress()
 
@@ -76,7 +76,7 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
       networkConfig.osTokenName,
       networkConfig.osTokenSymbol,
     ],
-    'contracts/osToken/OsToken.sol:OsToken'
+    'contracts/tokens/OsToken.sol:OsToken'
   )
   if ((await osToken.getAddress()) !== osTokenAddress) {
     throw new Error('OsToken address mismatch')
@@ -122,16 +122,24 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
     [
       networkConfig.governor,
       {
-        redeemFromLtvPercent: networkConfig.redeemFromLtvPercent,
-        redeemToLtvPercent: networkConfig.redeemToLtvPercent,
         liqThresholdPercent: networkConfig.liqThresholdPercent,
         liqBonusPercent: networkConfig.liqBonusPercent,
         ltvPercent: networkConfig.ltvPercent,
       },
+      networkConfig.governor,
     ],
-    'contracts/osToken/OsTokenConfig.sol:OsTokenConfig'
+    'contracts/tokens/OsTokenConfig.sol:OsTokenConfig'
   )
   const osTokenConfigAddress = await osTokenConfig.getAddress()
+
+  // Deploy DepositDataRegistry
+  const depositDataRegistry = await deployContract(
+    hre,
+    'DepositDataRegistry',
+    [vaultsRegistryAddress],
+    'contracts/validators/DepositDataRegistry.sol:DepositDataRegistry'
+  )
+  const depositDataRegistryAddress = await depositDataRegistry.getAddress()
 
   // Deploy XdaiExchange implementation
   const xdaiExchangeConstructorArgs = [
@@ -139,6 +147,8 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
     networkConfig.gnosis.balancerPoolId,
     networkConfig.gnosis.balancerVault,
     vaultsRegistryAddress,
+    networkConfig.gnosis.daiPriceFeed,
+    networkConfig.gnosis.gnoPriceFeed,
   ]
   const xDaiExchangeImpl = await deployContract(
     hre,
@@ -155,18 +165,21 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
     xDaiExchangeImplAddress
   )
 
-  // Deploy XdaiExchange proxy
+  // Deploy and initialize XdaiExchange proxy
   let proxy = await deployContract(
     hre,
     'ERC1967Proxy',
-    [xDaiExchangeImplAddress, '0x'],
+    [
+      xDaiExchangeImplAddress,
+      xDaiExchangeFactory.interface.encodeFunctionData('initialize', [
+        networkConfig.governor,
+        networkConfig.gnosis.maxSlippage,
+        networkConfig.gnosis.stalePriceTimeDelta,
+      ]),
+    ],
     '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy'
   )
   const xdaiExchangeAddress = await proxy.getAddress()
-  const xdaiExchange = xDaiExchangeFactory.attach(xdaiExchangeAddress)
-
-  // Initialize XdaiExchange
-  await callContract(xdaiExchange.initialize(networkConfig.governor))
 
   const factories: string[] = []
   for (const vaultType of [
@@ -185,6 +198,7 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
       osTokenVaultControllerAddress,
       osTokenConfigAddress,
       sharedMevEscrowAddress,
+      depositDataRegistryAddress,
       networkConfig.gnosis.gnoToken,
       xdaiExchangeAddress,
       networkConfig.exitedAssetsClaimDelay,
@@ -230,6 +244,7 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
     osTokenVaultControllerAddress,
     osTokenConfigAddress,
     sharedMevEscrowAddress,
+    depositDataRegistryAddress,
     networkConfig.gnosis.gnoToken,
     xdaiExchangeAddress,
     networkConfig.genesisVault.poolEscrow,
@@ -288,7 +303,7 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
     hre,
     'PriceFeed',
     [osTokenVaultControllerAddress, networkConfig.priceFeedDescription],
-    'contracts/osToken/PriceFeed.sol:PriceFeed'
+    'contracts/tokens/PriceFeed.sol:PriceFeed'
   )
   const priceFeedAddress = await priceFeed.getAddress()
 
@@ -321,6 +336,8 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
   const addresses = {
     VaultsRegistry: vaultsRegistryAddress,
     Keeper: keeperAddress,
+    DepositDataRegistry: depositDataRegistryAddress,
+    XdaiExchange: xdaiExchangeAddress,
     GnoGenesisVault: genesisVaultAddress,
     GnoVaultFactory: factories[0],
     GnoPrivVaultFactory: factories[1],

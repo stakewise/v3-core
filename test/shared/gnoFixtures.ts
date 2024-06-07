@@ -59,8 +59,6 @@ import {
   OSTOKEN_LIQ_THRESHOLD,
   OSTOKEN_LTV,
   OSTOKEN_NAME,
-  OSTOKEN_REDEEM_FROM_LTV,
-  OSTOKEN_REDEEM_TO_LTV,
   OSTOKEN_SYMBOL,
   REWARDS_DELAY,
   REWARDS_MIN_ORACLES,
@@ -478,12 +476,9 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
   // 6. deploy osTokenConfig
   const osTokenConfig = await createOsTokenConfig(
     dao,
-    OSTOKEN_REDEEM_FROM_LTV,
-    OSTOKEN_REDEEM_TO_LTV,
     OSTOKEN_LIQ_THRESHOLD,
     OSTOKEN_LIQ_BONUS,
     OSTOKEN_LTV,
-    dao,
     dao
   )
 

@@ -1,14 +1,12 @@
 import { NetworkConfig, Networks } from './types'
 import { parseEther } from 'ethers'
-import { MAX_UINT256, ZERO_BYTES32 } from '../test/shared/constants'
-
-const MAX_UINT16 = 2n ** 16n - 1n
+import { MAX_UINT128, MAX_UINT256, ZERO_BYTES32 } from '../test/shared/constants'
 
 export const NETWORKS: {
   [network in Networks]: NetworkConfig
 } = {
   [Networks.holesky]: {
-    url: process.env.NETWORK_RPC_URL || '',
+    url: process.env.HOLESKY_RPC_URL || '',
     chainId: 17000,
 
     governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
@@ -42,11 +40,9 @@ export const NETWORKS: {
     osTokenCapacity: parseEther('1000000'), // 1m ETH
     osTokenName: 'Staked ETH',
     osTokenSymbol: 'osETH',
-    redeemFromLtvPercent: 9150n, // 91.5%
-    redeemToLtvPercent: 9000n, // 90%
-    liqThresholdPercent: 9200, // 92%
-    liqBonusPercent: 10100, // 101%
-    ltvPercent: 9000, // 90%
+    liqThresholdPercent: parseEther('0.92'), // 92%
+    liqBonusPercent: parseEther('1.01'), // 101%
+    ltvPercent: parseEther('0.90'), // 90%
 
     // EthGenesisVault
     genesisVault: {
@@ -68,9 +64,14 @@ export const NETWORKS: {
     // Cumulative MerkleDrop
     liquidityCommittee: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     swiseToken: '0x484871C6D54a3dAEBeBBDB0AB7a54c97D72986Bb',
+
+    // Restake vault settings
+    eigenPodManager: '0x30770d7E3e71112d7A6b7259542D1f680a70e315',
+    eigenDelegationManager: '0xA44151489861Fe9e3055d95adC98FbD462B948e7',
+    eigenDelayedWithdrawalRouter: '0x642c646053eaf2254f088e9019ACD73d9AE0FA32',
   },
   [Networks.mainnet]: {
-    url: process.env.NETWORK_RPC_URL || '',
+    url: process.env.MAINNET_RPC_URL || '',
     chainId: 1,
 
     governor: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
@@ -106,11 +107,9 @@ export const NETWORKS: {
     osTokenSymbol: 'osETH',
 
     // OsTokenConfig
-    redeemFromLtvPercent: MAX_UINT16, // disable redeems
-    redeemToLtvPercent: MAX_UINT16, // disable redeems
-    liqThresholdPercent: 9200, // 92%
-    liqBonusPercent: 10100, // 101%
-    ltvPercent: 9000, // 90%
+    liqThresholdPercent: parseEther('0.92'), // 92%
+    liqBonusPercent: parseEther('1.01'), // 101%
+    ltvPercent: parseEther('0.90'), // 90%
 
     // EthGenesisVault
     genesisVault: {
@@ -132,9 +131,14 @@ export const NETWORKS: {
     // Cumulative MerkleDrop
     liquidityCommittee: '0x189Cb93839AD52b5e955ddA254Ed7212ae1B1f61',
     swiseToken: '0x48C3399719B582dD63eB5AADf12A40B4C3f52FA2',
+
+    // Restake vault settings
+    eigenPodManager: '0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338',
+    eigenDelegationManager: '0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A',
+    eigenDelayedWithdrawalRouter: '0x7Fe7E9CC0F274d2435AD5d56D5fa73E47F6A23D8',
   },
   [Networks.chiado]: {
-    url: process.env.NETWORK_RPC_URL || '',
+    url: process.env.CHIADO_RPC_URL || '',
     chainId: 10200,
 
     governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
@@ -170,17 +174,15 @@ export const NETWORKS: {
     osTokenSymbol: 'osGNO',
 
     // OsTokenConfig
-    redeemFromLtvPercent: MAX_UINT16, // disable redeems
-    redeemToLtvPercent: MAX_UINT16, // disable redeems
-    liqThresholdPercent: 6600, // 66%
-    liqBonusPercent: 10100, // 101%
-    ltvPercent: 6400, // 64%
+    liqThresholdPercent: parseEther('0.92'), // 92%
+    liqBonusPercent: parseEther('1.01'), // 101%
+    ltvPercent: parseEther('0.90'), // 90%
 
     // GnoGenesisVault
     genesisVault: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
-      poolEscrow: '0x3c5634a5437A394353F49fe04FE5db11961c5c2D',
-      rewardToken: '0xfe076029B7D46fbe2ad4B9CBf377aA10B309e560',
+      poolEscrow: '0x10C5066FB5DA1C0D7eb189DE4dfA26d23e8e4aDa',
+      rewardToken: '0x3A945FD94A1d810B5e1c4536747F0de358d32854',
       capacity: parseEther('200000'), // 200k GNO
       feePercent: 2000, // 20%
     },
@@ -189,20 +191,29 @@ export const NETWORKS: {
     // Gnosis data
     gnosis: {
       gnoToken: '0x19C653Da7c37c66208fbfbE8908A5051B57b4C70',
+      gnoPriceFeed: '0xcC5E385EdB2fEaB9C9A6DE97b572f1d811312ae7',
+      daiPriceFeed: '0x390C320Ae2B001C7CB31A690e2500b55313aC986',
       balancerVault: '0x8b6c2C9E09c6022780D164F3cFd882808b8bDBF0',
       balancerPoolId: ZERO_BYTES32,
+      maxSlippage: 1000, // 10%
+      stalePriceTimeDelta: MAX_UINT128, // unlimited
     },
 
     // Cumulative MerkleDrop
     liquidityCommittee: '0x0000000000000000000000000000000000000000',
     swiseToken: '0x0000000000000000000000000000000000000000',
+
+    // Restake vault settings
+    eigenPodManager: '0x0000000000000000000000000000000000000000',
+    eigenDelegationManager: '0x0000000000000000000000000000000000000000',
+    eigenDelayedWithdrawalRouter: '0x0000000000000000000000000000000000000000',
   },
 }
 
 export const MAINNET_FORK = {
   enabled: process.env.ENABLE_MAINNET_FORK === 'true',
   blockNumber: 19767930,
-  rpcUrl: process.env.MAINNET_FORK_RPC_URL,
+  rpcUrl: process.env.MAINNET_FORK_RPC_URL || '',
   vaults: {
     ethVaultOwnMevEscrow: '0xe6d8d8aC54461b1C5eD15740EEe322043F696C08',
     ethVaultSharedMevEscrow: '0x8A93A876912c9F03F88Bc9114847cf5b63c89f56',
@@ -266,7 +277,7 @@ export const MAINNET_FORK = {
     '0xD66A71A68392767F26b7EE47e9a0293191A23072': {
       rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
       reward: 17651468000000000n,
-      unlockedMevReward: 0,
+      unlockedMevReward: 0n,
       proof: [
         '0x963d6cd98d8aa8c3e1d4cb1f387db3722846dc9aeceb98dcf3b4be367dbab22b',
         '0x8ae8d4d934c7f4831aa7246514adb826972cb6103e7230b2aedea4d4142c629a',
@@ -278,7 +289,7 @@ export const MAINNET_FORK = {
     '0x3102B4013cB506481e959c8F4500B994D2bFF22e': {
       rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
       reward: 271531083000000000n,
-      unlockedMevReward: 0,
+      unlockedMevReward: 0n,
       proof: [
         '0xa890ed09db09b75b5a2e14d78f6129884daf9d63505f8dad1af12f36e56921e8',
         '0x0b3b2488077d45732138e88da27320bb53abb1b172c9c59347704e6a794729ba',
@@ -290,7 +301,7 @@ export const MAINNET_FORK = {
     '0x9c29c571847A68A947AceC8bacd303e36bC72ec5': {
       rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
       reward: 350451159567197326n,
-      unlockedMevReward: 0,
+      unlockedMevReward: 0n,
       proof: [
         '0x50c78f43bfb03d41de939985630a6ac6a69d8df763b0494be0d283574533cb72',
         '0xef1addafb983ccd1b10c65bd3b771f3ae6b7a3808ae44a4136e7a4ba233ec3e2',

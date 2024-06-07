@@ -1,7 +1,13 @@
 import { ethers, network } from 'hardhat'
 import { Contract, Signer } from 'ethers'
 import { StandardMerkleTree } from '@openzeppelin/merkle-tree'
-import { EthVault, IKeeperRewards, Keeper, DepositDataRegistry } from '../../typechain-types'
+import {
+  EthVault,
+  IKeeperRewards,
+  Keeper,
+  DepositDataRegistry,
+  EthPrivVault,
+} from '../../typechain-types'
 import {
   EIP712Domain,
   EXITING_ASSETS_MIN_DELAY,
@@ -186,20 +192,27 @@ export async function collateralizeEthVault(
   admin: Signer,
   validatorsRegistry: Contract
 ) {
+  const signer = (await ethers.getSigners())[0]
+  try {
+    await (<EthPrivVault>vault).connect(admin).updateWhitelist(await signer.getAddress(), true)
+  } catch (e) {
+    /* empty */
+  }
   const vaultAddress = await vault.getAddress()
   const balanceBefore = await ethers.provider.getBalance(vaultAddress)
-  const adminAddr = await admin.getAddress()
 
   // register validator
   const validatorDeposit = ethers.parseEther('32')
   const tx = await vault
-    .connect(admin)
-    .deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
+    .connect(signer)
+    .deposit(await signer.getAddress(), ZERO_ADDRESS, { value: validatorDeposit })
   const receivedShares = await extractDepositShares(tx)
   await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
   // exit validator
-  const response = await vault.connect(admin).enterExitQueue(receivedShares, adminAddr)
+  const response = await vault
+    .connect(signer)
+    .enterExitQueue(receivedShares, await signer.getAddress())
   const positionTicket = await extractExitPositionTicket(response)
   const timestamp = await getBlockTimestamp(response)
 
@@ -207,7 +220,7 @@ export async function collateralizeEthVault(
   await setBalance(vaultAddress, balanceBefore + (await vault.totalExitingAssets()))
 
   // claim exited assets
-  await vault.connect(admin).claimExitedAssets(positionTicket, timestamp, 0)
+  await vault.connect(signer).claimExitedAssets(positionTicket, timestamp, 0)
   await setBalance(vaultAddress, balanceBefore)
 }
 

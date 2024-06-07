@@ -1,0 +1,57 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthRestakeVaultFactory EthErc20Vault private vault deployment with own escrow gas 1`] = `
+Object {
+  "calldataByteLength": 548,
+  "gasUsed": 579714,
+}
+`;
+
+exports[`EthRestakeVaultFactory EthErc20Vault private vault deployment with shared escrow gas 1`] = `
+Object {
+  "calldataByteLength": 548,
+  "gasUsed": 430880,
+}
+`;
+
+exports[`EthRestakeVaultFactory EthErc20Vault public vault deployment with own escrow gas 1`] = `
+Object {
+  "calldataByteLength": 548,
+  "gasUsed": 555756,
+}
+`;
+
+exports[`EthRestakeVaultFactory EthErc20Vault public vault deployment with shared escrow gas 1`] = `
+Object {
+  "calldataByteLength": 548,
+  "gasUsed": 406922,
+}
+`;
+
+exports[`EthRestakeVaultFactory EthRestakeVault private vault deployment with own escrow gas 1`] = `
+Object {
+  "calldataByteLength": 356,
+  "gasUsed": 505605,
+}
+`;
+
+exports[`EthRestakeVaultFactory EthRestakeVault private vault deployment with shared escrow gas 1`] = `
+Object {
+  "calldataByteLength": 356,
+  "gasUsed": 356771,
+}
+`;
+
+exports[`EthRestakeVaultFactory EthRestakeVault public vault deployment with own escrow gas 1`] = `
+Object {
+  "calldataByteLength": 356,
+  "gasUsed": 481644,
+}
+`;
+
+exports[`EthRestakeVaultFactory EthRestakeVault public vault deployment with shared escrow gas 1`] = `
+Object {
+  "calldataByteLength": 356,
+  "gasUsed": 332810,
+}
+`;

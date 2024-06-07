@@ -26,7 +26,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       throw new Error('FoxVault config is missing')
     }
 
-    // Create the signer for the mnemonic, connected to the provider with hardcoded fee data
+    // Create the signer for the mnemonic
     console.log('Deploying StakeWise V3 for Ethereum to', networkName, 'from', deployer.address)
 
     // deploy VaultsRegistry
@@ -114,14 +114,19 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     const osTokenConfig = await deployContract(hre, 'OsTokenConfig', [
       governor.address,
       {
-        redeemFromLtvPercent: networkConfig.redeemFromLtvPercent,
-        redeemToLtvPercent: networkConfig.redeemToLtvPercent,
         liqThresholdPercent: networkConfig.liqThresholdPercent,
         liqBonusPercent: networkConfig.liqBonusPercent,
         ltvPercent: networkConfig.ltvPercent,
       },
+      governor.address,
     ])
     const osTokenConfigAddress = await osTokenConfig.getAddress()
+
+    // Deploy DepositDataRegistry
+    const depositDataRegistry = await deployContract(hre, 'DepositDataRegistry', [
+      vaultsRegistryAddress,
+    ])
+    const depositDataRegistryAddress = await depositDataRegistry.getAddress()
 
     const factories: string[] = []
     for (const vaultType of [
@@ -140,6 +145,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
         osTokenVaultControllerAddress,
         osTokenConfigAddress,
         sharedMevEscrowAddress,
+        depositDataRegistryAddress,
         networkConfig.exitedAssetsClaimDelay,
       ]
       const vaultImpl = await deployContract(hre, vaultType, constructorArgs)
@@ -176,6 +182,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       osTokenVaultControllerAddress,
       osTokenConfigAddress,
       sharedMevEscrowAddress,
+      depositDataRegistryAddress,
       networkConfig.genesisVault.poolEscrow,
       networkConfig.genesisVault.rewardToken,
       networkConfig.exitedAssetsClaimDelay,
@@ -185,24 +192,25 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     const genesisVaultFactory = await ethers.getContractFactory('EthGenesisVault')
     await simulateDeployImpl(hre, genesisVaultFactory, { constructorArgs }, genesisVaultImplAddress)
 
-    // Deploy EthGenesisVault proxy
-    let proxy = await deployContract(hre, 'ERC1967Proxy', [genesisVaultImplAddress, '0x'])
-    const genesisVaultAddress = await proxy.getAddress()
-    const genesisVault = genesisVaultFactory.attach(genesisVaultAddress)
-
-    // Initialize EthGenesisVault
-    await callContract(
-      genesisVault.initialize(
-        ethers.AbiCoder.defaultAbiCoder().encode(
-          ['address', 'tuple(uint256 capacity, uint16 feePercent, string metadataIpfsHash)'],
-          [
-            networkConfig.genesisVault.admin,
-            [networkConfig.genesisVault.capacity, networkConfig.genesisVault.feePercent, ''],
-          ]
-        ),
-        { value: networkConfig.securityDeposit }
-      )
+    // Deploy and initialize EthGenesisVault proxy
+    let initCall = ethers.AbiCoder.defaultAbiCoder().encode(
+      ['address', 'tuple(uint256 capacity, uint16 feePercent, string metadataIpfsHash)'],
+      [
+        networkConfig.genesisVault.admin,
+        [networkConfig.genesisVault.capacity, networkConfig.genesisVault.feePercent, ''],
+      ]
     )
+    let proxy = await deployContract(
+      hre,
+      'ERC1967Proxy',
+      [
+        genesisVaultImplAddress,
+        genesisVaultFactory.interface.encodeFunctionData('initialize', [initCall]),
+      ],
+      undefined,
+      { value: networkConfig.securityDeposit }
+    )
+    const genesisVaultAddress = await proxy.getAddress()
 
     await callContract(vaultsRegistry.addVault(genesisVaultAddress))
     console.log('Added EthGenesisVault to VaultsRegistry')
@@ -216,6 +224,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       vaultsRegistryAddress,
       networkConfig.validatorsRegistry,
       sharedMevEscrowAddress,
+      depositDataRegistryAddress,
       networkConfig.exitedAssetsClaimDelay,
     ]
     const foxVaultImpl = await deployContract(hre, 'EthFoxVault', constructorArgs)
@@ -232,8 +241,8 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     const ownMevEscrowFactory = await ethers.getContractFactory('OwnMevEscrow')
     const ownMevEscrow = await ownMevEscrowFactory.deploy(foxVaultAddress)
 
-    // Deploy EthFoxVault proxy
-    const initCall = ethers.AbiCoder.defaultAbiCoder().encode(
+    // Deploy and initialize EthFoxVault proxy
+    initCall = ethers.AbiCoder.defaultAbiCoder().encode(
       [
         'tuple(address admin, address ownMevEscrow, uint256 capacity, uint16 feePercent, string metadataIpfsHash)',
       ],
@@ -263,6 +272,55 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
 
     await callContract(vaultsRegistry.addVault(foxVaultAddress))
     console.log('Added EthFoxVault to VaultsRegistry')
+
+    // Deploy EigenPodOwner implementation
+    const eigenPodOwnerImpl = await deployContract(hre, 'EigenPodOwner', [
+      networkConfig.eigenPodManager,
+      networkConfig.eigenDelegationManager,
+      networkConfig.eigenDelayedWithdrawalRouter,
+    ])
+    const eigenPodOwnerImplAddress = await eigenPodOwnerImpl.getAddress()
+
+    // Deploy restake vaults
+    for (const vaultType of [
+      'EthRestakeVault',
+      'EthRestakePrivVault',
+      'EthRestakeBlocklistVault',
+      'EthRestakeErc20Vault',
+      'EthRestakePrivErc20Vault',
+      'EthRestakeBlocklistErc20Vault',
+    ]) {
+      // Deploy Vault Implementation
+      const constructorArgs = [
+        keeperAddress,
+        vaultsRegistryAddress,
+        validatorsRegistryAddress,
+        sharedMevEscrowAddress,
+        depositDataRegistryAddress,
+        eigenPodOwnerImplAddress,
+        networkConfig.exitedAssetsClaimDelay,
+      ]
+      const vaultImpl = await deployContract(hre, vaultType, constructorArgs)
+      const vaultImplAddress = await vaultImpl.getAddress()
+      await simulateDeployImpl(
+        hre,
+        await ethers.getContractFactory(vaultType),
+        { constructorArgs },
+        vaultImplAddress
+      )
+
+      // Deploy Vault Factory
+      const vaultFactory = await deployContract(hre, 'EthVaultFactory', [
+        vaultImplAddress,
+        vaultsRegistryAddress,
+      ])
+      const vaultFactoryAddress = await vaultFactory.getAddress()
+      factories.push(vaultFactoryAddress)
+
+      // Add factory to registry
+      await callContract(vaultsRegistry.addFactory(vaultFactoryAddress))
+      console.log(`Added ${vaultType}Factory to VaultsRegistry`)
+    }
 
     // Deploy PriceFeed
     const priceFeed = await deployContract(hre, 'PriceFeed', [
@@ -299,6 +357,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     const addresses = {
       VaultsRegistry: vaultsRegistryAddress,
       Keeper: keeperAddress,
+      DepositDataRegistry: depositDataRegistryAddress,
       EthFoxVault: foxVaultAddress,
       EthVaultFactory: factories[0],
       EthPrivVaultFactory: factories[1],
@@ -306,6 +365,12 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       EthErc20VaultFactory: factories[3],
       EthPrivErc20VaultFactory: factories[4],
       EthBlocklistErc20VaultFactory: factories[5],
+      EthRestakeVaultFactory: factories[6],
+      EthRestakePrivVaultFactory: factories[7],
+      EthRestakeBlocklistVaultFactory: factories[8],
+      EthRestakeErc20VaultFactory: factories[9],
+      EthRestakePrivErc20VaultFactory: factories[10],
+      EthRestakeBlocklistErc20VaultFactory: factories[11],
       SharedMevEscrow: sharedMevEscrowAddress,
       OsToken: osTokenAddress,
       OsTokenConfig: osTokenConfigAddress,
