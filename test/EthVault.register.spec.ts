@@ -201,7 +201,6 @@ describe('EthVault - register', () => {
     it('succeeds using validators manager signature', async () => {
       const index = await validatorsRegistry.get_deposit_count()
       const manager = new ethers.Wallet(privateKey)
-      console.log(manager.privateKey)
       await vault.connect(admin).setValidatorsManager(await manager.getAddress())
       const signingData = await getValidatorsManagerSigningData(
         approvalParams.validators,
