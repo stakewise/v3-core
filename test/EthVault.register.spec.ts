@@ -28,6 +28,7 @@ import { signTypedData, SignTypedDataVersion } from '@metamask/eth-sig-util'
 
 const gwei = 1000000000n
 const uintSerializer = new UintNumberType(8)
+const privateKey = '0x7c93e5f6928cb70e47ef96e9e800fc320efdaf7d4114ce84ab7c7679796e5973'
 
 describe('EthVault - register', () => {
   const validatorDeposit = ethers.parseEther('32')
@@ -199,7 +200,8 @@ describe('EthVault - register', () => {
 
     it('succeeds using validators manager signature', async () => {
       const index = await validatorsRegistry.get_deposit_count()
-      const manager = Wallet.createRandom()
+      const manager = new ethers.Wallet(privateKey)
+      console.log(manager.privateKey)
       await vault.connect(admin).setValidatorsManager(await manager.getAddress())
       const signingData = await getValidatorsManagerSigningData(
         approvalParams.validators,
@@ -464,7 +466,7 @@ describe('EthVault - register', () => {
     })
 
     it('succeeds using validators manager signature', async () => {
-      const manager = Wallet.createRandom()
+      const manager = new ethers.Wallet(privateKey)
       await vault.connect(admin).setValidatorsManager(await manager.getAddress())
       const signingData = await getValidatorsManagerSigningData(
         approvalParams.validators,
