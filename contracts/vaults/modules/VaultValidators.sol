@@ -203,6 +203,7 @@ abstract contract VaultValidators is
   /**
    * @notice Computes the hash of the EIP712 typed data
    * @dev This function is used to compute the hash of the EIP712 typed data
+   * @return The hash of the EIP712 typed data
    */
   function _computeVaultValidatorsDomain() private view returns (bytes32) {
     return
