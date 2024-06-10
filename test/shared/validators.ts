@@ -4,19 +4,12 @@ import { ethers, network } from 'hardhat'
 import { Buffer } from 'buffer'
 import { BytesLike, Contract, ContractTransactionResponse, Signer } from 'ethers'
 import bls from 'bls-eth-wasm'
-import {
-  DepositDataRegistry,
-  EthVault,
-  Keeper,
-  EthValidatorsChecker,
-  GnoValidatorsChecker,
-} from '../../typechain-types'
+import { DepositDataRegistry, EthVault, Keeper } from '../../typechain-types'
 import {
   EIP712Domain,
   KeeperUpdateExitSignaturesSig,
   KeeperValidatorsSig,
   VaultValidatorsSig,
-  ValidatorsCheckerSig,
   VALIDATORS_DEADLINE,
   VALIDATORS_MIN_ORACLES,
   ZERO_BYTES32,
@@ -319,30 +312,6 @@ export async function getEthValidatorsExitSignaturesSigningData(
       deadline,
       nonce,
       exitSignaturesIpfsHash,
-    },
-  }
-}
-
-export async function getValidatorsCheckerSigningData(
-  validatorsCheckerTypeName: string,
-  validators: Buffer,
-  validatorsChecker: EthValidatorsChecker | GnoValidatorsChecker,
-  vault: EthVaultType,
-  validatorsRegistryRoot: BytesLike
-) {
-  return {
-    primaryType: validatorsCheckerTypeName,
-    types: { EIP712Domain, [validatorsCheckerTypeName]: ValidatorsCheckerSig },
-    domain: {
-      name: validatorsCheckerTypeName,
-      version: '1',
-      chainId: network.config.chainId,
-      verifyingContract: await validatorsChecker.getAddress(),
-    },
-    message: {
-      validatorsRegistryRoot,
-      vault: await vault.getAddress(),
-      validators,
     },
   }
 }

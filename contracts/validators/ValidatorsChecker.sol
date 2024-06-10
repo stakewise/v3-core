@@ -3,8 +3,8 @@
 pragma solidity =0.8.22;
 
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
-import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
+import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
+import {SignatureChecker} from '@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IKeeper} from '../interfaces/IKeeper.sol';
 import {IValidatorsChecker} from '../interfaces/IValidatorsChecker.sol';
@@ -27,7 +27,10 @@ interface IVaultValidatorsV1 {
  *  * checking validators manager signature
  *  * checking deposit data root
  */
-abstract contract ValidatorsChecker is IValidatorsChecker, EIP712 {
+abstract contract ValidatorsChecker is IValidatorsChecker {
+  bytes32 private constant _registerValidatorsTypeHash =
+    keccak256('VaultValidators(bytes32 validatorsRegistryRoot,bytes validators)');
+
   IValidatorsRegistry private immutable _validatorsRegistry;
   IKeeper private immutable _keeper;
   IVaultsRegistry private immutable _vaultsRegistry;
@@ -56,7 +59,7 @@ abstract contract ValidatorsChecker is IValidatorsChecker, EIP712 {
   function checkValidatorsManagerSignature(
     address vault,
     bytes32 validatorsRegistryRoot,
-    bytes calldata publicKeys,
+    bytes calldata validators,
     bytes calldata signature
   ) external view override returns (uint256) {
     if (_validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
@@ -74,20 +77,18 @@ abstract contract ValidatorsChecker is IValidatorsChecker, EIP712 {
     }
 
     // compose signing message
-    bytes32 message = keccak256(
-      abi.encode(
-        _validatorsManagerSignatureTypeHash(),
-        validatorsRegistryRoot,
-        vault,
-        keccak256(publicKeys)
-      )
-    );
-    bytes32 digest = _hashTypedDataV4(message);
-
-    address signer = ECDSA.recover(digest, signature);
+    bytes32 message = _getValidatorsManagerMessageHash(vault, validatorsRegistryRoot, validators);
 
     // verify validators manager ECDSA signature
-    if (IVaultValidators(vault).validatorsManager() != signer) revert Errors.AccessDenied();
+    if (
+      !SignatureChecker.isValidSignatureNow(
+        IVaultValidators(vault).validatorsManager(),
+        message,
+        signature
+      )
+    ) {
+      revert Errors.AccessDenied();
+    }
 
     return block.number;
   }
@@ -168,7 +169,51 @@ abstract contract ValidatorsChecker is IValidatorsChecker, EIP712 {
     return block.number;
   }
 
-  function _validatorsManagerSignatureTypeHash() internal pure virtual returns (bytes32);
+  /**
+   * @notice Get the hash to be signed by the validators manager
+   * @param vault The address of the vault
+   * @param validatorsRegistryRoot The validators registry root
+   * @param validators The concatenation of the validators' public key, deposit signature, deposit root and optionally withdrawal address
+   * @return The hash to be signed by the validators manager
+   */
+  function _getValidatorsManagerMessageHash(
+    address vault,
+    bytes32 validatorsRegistryRoot,
+    bytes calldata validators
+  ) private view returns (bytes32) {
+    bytes32 domainSeparator = _computeVaultValidatorsDomain(vault);
+    return
+      MessageHashUtils.toTypedDataHash(
+        domainSeparator,
+        keccak256(
+          abi.encode(_registerValidatorsTypeHash, validatorsRegistryRoot, keccak256(validators))
+        )
+      );
+  }
 
+  /**
+   * @notice Computes the hash of the EIP712 typed data for the vault
+   * @dev This function is used to compute the hash of the EIP712 typed data
+   * @return The hash of the EIP712 typed data
+   */
+  function _computeVaultValidatorsDomain(address vault) private view returns (bytes32) {
+    return
+      keccak256(
+        abi.encode(
+          keccak256(
+            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
+          ),
+          keccak256(bytes('VaultValidators')),
+          keccak256('1'),
+          block.chainid,
+          vault
+        )
+      );
+  }
+
+  /**
+   * @notice Get the amount of assets required for validator deposit
+   * @return The amount of assets required for deposit
+   */
   function _depositAmount() internal pure virtual returns (uint256);
 }

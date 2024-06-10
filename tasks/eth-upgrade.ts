@@ -234,11 +234,26 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
   )
   const rewardSplitterFactoryAddress = await rewardSplitterFactory.getAddress()
 
+  // Deploy ValidatorsChecker
+  const ethValidatorsChecker = await deployContract(
+    hre,
+    'EthValidatorsChecker',
+    [
+      networkConfig.validatorsRegistry,
+      keeperAddress,
+      vaultsRegistryAddress,
+      depositDataRegistryAddress,
+    ],
+    'contracts/validators/EthValidatorsChecker.sol:EthValidatorsChecker'
+  )
+  const ethValidatorsCheckerAddress = await ethValidatorsChecker.getAddress()
+
   // Save the addresses
   const addresses = {
     VaultsRegistry: vaultsRegistryAddress,
     Keeper: keeperAddress,
     DepositDataRegistry: depositDataRegistryAddress,
+    EthValidatorsChecker: ethValidatorsCheckerAddress,
     EthGenesisVault: genesisVaultAddress,
     EthVaultFactory: factories[0],
     EthPrivVaultFactory: factories[1],

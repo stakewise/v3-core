@@ -2,7 +2,6 @@ import { SignTypedDataVersion, signTypedData } from '@metamask/eth-sig-util'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { Contract, Signer, Wallet } from 'ethers'
 import { ethers } from 'hardhat'
-import keccak256 from 'keccak256'
 import {
   DepositDataRegistry,
   EthValidatorsChecker,
@@ -24,7 +23,7 @@ import {
   EthValidatorsData,
   createEthValidatorsData,
   createValidatorPublicKeys,
-  getValidatorsCheckerSigningData,
+  getValidatorsManagerSigningData,
   getValidatorsMultiProof,
 } from './shared/validators'
 import { createGnoValidatorsChecker } from './shared/gnoFixtures'
@@ -49,10 +48,10 @@ networks.forEach((network) => {
       vaultsRegistry: VaultsRegistry,
       depositDataRegistry: DepositDataRegistry,
       validatorsChecker: EthValidatorsChecker | GnoValidatorsChecker,
-      validatorsCheckerTypeName: string,
       vaultV1: Contract,
       vaultNotDeposited: EthVault
     let validatorsData: EthValidatorsData
+    let validators: Buffer[]
     let publicKeys: Uint8Array[]
     let validatorsRegistryRoot: string
 
@@ -66,7 +65,6 @@ networks.forEach((network) => {
       vaultsRegistry = fixture.vaultsRegistry
 
       if (network == 'ETHEREUM') {
-        validatorsCheckerTypeName = 'EthValidatorsChecker'
         validatorsChecker = await createEthValidatorsChecker(
           validatorsRegistry,
           keeper,
@@ -74,7 +72,6 @@ networks.forEach((network) => {
           depositDataRegistry
         )
       } else if (network == 'GNOSIS') {
-        validatorsCheckerTypeName = 'GnoValidatorsChecker'
         validatorsChecker = await createGnoValidatorsChecker(
           validatorsRegistry,
           keeper,
@@ -109,6 +106,9 @@ networks.forEach((network) => {
       admin = await ethers.getImpersonatedSigner(await vault.admin())
 
       validatorsData = await createEthValidatorsData(vault)
+      const numValidators = 5
+      validators = validatorsData.validators.slice(0, numValidators)
+
       publicKeys = await createValidatorPublicKeys()
       validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
       await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
@@ -201,10 +201,8 @@ networks.forEach((network) => {
 
       it('fails for signer who is not validators manager', async () => {
         const vaultAddress = await vault.getAddress()
-        const typedData = await getValidatorsCheckerSigningData(
-          validatorsCheckerTypeName,
-          keccak256(Buffer.concat(publicKeys)),
-          validatorsChecker,
+        const typedData = await getValidatorsManagerSigningData(
+          Buffer.concat(validators),
           vault,
           validatorsRegistryRoot
         )
@@ -227,10 +225,8 @@ networks.forEach((network) => {
 
       it('succeeds', async () => {
         const vaultAddress = await vault.getAddress()
-        const typedData = await getValidatorsCheckerSigningData(
-          validatorsCheckerTypeName,
-          Buffer.concat(publicKeys),
-          validatorsChecker,
+        const typedData = await getValidatorsManagerSigningData(
+          Buffer.concat(validators),
           vault,
           validatorsRegistryRoot
         )
@@ -247,7 +243,7 @@ networks.forEach((network) => {
             .checkValidatorsManagerSignature(
               vaultAddress,
               validatorsRegistryRoot,
-              Buffer.concat(publicKeys),
+              Buffer.concat(validators),
               ethers.getBytes(signature)
             )
         ).to.eq(blockNumber)
@@ -255,15 +251,12 @@ networks.forEach((network) => {
     })
 
     describe('check deposit data root', () => {
-      let proof: string[], proofFlags: boolean[], proofIndexes: number[], validators: Buffer[]
+      let proof: string[], proofFlags: boolean[], proofIndexes: number[]
 
       beforeEach('set multiproof', () => {
         // Proof is empty list when passing all validators
         // I need non-empty proof for some test cases
         // Slice validators because of that
-
-        const numValidators = 5
-        validators = validatorsData.validators.slice(0, numValidators)
 
         const multiProof = getValidatorsMultiProof(validatorsData.tree, validators, [
           ...Array(validators.length).keys(),

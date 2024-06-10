@@ -2,26 +2,24 @@
 
 pragma solidity =0.8.22;
 
-import {IERC5267} from '@openzeppelin/contracts/interfaces/IERC5267.sol';
-
 /**
  * @title IValidatorsChecker
  * @author StakeWise
  * @notice Defines the interface for ValidatorsChecker
  */
-interface IValidatorsChecker is IERC5267 {
+interface IValidatorsChecker {
   /**
    * @notice Function for checking validators manager signature
    * @param vault The address of the vault
    * @param validatorsRegistryRoot The validators registry root
-   * @param publicKeys The concatenation of the validators' public keys
+   * @param validators The concatenation of the validators' public key, deposit signature, deposit root and optionally withdrawal address
    * @param signature The validators manager signature
    * @return Current block number
    */
   function checkValidatorsManagerSignature(
     address vault,
     bytes32 validatorsRegistryRoot,
-    bytes calldata publicKeys,
+    bytes calldata validators,
     bytes calldata signature
   ) external view returns (uint256);
 

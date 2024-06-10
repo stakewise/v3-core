@@ -2,11 +2,6 @@
 
 pragma solidity =0.8.22;
 
-import {EIP712} from '@openzeppelin/contracts/utils/cryptography/EIP712.sol';
-import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
-import {IKeeper} from '../interfaces/IKeeper.sol';
-import {IDepositDataRegistry} from '../interfaces/IDepositDataRegistry.sol';
-import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {ValidatorsChecker} from './ValidatorsChecker.sol';
 
 /**
@@ -27,18 +22,9 @@ contract GnoValidatorsChecker is ValidatorsChecker {
     address keeper,
     address vaultsRegistry,
     address depositDataRegistry
-  )
-    ValidatorsChecker(validatorsRegistry, keeper, vaultsRegistry, depositDataRegistry)
-    EIP712('GnoValidatorsChecker', '1')
-  {}
+  ) ValidatorsChecker(validatorsRegistry, keeper, vaultsRegistry, depositDataRegistry) {}
 
-  function _validatorsManagerSignatureTypeHash() internal pure override returns (bytes32) {
-    return
-      keccak256(
-        'GnoValidatorsChecker(bytes32 validatorsRegistryRoot,address vault,bytes validators)'
-      );
-  }
-
+  /// @inheritdoc ValidatorsChecker
   function _depositAmount() internal pure override returns (uint256) {
     return 1 ether;
   }

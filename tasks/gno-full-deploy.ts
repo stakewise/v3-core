@@ -142,12 +142,17 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
   const depositDataRegistryAddress = await depositDataRegistry.getAddress()
 
   // Deploy ValidatorsChecker
-  const gnoValidatorsChecker = await deployContract(hre, 'GnoValidatorsChecker', [
-    networkConfig.validatorsRegistry,
-    keeperAddress,
-    vaultsRegistryAddress,
-    depositDataRegistryAddress,
-  ])
+  const gnoValidatorsChecker = await deployContract(
+    hre,
+    'GnoValidatorsChecker',
+    [
+      networkConfig.validatorsRegistry,
+      keeperAddress,
+      vaultsRegistryAddress,
+      depositDataRegistryAddress,
+    ],
+    'contracts/validators/GnoValidatorsChecker.sol:GnoValidatorsChecker'
+  )
   const gnoValidatorsCheckerAddress = await gnoValidatorsChecker.getAddress()
 
   // Deploy XdaiExchange implementation

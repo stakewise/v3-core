@@ -142,12 +142,17 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const depositDataRegistryAddress = await depositDataRegistry.getAddress()
 
   // Deploy ValidatorsChecker
-  const ethValidatorsChecker = await deployContract(hre, 'EthValidatorsChecker', [
-    networkConfig.validatorsRegistry,
-    keeperAddress,
-    vaultsRegistryAddress,
-    depositDataRegistryAddress,
-  ])
+  const ethValidatorsChecker = await deployContract(
+    hre,
+    'EthValidatorsChecker',
+    [
+      networkConfig.validatorsRegistry,
+      keeperAddress,
+      vaultsRegistryAddress,
+      depositDataRegistryAddress,
+    ],
+    'contracts/validators/EthValidatorsChecker.sol:EthValidatorsChecker'
+  )
   const ethValidatorsCheckerAddress = await ethValidatorsChecker.getAddress()
 
   const factories: string[] = []

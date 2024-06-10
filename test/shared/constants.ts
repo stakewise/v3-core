@@ -93,9 +93,3 @@ export const KeeperUpdateExitSignaturesSig = [
   { name: 'nonce', type: 'uint256' },
   { name: 'deadline', type: 'uint256' },
 ]
-
-export const ValidatorsCheckerSig = [
-  { name: 'validatorsRegistryRoot', type: 'bytes32' },
-  { name: 'vault', type: 'address' },
-  { name: 'validators', type: 'bytes' },
-]
