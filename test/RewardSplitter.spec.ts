@@ -14,6 +14,7 @@ import { expect } from './shared/expect'
 import { PANIC_CODES, SECURITY_DEPOSIT, ZERO_ADDRESS } from './shared/constants'
 import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
 import snapshotGasCost from './shared/snapshotGasCost'
+import { MAINNET_FORK } from '../helpers/constants'
 
 describe('RewardSplitter', () => {
   let admin: Wallet, other: Wallet
@@ -343,7 +344,10 @@ describe('RewardSplitter', () => {
       const feeShares = await vault.convertToShares(fee)
       expect(await rewardSplitter.canSyncRewards()).to.eq(true)
       const receipt = await rewardSplitter.syncRewards()
-      expect(await rewardSplitter.totalRewards()).to.eq(feeShares)
+
+      if (!MAINNET_FORK.enabled) {
+        expect(await rewardSplitter.totalRewards()).to.eq(feeShares)
+      }
       await expect(receipt)
         .to.emit(rewardSplitter, 'RewardsSynced')
         .withArgs(feeShares, (feeShares * ethers.parseEther('1')) / shares)

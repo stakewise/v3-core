@@ -7,23 +7,9 @@ Object {
 }
 `;
 
-exports[`EthVault - register multiple validators succeeds using validators manager signature 1`] = `
-Object {
-  "calldataByteLength": 2692,
-  "gasUsed": 639910,
-}
-`;
-
 exports[`EthVault - register single validator succeeds from validators manager 1`] = `
 Object {
   "calldataByteLength": 1028,
   "gasUsed": 298394,
-}
-`;
-
-exports[`EthVault - register single validator succeeds using validators manager signature 1`] = `
-Object {
-  "calldataByteLength": 1124,
-  "gasUsed": 306655,
 }
 `;

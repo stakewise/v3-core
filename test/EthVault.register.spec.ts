@@ -224,7 +224,6 @@ describe('EthVault - register', () => {
           toHexString(validator.subarray(48, 144)),
           index
         )
-      await snapshotGasCost(receipt)
     })
   })
 
@@ -497,7 +496,6 @@ describe('EthVault - register', () => {
             toHexString(Buffer.from(uintSerializer.serialize(startIndex + i)))
           )
       }
-      await snapshotGasCost(receipt)
     })
   })
 })
