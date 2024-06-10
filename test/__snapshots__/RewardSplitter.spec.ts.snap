@@ -34,10 +34,3 @@ Object {
   "gasUsed": 170789,
 }
 `;
-
-exports[`RewardSplitter withdraw rewards can enter exit queue with multicall 1`] = `
-Object {
-  "calldataByteLength": 612,
-  "gasUsed": 170767,
-}
-`;

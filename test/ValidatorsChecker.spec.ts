@@ -22,7 +22,6 @@ import {
 import {
   EthValidatorsData,
   createEthValidatorsData,
-  createValidatorPublicKeys,
   getValidatorsManagerSigningData,
   getValidatorsMultiProof,
 } from './shared/validators'
@@ -52,7 +51,6 @@ networks.forEach((network) => {
       vaultNotDeposited: EthVault
     let validatorsData: EthValidatorsData
     let validators: Buffer[]
-    let publicKeys: Uint8Array[]
     let validatorsRegistryRoot: string
 
     beforeEach('deploy fixture', async () => {
@@ -109,7 +107,6 @@ networks.forEach((network) => {
       const numValidators = 5
       validators = validatorsData.validators.slice(0, numValidators)
 
-      publicKeys = await createValidatorPublicKeys()
       validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
       await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
       await vaultV1.connect(other).deposit(other.address, ZERO_ADDRESS, { value: validatorDeposit })
@@ -217,7 +214,7 @@ networks.forEach((network) => {
             .checkValidatorsManagerSignature(
               vaultAddress,
               validatorsRegistryRoot,
-              Buffer.concat(publicKeys),
+              Buffer.concat(validators),
               ethers.getBytes(signature)
             )
         ).to.be.revertedWithCustomError(validatorsChecker, 'AccessDenied')
