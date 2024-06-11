@@ -1,6 +1,6 @@
 import { NetworkConfig, Networks } from './types'
 import { parseEther } from 'ethers'
-import { MAX_UINT128, MAX_UINT256, ZERO_BYTES32 } from '../test/shared/constants'
+import { MAX_UINT128, MAX_UINT256 } from '../test/shared/constants'
 
 export const NETWORKS: {
   [network in Networks]: NetworkConfig
