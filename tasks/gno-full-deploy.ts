@@ -374,8 +374,9 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
     fs.mkdirSync(DEPLOYMENTS_DIR)
   }
 
+  // save addresses
   fs.writeFileSync(fileName, json, 'utf-8')
-  console.log('Saved to', fileName)
+  console.log('Addresses saved to', fileName)
 
   console.log('NB! Commit and accept StakeWise V2 PoolEscrow ownership to GnoGenesisVault')
 })

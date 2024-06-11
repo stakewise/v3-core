@@ -318,8 +318,9 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
         vaultImplAddress
       )
 
-      // Deploy Vault Factory
-      const vaultFactory = await deployContract(hre, 'EthVaultFactory', [
+      // Deploy Restake Vault Factory
+      const vaultFactory = await deployContract(hre, 'EthRestakeVaultFactory', [
+        networkConfig.governor,
         vaultImplAddress,
         vaultsRegistryAddress,
       ])
@@ -396,8 +397,9 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       fs.mkdirSync(DEPLOYMENTS_DIR)
     }
 
+    // save addresses
     fs.writeFileSync(fileName, json, 'utf-8')
-    console.log('Saved to', fileName)
+    console.log('Addresses saved to', fileName)
 
     console.log(
       'NB! EthGenesisVault is not configured properly as ' +

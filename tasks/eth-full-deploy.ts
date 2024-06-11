@@ -359,12 +359,12 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       vaultImplAddress
     )
 
-    // Deploy Vault Factory
+    // Deploy Restake Vault Factory
     const vaultFactory = await deployContract(
       hre,
-      'EthVaultFactory',
-      [vaultImplAddress, vaultsRegistryAddress],
-      'contracts/vaults/ethereum/EthVaultFactory.sol:EthVaultFactory'
+      'EthRestakeVaultFactory',
+      [networkConfig.governor, vaultImplAddress, vaultsRegistryAddress],
+      'contracts/vaults/ethereum/restake/EthRestakeVaultFactory.sol:EthRestakeVaultFactory'
     )
     const vaultFactoryAddress = await vaultFactory.getAddress()
     factories.push(vaultFactoryAddress)
@@ -452,8 +452,9 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     fs.mkdirSync(DEPLOYMENTS_DIR)
   }
 
+  // save addresses
   fs.writeFileSync(fileName, json, 'utf-8')
-  console.log('Saved to', fileName)
+  console.log('Addresses saved to', fileName)
 
   console.log('NB! Commit and accept StakeWise V2 PoolEscrow ownership to EthGenesisVault')
 })
