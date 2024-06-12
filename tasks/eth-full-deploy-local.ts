@@ -283,12 +283,20 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     console.log('Added EthFoxVault to VaultsRegistry')
 
     // Deploy EigenPodOwner implementation
-    const eigenPodOwnerImpl = await deployContract(hre, 'EigenPodOwner', [
+    constructorArgs = [
       networkConfig.eigenPodManager,
       networkConfig.eigenDelegationManager,
       networkConfig.eigenDelayedWithdrawalRouter,
-    ])
+    ]
+    const eigenPodOwnerImpl = await deployContract(hre, 'EigenPodOwner', constructorArgs)
+    const eigenPodOwnerFactory = await ethers.getContractFactory('EigenPodOwner')
     const eigenPodOwnerImplAddress = await eigenPodOwnerImpl.getAddress()
+    await simulateDeployImpl(
+      hre,
+      eigenPodOwnerFactory,
+      { constructorArgs },
+      eigenPodOwnerImplAddress
+    )
 
     // Deploy restake vaults
     for (const vaultType of [

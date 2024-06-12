@@ -319,12 +319,20 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   console.log('Added EthFoxVault to VaultsRegistry')
 
   // Deploy EigenPodOwner implementation
-  const eigenPodOwnerImpl = await deployContract(hre, 'EigenPodOwner', [
+  constructorArgs = [
     networkConfig.eigenPodManager,
     networkConfig.eigenDelegationManager,
     networkConfig.eigenDelayedWithdrawalRouter,
-  ])
+  ]
+  const eigenPodOwnerImpl = await deployContract(
+    hre,
+    'EigenPodOwner',
+    constructorArgs,
+    'contracts/vaults/ethereum/restake/EigenPodOwner.sol:EigenPodOwner'
+  )
+  const eigenPodOwnerFactory = await ethers.getContractFactory('EigenPodOwner')
   const eigenPodOwnerImplAddress = await eigenPodOwnerImpl.getAddress()
+  await simulateDeployImpl(hre, eigenPodOwnerFactory, { constructorArgs }, eigenPodOwnerImplAddress)
 
   // Deploy restake vaults
   for (const vaultType of [
