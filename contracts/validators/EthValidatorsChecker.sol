@@ -7,7 +7,7 @@ import {ValidatorsChecker} from './ValidatorsChecker.sol';
 /**
  * @title EthValidatorsChecker
  * @author StakeWise
- * @notice Defines Ethereum-specific settings for ValidatorsChecker contract
+ * @notice Defines functionality for checking validators registration on Ethereum
  */
 contract EthValidatorsChecker is ValidatorsChecker {
   /**

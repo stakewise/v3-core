@@ -7,7 +7,7 @@ import {ValidatorsChecker} from './ValidatorsChecker.sol';
 /**
  * @title GnoValidatorsChecker
  * @author StakeWise
- * @notice Defines Gnosis-specific settings for ValidatorsChecker contract
+ * @notice Defines functionality for checking validators registration on Gnosis
  */
 contract GnoValidatorsChecker is ValidatorsChecker {
   /**
