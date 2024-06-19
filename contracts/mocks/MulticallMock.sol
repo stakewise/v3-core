@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.22;
+pragma solidity =0.8.22;
 
 /// @dev Copied from https://github.com/mds1/multicall/blob/main/src/Multicall3.sol
 contract MulticallMock {
