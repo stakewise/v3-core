@@ -1,6 +1,6 @@
 import { NetworkConfig, Networks } from './types'
 import { parseEther } from 'ethers'
-import { MAX_UINT128, MAX_UINT256, ZERO_BYTES32 } from '../test/shared/constants'
+import { MAX_UINT128, MAX_UINT256 } from '../test/shared/constants'
 
 export const NETWORKS: {
   [network in Networks]: NetworkConfig
@@ -168,8 +168,8 @@ export const NETWORKS: {
 
     // OsToken
     treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
-    osTokenFeePercent: 1000, // 10 %
-    osTokenCapacity: parseEther('200000'), // 200k osGNO
+    osTokenFeePercent: 500, // 5 %
+    osTokenCapacity: parseEther('500000'), // 500k osGNO
     osTokenName: 'Staked GNO',
     osTokenSymbol: 'osGNO',
 
@@ -181,10 +181,10 @@ export const NETWORKS: {
     // GnoGenesisVault
     genesisVault: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
-      poolEscrow: '0x10C5066FB5DA1C0D7eb189DE4dfA26d23e8e4aDa',
-      rewardToken: '0x3A945FD94A1d810B5e1c4536747F0de358d32854',
-      capacity: parseEther('200000'), // 200k GNO
-      feePercent: 2000, // 20%
+      poolEscrow: '0x6c3F8A4efdABf90126f1889893cA386bdb70A677',
+      rewardToken: '0x0d6736e4ee767B1Bdfc1daeEfB74150643a50C15',
+      capacity: parseEther('1000000'), // 1m GNO
+      feePercent: 1500, // 15%
     },
     priceFeedDescription: 'osGNO/GNO',
 
@@ -194,7 +194,7 @@ export const NETWORKS: {
       gnoPriceFeed: '0xcC5E385EdB2fEaB9C9A6DE97b572f1d811312ae7',
       daiPriceFeed: '0x390C320Ae2B001C7CB31A690e2500b55313aC986',
       balancerVault: '0x8b6c2C9E09c6022780D164F3cFd882808b8bDBF0',
-      balancerPoolId: ZERO_BYTES32,
+      balancerPoolId: '0xa99fd9950b5d5dceeaf4939e221dca8ca9b938ab000100000000000000000025',
       maxSlippage: 1000, // 10%
       stalePriceTimeDelta: MAX_UINT128, // unlimited
     },

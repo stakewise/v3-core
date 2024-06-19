@@ -1,6 +1,7 @@
 import { Contract } from 'ethers'
 import { HardhatRuntimeEnvironment } from 'hardhat/types/runtime'
 import '@openzeppelin/hardhat-upgrades/dist/type-extensions'
+import { GovernorCall } from './types'
 
 export async function deployContract(
   hre: HardhatRuntimeEnvironment,
@@ -65,5 +66,21 @@ export async function verify(
       }
       console.log(`Retrying... Retry #${count}, last error: ${error}`)
     }
+  }
+}
+
+export async function encodeGovernorContractCall(
+  contract: Contract,
+  method: string,
+  params: any[]
+): Promise<GovernorCall> {
+  const data = contract.interface.encodeFunctionData(method, params)
+  return {
+    to: await contract.getAddress(),
+    operation: '0',
+    value: '0.0',
+    data,
+    method,
+    params,
   }
 }

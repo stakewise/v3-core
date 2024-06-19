@@ -2,9 +2,9 @@ import fs from 'fs'
 import '@openzeppelin/hardhat-upgrades/dist/type-extensions'
 import { simulateDeployImpl } from '@openzeppelin/hardhat-upgrades/dist/utils'
 import { task } from 'hardhat/config'
-import { deployContract } from '../helpers/utils'
+import { deployContract, encodeGovernorContractCall } from '../helpers/utils'
 import { NETWORKS } from '../helpers/constants'
-import { NetworkConfig } from '../helpers/types'
+import { GovernorCall, NetworkConfig } from '../helpers/types'
 
 const DEPLOYMENTS_DIR = 'deployments'
 
@@ -32,6 +32,11 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
   const genesisVaultAddress = deployment.EthGenesisVault
   const priceFeedAddress = deployment.PriceFeed
   const cumulativeMerkleDropAddress = deployment.CumulativeMerkleDrop
+
+  // accumulate governor transaction
+  const governorTransaction: GovernorCall[] = []
+  const vaultUpgrades: Record<string, Record<string, string>> = {}
+  const vaultsRegistry = await ethers.getContractAt('VaultsRegistry', vaultsRegistryAddress)
 
   // Deploy OsTokenConfig
   const osTokenConfig = await deployContract(
@@ -101,13 +106,30 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
       'contracts/vaults/ethereum/EthVaultFactory.sol:EthVaultFactory'
     )
     const vaultFactoryAddress = await vaultFactory.getAddress()
-
-    console.log(
-      `NB! Remove V1 ${vaultType}Factory from VaultsRegistry: ${deployment[vaultType + 'Factory']}`
-    )
-    console.log(`NB! Add V2 ${vaultType}Factory to VaultsRegistry: ${vaultFactoryAddress}`)
-    console.log(`NB! Add ${vaultType} V2 implementation to VaultsRegistry: ${vaultImplAddress}`)
     factories.push(vaultFactoryAddress)
+
+    // add vault implementation updates
+    const vaultId = await vaultImpl.vaultId()
+    if (!(vaultId in vaultUpgrades)) {
+      vaultUpgrades[vaultId] = {}
+    }
+    const vaultVersion = await vaultImpl.version()
+    vaultUpgrades[vaultId][vaultVersion.toString()] = vaultImplAddress
+
+    // encode governor calls
+    if (vaultType + 'Factory' in deployment) {
+      governorTransaction.push(
+        await encodeGovernorContractCall(vaultsRegistry, 'removeFactory(address)', [
+          deployment[vaultType + 'Factory'],
+        ])
+      )
+    }
+    governorTransaction.push(
+      await encodeGovernorContractCall(vaultsRegistry, 'addFactory(address)', [vaultFactoryAddress])
+    )
+    governorTransaction.push(
+      await encodeGovernorContractCall(vaultsRegistry, 'addVaultImpl(address)', [vaultImplAddress])
+    )
   }
 
   // Deploy EthGenesisVault implementation
@@ -133,42 +155,37 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
   const genesisVaultFactory = await ethers.getContractFactory('EthGenesisVault')
   await simulateDeployImpl(hre, genesisVaultFactory, { constructorArgs }, genesisVaultImplAddress)
 
-  console.log('NB! Remove EthGenesisVault V1 implementation from VaultsRegistry')
-  console.log(
-    `NB! Add EthGenesisVault V2 implementation to VaultsRegistry ${genesisVaultImplAddress}`
+  // add vault implementation update
+  const vaultId = await genesisVaultImpl.vaultId()
+  if (!(vaultId in vaultUpgrades)) {
+    vaultUpgrades[vaultId] = {}
+  }
+  const vaultVersion = await genesisVaultImpl.version()
+  vaultUpgrades[vaultId][vaultVersion.toString()] = genesisVaultImplAddress
+
+  // encode governor calls
+  governorTransaction.push(
+    await encodeGovernorContractCall(vaultsRegistry, 'addVaultImpl(address)', [
+      genesisVaultImplAddress,
+    ])
   )
   console.log(`NB! Upgrade EthGenesisVault to V2: ${genesisVaultImplAddress}`)
 
-  // Deploy EthFoxVault implementation
-  constructorArgs = [
-    keeperAddress,
-    vaultsRegistryAddress,
-    networkConfig.validatorsRegistry,
-    sharedMevEscrowAddress,
-    depositDataRegistryAddress,
-    networkConfig.exitedAssetsClaimDelay,
-  ]
-  const foxVaultImpl = await deployContract(
-    hre,
-    'EthFoxVault',
-    constructorArgs,
-    'contracts/vaults/ethereum/custom/EthFoxVault.sol:EthFoxVault'
-  )
-  const foxVaultImplAddress = await foxVaultImpl.getAddress()
-  const foxVaultFactory = await ethers.getContractFactory('EthFoxVault')
-  await simulateDeployImpl(hre, foxVaultFactory, { constructorArgs }, foxVaultImplAddress)
-
-  console.log('NB! Remove EthFoxVault V1 implementation from VaultsRegistry')
-  console.log(`NB! Add EthFoxVault V2 implementation to VaultsRegistry ${foxVaultImplAddress}`)
-  console.log(`NB! Upgrade EthFoxVault to V2: ${foxVaultImplAddress}`)
-
   // Deploy EigenPodOwner implementation
-  const eigenPodOwnerImpl = await deployContract(hre, 'EigenPodOwner', [
+  constructorArgs = [
     networkConfig.eigenPodManager,
     networkConfig.eigenDelegationManager,
     networkConfig.eigenDelayedWithdrawalRouter,
-  ])
+  ]
+  const eigenPodOwnerImpl = await deployContract(
+    hre,
+    'EigenPodOwner',
+    constructorArgs,
+    'contracts/vaults/ethereum/restake/EigenPodOwner.sol:EigenPodOwner'
+  )
+  const eigenPodOwnerFactory = await ethers.getContractFactory('EigenPodOwner')
   const eigenPodOwnerImplAddress = await eigenPodOwnerImpl.getAddress()
+  await simulateDeployImpl(hre, eigenPodOwnerFactory, { constructorArgs }, eigenPodOwnerImplAddress)
 
   // Deploy restake vaults
   for (const vaultType of [
@@ -203,17 +220,28 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
       vaultImplAddress
     )
 
-    // Deploy Vault Factory
+    // Deploy Restake Vault Factory
     const vaultFactory = await deployContract(
       hre,
-      'EthVaultFactory',
-      [vaultImplAddress, vaultsRegistryAddress],
-      'contracts/vaults/ethereum/EthVaultFactory.sol:EthVaultFactory'
+      'EthRestakeVaultFactory',
+      [networkConfig.governor, vaultImplAddress, vaultsRegistryAddress],
+      'contracts/vaults/ethereum/restake/EthRestakeVaultFactory.sol:EthRestakeVaultFactory'
     )
     const vaultFactoryAddress = await vaultFactory.getAddress()
     factories.push(vaultFactoryAddress)
 
-    console.log(`NB! Add V2 ${vaultType}Factory to VaultsRegistry: ${vaultFactoryAddress}`)
+    // add vault implementation updates
+    const vaultId = await vaultImpl.vaultId()
+    if (!(vaultId in vaultUpgrades)) {
+      vaultUpgrades[vaultId] = {}
+    }
+    const vaultVersion = await vaultImpl.version()
+    vaultUpgrades[vaultId][vaultVersion.toString()] = vaultImplAddress
+
+    // encode governor calls
+    governorTransaction.push(
+      await encodeGovernorContractCall(vaultsRegistry, 'addFactory(address)', [vaultFactoryAddress])
+    )
   }
 
   // Deploy RewardSplitter Implementation
@@ -234,11 +262,26 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
   )
   const rewardSplitterFactoryAddress = await rewardSplitterFactory.getAddress()
 
+  // Deploy ValidatorsChecker
+  const ethValidatorsChecker = await deployContract(
+    hre,
+    'EthValidatorsChecker',
+    [
+      networkConfig.validatorsRegistry,
+      keeperAddress,
+      vaultsRegistryAddress,
+      depositDataRegistryAddress,
+    ],
+    'contracts/validators/EthValidatorsChecker.sol:EthValidatorsChecker'
+  )
+  const ethValidatorsCheckerAddress = await ethValidatorsChecker.getAddress()
+
   // Save the addresses
   const addresses = {
     VaultsRegistry: vaultsRegistryAddress,
     Keeper: keeperAddress,
     DepositDataRegistry: depositDataRegistryAddress,
+    EthValidatorsChecker: ethValidatorsCheckerAddress,
     EthGenesisVault: genesisVaultAddress,
     EthVaultFactory: factories[0],
     EthPrivVaultFactory: factories[1],
@@ -260,13 +303,26 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
     RewardSplitterFactory: rewardSplitterFactoryAddress,
     CumulativeMerkleDrop: cumulativeMerkleDropAddress,
   }
-  const json = JSON.stringify(addresses, null, 2)
-  const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`
+  let json = JSON.stringify(addresses, null, 2)
+  let fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`
 
   if (!fs.existsSync(DEPLOYMENTS_DIR)) {
     fs.mkdirSync(DEPLOYMENTS_DIR)
   }
 
+  // save addresses
   fs.writeFileSync(fileName, json, 'utf-8')
-  console.log('Saved to', fileName)
+  console.log('Addresses saved to', fileName)
+
+  // save governor transactions
+  json = JSON.stringify(governorTransaction, null, 2)
+  fileName = `${DEPLOYMENTS_DIR}/${networkName}-upgrade-tx.json`
+  fs.writeFileSync(fileName, json, 'utf-8')
+  console.log('Governor transaction saved to', fileName)
+
+  // save vault upgrades
+  json = JSON.stringify(vaultUpgrades, null, 2)
+  fileName = `${DEPLOYMENTS_DIR}/${networkName}-vault-upgrades.json`
+  fs.writeFileSync(fileName, json, 'utf-8')
+  console.log('Vault upgrades saved to', fileName)
 })

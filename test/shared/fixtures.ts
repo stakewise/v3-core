@@ -53,6 +53,7 @@ import {
   VaultsRegistry__factory,
   DepositDataRegistry,
   DepositDataRegistry__factory,
+  EthValidatorsChecker__factory,
 } from '../../typechain-types'
 import { getEthValidatorsRegistryFactory, getOsTokenConfigV1Factory } from './contracts'
 import {
@@ -255,6 +256,23 @@ export const createDepositDataRegistry = async function (
   const factory = await ethers.getContractFactory('DepositDataRegistry')
   const contract = await factory.deploy(await vaultsRegistry.getAddress())
   return DepositDataRegistry__factory.connect(await contract.getAddress(), signer)
+}
+
+export const createEthValidatorsChecker = async function (
+  validatorsRegistry: Contract,
+  keeper: Keeper,
+  vaultsRegistry: VaultsRegistry,
+  depositDataRegistry: DepositDataRegistry
+) {
+  const signer = await ethers.provider.getSigner()
+  const factory = await ethers.getContractFactory('EthValidatorsChecker')
+  const contract = await factory.deploy(
+    await validatorsRegistry.getAddress(),
+    await keeper.getAddress(),
+    await vaultsRegistry.getAddress(),
+    await depositDataRegistry.getAddress()
+  )
+  return EthValidatorsChecker__factory.connect(await contract.getAddress(), signer)
 }
 
 export const createOsTokenVaultController = async function (

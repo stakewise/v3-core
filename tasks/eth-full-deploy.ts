@@ -141,6 +141,20 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   )
   const depositDataRegistryAddress = await depositDataRegistry.getAddress()
 
+  // Deploy ValidatorsChecker
+  const ethValidatorsChecker = await deployContract(
+    hre,
+    'EthValidatorsChecker',
+    [
+      networkConfig.validatorsRegistry,
+      keeperAddress,
+      vaultsRegistryAddress,
+      depositDataRegistryAddress,
+    ],
+    'contracts/validators/EthValidatorsChecker.sol:EthValidatorsChecker'
+  )
+  const ethValidatorsCheckerAddress = await ethValidatorsChecker.getAddress()
+
   const factories: string[] = []
   for (const vaultType of [
     'EthVault',
@@ -305,12 +319,20 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   console.log('Added EthFoxVault to VaultsRegistry')
 
   // Deploy EigenPodOwner implementation
-  const eigenPodOwnerImpl = await deployContract(hre, 'EigenPodOwner', [
+  constructorArgs = [
     networkConfig.eigenPodManager,
     networkConfig.eigenDelegationManager,
     networkConfig.eigenDelayedWithdrawalRouter,
-  ])
+  ]
+  const eigenPodOwnerImpl = await deployContract(
+    hre,
+    'EigenPodOwner',
+    constructorArgs,
+    'contracts/vaults/ethereum/restake/EigenPodOwner.sol:EigenPodOwner'
+  )
+  const eigenPodOwnerFactory = await ethers.getContractFactory('EigenPodOwner')
   const eigenPodOwnerImplAddress = await eigenPodOwnerImpl.getAddress()
+  await simulateDeployImpl(hre, eigenPodOwnerFactory, { constructorArgs }, eigenPodOwnerImplAddress)
 
   // Deploy restake vaults
   for (const vaultType of [
@@ -345,12 +367,12 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       vaultImplAddress
     )
 
-    // Deploy Vault Factory
+    // Deploy Restake Vault Factory
     const vaultFactory = await deployContract(
       hre,
-      'EthVaultFactory',
-      [vaultImplAddress, vaultsRegistryAddress],
-      'contracts/vaults/ethereum/EthVaultFactory.sol:EthVaultFactory'
+      'EthRestakeVaultFactory',
+      [networkConfig.governor, vaultImplAddress, vaultsRegistryAddress],
+      'contracts/vaults/ethereum/restake/EthRestakeVaultFactory.sol:EthRestakeVaultFactory'
     )
     const vaultFactoryAddress = await vaultFactory.getAddress()
     factories.push(vaultFactoryAddress)
@@ -408,6 +430,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     VaultsRegistry: vaultsRegistryAddress,
     Keeper: keeperAddress,
     DepositDataRegistry: depositDataRegistryAddress,
+    EthValidatorsChecker: ethValidatorsCheckerAddress,
     EthGenesisVault: genesisVaultAddress,
     EthFoxVault: foxVaultAddress,
     EthVaultFactory: factories[0],
@@ -437,8 +460,9 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     fs.mkdirSync(DEPLOYMENTS_DIR)
   }
 
+  // save addresses
   fs.writeFileSync(fileName, json, 'utf-8')
-  console.log('Saved to', fileName)
+  console.log('Addresses saved to', fileName)
 
   console.log('NB! Commit and accept StakeWise V2 PoolEscrow ownership to EthGenesisVault')
 })

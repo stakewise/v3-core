@@ -75,3 +75,12 @@ export type NetworkConfig = {
   eigenDelegationManager: string
   eigenDelayedWithdrawalRouter: string
 }
+
+export type GovernorCall = {
+  to: string
+  operation: string
+  value: string
+  data: string
+  method: string
+  params: any[]
+}

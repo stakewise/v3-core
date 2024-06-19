@@ -128,6 +128,15 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     ])
     const depositDataRegistryAddress = await depositDataRegistry.getAddress()
 
+    // Deploy ValidatorsChecker
+    const ethValidatorsChecker = await deployContract(hre, 'EthValidatorsChecker', [
+      validatorsRegistryAddress,
+      keeperAddress,
+      vaultsRegistryAddress,
+      depositDataRegistryAddress,
+    ])
+    const ethValidatorsCheckerAddress = await ethValidatorsChecker.getAddress()
+
     const factories: string[] = []
     for (const vaultType of [
       'EthVault',
@@ -274,12 +283,20 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     console.log('Added EthFoxVault to VaultsRegistry')
 
     // Deploy EigenPodOwner implementation
-    const eigenPodOwnerImpl = await deployContract(hre, 'EigenPodOwner', [
+    constructorArgs = [
       networkConfig.eigenPodManager,
       networkConfig.eigenDelegationManager,
       networkConfig.eigenDelayedWithdrawalRouter,
-    ])
+    ]
+    const eigenPodOwnerImpl = await deployContract(hre, 'EigenPodOwner', constructorArgs)
+    const eigenPodOwnerFactory = await ethers.getContractFactory('EigenPodOwner')
     const eigenPodOwnerImplAddress = await eigenPodOwnerImpl.getAddress()
+    await simulateDeployImpl(
+      hre,
+      eigenPodOwnerFactory,
+      { constructorArgs },
+      eigenPodOwnerImplAddress
+    )
 
     // Deploy restake vaults
     for (const vaultType of [
@@ -309,8 +326,9 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
         vaultImplAddress
       )
 
-      // Deploy Vault Factory
-      const vaultFactory = await deployContract(hre, 'EthVaultFactory', [
+      // Deploy Restake Vault Factory
+      const vaultFactory = await deployContract(hre, 'EthRestakeVaultFactory', [
+        networkConfig.governor,
         vaultImplAddress,
         vaultsRegistryAddress,
       ])
@@ -358,6 +376,7 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       VaultsRegistry: vaultsRegistryAddress,
       Keeper: keeperAddress,
       DepositDataRegistry: depositDataRegistryAddress,
+      EthValidatorsChecker: ethValidatorsCheckerAddress,
       EthFoxVault: foxVaultAddress,
       EthVaultFactory: factories[0],
       EthPrivVaultFactory: factories[1],
@@ -386,8 +405,9 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       fs.mkdirSync(DEPLOYMENTS_DIR)
     }
 
+    // save addresses
     fs.writeFileSync(fileName, json, 'utf-8')
-    console.log('Saved to', fileName)
+    console.log('Addresses saved to', fileName)
 
     console.log(
       'NB! EthGenesisVault is not configured properly as ' +

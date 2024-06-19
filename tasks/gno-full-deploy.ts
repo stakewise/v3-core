@@ -141,6 +141,20 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
   )
   const depositDataRegistryAddress = await depositDataRegistry.getAddress()
 
+  // Deploy ValidatorsChecker
+  const gnoValidatorsChecker = await deployContract(
+    hre,
+    'GnoValidatorsChecker',
+    [
+      networkConfig.validatorsRegistry,
+      keeperAddress,
+      vaultsRegistryAddress,
+      depositDataRegistryAddress,
+    ],
+    'contracts/validators/GnoValidatorsChecker.sol:GnoValidatorsChecker'
+  )
+  const gnoValidatorsCheckerAddress = await gnoValidatorsChecker.getAddress()
+
   // Deploy XdaiExchange implementation
   const xdaiExchangeConstructorArgs = [
     networkConfig.gnosis.gnoToken,
@@ -337,6 +351,7 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
     VaultsRegistry: vaultsRegistryAddress,
     Keeper: keeperAddress,
     DepositDataRegistry: depositDataRegistryAddress,
+    GnoValidatorsChecker: gnoValidatorsCheckerAddress,
     XdaiExchange: xdaiExchangeAddress,
     GnoGenesisVault: genesisVaultAddress,
     GnoVaultFactory: factories[0],
@@ -359,8 +374,9 @@ task('gno-full-deploy', 'deploys StakeWise V3 for Gnosis').setAction(async (task
     fs.mkdirSync(DEPLOYMENTS_DIR)
   }
 
+  // save addresses
   fs.writeFileSync(fileName, json, 'utf-8')
-  console.log('Saved to', fileName)
+  console.log('Addresses saved to', fileName)
 
   console.log('NB! Commit and accept StakeWise V2 PoolEscrow ownership to GnoGenesisVault')
 })
