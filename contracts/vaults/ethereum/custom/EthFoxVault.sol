@@ -36,6 +36,8 @@ contract EthFoxVault is
   Multicall,
   IEthFoxVault
 {
+  uint8 private constant _version = 2;
+
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -44,7 +46,8 @@ contract EthFoxVault is
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param exitedAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
+   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
@@ -52,17 +55,27 @@ contract EthFoxVault is
     address _vaultsRegistry,
     address _validatorsRegistry,
     address sharedMevEscrow,
-    uint256 exitedAssetsClaimDelay
+    address depositDataRegistry,
+    uint256 exitingAssetsClaimDelay
   )
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
-    VaultEnterExit(exitedAssetsClaimDelay)
+    VaultValidators(depositDataRegistry)
+    VaultEnterExit(exitingAssetsClaimDelay)
     VaultMev(sharedMevEscrow)
   {
     _disableInitializers();
   }
 
   /// @inheritdoc IEthFoxVault
-  function initialize(bytes calldata params) external payable virtual override initializer {
+  function initialize(
+    bytes calldata params
+  ) external payable virtual override reinitializer(_version) {
+    // if admin is already set, it's an upgrade
+    if (admin != address(0)) {
+      __EthFoxVault_initV2();
+      return;
+    }
+    // initialize deployed vault
     EthFoxVaultInitParams memory initParams = abi.decode(params, (EthFoxVaultInitParams));
     __EthFoxVault_init(initParams);
     emit EthFoxVaultCreated(
@@ -91,21 +104,14 @@ contract EthFoxVault is
 
     // fetch shares of the user
     uint256 userShares = _balances[user];
-    if (userShares == 0) return;
+    if (userShares == 0 || convertToAssets(userShares) == 0) return;
 
-    if (_isCollateralized()) {
-      // send user shares to exit queue
-      _enterExitQueue(user, userShares, user);
-    } else {
-      // redeem user shares
-      _redeem(user, userShares, user);
-    }
+    // send user shares to exit queue
+    _enterExitQueue(user, userShares, user);
     emit UserEjected(user, userShares);
   }
 
-  /**
-   * @dev Function for depositing using fallback function
-   */
+  /// @inheritdoc VaultEthStaking
   receive() external payable virtual override {
     _checkBlocklist(msg.sender);
     _deposit(msg.sender, msg.value, address(0));
@@ -118,7 +124,7 @@ contract EthFoxVault is
 
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
-    return 1;
+    return _version;
   }
 
   /**
@@ -135,6 +141,14 @@ contract EthFoxVault is
     // blocklist manager is initially set to admin address
     __VaultBlocklist_init(params.admin);
     __VaultEthStaking_init();
+  }
+
+  /**
+   * @dev Initializes the EthFoxVault V2 contract
+   */
+  function __EthFoxVault_initV2() internal onlyInitializing {
+    __VaultState_initV2();
+    __VaultValidators_initV2();
   }
 
   /**

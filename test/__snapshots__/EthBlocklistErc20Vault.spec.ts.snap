@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthBlocklistErc20Vault deposit can be called by not blocked user 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 71093,
+}
+`;
+
+exports[`EthBlocklistErc20Vault deposit deposit through receive fallback can be called by not blocked sender 1`] = `
+Object {
+  "calldataByteLength": 4,
+  "gasUsed": 78347,
+}
+`;
+
+exports[`EthBlocklistErc20Vault mint osToken can mint from not blocked user 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 177293,
+}
+`;
+
+exports[`EthBlocklistErc20Vault transfer can transfer 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 58921,
+}
+`;

@@ -4,66 +4,76 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "uint16",
-        "name": "redeemFromLtvPercent",
-        "type": "uint16"
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
       },
       {
         "indexed": false,
-        "internalType": "uint16",
-        "name": "redeemToLtvPercent",
-        "type": "uint16"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint16",
-        "name": "liqThresholdPercent",
-        "type": "uint16"
-      },
-      {
-        "indexed": false,
-        "internalType": "uint16",
+        "internalType": "uint128",
         "name": "liqBonusPercent",
-        "type": "uint16"
+        "type": "uint128"
       },
       {
         "indexed": false,
-        "internalType": "uint16",
+        "internalType": "uint64",
+        "name": "liqThresholdPercent",
+        "type": "uint64"
+      },
+      {
+        "indexed": false,
+        "internalType": "uint64",
         "name": "ltvPercent",
-        "type": "uint16"
+        "type": "uint64"
       }
     ],
     "name": "OsTokenConfigUpdated",
     "type": "event"
   },
   {
-    "inputs": [],
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "newRedeemer",
+        "type": "address"
+      }
+    ],
+    "name": "RedeemerUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      }
+    ],
     "name": "getConfig",
     "outputs": [
       {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
+        "components": [
+          {
+            "internalType": "uint128",
+            "name": "liqBonusPercent",
+            "type": "uint128"
+          },
+          {
+            "internalType": "uint64",
+            "name": "liqThresholdPercent",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "ltvPercent",
+            "type": "uint64"
+          }
+        ],
+        "internalType": "struct IOsTokenConfig.Config",
+        "name": "config",
+        "type": "tuple"
       }
     ],
     "stateMutability": "view",
@@ -71,64 +81,12 @@
   },
   {
     "inputs": [],
-    "name": "liqBonusPercent",
+    "name": "redeemer",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "address",
         "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "liqThresholdPercent",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "ltvPercent",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "redeemFromLtvPercent",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "redeemToLtvPercent",
-    "outputs": [
-      {
-        "internalType": "uint256",
-        "name": "",
-        "type": "uint256"
+        "type": "address"
       }
     ],
     "stateMutability": "view",
@@ -137,31 +95,39 @@
   {
     "inputs": [
       {
+        "internalType": "address",
+        "name": "newRedeemer",
+        "type": "address"
+      }
+    ],
+    "name": "setRedeemer",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "vault",
+        "type": "address"
+      },
+      {
         "components": [
           {
-            "internalType": "uint16",
-            "name": "redeemFromLtvPercent",
-            "type": "uint16"
-          },
-          {
-            "internalType": "uint16",
-            "name": "redeemToLtvPercent",
-            "type": "uint16"
-          },
-          {
-            "internalType": "uint16",
-            "name": "liqThresholdPercent",
-            "type": "uint16"
-          },
-          {
-            "internalType": "uint16",
+            "internalType": "uint128",
             "name": "liqBonusPercent",
-            "type": "uint16"
+            "type": "uint128"
           },
           {
-            "internalType": "uint16",
+            "internalType": "uint64",
+            "name": "liqThresholdPercent",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
             "name": "ltvPercent",
-            "type": "uint16"
+            "type": "uint64"
           }
         ],
         "internalType": "struct IOsTokenConfig.Config",

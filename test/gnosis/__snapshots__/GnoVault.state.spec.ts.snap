@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GnoVault Own MEV Escrow does not include MEV rewards in total assets delta 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 99585,
+}
+`;
+
+exports[`GnoVault Shared MEV Escrow does not include MEV rewards in total assets delta 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 123749,
+}
+`;

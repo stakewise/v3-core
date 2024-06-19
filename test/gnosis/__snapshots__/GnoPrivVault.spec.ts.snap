@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GnoPrivVault deposit can be called by whitelisted user 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 82633,
+}
+`;
+
+exports[`GnoPrivVault mint osToken can mint from not whitelisted user 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 177091,
+}
+`;

@@ -38,7 +38,9 @@ describe('EthVaultFactory', () => {
   let ethVaultFactory: EthVaultFactory,
     ethPrivVaultFactory: EthVaultFactory,
     ethErc20VaultFactory: EthVaultFactory,
-    ethPrivErc20VaultFactory: EthVaultFactory
+    ethPrivErc20VaultFactory: EthVaultFactory,
+    ethBlocklistVaultFactory: EthVaultFactory,
+    ethBlocklistErc20VaultFactory: EthVaultFactory
   let sharedMevEscrow: SharedMevEscrow
   let vaultsRegistry: VaultsRegistry
 
@@ -49,6 +51,8 @@ describe('EthVaultFactory', () => {
       ethPrivVaultFactory,
       ethErc20VaultFactory,
       ethPrivErc20VaultFactory,
+      ethBlocklistVaultFactory,
+      ethBlocklistErc20VaultFactory,
       vaultsRegistry,
       sharedMevEscrow,
     } = await loadFixture(ethVaultFixture))
@@ -116,23 +120,51 @@ describe('EthVaultFactory', () => {
 
   it('creates vaults correctly', async () => {
     for (const config of [
-      { factory: ethVaultFactory, vaultClass: 'EthVault', isErc20: false, isPrivate: false },
-      { factory: ethPrivVaultFactory, vaultClass: 'EthPrivVault', isErc20: false, isPrivate: true },
+      {
+        factory: ethVaultFactory,
+        vaultClass: 'EthVault',
+        isErc20: false,
+        isPrivate: false,
+        isBlocklist: false,
+      },
+      {
+        factory: ethPrivVaultFactory,
+        vaultClass: 'EthPrivVault',
+        isErc20: false,
+        isPrivate: true,
+        isBlocklist: false,
+      },
+      {
+        factory: ethBlocklistVaultFactory,
+        vaultClass: 'EthBlocklistVault',
+        isErc20: false,
+        isPrivate: false,
+        isBlocklist: true,
+      },
       {
         factory: ethErc20VaultFactory,
         vaultClass: 'EthErc20Vault',
         isErc20: true,
         isPrivate: false,
+        isBlocklist: false,
       },
       {
         factory: ethPrivErc20VaultFactory,
         vaultClass: 'EthPrivErc20Vault',
         isErc20: true,
         isPrivate: true,
+        isBlocklist: false,
+      },
+      {
+        factory: ethBlocklistErc20VaultFactory,
+        vaultClass: 'EthBlocklistErc20Vault',
+        isErc20: true,
+        isPrivate: false,
+        isBlocklist: true,
       },
     ]) {
       for (const isOwnEscrow of [false, true]) {
-        const { factory, isErc20, vaultClass, isPrivate } = config
+        const { factory, isErc20, vaultClass, isPrivate, isBlocklist } = config
         const initParamsEncoded = isErc20
           ? encodeEthErc20VaultInitParams(ethErc20VaultInitParams)
           : encodeEthVaultInitParams(ethVaultInitParams)
@@ -188,7 +220,7 @@ describe('EthVaultFactory', () => {
           .withArgs(await factory.getAddress(), metadataIpfsHash)
 
         // VaultVersion
-        expect(await vault.version()).to.be.eq(1)
+        expect(await vault.version()).to.be.eq(2)
         expect(await vault.vaultId()).to.be.eq(toHexString(keccak256(vaultClass)))
         expect(await factory.implementation()).to.be.eq(await vault.implementation())
 
@@ -207,6 +239,14 @@ describe('EthVaultFactory', () => {
           await expect(await vault.whitelister()).to.be.eq(admin.address)
           await expect(tx)
             .to.emit(vault, 'WhitelisterUpdated')
+            .withArgs(await factory.getAddress(), admin.address)
+        }
+
+        // VaultBlocklist
+        if (isBlocklist) {
+          await expect(await vault.blocklistManager()).to.be.eq(admin.address)
+          await expect(tx)
+            .to.emit(vault, 'BlocklistManagerUpdated')
             .withArgs(await factory.getAddress(), admin.address)
         }
       }

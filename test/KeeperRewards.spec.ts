@@ -7,6 +7,7 @@ import {
   Keeper,
   OsTokenVaultController,
   SharedMevEscrow,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
@@ -40,7 +41,8 @@ describe('KeeperRewards', () => {
   let keeper: Keeper,
     validatorsRegistry: Contract,
     sharedMevEscrow: SharedMevEscrow,
-    osTokenVaultController: OsTokenVaultController
+    osTokenVaultController: OsTokenVaultController,
+    depositDataRegistry: DepositDataRegistry
   let globalRewardsNonce: number
 
   beforeEach(async () => {
@@ -51,6 +53,7 @@ describe('KeeperRewards', () => {
       validatorsRegistry,
       sharedMevEscrow,
       osTokenVaultController,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     await setBalance(oracle.address, ethers.parseEther('10000'))
   })
@@ -290,7 +293,7 @@ describe('KeeperRewards', () => {
       await vault
         .connect(admin)
         .deposit(await admin.getAddress(), ZERO_ADDRESS, { value: validatorDeposit })
-      await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+      await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
       expect(await keeper.isCollateralized(await vault.getAddress())).to.equal(true)
       expect(await keeper.canHarvest(await vault.getAddress())).to.equal(false)
@@ -416,13 +419,13 @@ describe('KeeperRewards', () => {
     it('fails for invalid reward', async () => {
       await expect(
         ownMevVault.updateState({ ...harvestParams, reward: 0 })
-      ).to.be.revertedWithCustomError(ownMevVault, 'InvalidProof')
+      ).to.be.revertedWithCustomError(keeper, 'InvalidProof')
     })
 
     it('fails for invalid proof', async () => {
       await expect(
         ownMevVault.updateState({ ...harvestParams, proof: [] })
-      ).to.be.revertedWithCustomError(ownMevVault, 'InvalidProof')
+      ).to.be.revertedWithCustomError(keeper, 'InvalidProof')
     })
 
     it('fails for invalid root', async () => {
@@ -664,13 +667,13 @@ describe('KeeperRewards', () => {
     it('fails for invalid unlocked MEV reward', async () => {
       await expect(
         sharedMevVault.updateState({ ...harvestParams, unlockedMevReward: 0n })
-      ).to.be.revertedWithCustomError(sharedMevVault, 'InvalidProof')
+      ).to.be.revertedWithCustomError(keeper, 'InvalidProof')
     })
 
     it('fails for invalid proof', async () => {
       await expect(
         sharedMevVault.updateState({ ...harvestParams, proof: [] })
-      ).to.be.revertedWithCustomError(sharedMevVault, 'InvalidProof')
+      ).to.be.revertedWithCustomError(keeper, 'InvalidProof')
     })
 
     it('fails for invalid root', async () => {

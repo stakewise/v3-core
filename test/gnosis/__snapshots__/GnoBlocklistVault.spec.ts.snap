@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GnoBlocklistVault deposit can be called by not blocked user 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 84605,
+}
+`;
+
+exports[`GnoBlocklistVault mint osToken can mint from not blocked user 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 177066,
+}
+`;

@@ -20,7 +20,6 @@ library Errors {
   error InvalidFeePercent();
   error NotHarvested();
   error NotCollateralized();
-  error Collateralized();
   error InvalidProof();
   error LowLtv();
   error RedemptionExceeded();
@@ -30,9 +29,7 @@ library Errors {
   error InvalidReceivedAssets();
   error InvalidTokenMeta();
   error UpgradeFailed();
-  error InvalidValidator();
   error InvalidValidators();
-  error WhitelistAlreadyUpdated();
   error DeadlineExpired();
   error PermitInvalidSigner();
   error InvalidValidatorsRegistryRoot();
@@ -46,12 +43,17 @@ library Errors {
   error InvalidAvgRewardPerSecond();
   error InvalidRewardsRoot();
   error HarvestFailed();
-  error InvalidRedeemFromLtvPercent();
+  error LiquidationDisabled();
   error InvalidLiqThresholdPercent();
   error InvalidLiqBonusPercent();
   error InvalidLtvPercent();
   error InvalidCheckpointIndex();
   error InvalidCheckpointValue();
   error MaxOraclesExceeded();
-  error ClaimTooEarly();
+  error ExitRequestNotProcessed();
+  error ValueNotChanged();
+  error EigenInvalidWithdrawal();
+  error InvalidEigenQueuedWithdrawals();
+  error InvalidWithdrawalCredentials();
+  error EigenPodNotFound();
 }

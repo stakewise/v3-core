@@ -3,16 +3,14 @@
 pragma solidity =0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {IEthErc20Vault} from '../../interfaces/IEthErc20Vault.sol';
 import {IEthPrivErc20Vault} from '../../interfaces/IEthPrivErc20Vault.sol';
-import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
-import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
-import {Errors} from '../../libraries/Errors.sol';
-import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
+import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
+import {VaultEthStaking, IVaultEthStaking} from '../modules/VaultEthStaking.sol';
+import {VaultOsToken, IVaultOsToken} from '../modules/VaultOsToken.sol';
 import {VaultWhitelist} from '../modules/VaultWhitelist.sol';
-import {VaultVersion} from '../modules/VaultVersion.sol';
-import {EthErc20Vault} from './EthErc20Vault.sol';
+import {VaultVersion, IVaultVersion} from '../modules/VaultVersion.sol';
+import {EthErc20Vault, IEthErc20Vault} from './EthErc20Vault.sol';
 
 /**
  * @title EthPrivErc20Vault
@@ -20,6 +18,9 @@ import {EthErc20Vault} from './EthErc20Vault.sol';
  * @notice Defines the Ethereum staking Vault with whitelist and ERC-20 token
  */
 contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEthPrivErc20Vault {
+  // slither-disable-next-line shadowing-state
+  uint8 private constant _version = 2;
+
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -30,7 +31,8 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
+   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
@@ -40,6 +42,7 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
     address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
+    address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
     EthErc20Vault(
@@ -49,6 +52,7 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
+      depositDataRegistry,
       exitingAssetsClaimDelay
     )
   {}
@@ -56,15 +60,21 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
   /// @inheritdoc IEthErc20Vault
   function initialize(
     bytes calldata params
-  ) external payable virtual override(IEthErc20Vault, EthErc20Vault) initializer {
-    address admin = IEthVaultFactory(msg.sender).vaultAdmin();
+  ) external payable virtual override(IEthErc20Vault, EthErc20Vault) reinitializer(_version) {
+    // if admin is already set, it's an upgrade
+    if (admin != address(0)) {
+      __EthErc20Vault_initV2();
+      return;
+    }
+    // initialize deployed vault
+    address _admin = IEthVaultFactory(msg.sender).vaultAdmin();
     __EthErc20Vault_init(
-      admin,
+      _admin,
       IEthVaultFactory(msg.sender).ownMevEscrow(),
       abi.decode(params, (EthErc20VaultInitParams))
     );
     // whitelister is initially set to admin address
-    __VaultWhitelist_init(admin);
+    __VaultWhitelist_init(_admin);
   }
 
   /// @inheritdoc IVaultVersion
@@ -74,7 +84,7 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
 
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, EthErc20Vault) returns (uint8) {
-    return 1;
+    return _version;
   }
 
   /// @inheritdoc IVaultEthStaking
@@ -82,18 +92,32 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
     address receiver,
     address referrer
   ) public payable virtual override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
-    if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver])) {
-      revert Errors.AccessDenied();
-    }
+    _checkWhitelist(msg.sender);
+    _checkWhitelist(receiver);
     return super.deposit(receiver, referrer);
   }
 
-  /**
-   * @dev Function for depositing using fallback function
-   */
+  /// @inheritdoc VaultEthStaking
   receive() external payable virtual override {
-    if (!whitelistedAccounts[msg.sender]) revert Errors.AccessDenied();
+    _checkWhitelist(msg.sender);
     _deposit(msg.sender, msg.value, address(0));
+  }
+
+  /// @inheritdoc IVaultOsToken
+  function mintOsToken(
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) public virtual override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
+    _checkWhitelist(msg.sender);
+    return super.mintOsToken(receiver, osTokenShares, referrer);
+  }
+
+  /// @inheritdoc ERC20Upgradeable
+  function _transfer(address from, address to, uint256 amount) internal virtual override {
+    _checkWhitelist(from);
+    _checkWhitelist(to);
+    super._transfer(from, to, amount);
   }
 
   /**

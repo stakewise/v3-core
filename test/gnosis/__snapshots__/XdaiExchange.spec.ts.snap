@@ -1,0 +1,36 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`XdaiExchange balancer pool id can be set by the admin 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 52057,
+}
+`;
+
+exports[`XdaiExchange max slippage can be set by the admin 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 34861,
+}
+`;
+
+exports[`XdaiExchange stale price time delta can be set by the admin 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 34783,
+}
+`;
+
+exports[`XdaiExchange swap successfully swaps 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 68132,
+}
+`;
+
+exports[`XdaiExchange upgrade upgrades 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 36983,
+}
+`;

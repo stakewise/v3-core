@@ -1,0 +1,15 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GnoErc20Vault deposit emits transfer event 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 82060,
+}
+`;
+
+exports[`GnoErc20Vault enter exit queue emits transfer event 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 96259,
+}
+`;

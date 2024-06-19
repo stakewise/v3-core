@@ -12,7 +12,7 @@ import {IVaultFee} from './IVaultFee.sol';
  */
 interface IVaultState is IVaultFee {
   /**
-   * @notice Event emitted on checkpoint creation
+   * @notice Event emitted on checkpoint creation (deprecated)
    * @param shares The number of burned shares
    * @param assets The amount of exited assets
    */
@@ -51,10 +51,16 @@ interface IVaultState is IVaultFee {
   function withdrawableAssets() external view returns (uint256);
 
   /**
-   * @notice Queued Shares
+   * @notice Queued Shares (deprecated)
    * @return The total number of shares queued for exit
    */
   function queuedShares() external view returns (uint128);
+
+  /**
+   * @notice Total Exiting Assets
+   * @return The total number of assets queued for exit
+   */
+  function totalExitingAssets() external view returns (uint128);
 
   /**
    * @notice Returns the number of shares held by an account

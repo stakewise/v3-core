@@ -65,6 +65,28 @@ export const extractDepositShares = async (
   return log.args?.shares as bigint
 }
 
+export const extractCheckpointAssets = async (
+  response: ContractTransactionResponse
+): Promise<bigint> => {
+  const receipt = (await response.wait()) as ContractTransactionReceipt
+  const log = receipt.logs?.[receipt.logs.length - 1]
+  if (log?.fragment?.name != 'CheckpointCreated') {
+    return 0n
+  }
+  return log.args?.assets as bigint
+}
+
+export const extractEigenPodOwner = async (
+  response: ContractTransactionResponse
+): Promise<string> => {
+  const receipt = (await response.wait()) as ContractTransactionReceipt
+  const log = receipt.logs?.[receipt.logs.length - 1]
+  if (!('args' in log)) {
+    throw new Error('No logs found')
+  }
+  return log.args?.eigenPodOwner as string
+}
+
 export async function domainSeparator(name, version, chainId, verifyingContract) {
   return (
     '0x' +

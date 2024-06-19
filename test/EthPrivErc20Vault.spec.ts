@@ -1,7 +1,13 @@
 import { ethers } from 'hardhat'
 import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthPrivErc20Vault, IKeeperRewards, Keeper } from '../typechain-types'
+import {
+  EthPrivErc20Vault,
+  IKeeperRewards,
+  Keeper,
+  OsTokenVaultController,
+  DepositDataRegistry,
+} from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -18,7 +24,11 @@ describe('EthPrivErc20Vault', () => {
   const referrer = ZERO_ADDRESS
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   let sender: Wallet, admin: Signer, other: Wallet
-  let vault: EthPrivErc20Vault, keeper: Keeper, validatorsRegistry: Contract
+  let vault: EthPrivErc20Vault,
+    keeper: Keeper,
+    validatorsRegistry: Contract,
+    osTokenVaultController: OsTokenVaultController,
+    depositDataRegistry: DepositDataRegistry
 
   let createPrivateVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthPrivErc20Vault']
 
@@ -28,6 +38,8 @@ describe('EthPrivErc20Vault', () => {
       createEthPrivErc20Vault: createPrivateVault,
       keeper,
       validatorsRegistry,
+      osTokenVaultController,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createPrivateVault(admin, {
       capacity,
@@ -44,13 +56,14 @@ describe('EthPrivErc20Vault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(1)
+    expect(await vault.version()).to.eq(2)
   })
 
   describe('deposit', () => {
     const amount = ethers.parseEther('1')
 
     beforeEach(async () => {
+      await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
       await vault.connect(admin).updateWhitelist(sender.address, true)
     })
 
@@ -61,7 +74,7 @@ describe('EthPrivErc20Vault', () => {
     })
 
     it('cannot update state and call', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       const vaultReward = ethers.parseEther('1')
       const tree = await updateRewards(keeper, [
         { reward: vaultReward, unlockedMevReward: 0n, vault: await vault.getAddress() },
@@ -132,6 +145,70 @@ describe('EthPrivErc20Vault', () => {
           ZERO_ADDRESS
         )
       await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('transfer', () => {
+    const amount = ethers.parseEther('1')
+
+    beforeEach(async () => {
+      await vault.connect(admin).updateWhitelist(sender.address, true)
+      await vault.connect(sender).deposit(sender.address, referrer, { value: amount })
+    })
+
+    it('cannot transfer to not whitelisted user', async () => {
+      await expect(
+        vault.connect(sender).transfer(other.address, amount)
+      ).to.revertedWithCustomError(vault, 'AccessDenied')
+    })
+
+    it('cannot transfer from not whitelisted user', async () => {
+      await vault.connect(admin).updateWhitelist(other.address, true)
+      await vault.connect(sender).transfer(other.address, amount)
+      await vault.connect(admin).updateWhitelist(sender.address, false)
+      await expect(
+        vault.connect(other).transfer(sender.address, amount)
+      ).to.revertedWithCustomError(vault, 'AccessDenied')
+    })
+
+    it('can transfer to whitelisted user', async () => {
+      await vault.connect(admin).updateWhitelist(other.address, true)
+      const receipt = await vault.connect(sender).transfer(other.address, amount)
+      expect(await vault.balanceOf(sender.address)).to.eq(0)
+      expect(await vault.balanceOf(other.address)).to.eq(amount)
+
+      await expect(receipt)
+        .to.emit(vault, 'Transfer')
+        .withArgs(sender.address, other.address, amount)
+      await snapshotGasCost(receipt)
+    })
+  })
+
+  describe('mint osToken', () => {
+    const assets = ethers.parseEther('1')
+    let osTokenShares: bigint
+
+    beforeEach(async () => {
+      await vault.connect(admin).updateWhitelist(sender.address, true)
+      await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
+      await vault.connect(sender).deposit(sender.address, referrer, { value: assets })
+      osTokenShares = await osTokenVaultController.convertToShares(assets / 2n)
+    })
+
+    it('cannot mint from not whitelisted user', async () => {
+      await vault.connect(admin).updateWhitelist(sender.address, false)
+      await expect(
+        vault.connect(sender).mintOsToken(sender.address, osTokenShares, ZERO_ADDRESS)
+      ).to.revertedWithCustomError(vault, 'AccessDenied')
+    })
+
+    it('can mint from whitelisted user', async () => {
+      const tx = await vault
+        .connect(sender)
+        .mintOsToken(sender.address, osTokenShares, ZERO_ADDRESS)
+      await expect(tx).to.emit(vault, 'OsTokenMinted')
+      await snapshotGasCost(tx)
     })
   })
 })

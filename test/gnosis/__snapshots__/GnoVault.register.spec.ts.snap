@@ -1,0 +1,29 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GnoVault - register multiple validators pulls withdrawals on multiple validators registration 1`] = `
+Object {
+  "calldataByteLength": 3364,
+  "gasUsed": 701720,
+}
+`;
+
+exports[`GnoVault - register multiple validators succeeds 1`] = `
+Object {
+  "calldataByteLength": 3364,
+  "gasUsed": 721916,
+}
+`;
+
+exports[`GnoVault - register single validator pulls withdrawals on single validator registration 1`] = `
+Object {
+  "calldataByteLength": 1156,
+  "gasUsed": 360055,
+}
+`;
+
+exports[`GnoVault - register single validator succeeds 1`] = `
+Object {
+  "calldataByteLength": 1156,
+  "gasUsed": 380251,
+}
+`;

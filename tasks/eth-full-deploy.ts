@@ -14,7 +14,11 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const networkConfig: NetworkConfig = NETWORKS[networkName]
   const deployer = await ethers.provider.getSigner()
 
-  // Create the signer for the mnemonic, connected to the provider with hardcoded fee data
+  if (networkConfig.foxVault === undefined) {
+    throw new Error('FoxVault config is missing')
+  }
+
+  // Create the signer for the mnemonic
   console.log('Deploying StakeWise V3 for Ethereum to', networkName, 'from', deployer.address)
 
   // deploy VaultsRegistry
@@ -58,7 +62,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       networkConfig.osTokenFeePercent,
       networkConfig.osTokenCapacity,
     ],
-    'contracts/osToken/OsTokenVaultController.sol:OsTokenVaultController'
+    'contracts/tokens/OsTokenVaultController.sol:OsTokenVaultController'
   )
   const osTokenVaultControllerAddress = await osTokenVaultController.getAddress()
 
@@ -72,7 +76,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       networkConfig.osTokenName,
       networkConfig.osTokenSymbol,
     ],
-    'contracts/osToken/OsToken.sol:OsToken'
+    'contracts/tokens/OsToken.sol:OsToken'
   )
   if ((await osToken.getAddress()) !== osTokenAddress) {
     throw new Error('OsToken address mismatch')
@@ -118,19 +122,48 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     [
       networkConfig.governor,
       {
-        redeemFromLtvPercent: networkConfig.redeemFromLtvPercent,
-        redeemToLtvPercent: networkConfig.redeemToLtvPercent,
         liqThresholdPercent: networkConfig.liqThresholdPercent,
         liqBonusPercent: networkConfig.liqBonusPercent,
         ltvPercent: networkConfig.ltvPercent,
       },
+      networkConfig.governor,
     ],
-    'contracts/osToken/OsTokenConfig.sol:OsTokenConfig'
+    'contracts/tokens/OsTokenConfig.sol:OsTokenConfig'
   )
   const osTokenConfigAddress = await osTokenConfig.getAddress()
 
+  // Deploy DepositDataRegistry
+  const depositDataRegistry = await deployContract(
+    hre,
+    'DepositDataRegistry',
+    [vaultsRegistryAddress],
+    'contracts/validators/DepositDataRegistry.sol:DepositDataRegistry'
+  )
+  const depositDataRegistryAddress = await depositDataRegistry.getAddress()
+
+  // Deploy ValidatorsChecker
+  const ethValidatorsChecker = await deployContract(
+    hre,
+    'EthValidatorsChecker',
+    [
+      networkConfig.validatorsRegistry,
+      keeperAddress,
+      vaultsRegistryAddress,
+      depositDataRegistryAddress,
+    ],
+    'contracts/validators/EthValidatorsChecker.sol:EthValidatorsChecker'
+  )
+  const ethValidatorsCheckerAddress = await ethValidatorsChecker.getAddress()
+
   const factories: string[] = []
-  for (const vaultType of ['EthVault', 'EthPrivVault', 'EthErc20Vault', 'EthPrivErc20Vault']) {
+  for (const vaultType of [
+    'EthVault',
+    'EthPrivVault',
+    'EthBlocklistVault',
+    'EthErc20Vault',
+    'EthPrivErc20Vault',
+    'EthBlocklistErc20Vault',
+  ]) {
     // Deploy Vault Implementation
     const constructorArgs = [
       keeperAddress,
@@ -139,6 +172,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
       osTokenVaultControllerAddress,
       osTokenConfigAddress,
       sharedMevEscrowAddress,
+      depositDataRegistryAddress,
       networkConfig.exitedAssetsClaimDelay,
     ]
     const vaultImpl = await deployContract(
@@ -182,8 +216,9 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     osTokenVaultControllerAddress,
     osTokenConfigAddress,
     sharedMevEscrowAddress,
+    depositDataRegistryAddress,
     networkConfig.genesisVault.poolEscrow,
-    networkConfig.genesisVault.rewardEthToken,
+    networkConfig.genesisVault.rewardToken,
     networkConfig.exitedAssetsClaimDelay,
   ]
   const genesisVaultImpl = await deployContract(
@@ -196,29 +231,25 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const genesisVaultFactory = await ethers.getContractFactory('EthGenesisVault')
   await simulateDeployImpl(hre, genesisVaultFactory, { constructorArgs }, genesisVaultImplAddress)
 
-  // Deploy EthGenesisVault proxy
+  // Deploy and initialize EthGenesisVault proxy
+  let initCall = ethers.AbiCoder.defaultAbiCoder().encode(
+    ['address', 'tuple(uint256 capacity, uint16 feePercent, string metadataIpfsHash)'],
+    [
+      networkConfig.genesisVault.admin,
+      [networkConfig.genesisVault.capacity, networkConfig.genesisVault.feePercent, ''],
+    ]
+  )
   let proxy = await deployContract(
     hre,
     'ERC1967Proxy',
-    [genesisVaultImplAddress, '0x'],
-    '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy'
+    [
+      genesisVaultImplAddress,
+      genesisVaultFactory.interface.encodeFunctionData('initialize', [initCall]),
+    ],
+    '@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol:ERC1967Proxy',
+    { value: networkConfig.securityDeposit }
   )
   const genesisVaultAddress = await proxy.getAddress()
-  const genesisVault = genesisVaultFactory.attach(genesisVaultAddress)
-
-  // Initialize EthGenesisVault
-  await callContract(
-    genesisVault.initialize(
-      ethers.AbiCoder.defaultAbiCoder().encode(
-        ['address', 'tuple(uint256 capacity, uint16 feePercent, string metadataIpfsHash)'],
-        [
-          networkConfig.genesisVault.admin,
-          [networkConfig.genesisVault.capacity, networkConfig.genesisVault.feePercent, ''],
-        ]
-      ),
-      { value: networkConfig.securityDeposit }
-    )
-  )
 
   await callContract(vaultsRegistry.addVault(genesisVaultAddress))
   console.log('Added EthGenesisVault to VaultsRegistry')
@@ -232,6 +263,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     vaultsRegistryAddress,
     networkConfig.validatorsRegistry,
     sharedMevEscrowAddress,
+    depositDataRegistryAddress,
     networkConfig.exitedAssetsClaimDelay,
   ]
   const foxVaultImpl = await deployContract(
@@ -255,7 +287,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const ownMevEscrow = await ownMevEscrowFactory.deploy(foxVaultAddress)
 
   // Deploy and initialize EthFoxVault proxy
-  const initCall = ethers.AbiCoder.defaultAbiCoder().encode(
+  initCall = ethers.AbiCoder.defaultAbiCoder().encode(
     [
       'tuple(address admin, address ownMevEscrow, uint256 capacity, uint16 feePercent, string metadataIpfsHash)',
     ],
@@ -286,12 +318,76 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   await callContract(vaultsRegistry.addVault(foxVaultAddress))
   console.log('Added EthFoxVault to VaultsRegistry')
 
+  // Deploy EigenPodOwner implementation
+  constructorArgs = [
+    networkConfig.eigenPodManager,
+    networkConfig.eigenDelegationManager,
+    networkConfig.eigenDelayedWithdrawalRouter,
+  ]
+  const eigenPodOwnerImpl = await deployContract(
+    hre,
+    'EigenPodOwner',
+    constructorArgs,
+    'contracts/vaults/ethereum/restake/EigenPodOwner.sol:EigenPodOwner'
+  )
+  const eigenPodOwnerFactory = await ethers.getContractFactory('EigenPodOwner')
+  const eigenPodOwnerImplAddress = await eigenPodOwnerImpl.getAddress()
+  await simulateDeployImpl(hre, eigenPodOwnerFactory, { constructorArgs }, eigenPodOwnerImplAddress)
+
+  // Deploy restake vaults
+  for (const vaultType of [
+    'EthRestakeVault',
+    'EthRestakePrivVault',
+    'EthRestakeBlocklistVault',
+    'EthRestakeErc20Vault',
+    'EthRestakePrivErc20Vault',
+    'EthRestakeBlocklistErc20Vault',
+  ]) {
+    // Deploy Vault Implementation
+    const constructorArgs = [
+      keeperAddress,
+      vaultsRegistryAddress,
+      networkConfig.validatorsRegistry,
+      sharedMevEscrowAddress,
+      depositDataRegistryAddress,
+      eigenPodOwnerImplAddress,
+      networkConfig.exitedAssetsClaimDelay,
+    ]
+    const vaultImpl = await deployContract(
+      hre,
+      vaultType,
+      constructorArgs,
+      `contracts/vaults/ethereum/restake/${vaultType}.sol:${vaultType}`
+    )
+    const vaultImplAddress = await vaultImpl.getAddress()
+    await simulateDeployImpl(
+      hre,
+      await ethers.getContractFactory(vaultType),
+      { constructorArgs },
+      vaultImplAddress
+    )
+
+    // Deploy Restake Vault Factory
+    const vaultFactory = await deployContract(
+      hre,
+      'EthRestakeVaultFactory',
+      [networkConfig.governor, vaultImplAddress, vaultsRegistryAddress],
+      'contracts/vaults/ethereum/restake/EthRestakeVaultFactory.sol:EthRestakeVaultFactory'
+    )
+    const vaultFactoryAddress = await vaultFactory.getAddress()
+    factories.push(vaultFactoryAddress)
+
+    // Add factory to registry
+    await callContract(vaultsRegistry.addFactory(vaultFactoryAddress))
+    console.log(`Added ${vaultType}Factory to VaultsRegistry`)
+  }
+
   // Deploy PriceFeed
   const priceFeed = await deployContract(
     hre,
     'PriceFeed',
     [osTokenVaultControllerAddress, networkConfig.priceFeedDescription],
-    'contracts/osToken/PriceFeed.sol:PriceFeed'
+    'contracts/tokens/PriceFeed.sol:PriceFeed'
   )
   const priceFeedAddress = await priceFeed.getAddress()
 
@@ -333,11 +429,22 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
   const addresses = {
     VaultsRegistry: vaultsRegistryAddress,
     Keeper: keeperAddress,
+    DepositDataRegistry: depositDataRegistryAddress,
+    EthValidatorsChecker: ethValidatorsCheckerAddress,
     EthGenesisVault: genesisVaultAddress,
+    EthFoxVault: foxVaultAddress,
     EthVaultFactory: factories[0],
     EthPrivVaultFactory: factories[1],
-    EthErc20VaultFactory: factories[2],
-    EthPrivErc20VaultFactory: factories[3],
+    EthBlocklistVaultFactory: factories[2],
+    EthErc20VaultFactory: factories[3],
+    EthPrivErc20VaultFactory: factories[4],
+    EthBlocklistErc20VaultFactory: factories[5],
+    EthRestakeVaultFactory: factories[6],
+    EthRestakePrivVaultFactory: factories[7],
+    EthRestakeBlocklistVaultFactory: factories[8],
+    EthRestakeErc20VaultFactory: factories[9],
+    EthRestakePrivErc20VaultFactory: factories[10],
+    EthRestakeBlocklistErc20VaultFactory: factories[11],
     SharedMevEscrow: sharedMevEscrowAddress,
     OsToken: osTokenAddress,
     OsTokenConfig: osTokenConfigAddress,
@@ -353,8 +460,9 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     fs.mkdirSync(DEPLOYMENTS_DIR)
   }
 
+  // save addresses
   fs.writeFileSync(fileName, json, 'utf-8')
-  console.log('Saved to', fileName)
+  console.log('Addresses saved to', fileName)
 
   console.log('NB! Commit and accept StakeWise V2 PoolEscrow ownership to EthGenesisVault')
 })

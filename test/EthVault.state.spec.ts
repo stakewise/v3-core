@@ -1,10 +1,19 @@
 import { ethers } from 'hardhat'
 import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthVault, Keeper, OwnMevEscrow__factory, SharedMevEscrow } from '../typechain-types'
+import {
+  EthVault,
+  Keeper,
+  OwnMevEscrow__factory,
+  SharedMevEscrow,
+  VaultsRegistry,
+  OsTokenVaultController,
+  OsTokenConfig,
+  DepositDataRegistry,
+} from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { ethVaultFixture } from './shared/fixtures'
+import { deployEthVaultV1, encodeEthVaultInitParams, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import {
   MAX_UINT256,
@@ -15,11 +24,13 @@ import {
 } from './shared/constants'
 import { extractDepositShares, setBalance } from './shared/utils'
 import {
+  collateralizeEthV1Vault,
   collateralizeEthVault,
   getHarvestParams,
   getRewardsRootProof,
   updateRewards,
 } from './shared/rewards'
+import { getEthVaultV1Factory } from './shared/contracts'
 
 describe('EthVault - state', () => {
   const holderAssets = ethers.parseEther('1')
@@ -31,7 +42,11 @@ describe('EthVault - state', () => {
   let vault: EthVault,
     keeper: Keeper,
     sharedMevEscrow: SharedMevEscrow,
-    validatorsRegistry: Contract
+    validatorsRegistry: Contract,
+    vaultsRegistry: VaultsRegistry,
+    osTokenVaultController: OsTokenVaultController,
+    osTokenConfig: OsTokenConfig,
+    depositDataRegistry: DepositDataRegistry
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
   let createVaultMock: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVaultMock']
@@ -44,6 +59,10 @@ describe('EthVault - state', () => {
       keeper,
       validatorsRegistry,
       sharedMevEscrow,
+      vaultsRegistry,
+      osTokenVaultController,
+      osTokenConfig,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
       capacity,
@@ -122,7 +141,7 @@ describe('EthVault - state', () => {
     )
     const securityDeposit = 1000000000n
     await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: 1 })
-    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+    await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     await vault._setTotalAssets(1)
     expect(await vault.totalAssets()).to.eq(1)
     expect(await vault.totalShares()).to.eq(securityDeposit + 1n)
@@ -209,6 +228,60 @@ describe('EthVault - state', () => {
     await snapshotGasCost(receipt)
   })
 
+  it('splits penalty between exiting assets and staking assets', async () => {
+    await expect(await vault.totalExitingAssets()).to.be.eq(0)
+    const holder = other
+    let totalShares = await vault.totalShares()
+    let totalAssets = await vault.totalAssets()
+    const withdrawableAssets = await vault.withdrawableAssets()
+    const vaultBalance = await ethers.provider.getBalance(await vault.getAddress())
+    const unclaimedAssets = vaultBalance - withdrawableAssets
+
+    const holderAssets = totalAssets
+    const tx = await vault.deposit(holder.address, ZERO_ADDRESS, {
+      value: holderAssets,
+    })
+    const holderShares = await extractDepositShares(tx)
+    expect(holderShares).to.be.eq(totalShares)
+    expect(await vault.getShares(holder.address)).to.be.eq(holderShares)
+    totalShares *= 2n
+    totalAssets *= 2n
+
+    expect(await vault.totalShares()).to.eq(totalShares)
+    expect(await vault.totalAssets()).to.eq(totalAssets)
+
+    await vault.connect(holder).enterExitQueue(holderShares, holder.address)
+    const exitingAssets = await vault.totalExitingAssets()
+    expect(exitingAssets).to.eq(holderAssets)
+    expect(await vault.totalShares()).to.be.eq(totalShares / 2n)
+    expect(await vault.getShares(holder.address)).to.be.eq(0)
+
+    // all assets are slashed
+    await setBalance(await vault.getAddress(), unclaimedAssets)
+    const vaultReward = getHarvestParams(await vault.getAddress(), -totalAssets, 0n)
+    const tree = await updateRewards(keeper, [vaultReward])
+    const proof = getRewardsRootProof(tree, {
+      vault: vaultReward.vault,
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
+    })
+
+    const receipt = await vault.updateState({
+      rewardsRoot: tree.root,
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
+      proof,
+    })
+    await expect(receipt)
+      .emit(keeper, 'Harvested')
+      .withArgs(await vault.getAddress(), tree.root, -totalAssets, 0n)
+    await expect(receipt).not.emit(vault, 'FeeSharesMinted')
+    expect(await ethers.provider.getBalance(await vault.getAddress())).to.be.eq(unclaimedAssets)
+    expect(await vault.totalAssets()).to.be.eq(0n)
+    expect(await vault.totalExitingAssets()).to.be.eq(0n)
+    await snapshotGasCost(receipt)
+  })
+
   it('allocates fee to recipient when delta is above zero', async () => {
     // create vault with own mev escrow
     const vault = await createVault(
@@ -264,17 +337,22 @@ describe('EthVault - state', () => {
   })
 
   it('updates exit queue', async () => {
-    const vault = await createVault(
+    const vault = await deployEthVaultV1(
+      await getEthVaultV1Factory(),
       admin,
-      {
+      keeper,
+      vaultsRegistry,
+      validatorsRegistry,
+      osTokenVaultController,
+      osTokenConfig,
+      sharedMevEscrow,
+      encodeEthVaultInitParams({
         capacity,
         feePercent,
         metadataIpfsHash,
-      },
-      false,
-      true
+      })
     )
-    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+    await collateralizeEthV1Vault(vault, keeper, validatorsRegistry, admin)
     const tx = await vault
       .connect(holder)
       .deposit(holder.address, ZERO_ADDRESS, { value: holderAssets })

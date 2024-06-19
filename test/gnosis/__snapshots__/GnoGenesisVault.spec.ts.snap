@@ -1,0 +1,43 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`GnoGenesisVault migrate migrates from rewardToken 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 79561,
+}
+`;
+
+exports[`GnoGenesisVault pulls withdrawals on claim exited assets 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 155188,
+}
+`;
+
+exports[`GnoGenesisVault update state deducts rewards on first state update 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 147998,
+}
+`;
+
+exports[`GnoGenesisVault update state skips updating legacy with zero total assets 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 143567,
+}
+`;
+
+exports[`GnoGenesisVault update state splits penalty between rewardToken and vault 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 117367,
+}
+`;
+
+exports[`GnoGenesisVault update state splits reward between rewardToken and vault 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 165098,
+}
+`;

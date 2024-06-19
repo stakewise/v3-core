@@ -24,12 +24,11 @@ const DEFAULT_BLOCK_GAS_LIMIT = 12450000
 const MNEMONIC_PATH = "m/44'/60'/0'/0"
 const MNEMONIC = process.env.MNEMONIC || ''
 const TRACK_GAS = process.env.TRACK_GAS === 'true'
-const IS_COVERAGE = process.env.COVERAGE === 'true'
 const BLOCK_EXPLORER_KEY = process.env.BLOCK_EXPLORER_KEY || ''
 const HARDHATEVM_CHAINID = 31337
 
 // fork
-const mainnetFork = MAINNET_FORK.enabled
+const mainnetFork = MAINNET_FORK.rpcUrl
   ? {
       blockNumber: MAINNET_FORK.blockNumber,
       url: MAINNET_FORK.rpcUrl,
@@ -58,7 +57,7 @@ const config: HardhatUserConfig = {
       {
         version: '0.8.22',
         settings: {
-          viaIR: !IS_COVERAGE,
+          viaIR: true,
           optimizer: {
             enabled: true,
             runs: 200,
@@ -74,6 +73,7 @@ const config: HardhatUserConfig = {
   networks: {
     holesky: getCommonNetworkConfig(Networks.holesky),
     mainnet: getCommonNetworkConfig(Networks.mainnet),
+    chiado: getCommonNetworkConfig(Networks.chiado),
     hardhat: {
       blockGasLimit: DEFAULT_BLOCK_GAS_LIMIT,
       gas: DEFAULT_BLOCK_GAS_LIMIT,

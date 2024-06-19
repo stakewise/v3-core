@@ -5,10 +5,8 @@ pragma solidity =0.8.22;
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
-import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
-import {IVaultState} from '../../interfaces/IVaultState.sol';
-import {IPoolEscrow} from '../../interfaces/IPoolEscrow.sol';
+import {IEthPoolEscrow} from '../../interfaces/IEthPoolEscrow.sol';
 import {IEthGenesisVault} from '../../interfaces/IEthGenesisVault.sol';
 import {IRewardEthToken} from '../../interfaces/IRewardEthToken.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
@@ -16,8 +14,8 @@ import {Errors} from '../../libraries/Errors.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
 import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
-import {VaultState} from '../modules/VaultState.sol';
-import {EthVault} from './EthVault.sol';
+import {VaultState, IVaultState} from '../modules/VaultState.sol';
+import {EthVault, IEthVault} from './EthVault.sol';
 
 /**
  * @title EthGenesisVault
@@ -25,8 +23,11 @@ import {EthVault} from './EthVault.sol';
  * @notice Defines the Genesis Vault for Ethereum staking migrated from StakeWise v2
  */
 contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
+  // slither-disable-next-line shadowing-state
+  uint8 private constant _version = 2;
+
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  IPoolEscrow private immutable _poolEscrow;
+  IEthPoolEscrow private immutable _poolEscrow;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IRewardEthToken private immutable _rewardEthToken;
@@ -43,9 +44,10 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param poolEscrow The address of the pool escrow from StakeWise v2
    * @param rewardEthToken The address of the rETH2 token from StakeWise v2
-   * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
+   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
@@ -55,6 +57,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
+    address depositDataRegistry,
     address poolEscrow,
     address rewardEthToken,
     uint256 exitingAssetsClaimDelay
@@ -66,25 +69,32 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
+      depositDataRegistry,
       exitingAssetsClaimDelay
     )
   {
-    _poolEscrow = IPoolEscrow(poolEscrow);
+    _poolEscrow = IEthPoolEscrow(poolEscrow);
     _rewardEthToken = IRewardEthToken(rewardEthToken);
   }
 
   /// @inheritdoc IEthVault
   function initialize(
     bytes calldata params
-  ) external payable virtual override(IEthVault, EthVault) initializer {
-    (address admin, EthVaultInitParams memory initParams) = abi.decode(
+  ) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
+    // if admin is already set, it's an upgrade
+    if (admin != address(0)) {
+      __EthVault_initV2();
+      return;
+    }
+    // initialize deployed vault
+    (address _admin, EthVaultInitParams memory initParams) = abi.decode(
       params,
       (address, EthVaultInitParams)
     );
     // use shared MEV escrow
-    __EthVault_init(admin, address(0), initParams);
+    __EthVault_init(_admin, address(0), initParams);
     emit GenesisVaultCreated(
-      admin,
+      _admin,
       initParams.capacity,
       initParams.feePercent,
       initParams.metadataIpfsHash
@@ -104,7 +114,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
 
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, EthVault) returns (uint8) {
-    return 1;
+    return _version;
   }
 
   /// @inheritdoc IVaultState
@@ -125,31 +135,8 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       }
     }
 
-    // fetch total assets controlled by legacy pool
-    uint256 legacyPrincipal = _rewardEthToken.totalAssets() - _rewardEthToken.totalPenalty();
-
-    // calculate total principal
-    uint256 totalPrincipal = _totalAssets + legacyPrincipal;
-    if (totalAssetsDelta < 0) {
-      // calculate and update penalty for legacy pool
-      int256 legacyPenalty = SafeCast.toInt256(
-        Math.mulDiv(uint256(-totalAssetsDelta), legacyPrincipal, totalPrincipal)
-      );
-      _rewardEthToken.updateTotalRewards(-legacyPenalty);
-      // deduct penalty from total assets delta
-      totalAssetsDelta += legacyPenalty;
-    } else {
-      // calculate and update reward for legacy pool
-      int256 legacyReward = SafeCast.toInt256(
-        Math.mulDiv(uint256(totalAssetsDelta), legacyPrincipal, totalPrincipal)
-      );
-      _rewardEthToken.updateTotalRewards(legacyReward);
-      // deduct reward from total assets delta
-      totalAssetsDelta -= legacyReward;
-    }
-
-    // process total assets delta if it has changed
-    if (totalAssetsDelta != 0) _processTotalAssetsDelta(totalAssetsDelta);
+    // process total assets delta
+    _processTotalAssetsDelta(totalAssetsDelta);
 
     // update exit queue every time new update is harvested
     if (harvested) _updateExitQueue();
@@ -185,12 +172,49 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     }
   }
 
+  /// @inheritdoc VaultState
+  function _processTotalAssetsDelta(int256 totalAssetsDelta) internal override {
+    // skip processing if there is no change in assets
+    if (totalAssetsDelta == 0) return;
+
+    // fetch total assets controlled by legacy pool
+    uint256 legacyPrincipal = _rewardEthToken.totalAssets() - _rewardEthToken.totalPenalty();
+    if (legacyPrincipal == 0) {
+      // legacy pool has no assets, process total assets delta as usual
+      super._processTotalAssetsDelta(totalAssetsDelta);
+      return;
+    }
+
+    // calculate total principal
+    uint256 totalPrincipal = _totalAssets + legacyPrincipal;
+    if (totalAssetsDelta < 0) {
+      // calculate and update penalty for legacy pool
+      int256 legacyPenalty = SafeCast.toInt256(
+        Math.mulDiv(uint256(-totalAssetsDelta), legacyPrincipal, totalPrincipal)
+      );
+      _rewardEthToken.updateTotalRewards(-legacyPenalty);
+      // deduct penalty from total assets delta
+      totalAssetsDelta += legacyPenalty;
+    } else {
+      // calculate and update reward for legacy pool
+      int256 legacyReward = SafeCast.toInt256(
+        Math.mulDiv(uint256(totalAssetsDelta), legacyPrincipal, totalPrincipal)
+      );
+      _rewardEthToken.updateTotalRewards(legacyReward);
+      // deduct reward from total assets delta
+      totalAssetsDelta -= legacyReward;
+    }
+
+    // process total assets delta
+    super._processTotalAssetsDelta(totalAssetsDelta);
+  }
+
   /// @inheritdoc VaultEnterExit
   function _transferVaultAssets(
     address receiver,
     uint256 assets
   ) internal virtual override(VaultEnterExit, VaultEthStaking) {
-    if (assets > super._vaultAssets()) _pullAssets();
+    if (assets > super._vaultAssets()) _pullWithdrawals();
     return super._transferVaultAssets(receiver, assets);
   }
 
@@ -212,23 +236,22 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   function _registerSingleValidator(
     bytes calldata validator
   ) internal virtual override(VaultValidators, VaultEthStaking) {
-    _pullAssets();
+    _pullWithdrawals();
     super._registerSingleValidator(validator);
   }
 
   /// @inheritdoc VaultValidators
   function _registerMultipleValidators(
-    bytes calldata validators,
-    uint256[] calldata indexes
-  ) internal virtual override(VaultValidators, VaultEthStaking) returns (bytes32[] memory leaves) {
-    _pullAssets();
-    return super._registerMultipleValidators(validators, indexes);
+    bytes calldata validators
+  ) internal virtual override(VaultValidators, VaultEthStaking) {
+    _pullWithdrawals();
+    return super._registerMultipleValidators(validators);
   }
 
   /**
    * @dev Pulls assets from pool escrow
    */
-  function _pullAssets() private {
+  function _pullWithdrawals() private {
     uint256 escrowBalance = address(_poolEscrow).balance;
     if (escrowBalance != 0) _poolEscrow.withdraw(payable(this), escrowBalance);
   }

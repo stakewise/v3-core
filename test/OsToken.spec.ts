@@ -1,7 +1,13 @@
 import { ethers, network } from 'hardhat'
 import { Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { OsTokenVaultController, OsToken, EthVault, Keeper } from '../typechain-types'
+import {
+  OsTokenVaultController,
+  OsToken,
+  EthVault,
+  Keeper,
+  DepositDataRegistry,
+} from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -31,7 +37,8 @@ describe('OsToken', () => {
   let osTokenVaultController: OsTokenVaultController,
     osToken: OsToken,
     vault: EthVault,
-    keeper: Keeper
+    keeper: Keeper,
+    depositDataRegistry: DepositDataRegistry
 
   before('create fixture loader', async () => {
     ;[dao, initialHolder, admin, spender, recipient] = await (ethers as any).getSigners()
@@ -47,11 +54,19 @@ describe('OsToken', () => {
     osTokenVaultController = fixture.osTokenVaultController
     keeper = fixture.keeper
     osToken = fixture.osToken
+    depositDataRegistry = fixture.depositDataRegistry
+
     vault = await fixture.createEthVault(admin, vaultParams)
     admin = await ethers.getImpersonatedSigner(await vault.admin())
 
     // collateralize vault
-    await collateralizeEthVault(vault, fixture.keeper, fixture.validatorsRegistry, admin)
+    await collateralizeEthVault(
+      vault,
+      fixture.keeper,
+      depositDataRegistry,
+      admin,
+      fixture.validatorsRegistry
+    )
     await vault
       .connect(initialHolder)
       .deposit(initialHolder.address, ZERO_ADDRESS, { value: assets })

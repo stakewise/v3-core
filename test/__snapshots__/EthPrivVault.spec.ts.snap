@@ -1,0 +1,8 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthPrivVault mint osToken can mint from not whitelisted user 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 177135,
+}
+`;

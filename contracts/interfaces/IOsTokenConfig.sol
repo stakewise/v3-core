@@ -10,79 +10,59 @@ pragma solidity =0.8.22;
 interface IOsTokenConfig {
   /**
    * @notice Emitted when OsToken minting and liquidating configuration values are updated
-   * @param redeemFromLtvPercent The LTV allowed to redeem from
-   * @param redeemToLtvPercent The LTV to redeem up to
-   * @param liqThresholdPercent The new liquidation threshold percent value
+   * @param vault The address of the vault to update the config for. Will be zero address if it is a default config.
    * @param liqBonusPercent The new liquidation bonus percent value
+   * @param liqThresholdPercent The new liquidation threshold percent value
    * @param ltvPercent The new loan-to-value (LTV) percent value
    */
   event OsTokenConfigUpdated(
-    uint16 redeemFromLtvPercent,
-    uint16 redeemToLtvPercent,
-    uint16 liqThresholdPercent,
-    uint16 liqBonusPercent,
-    uint16 ltvPercent
+    address vault,
+    uint128 liqBonusPercent,
+    uint64 liqThresholdPercent,
+    uint64 ltvPercent
   );
 
   /**
+   * @notice Emitted when the OsToken redeemer address is updated
+   * @param newRedeemer The address of the new redeemer
+   */
+  event RedeemerUpdated(address newRedeemer);
+
+  /**
    * @notice The OsToken minting and liquidating configuration values
-   * @param redeemFromLtvPercent The osToken redemptions are allowed when position LTV goes above this value
-   * @param redeemToLtvPercent The osToken redeemed value cannot decrease LTV below this value
    * @param liqThresholdPercent The liquidation threshold percent used to calculate health factor for OsToken position
    * @param liqBonusPercent The minimal bonus percent that liquidator earns on OsToken position liquidation
    * @param ltvPercent The percent used to calculate how much user can mint OsToken shares
    */
   struct Config {
-    uint16 redeemFromLtvPercent;
-    uint16 redeemToLtvPercent;
-    uint16 liqThresholdPercent;
-    uint16 liqBonusPercent;
-    uint16 ltvPercent;
+    uint128 liqBonusPercent;
+    uint64 liqThresholdPercent;
+    uint64 ltvPercent;
   }
 
   /**
-   * @notice The osToken redemptions are allowed when position LTV goes above this value
-   * @return The minimal LTV before redemption start
+   * @notice The address of the OsToken redeemer
+   * @return The address of the redeemer
    */
-  function redeemFromLtvPercent() external view returns (uint256);
+  function redeemer() external view returns (address);
 
   /**
-   * @notice The osToken redeemed value cannot decrease LTV below this value
-   * @return The maximal LTV after the redemption
+   * @notice Returns the OsToken minting and liquidating configuration values for the vault
+   * @param vault The address of the vault to get the config for
+   * @return config The OsToken config for the vault
    */
-  function redeemToLtvPercent() external view returns (uint256);
+  function getConfig(address vault) external view returns (Config memory config);
 
   /**
-   * @notice The liquidation threshold percent used to calculate health factor for OsToken position
-   * @return The liquidation threshold percent value
+   * @notice Sets the OsToken redeemer address. Can only be called by the owner.
+   * @param newRedeemer The address of the new redeemer
    */
-  function liqThresholdPercent() external view returns (uint256);
-
-  /**
-   * @notice The minimal bonus percent that liquidator earns on OsToken position liquidation
-   * @return The minimal liquidation bonus percent value
-   */
-  function liqBonusPercent() external view returns (uint256);
-
-  /**
-   * @notice The percent used to calculate how much user can mint OsToken shares
-   * @return The loan-to-value (LTV) percent value
-   */
-  function ltvPercent() external view returns (uint256);
-
-  /**
-   * @notice Returns the OsToken minting and liquidating configuration values
-   * @return redeemFromLtvPercent The LTV allowed to redeem from
-   * @return redeemToLtvPercent The LTV to redeem up to
-   * @return liqThresholdPercent The liquidation threshold percent value
-   * @return liqBonusPercent The liquidation bonus percent value
-   * @return ltvPercent The loan-to-value (LTV) percent value
-   */
-  function getConfig() external view returns (uint256, uint256, uint256, uint256, uint256);
+  function setRedeemer(address newRedeemer) external;
 
   /**
    * @notice Updates the OsToken minting and liquidating configuration values. Can only be called by the owner.
+   * @param vault The address of the vault. Set to zero address to update the default config.
    * @param config The new OsToken configuration
    */
-  function updateConfig(Config memory config) external;
+  function updateConfig(address vault, Config memory config) external;
 }

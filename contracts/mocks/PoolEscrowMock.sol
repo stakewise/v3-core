@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 
-pragma solidity 0.8.22;
+pragma solidity =0.8.22;
 
-import '@openzeppelin/contracts/utils/Address.sol';
-import '../interfaces/IPoolEscrow.sol';
+import {Address} from '@openzeppelin/contracts/utils/Address.sol';
+import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IGnoPoolEscrow} from '../interfaces/IGnoPoolEscrow.sol';
 
 /**
  * @title PoolEscrowMock
@@ -13,8 +15,9 @@ import '../interfaces/IPoolEscrow.sol';
  * https://github.com/ethereum/eth2.0-specs/blob/v1.1.0-alpha.2/specs/phase0/validator.md#eth1_address_withdrawal_prefix
  * using the address of this contract as a destination.
  */
-contract PoolEscrowMock is IPoolEscrow {
+contract PoolEscrowMock is IGnoPoolEscrow {
   using Address for address payable;
+  using SafeERC20 for IERC20;
 
   // @dev The address of the current contract owner.
   address public override owner;
@@ -66,6 +69,20 @@ contract PoolEscrowMock is IPoolEscrow {
     require(payee != address(0), 'PoolEscrow: payee is the zero address');
     emit Withdrawn(msg.sender, payee, amount);
     payee.sendValue(amount);
+  }
+
+  /**
+   * @dev See {IPoolEscrow-withdraw}.
+   */
+  function withdrawTokens(
+    address token,
+    address payee,
+    uint256 amount
+  ) external override onlyOwner {
+    require(payee != address(0), 'PoolEscrow: payee is the zero address');
+    require(token != address(0), 'PoolEscrow: token is the zero address');
+    emit Withdrawn(msg.sender, payee, amount);
+    IERC20(token).safeTransfer(payee, amount);
   }
 
   /**

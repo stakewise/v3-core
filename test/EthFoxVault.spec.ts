@@ -2,7 +2,7 @@ import { ethers } from 'hardhat'
 import keccak256 from 'keccak256'
 import { Contract, parseEther, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { Keeper, IKeeperRewards, EthFoxVault } from '../typechain-types'
+import { Keeper, IKeeperRewards, EthFoxVault, DepositDataRegistry } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -22,7 +22,10 @@ describe('EthFoxVault', () => {
   const referrer = ZERO_ADDRESS
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   let sender: Wallet, blocklistManager: Wallet, admin: Signer, other: Wallet
-  let vault: EthFoxVault, keeper: Keeper, validatorsRegistry: Contract
+  let vault: EthFoxVault,
+    keeper: Keeper,
+    validatorsRegistry: Contract,
+    depositDataRegistry: DepositDataRegistry
 
   let createFoxVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthFoxVault']
 
@@ -35,6 +38,7 @@ describe('EthFoxVault', () => {
       createEthFoxVault: createFoxVault,
       keeper,
       validatorsRegistry,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createFoxVault(admin, {
       capacity,
@@ -56,7 +60,7 @@ describe('EthFoxVault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(1)
+    expect(await vault.version()).to.eq(2)
   })
 
   describe('set blocklist manager', () => {
@@ -127,7 +131,7 @@ describe('EthFoxVault', () => {
     })
 
     it('cannot update state and call', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       const vaultReward = getHarvestParams(await vault.getAddress(), ethers.parseEther('1'), 0n)
       const tree = await updateRewards(keeper, [vaultReward])
 
@@ -215,27 +219,12 @@ describe('EthFoxVault', () => {
         .to.emit(vault, 'BlocklistUpdated')
         .withArgs(blocklistManager.address, other.address, true)
       expect(await vault.blockedAccounts(other.address)).to.eq(true)
-      await expect(tx).to.not.emit(vault, 'ExitQueueEntered')
-      await expect(tx).to.not.emit(vault, 'Redeemed')
-      await snapshotGasCost(tx)
-    })
-
-    it('blocklist manager can eject all of the user assets for not collateralized vault', async () => {
-      const tx = await vault.connect(blocklistManager).ejectUser(sender.address)
-      await expect(tx)
-        .to.emit(vault, 'BlocklistUpdated')
-        .withArgs(blocklistManager.address, sender.address, true)
-      expect(await vault.blockedAccounts(sender.address)).to.eq(true)
-      await expect(tx)
-        .to.emit(vault, 'Redeemed')
-        .withArgs(sender.address, sender.address, senderAssets, senderShares)
-      await expect(tx).to.emit(vault, 'UserEjected').withArgs(sender.address, senderShares)
-      expect(await vault.getShares(sender.address)).to.eq(0)
+      await expect(tx).to.not.emit(vault, 'V2ExitQueueEntered')
       await snapshotGasCost(tx)
     })
 
     it('blocklist manager can eject all of the user assets for collateralized vault', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
       const tx = await vault.connect(blocklistManager).ejectUser(sender.address)
       const positionTicket = await extractExitPositionTicket(tx)
@@ -244,8 +233,8 @@ describe('EthFoxVault', () => {
         .withArgs(blocklistManager.address, sender.address, true)
       expect(await vault.blockedAccounts(sender.address)).to.eq(true)
       await expect(tx)
-        .to.emit(vault, 'ExitQueueEntered')
-        .withArgs(sender.address, sender.address, positionTicket, senderShares)
+        .to.emit(vault, 'V2ExitQueueEntered')
+        .withArgs(sender.address, sender.address, positionTicket, senderAssets, senderShares)
       await expect(tx).to.emit(vault, 'UserEjected').withArgs(sender.address, senderShares)
       expect(await vault.getShares(sender.address)).to.eq(0)
       await snapshotGasCost(tx)

@@ -21,7 +21,7 @@ npm-debug.log
 
 # Hardhat
 cache
-artifacts
+/artifacts
 
 # Typechain
 /typechain-types
@@ -34,6 +34,7 @@ artifacts
 
 # VS Code
 .vscode
+*.code-workspace
 
 # Coverage
 coverage
@@ -42,3 +43,6 @@ coverage.json
 addresses.json
 /.openzeppelin/unknown-31337.json
 /deployments/local.json
+
+# Python
+.python-version

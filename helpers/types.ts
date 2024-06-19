@@ -3,6 +3,7 @@ export type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 export enum Networks {
   mainnet = 'mainnet',
   holesky = 'holesky',
+  chiado = 'chiado',
 }
 
 export type NetworkConfig = {
@@ -30,27 +31,36 @@ export type NetworkConfig = {
   osTokenSymbol: string
 
   // OsTokenConfig
-  redeemFromLtvPercent: bigint
-  redeemToLtvPercent: bigint
-  liqThresholdPercent: number
-  liqBonusPercent: number
-  ltvPercent: number
+  liqThresholdPercent: bigint
+  liqBonusPercent: bigint
+  ltvPercent: bigint
 
   // EthGenesisVault
   genesisVault: {
     admin: string
     poolEscrow: string
-    rewardEthToken: string
+    rewardToken: string
     capacity: bigint
     feePercent: number
   }
 
   // EthFoxVault
-  foxVault: {
+  foxVault?: {
     admin: string
     capacity: bigint
     feePercent: number
     metadataIpfsHash: string
+  }
+
+  // Gnosis data
+  gnosis?: {
+    gnoToken: string
+    gnoPriceFeed: string
+    daiPriceFeed: string
+    balancerVault: string
+    balancerPoolId: string
+    maxSlippage: number
+    stalePriceTimeDelta: bigint
   }
 
   // PriceFeed
@@ -59,4 +69,18 @@ export type NetworkConfig = {
   // Cumulative MerkleDrop
   liquidityCommittee: string
   swiseToken: string
+
+  // Restake vault settings
+  eigenPodManager: string
+  eigenDelegationManager: string
+  eigenDelayedWithdrawalRouter: string
+}
+
+export type GovernorCall = {
+  to: string
+  operation: string
+  value: string
+  data: string
+  method: string
+  params: any[]
 }

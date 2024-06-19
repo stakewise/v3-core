@@ -3,16 +3,13 @@
 pragma solidity =0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IEthPrivVault} from '../../interfaces/IEthPrivVault.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
-import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
-import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
-import {Errors} from '../../libraries/Errors.sol';
-import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
+import {VaultEthStaking, IVaultEthStaking} from '../modules/VaultEthStaking.sol';
+import {VaultOsToken, IVaultOsToken} from '../modules/VaultOsToken.sol';
 import {VaultWhitelist} from '../modules/VaultWhitelist.sol';
-import {VaultVersion} from '../modules/VaultVersion.sol';
-import {EthVault} from './EthVault.sol';
+import {IVaultVersion} from '../modules/VaultVersion.sol';
+import {EthVault, IEthVault} from './EthVault.sol';
 
 /**
  * @title EthPrivVault
@@ -20,6 +17,9 @@ import {EthVault} from './EthVault.sol';
  * @notice Defines the Ethereum staking Vault with whitelist
  */
 contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault {
+  // slither-disable-next-line shadowing-state
+  uint8 private constant _version = 2;
+
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -30,7 +30,8 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
+   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
@@ -40,6 +41,7 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
     address osTokenVaultController,
     address osTokenConfig,
     address sharedMevEscrow,
+    address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
     EthVault(
@@ -49,6 +51,7 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
       osTokenVaultController,
       osTokenConfig,
       sharedMevEscrow,
+      depositDataRegistry,
       exitingAssetsClaimDelay
     )
   {}
@@ -56,15 +59,21 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
   /// @inheritdoc IEthVault
   function initialize(
     bytes calldata params
-  ) external payable virtual override(IEthVault, EthVault) initializer {
-    address admin = IEthVaultFactory(msg.sender).vaultAdmin();
+  ) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
+    // if admin is already set, it's an upgrade
+    if (admin != address(0)) {
+      __EthVault_initV2();
+      return;
+    }
+    // initialize deployed vault
+    address _admin = IEthVaultFactory(msg.sender).vaultAdmin();
     __EthVault_init(
-      admin,
+      _admin,
       IEthVaultFactory(msg.sender).ownMevEscrow(),
       abi.decode(params, (EthVaultInitParams))
     );
     // whitelister is initially set to admin address
-    __VaultWhitelist_init(admin);
+    __VaultWhitelist_init(_admin);
   }
 
   /// @inheritdoc IVaultEthStaking
@@ -72,18 +81,25 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
     address receiver,
     address referrer
   ) public payable virtual override(IVaultEthStaking, VaultEthStaking) returns (uint256 shares) {
-    if (!(whitelistedAccounts[msg.sender] && whitelistedAccounts[receiver])) {
-      revert Errors.AccessDenied();
-    }
+    _checkWhitelist(msg.sender);
+    _checkWhitelist(receiver);
     return super.deposit(receiver, referrer);
   }
 
-  /**
-   * @dev Function for depositing using fallback function
-   */
+  /// @inheritdoc VaultEthStaking
   receive() external payable virtual override {
-    if (!whitelistedAccounts[msg.sender]) revert Errors.AccessDenied();
+    _checkWhitelist(msg.sender);
     _deposit(msg.sender, msg.value, address(0));
+  }
+
+  /// @inheritdoc IVaultOsToken
+  function mintOsToken(
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) public virtual override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
+    _checkWhitelist(msg.sender);
+    return super.mintOsToken(receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IVaultVersion
@@ -93,7 +109,7 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
 
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, EthVault) returns (uint8) {
-    return 1;
+    return _version;
   }
 
   /**

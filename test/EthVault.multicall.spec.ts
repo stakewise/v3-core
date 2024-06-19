@@ -7,6 +7,7 @@ import {
   Keeper,
   MulticallMock,
   OwnMevEscrow__factory,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
@@ -35,7 +36,10 @@ describe('EthVault - multicall', () => {
   const metadataIpfsHash = '/ipfs/QmanU2bk9VsJuxhBmvfgXaC44fXpcC8DNHNxPZKMpNXo37'
 
   let sender: Wallet, admin: Signer
-  let vault: EthVault, keeper: Keeper, validatorsRegistry: Contract
+  let vault: EthVault,
+    keeper: Keeper,
+    validatorsRegistry: Contract,
+    depositDataRegistry: DepositDataRegistry
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
@@ -45,6 +49,7 @@ describe('EthVault - multicall', () => {
       createEthVault: createVault,
       keeper,
       validatorsRegistry,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(
       admin,
@@ -66,7 +71,7 @@ describe('EthVault - multicall', () => {
     await vault
       .connect(sender)
       .deposit(sender.address, referrer, { value: ethers.parseEther('32') })
-    await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+    await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     await setBalance(await mevEscrow.getAddress(), ethers.parseEther('10'))
 
     const userShares = await vault.getShares(sender.address)
@@ -117,11 +122,16 @@ describe('EthVault - multicall', () => {
     const timestamp = await getBlockTimestamp(receipt)
     await expect(receipt).to.emit(keeper, 'Harvested')
     await expect(receipt).to.emit(mevEscrow, 'Harvested')
-    await expect(receipt).to.emit(vault, 'ExitQueueEntered')
+    await expect(receipt).to.emit(vault, 'V2ExitQueueEntered')
     await snapshotGasCost(receipt)
+    const vaultTotalBalance =
+      userAssets +
+      (await ethers.provider.getBalance(vaultAddr)) +
+      (await vault.totalExitingAssets()) +
+      (await vault.convertToAssets(await vault.queuedShares()))
 
     // wait for exit queue to complete and withdraw exited assets
-    await setBalance(await vault.getAddress(), userAssets)
+    await setBalance(await vault.getAddress(), vaultTotalBalance)
 
     // wait for exit queue
     await increaseTime(ONE_DAY)
@@ -164,7 +174,7 @@ describe('EthVault - multicall', () => {
 
     it('fails to deposit, enter exit queue, update state and claim in one transaction', async () => {
       const vaultAddr = await vault.getAddress()
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       expect(await vault.isStateUpdateRequired()).to.eq(false)
       expect(await keeper.canHarvest(vaultAddr)).to.eq(false)
 

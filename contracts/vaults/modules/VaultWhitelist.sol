@@ -22,7 +22,9 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
   /// @inheritdoc IVaultWhitelist
   function updateWhitelist(address account, bool approved) external override {
     if (msg.sender != whitelister) revert Errors.AccessDenied();
-    _updateWhitelist(account, approved);
+    if (whitelistedAccounts[account] == approved) return;
+    whitelistedAccounts[account] = approved;
+    emit WhitelistUpdated(msg.sender, account, approved);
   }
 
   /// @inheritdoc IVaultWhitelist
@@ -32,14 +34,11 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
   }
 
   /**
-   * @notice Internal function for updating whitelist
-   * @param account The address of the account to update
-   * @param approved Defines whether account is added to the whitelist or removed
+   * @notice Internal function for checking whether account is in the whitelist
+   * @param account The address of the account to check
    */
-  function _updateWhitelist(address account, bool approved) private {
-    if (whitelistedAccounts[account] == approved) revert Errors.WhitelistAlreadyUpdated();
-    whitelistedAccounts[account] = approved;
-    emit WhitelistUpdated(msg.sender, account, approved);
+  function _checkWhitelist(address account) internal view {
+    if (!whitelistedAccounts[account]) revert Errors.AccessDenied();
   }
 
   /**
@@ -58,7 +57,6 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
    */
   function __VaultWhitelist_init(address _whitelister) internal onlyInitializing {
     _setWhitelister(_whitelister);
-    _updateWhitelist(_whitelister, true);
   }
 
   /**

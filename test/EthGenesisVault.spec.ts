@@ -1,6 +1,12 @@
 import { ethers } from 'hardhat'
 import { Contract, Signer, Wallet } from 'ethers'
-import { EthGenesisVault, Keeper, PoolEscrowMock, RewardEthTokenMock } from '../typechain-types'
+import {
+  EthGenesisVault,
+  Keeper,
+  PoolEscrowMock,
+  LegacyRewardTokenMock,
+  DepositDataRegistry,
+} from '../typechain-types'
 import { createDepositorMock, ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
 import keccak256 from 'keccak256'
@@ -27,6 +33,7 @@ import {
   updateRewards,
 } from './shared/rewards'
 import {
+  extractCheckpointAssets,
   extractDepositShares,
   extractExitPositionTicket,
   getBlockTimestamp,
@@ -43,9 +50,12 @@ describe('EthGenesisVault', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const deadline = VALIDATORS_DEADLINE
   let admin: Signer, other: Wallet
-  let vault: EthGenesisVault, keeper: Keeper, validatorsRegistry: Contract
+  let vault: EthGenesisVault,
+    keeper: Keeper,
+    validatorsRegistry: Contract,
+    depositDataRegistry: DepositDataRegistry
   let poolEscrow: PoolEscrowMock
-  let rewardEthToken: RewardEthTokenMock
+  let rewardEthToken: LegacyRewardTokenMock
 
   let createGenesisVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthGenesisVault']
 
@@ -56,7 +66,7 @@ describe('EthGenesisVault', () => {
 
   async function collatEthVault() {
     if (MAINNET_FORK.enabled) return
-    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+    await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
   }
 
   beforeEach('deploy fixtures', async () => {
@@ -64,6 +74,7 @@ describe('EthGenesisVault', () => {
     const fixture = await loadFixture(ethVaultFixture)
     keeper = fixture.keeper
     validatorsRegistry = fixture.validatorsRegistry
+    depositDataRegistry = fixture.depositDataRegistry
     ;[vault, rewardEthToken, poolEscrow] = await fixture.createEthGenesisVault(admin, {
       capacity,
       feePercent,
@@ -84,7 +95,7 @@ describe('EthGenesisVault', () => {
     const adminAddr = await admin.getAddress()
 
     // VaultVersion
-    expect(await vault.version()).to.be.eq(1)
+    expect(await vault.version()).to.be.eq(2)
     expect(await vault.vaultId()).to.be.eq(`0x${keccak256('EthGenesisVault').toString('hex')}`)
 
     // VaultFee
@@ -96,23 +107,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(1)
-  })
-
-  it('applies ownership transfer', async () => {
-    await acceptPoolEscrowOwnership()
-    expect(await poolEscrow.owner()).to.eq(await vault.getAddress())
-  })
-
-  it('apply ownership cannot be called second time', async () => {
-    await acceptPoolEscrowOwnership()
-    await expect(vault.connect(other).acceptPoolEscrowOwnership()).to.be.revertedWithCustomError(
-      vault,
-      'AccessDenied'
-    )
-    await expect(vault.connect(admin).acceptPoolEscrowOwnership()).to.be.revertedWith(
-      'PoolEscrow: caller is not the future owner'
-    )
+    expect(await vault.version()).to.eq(2)
   })
 
   describe('migrate', () => {
@@ -231,11 +226,11 @@ describe('EthGenesisVault', () => {
     })
   })
 
-  it('pulls assets on claim exited assets', async () => {
+  it('pulls withdrawals on claim exited assets', async () => {
     await acceptPoolEscrowOwnership()
     await collatEthVault()
 
-    let assets = ethers.parseEther('10')
+    const assets = ethers.parseEther('10')
     let tx = await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: assets })
     const shares = await extractDepositShares(tx)
 
@@ -243,13 +238,18 @@ describe('EthGenesisVault', () => {
     const vaultBalance = await ethers.provider.getBalance(vaultAddr)
     const poolEscrowAddr = await poolEscrow.getAddress()
     const poolEscrowBalance = await ethers.provider.getBalance(poolEscrowAddr)
+    const vaultTotalBalance =
+      vaultBalance +
+      poolEscrowBalance +
+      (await vault.totalExitingAssets()) +
+      (await vault.convertToAssets(await vault.queuedShares()))
 
     await setBalance(vaultAddr, 0n)
     const response = await vault.connect(other).enterExitQueue(shares, other.address)
     const positionTicket = await extractExitPositionTicket(response)
     const timestamp = await getBlockTimestamp(response)
 
-    await setBalance(poolEscrowAddr, poolEscrowBalance + vaultBalance)
+    await setBalance(poolEscrowAddr, vaultTotalBalance)
 
     await increaseTime(ONE_DAY)
     const reward = 0n
@@ -264,14 +264,11 @@ describe('EthGenesisVault', () => {
       unlockedMevReward: harvestParams.unlockedMevReward,
     })
     const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
-    if (MAINNET_FORK.enabled) {
-      assets -= 1n
-    }
 
     tx = await vault.connect(other).claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
-      .withArgs(vaultAddr, vaultAddr, poolEscrowBalance + vaultBalance)
+      .withArgs(vaultAddr, vaultAddr, vaultTotalBalance)
     await expect(tx)
       .to.emit(vault, 'ExitedAssetsClaimed')
       .withArgs(other.address, positionTicket, 0, assets)
@@ -279,38 +276,7 @@ describe('EthGenesisVault', () => {
     await snapshotGasCost(tx)
   })
 
-  it('pulls assets on redeem', async () => {
-    const [vault, , poolEscrow] = await createGenesisVault(
-      admin,
-      {
-        capacity,
-        feePercent,
-        metadataIpfsHash,
-      },
-      true
-    )
-    await vault.connect(admin).acceptPoolEscrowOwnership()
-    const assets = ethers.parseEther('10')
-    let tx = await vault.connect(other).deposit(other.address, ZERO_ADDRESS, { value: assets })
-    const shares = await extractDepositShares(tx)
-
-    await setBalance(await vault.getAddress(), 0n)
-    await setBalance(await poolEscrow.getAddress(), assets)
-
-    expect(await vault.withdrawableAssets()).to.eq(assets)
-
-    tx = await vault.connect(other).redeem(shares, other.address)
-    await expect(tx)
-      .to.emit(vault, 'Redeemed')
-      .withArgs(other.address, other.address, shares, shares)
-    await expect(tx).to.not.emit(vault, 'Deposited')
-    await expect(tx)
-      .to.emit(poolEscrow, 'Withdrawn')
-      .withArgs(await vault.getAddress(), await vault.getAddress(), assets)
-    expect(await ethers.provider.getBalance(await poolEscrow.getAddress())).to.eq(0)
-  })
-
-  it('pulls assets on single validator registration', async () => {
+  it('pulls withdrawals on single validator registration', async () => {
     await acceptPoolEscrowOwnership()
     await collatEthVault()
     const validatorDeposit = ethers.parseEther('32')
@@ -318,23 +284,38 @@ describe('EthGenesisVault', () => {
     const vaultBalance = await ethers.provider.getBalance(vaultAddr)
     const poolEscrowAddr = await poolEscrow.getAddress()
     const poolEscrowBalance = await ethers.provider.getBalance(poolEscrowAddr)
+    const vaultTotalBalance =
+      validatorDeposit +
+      vaultBalance +
+      poolEscrowBalance +
+      (await vault.totalExitingAssets()) +
+      (await vault.convertToAssets(await vault.queuedShares()))
 
     await setBalance(vaultAddr, 0n)
-    await setBalance(poolEscrowAddr, validatorDeposit + vaultBalance + poolEscrowBalance)
+    await setBalance(poolEscrowAddr, vaultTotalBalance)
     expect(await vault.withdrawableAssets()).to.be.greaterThanOrEqual(validatorDeposit)
-    const tx = await registerEthValidator(vault, keeper, validatorsRegistry, admin)
+    const tx = await registerEthValidator(
+      vault,
+      keeper,
+      depositDataRegistry,
+      admin,
+      validatorsRegistry
+    )
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
-      .withArgs(vaultAddr, vaultAddr, validatorDeposit + vaultBalance + poolEscrowBalance)
+      .withArgs(vaultAddr, vaultAddr, vaultTotalBalance)
     await snapshotGasCost(tx)
   })
 
-  it('pulls assets on multiple validators registration', async () => {
+  it('pulls withdrawals on multiple validators registration', async () => {
     await acceptPoolEscrowOwnership()
     await collatEthVault()
     const validatorsData = await createEthValidatorsData(vault)
     const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
-    await vault.connect(admin).setValidatorsRoot(validatorsData.root)
+    const vaultAddr = await vault.getAddress()
+    // reset validator index
+    await depositDataRegistry.connect(admin).setDepositDataRoot(vaultAddr, ZERO_BYTES32)
+    await depositDataRegistry.connect(admin).setDepositDataRoot(vaultAddr, validatorsData.root)
     const proof = getValidatorsMultiProof(validatorsData.tree, validatorsData.validators, [
       ...Array(validatorsData.validators.length).keys(),
     ])
@@ -362,18 +343,24 @@ describe('EthGenesisVault', () => {
       deadline,
     }
 
-    const vaultAddr = await vault.getAddress()
     const vaultBalance = await ethers.provider.getBalance(vaultAddr)
     const poolEscrowAddr = await poolEscrow.getAddress()
     const poolEscrowBalance = await ethers.provider.getBalance(poolEscrowAddr)
+    const vaultTotalBalance =
+      vaultBalance +
+      poolEscrowBalance +
+      (await vault.totalExitingAssets()) +
+      (await vault.convertToAssets(await vault.queuedShares()))
 
     await setBalance(vaultAddr, 0n)
-    await setBalance(poolEscrowAddr, assets + vaultBalance + poolEscrowBalance)
+    await setBalance(poolEscrowAddr, vaultTotalBalance)
 
-    const tx = await vault.registerValidators(approveParams, indexes, proof.proofFlags, proof.proof)
+    const tx = await depositDataRegistry
+      .connect(admin)
+      .registerValidators(vaultAddr, approveParams, indexes, proof.proofFlags, proof.proof)
     await expect(tx)
       .to.emit(poolEscrow, 'Withdrawn')
-      .withArgs(vaultAddr, vaultAddr, assets + vaultBalance + poolEscrowBalance)
+      .withArgs(vaultAddr, vaultAddr, vaultTotalBalance)
     await snapshotGasCost(tx)
   })
 
@@ -429,6 +416,7 @@ describe('EthGenesisVault', () => {
         unlockedMevReward: vaultReward.unlockedMevReward,
         proof,
       })
+      const exitQueueAssets = await extractCheckpointAssets(receipt)
 
       if (MAINNET_FORK.enabled) {
         // rounding error
@@ -437,7 +425,36 @@ describe('EthGenesisVault', () => {
       }
 
       expect(await rewardEthToken.totalAssets()).to.eq(totalLegacyAssets + expectedLegacyDelta)
-      expect(await vault.totalAssets()).to.eq(totalVaultAssets + expectedVaultDelta)
+      expect(await vault.totalAssets()).to.eq(
+        totalVaultAssets + expectedVaultDelta - exitQueueAssets
+      )
+      await snapshotGasCost(receipt)
+    })
+
+    it('skips updating legacy with zero total assets', async () => {
+      if (MAINNET_FORK.enabled) return
+      await acceptPoolEscrowOwnership()
+      await rewardEthToken.setTotalStaked(0n)
+      await rewardEthToken.setTotalRewards(0n)
+      await rewardEthToken.setTotalPenalty(0n)
+
+      const reward = ethers.parseEther('5')
+      const unlockedMevReward = 0n
+
+      const vaultReward = getHarvestParams(await vault.getAddress(), reward, unlockedMevReward)
+      const rewardsTree = await updateRewards(keeper, [vaultReward])
+      const proof = getRewardsRootProof(rewardsTree, vaultReward)
+
+      const totalLegacyAssetsBefore = await rewardEthToken.totalAssets()
+      const totalVaultAssetsBefore = await vault.totalAssets()
+      const receipt = await vault.updateState({
+        rewardsRoot: rewardsTree.root,
+        reward: vaultReward.reward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
+        proof,
+      })
+      expect(await rewardEthToken.totalAssets()).to.eq(totalLegacyAssetsBefore)
+      expect(await vault.totalAssets()).to.eq(totalVaultAssetsBefore + reward)
       await snapshotGasCost(receipt)
     })
 
@@ -507,11 +524,14 @@ describe('EthGenesisVault', () => {
         unlockedMevReward: vaultReward.unlockedMevReward,
         proof,
       })
+      const exitQueueAssets = await extractCheckpointAssets(receipt)
 
       expect((await rewardEthToken.totalAssets()) - (await rewardEthToken.totalPenalty())).to.eq(
         totalLegacyAssets + expectedLegacyDelta + 1n // rounding error
       )
-      expect(await vault.totalAssets()).to.eq(totalVaultAssets + expectedVaultDelta - 1n) // rounding error
+      expect(await vault.totalAssets()).to.eq(
+        totalVaultAssets + expectedVaultDelta - exitQueueAssets - 1n // rounding error
+      )
       await snapshotGasCost(receipt)
     })
 

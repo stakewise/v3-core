@@ -1,7 +1,7 @@
 import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthVault, IKeeperValidators, Keeper } from '../typechain-types'
+import { EthVault, IKeeperValidators, Keeper, DepositDataRegistry } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture, getOraclesSignatures } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -10,6 +10,7 @@ import {
   VALIDATORS_DEADLINE,
   VALIDATORS_MIN_ORACLES,
   ZERO_ADDRESS,
+  ZERO_BYTES32,
 } from './shared/constants'
 import {
   createEthValidatorsData,
@@ -37,7 +38,10 @@ describe('KeeperValidators', () => {
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
   let sender: Wallet, dao: Wallet, admin: Wallet
-  let keeper: Keeper, vault: EthVault, validatorsRegistry: Contract
+  let keeper: Keeper,
+    vault: EthVault,
+    validatorsRegistry: Contract,
+    depositDataRegistry: DepositDataRegistry
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
 
@@ -46,6 +50,7 @@ describe('KeeperValidators', () => {
     ;({
       keeper,
       validatorsRegistry,
+      depositDataRegistry,
       createEthVault: createVault,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(
@@ -60,7 +65,9 @@ describe('KeeperValidators', () => {
     )
     validatorsData = await createEthValidatorsData(vault)
     validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
-    await vault.connect(admin).setValidatorsRoot(validatorsData.root)
+    await depositDataRegistry
+      .connect(admin)
+      .setDepositDataRoot(await vault.getAddress(), validatorsData.root)
   })
 
   describe('register single validator', () => {
@@ -106,15 +113,15 @@ describe('KeeperValidators', () => {
         validator.subarray(144, 176),
         { value: depositAmount }
       )
-      await expect(vault.registerValidator(approveParams, proof)).revertedWithCustomError(
-        keeper,
-        'InvalidValidatorsRegistryRoot'
-      )
+      await expect(
+        depositDataRegistry.registerValidator(await vault.getAddress(), approveParams, proof)
+      ).revertedWithCustomError(keeper, 'InvalidValidatorsRegistryRoot')
     })
 
     it('fails for invalid signatures', async () => {
       await expect(
-        vault.registerValidator(
+        depositDataRegistry.registerValidator(
+          await vault.getAddress(),
           {
             ...approveParams,
             signatures: getOraclesSignatures(signingData, VALIDATORS_MIN_ORACLES - 1),
@@ -126,7 +133,8 @@ describe('KeeperValidators', () => {
 
     it('fails for invalid deadline', async () => {
       await expect(
-        vault.registerValidator(
+        depositDataRegistry.registerValidator(
+          await vault.getAddress(),
           {
             ...approveParams,
             deadline: deadline + 1n,
@@ -138,7 +146,8 @@ describe('KeeperValidators', () => {
 
     it('fails for expired deadline', async () => {
       await expect(
-        vault.registerValidator(
+        depositDataRegistry.registerValidator(
+          await vault.getAddress(),
           {
             ...approveParams,
             deadline: await getLatestBlockTimestamp(),
@@ -150,7 +159,8 @@ describe('KeeperValidators', () => {
 
     it('fails for invalid validator', async () => {
       await expect(
-        vault.registerValidator(
+        depositDataRegistry.registerValidator(
+          await vault.getAddress(),
           {
             ...approveParams,
             validators: validatorsData.validators[1],
@@ -162,7 +172,8 @@ describe('KeeperValidators', () => {
 
     it('fails for invalid proof', async () => {
       await expect(
-        vault.registerValidator(
+        depositDataRegistry.registerValidator(
+          await vault.getAddress(),
           approveParams,
           getValidatorProof(validatorsData.tree, validatorsData.validators[1], 1)
         )
@@ -175,7 +186,11 @@ describe('KeeperValidators', () => {
       expect(rewards.assets).to.eq(0)
       const globalRewardsNonce = await keeper.rewardsNonce()
 
-      let receipt = await vault.registerValidator(approveParams, proof)
+      let receipt = await depositDataRegistry.registerValidator(
+        await vault.getAddress(),
+        approveParams,
+        proof
+      )
       await expect(receipt)
         .to.emit(keeper, 'ValidatorsApproval')
         .withArgs(await vault.getAddress(), approveParams.exitSignaturesIpfsHash)
@@ -190,10 +205,9 @@ describe('KeeperValidators', () => {
       const newValidatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
 
       // fails to register twice
-      await expect(vault.registerValidator(approveParams, proof)).revertedWithCustomError(
-        keeper,
-        'InvalidValidatorsRegistryRoot'
-      )
+      await expect(
+        depositDataRegistry.registerValidator(await vault.getAddress(), approveParams, proof)
+      ).revertedWithCustomError(keeper, 'InvalidValidatorsRegistryRoot')
 
       const newValidator = validatorsData.validators[1]
       const newExitSignatureIpfsHash = exitSignatureIpfsHashes[1]
@@ -209,7 +223,8 @@ describe('KeeperValidators', () => {
         newValidatorsRegistryRoot
       )
       const newSignatures = getOraclesSignatures(newSigningData, ORACLES.length)
-      receipt = await vault.registerValidator(
+      receipt = await depositDataRegistry.registerValidator(
+        await vault.getAddress(),
         {
           validatorsRegistryRoot: newValidatorsRegistryRoot,
           validators: newValidator,
@@ -282,13 +297,20 @@ describe('KeeperValidators', () => {
         { value: depositAmount }
       )
       await expect(
-        vault.registerValidators(approveParams, indexes, proof.proofFlags, proof.proof)
+        depositDataRegistry.registerValidators(
+          await vault.getAddress(),
+          approveParams,
+          indexes,
+          proof.proofFlags,
+          proof.proof
+        )
       ).revertedWithCustomError(keeper, 'InvalidValidatorsRegistryRoot')
     })
 
     it('fails for invalid signatures', async () => {
       await expect(
-        vault.registerValidators(
+        depositDataRegistry.registerValidators(
+          await vault.getAddress(),
           {
             ...approveParams,
             signatures: getOraclesSignatures(signingData, VALIDATORS_MIN_ORACLES - 1),
@@ -302,7 +324,8 @@ describe('KeeperValidators', () => {
 
     it('fails for invalid validators', async () => {
       await expect(
-        vault.registerValidators(
+        depositDataRegistry.registerValidators(
+          await vault.getAddress(),
           {
             ...approveParams,
             validators: validators[0],
@@ -316,7 +339,8 @@ describe('KeeperValidators', () => {
 
     it('fails for invalid deadline', async () => {
       await expect(
-        vault.registerValidators(
+        depositDataRegistry.registerValidators(
+          await vault.getAddress(),
           {
             ...approveParams,
             deadline: deadline + 1n,
@@ -330,7 +354,8 @@ describe('KeeperValidators', () => {
 
     it('fails for expired deadline', async () => {
       await expect(
-        vault.registerValidators(
+        depositDataRegistry.registerValidators(
+          await vault.getAddress(),
           {
             ...approveParams,
             deadline: await getLatestBlockTimestamp(),
@@ -346,7 +371,8 @@ describe('KeeperValidators', () => {
       const invalidProof = getValidatorsMultiProof(validatorsData.tree, [validators[0]], [0])
       const exitSignaturesIpfsHash = approveParams.exitSignaturesIpfsHash as string
       await expect(
-        vault.registerValidators(
+        depositDataRegistry.registerValidators(
+          await vault.getAddress(),
           {
             validatorsRegistryRoot,
             deadline,
@@ -378,7 +404,8 @@ describe('KeeperValidators', () => {
       const validatorsConcat = Buffer.concat(validators)
       const globalRewardsNonce = await keeper.rewardsNonce()
 
-      let receipt = await vault.registerValidators(
+      let receipt = await depositDataRegistry.registerValidators(
+        await vault.getAddress(),
         approveParams,
         indexes,
         proof.proofFlags,
@@ -398,7 +425,13 @@ describe('KeeperValidators', () => {
 
       // fails to register twice
       await expect(
-        vault.registerValidators(approveParams, indexes, proof.proofFlags, proof.proof)
+        depositDataRegistry.registerValidators(
+          await vault.getAddress(),
+          approveParams,
+          indexes,
+          proof.proofFlags,
+          proof.proof
+        )
       ).revertedWithCustomError(keeper, 'InvalidValidatorsRegistryRoot')
 
       await vault
@@ -406,7 +439,12 @@ describe('KeeperValidators', () => {
         .deposit(sender.address, referrer, { value: depositAmount * BigInt(validators.length) })
 
       // reset validator index
-      await vault.connect(admin).setValidatorsRoot(validatorsData.root)
+      await depositDataRegistry
+        .connect(admin)
+        .setDepositDataRoot(await vault.getAddress(), ZERO_BYTES32)
+      await depositDataRegistry
+        .connect(admin)
+        .setDepositDataRoot(await vault.getAddress(), validatorsData.root)
       const newSigningData = await getEthValidatorsSigningData(
         validatorsConcat,
         deadline,
@@ -416,7 +454,8 @@ describe('KeeperValidators', () => {
         newValidatorsRegistryRoot
       )
       const newSignatures = getOraclesSignatures(newSigningData, ORACLES.length)
-      receipt = await vault.registerValidators(
+      receipt = await depositDataRegistry.registerValidators(
+        await vault.getAddress(),
         {
           validatorsRegistryRoot: newValidatorsRegistryRoot,
           deadline,
@@ -480,7 +519,7 @@ describe('KeeperValidators', () => {
     })
 
     it('fails for invalid signatures', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       await expect(
         keeper.updateExitSignatures(
           await vault.getAddress(),
@@ -492,7 +531,7 @@ describe('KeeperValidators', () => {
     })
 
     it('fails for invalid deadline', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       await expect(
         keeper.updateExitSignatures(
           await vault.getAddress(),
@@ -504,7 +543,7 @@ describe('KeeperValidators', () => {
     })
 
     it('fails for expired deadline', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       const newDeadline = await getLatestBlockTimestamp()
       const newSigningData = await getEthValidatorsExitSignaturesSigningData(
         keeper,
@@ -524,7 +563,7 @@ describe('KeeperValidators', () => {
     })
 
     it('fails to submit update twice', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       await keeper.updateExitSignatures(
         await vault.getAddress(),
         deadline,
@@ -546,7 +585,7 @@ describe('KeeperValidators', () => {
       const nonce = await keeper.exitSignaturesNonces(await vault.getAddress())
       expect(nonce).to.eq(0)
 
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
       const receipt = await keeper
         .connect(sender)

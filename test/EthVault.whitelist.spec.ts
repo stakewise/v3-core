@@ -1,7 +1,7 @@
 import { ethers } from 'hardhat'
 import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
-import { EthPrivVault, Keeper, IKeeperRewards } from '../typechain-types'
+import { EthPrivVault, Keeper } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -22,7 +22,10 @@ describe('EthVault - whitelist', () => {
   const referrer = ZERO_ADDRESS
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   let sender: Wallet, whitelister: Wallet, admin: Signer, other: Wallet
-  let vault: EthPrivVault, keeper: Keeper, validatorsRegistry: Contract
+  let vault: EthPrivVault,
+    keeper: Keeper,
+    validatorsRegistry: Contract,
+    depositDataRegistry: DepositDataRegistry
 
   let createPrivateVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthPrivVault']
 
@@ -35,6 +38,7 @@ describe('EthVault - whitelist', () => {
       createEthPrivVault: createPrivateVault,
       keeper,
       validatorsRegistry,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createPrivateVault(admin, {
       capacity,
@@ -74,9 +78,10 @@ describe('EthVault - whitelist', () => {
 
     it('cannot be updated twice', async () => {
       await vault.connect(whitelister).updateWhitelist(sender.address, true)
-      await expect(
-        vault.connect(whitelister).updateWhitelist(sender.address, true)
-      ).to.revertedWithCustomError(vault, 'WhitelistAlreadyUpdated')
+      await expect(vault.connect(whitelister).updateWhitelist(sender.address, true)).to.not.emit(
+        vault,
+        'WhitelistUpdated'
+      )
     })
 
     it('can be updated by whitelister', async () => {
@@ -102,6 +107,7 @@ describe('EthVault - whitelist', () => {
     const amount = ethers.parseEther('1')
 
     beforeEach(async () => {
+      await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
       await vault.connect(admin).updateWhitelist(sender.address, true)
     })
 
@@ -112,7 +118,7 @@ describe('EthVault - whitelist', () => {
     })
 
     it('cannot update state and call', async () => {
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       const vaultReward = getHarvestParams(await vault.getAddress(), ethers.parseEther('1'), 0n)
       const tree = await updateRewards(keeper, [vaultReward])
 

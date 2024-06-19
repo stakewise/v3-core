@@ -1,0 +1,15 @@
+[
+  {
+    "inputs": [],
+    "name": "createPod",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  }
+]

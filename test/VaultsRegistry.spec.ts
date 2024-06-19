@@ -3,7 +3,7 @@ import { Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import { EthVaultFactory, VaultsRegistry } from '../typechain-types'
 import {
-  deployVaultImplementation,
+  deployEthVaultImplementation,
   encodeEthVaultInitParams,
   ethVaultFixture,
 } from './shared/fixtures'
@@ -31,7 +31,7 @@ describe('VaultsRegistry', () => {
     ethVaultFactory = fixture.ethVaultFactory
     vaultsRegistry = fixture.vaultsRegistry
 
-    newVaultImpl = await deployVaultImplementation(
+    newVaultImpl = await deployEthVaultImplementation(
       'EthVaultV3Mock',
       fixture.keeper,
       fixture.vaultsRegistry,
@@ -39,6 +39,7 @@ describe('VaultsRegistry', () => {
       fixture.osTokenVaultController,
       fixture.osTokenConfig,
       fixture.sharedMevEscrow,
+      fixture.depositDataRegistry,
       EXITING_ASSETS_MIN_DELAY
     )
   })

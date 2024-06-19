@@ -4,15 +4,18 @@ import { ethers, network } from 'hardhat'
 import { Buffer } from 'buffer'
 import { BytesLike, Contract, ContractTransactionResponse, Signer } from 'ethers'
 import bls from 'bls-eth-wasm'
-import { EthVault, Keeper, EthFoxVault } from '../../typechain-types'
+import { DepositDataRegistry, EthVault, Keeper } from '../../typechain-types'
 import {
   EIP712Domain,
   KeeperUpdateExitSignaturesSig,
   KeeperValidatorsSig,
+  VaultValidatorsSig,
   VALIDATORS_DEADLINE,
   VALIDATORS_MIN_ORACLES,
+  ZERO_BYTES32,
 } from './constants'
 import { getOraclesSignatures } from './fixtures'
+import { EthRestakeVaultType, EthVaultType, GnoVaultType } from './types'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -143,11 +146,10 @@ export function getWithdrawalCredentials(vaultAddress: string): Buffer {
 
 export async function createValidators(
   depositAmount: bigint,
-  vaultAddress: string
+  withdrawalCredentials: Buffer
 ): Promise<Buffer[]> {
   await bls.init(bls.BLS12_381)
 
-  const withdrawalCredentials = getWithdrawalCredentials(vaultAddress)
   const validators: Buffer[] = []
   for (let i = 0; i < secretKeys.length; i++) {
     const secretKey = new bls.SecretKey()
@@ -188,10 +190,31 @@ export function appendDepositData(
 }
 
 export async function createEthValidatorsData(
-  vault: EthVault | EthFoxVault
+  vault: EthVaultType | GnoVaultType | EthRestakeVaultType,
+  genesisVaultPoolEscrow: string | null = null
 ): Promise<EthValidatorsData> {
   const validatorDeposit = ethers.parseEther('32')
-  const validators = await createValidators(validatorDeposit, await vault.getAddress())
+
+  let withdrawalAddress: string
+  let isRestakeVault = false
+  if (genesisVaultPoolEscrow !== null) {
+    withdrawalAddress = genesisVaultPoolEscrow
+  } else if ((<EthRestakeVaultType>vault).restakeOperatorsManager) {
+    isRestakeVault = true
+    const eigenPods = await (<EthRestakeVaultType>vault).getEigenPods()
+    if (eigenPods.length === 0) {
+      throw new Error('No eigen pods found')
+    }
+    withdrawalAddress = eigenPods[0]
+  } else {
+    withdrawalAddress = await vault.getAddress()
+  }
+
+  const withdrawalCredentials = getWithdrawalCredentials(withdrawalAddress)
+  let validators = await createValidators(validatorDeposit, withdrawalCredentials)
+  if (isRestakeVault) {
+    validators = validators.map((v) => Buffer.concat([v, ethers.getBytes(withdrawalAddress)]))
+  }
   const tree = StandardMerkleTree.of(
     validators.map((v, i) => [v, i]),
     ['bytes', 'uint256']
@@ -210,7 +233,7 @@ export async function getEthValidatorsSigningData(
   deadline: bigint,
   exitSignaturesIpfsHash: string,
   keeper: Keeper,
-  vault: EthVault | EthFoxVault,
+  vault: EthVaultType | GnoVaultType | EthRestakeVaultType,
   validatorsRegistryRoot: BytesLike
 ) {
   return {
@@ -228,6 +251,27 @@ export async function getEthValidatorsSigningData(
       validators,
       exitSignaturesIpfsHash,
       deadline,
+    },
+  }
+}
+
+export async function getValidatorsManagerSigningData(
+  validators: Buffer,
+  vault: EthVaultType | GnoVaultType | EthRestakeVaultType,
+  validatorsRegistryRoot: BytesLike
+) {
+  return {
+    primaryType: 'VaultValidators',
+    types: { EIP712Domain, VaultValidators: VaultValidatorsSig },
+    domain: {
+      name: 'VaultValidators',
+      version: '1',
+      chainId: network.config.chainId,
+      verifyingContract: await vault.getAddress(),
+    },
+    message: {
+      validatorsRegistryRoot,
+      validators,
     },
   }
 }
@@ -278,14 +322,24 @@ export function getValidatorsMultiProof(
 }
 
 export async function registerEthValidator(
-  vault: EthVault | EthFoxVault,
+  vault: EthVaultType | GnoVaultType | EthRestakeVaultType,
   keeper: Keeper,
-  validatorsRegistry: Contract,
-  admin: Signer
+  depositDataRegistry: DepositDataRegistry,
+  admin: Signer,
+  validatorsRegistry: Contract
 ): Promise<ContractTransactionResponse> {
   const validatorsData = await createEthValidatorsData(vault)
   const validatorsRegistryRoot = await validatorsRegistry.get_deposit_root()
-  await vault.connect(admin).setValidatorsRoot(validatorsData.root)
+  const vaultAddress = await vault.getAddress()
+  if ((await vault.version()) > 1) {
+    if ((await depositDataRegistry.depositDataRoots(vaultAddress)) != ZERO_BYTES32) {
+      // reset validator index
+      await depositDataRegistry.connect(admin).setDepositDataRoot(vaultAddress, ZERO_BYTES32)
+    }
+    await depositDataRegistry.connect(admin).setDepositDataRoot(vaultAddress, validatorsData.root)
+  } else {
+    await vault.connect(admin).setValidatorsRoot(validatorsData.root)
+  }
   const validator = validatorsData.validators[0]
   const exitSignatureIpfsHash = exitSignatureIpfsHashes[0]
   const signingData = await getEthValidatorsSigningData(
@@ -298,14 +352,28 @@ export async function registerEthValidator(
   )
   const signatures = getOraclesSignatures(signingData, VALIDATORS_MIN_ORACLES)
   const proof = getValidatorProof(validatorsData.tree, validator, 0)
-  return await vault.registerValidator(
-    {
-      validatorsRegistryRoot,
-      validators: validator,
-      signatures,
-      exitSignaturesIpfsHash: exitSignatureIpfsHash,
-      deadline: VALIDATORS_DEADLINE,
-    },
-    proof
-  )
+  if ((await vault.version()) > 1) {
+    return await depositDataRegistry.connect(admin).registerValidator(
+      vaultAddress,
+      {
+        validatorsRegistryRoot,
+        validators: validator,
+        signatures,
+        exitSignaturesIpfsHash: exitSignatureIpfsHash,
+        deadline: VALIDATORS_DEADLINE,
+      },
+      proof
+    )
+  } else {
+    return await vault.registerValidator(
+      {
+        validatorsRegistryRoot,
+        validators: validator,
+        signatures,
+        exitSignaturesIpfsHash: exitSignatureIpfsHash,
+        deadline: VALIDATORS_DEADLINE,
+      },
+      proof
+    )
+  }
 }

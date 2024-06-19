@@ -4,7 +4,10 @@ pragma solidity =0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
+import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
+import {SignatureChecker} from '@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol';
 import {IKeeperValidators} from '../../interfaces/IKeeperValidators.sol';
+import {IDepositDataRegistry} from '../../interfaces/IDepositDataRegistry.sol';
 import {IVaultValidators} from '../../interfaces/IVaultValidators.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
@@ -23,160 +26,119 @@ abstract contract VaultValidators is
   VaultState,
   IVaultValidators
 {
-  uint256 internal constant _validatorLength = 176;
+  bytes32 private constant _registerValidatorsTypeHash =
+    keccak256('VaultValidators(bytes32 validatorsRegistryRoot,bytes validators)');
 
-  /// @inheritdoc IVaultValidators
-  bytes32 public override validatorsRoot;
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  address private immutable _depositDataRegistry;
 
-  /// @inheritdoc IVaultValidators
-  uint256 public override validatorIndex;
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  uint256 private immutable _initialChainId;
 
-  address private _keysManager;
+  /// deprecated. Deposit data management is moved to DepositDataRegistry contract
+  bytes32 private _validatorsRoot;
 
-  /// @inheritdoc IVaultValidators
-  function keysManager() public view override returns (address) {
-    // SLOAD to memory
-    address keysManager_ = _keysManager;
-    // if keysManager is not set, use admin address
-    return keysManager_ == address(0) ? admin : keysManager_;
+  /// deprecated. Deposit data management is moved to DepositDataRegistry contract
+  uint256 private _validatorIndex;
+
+  address private _validatorsManager;
+
+  bytes32 private _initialDomainSeparator;
+
+  /**
+   * @dev Constructor
+   * @dev Since the immutable variable value is stored in the bytecode,
+   *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
+   */
+  /// @custom:oz-upgrades-unsafe-allow constructor
+  constructor(address depositDataRegistry) {
+    _depositDataRegistry = depositDataRegistry;
+    _initialChainId = block.chainid;
   }
 
   /// @inheritdoc IVaultValidators
-  function registerValidator(
-    IKeeperValidators.ApprovalParams calldata keeperParams,
-    bytes32[] calldata proof
-  ) external override {
-    _checkHarvested();
-
-    // get approval from oracles
-    IKeeperValidators(_keeper).approveValidators(keeperParams);
-
-    // check enough withdrawable assets
-    if (withdrawableAssets() < _validatorDeposit()) revert Errors.InsufficientAssets();
-
-    // check validator length is valid
-    if (keeperParams.validators.length != _validatorLength) revert Errors.InvalidValidator();
-
+  function validatorsManager() public view override returns (address) {
     // SLOAD to memory
-    uint256 currentIndex = validatorIndex;
-
-    // check matches merkle root and next validator index
-    if (
-      !MerkleProof.verifyCalldata(
-        proof,
-        validatorsRoot,
-        keccak256(bytes.concat(keccak256(abi.encode(keeperParams.validators, currentIndex))))
-      )
-    ) {
-      revert Errors.InvalidProof();
-    }
-
-    // register validator
-    _registerSingleValidator(keeperParams.validators);
-
-    // increment index for the next validator
-    unchecked {
-      // cannot realistically overflow
-      validatorIndex = currentIndex + 1;
-    }
+    address validatorsManager_ = _validatorsManager;
+    // if validatorsManager is not set, use DepositDataRegistry contract address
+    return validatorsManager_ == address(0) ? _depositDataRegistry : validatorsManager_;
   }
 
   /// @inheritdoc IVaultValidators
   function registerValidators(
     IKeeperValidators.ApprovalParams calldata keeperParams,
-    uint256[] calldata indexes,
-    bool[] calldata proofFlags,
-    bytes32[] calldata proof
+    bytes calldata validatorsManagerSignature
   ) external override {
-    _checkHarvested();
-
     // get approval from oracles
     IKeeperValidators(_keeper).approveValidators(keeperParams);
 
-    // check enough withdrawable assets
-    uint256 validatorsCount = indexes.length;
-    if (withdrawableAssets() < _validatorDeposit() * validatorsCount) {
-      revert Errors.InsufficientAssets();
+    // check vault is up to date
+    _checkHarvested();
+
+    // check access
+    address validatorsManager_ = validatorsManager();
+    if (
+      msg.sender != validatorsManager_ &&
+      !SignatureChecker.isValidSignatureNow(
+        validatorsManager_,
+        _getSignedMessageHash(keeperParams),
+        validatorsManagerSignature
+      )
+    ) {
+      revert Errors.AccessDenied();
     }
 
     // check validators length is valid
+    uint256 validatorLength = _validatorLength();
+    uint256 validatorsCount = keeperParams.validators.length / validatorLength;
     unchecked {
       if (
-        validatorsCount == 0 || validatorsCount * _validatorLength != keeperParams.validators.length
+        validatorsCount == 0 || validatorsCount * validatorLength != keeperParams.validators.length
       ) {
         revert Errors.InvalidValidators();
       }
     }
 
-    // check matches merkle root and next validator index
-    if (
-      !MerkleProof.multiProofVerifyCalldata(
-        proof,
-        proofFlags,
-        validatorsRoot,
-        _registerMultipleValidators(keeperParams.validators, indexes)
-      )
-    ) {
-      revert Errors.InvalidProof();
+    // check enough withdrawable assets
+    if (withdrawableAssets() < _validatorDeposit() * validatorsCount) {
+      revert Errors.InsufficientAssets();
     }
 
-    // increment index for the next validator
-    unchecked {
-      // cannot realistically overflow
-      validatorIndex += validatorsCount;
+    if (keeperParams.validators.length == validatorLength) {
+      // register single validator
+      _registerSingleValidator(keeperParams.validators);
+    } else {
+      // register multiple validators
+      _registerMultipleValidators(keeperParams.validators);
     }
   }
 
   /// @inheritdoc IVaultValidators
-  function setKeysManager(address keysManager_) external override {
+  function setValidatorsManager(address validatorsManager_) external override {
     _checkAdmin();
-    if (keysManager_ == address(0)) revert Errors.ZeroAddress();
-    // update keysManager address
-    _keysManager = keysManager_;
-    emit KeysManagerUpdated(msg.sender, keysManager_);
-  }
-
-  /// @inheritdoc IVaultValidators
-  function setValidatorsRoot(bytes32 _validatorsRoot) external override {
-    if (msg.sender != keysManager()) revert Errors.AccessDenied();
-    _setValidatorsRoot(_validatorsRoot);
+    // update validatorsManager address
+    _validatorsManager = validatorsManager_;
+    emit ValidatorsManagerUpdated(msg.sender, validatorsManager_);
   }
 
   /**
-   * @dev Internal function for updating the validators root externally or from the initializer
-   * @param _validatorsRoot The new validators merkle tree root
-   */
-  function _setValidatorsRoot(bytes32 _validatorsRoot) private {
-    validatorsRoot = _validatorsRoot;
-    // reset validator index on every root update
-    validatorIndex = 0;
-    emit ValidatorsRootUpdated(msg.sender, _validatorsRoot);
-  }
-
-  /**
-   * @dev Internal function for calculating Vault withdrawal credentials
-   * @return The credentials used for the validators withdrawals
-   */
-  function _withdrawalCredentials() internal view returns (bytes memory) {
-    return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
-  }
-
-  /**
-   * @dev Internal function for registering single validator. Must emit ValidatorRegistered event.
-   * @param validator The concatenation of the validator public key, signature and deposit data root
+   * @dev Internal function for registering validator. Must emit ValidatorRegistered event.
+   * @param validator The validator registration data
    */
   function _registerSingleValidator(bytes calldata validator) internal virtual;
 
   /**
    * @dev Internal function for registering multiple validators. Must emit ValidatorRegistered event for every validator.
-   * @param validators The concatenation of the validators' public key, signature and deposit data root
-   * @param indexes The indexes of the leaves for the merkle tree multi proof verification
-   * @return leaves The leaves used for the merkle tree multi proof verification
+   * @param validators The validators registration data
    */
-  function _registerMultipleValidators(
-    bytes calldata validators,
-    uint256[] calldata indexes
-  ) internal virtual returns (bytes32[] memory leaves);
+  function _registerMultipleValidators(bytes calldata validators) internal virtual;
+
+  /**
+   * @dev Internal function for defining the length of the validator data
+   * @return The length of the single validator data
+   */
+  function _validatorLength() internal pure virtual returns (uint256);
 
   /**
    * @dev Internal function for fetching validator deposit amount
@@ -187,8 +149,75 @@ abstract contract VaultValidators is
    * @dev Initializes the VaultValidators contract
    * @dev NB! This initializer must be called after VaultState initializer
    */
-  function __VaultValidators_init() internal view onlyInitializing {
+  function __VaultValidators_init() internal onlyInitializing {
     if (capacity() < _validatorDeposit()) revert Errors.InvalidCapacity();
+    // initialize domain separator
+    _initialDomainSeparator = _computeVaultValidatorsDomain();
+  }
+
+  /**
+   * @dev Initializes the V2 of the VaultValidators contract
+   */
+  function __VaultValidators_initV2() internal onlyInitializing {
+    // initialize domain separator
+    _initialDomainSeparator = _computeVaultValidatorsDomain();
+
+    // migrate deposit data variables to DepositDataRegistry contract
+    IDepositDataRegistry(_depositDataRegistry).migrate(
+      _validatorsRoot,
+      _validatorIndex,
+      _validatorsManager
+    );
+
+    // clean up variables
+    delete _validatorsRoot;
+    delete _validatorIndex;
+    delete _validatorsManager;
+  }
+
+  /**
+   * @notice Get the hash to be signed by the validators manager
+   * @param keeperParams The keeper approval parameters
+   * @return The hash to be signed
+   */
+  function _getSignedMessageHash(
+    IKeeperValidators.ApprovalParams calldata keeperParams
+  ) private view returns (bytes32) {
+    bytes32 domainSeparator = block.chainid == _initialChainId
+      ? _initialDomainSeparator
+      : _computeVaultValidatorsDomain();
+
+    return
+      MessageHashUtils.toTypedDataHash(
+        domainSeparator,
+        keccak256(
+          abi.encode(
+            _registerValidatorsTypeHash,
+            keeperParams.validatorsRegistryRoot,
+            keccak256(keeperParams.validators)
+          )
+        )
+      );
+  }
+
+  /**
+   * @notice Computes the hash of the EIP712 typed data
+   * @dev This function is used to compute the hash of the EIP712 typed data
+   * @return The hash of the EIP712 typed data
+   */
+  function _computeVaultValidatorsDomain() private view returns (bytes32) {
+    return
+      keccak256(
+        abi.encode(
+          keccak256(
+            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
+          ),
+          keccak256(bytes('VaultValidators')),
+          keccak256('1'),
+          block.chainid,
+          address(this)
+        )
+      );
   }
 
   /**
@@ -196,5 +225,5 @@ abstract contract VaultValidators is
    * variables without shifting down storage in the inheritance chain.
    * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
    */
-  uint256[50] private __gap;
+  uint256[49] private __gap;
 }

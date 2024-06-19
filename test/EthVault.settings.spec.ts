@@ -1,7 +1,7 @@
 import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 
-import { EthVault, Keeper } from '../typechain-types'
+import { EthVault, Keeper, DepositDataRegistry } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
@@ -16,17 +16,20 @@ describe('EthVault - settings', () => {
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
-  let admin: Wallet, keysManager: Wallet, other: Wallet, newFeeRecipient: Wallet
-  let keeper: Keeper, validatorsRegistry: Contract
+  let admin: Wallet, validatorsManager: Wallet, other: Wallet, newFeeRecipient: Wallet
+  let keeper: Keeper, validatorsRegistry: Contract, depositDataRegistry: DepositDataRegistry
 
   before('create fixture loader', async () => {
-    ;[admin, keysManager, other, newFeeRecipient] = (await (ethers as any).getSigners()).slice(1, 5)
+    ;[admin, validatorsManager, other, newFeeRecipient] = (
+      await (ethers as any).getSigners()
+    ).slice(1, 5)
   })
 
   beforeEach('deploy fixture', async () => {
     ;({
       keeper,
       validatorsRegistry,
+      depositDataRegistry,
       createEthVault: createVault,
     } = await loadFixture(ethVaultFixture))
   })
@@ -58,40 +61,7 @@ describe('EthVault - settings', () => {
     })
   })
 
-  describe('validators root', () => {
-    const newValidatorsRoot = '0x059a8487a1ce461e9670c4646ef85164ae8791613866d28c972fb351dc45c606'
-    let vault: EthVault
-
-    beforeEach('deploy vault', async () => {
-      vault = await createVault(
-        admin,
-        {
-          capacity,
-          feePercent,
-          metadataIpfsHash,
-        },
-        false,
-        true
-      )
-      await vault.connect(admin).setKeysManager(keysManager.address)
-    })
-
-    it('only keys manager can update', async () => {
-      await expect(
-        vault.connect(admin).setValidatorsRoot(newValidatorsRoot)
-      ).to.be.revertedWithCustomError(vault, 'AccessDenied')
-    })
-
-    it('can update', async () => {
-      const receipt = await vault.connect(keysManager).setValidatorsRoot(newValidatorsRoot)
-      await expect(receipt)
-        .to.emit(vault, 'ValidatorsRootUpdated')
-        .withArgs(keysManager.address, newValidatorsRoot)
-      await snapshotGasCost(receipt)
-    })
-  })
-
-  describe('keys manager', () => {
+  describe('validators manager', () => {
     let vault: EthVault
 
     beforeEach('deploy vault', async () => {
@@ -109,25 +79,18 @@ describe('EthVault - settings', () => {
 
     it('cannot be updated by anyone', async () => {
       await expect(
-        vault.connect(other).setKeysManager(keysManager.address)
+        vault.connect(other).setValidatorsManager(validatorsManager.address)
       ).to.be.revertedWithCustomError(vault, 'AccessDenied')
-    })
-
-    it('cannot set to zero address', async () => {
-      await expect(vault.connect(admin).setKeysManager(ZERO_ADDRESS)).to.be.revertedWithCustomError(
-        vault,
-        'ZeroAddress'
-      )
     })
 
     it('can be updated by admin', async () => {
       // initially equals to admin
-      expect(await vault.keysManager()).to.be.eq(admin.address)
-      const receipt = await vault.connect(admin).setKeysManager(keysManager.address)
+      expect(await vault.validatorsManager()).to.be.eq(await depositDataRegistry.getAddress())
+      const receipt = await vault.connect(admin).setValidatorsManager(validatorsManager.address)
       await expect(receipt)
-        .to.emit(vault, 'KeysManagerUpdated')
-        .withArgs(admin.address, keysManager.address)
-      expect(await vault.keysManager()).to.be.eq(keysManager.address)
+        .to.emit(vault, 'ValidatorsManagerUpdated')
+        .withArgs(admin.address, validatorsManager.address)
+      expect(await vault.validatorsManager()).to.be.eq(validatorsManager.address)
       await snapshotGasCost(receipt)
     })
   })
@@ -146,7 +109,7 @@ describe('EthVault - settings', () => {
         false,
         true
       )
-      await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+      await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     })
 
     it('only admin can update', async () => {

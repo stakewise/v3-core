@@ -1,0 +1,43 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EigenPodOwner delegation operator manager can undelegate 1`] = `
+Object {
+  "calldataByteLength": 4,
+  "gasUsed": 145238,
+}
+`;
+
+exports[`EigenPodOwner delegation operators manager can delegate 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 119060,
+}
+`;
+
+exports[`EigenPodOwner upgrade succeeds to upgrade 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 37475,
+}
+`;
+
+exports[`EigenPodOwner withdrawals can claim delayed withdrawals 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 98777,
+}
+`;
+
+exports[`EigenPodOwner withdrawals withdrawals manager can complete withdrawal 1`] = `
+Object {
+  "calldataByteLength": 196,
+  "gasUsed": 114485,
+}
+`;
+
+exports[`EigenPodOwner withdrawals withdrawals manager can queue withdrawal 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 134583,
+}
+`;

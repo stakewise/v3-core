@@ -1,0 +1,160 @@
+[
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "bytes32",
+        "name": "balancerPoolId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "BalancerPoolIdUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint128",
+        "name": "maxSlippage",
+        "type": "uint128"
+      }
+    ],
+    "name": "MaxSlippageUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "uint128",
+        "name": "stalePriceTimeDelta",
+        "type": "uint128"
+      }
+    ],
+    "name": "StalePriceTimeDeltaUpdated",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "balancerPoolId",
+    "outputs": [
+      {
+        "internalType": "bytes32",
+        "name": "",
+        "type": "bytes32"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "initialOwner",
+        "type": "address"
+      },
+      {
+        "internalType": "uint128",
+        "name": "_maxSlippage",
+        "type": "uint128"
+      },
+      {
+        "internalType": "uint128",
+        "name": "_stalePriceTimeDelta",
+        "type": "uint128"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_balancerPoolId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "initialize",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "maxSlippage",
+    "outputs": [
+      {
+        "internalType": "uint128",
+        "name": "",
+        "type": "uint128"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "newBalancerPoolId",
+        "type": "bytes32"
+      }
+    ],
+    "name": "setBalancerPoolId",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint128",
+        "name": "newMaxSlippage",
+        "type": "uint128"
+      }
+    ],
+    "name": "setMaxSlippage",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint128",
+        "name": "newStalePriceTimeDelta",
+        "type": "uint128"
+      }
+    ],
+    "name": "setStalePriceTimeDelta",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "stalePriceTimeDelta",
+    "outputs": [
+      {
+        "internalType": "uint128",
+        "name": "",
+        "type": "uint128"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "swap",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "assets",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "payable",
+    "type": "function"
+  }
+]

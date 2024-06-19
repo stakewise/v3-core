@@ -1,5 +1,5 @@
 import { ethers } from 'hardhat'
-import { Contract, Signer, Wallet } from 'ethers'
+import { Contract, parseEther, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
   EthVault,
@@ -7,11 +7,12 @@ import {
   OsToken,
   OsTokenConfig,
   OsTokenVaultController,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ZERO_ADDRESS } from './shared/constants'
+import { MAX_UINT64, ZERO_ADDRESS } from './shared/constants'
 import {
   collateralizeEthVault,
   getHarvestParams,
@@ -40,7 +41,8 @@ describe('EthVault - liquidate', () => {
     osTokenVaultController: OsTokenVaultController,
     osToken: OsToken,
     osTokenConfig: OsTokenConfig,
-    validatorsRegistry: Contract
+    validatorsRegistry: Contract,
+    depositDataRegistry: DepositDataRegistry
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
@@ -53,13 +55,14 @@ describe('EthVault - liquidate', () => {
       osTokenVaultController,
       osToken,
       osTokenConfig,
+      depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
     admin = await ethers.getImpersonatedSigner(await vault.admin())
     await osTokenVaultController.connect(dao).setFeePercent(0)
 
     // collateralize vault
-    await collateralizeEthVault(vault, keeper, validatorsRegistry, admin)
+    await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     const tx = await vault.connect(owner).deposit(owner.address, ZERO_ADDRESS, { value: assets })
     shares = await extractDepositShares(tx)
 
@@ -153,14 +156,26 @@ describe('EthVault - liquidate', () => {
     ).to.be.revertedWithCustomError(osToken, 'ERC20InsufficientBalance')
   })
 
+  it('cannot liquidate with disabled liquidations', async () => {
+    const currentConfig = await osTokenConfig.getConfig(await vault.getAddress())
+    await osTokenConfig.connect(dao).updateConfig(await vault.getAddress(), {
+      liqBonusPercent: 0n,
+      liqThresholdPercent: MAX_UINT64,
+      ltvPercent: currentConfig.ltvPercent,
+    })
+    await expect(
+      vault.connect(liquidator).liquidateOsToken(osTokenShares, owner.address, receiver.address)
+    ).to.be.revertedWithCustomError(vault, 'LiquidationDisabled')
+  })
+
   it('calculates liquidation correctly', async () => {
     expect(await osToken.balanceOf(liquidator.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(owner.address)).to.be.eq(osTokenShares)
     expect(await vault.getShares(owner.address)).to.be.eq(shares)
 
     const balanceBefore = await ethers.provider.getBalance(receiver.address)
-    const liqBonus = await osTokenConfig.liqBonusPercent()
-    let liquidatorAssets = (osTokenAssets * BigInt(liqBonus)) / 10000n
+    const liqBonus = (await osTokenConfig.getConfig(await vault.getAddress())).liqBonusPercent
+    let liquidatorAssets = (osTokenAssets * BigInt(liqBonus)) / parseEther('1')
     if (MAINNET_FORK.enabled) {
       liquidatorAssets -= 2n // rounding error
     }

@@ -106,11 +106,11 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
    * @param osTokenShares The number of shares to burn
    * @return assets The number of assets burned
    */
-  function burnOsToken(uint128 osTokenShares) external returns (uint256 assets);
+  function burnOsToken(uint256 osTokenShares) external returns (uint256 assets);
 
   /**
    * @notice Liquidates a user position and returns the number of received assets.
-   *         Can only be called when health factor is below 1.
+   *         Can only be called when health factor is below 1 by the liquidator.
    * @param osTokenShares The number of shares to cover
    * @param owner The address of the position owner to liquidate
    * @param receiver The address of the receiver of the liquidated assets
@@ -118,7 +118,7 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
   function liquidateOsToken(uint256 osTokenShares, address owner, address receiver) external;
 
   /**
-   * @notice Redeems osToken shares for assets. Can only be called when health factor is above redeemFromHealthFactor.
+   * @notice Redeems osToken shares for assets. Can only be called when health factor is above redeemFromHealthFactor by the redeemer.
    * @param osTokenShares The number of osToken shares to redeem
    * @param owner The address of the position owner to redeem from
    * @param receiver The address of the receiver of the redeemed assets

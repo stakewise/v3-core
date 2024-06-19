@@ -7,16 +7,22 @@ import {
   Keeper,
   RewardSplitter,
   RewardSplitter__factory,
+  DepositDataRegistry,
 } from '../typechain-types'
 import { createRewardSplitterFactory, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { PANIC_CODES, SECURITY_DEPOSIT, ZERO_ADDRESS } from './shared/constants'
 import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
 import snapshotGasCost from './shared/snapshotGasCost'
+import { MAINNET_FORK } from '../helpers/constants'
 
 describe('RewardSplitter', () => {
   let admin: Wallet, other: Wallet
-  let vault: EthVault, keeper: Keeper, rewardSplitter: RewardSplitter, erc20Vault: EthErc20Vault
+  let vault: EthVault,
+    keeper: Keeper,
+    rewardSplitter: RewardSplitter,
+    erc20Vault: EthErc20Vault,
+    depositDataRegistry: DepositDataRegistry
 
   before('create fixture loader', async () => {
     ;[admin, other] = (await (ethers as any).getSigners()).slice(1, 3)
@@ -47,8 +53,21 @@ describe('RewardSplitter', () => {
       true
     )
     keeper = fixture.keeper
-    await collateralizeEthVault(vault, keeper, fixture.validatorsRegistry, admin)
-    await collateralizeEthVault(erc20Vault, keeper, fixture.validatorsRegistry, admin)
+    depositDataRegistry = fixture.depositDataRegistry
+    await collateralizeEthVault(
+      vault,
+      keeper,
+      depositDataRegistry,
+      admin,
+      fixture.validatorsRegistry
+    )
+    await collateralizeEthVault(
+      erc20Vault,
+      keeper,
+      depositDataRegistry,
+      admin,
+      fixture.validatorsRegistry
+    )
 
     const rewardSplitterFactory = await createRewardSplitterFactory()
     const rewardSplitterAddress = await rewardSplitterFactory
@@ -325,6 +344,10 @@ describe('RewardSplitter', () => {
       const feeShares = await vault.convertToShares(fee)
       expect(await rewardSplitter.canSyncRewards()).to.eq(true)
       const receipt = await rewardSplitter.syncRewards()
+
+      if (!MAINNET_FORK.enabled) {
+        expect(await rewardSplitter.totalRewards()).to.eq(feeShares)
+      }
       await expect(receipt)
         .to.emit(rewardSplitter, 'RewardsSynced')
         .withArgs(feeShares, (feeShares * ethers.parseEther('1')) / shares)
