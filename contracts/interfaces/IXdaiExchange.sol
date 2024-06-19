@@ -5,7 +5,7 @@ pragma solidity =0.8.22;
 /**
  * @title IXdaiExchange
  * @author StakeWise
- * @notice Defines the interface for the xDAI exchange contract
+ * @notice Defines the interface for the XdaiExchange contract
  */
 interface IXdaiExchange {
   /**
