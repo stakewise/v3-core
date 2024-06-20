@@ -41,7 +41,7 @@ contract EthErc20Vault is
   Multicall,
   IEthErc20Vault
 {
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -82,7 +82,7 @@ contract EthErc20Vault is
   ) external payable virtual override reinitializer(_version) {
     // if admin is already set, it's an upgrade
     if (admin != address(0)) {
-      __EthErc20Vault_initV2();
+      __EthErc20Vault_initV3();
       return;
     }
     // initialize deployed vault
@@ -127,6 +127,20 @@ contract EthErc20Vault is
     return super.enterExitQueue(shares, receiver);
   }
 
+  /// @inheritdoc IVaultEnterExit
+  function enterExitQueueFromRelayer(
+    address owner,
+    uint256 shares,
+    address receiver
+  )
+    public
+    virtual
+    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+    returns (uint256 positionTicket)
+  {
+    return super.enterExitQueueFromRelayer(owner, shares, receiver);
+  }
+
   /// @inheritdoc IVaultVersion
   function vaultId() public pure virtual override(IVaultVersion, VaultVersion) returns (bytes32) {
     return keccak256('EthErc20Vault');
@@ -135,16 +149,6 @@ contract EthErc20Vault is
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
     return _version;
-  }
-
-  /// @inheritdoc VaultState
-  function _updateExitQueue()
-    internal
-    virtual
-    override(VaultState, VaultToken)
-    returns (uint256 burnedShares)
-  {
-    return super._updateExitQueue();
   }
 
   /// @inheritdoc VaultState
@@ -185,11 +189,10 @@ contract EthErc20Vault is
   }
 
   /**
-   * @dev Initializes the EthErc20Vault V2 contract
+   * @dev Initializes the EthErc20Vault V3 contract
    */
-  function __EthErc20Vault_initV2() internal onlyInitializing {
-    __VaultState_initV2();
-    __VaultValidators_initV2();
+  function __EthErc20Vault_initV3() internal view onlyInitializing {
+    __VaultState_initV3();
   }
 
   /**

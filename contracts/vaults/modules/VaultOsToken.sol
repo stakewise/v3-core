@@ -57,59 +57,32 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     uint256 osTokenShares,
     address referrer
   ) public virtual override returns (uint256 assets) {
-    _checkCollateralized();
-    _checkHarvested();
-
-    // mint osToken shares to the receiver
-    assets = _osTokenVaultController.mintShares(receiver, osTokenShares);
-
-    // fetch user position
-    OsTokenPosition memory position = _positions[msg.sender];
-    if (position.shares != 0) {
-      _syncPositionFee(position);
-    } else {
-      position.cumulativeFeePerShare = SafeCast.toUint128(
-        _osTokenVaultController.cumulativeFeePerShare()
-      );
-    }
-
-    // add minted shares to the position
-    position.shares += SafeCast.toUint128(osTokenShares);
-
-    // calculate and validate LTV
-    if (
-      Math.mulDiv(
-        convertToAssets(_balances[msg.sender]),
-        _osTokenConfig.getConfig(address(this)).ltvPercent,
-        _maxPercent
-      ) < _osTokenVaultController.convertToAssets(position.shares)
-    ) {
-      revert Errors.LowLtv();
-    }
-
-    // update state
-    _positions[msg.sender] = position;
-
-    // emit event
-    emit OsTokenMinted(msg.sender, receiver, assets, osTokenShares, referrer);
+    return _mintOsToken(msg.sender, receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IVaultOsToken
-  function burnOsToken(uint256 osTokenShares) external override returns (uint256 assets) {
-    // burn osToken shares
-    assets = _osTokenVaultController.burnShares(msg.sender, osTokenShares);
+  function mintOsTokenFromRelayer(
+    address owner,
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) public virtual override returns (uint256 assets) {
+    if (msg.sender != relayers[owner]) revert Errors.AccessDenied();
+    return _mintOsToken(owner, receiver, osTokenShares, referrer);
+  }
 
-    // fetch user position
-    OsTokenPosition memory position = _positions[msg.sender];
-    if (position.shares == 0) revert Errors.InvalidPosition();
-    _syncPositionFee(position);
+  /// @inheritdoc IVaultOsToken
+  function burnOsToken(uint256 osTokenShares) public override returns (uint256 assets) {
+    return _burnOsToken(msg.sender, osTokenShares);
+  }
 
-    // update osToken position
-    position.shares -= SafeCast.toUint128(osTokenShares);
-    _positions[msg.sender] = position;
-
-    // emit event
-    emit OsTokenBurned(msg.sender, assets, osTokenShares);
+  /// @inheritdoc IVaultOsToken
+  function burnOsTokenFromRelayer(
+    address owner,
+    uint256 osTokenShares
+  ) external override returns (uint256 assets) {
+    if (msg.sender != relayers[owner]) revert Errors.AccessDenied();
+    return _burnOsToken(owner, osTokenShares);
   }
 
   /// @inheritdoc IVaultOsToken
@@ -153,6 +126,91 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 positionTicket) {
     positionTicket = super.enterExitQueue(shares, receiver);
     _checkOsTokenPosition(msg.sender);
+  }
+
+  /// @inheritdoc IVaultEnterExit
+  function enterExitQueueFromRelayer(
+    address owner,
+    uint256 shares,
+    address receiver
+  ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 positionTicket) {
+    positionTicket = super.enterExitQueueFromRelayer(owner, shares, receiver);
+    _checkOsTokenPosition(owner);
+  }
+
+  /**
+   * @dev Internal function for minting osToken shares
+   * @param owner The owner of the osToken position
+   * @param receiver The receiver of the osToken shares
+   * @param osTokenShares The amount of osToken shares to mint
+   * @param referrer The referrer address
+   * @return assets The amount of osToken assets minted
+   */
+  function _mintOsToken(
+    address owner,
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) private returns (uint256 assets) {
+    _checkCollateralized();
+    _checkHarvested();
+
+    // mint osToken shares to the receiver
+    assets = _osTokenVaultController.mintShares(receiver, osTokenShares);
+
+    // fetch user position
+    if (owner == address(0)) revert Errors.ZeroAddress();
+    OsTokenPosition memory position = _positions[owner];
+    if (position.shares != 0) {
+      _syncPositionFee(position);
+    } else {
+      position.cumulativeFeePerShare = SafeCast.toUint128(
+        _osTokenVaultController.cumulativeFeePerShare()
+      );
+    }
+
+    // add minted shares to the position
+    position.shares += SafeCast.toUint128(osTokenShares);
+
+    // calculate and validate LTV
+    if (
+      Math.mulDiv(
+        convertToAssets(_balances[owner]),
+        _osTokenConfig.getConfig(address(this)).ltvPercent,
+        _maxPercent
+      ) < _osTokenVaultController.convertToAssets(position.shares)
+    ) {
+      revert Errors.LowLtv();
+    }
+
+    // update state
+    _positions[owner] = position;
+
+    // emit event
+    emit OsTokenMinted(owner, receiver, assets, osTokenShares, referrer);
+  }
+
+  /**
+   * @dev Internal function for burning osToken shares
+   * @param owner The owner of the osToken position
+   * @param osTokenShares The amount of osToken shares to burn
+   * @return assets The amount of osToken assets burned
+   */
+  function _burnOsToken(address owner, uint256 osTokenShares) private returns (uint256 assets) {
+    // burn osToken shares
+    assets = _osTokenVaultController.burnShares(owner, osTokenShares);
+
+    // fetch user position
+    OsTokenPosition memory position = _positions[owner];
+    if (position.shares == 0) revert Errors.InvalidPosition();
+    _syncPositionFee(position);
+
+    // update osToken position
+    position.shares -= SafeCast.toUint128(osTokenShares);
+    _positions[owner] = position;
+
+    // emit event
+    emit OsTokenBurned(owner, assets, osTokenShares);
   }
 
   /**

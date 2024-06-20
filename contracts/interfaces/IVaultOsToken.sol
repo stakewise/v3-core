@@ -102,11 +102,37 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
   ) external returns (uint256 assets);
 
   /**
+   * @notice Mints OsToken shares from a relayer. The caller must be approved by the owner.
+   * @param owner The address of the position owner
+   * @param receiver The address that will receive the minted OsToken shares
+   * @param osTokenShares The number of OsToken shares to mint to the receiver
+   * @param referrer The address of the referrer
+   * @return assets The number of assets minted to the receiver
+   */
+  function mintOsTokenFromRelayer(
+    address owner,
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) external returns (uint256 assets);
+
+  /**
    * @notice Burns osToken shares
    * @param osTokenShares The number of shares to burn
    * @return assets The number of assets burned
    */
   function burnOsToken(uint256 osTokenShares) external returns (uint256 assets);
+
+  /**
+   * @notice Burns osToken shares from a relayer. The caller must be approved by the owner.
+   * @param owner The address of the position owner
+   * @param osTokenShares The number of shares to burn
+   * @return assets The number of assets burned
+   */
+  function burnOsTokenFromRelayer(
+    address owner,
+    uint256 osTokenShares
+  ) external returns (uint256 assets);
 
   /**
    * @notice Liquidates a user position and returns the number of received assets.

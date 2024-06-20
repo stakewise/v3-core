@@ -26,7 +26,7 @@ contract EthRestakeBlocklistErc20Vault is
   using EnumerableSet for EnumerableSet.AddressSet;
 
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor

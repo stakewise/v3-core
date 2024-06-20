@@ -40,12 +40,12 @@ abstract contract VaultMev is Initializable, VaultState, IVaultMev {
   /// @inheritdoc VaultState
   function _harvestAssets(
     IKeeperRewards.HarvestParams calldata harvestParams
-  ) internal override returns (int256, bool) {
+  ) internal override returns (int256) {
     (int256 totalAssetsDelta, uint256 unlockedMevDelta, bool harvested) = IKeeperRewards(_keeper)
       .harvest(harvestParams);
 
     // harvest execution rewards only when consensus rewards were harvested
-    if (!harvested) return (totalAssetsDelta, harvested);
+    if (!harvested) return totalAssetsDelta;
 
     // SLOAD to memory
     address _mevEscrow = mevEscrow();
@@ -54,11 +54,11 @@ abstract contract VaultMev is Initializable, VaultState, IVaultMev {
         // withdraw assets from shared escrow only in case reward is positive
         ISharedMevEscrow(_mevEscrow).harvest(unlockedMevDelta);
       }
-      return (totalAssetsDelta, harvested);
+      return totalAssetsDelta;
     }
 
     // execution rewards are always equal to what was accumulated in own MEV escrow
-    return (totalAssetsDelta + int256(IOwnMevEscrow(_mevEscrow).harvest()), harvested);
+    return totalAssetsDelta + int256(IOwnMevEscrow(_mevEscrow).harvest());
   }
 
   /**

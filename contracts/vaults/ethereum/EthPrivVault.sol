@@ -18,7 +18,7 @@ import {EthVault, IEthVault} from './EthVault.sol';
  */
 contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -62,7 +62,7 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
   ) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
     // if admin is already set, it's an upgrade
     if (admin != address(0)) {
-      __EthVault_initV2();
+      __EthVault_initV3();
       return;
     }
     // initialize deployed vault
@@ -100,6 +100,17 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
   ) public virtual override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
     _checkWhitelist(msg.sender);
     return super.mintOsToken(receiver, osTokenShares, referrer);
+  }
+
+  /// @inheritdoc IVaultOsToken
+  function mintOsTokenFromRelayer(
+    address owner,
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) public override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
+    _checkWhitelist(msg.sender);
+    return super.mintOsTokenFromRelayer(owner, receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IVaultVersion

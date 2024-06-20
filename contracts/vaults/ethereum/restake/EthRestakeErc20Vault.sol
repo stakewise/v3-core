@@ -43,7 +43,7 @@ contract EthRestakeErc20Vault is
 {
   using EnumerableSet for EnumerableSet.AddressSet;
 
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -96,6 +96,15 @@ contract EthRestakeErc20Vault is
     return super.enterExitQueue(shares, receiver);
   }
 
+  /// @inheritdoc IVaultEnterExit
+  function enterExitQueueFromRelayer(
+    address owner,
+    uint256 shares,
+    address receiver
+  ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 positionTicket) {
+    return super.enterExitQueueFromRelayer(owner, shares, receiver);
+  }
+
   /// @inheritdoc IVaultVersion
   function vaultId() public pure virtual override(IVaultVersion, VaultVersion) returns (bytes32) {
     return keccak256('EthRestakeErc20Vault');
@@ -112,16 +121,6 @@ contract EthRestakeErc20Vault is
       // if the sender is not an EigenPod owner, deposit the received assets
       _deposit(msg.sender, msg.value, address(0));
     }
-  }
-
-  /// @inheritdoc VaultState
-  function _updateExitQueue()
-    internal
-    virtual
-    override(VaultState, VaultToken)
-    returns (uint256 burnedShares)
-  {
-    return super._updateExitQueue();
   }
 
   /// @inheritdoc VaultState

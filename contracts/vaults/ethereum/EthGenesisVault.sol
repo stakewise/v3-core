@@ -24,7 +24,7 @@ import {EthVault, IEthVault} from './EthVault.sol';
  */
 contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IEthPoolEscrow private immutable _poolEscrow;
@@ -83,7 +83,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   ) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
     // if admin is already set, it's an upgrade
     if (admin != address(0)) {
-      __EthVault_initV2();
+      __EthVault_initV3();
       return;
     }
     // initialize deployed vault
@@ -124,7 +124,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     bool isCollateralized = IKeeperRewards(_keeper).isCollateralized(address(this));
 
     // process total assets delta since last update
-    (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
+    int256 totalAssetsDelta = _harvestAssets(harvestParams);
 
     if (!isCollateralized) {
       // it's the first harvest, deduct rewards accumulated so far in legacy pool
@@ -137,9 +137,6 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
 
     // process total assets delta
     _processTotalAssetsDelta(totalAssetsDelta);
-
-    // update exit queue every time new update is harvested
-    if (harvested) _updateExitQueue();
   }
 
   /// @inheritdoc IEthGenesisVault

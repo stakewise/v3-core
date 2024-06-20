@@ -41,7 +41,7 @@ contract GnoErc20Vault is
   Multicall,
   IGnoErc20Vault
 {
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -125,6 +125,20 @@ contract GnoErc20Vault is
     return super.enterExitQueue(shares, receiver);
   }
 
+  /// @inheritdoc IVaultEnterExit
+  function enterExitQueueFromRelayer(
+    address owner,
+    uint256 shares,
+    address receiver
+  )
+    public
+    virtual
+    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+    returns (uint256 positionTicket)
+  {
+    return super.enterExitQueueFromRelayer(owner, shares, receiver);
+  }
+
   /// @inheritdoc IVaultVersion
   function vaultId() public pure virtual override(IVaultVersion, VaultVersion) returns (bytes32) {
     return keccak256('GnoErc20Vault');
@@ -133,16 +147,6 @@ contract GnoErc20Vault is
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
     return _version;
-  }
-
-  /// @inheritdoc VaultState
-  function _updateExitQueue()
-    internal
-    virtual
-    override(VaultState, VaultToken)
-    returns (uint256 burnedShares)
-  {
-    return super._updateExitQueue();
   }
 
   /// @inheritdoc VaultState

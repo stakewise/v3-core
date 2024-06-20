@@ -23,6 +23,9 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   uint256 private immutable _exitingAssetsClaimDelay;
 
+  /// @inheritdoc IVaultEnterExit
+  mapping(address => address) public override relayers;
+
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
@@ -51,6 +54,16 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     address receiver
   ) public virtual override returns (uint256 positionTicket) {
     return _enterExitQueue(msg.sender, shares, receiver);
+  }
+
+  /// @inheritdoc IVaultEnterExit
+  function enterExitQueueFromRelayer(
+    address owner,
+    uint256 shares,
+    address receiver
+  ) public virtual override returns (uint256 positionTicket) {
+    if (msg.sender != relayers[owner]) revert Errors.AccessDenied();
+    return _enterExitQueue(owner, shares, receiver);
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -134,6 +147,12 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     emit ExitedAssetsClaimed(msg.sender, positionTicket, newPositionTicket, exitedAssets);
   }
 
+  /// @inheritdoc IVaultEnterExit
+  function setRelayer(address relayer) external override {
+    relayers[msg.sender] = relayer;
+    emit RelayerUpdated(msg.sender, relayer);
+  }
+
   function _calculateExitedTickets(
     uint256 exitingTickets,
     uint256 positionTicket
@@ -199,7 +218,9 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   ) internal returns (uint256 positionTicket) {
     _checkHarvested();
     if (shares == 0) revert Errors.InvalidShares();
-    if (receiver == address(0)) revert Errors.ZeroAddress();
+    if (user == address(0) || receiver == address(0)) {
+      revert Errors.ZeroAddress();
+    }
 
     // calculate amount of assets to lock
     uint256 assets = convertToAssets(shares);
@@ -239,13 +260,6 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   function _getTotalExitableTickets() private view returns (uint256) {
     // calculate available assets
     uint256 availableAssets = _vaultAssets() - _unclaimedAssets;
-    uint256 queuedAssets = convertToAssets(queuedShares);
-    if (queuedAssets > 0) {
-      unchecked {
-        // cannot underflow as availableAssets >= queuedV1Assets
-        availableAssets = availableAssets > queuedAssets ? availableAssets - queuedAssets : 0;
-      }
-    }
     if (availableAssets == 0) return 0;
 
     // calculate number of tickets that can be withdrawn based on available assets
@@ -267,5 +281,5 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
    * variables without shifting down storage in the inheritance chain.
    * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
    */
-  uint256[50] private __gap;
+  uint256[49] private __gap;
 }

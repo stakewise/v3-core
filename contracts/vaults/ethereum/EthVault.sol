@@ -37,7 +37,7 @@ contract EthVault is
   Multicall,
   IEthVault
 {
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -78,7 +78,7 @@ contract EthVault is
   ) external payable virtual override reinitializer(_version) {
     // if admin is already set, it's an upgrade
     if (admin != address(0)) {
-      __EthVault_initV2();
+      __EthVault_initV3();
       return;
     }
     // initialize deployed vault
@@ -100,6 +100,20 @@ contract EthVault is
     returns (uint256 positionTicket)
   {
     return super.enterExitQueue(shares, receiver);
+  }
+
+  /// @inheritdoc IVaultEnterExit
+  function enterExitQueueFromRelayer(
+    address owner,
+    uint256 shares,
+    address receiver
+  )
+    public
+    virtual
+    override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+    returns (uint256 positionTicket)
+  {
+    return super.enterExitQueueFromRelayer(owner, shares, receiver);
   }
 
   /// @inheritdoc VaultVersion
@@ -133,11 +147,10 @@ contract EthVault is
   }
 
   /**
-   * @dev Initializes the EthVault V2 contract
+   * @dev Initializes the EthVault V3 contract
    */
-  function __EthVault_initV2() internal onlyInitializing {
-    __VaultState_initV2();
-    __VaultValidators_initV2();
+  function __EthVault_initV3() internal view onlyInitializing {
+    __VaultState_initV3();
   }
 
   /**

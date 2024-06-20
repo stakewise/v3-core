@@ -18,7 +18,7 @@ import {GnoVault, IGnoVault} from './GnoVault.sol';
  */
 contract GnoPrivVault is Initializable, GnoVault, VaultWhitelist, IGnoPrivVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -96,6 +96,17 @@ contract GnoPrivVault is Initializable, GnoVault, VaultWhitelist, IGnoPrivVault 
   ) public virtual override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
     _checkWhitelist(msg.sender);
     return super.mintOsToken(receiver, osTokenShares, referrer);
+  }
+
+  /// @inheritdoc IVaultOsToken
+  function mintOsTokenFromRelayer(
+    address owner,
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) public override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
+    _checkWhitelist(msg.sender);
+    return super.mintOsTokenFromRelayer(owner, receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IVaultVersion

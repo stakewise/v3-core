@@ -24,7 +24,7 @@ contract GnoBlocklistErc20Vault is
   IGnoBlocklistErc20Vault
 {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -102,6 +102,17 @@ contract GnoBlocklistErc20Vault is
   ) public virtual override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
     _checkBlocklist(msg.sender);
     return super.mintOsToken(receiver, osTokenShares, referrer);
+  }
+
+  /// @inheritdoc IVaultOsToken
+  function mintOsTokenFromRelayer(
+    address owner,
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) public override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
+    _checkBlocklist(msg.sender);
+    return super.mintOsTokenFromRelayer(owner, receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IVaultVersion

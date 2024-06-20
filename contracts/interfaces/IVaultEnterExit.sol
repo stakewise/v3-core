@@ -80,12 +80,45 @@ interface IVaultEnterExit is IVaultState {
   );
 
   /**
+   * @notice Event emitted on relayer update
+   * @param owner The address of the owner
+   * @param relayer The address of the relayer
+   */
+  event RelayerUpdated(address owner, address relayer);
+
+  /**
+   * @notice Get the relayer address for the owner
+   * @param owner The address of the owner
+   * @return relayer The address of the relayer
+   */
+  function relayers(address owner) external view returns (address relayer);
+
+  /**
+   * @notice Set the relayer address for the caller
+   * @param relayer The address of the relayer
+   */
+  function setRelayer(address relayer) external;
+
+  /**
    * @notice Locks assets to the exit queue. The shares to assets rate will be locked at the moment of the call.
    * @param shares The number of shares to exit
    * @param receiver The address that will receive assets upon withdrawal
    * @return positionTicket The position ticket of the exit queue
    */
   function enterExitQueue(
+    uint256 shares,
+    address receiver
+  ) external returns (uint256 positionTicket);
+
+  /**
+   * @notice Locks assets to the exit queue. The shares to assets rate will be locked at the moment of the call. The caller must be approved by the owner.
+   * @param owner The address that owns the shares
+   * @param shares The number of shares to exit
+   * @param receiver The address that will receive assets upon withdrawal
+   * @return positionTicket The position ticket of the exit queue
+   */
+  function enterExitQueueFromRelayer(
+    address owner,
     uint256 shares,
     address receiver
   ) external returns (uint256 positionTicket);

@@ -36,7 +36,7 @@ contract EthFoxVault is
   Multicall,
   IEthFoxVault
 {
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -72,7 +72,7 @@ contract EthFoxVault is
   ) external payable virtual override reinitializer(_version) {
     // if admin is already set, it's an upgrade
     if (admin != address(0)) {
-      __EthFoxVault_initV2();
+      __EthFoxVault_initV3();
       return;
     }
     // initialize deployed vault
@@ -144,11 +144,10 @@ contract EthFoxVault is
   }
 
   /**
-   * @dev Initializes the EthFoxVault V2 contract
+   * @dev Initializes the EthFoxVault V3 contract
    */
-  function __EthFoxVault_initV2() internal onlyInitializing {
-    __VaultState_initV2();
-    __VaultValidators_initV2();
+  function __EthFoxVault_initV3() internal view onlyInitializing {
+    __VaultState_initV3();
   }
 
   /**

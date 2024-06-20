@@ -166,21 +166,6 @@ library ExitQueue {
     }
   }
 
-  /**
-   * @notice Pushes a new checkpoint onto a History
-   * @param self An array containing checkpoints
-   * @param shares The number of shares to add to the latest checkpoint
-   * @param assets The number of assets that were exited for this checkpoint
-   */
-  function push(History storage self, uint256 shares, uint256 assets) internal {
-    if (shares == 0 || assets == 0) revert Errors.InvalidCheckpointValue();
-    Checkpoint memory checkpoint = Checkpoint({
-      totalTickets: SafeCast.toUint160(getLatestTotalTickets(self) + shares),
-      exitedAssets: SafeCast.toUint96(assets)
-    });
-    self.checkpoints.push(checkpoint);
-  }
-
   function _unsafeAccess(
     Checkpoint[] storage self,
     uint256 pos

@@ -25,7 +25,7 @@ import {GnoVault, IGnoVault} from './GnoVault.sol';
  */
 contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IGnoPoolEscrow private immutable _poolEscrow;
@@ -126,7 +126,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     bool isCollateralized = IKeeperRewards(_keeper).isCollateralized(address(this));
 
     // process total assets delta since last update
-    (int256 totalAssetsDelta, ) = _harvestAssets(harvestParams);
+    int256 totalAssetsDelta = _harvestAssets(harvestParams);
 
     if (!isCollateralized) {
       // it's the first harvest, deduct rewards accumulated so far in legacy pool

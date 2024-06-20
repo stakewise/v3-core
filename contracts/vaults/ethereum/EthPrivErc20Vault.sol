@@ -19,7 +19,7 @@ import {EthErc20Vault, IEthErc20Vault} from './EthErc20Vault.sol';
  */
 contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEthPrivErc20Vault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -63,7 +63,7 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
   ) external payable virtual override(IEthErc20Vault, EthErc20Vault) reinitializer(_version) {
     // if admin is already set, it's an upgrade
     if (admin != address(0)) {
-      __EthErc20Vault_initV2();
+      __EthErc20Vault_initV3();
       return;
     }
     // initialize deployed vault
@@ -111,6 +111,17 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
   ) public virtual override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
     _checkWhitelist(msg.sender);
     return super.mintOsToken(receiver, osTokenShares, referrer);
+  }
+
+  /// @inheritdoc IVaultOsToken
+  function mintOsTokenFromRelayer(
+    address owner,
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) public override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
+    _checkWhitelist(msg.sender);
+    return super.mintOsTokenFromRelayer(owner, receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc ERC20Upgradeable

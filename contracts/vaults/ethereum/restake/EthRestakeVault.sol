@@ -40,7 +40,7 @@ contract EthRestakeVault is
 {
   using EnumerableSet for EnumerableSet.AddressSet;
 
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -91,6 +91,15 @@ contract EthRestakeVault is
     address receiver
   ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 positionTicket) {
     return super.enterExitQueue(shares, receiver);
+  }
+
+  /// @inheritdoc IVaultEnterExit
+  function enterExitQueueFromRelayer(
+    address owner,
+    uint256 shares,
+    address receiver
+  ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 positionTicket) {
+    return super.enterExitQueueFromRelayer(owner, shares, receiver);
   }
 
   /// @inheritdoc VaultVersion

@@ -79,9 +79,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     unchecked {
       // calculate assets that are reserved by users who queued for exit
       // cannot overflow as it is capped with underlying asset total supply
-      uint256 reservedAssets = convertToAssets(queuedShares) +
-        totalExitingAssets +
-        _unclaimedAssets;
+      uint256 reservedAssets = totalExitingAssets + _unclaimedAssets;
       return vaultAssets > reservedAssets ? vaultAssets - reservedAssets : 0;
     }
   }
@@ -96,13 +94,10 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     IKeeperRewards.HarvestParams calldata harvestParams
   ) public virtual override {
     // process total assets delta  since last update
-    (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
+    int256 totalAssetsDelta = _harvestAssets(harvestParams);
 
     // process total assets delta if it has changed
     _processTotalAssetsDelta(totalAssetsDelta);
-
-    // update exit queue every time new update is harvested (deprecated)
-    if (harvested) _updateExitQueue();
   }
 
   /**
@@ -177,42 +172,6 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     // mint shares to the fee recipient
     _mintShares(_feeRecipient, feeRecipientShares);
     emit FeeSharesMinted(_feeRecipient, feeRecipientShares, feeRecipientAssets);
-  }
-
-  /**
-	 * @dev Internal function that must be used to process exit queue
-   * @dev Make sure that sufficient time passed between exit queue updates (at least 1 day).
-          Currently it's restricted by the keeper's harvest interval
-   * @return burnedShares The total amount of burned shares
-   */
-  function _updateExitQueue() internal virtual returns (uint256 burnedShares) {
-    // SLOAD to memory
-    uint256 _queuedShares = queuedShares;
-    if (_queuedShares == 0) return 0;
-
-    // calculate the amount of assets that can be exited
-    uint256 unclaimedAssets = _unclaimedAssets;
-    uint256 exitedAssets = Math.min(
-      _vaultAssets() - unclaimedAssets,
-      convertToAssets(_queuedShares)
-    );
-    if (exitedAssets == 0) return 0;
-
-    // calculate the amount of shares that can be burned
-    burnedShares = convertToShares(exitedAssets);
-    if (burnedShares == 0) return 0;
-
-    // update queued shares and unclaimed assets
-    queuedShares = SafeCast.toUint128(_queuedShares - burnedShares);
-    _unclaimedAssets = SafeCast.toUint128(unclaimedAssets + exitedAssets);
-
-    // push checkpoint so that exited assets could be claimed
-    _exitQueue.push(burnedShares, exitedAssets);
-    emit CheckpointCreated(burnedShares, exitedAssets);
-
-    // update state
-    _totalShares -= SafeCast.toUint128(burnedShares);
-    _totalAssets -= SafeCast.toUint128(exitedAssets);
   }
 
   /**
@@ -291,15 +250,14 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   /**
    * @dev Internal function for harvesting Vaults' new assets
    * @return The total assets delta after harvest
-   * @return `true` when the rewards were harvested, `false` otherwise
    */
   function _harvestAssets(
     IKeeperRewards.HarvestParams calldata harvestParams
-  ) internal virtual returns (int256, bool);
+  ) internal virtual returns (int256);
 
   /**
-	 * @dev Internal function for retrieving the total assets stored in the Vault.
-          NB! Assets can be forcibly sent to the vault, the returned value must be used with caution
+   * @dev Internal function for retrieving the total assets stored in the Vault.
+   *       NB! Assets can be forcibly sent to the vault, the returned value must be used with caution
    * @return The total amount of assets stored in the Vault
    */
   function _vaultAssets() internal view virtual returns (uint256);
@@ -315,11 +273,10 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   }
 
   /**
-   * @dev Initializes the VaultState contract V2
+   * @dev Initializes the VaultState contract V3
    */
-  function __VaultState_initV2() internal onlyInitializing {
-    // set initial value for total exited tickets
-    _totalExitedTickets = _exitQueue.getLatestTotalTickets() + queuedShares;
+  function __VaultState_initV3() internal view onlyInitializing {
+    if (queuedShares > 1) revert Errors.UpgradeFailed();
   }
 
   /**

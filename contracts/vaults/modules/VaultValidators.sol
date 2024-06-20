@@ -156,26 +156,6 @@ abstract contract VaultValidators is
   }
 
   /**
-   * @dev Initializes the V2 of the VaultValidators contract
-   */
-  function __VaultValidators_initV2() internal onlyInitializing {
-    // initialize domain separator
-    _initialDomainSeparator = _computeVaultValidatorsDomain();
-
-    // migrate deposit data variables to DepositDataRegistry contract
-    IDepositDataRegistry(_depositDataRegistry).migrate(
-      _validatorsRoot,
-      _validatorIndex,
-      _validatorsManager
-    );
-
-    // clean up variables
-    delete _validatorsRoot;
-    delete _validatorIndex;
-    delete _validatorsManager;
-  }
-
-  /**
    * @notice Get the hash to be signed by the validators manager
    * @param keeperParams The keeper approval parameters
    * @return The hash to be signed
