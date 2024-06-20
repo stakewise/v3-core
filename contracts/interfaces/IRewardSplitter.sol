@@ -81,15 +81,15 @@ interface IRewardSplitter is IMulticall {
 
   /**
    * @notice Retrieves the amount of splitter shares for the given account.
-             The shares are used to calculate the amount of rewards the account is entitled to.
+   *         The shares are used to calculate the amount of rewards the account is entitled to.
    * @param account The address of the account to get shares for
    */
   function sharesOf(address account) external view returns (uint256);
 
   /**
    * @notice Retrieves the amount of rewards the account is entitled to.
-             The rewards are calculated based on the amount of shares the account has.
-             Note, rewards must be synced using the `syncRewards` function.
+   *         The rewards are calculated based on the amount of shares the account has.
+   *         Note, rewards must be synced using the `syncRewards` function.
    * @param account The address of the account to get rewards for
    */
   function rewardsOf(address account) external view returns (uint256);
