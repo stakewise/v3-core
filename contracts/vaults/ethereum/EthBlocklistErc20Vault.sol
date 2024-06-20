@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: BUSL-1.1
 
-pragma solidity =0.8.22;
+pragma solidity ^0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IEthBlocklistErc20Vault} from '../../interfaces/IEthBlocklistErc20Vault.sol';
