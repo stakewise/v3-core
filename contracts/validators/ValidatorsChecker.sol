@@ -61,7 +61,7 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
     bytes32 validatorsRegistryRoot,
     bytes calldata validators,
     bytes calldata signature
-  ) external view override returns (uint256, Status status) {
+  ) external view override returns (uint256 blockNumber, Status status) {
     if (_validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
       return (block.number, Status.INVALID_VALIDATORS_REGISTRY_ROOT);
     }
@@ -101,7 +101,7 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
     bytes32[] calldata proof,
     bool[] calldata proofFlags,
     uint256[] calldata proofIndexes
-  ) external view override returns (uint256, Status status) {
+  ) external view override returns (uint256 blockNumber, Status status) {
     if (_validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
       return (block.number, Status.INVALID_VALIDATORS_REGISTRY_ROOT);
     }

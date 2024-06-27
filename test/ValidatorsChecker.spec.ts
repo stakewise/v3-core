@@ -246,7 +246,7 @@ networks.forEach((network) => {
           Buffer.concat(validators),
           ethers.getBytes(signature)
         )
-        expect(response[0]).to.eq(blockNumber)
+        expect(response.blockNumber).to.eq(blockNumber)
         expect(response.status).to.eq(Status.SUCCEEDED)
       })
     })
@@ -367,7 +367,7 @@ networks.forEach((network) => {
           proofFlags,
           proofIndexes
         )
-        expect(response[0]).to.eq(blockNumber)
+        expect(response.blockNumber).to.eq(blockNumber)
         expect(response.status).to.eq(Status.SUCCEEDED)
       })
 
@@ -381,7 +381,7 @@ networks.forEach((network) => {
           proofFlags,
           proofIndexes
         )
-        expect(response[0]).to.eq(blockNumber)
+        expect(response.blockNumber).to.eq(blockNumber)
         expect(response.status).to.eq(Status.SUCCEEDED)
       })
     })
