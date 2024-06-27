@@ -5,6 +5,7 @@ pragma solidity ^0.8.22;
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
+import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {Multicall} from '../../base/Multicall.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultAdmin} from '../modules/VaultAdmin.sol';
@@ -87,6 +88,26 @@ contract EthVault is
       IEthVaultFactory(msg.sender).ownMevEscrow(),
       abi.decode(params, (EthVaultInitParams))
     );
+  }
+
+  /// @inheritdoc IEthVault
+  function depositAndMintOsToken(
+    address receiver,
+    address referrer
+  ) public payable override returns (uint256 osTokenShares) {
+    deposit(msg.sender, referrer);
+    osTokenShares = _calcMaxOsTokenShares(msg.value);
+    mintOsToken(receiver, osTokenShares, referrer);
+  }
+
+  /// @inheritdoc IEthVault
+  function updateStateAndDepositAndMintOsToken(
+    address receiver,
+    address referrer,
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) external payable override returns (uint256 osTokenShares) {
+    updateState(harvestParams);
+    return depositAndMintOsToken(receiver, referrer);
   }
 
   /// @inheritdoc IVaultEnterExit

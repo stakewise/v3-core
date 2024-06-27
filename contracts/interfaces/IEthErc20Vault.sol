@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.22;
 
+import {IKeeperRewards} from './IKeeperRewards.sol';
 import {IVaultAdmin} from './IVaultAdmin.sol';
 import {IVaultVersion} from './IVaultVersion.sol';
 import {IVaultFee} from './IVaultFee.sol';
@@ -53,4 +54,28 @@ interface IEthErc20Vault is
    * @param params The encoded parameters for initializing the EthErc20Vault contract
    */
   function initialize(bytes calldata params) external payable;
+
+  /**
+   * @notice Deposits assets to the vault and mints OsToken shares to the receiver
+   * @param receiver The address to receive the OsToken
+   * @param referrer The address of the referrer
+   * @return osTokenShares The amount of OsToken shares minted
+   */
+  function depositAndMintOsToken(
+    address receiver,
+    address referrer
+  ) external payable returns (uint256 osTokenShares);
+
+  /**
+   * @notice Updates the state, deposits assets to the vault and mints OsToken shares to the receiver
+   * @param receiver The address to receive the OsToken
+   * @param referrer The address of the referrer
+   * @param harvestParams The parameters for the harvest
+   * @return osTokenShares The amount of OsToken shares minted
+   */
+  function updateStateAndDepositAndMintOsToken(
+    address receiver,
+    address referrer,
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) external payable returns (uint256 osTokenShares);
 }
