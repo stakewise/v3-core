@@ -8,6 +8,8 @@ import {
   VaultsRegistry,
   OsTokenVaultController,
   DepositDataRegistry,
+  OsTokenConfig,
+  IKeeperRewards,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
@@ -17,10 +19,12 @@ import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
 import {
   collateralizeEthVault,
   getHarvestParams,
+  getRewardsRootProof,
   setAvgRewardPerSecond,
   updateRewards,
 } from './shared/rewards'
 import { extractDepositShares, increaseTime } from './shared/utils'
+import { MAINNET_FORK } from '../helpers/constants'
 
 describe('EthVault - mint', () => {
   const assets = ethers.parseEther('2')
@@ -31,19 +35,20 @@ describe('EthVault - mint', () => {
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
-  let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Signer
+  let dao: Wallet, sender: Wallet, receiver: Wallet, admin: Signer, other: Wallet
   let vault: EthVault,
     keeper: Keeper,
     vaultsRegistry: VaultsRegistry,
     osTokenVaultController: OsTokenVaultController,
     osToken: OsToken,
     validatorsRegistry: Contract,
-    depositDataRegistry: DepositDataRegistry
+    depositDataRegistry: DepositDataRegistry,
+    osTokenConfig: OsTokenConfig
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
 
   beforeEach('deploy fixture', async () => {
-    ;[dao, sender, receiver, admin] = await (ethers as any).getSigners()
+    ;[dao, sender, receiver, admin, other] = await (ethers as any).getSigners()
     ;({
       createEthVault: createVault,
       keeper,
@@ -52,6 +57,7 @@ describe('EthVault - mint', () => {
       osTokenVaultController,
       vaultsRegistry,
       depositDataRegistry,
+      osTokenConfig,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, vaultParams)
     admin = await ethers.getImpersonatedSigner(await vault.admin())
@@ -195,6 +201,94 @@ describe('EthVault - mint', () => {
       .to.emit(osTokenVaultController, 'Mint')
       .withArgs(await vault.getAddress(), receiver.address, osTokenAssets, osTokenShares)
 
+    await snapshotGasCost(receipt)
+  })
+
+  it('can deposit and mint osToken in one transaction', async () => {
+    await setAvgRewardPerSecond(dao, vault, keeper, 0)
+    expect(await vault.osTokenPositions(other.address)).to.eq(0n)
+    expect(await vault.getShares(other.address)).to.eq(0n)
+
+    const config = await osTokenConfig.getConfig(await vault.getAddress())
+    let osTokenAssets = (assets * config.ltvPercent) / ethers.parseEther('1')
+    const osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+    const receipt = await vault
+      .connect(other)
+      .depositAndMintOsToken(receiver.address, ZERO_ADDRESS, { value: assets })
+
+    if (MAINNET_FORK.enabled) {
+      osTokenAssets -= 1n // rounding error
+    }
+
+    expect(await osToken.balanceOf(receiver.address)).to.eq(osTokenShares)
+    expect(await vault.osTokenPositions(other.address)).to.eq(osTokenShares)
+    expect(await vault.getShares(other.address)).to.eq(shares)
+    await expect(receipt)
+      .to.emit(vault, 'Deposited')
+      .withArgs(other.address, other.address, assets, shares, ZERO_ADDRESS)
+    await expect(receipt)
+      .to.emit(vault, 'OsTokenMinted')
+      .withArgs(other.address, receiver.address, osTokenAssets, osTokenShares, ZERO_ADDRESS)
+    await snapshotGasCost(receipt)
+  })
+
+  it('can update state, deposit, and mint osToken in one transaction', async () => {
+    await setAvgRewardPerSecond(dao, vault, keeper, 0)
+    const vaultAddr = await vault.getAddress()
+
+    await updateRewards(
+      keeper,
+      [getHarvestParams(vaultAddr, ethers.parseEther('1'), ethers.parseEther('0'))],
+      0
+    )
+
+    const tree = await updateRewards(
+      keeper,
+      [getHarvestParams(vaultAddr, ethers.parseEther('1.2'), ethers.parseEther('0'))],
+      0
+    )
+    const vaultReward = getHarvestParams(
+      vaultAddr,
+      ethers.parseEther('1.2'),
+      ethers.parseEther('0')
+    )
+    const harvestParams: IKeeperRewards.HarvestParamsStruct = {
+      rewardsRoot: tree.root,
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
+      proof: getRewardsRootProof(tree, vaultReward),
+    }
+    const sharesBefore = await vault.convertToShares(assets)
+
+    expect(await vault.osTokenPositions(other.address)).to.eq(0n)
+    expect(await vault.getShares(other.address)).to.eq(0n)
+
+    const config = await osTokenConfig.getConfig(await vault.getAddress())
+    let osTokenAssets = (assets * config.ltvPercent) / ethers.parseEther('1')
+    const osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+
+    const receipt = await vault
+      .connect(other)
+      .updateStateAndDepositAndMintOsToken(receiver.address, ZERO_ADDRESS, harvestParams, {
+        value: assets,
+      })
+    let sharesAfter = await vault.convertToShares(assets)
+    sharesAfter += 1n // rounding error
+
+    if (MAINNET_FORK.enabled) {
+      osTokenAssets -= 1n // rounding error
+    }
+
+    expect(sharesBefore).to.gt(sharesAfter)
+    expect(await osToken.balanceOf(receiver.address)).to.eq(osTokenShares)
+    expect(await vault.osTokenPositions(other.address)).to.eq(osTokenShares)
+    expect(await vault.getShares(other.address)).to.eq(sharesAfter)
+    await expect(receipt)
+      .to.emit(vault, 'Deposited')
+      .withArgs(other.address, other.address, assets, sharesAfter, ZERO_ADDRESS)
+    await expect(receipt)
+      .to.emit(vault, 'OsTokenMinted')
+      .withArgs(other.address, receiver.address, osTokenAssets, osTokenShares, ZERO_ADDRESS)
     await snapshotGasCost(receipt)
   })
 })

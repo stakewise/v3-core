@@ -1,15 +1,29 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`EthVault - mint can deposit and mint osToken in one transaction 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 210457,
+}
+`;
+
+exports[`EthVault - mint can update state, deposit, and mint osToken in one transaction 1`] = `
+Object {
+  "calldataByteLength": 260,
+  "gasUsed": 262099,
+}
+`;
+
 exports[`EthVault - mint mints osTokens to the receiver 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 174835,
+  "gasUsed": 175230,
 }
 `;
 
 exports[`EthVault - mint updates position accumulated fee 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 119952,
+  "gasUsed": 120345,
 }
 `;

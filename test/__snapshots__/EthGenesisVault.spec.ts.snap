@@ -10,28 +10,28 @@ Object {
 exports[`EthGenesisVault migrate migrates from rewardEthToken 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 79583,
+  "gasUsed": 79627,
 }
 `;
 
 exports[`EthGenesisVault pulls withdrawals on claim exited assets 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 77206,
+  "gasUsed": 77228,
 }
 `;
 
 exports[`EthGenesisVault pulls withdrawals on multiple validators registration 1`] = `
 Object {
   "calldataByteLength": 3748,
-  "gasUsed": 652669,
+  "gasUsed": 652713,
 }
 `;
 
 exports[`EthGenesisVault pulls withdrawals on single validator registration 1`] = `
 Object {
   "calldataByteLength": 1188,
-  "gasUsed": 312860,
+  "gasUsed": 312904,
 }
 `;
 

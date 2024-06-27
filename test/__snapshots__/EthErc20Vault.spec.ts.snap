@@ -1,9 +1,23 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
+exports[`EthErc20Vault can deposit and mint osToken in one transaction 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 212573,
+}
+`;
+
+exports[`EthErc20Vault can update state, deposit, and mint osToken in one transaction 1`] = `
+Object {
+  "calldataByteLength": 260,
+  "gasUsed": 266104,
+}
+`;
+
 exports[`EthErc20Vault deposit emits transfer event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 68776,
+  "gasUsed": 68820,
 }
 `;
 
@@ -17,7 +31,7 @@ Object {
 exports[`EthErc20Vault enter exit queue emits transfer event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 96269,
+  "gasUsed": 96214,
 }
 `;
 

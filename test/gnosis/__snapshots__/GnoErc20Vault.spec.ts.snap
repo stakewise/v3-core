@@ -10,6 +10,6 @@ Object {
 exports[`GnoErc20Vault enter exit queue emits transfer event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 96259,
+  "gasUsed": 96182,
 }
 `;
