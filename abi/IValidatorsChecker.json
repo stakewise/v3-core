@@ -36,8 +36,13 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "blockNumber",
         "type": "uint256"
+      },
+      {
+        "internalType": "enum IValidatorsChecker.Status",
+        "name": "status",
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",
@@ -70,8 +75,13 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "",
+        "name": "blockNumber",
         "type": "uint256"
+      },
+      {
+        "internalType": "enum IValidatorsChecker.Status",
+        "name": "status",
+        "type": "uint8"
       }
     ],
     "stateMutability": "view",

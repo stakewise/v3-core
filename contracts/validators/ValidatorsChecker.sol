@@ -61,19 +61,19 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
     bytes32 validatorsRegistryRoot,
     bytes calldata validators,
     bytes calldata signature
-  ) external view override returns (uint256) {
+  ) external view override returns (uint256 blockNumber, Status status) {
     if (_validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
-      revert Errors.InvalidValidatorsRegistryRoot();
+      return (block.number, Status.INVALID_VALIDATORS_REGISTRY_ROOT);
     }
     if (!_vaultsRegistry.vaults(vault) || IVaultVersion(vault).version() < 2) {
-      revert Errors.InvalidVault();
+      return (block.number, Status.INVALID_VAULT);
     }
 
     // verify vault has enough assets
     if (
       !_keeper.isCollateralized(vault) && IVaultState(vault).withdrawableAssets() < _depositAmount()
     ) {
-      revert Errors.InsufficientAssets();
+      return (block.number, Status.INSUFFICIENT_ASSETS);
     }
 
     // compose signing message
@@ -87,10 +87,10 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
         signature
       )
     ) {
-      revert Errors.AccessDenied();
+      return (block.number, Status.INVALID_SIGNATURE);
     }
 
-    return block.number;
+    return (block.number, Status.SUCCEEDED);
   }
 
   /// @inheritdoc IValidatorsChecker
@@ -101,17 +101,19 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
     bytes32[] calldata proof,
     bool[] calldata proofFlags,
     uint256[] calldata proofIndexes
-  ) external view override returns (uint256) {
+  ) external view override returns (uint256 blockNumber, Status status) {
     if (_validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
-      revert Errors.InvalidValidatorsRegistryRoot();
+      return (block.number, Status.INVALID_VALIDATORS_REGISTRY_ROOT);
     }
-    if (!_vaultsRegistry.vaults(vault)) revert Errors.InvalidVault();
+    if (!_vaultsRegistry.vaults(vault)) {
+      return (block.number, Status.INVALID_VAULT);
+    }
 
     // verify vault has enough assets
     if (
       !_keeper.isCollateralized(vault) && IVaultState(vault).withdrawableAssets() < _depositAmount()
     ) {
-      revert Errors.InsufficientAssets();
+      return (block.number, Status.INSUFFICIENT_ASSETS);
     }
 
     uint8 vaultVersion = IVaultVersion(vault).version();
@@ -119,7 +121,9 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
       address validatorsManager = IVaultValidators(vault).validatorsManager();
 
       // verify vault did not set custom validators manager
-      if (validatorsManager != address(_depositDataRegistry)) revert Errors.AccessDenied();
+      if (validatorsManager != address(_depositDataRegistry)) {
+        return (block.number, Status.INVALID_VALIDATORS_MANAGER);
+      }
     }
 
     uint256 currentIndex;
@@ -135,12 +139,16 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
 
     // define leaves for multiproof
     uint256 validatorsCount = proofIndexes.length;
-    if (validatorsCount == 0) revert Errors.InvalidValidators();
+    if (validatorsCount == 0) {
+      return (block.number, Status.INVALID_VALIDATORS_COUNT);
+    }
     bytes32[] memory leaves = new bytes32[](validatorsCount);
 
     // calculate validator length
     uint256 validatorLength = validators.length / validatorsCount;
-    if (validatorLength == 0) revert Errors.InvalidValidators();
+    if (validatorLength == 0 || validatorsCount * validatorLength != validators.length) {
+      return (block.number, Status.INVALID_VALIDATORS_LENGTH);
+    }
 
     // calculate leaves
     {
@@ -163,10 +171,10 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
 
     // check matches merkle root and next validator index
     if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, depositDataRoot, leaves)) {
-      revert Errors.InvalidProof();
+      return (block.number, Status.INVALID_PROOF);
     }
 
-    return block.number;
+    return (block.number, Status.SUCCEEDED);
   }
 
   /**
