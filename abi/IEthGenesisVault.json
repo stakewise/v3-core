@@ -711,6 +711,11 @@
         "type": "address"
       },
       {
+        "internalType": "uint256",
+        "name": "osTokenShares",
+        "type": "uint256"
+      },
+      {
         "internalType": "address",
         "name": "referrer",
         "type": "address"
@@ -720,7 +725,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "osTokenShares",
+        "name": "",
         "type": "uint256"
       }
     ],
@@ -1254,6 +1259,11 @@
         "type": "address"
       },
       {
+        "internalType": "uint256",
+        "name": "osTokenShares",
+        "type": "uint256"
+      },
+      {
         "internalType": "address",
         "name": "referrer",
         "type": "address"
@@ -1290,7 +1300,7 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "osTokenShares",
+        "name": "",
         "type": "uint256"
       }
     ],

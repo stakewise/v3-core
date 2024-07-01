@@ -15,7 +15,7 @@ import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { createUnknownVaultMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ONE_DAY, ZERO_ADDRESS } from './shared/constants'
+import { MAX_UINT256, ONE_DAY, ZERO_ADDRESS } from './shared/constants'
 import {
   collateralizeEthVault,
   getHarvestParams,
@@ -211,10 +211,12 @@ describe('EthVault - mint', () => {
 
     const config = await osTokenConfig.getConfig(await vault.getAddress())
     let osTokenAssets = (assets * config.ltvPercent) / ethers.parseEther('1')
-    const osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
-    const receipt = await vault
+    let osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+
+    // mint max shares
+    let receipt = await vault
       .connect(other)
-      .depositAndMintOsToken(receiver.address, ZERO_ADDRESS, { value: assets })
+      .depositAndMintOsToken(receiver.address, MAX_UINT256, ZERO_ADDRESS, { value: assets })
 
     if (MAINNET_FORK.enabled) {
       osTokenAssets -= 1n // rounding error
@@ -229,6 +231,28 @@ describe('EthVault - mint', () => {
     await expect(receipt)
       .to.emit(vault, 'OsTokenMinted')
       .withArgs(other.address, receiver.address, osTokenAssets, osTokenShares, ZERO_ADDRESS)
+    await snapshotGasCost(receipt)
+
+    // mint half shares
+    osTokenAssets = assets / 2n
+    osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+    receipt = await vault
+      .connect(sender)
+      .depositAndMintOsToken(other.address, osTokenShares, ZERO_ADDRESS, { value: assets })
+
+    if (MAINNET_FORK.enabled) {
+      osTokenAssets -= 1n // rounding error
+    }
+
+    expect(await osToken.balanceOf(other.address)).to.eq(osTokenShares)
+    expect(await vault.osTokenPositions(sender.address)).to.eq(osTokenShares)
+    expect(await vault.getShares(sender.address)).to.eq(shares * 2n)
+    await expect(receipt)
+      .to.emit(vault, 'Deposited')
+      .withArgs(sender.address, sender.address, assets, shares, ZERO_ADDRESS)
+    await expect(receipt)
+      .to.emit(vault, 'OsTokenMinted')
+      .withArgs(sender.address, other.address, osTokenAssets, osTokenShares, ZERO_ADDRESS)
     await snapshotGasCost(receipt)
   })
 
@@ -269,9 +293,15 @@ describe('EthVault - mint', () => {
 
     const receipt = await vault
       .connect(other)
-      .updateStateAndDepositAndMintOsToken(receiver.address, ZERO_ADDRESS, harvestParams, {
-        value: assets,
-      })
+      .updateStateAndDepositAndMintOsToken(
+        receiver.address,
+        MAX_UINT256,
+        ZERO_ADDRESS,
+        harvestParams,
+        {
+          value: assets,
+        }
+      )
     let sharesAfter = await vault.convertToShares(assets)
     sharesAfter += 1n // rounding error
 

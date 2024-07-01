@@ -3,41 +3,41 @@
 exports[`EthVault - upgrade does not modify the state variables 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 186999,
+  "gasUsed": 187131,
 }
 `;
 
 exports[`EthVault - upgrade does not modify the state variables 2`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 187795,
+  "gasUsed": 187927,
 }
 `;
 
 exports[`EthVault - upgrade does not modify the state variables 3`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 187263,
+  "gasUsed": 187395,
 }
 `;
 
 exports[`EthVault - upgrade does not modify the state variables 4`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 188047,
+  "gasUsed": 188179,
 }
 `;
 
 exports[`EthVault - upgrade does not modify the state variables 5`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 187089,
+  "gasUsed": 187221,
 }
 `;
 
 exports[`EthVault - upgrade works with valid call data 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 76089,
+  "gasUsed": 76221,
 }
 `;

@@ -97,21 +97,27 @@ contract EthErc20Vault is
   /// @inheritdoc IEthErc20Vault
   function depositAndMintOsToken(
     address receiver,
+    uint256 osTokenShares,
     address referrer
-  ) public payable override returns (uint256 osTokenShares) {
+  ) public payable override returns (uint256) {
     deposit(msg.sender, referrer);
-    osTokenShares = _calcMaxOsTokenShares(msg.value);
+    if (osTokenShares == type(uint256).max) {
+      // mint max OsToken shares based on the deposited amount
+      osTokenShares = _calcMaxOsTokenShares(msg.value);
+    }
     mintOsToken(receiver, osTokenShares, referrer);
+    return osTokenShares;
   }
 
   /// @inheritdoc IEthErc20Vault
   function updateStateAndDepositAndMintOsToken(
     address receiver,
+    uint256 osTokenShares,
     address referrer,
     IKeeperRewards.HarvestParams calldata harvestParams
-  ) external payable override returns (uint256 osTokenShares) {
+  ) external payable override returns (uint256) {
     updateState(harvestParams);
-    return depositAndMintOsToken(receiver, referrer);
+    return depositAndMintOsToken(receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IERC20

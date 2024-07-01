@@ -20,7 +20,7 @@ import {
   ethVaultFixture,
 } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ZERO_ADDRESS } from './shared/constants'
+import { MAX_UINT256, ZERO_ADDRESS } from './shared/constants'
 import {
   collateralizeEthVault,
   getHarvestParams,
@@ -41,7 +41,7 @@ describe('EthErc20Vault', () => {
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const referrer = '0x' + '1'.repeat(40)
-  let sender: Wallet, receiver: Wallet, admin: Signer, dao: Wallet
+  let sender: Wallet, receiver: Wallet, admin: Signer, dao: Wallet, other: Wallet
   let vault: EthErc20Vault,
     keeper: Keeper,
     validatorsRegistry: Contract,
@@ -53,7 +53,7 @@ describe('EthErc20Vault', () => {
     osToken: OsToken
 
   beforeEach('deploy fixtures', async () => {
-    ;[dao, sender, receiver, admin] = await (ethers as any).getSigners()
+    ;[dao, sender, receiver, admin, other] = await (ethers as any).getSigners()
     const fixture = await loadFixture(ethVaultFixture)
     vault = await fixture.createEthErc20Vault(admin, {
       capacity,
@@ -267,12 +267,13 @@ describe('EthErc20Vault', () => {
     expect(await vault.osTokenPositions(sender.address)).to.eq(0n)
     expect(await vault.getShares(sender.address)).to.eq(0n)
 
+    // max shares
     const config = await osTokenConfig.getConfig(await vault.getAddress())
     let osTokenAssets = (assets * config.ltvPercent) / ethers.parseEther('1')
-    const osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
-    const receipt = await vault
+    let osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+    let receipt = await vault
       .connect(sender)
-      .depositAndMintOsToken(receiver.address, ZERO_ADDRESS, { value: assets })
+      .depositAndMintOsToken(receiver.address, MAX_UINT256, ZERO_ADDRESS, { value: assets })
 
     if (MAINNET_FORK.enabled) {
       shares += 1n // rounding error
@@ -289,6 +290,31 @@ describe('EthErc20Vault', () => {
     await expect(receipt)
       .to.emit(vault, 'OsTokenMinted')
       .withArgs(sender.address, receiver.address, osTokenAssets, osTokenShares, ZERO_ADDRESS)
+    await snapshotGasCost(receipt)
+
+    // mint osToken with half shares
+    osTokenAssets = assets / 2n
+    osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+    receipt = await vault
+      .connect(receiver)
+      .depositAndMintOsToken(other.address, osTokenShares, ZERO_ADDRESS, { value: assets })
+
+    if (MAINNET_FORK.enabled) {
+      osTokenAssets -= 1n // rounding error
+    }
+
+    expect(await osToken.balanceOf(other.address)).to.eq(osTokenShares)
+    expect(await vault.osTokenPositions(receiver.address)).to.eq(osTokenShares)
+    expect(await vault.getShares(receiver.address)).to.eq(shares)
+    await expect(receipt)
+      .to.emit(vault, 'Deposited')
+      .withArgs(receiver.address, receiver.address, assets, shares, ZERO_ADDRESS)
+    await expect(receipt)
+      .to.emit(vault, 'Transfer')
+      .withArgs(ZERO_ADDRESS, receiver.address, shares)
+    await expect(receipt)
+      .to.emit(vault, 'OsTokenMinted')
+      .withArgs(receiver.address, other.address, osTokenAssets, osTokenShares, ZERO_ADDRESS)
     await snapshotGasCost(receipt)
   })
 
@@ -328,9 +354,15 @@ describe('EthErc20Vault', () => {
     const osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
     const receipt = await vault
       .connect(sender)
-      .updateStateAndDepositAndMintOsToken(receiver.address, ZERO_ADDRESS, harvestParams, {
-        value: assets,
-      })
+      .updateStateAndDepositAndMintOsToken(
+        receiver.address,
+        MAX_UINT256,
+        ZERO_ADDRESS,
+        harvestParams,
+        {
+          value: assets,
+        }
+      )
 
     let sharesAfter = await vault.convertToShares(assets)
     sharesAfter += 1n // rounding error

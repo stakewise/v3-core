@@ -3,14 +3,14 @@
 exports[`EthVault - token approve when the sender has enough balance when the spender had an approved amount approves the requested amount and replaces the previous one 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 33688,
+  "gasUsed": 33710,
 }
 `;
 
 exports[`EthVault - token approve when the sender has enough balance when there was no approved amount before approves the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 50788,
+  "gasUsed": 50810,
 }
 `;
 
@@ -24,14 +24,14 @@ Object {
 exports[`EthVault - token transfer from when the spender has enough allowance when the token owner has enough balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 54703,
+  "gasUsed": 54725,
 }
 `;
 
 exports[`EthVault - token transfer from when the spender has unlimited allowance does not decrease the spender allowance 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 61179,
+  "gasUsed": 61201,
 }
 `;
 

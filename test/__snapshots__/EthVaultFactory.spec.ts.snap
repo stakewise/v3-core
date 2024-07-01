@@ -3,55 +3,55 @@
 exports[`EthVaultFactory EthErc20Vault private vault deployment with own escrow gas 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 599715,
+  "gasUsed": 599759,
 }
 `;
 
 exports[`EthVaultFactory EthErc20Vault private vault deployment with shared escrow gas 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 450896,
+  "gasUsed": 450940,
 }
 `;
 
 exports[`EthVaultFactory EthErc20Vault public vault deployment with own escrow gas 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 575795,
+  "gasUsed": 575839,
 }
 `;
 
 exports[`EthVaultFactory EthErc20Vault public vault deployment with shared escrow gas 1`] = `
 Object {
   "calldataByteLength": 516,
-  "gasUsed": 426976,
+  "gasUsed": 427020,
 }
 `;
 
 exports[`EthVaultFactory EthVault private vault deployment with own escrow gas 1`] = `
 Object {
   "calldataByteLength": 324,
-  "gasUsed": 525593,
+  "gasUsed": 525637,
 }
 `;
 
 exports[`EthVaultFactory EthVault private vault deployment with shared escrow gas 1`] = `
 Object {
   "calldataByteLength": 324,
-  "gasUsed": 376774,
+  "gasUsed": 376818,
 }
 `;
 
 exports[`EthVaultFactory EthVault public vault deployment with own escrow gas 1`] = `
 Object {
   "calldataByteLength": 324,
-  "gasUsed": 501673,
+  "gasUsed": 501717,
 }
 `;
 
 exports[`EthVaultFactory EthVault public vault deployment with shared escrow gas 1`] = `
 Object {
   "calldataByteLength": 324,
-  "gasUsed": 352854,
+  "gasUsed": 352898,
 }
 `;
