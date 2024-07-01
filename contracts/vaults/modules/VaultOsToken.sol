@@ -77,13 +77,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     position.shares += SafeCast.toUint128(osTokenShares);
 
     // calculate and validate LTV
-    if (
-      Math.mulDiv(
-        convertToAssets(_balances[msg.sender]),
-        _osTokenConfig.getConfig(address(this)).ltvPercent,
-        _maxPercent
-      ) < _osTokenVaultController.convertToAssets(position.shares)
-    ) {
+    if (_calcMaxOsTokenShares(convertToAssets(_balances[msg.sender])) < position.shares) {
       revert Errors.LowLtv();
     }
 
@@ -275,15 +269,23 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     _syncPositionFee(position);
 
     // calculate and validate position LTV
-    if (
-      Math.mulDiv(
-        convertToAssets(_balances[user]),
-        _osTokenConfig.getConfig(address(this)).ltvPercent,
-        _maxPercent
-      ) < _osTokenVaultController.convertToAssets(position.shares)
-    ) {
+    if (_calcMaxOsTokenShares(convertToAssets(_balances[user])) < position.shares) {
       revert Errors.LowLtv();
     }
+  }
+
+  /**
+   * @dev Internal function for calculating the maximum amount of osToken shares that can be minted
+   * @param assets The amount of assets to convert to osToken shares
+   * @return maxOsTokenShares The maximum amount of osToken shares that can be minted
+   */
+  function _calcMaxOsTokenShares(uint256 assets) internal view returns (uint256) {
+    uint256 maxOsTokenAssets = Math.mulDiv(
+      assets,
+      _osTokenConfig.getConfig(address(this)).ltvPercent,
+      _maxPercent
+    );
+    return _osTokenVaultController.convertToShares(maxOsTokenAssets);
   }
 
   /**

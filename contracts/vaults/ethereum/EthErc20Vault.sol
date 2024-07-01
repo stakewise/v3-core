@@ -3,9 +3,10 @@
 pragma solidity ^0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IEthErc20Vault} from '../../interfaces/IEthErc20Vault.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {Multicall} from '../../base/Multicall.sol';
 import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
@@ -91,6 +92,32 @@ contract EthErc20Vault is
       IEthVaultFactory(msg.sender).ownMevEscrow(),
       abi.decode(params, (EthErc20VaultInitParams))
     );
+  }
+
+  /// @inheritdoc IEthErc20Vault
+  function depositAndMintOsToken(
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) public payable override returns (uint256) {
+    deposit(msg.sender, referrer);
+    if (osTokenShares == type(uint256).max) {
+      // mint max OsToken shares based on the deposited amount
+      osTokenShares = _calcMaxOsTokenShares(msg.value);
+    }
+    mintOsToken(receiver, osTokenShares, referrer);
+    return osTokenShares;
+  }
+
+  /// @inheritdoc IEthErc20Vault
+  function updateStateAndDepositAndMintOsToken(
+    address receiver,
+    uint256 osTokenShares,
+    address referrer,
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) external payable override returns (uint256) {
+    updateState(harvestParams);
+    return depositAndMintOsToken(receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IERC20
