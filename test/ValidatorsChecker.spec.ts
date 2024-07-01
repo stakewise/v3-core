@@ -29,6 +29,18 @@ import { createGnoValidatorsChecker } from './shared/gnoFixtures'
 
 const networks = ['ETHEREUM', 'GNOSIS']
 
+enum Status {
+  SUCCEEDED,
+  INVALID_VALIDATORS_REGISTRY_ROOT,
+  INVALID_VAULT,
+  INSUFFICIENT_ASSETS,
+  INVALID_SIGNATURE,
+  INVALID_VALIDATORS_MANAGER,
+  INVALID_VALIDATORS_COUNT,
+  INVALID_VALIDATORS_LENGTH,
+  INVALID_PROOF,
+}
+
 networks.forEach((network) => {
   describe(`ValidatorsChecker [${network}]`, () => {
     let validatorDeposit = ethers.parseEther('32')
@@ -155,45 +167,43 @@ networks.forEach((network) => {
 
       it('fails for invalid validators registry root', async () => {
         const fakeRoot = Buffer.alloc(32).fill(1)
-        await expect(
-          validatorsChecker
-            .connect(admin)
-            .checkValidatorsManagerSignature(await vault.getAddress(), fakeRoot, '0x', '0x')
-        ).to.be.revertedWithCustomError(validatorsChecker, 'InvalidValidatorsRegistryRoot')
+        const response = await validatorsChecker.checkValidatorsManagerSignature(
+          await vault.getAddress(),
+          fakeRoot,
+          '0x',
+          '0x'
+        )
+        expect(response.status).to.eq(Status.INVALID_VALIDATORS_REGISTRY_ROOT)
       })
 
       it('fails for non-vault', async () => {
-        await expect(
-          validatorsChecker
-            .connect(admin)
-            .checkValidatorsManagerSignature(other.address, validatorsRegistryRoot, '0x', '0x')
-        ).to.be.revertedWithCustomError(validatorsChecker, 'InvalidVault')
+        const response = await validatorsChecker.checkValidatorsManagerSignature(
+          other.address,
+          validatorsRegistryRoot,
+          '0x',
+          '0x'
+        )
+        expect(response.status).to.eq(Status.INVALID_VAULT)
       })
 
       it('fails for vault v1', async () => {
-        await expect(
-          validatorsChecker
-            .connect(admin)
-            .checkValidatorsManagerSignature(
-              await vaultV1.getAddress(),
-              validatorsRegistryRoot,
-              '0x',
-              '0x'
-            )
-        ).to.be.revertedWithCustomError(validatorsChecker, 'InvalidVault')
+        const response = await validatorsChecker.checkValidatorsManagerSignature(
+          await vaultV1.getAddress(),
+          validatorsRegistryRoot,
+          '0x',
+          '0x'
+        )
+        expect(response.status).to.eq(Status.INVALID_VAULT)
       })
 
       it('fails for vault not collateralized not deposited', async () => {
-        await expect(
-          validatorsChecker
-            .connect(admin)
-            .checkValidatorsManagerSignature(
-              await vaultNotDeposited.getAddress(),
-              validatorsRegistryRoot,
-              '0x',
-              '0x'
-            )
-        ).to.be.revertedWithCustomError(validatorsChecker, 'InsufficientAssets')
+        const response = await validatorsChecker.checkValidatorsManagerSignature(
+          await vaultNotDeposited.getAddress(),
+          validatorsRegistryRoot,
+          '0x',
+          '0x'
+        )
+        expect(response.status).to.eq(Status.INSUFFICIENT_ASSETS)
       })
 
       it('fails for signer who is not validators manager', async () => {
@@ -208,16 +218,13 @@ networks.forEach((network) => {
           data: typedData,
           version: SignTypedDataVersion.V4,
         })
-        await expect(
-          validatorsChecker
-            .connect(admin)
-            .checkValidatorsManagerSignature(
-              vaultAddress,
-              validatorsRegistryRoot,
-              Buffer.concat(validators),
-              ethers.getBytes(signature)
-            )
-        ).to.be.revertedWithCustomError(validatorsChecker, 'AccessDenied')
+        const response = await validatorsChecker.checkValidatorsManagerSignature(
+          vaultAddress,
+          validatorsRegistryRoot,
+          Buffer.concat(validators),
+          ethers.getBytes(signature)
+        )
+        expect(response.status).to.eq(Status.INVALID_SIGNATURE)
       })
 
       it('succeeds', async () => {
@@ -233,17 +240,14 @@ networks.forEach((network) => {
           version: SignTypedDataVersion.V4,
         })
         const blockNumber = await ethers.provider.getBlockNumber()
-
-        expect(
-          await validatorsChecker
-            .connect(admin)
-            .checkValidatorsManagerSignature(
-              vaultAddress,
-              validatorsRegistryRoot,
-              Buffer.concat(validators),
-              ethers.getBytes(signature)
-            )
-        ).to.eq(blockNumber)
+        const response = await validatorsChecker.checkValidatorsManagerSignature(
+          vaultAddress,
+          validatorsRegistryRoot,
+          Buffer.concat(validators),
+          ethers.getBytes(signature)
+        )
+        expect(response.blockNumber).to.eq(blockNumber)
+        expect(response.status).to.eq(Status.SUCCEEDED)
       })
     })
 
@@ -268,116 +272,117 @@ networks.forEach((network) => {
       it('fails for invalid validators registry root', async () => {
         const fakeRoot = Buffer.alloc(32).fill(1)
 
-        await expect(
-          validatorsChecker
-            .connect(admin)
-            .checkDepositDataRoot(
-              await vault.getAddress(),
-              fakeRoot,
-              Buffer.concat(validators),
-              proof,
-              proofFlags,
-              proofIndexes
-            )
-        ).to.be.revertedWithCustomError(validatorsChecker, 'InvalidValidatorsRegistryRoot')
+        const response = await validatorsChecker.checkDepositDataRoot(
+          await vault.getAddress(),
+          fakeRoot,
+          Buffer.concat(validators),
+          proof,
+          proofFlags,
+          proofIndexes
+        )
+        expect(response.status).to.eq(Status.INVALID_VALIDATORS_REGISTRY_ROOT)
       })
 
       it('fails for non-vault', async () => {
-        await expect(
-          validatorsChecker
-            .connect(admin)
-            .checkDepositDataRoot(
-              other.address,
-              validatorsRegistryRoot,
-              Buffer.concat(validators),
-              proof,
-              proofFlags,
-              proofIndexes
-            )
-        ).to.be.revertedWithCustomError(validatorsChecker, 'InvalidVault')
+        const response = await validatorsChecker.checkDepositDataRoot(
+          other.address,
+          validatorsRegistryRoot,
+          Buffer.concat(validators),
+          proof,
+          proofFlags,
+          proofIndexes
+        )
+        expect(response.status).to.eq(Status.INVALID_VAULT)
       })
 
       it('fails for vault not collateralized not deposited', async () => {
-        await expect(
-          validatorsChecker
-            .connect(admin)
-            .checkDepositDataRoot(
-              await vaultNotDeposited.getAddress(),
-              validatorsRegistryRoot,
-              Buffer.concat(validators),
-              proof,
-              proofFlags,
-              proofIndexes
-            )
-        ).to.be.revertedWithCustomError(validatorsChecker, 'InsufficientAssets')
+        const response = await validatorsChecker.checkDepositDataRoot(
+          await vaultNotDeposited.getAddress(),
+          validatorsRegistryRoot,
+          Buffer.concat(validators),
+          proof,
+          proofFlags,
+          proofIndexes
+        )
+        expect(response.status).to.eq(Status.INSUFFICIENT_ASSETS)
       })
 
       it('fails for validators manager not equal to deposit data registry', async () => {
         await vault.connect(admin).setValidatorsManager(other.address)
-
-        await expect(
-          validatorsChecker
-            .connect(admin)
-            .checkDepositDataRoot(
-              await vault.getAddress(),
-              validatorsRegistryRoot,
-              Buffer.concat(validators),
-              proof,
-              proofFlags,
-              proofIndexes
-            )
-        ).to.be.revertedWithCustomError(validatorsChecker, 'AccessDenied')
+        const response = await validatorsChecker.checkDepositDataRoot(
+          await vault.getAddress(),
+          validatorsRegistryRoot,
+          Buffer.concat(validators),
+          proof,
+          proofFlags,
+          proofIndexes
+        )
+        expect(response.status).to.eq(Status.INVALID_VALIDATORS_MANAGER)
       })
 
       it('fails for invalid proof', async () => {
         proof[0] = '0x' + '1'.repeat(64)
+        const response = await validatorsChecker.checkDepositDataRoot(
+          await vault.getAddress(),
+          validatorsRegistryRoot,
+          Buffer.concat(validators),
+          proof,
+          proofFlags,
+          proofIndexes
+        )
+        expect(response.status).to.eq(Status.INVALID_PROOF)
+      })
 
-        await expect(
-          validatorsChecker
-            .connect(admin)
-            .checkDepositDataRoot(
-              await vault.getAddress(),
-              validatorsRegistryRoot,
-              Buffer.concat(validators),
-              proof,
-              proofFlags,
-              proofIndexes
-            )
-        ).to.be.revertedWithCustomError(validatorsChecker, 'InvalidProof')
+      it('fails for invalid proof indexes', async () => {
+        const response = await validatorsChecker.checkDepositDataRoot(
+          await vault.getAddress(),
+          validatorsRegistryRoot,
+          Buffer.concat(validators),
+          proof,
+          proofFlags,
+          []
+        )
+        expect(response.status).to.eq(Status.INVALID_VALIDATORS_COUNT)
+      })
+
+      it('fails for invalid validators', async () => {
+        const response = await validatorsChecker.checkDepositDataRoot(
+          await vault.getAddress(),
+          validatorsRegistryRoot,
+          Buffer.concat(validators.slice(0, -1)),
+          proof,
+          proofFlags,
+          proofIndexes
+        )
+        expect(response.status).to.eq(Status.INVALID_VALIDATORS_LENGTH)
       })
 
       it('succeeds for vault v1', async () => {
         const blockNumber = await ethers.provider.getBlockNumber()
-
-        expect(
-          await validatorsChecker
-            .connect(admin)
-            .checkDepositDataRoot(
-              await vaultV1.getAddress(),
-              validatorsRegistryRoot,
-              Buffer.concat(validators),
-              proof,
-              proofFlags,
-              proofIndexes
-            )
-        ).to.eq(blockNumber)
+        const response = await validatorsChecker.checkDepositDataRoot(
+          await vaultV1.getAddress(),
+          validatorsRegistryRoot,
+          Buffer.concat(validators),
+          proof,
+          proofFlags,
+          proofIndexes
+        )
+        expect(response.blockNumber).to.eq(blockNumber)
+        expect(response.status).to.eq(Status.SUCCEEDED)
       })
 
       it('succeeds for vault v2', async () => {
         const blockNumber = await ethers.provider.getBlockNumber()
-
-        expect(
-          await validatorsChecker
-            .connect(admin)
-            .checkDepositDataRoot(
-              await vault.getAddress(),
-              validatorsRegistryRoot,
-              Buffer.concat(validators),
-              proof,
-              proofFlags,
-              proofIndexes
-            )
-        ).to.eq(blockNumber)
+        const response = await validatorsChecker.checkDepositDataRoot(
+          await vault.getAddress(),
+          validatorsRegistryRoot,
+          Buffer.concat(validators),
+          proof,
+          proofFlags,
+          proofIndexes
+        )
+        expect(response.blockNumber).to.eq(blockNumber)
+        expect(response.status).to.eq(Status.SUCCEEDED)
       })
     })
   })
