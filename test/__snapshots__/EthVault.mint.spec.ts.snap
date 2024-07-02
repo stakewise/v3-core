@@ -3,34 +3,34 @@
 exports[`EthVault - mint can deposit and mint osToken in one transaction 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 210616,
+  "gasUsed": 210696,
 }
 `;
 
 exports[`EthVault - mint can deposit and mint osToken in one transaction 2`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 154902,
+  "gasUsed": 154964,
 }
 `;
 
 exports[`EthVault - mint can update state, deposit, and mint osToken in one transaction 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 262419,
+  "gasUsed": 262499,
 }
 `;
 
 exports[`EthVault - mint mints osTokens to the receiver 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 175307,
+  "gasUsed": 175369,
 }
 `;
 
 exports[`EthVault - mint updates position accumulated fee 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 120422,
+  "gasUsed": 120484,
 }
 `;

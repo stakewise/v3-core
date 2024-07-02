@@ -3,13 +3,13 @@
 exports[`GnoPrivVault deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 82633,
+  "gasUsed": 82655,
 }
 `;
 
 exports[`GnoPrivVault mint osToken can mint from not whitelisted user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 177425,
+  "gasUsed": 177497,
 }
 `;

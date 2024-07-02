@@ -89,7 +89,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   }
 
   /// @inheritdoc IVaultOsToken
-  function burnOsToken(uint256 osTokenShares) external override returns (uint256 assets) {
+  function burnOsToken(uint128 osTokenShares) external override returns (uint256 assets) {
     // burn osToken shares
     assets = _osTokenVaultController.burnShares(msg.sender, osTokenShares);
 
@@ -99,7 +99,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     _syncPositionFee(position);
 
     // update osToken position
-    position.shares -= SafeCast.toUint128(osTokenShares);
+    position.shares -= osTokenShares;
     _positions[msg.sender] = position;
 
     // emit event

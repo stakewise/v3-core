@@ -10,55 +10,55 @@ Object {
 exports[`EthGenesisVault migrate migrates from rewardEthToken 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 79627,
+  "gasUsed": 79649,
 }
 `;
 
 exports[`EthGenesisVault pulls withdrawals on claim exited assets 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 77250,
+  "gasUsed": 77272,
 }
 `;
 
 exports[`EthGenesisVault pulls withdrawals on multiple validators registration 1`] = `
 Object {
   "calldataByteLength": 3748,
-  "gasUsed": 652757,
+  "gasUsed": 652801,
 }
 `;
 
 exports[`EthGenesisVault pulls withdrawals on single validator registration 1`] = `
 Object {
   "calldataByteLength": 1188,
-  "gasUsed": 312948,
+  "gasUsed": 312992,
 }
 `;
 
 exports[`EthGenesisVault update state deducts rewards on first state update 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 150279,
+  "gasUsed": 150317,
 }
 `;
 
 exports[`EthGenesisVault update state skips updating legacy with zero total assets 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 145848,
+  "gasUsed": 145886,
 }
 `;
 
 exports[`EthGenesisVault update state splits penalty between rewardEthToken and vault 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 119659,
+  "gasUsed": 119703,
 }
 `;
 
 exports[`EthGenesisVault update state splits reward between rewardEthToken and vault 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 167379,
+  "gasUsed": 167417,
 }
 `;

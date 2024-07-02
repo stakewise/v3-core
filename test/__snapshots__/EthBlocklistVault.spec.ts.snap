@@ -17,6 +17,6 @@ Object {
 exports[`EthBlocklistVault mint osToken can mint from not blocked user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 177528,
+  "gasUsed": 177590,
 }
 `;
