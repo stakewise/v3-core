@@ -3,41 +3,41 @@
 exports[`DepositDataRegistry deposit data manager update succeeds 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 63721,
+  "gasUsed": 63831,
 }
 `;
 
 exports[`DepositDataRegistry deposit data root update success 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 64529,
+  "gasUsed": 64595,
 }
 `;
 
 exports[`DepositDataRegistry migrate succeeds 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 164874,
+  "gasUsed": 165182,
 }
 `;
 
 exports[`DepositDataRegistry multiple validators succeeds 1`] = `
 Object {
   "calldataByteLength": 3364,
-  "gasUsed": 688151,
+  "gasUsed": 688283,
 }
 `;
 
 exports[`DepositDataRegistry single validator can update state and register validator 1`] = `
 Object {
   "calldataByteLength": 1636,
-  "gasUsed": 407161,
+  "gasUsed": 407381,
 }
 `;
 
 exports[`DepositDataRegistry single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 1156,
-  "gasUsed": 333777,
+  "gasUsed": 333909,
 }
 `;

@@ -9,6 +9,8 @@ import {
   OsTokenConfig,
   SharedMevEscrow,
   DepositDataRegistry,
+  IKeeperRewards,
+  OsToken,
 } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import {
@@ -18,11 +20,12 @@ import {
   ethVaultFixture,
 } from './shared/fixtures'
 import { expect } from './shared/expect'
-import { ZERO_ADDRESS } from './shared/constants'
+import { MAX_UINT256, ZERO_ADDRESS } from './shared/constants'
 import {
   collateralizeEthVault,
   getHarvestParams,
   getRewardsRootProof,
+  setAvgRewardPerSecond,
   updateRewards,
 } from './shared/rewards'
 import keccak256 from 'keccak256'
@@ -38,7 +41,7 @@ describe('EthErc20Vault', () => {
   const feePercent = 1000
   const metadataIpfsHash = 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
   const referrer = '0x' + '1'.repeat(40)
-  let sender: Wallet, receiver: Wallet, admin: Signer
+  let sender: Wallet, receiver: Wallet, admin: Signer, dao: Wallet, other: Wallet
   let vault: EthErc20Vault,
     keeper: Keeper,
     validatorsRegistry: Contract,
@@ -46,10 +49,11 @@ describe('EthErc20Vault', () => {
     vaultsRegistry: VaultsRegistry,
     osTokenConfig: OsTokenConfig,
     sharedMevEscrow: SharedMevEscrow,
-    depositDataRegistry: DepositDataRegistry
+    depositDataRegistry: DepositDataRegistry,
+    osToken: OsToken
 
   beforeEach('deploy fixtures', async () => {
-    ;[sender, receiver, admin] = (await (ethers as any).getSigners()).slice(1, 4)
+    ;[dao, sender, receiver, admin, other] = await (ethers as any).getSigners()
     const fixture = await loadFixture(ethVaultFixture)
     vault = await fixture.createEthErc20Vault(admin, {
       capacity,
@@ -66,6 +70,7 @@ describe('EthErc20Vault', () => {
     vaultsRegistry = fixture.vaultsRegistry
     sharedMevEscrow = fixture.sharedMevEscrow
     depositDataRegistry = fixture.depositDataRegistry
+    osToken = fixture.osToken
   })
 
   it('has id', async () => {
@@ -252,5 +257,133 @@ describe('EthErc20Vault', () => {
     await expect(
       vault.connect(receiver).transferFrom(sender.address, receiver.address, transferShares)
     ).to.emit(vault, 'Transfer')
+  })
+
+  it('can deposit and mint osToken in one transaction', async () => {
+    const assets = ethers.parseEther('1')
+    let shares = await vault.convertToShares(assets)
+
+    await setAvgRewardPerSecond(dao, vault, keeper, 0)
+    expect(await vault.osTokenPositions(sender.address)).to.eq(0n)
+    expect(await vault.getShares(sender.address)).to.eq(0n)
+
+    // max shares
+    const config = await osTokenConfig.getConfig(await vault.getAddress())
+    let osTokenAssets = (assets * config.ltvPercent) / ethers.parseEther('1')
+    let osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+    let receipt = await vault
+      .connect(sender)
+      .depositAndMintOsToken(receiver.address, MAX_UINT256, ZERO_ADDRESS, { value: assets })
+
+    if (MAINNET_FORK.enabled) {
+      shares += 1n // rounding error
+      osTokenAssets -= 1n // rounding error
+    }
+
+    expect(await osToken.balanceOf(receiver.address)).to.eq(osTokenShares)
+    expect(await vault.osTokenPositions(sender.address)).to.eq(osTokenShares)
+    expect(await vault.getShares(sender.address)).to.eq(shares)
+    await expect(receipt)
+      .to.emit(vault, 'Deposited')
+      .withArgs(sender.address, sender.address, assets, shares, ZERO_ADDRESS)
+    await expect(receipt).to.emit(vault, 'Transfer').withArgs(ZERO_ADDRESS, sender.address, shares)
+    await expect(receipt)
+      .to.emit(vault, 'OsTokenMinted')
+      .withArgs(sender.address, receiver.address, osTokenAssets, osTokenShares, ZERO_ADDRESS)
+    await snapshotGasCost(receipt)
+
+    // mint osToken with half shares
+    osTokenAssets = assets / 2n
+    osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+    receipt = await vault
+      .connect(receiver)
+      .depositAndMintOsToken(other.address, osTokenShares, ZERO_ADDRESS, { value: assets })
+
+    if (MAINNET_FORK.enabled) {
+      osTokenAssets -= 1n // rounding error
+    }
+
+    expect(await osToken.balanceOf(other.address)).to.eq(osTokenShares)
+    expect(await vault.osTokenPositions(receiver.address)).to.eq(osTokenShares)
+    expect(await vault.getShares(receiver.address)).to.eq(shares)
+    await expect(receipt)
+      .to.emit(vault, 'Deposited')
+      .withArgs(receiver.address, receiver.address, assets, shares, ZERO_ADDRESS)
+    await expect(receipt)
+      .to.emit(vault, 'Transfer')
+      .withArgs(ZERO_ADDRESS, receiver.address, shares)
+    await expect(receipt)
+      .to.emit(vault, 'OsTokenMinted')
+      .withArgs(receiver.address, other.address, osTokenAssets, osTokenShares, ZERO_ADDRESS)
+    await snapshotGasCost(receipt)
+  })
+
+  it('can update state, deposit, and mint osToken in one transaction', async () => {
+    await setAvgRewardPerSecond(dao, vault, keeper, 0)
+    const vaultAddr = await vault.getAddress()
+    const assets = ethers.parseEther('1')
+    const sharesBefore = await vault.convertToShares(assets)
+
+    await updateRewards(
+      keeper,
+      [getHarvestParams(vaultAddr, ethers.parseEther('1'), ethers.parseEther('0'))],
+      0
+    )
+    const tree = await updateRewards(
+      keeper,
+      [getHarvestParams(vaultAddr, ethers.parseEther('1.2'), ethers.parseEther('0'))],
+      0
+    )
+    const vaultReward = getHarvestParams(
+      vaultAddr,
+      ethers.parseEther('1.2'),
+      ethers.parseEther('0')
+    )
+    const harvestParams: IKeeperRewards.HarvestParamsStruct = {
+      rewardsRoot: tree.root,
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
+      proof: getRewardsRootProof(tree, vaultReward),
+    }
+
+    expect(await vault.osTokenPositions(sender.address)).to.eq(0n)
+    expect(await vault.getShares(sender.address)).to.eq(0n)
+
+    const config = await osTokenConfig.getConfig(await vault.getAddress())
+    let osTokenAssets = (assets * config.ltvPercent) / ethers.parseEther('1')
+    const osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+    const receipt = await vault
+      .connect(sender)
+      .updateStateAndDepositAndMintOsToken(
+        receiver.address,
+        MAX_UINT256,
+        ZERO_ADDRESS,
+        harvestParams,
+        {
+          value: assets,
+        }
+      )
+
+    let sharesAfter = await vault.convertToShares(assets)
+    sharesAfter += 1n // rounding error
+
+    if (MAINNET_FORK.enabled) {
+      osTokenAssets -= 1n // rounding error
+    }
+
+    expect(sharesBefore).to.gt(sharesAfter)
+    expect(await osToken.balanceOf(receiver.address)).to.eq(osTokenShares)
+    expect(await vault.osTokenPositions(sender.address)).to.eq(osTokenShares)
+    expect(await vault.getShares(sender.address)).to.eq(sharesAfter)
+    await expect(receipt)
+      .to.emit(vault, 'Deposited')
+      .withArgs(sender.address, sender.address, assets, sharesAfter, ZERO_ADDRESS)
+    await expect(receipt)
+      .to.emit(vault, 'Transfer')
+      .withArgs(ZERO_ADDRESS, sender.address, sharesAfter)
+    await expect(receipt)
+      .to.emit(vault, 'OsTokenMinted')
+      .withArgs(sender.address, receiver.address, osTokenAssets, osTokenShares, ZERO_ADDRESS)
+    await snapshotGasCost(receipt)
   })
 })

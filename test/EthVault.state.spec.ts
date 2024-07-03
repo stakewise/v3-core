@@ -273,6 +273,9 @@ describe('EthVault - state', () => {
       proof,
     })
     await expect(receipt)
+      .to.emit(vault, 'ExitingAssetsPenalized')
+      .withArgs(totalAssets / 2n)
+    await expect(receipt)
       .emit(keeper, 'Harvested')
       .withArgs(await vault.getAddress(), tree.root, -totalAssets, 0n)
     await expect(receipt).not.emit(vault, 'FeeSharesMinted')

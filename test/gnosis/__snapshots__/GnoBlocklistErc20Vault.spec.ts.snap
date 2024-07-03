@@ -3,20 +3,20 @@
 exports[`GnoBlocklistErc20Vault deposit can be called by not blocked user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 86521,
+  "gasUsed": 86543,
 }
 `;
 
 exports[`GnoBlocklistErc20Vault mint osToken can mint from not blocked user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 177249,
+  "gasUsed": 177661,
 }
 `;
 
 exports[`GnoBlocklistErc20Vault transfer can transfer 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 58911,
+  "gasUsed": 58856,
 }
 `;

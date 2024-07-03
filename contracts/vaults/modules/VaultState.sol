@@ -135,6 +135,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
           // cannot underflow as exitingAssetsPenalty <= _totalExitingAssets
           totalExitingAssets = SafeCast.toUint128(_totalExitingAssets - exitingAssetsPenalty);
         }
+        emit ExitingAssetsPenalized(exitingAssetsPenalty);
       }
 
       // subtract penalty from total assets (excludes exiting assets)

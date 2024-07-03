@@ -27,6 +27,12 @@ interface IVaultState is IVaultFee {
   event FeeSharesMinted(address receiver, uint256 shares, uint256 assets);
 
   /**
+   * @notice Event emitted when exiting assets are penalized
+   * @param penalty The total penalty amount
+   */
+  event ExitingAssetsPenalized(uint256 penalty);
+
+  /**
    * @notice Total assets in the Vault
    * @return The total amount of the underlying asset that is "managed" by Vault
    */
