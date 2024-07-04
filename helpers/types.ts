@@ -4,6 +4,7 @@ export enum Networks {
   mainnet = 'mainnet',
   holesky = 'holesky',
   chiado = 'chiado',
+  gnosis = 'gnosis',
 }
 
 export type NetworkConfig = {
