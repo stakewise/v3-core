@@ -69,7 +69,7 @@ export const NETWORKS: {
     eigenPodManager: '0x30770d7E3e71112d7A6b7259542D1f680a70e315',
     eigenDelegationManager: '0xA44151489861Fe9e3055d95adC98FbD462B948e7',
     eigenDelayedWithdrawalRouter: '0x642c646053eaf2254f088e9019ACD73d9AE0FA32',
-    restakeFactoryOwner: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6'
+    restakeFactoryOwner: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
   },
   [Networks.mainnet]: {
     url: process.env.MAINNET_RPC_URL || '',
