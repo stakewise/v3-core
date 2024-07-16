@@ -371,7 +371,7 @@ task('eth-full-deploy', 'deploys StakeWise V3 for Ethereum').setAction(async (ta
     const vaultFactory = await deployContract(
       hre,
       'EthRestakeVaultFactory',
-      [networkConfig.governor, vaultImplAddress, vaultsRegistryAddress],
+      [networkConfig.restakeFactoryOwner, vaultImplAddress, vaultsRegistryAddress],
       'contracts/vaults/ethereum/restake/EthRestakeVaultFactory.sol:EthRestakeVaultFactory'
     )
     const vaultFactoryAddress = await vaultFactory.getAddress()

@@ -47,8 +47,8 @@ export const NETWORKS: {
     // EthGenesisVault
     genesisVault: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
-      poolEscrow: '0x9f990e463674B9ABAeC2F19Abf18dAc4F523B48b',
-      rewardToken: '0xd57c19f20168406d162852515030e00e49bB7781',
+      poolEscrow: '0x1f10dB396120183Fc309d45110979879866Db0D2',
+      rewardToken: '0xF3d3071905A6495a4D2f8650E8b3baaAE827DD13',
       capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
     },
@@ -69,6 +69,7 @@ export const NETWORKS: {
     eigenPodManager: '0x30770d7E3e71112d7A6b7259542D1f680a70e315',
     eigenDelegationManager: '0xA44151489861Fe9e3055d95adC98FbD462B948e7',
     eigenDelayedWithdrawalRouter: '0x642c646053eaf2254f088e9019ACD73d9AE0FA32',
+    restakeFactoryOwner: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
   },
   [Networks.mainnet]: {
     url: process.env.MAINNET_RPC_URL || '',
@@ -97,7 +98,7 @@ export const NETWORKS: {
     rewardsMinOracles: 6,
     validatorsMinOracles: 6,
     maxAvgRewardPerSecond: 6341958397n, // 20% APY
-    oraclesConfigIpfsHash: 'QmXeaejxVMPgLAL1u7SuN12gUUULtwgYqvRNBzVafcnxFn',
+    oraclesConfigIpfsHash: 'QmX3Hx3UTBCAy4FTietUeSbD9NPjTnTwBzMxPdPeJgyRJF',
 
     // OsToken
     treasury: '0x144a98cb1CdBb23610501fE6108858D9B7D24934',
@@ -121,9 +122,9 @@ export const NETWORKS: {
     },
     // EthFoxVault
     foxVault: {
-      admin: '0x0000000000000000000000000000000000000000',
+      admin: '0xFD8100AA60F851e0EB585C7c893B8Ef6A7F88788',
       capacity: MAX_UINT256, // unlimited
-      feePercent: 500, // 5%
+      feePercent: 1500, // 15%
       metadataIpfsHash: '',
     },
     priceFeedDescription: 'osETH/ETH',
@@ -136,6 +137,7 @@ export const NETWORKS: {
     eigenPodManager: '0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338',
     eigenDelegationManager: '0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A',
     eigenDelayedWithdrawalRouter: '0x7Fe7E9CC0F274d2435AD5d56D5fa73E47F6A23D8',
+    restakeFactoryOwner: '0xf91AA4a655B6F43243ed4C2853F3508314DaA2aB',
   },
   [Networks.chiado]: {
     url: process.env.CHIADO_RPC_URL || '',
@@ -164,7 +166,7 @@ export const NETWORKS: {
     rewardsMinOracles: 6,
     validatorsMinOracles: 6,
     maxAvgRewardPerSecond: MAX_UINT256, // unlimited
-    oraclesConfigIpfsHash: 'QmNP7hT3Q2YB3kPpNKU9orthkeLvZWQpUi8Gf8PQDLVNJm',
+    oraclesConfigIpfsHash: 'QmTuG4mzQpjRp3zZV9q4u49kUeVhusoFv6Pvem89ZvPqTB',
 
     // OsToken
     treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
@@ -181,8 +183,8 @@ export const NETWORKS: {
     // GnoGenesisVault
     genesisVault: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
-      poolEscrow: '0x6c3F8A4efdABf90126f1889893cA386bdb70A677',
-      rewardToken: '0x0d6736e4ee767B1Bdfc1daeEfB74150643a50C15',
+      poolEscrow: '0x928F9a91E674C886Cae0c377670109aBeF7e19d6',
+      rewardToken: '0x14c74b1C7eCa8362D4ABcCd71051Ce174d61a3D4',
       capacity: parseEther('1000000'), // 1m GNO
       feePercent: 1500, // 15%
     },
@@ -195,7 +197,7 @@ export const NETWORKS: {
       daiPriceFeed: '0x390C320Ae2B001C7CB31A690e2500b55313aC986',
       balancerVault: '0x8b6c2C9E09c6022780D164F3cFd882808b8bDBF0',
       balancerPoolId: '0xa99fd9950b5d5dceeaf4939e221dca8ca9b938ab000100000000000000000025',
-      maxSlippage: 1000, // 10%
+      maxSlippage: 100, // 1%
       stalePriceTimeDelta: MAX_UINT128, // unlimited
     },
 
@@ -207,6 +209,79 @@ export const NETWORKS: {
     eigenPodManager: '0x0000000000000000000000000000000000000000',
     eigenDelegationManager: '0x0000000000000000000000000000000000000000',
     eigenDelayedWithdrawalRouter: '0x0000000000000000000000000000000000000000',
+    restakeFactoryOwner: '0x0000000000000000000000000000000000000000',
+  },
+  [Networks.gnosis]: {
+    url: process.env.GNOSIS_RPC_URL || '',
+    chainId: 100,
+
+    governor: '0x8737f638E9af54e89ed9E1234dbC68B115CD169e',
+    validatorsRegistry: '0x0B98057eA310F4d31F2a452B414647007d1645d9',
+    securityDeposit: 1000000000n, // 1 gwei of GNO
+    exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
+
+    // Keeper
+    oracles: [
+      '0xf35938F9Dd462F9AB6B4C75A5Cd786b319F00C1b',
+      '0x0199e1804fea282b10445Cc0844418D276F74741',
+      '0x4806EE05e73dcC9b6EC5BB23477E5e7bcBE5317F',
+      '0x8F504a3706cBe2122e7Ca04b1fedD00BAAC988b5',
+      '0x7D03d930775e629CBf9712838098Abfe08a69635',
+      '0xf9E45a16a2505093dbb2828f4fb9DCdaeD4E2ac6',
+      '0x049614C22E7c33d3E0C8f698f20235cE54761266',
+      '0x973fb54e573eb7eF90176d05c9504FF2176B37c8',
+      '0x7628a7166B924f48906f40722C8fb4d09ce1D4fe',
+      '0xAB47D82D81b5FD24efb00a17F5732b6d52987700',
+      '0x04744cCE57Bdacc6f8f03579e47c3B64D4495c0E',
+    ],
+    rewardsDelay: 12 * 60 * 60, // 12 hours
+    rewardsMinOracles: 6,
+    validatorsMinOracles: 6,
+    maxAvgRewardPerSecond: 15854895992n, // 50% APY
+    oraclesConfigIpfsHash: 'QmT9DNP5DFgWtrRDyYWCVFMbLuxmf8bfWLrWEKETQu77Zj',
+
+    // OsToken
+    treasury: '0x8737f638E9af54e89ed9E1234dbC68B115CD169e',
+    osTokenFeePercent: 500, // 5 %
+    osTokenCapacity: parseEther('500000'), // 500k osGNO
+    osTokenName: 'Staked GNO',
+    osTokenSymbol: 'osGNO',
+
+    // OsTokenConfig
+    liqThresholdPercent: parseEther('0.92'), // 92%
+    liqBonusPercent: parseEther('1.01'), // 101%
+    ltvPercent: parseEther('0.90'), // 90%
+
+    // GnoGenesisVault
+    genesisVault: {
+      admin: '0x6Da6B1EfCCb7216078B9004535941b71EeD30b0F',
+      poolEscrow: '0xfc9B67b6034F6B306EA9Bd8Ec1baf3eFA2490394',
+      rewardToken: '0x6aC78efae880282396a335CA2F79863A1e6831D4',
+      capacity: parseEther('1000000'), // 1m GNO
+      feePercent: 1500, // 15%
+    },
+    priceFeedDescription: 'osGNO/GNO',
+
+    // Gnosis data
+    gnosis: {
+      gnoToken: '0x9C58BAcC331c9aa871AFD802DB6379a98e80CEdb',
+      gnoPriceFeed: '0x22441d81416430A54336aB28765abd31a792Ad37',
+      daiPriceFeed: '0x678df3415fc31947dA4324eC63212874be5a82f8',
+      balancerVault: '0xBA12222222228d8Ba445958a75a0704d566BF2C8',
+      balancerPoolId: '0x8189c4c96826d016a99986394103dfa9ae41e7ee0002000000000000000000aa',
+      maxSlippage: 100, // 1%
+      stalePriceTimeDelta: 172800n, // 48 hours
+    },
+
+    // Cumulative MerkleDrop
+    liquidityCommittee: '0x0000000000000000000000000000000000000000',
+    swiseToken: '0x0000000000000000000000000000000000000000',
+
+    // Restake vault settings
+    eigenPodManager: '0x0000000000000000000000000000000000000000',
+    eigenDelegationManager: '0x0000000000000000000000000000000000000000',
+    eigenDelayedWithdrawalRouter: '0x0000000000000000000000000000000000000000',
+    restakeFactoryOwner: '0x0000000000000000000000000000000000000000',
   },
 }
 

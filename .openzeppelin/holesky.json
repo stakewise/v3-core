@@ -2496,8 +2496,8 @@
         "0x16c35CC583b35c301D1884D4cdFb6e06A2dF45f2"
       ]
     },
-    "8811e820ec89a37cd7ab96c24433ff301cb7295974eab531482a2925bbdb76b8": {
-      "address": "0xa95C0BAA54037b9Cf70Cfe8b59732246604C97D2",
+    "27f5d513b53807c228c2988ea1508b3e70c1b003890e53cfe9832f40699497ef": {
+      "address": "0x355AB27BC05f6f54632cFA5A7168219DF72ae727",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -2585,7 +2585,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "154",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -2643,7 +2643,7 @@
             "slot": "160",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -2697,7 +2697,7 @@
             "label": "_positions",
             "offset": 0,
             "slot": "311",
-            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)",
+            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)",
             "contract": "VaultOsToken",
             "src": "contracts/vaults/modules/VaultOsToken.sol:32"
           },
@@ -2707,7 +2707,7 @@
             "slot": "312",
             "type": "t_array(t_uint256)50_storage",
             "contract": "VaultOsToken",
-            "src": "contracts/vaults/modules/VaultOsToken.sol:294"
+            "src": "contracts/vaults/modules/VaultOsToken.sol:296"
           },
           {
             "label": "_ownMevEscrow",
@@ -2739,7 +2739,7 @@
             "slot": "463",
             "type": "t_array(t_uint256)50_storage",
             "contract": "EthVault",
-            "src": "contracts/vaults/ethereum/EthVault.sol:148"
+            "src": "contracts/vaults/ethereum/EthVault.sol:175"
           }
         ],
         "types": {
@@ -2789,7 +2789,7 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -2809,7 +2809,7 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)": {
+          "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)": {
             "label": "mapping(address => struct IVaultOsToken.OsTokenPosition)",
             "numberOfBytes": "32"
           },
@@ -2821,7 +2821,7 @@
             "label": "mapping(bytes32 => uint256)",
             "numberOfBytes": "32"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -2839,19 +2839,19 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(OsTokenPosition)12235_storage": {
+          "t_struct(OsTokenPosition)12309_storage": {
             "label": "struct IVaultOsToken.OsTokenPosition",
             "members": [
               {
@@ -2918,8 +2918,8 @@
         }
       }
     },
-    "6039a152e8d8f6e65aaf4507771c19c58856daaac934ea2bebc5e8365a3327d7": {
-      "address": "0xff4e192710182C1C39859a224Ff92D9c5a858559",
+    "631ec5276b1b06a921da2df6817347ddf8bc4781b9e78eec1930c680f78d9b79": {
+      "address": "0xEBCBADedbd0Dd909B87BBAC44e522aD00E37F075",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -3007,7 +3007,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "154",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -3065,7 +3065,7 @@
             "slot": "160",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -3119,7 +3119,7 @@
             "label": "_positions",
             "offset": 0,
             "slot": "311",
-            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)",
+            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)",
             "contract": "VaultOsToken",
             "src": "contracts/vaults/modules/VaultOsToken.sol:32"
           },
@@ -3129,7 +3129,7 @@
             "slot": "312",
             "type": "t_array(t_uint256)50_storage",
             "contract": "VaultOsToken",
-            "src": "contracts/vaults/modules/VaultOsToken.sol:294"
+            "src": "contracts/vaults/modules/VaultOsToken.sol:296"
           },
           {
             "label": "_ownMevEscrow",
@@ -3161,7 +3161,7 @@
             "slot": "463",
             "type": "t_array(t_uint256)50_storage",
             "contract": "EthVault",
-            "src": "contracts/vaults/ethereum/EthVault.sol:148"
+            "src": "contracts/vaults/ethereum/EthVault.sol:175"
           },
           {
             "label": "whitelister",
@@ -3243,7 +3243,7 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -3267,7 +3267,7 @@
             "label": "mapping(address => bool)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)": {
+          "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)": {
             "label": "mapping(address => struct IVaultOsToken.OsTokenPosition)",
             "numberOfBytes": "32"
           },
@@ -3279,7 +3279,7 @@
             "label": "mapping(bytes32 => uint256)",
             "numberOfBytes": "32"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -3297,19 +3297,19 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(OsTokenPosition)12235_storage": {
+          "t_struct(OsTokenPosition)12309_storage": {
             "label": "struct IVaultOsToken.OsTokenPosition",
             "members": [
               {
@@ -3376,8 +3376,8 @@
         }
       }
     },
-    "4d4e7b808074d5c83c0d00e37006208c1157a7374d65b4dbe826f8ec218b0b0f": {
-      "address": "0x6Fe6f9aD1f0657Db4855CC9D4B61252aD14501E6",
+    "659be184ebbc63ddf8f368dd1871c9729a194d8597a68aed5e4257045e4fa302": {
+      "address": "0xE00512e3F38Ec4f4e79152474DA215506b5b1902",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -3465,7 +3465,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "154",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -3523,7 +3523,7 @@
             "slot": "160",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -3577,7 +3577,7 @@
             "label": "_positions",
             "offset": 0,
             "slot": "311",
-            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)",
+            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)",
             "contract": "VaultOsToken",
             "src": "contracts/vaults/modules/VaultOsToken.sol:32"
           },
@@ -3587,7 +3587,7 @@
             "slot": "312",
             "type": "t_array(t_uint256)50_storage",
             "contract": "VaultOsToken",
-            "src": "contracts/vaults/modules/VaultOsToken.sol:294"
+            "src": "contracts/vaults/modules/VaultOsToken.sol:296"
           },
           {
             "label": "_ownMevEscrow",
@@ -3619,7 +3619,7 @@
             "slot": "463",
             "type": "t_array(t_uint256)50_storage",
             "contract": "EthVault",
-            "src": "contracts/vaults/ethereum/EthVault.sol:148"
+            "src": "contracts/vaults/ethereum/EthVault.sol:175"
           },
           {
             "label": "blocklistManager",
@@ -3701,7 +3701,7 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -3725,7 +3725,7 @@
             "label": "mapping(address => bool)",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)": {
+          "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)": {
             "label": "mapping(address => struct IVaultOsToken.OsTokenPosition)",
             "numberOfBytes": "32"
           },
@@ -3737,7 +3737,7 @@
             "label": "mapping(bytes32 => uint256)",
             "numberOfBytes": "32"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -3755,19 +3755,19 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(OsTokenPosition)12235_storage": {
+          "t_struct(OsTokenPosition)12309_storage": {
             "label": "struct IVaultOsToken.OsTokenPosition",
             "members": [
               {
@@ -3834,8 +3834,8 @@
         }
       }
     },
-    "70d2335c7ba2905e217c2b51c37b3ca6d18c647658dc7e8a0063ad68b23825bf": {
-      "address": "0x34B16AF29C9807E1F6789171868fA3f98fB3a565",
+    "648983e739fe48226487c4f224af106eef32ec081f2b7563e47b882326c37daa": {
+      "address": "0x849DA65aFEd8483152f8Baa75F776c6f2C02E540",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -3971,7 +3971,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "209",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -4029,7 +4029,7 @@
             "slot": "215",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -4083,7 +4083,7 @@
             "label": "_positions",
             "offset": 0,
             "slot": "366",
-            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)",
+            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)",
             "contract": "VaultOsToken",
             "src": "contracts/vaults/modules/VaultOsToken.sol:32"
           },
@@ -4093,7 +4093,7 @@
             "slot": "367",
             "type": "t_array(t_uint256)50_storage",
             "contract": "VaultOsToken",
-            "src": "contracts/vaults/modules/VaultOsToken.sol:294"
+            "src": "contracts/vaults/modules/VaultOsToken.sol:296"
           },
           {
             "label": "_ownMevEscrow",
@@ -4133,7 +4133,7 @@
             "slot": "568",
             "type": "t_array(t_uint256)50_storage",
             "contract": "EthErc20Vault",
-            "src": "contracts/vaults/ethereum/EthErc20Vault.sol:200"
+            "src": "contracts/vaults/ethereum/EthErc20Vault.sol:227"
           }
         ],
         "types": {
@@ -4183,7 +4183,7 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -4207,7 +4207,7 @@
             "label": "mapping(address => mapping(address => uint256))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)": {
+          "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)": {
             "label": "mapping(address => struct IVaultOsToken.OsTokenPosition)",
             "numberOfBytes": "32"
           },
@@ -4223,7 +4223,7 @@
             "label": "string",
             "numberOfBytes": "32"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -4241,19 +4241,19 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(OsTokenPosition)12235_storage": {
+          "t_struct(OsTokenPosition)12309_storage": {
             "label": "struct IVaultOsToken.OsTokenPosition",
             "members": [
               {
@@ -4320,8 +4320,8 @@
         }
       }
     },
-    "d83e68bfb592db81d94c782791e8a25ebdf83ac83fd58b955e90f8776b842a97": {
-      "address": "0xEBF2570686B6701Ea46c546ad396d171a52E3BD5",
+    "068ba63027bd6ca2ed4756a5404ff5786f8e00c6ab62485918a3fb96b1f050b6": {
+      "address": "0xF0C1670364d4b5c4e9dc8062cDd45068D9c678d6",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -4457,7 +4457,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "209",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -4515,7 +4515,7 @@
             "slot": "215",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -4569,7 +4569,7 @@
             "label": "_positions",
             "offset": 0,
             "slot": "366",
-            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)",
+            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)",
             "contract": "VaultOsToken",
             "src": "contracts/vaults/modules/VaultOsToken.sol:32"
           },
@@ -4579,7 +4579,7 @@
             "slot": "367",
             "type": "t_array(t_uint256)50_storage",
             "contract": "VaultOsToken",
-            "src": "contracts/vaults/modules/VaultOsToken.sol:294"
+            "src": "contracts/vaults/modules/VaultOsToken.sol:296"
           },
           {
             "label": "_ownMevEscrow",
@@ -4619,7 +4619,7 @@
             "slot": "568",
             "type": "t_array(t_uint256)50_storage",
             "contract": "EthErc20Vault",
-            "src": "contracts/vaults/ethereum/EthErc20Vault.sol:200"
+            "src": "contracts/vaults/ethereum/EthErc20Vault.sol:227"
           },
           {
             "label": "whitelister",
@@ -4701,7 +4701,7 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -4729,7 +4729,7 @@
             "label": "mapping(address => mapping(address => uint256))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)": {
+          "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)": {
             "label": "mapping(address => struct IVaultOsToken.OsTokenPosition)",
             "numberOfBytes": "32"
           },
@@ -4745,7 +4745,7 @@
             "label": "string",
             "numberOfBytes": "32"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -4763,19 +4763,19 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(OsTokenPosition)12235_storage": {
+          "t_struct(OsTokenPosition)12309_storage": {
             "label": "struct IVaultOsToken.OsTokenPosition",
             "members": [
               {
@@ -4842,8 +4842,8 @@
         }
       }
     },
-    "a3078447c5f6c643c054f40f57e2fc262579f92f0ed885bf4199a753af31168a": {
-      "address": "0x2575845f4Ccc265fF393Ab1eB0F11e5Eb396f66c",
+    "808ad96fb97a256384cee95b9e4d523972003c9d112efe0a0f093bcc8af6b7e2": {
+      "address": "0x01d34aeE72325F1d4A748f13C2169404523eCEE0",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -4979,7 +4979,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "209",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -5037,7 +5037,7 @@
             "slot": "215",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -5091,7 +5091,7 @@
             "label": "_positions",
             "offset": 0,
             "slot": "366",
-            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)",
+            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)",
             "contract": "VaultOsToken",
             "src": "contracts/vaults/modules/VaultOsToken.sol:32"
           },
@@ -5101,7 +5101,7 @@
             "slot": "367",
             "type": "t_array(t_uint256)50_storage",
             "contract": "VaultOsToken",
-            "src": "contracts/vaults/modules/VaultOsToken.sol:294"
+            "src": "contracts/vaults/modules/VaultOsToken.sol:296"
           },
           {
             "label": "_ownMevEscrow",
@@ -5141,7 +5141,7 @@
             "slot": "568",
             "type": "t_array(t_uint256)50_storage",
             "contract": "EthErc20Vault",
-            "src": "contracts/vaults/ethereum/EthErc20Vault.sol:200"
+            "src": "contracts/vaults/ethereum/EthErc20Vault.sol:227"
           },
           {
             "label": "blocklistManager",
@@ -5223,7 +5223,7 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -5251,7 +5251,7 @@
             "label": "mapping(address => mapping(address => uint256))",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)": {
+          "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)": {
             "label": "mapping(address => struct IVaultOsToken.OsTokenPosition)",
             "numberOfBytes": "32"
           },
@@ -5267,7 +5267,7 @@
             "label": "string",
             "numberOfBytes": "32"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -5285,19 +5285,19 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(OsTokenPosition)12235_storage": {
+          "t_struct(OsTokenPosition)12309_storage": {
             "label": "struct IVaultOsToken.OsTokenPosition",
             "members": [
               {
@@ -5364,8 +5364,8 @@
         }
       }
     },
-    "b9fb311519a53f93ac39344505bf7056dc4c7f4e7d59f7ac220d33ce85204696": {
-      "address": "0xcC5E385EdB2fEaB9C9A6DE97b572f1d811312ae7",
+    "e0a360d5faf1f7a57ffd49f8eec2c5ce30753cce21d4f62cde26ecf4dd1be05b": {
+      "address": "0x6415926885A628DCc5960C8870562e728E94Dd7E",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -5453,7 +5453,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "154",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -5511,7 +5511,7 @@
             "slot": "160",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -5565,7 +5565,7 @@
             "label": "_positions",
             "offset": 0,
             "slot": "311",
-            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)",
+            "type": "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)",
             "contract": "VaultOsToken",
             "src": "contracts/vaults/modules/VaultOsToken.sol:32"
           },
@@ -5575,7 +5575,7 @@
             "slot": "312",
             "type": "t_array(t_uint256)50_storage",
             "contract": "VaultOsToken",
-            "src": "contracts/vaults/modules/VaultOsToken.sol:294"
+            "src": "contracts/vaults/modules/VaultOsToken.sol:296"
           },
           {
             "label": "_ownMevEscrow",
@@ -5607,7 +5607,7 @@
             "slot": "463",
             "type": "t_array(t_uint256)50_storage",
             "contract": "EthVault",
-            "src": "contracts/vaults/ethereum/EthVault.sol:148"
+            "src": "contracts/vaults/ethereum/EthVault.sol:175"
           },
           {
             "label": "__gap",
@@ -5665,7 +5665,7 @@
             "label": "address",
             "numberOfBytes": "20"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -5685,7 +5685,7 @@
             "label": "bytes32",
             "numberOfBytes": "32"
           },
-          "t_mapping(t_address,t_struct(OsTokenPosition)12235_storage)": {
+          "t_mapping(t_address,t_struct(OsTokenPosition)12309_storage)": {
             "label": "mapping(address => struct IVaultOsToken.OsTokenPosition)",
             "numberOfBytes": "32"
           },
@@ -5697,7 +5697,7 @@
             "label": "mapping(bytes32 => uint256)",
             "numberOfBytes": "32"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -5715,19 +5715,19 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(OsTokenPosition)12235_storage": {
+          "t_struct(OsTokenPosition)12309_storage": {
             "label": "struct IVaultOsToken.OsTokenPosition",
             "members": [
               {
@@ -5794,8 +5794,100 @@
         }
       }
     },
-    "2305d0f568ae72d6f973f1c8e33e9878b07ae13414646d9f8587b275d6e72ab0": {
-      "address": "0xA63Da80Ba16c2C9e71B8E71AbAD8Ffcb57b12586",
+    "295ab656c218d61652acceda8183568f83c8f7340e757c243368508476fdcaca": {
+      "address": "0x90190b037148Bf25BB1cEEfE717ea320bb594F70",
+      "layout": {
+        "solcVersion": "0.8.22",
+        "storage": [
+          {
+            "label": "vault",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_address",
+            "contract": "EigenPodOwner",
+            "src": "contracts/vaults/ethereum/restake/EigenPodOwner.sol:37"
+          },
+          {
+            "label": "eigenPod",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_address",
+            "contract": "EigenPodOwner",
+            "src": "contracts/vaults/ethereum/restake/EigenPodOwner.sol:41"
+          },
+          {
+            "label": "__gap",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_array(t_uint256)50_storage",
+            "contract": "EigenPodOwner",
+            "src": "contracts/vaults/ethereum/restake/EigenPodOwner.sol:244"
+          }
+        ],
+        "types": {
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)105_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_array(t_uint256)50_storage": {
+            "label": "uint256[50]",
+            "numberOfBytes": "1600"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    },
+    "88a35bdbe67ae08f46e1de95169f50f1e1a8f77aa892a3719c759d1f7248b821": {
+      "address": "0x288F9dc773Dd0E3DC94F975BD24e5018FFc55293",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -5883,7 +5975,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "154",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -5941,7 +6033,7 @@
             "slot": "160",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -6115,7 +6207,7 @@
             "label": "bytes32[]",
             "numberOfBytes": "32"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -6155,7 +6247,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -6173,12 +6265,12 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
@@ -6252,8 +6344,8 @@
         }
       }
     },
-    "55aaab684c5635cfe4789b38794a0aa6d98bad5d67de77748ecec44853e34f27": {
-      "address": "0x92874D5e40588AB0Cd9f48f7338bCdF3006A4Ebd",
+    "ee845e867ae6eaacbd9c981cb1cd2a777e2f81b7c674f017f07dacfd7d9d0783": {
+      "address": "0x89EA6d8000f7925c4765cC1374FAD4423A557eB5",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -6341,7 +6433,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "154",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -6399,7 +6491,7 @@
             "slot": "160",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -6605,7 +6697,7 @@
             "label": "bytes32[]",
             "numberOfBytes": "32"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -6649,7 +6741,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -6667,12 +6759,12 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
@@ -6746,8 +6838,8 @@
         }
       }
     },
-    "815e8192cb545e6c27a55dc8545050cc41cee26a9bb24ed2e15be4dc395de324": {
-      "address": "0xfa1E6003EfF3b50Fd02c450A51693c1A7CcE446b",
+    "2159592b84444512c40efe677428a9703387fe376407ce34a82bdb89694fe714": {
+      "address": "0xA60Cc45A4841c59a3de35a46289DFaEed49f547E",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -6835,7 +6927,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "154",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -6893,7 +6985,7 @@
             "slot": "160",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -7099,7 +7191,7 @@
             "label": "bytes32[]",
             "numberOfBytes": "32"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -7143,7 +7235,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -7161,12 +7253,12 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
@@ -7240,8 +7332,8 @@
         }
       }
     },
-    "005afde0f9bbdabfc365688f8711beba5ad68468a9beafd18341e17cd4414512": {
-      "address": "0xaD03b044b410F56d5afC5A0D55760A8dff3E7AF3",
+    "0ff5d999e106bf4c771ff6f563556084d362dada730150c4b439f19a90a4b171": {
+      "address": "0x9A6102b03be3E64c98eB80Aa9D3187cAA17755f7",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -7377,7 +7469,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "209",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -7435,7 +7527,7 @@
             "slot": "215",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -7617,7 +7709,7 @@
             "label": "bytes32[]",
             "numberOfBytes": "32"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -7665,7 +7757,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -7683,12 +7775,12 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
@@ -7762,8 +7854,8 @@
         }
       }
     },
-    "805b30619fc57c82090817f2da45f661f5fb835f48b4170a8c3fb92f5b50e260": {
-      "address": "0x03a074511A399cbe8156cc5DfAC72958BeaFFA98",
+    "5ae9b33c84254f85b3d5a5479f1c1c74498f20400518ab334668c138b2c65358": {
+      "address": "0xA0328cbb10F501755d841a8a4AD2a3Ac439103e8",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -7899,7 +7991,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "209",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -7957,7 +8049,7 @@
             "slot": "215",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -8171,7 +8263,7 @@
             "label": "bytes32[]",
             "numberOfBytes": "32"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -8223,7 +8315,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -8241,12 +8333,12 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
@@ -8320,8 +8412,8 @@
         }
       }
     },
-    "02e8fd70a4efbe86fefa061086f6e4d04e38c77b871392421ada726eba4c890e": {
-      "address": "0x17CE5aaBB33121ed03cBdB97d296458810319703",
+    "f56bd2b36948624c63b4f776ff43fb40366cca94d172e16bd6aa97a06f46038e": {
+      "address": "0x3919E9B0E3912eE7b72A1f1AF97d07f6dCFEFFea",
       "layout": {
         "solcVersion": "0.8.22",
         "storage": [
@@ -8457,7 +8549,7 @@
             "label": "_exitQueue",
             "offset": 0,
             "slot": "209",
-            "type": "t_struct(History)13998_storage",
+            "type": "t_struct(History)14077_storage",
             "contract": "VaultState",
             "src": "contracts/vaults/modules/VaultState.sol:29"
           },
@@ -8515,7 +8607,7 @@
             "slot": "215",
             "type": "t_array(t_uint256)48_storage",
             "contract": "VaultState",
-            "src": "contracts/vaults/modules/VaultState.sol:330"
+            "src": "contracts/vaults/modules/VaultState.sol:331"
           },
           {
             "label": "_validatorsRoot",
@@ -8729,7 +8821,7 @@
             "label": "bytes32[]",
             "numberOfBytes": "32"
           },
-          "t_array(t_struct(Checkpoint)13992_storage)dyn_storage": {
+          "t_array(t_struct(Checkpoint)14071_storage)dyn_storage": {
             "label": "struct ExitQueue.Checkpoint[]",
             "numberOfBytes": "32"
           },
@@ -8781,7 +8873,7 @@
             ],
             "numberOfBytes": "64"
           },
-          "t_struct(Checkpoint)13992_storage": {
+          "t_struct(Checkpoint)14071_storage": {
             "label": "struct ExitQueue.Checkpoint",
             "members": [
               {
@@ -8799,12 +8891,12 @@
             ],
             "numberOfBytes": "32"
           },
-          "t_struct(History)13998_storage": {
+          "t_struct(History)14077_storage": {
             "label": "struct ExitQueue.History",
             "members": [
               {
                 "label": "checkpoints",
-                "type": "t_array(t_struct(Checkpoint)13992_storage)dyn_storage",
+                "type": "t_array(t_struct(Checkpoint)14071_storage)dyn_storage",
                 "offset": 0,
                 "slot": "0"
               }
@@ -8857,98 +8949,6 @@
               "slot": "0"
             }
           ],
-          "erc7201:openzeppelin.storage.Initializable": [
-            {
-              "contract": "Initializable",
-              "label": "_initialized",
-              "type": "t_uint64",
-              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69",
-              "offset": 0,
-              "slot": "0"
-            },
-            {
-              "contract": "Initializable",
-              "label": "_initializing",
-              "type": "t_bool",
-              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
-              "offset": 8,
-              "slot": "0"
-            }
-          ]
-        }
-      }
-    },
-    "295ab656c218d61652acceda8183568f83c8f7340e757c243368508476fdcaca": {
-      "address": "0x47e002D75dD386Fc9df8E0d0acDcF77B505A97CB",
-      "layout": {
-        "solcVersion": "0.8.22",
-        "storage": [
-          {
-            "label": "vault",
-            "offset": 0,
-            "slot": "0",
-            "type": "t_address",
-            "contract": "EigenPodOwner",
-            "src": "contracts/vaults/ethereum/restake/EigenPodOwner.sol:37"
-          },
-          {
-            "label": "eigenPod",
-            "offset": 0,
-            "slot": "1",
-            "type": "t_address",
-            "contract": "EigenPodOwner",
-            "src": "contracts/vaults/ethereum/restake/EigenPodOwner.sol:41"
-          },
-          {
-            "label": "__gap",
-            "offset": 0,
-            "slot": "2",
-            "type": "t_array(t_uint256)50_storage",
-            "contract": "EigenPodOwner",
-            "src": "contracts/vaults/ethereum/restake/EigenPodOwner.sol:244"
-          }
-        ],
-        "types": {
-          "t_bool": {
-            "label": "bool",
-            "numberOfBytes": "1"
-          },
-          "t_struct(InitializableStorage)105_storage": {
-            "label": "struct Initializable.InitializableStorage",
-            "members": [
-              {
-                "label": "_initialized",
-                "type": "t_uint64",
-                "offset": 0,
-                "slot": "0"
-              },
-              {
-                "label": "_initializing",
-                "type": "t_bool",
-                "offset": 8,
-                "slot": "0"
-              }
-            ],
-            "numberOfBytes": "32"
-          },
-          "t_uint64": {
-            "label": "uint64",
-            "numberOfBytes": "8"
-          },
-          "t_address": {
-            "label": "address",
-            "numberOfBytes": "20"
-          },
-          "t_array(t_uint256)50_storage": {
-            "label": "uint256[50]",
-            "numberOfBytes": "1600"
-          },
-          "t_uint256": {
-            "label": "uint256",
-            "numberOfBytes": "32"
-          }
-        },
-        "namespaces": {
           "erc7201:openzeppelin.storage.Initializable": [
             {
               "contract": "Initializable",

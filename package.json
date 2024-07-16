@@ -1,6 +1,6 @@
 {
   "name": "@stakewise/v3-core",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Liquid staking protocol for Ethereum",
   "main": "index.js",
   "scripts": {
@@ -28,7 +28,8 @@
     "upgrade:holesky": "hardhat eth-upgrade --network holesky",
     "upgrade:mainnet": "hardhat eth-upgrade --network mainnet",
     "full-deploy:eth-local": "hardhat eth-full-deploy-local --network local",
-    "full-deploy:chiado": "hardhat gno-full-deploy --network chiado"
+    "full-deploy:chiado": "hardhat gno-full-deploy --network chiado",
+    "full-deploy:gnosis": "hardhat gno-full-deploy --network gnosis"
   },
   "repository": {
     "type": "git",

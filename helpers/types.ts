@@ -4,6 +4,7 @@ export enum Networks {
   mainnet = 'mainnet',
   holesky = 'holesky',
   chiado = 'chiado',
+  gnosis = 'gnosis',
 }
 
 export type NetworkConfig = {
@@ -74,6 +75,7 @@ export type NetworkConfig = {
   eigenPodManager: string
   eigenDelegationManager: string
   eigenDelayedWithdrawalRouter: string
+  restakeFactoryOwner: string
 }
 
 export type GovernorCall = {
