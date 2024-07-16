@@ -69,6 +69,7 @@ export const NETWORKS: {
     eigenPodManager: '0x30770d7E3e71112d7A6b7259542D1f680a70e315',
     eigenDelegationManager: '0xA44151489861Fe9e3055d95adC98FbD462B948e7',
     eigenDelayedWithdrawalRouter: '0x642c646053eaf2254f088e9019ACD73d9AE0FA32',
+    restakeFactoryOwner: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6'
   },
   [Networks.mainnet]: {
     url: process.env.MAINNET_RPC_URL || '',
@@ -136,6 +137,7 @@ export const NETWORKS: {
     eigenPodManager: '0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338',
     eigenDelegationManager: '0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A',
     eigenDelayedWithdrawalRouter: '0x7Fe7E9CC0F274d2435AD5d56D5fa73E47F6A23D8',
+    restakeFactoryOwner: '0xf91AA4a655B6F43243ed4C2853F3508314DaA2aB',
   },
   [Networks.chiado]: {
     url: process.env.CHIADO_RPC_URL || '',
@@ -207,6 +209,7 @@ export const NETWORKS: {
     eigenPodManager: '0x0000000000000000000000000000000000000000',
     eigenDelegationManager: '0x0000000000000000000000000000000000000000',
     eigenDelayedWithdrawalRouter: '0x0000000000000000000000000000000000000000',
+    restakeFactoryOwner: '0x0000000000000000000000000000000000000000',
   },
   [Networks.gnosis]: {
     url: process.env.GNOSIS_RPC_URL || '',
@@ -223,7 +226,7 @@ export const NETWORKS: {
       '0x0199e1804fea282b10445Cc0844418D276F74741',
       '0x4806EE05e73dcC9b6EC5BB23477E5e7bcBE5317F',
       '0x8F504a3706cBe2122e7Ca04b1fedD00BAAC988b5',
-      '0xbB090974992fE8128606Ea329a3688C5852e45dc',
+      '0x7D03d930775e629CBf9712838098Abfe08a69635',
       '0xf9E45a16a2505093dbb2828f4fb9DCdaeD4E2ac6',
       '0x049614C22E7c33d3E0C8f698f20235cE54761266',
       '0x973fb54e573eb7eF90176d05c9504FF2176B37c8',
@@ -235,7 +238,7 @@ export const NETWORKS: {
     rewardsMinOracles: 6,
     validatorsMinOracles: 6,
     maxAvgRewardPerSecond: 15854895992n, // 50% APY
-    oraclesConfigIpfsHash: 'QmUGVAcwzicoX5Y3fCX5bxPcnDRrT4MZTQuPQSwr8pgjJ4',
+    oraclesConfigIpfsHash: 'QmT9DNP5DFgWtrRDyYWCVFMbLuxmf8bfWLrWEKETQu77Zj',
 
     // OsToken
     treasury: '0x8737f638E9af54e89ed9E1234dbC68B115CD169e',
@@ -278,6 +281,7 @@ export const NETWORKS: {
     eigenPodManager: '0x0000000000000000000000000000000000000000',
     eigenDelegationManager: '0x0000000000000000000000000000000000000000',
     eigenDelayedWithdrawalRouter: '0x0000000000000000000000000000000000000000',
+    restakeFactoryOwner: '0x0000000000000000000000000000000000000000',
   },
 }
 

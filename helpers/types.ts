@@ -75,6 +75,7 @@ export type NetworkConfig = {
   eigenPodManager: string
   eigenDelegationManager: string
   eigenDelayedWithdrawalRouter: string
+  restakeFactoryOwner: string
 }
 
 export type GovernorCall = {
