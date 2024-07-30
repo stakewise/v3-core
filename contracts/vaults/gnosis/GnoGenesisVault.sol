@@ -25,7 +25,7 @@ import {GnoVault, IGnoVault} from './GnoVault.sol';
  */
 contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IGnoPoolEscrow private immutable _poolEscrow;
@@ -88,6 +88,9 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
   function initialize(
     bytes calldata params
   ) external virtual override(IGnoVault, GnoVault) reinitializer(_version) {
+    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
+    if (admin != address(0)) return;
+
     // initialize deployed vault
     (address _admin, GnoVaultInitParams memory initParams) = abi.decode(
       params,
@@ -208,6 +211,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
   {
     return
       super._vaultAssets() +
+      _gnoToken.balanceOf(address(_poolEscrow)) +
       IGnoValidatorsRegistry(_validatorsRegistry).withdrawableAmount(address(_poolEscrow));
   }
 

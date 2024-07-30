@@ -238,9 +238,6 @@ export const createPriceFeed = async function (
 
 export const createRewardSplitterFactory = async function (): Promise<RewardSplitterFactory> {
   const signer = await ethers.provider.getSigner()
-  if (MAINNET_FORK.enabled) {
-    return RewardSplitterFactory__factory.connect(mainnetDeployment.RewardSplitterFactory, signer)
-  }
   let factory = await ethers.getContractFactory('RewardSplitter')
   const rewardSplitterImpl = await factory.deploy()
 

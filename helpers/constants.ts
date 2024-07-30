@@ -47,8 +47,8 @@ export const NETWORKS: {
     // EthGenesisVault
     genesisVault: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
-      poolEscrow: '0x1f10dB396120183Fc309d45110979879866Db0D2',
-      rewardToken: '0xF3d3071905A6495a4D2f8650E8b3baaAE827DD13',
+      poolEscrow: '0xA9f21D016E2846BC9Be972Cf45d9e410283c971e',
+      rewardToken: '0x2ee2E20702B5881a1171c5dbEd01C3d1e49Bf632',
       capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
     },
