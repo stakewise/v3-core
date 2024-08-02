@@ -124,4 +124,11 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
    * @param receiver The address of the receiver of the redeemed assets
    */
   function redeemOsToken(uint256 osTokenShares, address owner, address receiver) external;
+
+  /**
+   * @notice Enters an exit queue for all the user's shares, which will be processed in the OsTokenVaultEscrow
+   * @param receiver The address of the receiver of the exited assets
+   * @return positionTicket The position ticket
+   */
+  function enterOsTokenEscrow(address receiver) external returns (uint256 positionTicket);
 }

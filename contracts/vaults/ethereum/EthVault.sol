@@ -38,7 +38,7 @@ contract EthVault is
   Multicall,
   IEthVault
 {
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -49,6 +49,7 @@ contract EthVault is
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
@@ -60,6 +61,7 @@ contract EthVault is
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
@@ -67,7 +69,7 @@ contract EthVault is
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
     VaultValidators(depositDataRegistry)
     VaultEnterExit(exitingAssetsClaimDelay)
-    VaultOsToken(osTokenVaultController, osTokenConfig)
+    VaultOsToken(osTokenVaultController, osTokenConfig, osTokenVaultEscrow)
     VaultMev(sharedMevEscrow)
   {
     _disableInitializers();
@@ -77,11 +79,9 @@ contract EthVault is
   function initialize(
     bytes calldata params
   ) external payable virtual override reinitializer(_version) {
-    // if admin is already set, it's an upgrade
-    if (admin != address(0)) {
-      __EthVault_initV2();
-      return;
-    }
+    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
+    if (admin != address(0)) return;
+
     // initialize deployed vault
     __EthVault_init(
       IEthVaultFactory(msg.sender).vaultAdmin(),
@@ -157,14 +157,6 @@ contract EthVault is
     __VaultValidators_init();
     __VaultMev_init(ownMevEscrow);
     __VaultEthStaking_init();
-  }
-
-  /**
-   * @dev Initializes the EthVault V2 contract
-   */
-  function __EthVault_initV2() internal onlyInitializing {
-    __VaultState_initV2();
-    __VaultValidators_initV2();
   }
 
   /**

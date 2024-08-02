@@ -41,7 +41,7 @@ contract GnoErc20Vault is
   Multicall,
   IGnoErc20Vault
 {
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -52,6 +52,7 @@ contract GnoErc20Vault is
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param gnoToken The address of the GNO token
@@ -65,6 +66,7 @@ contract GnoErc20Vault is
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     address gnoToken,
@@ -74,7 +76,7 @@ contract GnoErc20Vault is
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
     VaultValidators(depositDataRegistry)
     VaultEnterExit(exitingAssetsClaimDelay)
-    VaultOsToken(osTokenVaultController, osTokenConfig)
+    VaultOsToken(osTokenVaultController, osTokenConfig, osTokenVaultEscrow)
     VaultMev(sharedMevEscrow)
     VaultGnoStaking(gnoToken, xdaiExchange)
   {
@@ -83,6 +85,9 @@ contract GnoErc20Vault is
 
   /// @inheritdoc IGnoErc20Vault
   function initialize(bytes calldata params) external virtual override reinitializer(_version) {
+    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
+    if (admin != address(0)) return;
+
     // initialize deployed vault
     __GnoErc20Vault_init(
       IGnoVaultFactory(msg.sender).vaultAdmin(),

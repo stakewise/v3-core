@@ -18,7 +18,7 @@ import {GnoVault, IGnoVault} from './GnoVault.sol';
  */
 contract GnoBlocklistVault is Initializable, GnoVault, VaultBlocklist, IGnoBlocklistVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -29,6 +29,7 @@ contract GnoBlocklistVault is Initializable, GnoVault, VaultBlocklist, IGnoBlock
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param gnoToken The address of the GNO token
@@ -42,6 +43,7 @@ contract GnoBlocklistVault is Initializable, GnoVault, VaultBlocklist, IGnoBlock
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     address gnoToken,
@@ -54,6 +56,7 @@ contract GnoBlocklistVault is Initializable, GnoVault, VaultBlocklist, IGnoBlock
       _validatorsRegistry,
       osTokenVaultController,
       osTokenConfig,
+      osTokenVaultEscrow,
       sharedMevEscrow,
       depositDataRegistry,
       gnoToken,
@@ -66,6 +69,9 @@ contract GnoBlocklistVault is Initializable, GnoVault, VaultBlocklist, IGnoBlock
   function initialize(
     bytes calldata params
   ) external virtual override(IGnoVault, GnoVault) reinitializer(_version) {
+    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
+    if (admin != address(0)) return;
+
     // initialize deployed vault
     address _admin = IGnoVaultFactory(msg.sender).vaultAdmin();
     __GnoVault_init(

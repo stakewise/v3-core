@@ -24,7 +24,7 @@ import {EthVault, IEthVault} from './EthVault.sol';
  */
 contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IEthPoolEscrow private immutable _poolEscrow;
@@ -43,6 +43,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param poolEscrow The address of the pool escrow from StakeWise v2
@@ -56,6 +57,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     address poolEscrow,
@@ -68,6 +70,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       _validatorsRegistry,
       osTokenVaultController,
       osTokenConfig,
+      osTokenVaultEscrow,
       sharedMevEscrow,
       depositDataRegistry,
       exitingAssetsClaimDelay
@@ -81,11 +84,9 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   function initialize(
     bytes calldata params
   ) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade
-    if (admin != address(0)) {
-      __EthVault_initV2();
-      return;
-    }
+    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
+    if (admin != address(0)) return;
+
     // initialize deployed vault
     (address _admin, EthVaultInitParams memory initParams) = abi.decode(
       params,

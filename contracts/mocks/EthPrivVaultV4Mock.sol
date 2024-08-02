@@ -4,7 +4,7 @@ pragma solidity ^0.8.22;
 
 import {EthPrivVault} from '../vaults/ethereum/EthPrivVault.sol';
 
-contract EthPrivVaultV3Mock is EthPrivVault {
+contract EthPrivVaultV4Mock is EthPrivVault {
   uint128 public newVar;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -14,6 +14,7 @@ contract EthPrivVaultV3Mock is EthPrivVault {
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
@@ -24,6 +25,7 @@ contract EthPrivVaultV3Mock is EthPrivVault {
       _validatorsRegistry,
       osTokenVaultController,
       osTokenConfig,
+      osTokenVaultEscrow,
       sharedMevEscrow,
       depositDataRegistry,
       exitingAssetsClaimDelay

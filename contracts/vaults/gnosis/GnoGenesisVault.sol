@@ -25,7 +25,7 @@ import {GnoVault, IGnoVault} from './GnoVault.sol';
  */
 contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 3;
+  uint8 private constant _version = 4;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IGnoPoolEscrow private immutable _poolEscrow;
@@ -44,6 +44,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param gnoToken The address of the GNO token
@@ -59,6 +60,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     address gnoToken,
@@ -73,6 +75,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
       _validatorsRegistry,
       osTokenVaultController,
       osTokenConfig,
+      osTokenVaultEscrow,
       sharedMevEscrow,
       depositDataRegistry,
       gnoToken,
@@ -88,7 +91,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
   function initialize(
     bytes calldata params
   ) external virtual override(IGnoVault, GnoVault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
+    // if admin is already set, it's an upgrade from version 3 to 4, no initialization required
     if (admin != address(0)) return;
 
     // initialize deployed vault

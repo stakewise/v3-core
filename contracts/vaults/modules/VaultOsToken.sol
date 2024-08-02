@@ -7,6 +7,7 @@ import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {IOsTokenVaultController} from '../../interfaces/IOsTokenVaultController.sol';
 import {IOsTokenConfig} from '../../interfaces/IOsTokenConfig.sol';
 import {IVaultOsToken} from '../../interfaces/IVaultOsToken.sol';
+import {IOsTokenVaultEscrow} from '../../interfaces/IOsTokenVaultEscrow.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
 import {VaultEnterExit, IVaultEnterExit} from './VaultEnterExit.sol';
@@ -29,6 +30,9 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IOsTokenConfig private immutable _osTokenConfig;
 
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  IOsTokenVaultEscrow private immutable _osTokenVaultEscrow;
+
   mapping(address => OsTokenPosition) private _positions;
 
   /**
@@ -37,11 +41,13 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address osTokenVaultController, address osTokenConfig) {
+  constructor(address osTokenVaultController, address osTokenConfig, address osTokenVaultEscrow) {
     _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
     _osTokenConfig = IOsTokenConfig(osTokenConfig);
+    _osTokenVaultEscrow = IOsTokenVaultEscrow(osTokenVaultEscrow);
   }
 
   /// @inheritdoc IVaultOsToken
@@ -138,6 +144,29 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
       false
     );
     emit OsTokenRedeemed(msg.sender, owner, receiver, osTokenShares, burnedShares, receivedAssets);
+  }
+
+  /// @inheritdoc IVaultOsToken
+  function enterOsTokenEscrow(address receiver) external override returns (uint256 positionTicket) {
+    // fetch user position
+    OsTokenPosition memory position = _positions[msg.sender];
+
+    // sync fee
+    _syncPositionFee(position);
+
+    // enter the exit queue for all the user's shares
+    positionTicket = super.enterExitQueue(_balances[msg.sender], address(_osTokenVaultEscrow));
+
+    // enter escrow
+    _osTokenVaultEscrow.register(
+      receiver,
+      positionTicket,
+      position.shares,
+      position.cumulativeFeePerShare
+    );
+
+    // clean up user position
+    delete _positions[msg.sender];
   }
 
   /// @inheritdoc IVaultEnterExit

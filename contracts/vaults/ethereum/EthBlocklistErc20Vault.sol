@@ -24,7 +24,7 @@ contract EthBlocklistErc20Vault is
   IEthBlocklistErc20Vault
 {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -35,6 +35,7 @@ contract EthBlocklistErc20Vault is
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
@@ -46,6 +47,7 @@ contract EthBlocklistErc20Vault is
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
@@ -56,6 +58,7 @@ contract EthBlocklistErc20Vault is
       _validatorsRegistry,
       osTokenVaultController,
       osTokenConfig,
+      osTokenVaultEscrow,
       sharedMevEscrow,
       depositDataRegistry,
       exitingAssetsClaimDelay
@@ -66,6 +69,9 @@ contract EthBlocklistErc20Vault is
   function initialize(
     bytes calldata params
   ) external payable virtual override(IEthErc20Vault, EthErc20Vault) reinitializer(_version) {
+    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
+    if (admin != address(0)) return;
+
     // initialize deployed vault
     address _admin = IEthVaultFactory(msg.sender).vaultAdmin();
     __EthErc20Vault_init(
