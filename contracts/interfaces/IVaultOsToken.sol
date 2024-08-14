@@ -131,6 +131,6 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
    * @return positionTicket The exit position ticket
    */
   function transferOsTokenPositionToEscrow(
-    uint128 osTokenShares
+    uint256 osTokenShares
   ) external returns (uint256 positionTicket);
 }

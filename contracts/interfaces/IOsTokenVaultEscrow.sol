@@ -34,8 +34,8 @@ interface IOsTokenVaultEscrow {
     address indexed vault,
     uint256 indexed exitPositionTicket,
     address owner,
-    uint128 osTokenShares,
-    uint128 cumulativeFeePerShare
+    uint256 osTokenShares,
+    uint256 cumulativeFeePerShare
   );
 
   /**
@@ -124,8 +124,8 @@ interface IOsTokenVaultEscrow {
   function register(
     address owner,
     uint256 exitPositionTicket,
-    uint128 osTokenShares,
-    uint128 cumulativeFeePerShare
+    uint256 osTokenShares,
+    uint256 cumulativeFeePerShare
   ) external;
 
   /**

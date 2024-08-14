@@ -148,7 +148,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
 
   /// @inheritdoc IVaultOsToken
   function transferOsTokenPositionToEscrow(
-    uint128 osTokenShares
+    uint256 osTokenShares
   ) external override returns (uint256 positionTicket) {
     // check whether vault assets are up to date
     _checkHarvested();
@@ -166,7 +166,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
       // calculate exit assets share
       exitAssets = Math.mulDiv(exitAssets, osTokenShares, position.shares);
       // update osToken position
-      position.shares -= osTokenShares;
+      position.shares -= SafeCast.toUint128(osTokenShares);
       _positions[msg.sender] = position;
     } else {
       // all the position assets are exited

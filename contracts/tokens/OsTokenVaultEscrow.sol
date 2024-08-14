@@ -55,8 +55,8 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
   function register(
     address owner,
     uint256 exitPositionTicket,
-    uint128 osTokenShares,
-    uint128 cumulativeFeePerShare
+    uint256 osTokenShares,
+    uint256 cumulativeFeePerShare
   ) external override {
     // check if caller is a vault
     if (!_vaultsRegistry.vaults(msg.sender)) {
@@ -71,8 +71,8 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     _positions[msg.sender][exitPositionTicket] = Position({
       owner: owner,
       exitedAssets: 0,
-      osTokenShares: osTokenShares,
-      cumulativeFeePerShare: cumulativeFeePerShare
+      osTokenShares: SafeCast.toUint128(osTokenShares),
+      cumulativeFeePerShare: SafeCast.toUint128(cumulativeFeePerShare)
     });
 
     // emit event

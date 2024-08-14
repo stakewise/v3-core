@@ -1391,9 +1391,9 @@
   {
     "inputs": [
       {
-        "internalType": "uint128",
+        "internalType": "uint256",
         "name": "osTokenShares",
-        "type": "uint128"
+        "type": "uint256"
       }
     ],
     "name": "transferOsTokenPositionToEscrow",
