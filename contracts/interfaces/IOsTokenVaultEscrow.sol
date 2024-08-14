@@ -51,18 +51,10 @@ interface IOsTokenVaultEscrow {
   );
 
   /**
-   * @notice Event emitted on osToken burning
-   * @param caller The address of the function caller
-   * @param positionId The position id
-   * @param osTokenShares The amount of osToken shares burned
-   */
-  event OsTokenBurned(address indexed caller, bytes32 indexed positionId, uint256 osTokenShares);
-
-  /**
    * @notice Event emitted on osToken liquidation
    * @param caller The address of the function caller
    * @param vault The address of the vault
-   * @param positionId The position id
+   * @param exitPositionTicket The exit position ticket
    * @param receiver The address of the receiver of the liquidated assets
    * @param osTokenShares The amount of osToken shares to liquidate
    * @param receivedAssets The amount of assets received
@@ -70,7 +62,7 @@ interface IOsTokenVaultEscrow {
   event OsTokenLiquidated(
     address indexed caller,
     address indexed vault,
-    bytes32 indexed positionId,
+    uint256 indexed exitPositionTicket,
     address receiver,
     uint256 osTokenShares,
     uint256 receivedAssets
@@ -80,7 +72,7 @@ interface IOsTokenVaultEscrow {
    * @notice Event emitted on osToken redemption
    * @param caller The address of the function caller
    * @param vault The address of the vault
-   * @param positionId The position id
+   * @param exitPositionTicket The exit position ticket
    * @param receiver The address of the receiver of the redeemed assets
    * @param osTokenShares The amount of osToken shares to redeem
    * @param receivedAssets The amount of assets received
@@ -88,7 +80,7 @@ interface IOsTokenVaultEscrow {
   event OsTokenRedeemed(
     address indexed caller,
     address indexed vault,
-    bytes32 indexed positionId,
+    uint256 indexed exitPositionTicket,
     address receiver,
     uint256 osTokenShares,
     uint256 receivedAssets
@@ -98,35 +90,29 @@ interface IOsTokenVaultEscrow {
    * @notice Event emitted on exited assets claim
    * @param receiver The address of the receiver of the exited assets
    * @param vault The address of the vault
-   * @param positionId The position id
+   * @param exitPositionTicket The exit position ticket
+   * @param osTokenShares The amount of osToken shares burned
    * @param assets The amount of assets claimed
    */
   event ExitedAssetsClaimed(
     address indexed receiver,
     address indexed vault,
-    bytes32 indexed positionId,
-    uint96 assets
+    uint256 indexed exitPositionTicket,
+    uint256 osTokenShares,
+    uint256 assets
   );
 
   /**
-   * @notice Get the escrow position details
-   * @param positionId The position id
-   * @return owner The address of the assets owner
+   * @notice Get the position details
+   * @param vault The address of the vault
+   * @param positionTicket The exit position ticket
    * @return exitedAssets The amount of assets exited and ready to be claimed
    * @return osTokenShares The amount of osToken shares
-   * @return cumulativeFeePerShare The cumulative fee per share used to calculate the osToken fee
    */
-  function positions(
-    bytes32 positionId
-  )
-    external
-    view
-    returns (
-      address owner,
-      uint96 exitedAssets,
-      uint128 osTokenShares,
-      uint128 cumulativeFeePerShare
-    );
+  function getPosition(
+    address vault,
+    uint256 positionTicket
+  ) external view returns (uint256, uint256);
 
   /**
    * @notice Registers the new escrow position
@@ -155,11 +141,16 @@ interface IOsTokenVaultEscrow {
   ) external;
 
   /**
-   * @notice Burns the osToken shares. Can only be called by the position owner
-   * @param positionId The position id
+   * @notice Claims the exited assets from the escrow to the owner. Can only be called by the position owner.
+   * @param vault The address of the vault
+   * @param exitPositionTicket The exit position ticket
    * @param osTokenShares The amount of osToken shares to burn
    */
-  function burnOsToken(bytes32 positionId, uint128 osTokenShares) external;
+  function claimExitedAssets(
+    address vault,
+    uint256 exitPositionTicket,
+    uint256 osTokenShares
+  ) external;
 
   /**
    * @notice Liquidates the osToken shares
@@ -188,12 +179,4 @@ interface IOsTokenVaultEscrow {
     uint256 osTokenShares,
     address receiver
   ) external;
-
-  /**
-   * @notice Claims the exited assets from the escrow to the owner. Can only be called by the position owner.
-   * @param vault The address of the vault
-   * @param exitPositionTicket The exit position ticket
-   * @param assets The amount of assets to claim
-   */
-  function claimExitedAssets(address vault, uint256 exitPositionTicket, uint96 assets) external;
 }

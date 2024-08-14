@@ -27,8 +27,7 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
   IOsTokenVaultController private immutable _osTokenVaultController;
   IOsTokenConfig private immutable _osTokenConfig;
 
-  /// @inheritdoc IOsTokenVaultEscrow
-  mapping(bytes32 => Position) public override positions;
+  mapping(address vault => mapping(uint256 positionTicket => Position)) private _positions;
 
   /**
    * @dev Constructor
@@ -40,6 +39,16 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
     _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
     _osTokenConfig = IOsTokenConfig(osTokenConfig);
+  }
+
+  /// @inheritdoc IOsTokenVaultEscrow
+  function getPosition(
+    address vault,
+    uint256 positionTicket
+  ) external view returns (uint256, uint256) {
+    Position memory position = _positions[vault][positionTicket];
+    _syncPositionFee(position);
+    return (position.exitedAssets, position.osTokenShares);
   }
 
   /// @inheritdoc IOsTokenVaultEscrow
@@ -59,8 +68,7 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     if (osTokenShares == 0) revert Errors.InvalidShares();
 
     // create new position
-    bytes32 positionId = keccak256(abi.encodePacked(msg.sender, exitPositionTicket));
-    positions[positionId] = Position({
+    _positions[msg.sender][exitPositionTicket] = Position({
       owner: owner,
       exitedAssets: 0,
       osTokenShares: osTokenShares,
@@ -84,8 +92,7 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     uint256 timestamp
   ) external override {
     // get position
-    bytes32 positionId = keccak256(abi.encodePacked(vault, exitPositionTicket));
-    Position storage position = positions[positionId];
+    Position storage position = _positions[vault][exitPositionTicket];
     if (position.owner == address(0)) revert Errors.InvalidPosition();
 
     // claim exited assets
@@ -107,21 +114,51 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
   }
 
   /// @inheritdoc IOsTokenVaultEscrow
-  function burnOsToken(bytes32 positionId, uint128 osTokenShares) external override {
+  function claimExitedAssets(
+    address vault,
+    uint256 exitPositionTicket,
+    uint256 osTokenShares
+  ) external override {
     // burn osToken shares
     _osTokenVaultController.burnShares(msg.sender, osTokenShares);
 
     // fetch user position
-    Position memory position = positions[positionId];
+    Position memory position = _positions[vault][exitPositionTicket];
     if (msg.sender != position.owner) revert Errors.AccessDenied();
-    _syncPositionFee(position);
 
-    // update position osTokenShares
-    position.osTokenShares -= osTokenShares;
-    positions[positionId] = position;
+    // check whether position exists and there are enough osToken shares
+    _syncPositionFee(position);
+    if (position.osTokenShares == 0 || position.osTokenShares < osTokenShares) {
+      revert Errors.InvalidShares();
+    }
+
+    // calculate assets to withdraw
+    uint256 assetsToTransfer;
+    if (position.osTokenShares != osTokenShares) {
+      assetsToTransfer = Math.mulDiv(position.exitedAssets, osTokenShares, position.osTokenShares);
+
+      // update position osTokenShares
+      position.osTokenShares -= SafeCast.toUint128(osTokenShares);
+      _positions[vault][exitPositionTicket] = position;
+    } else {
+      assetsToTransfer = position.exitedAssets;
+
+      // remove position as it is fully processed
+      delete _positions[vault][exitPositionTicket];
+    }
+    if (assetsToTransfer == 0) revert Errors.ExitRequestNotProcessed();
+
+    // transfer assets
+    _transferAssets(position.owner, assetsToTransfer);
 
     // emit event
-    emit OsTokenBurned(msg.sender, positionId, osTokenShares);
+    emit ExitedAssetsClaimed(
+      msg.sender,
+      vault,
+      exitPositionTicket,
+      osTokenShares,
+      assetsToTransfer
+    );
   }
 
   /// @inheritdoc IOsTokenVaultEscrow
@@ -131,9 +168,21 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     uint256 osTokenShares,
     address receiver
   ) external override {
-    bytes32 positionId = keccak256(abi.encodePacked(vault, exitPositionTicket));
-    uint256 receivedAssets = _redeemOsToken(vault, positionId, receiver, osTokenShares, true);
-    emit OsTokenLiquidated(msg.sender, vault, positionId, receiver, osTokenShares, receivedAssets);
+    uint256 receivedAssets = _redeemOsToken(
+      vault,
+      exitPositionTicket,
+      receiver,
+      osTokenShares,
+      true
+    );
+    emit OsTokenLiquidated(
+      msg.sender,
+      vault,
+      exitPositionTicket,
+      receiver,
+      osTokenShares,
+      receivedAssets
+    );
   }
 
   /// @inheritdoc IOsTokenVaultEscrow
@@ -144,61 +193,34 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     address receiver
   ) external override {
     if (msg.sender != _osTokenConfig.redeemer()) revert Errors.AccessDenied();
-    bytes32 positionId = keccak256(abi.encodePacked(vault, exitPositionTicket));
-    uint256 receivedAssets = _redeemOsToken(vault, positionId, receiver, osTokenShares, false);
-    emit OsTokenRedeemed(msg.sender, vault, positionId, receiver, osTokenShares, receivedAssets);
+    uint256 receivedAssets = _redeemOsToken(
+      vault,
+      exitPositionTicket,
+      receiver,
+      osTokenShares,
+      false
+    );
+    emit OsTokenRedeemed(
+      msg.sender,
+      vault,
+      exitPositionTicket,
+      receiver,
+      osTokenShares,
+      receivedAssets
+    );
   }
-
-  /// @inheritdoc IOsTokenVaultEscrow
-  function claimExitedAssets(
-    address vault,
-    uint256 exitPositionTicket,
-    uint96 assets
-  ) external override {
-    // fetch user position
-    bytes32 positionId = keccak256(abi.encodePacked(vault, exitPositionTicket));
-    Position memory position = positions[positionId];
-    if (msg.sender != position.owner) revert Errors.AccessDenied();
-    _syncPositionFee(position);
-
-    // deduct assets, reverts if transferring more than available
-    position.exitedAssets -= assets;
-
-    // calculate and validate position LTV
-    if (_calcMaxOsTokenShares(vault, position.exitedAssets) < position.osTokenShares) {
-      revert Errors.LowLtv();
-    }
-
-    // update position
-    positions[positionId] = position;
-
-    // transfer assets
-    _transferAssets(position.owner, assets);
-
-    // emit event
-    emit ExitedAssetsClaimed(msg.sender, vault, positionId, assets);
-  }
-
-  //
-  //  receive() external payable {
-  //    if (!_vaultsRegistry.vaults(msg.sender)) {
-  //      revert Errors.AccessDenied();
-  //    }
-  //    emit AssetsReceived(msg.sender, msg.value);
-  //  }
-  //
 
   /**
    * @dev Internal function for redeeming osToken shares
    * @param vault The address of the vault
-   * @param positionId The position id
+   * @param exitPositionTicket The position ticket of the exit queue
    * @param receiver The address of the receiver of the redeemed assets
    * @param osTokenShares The amount of osToken shares to redeem
    * @param isLiquidation Whether the redeem is a liquidation
    */
   function _redeemOsToken(
     address vault,
-    bytes32 positionId,
+    uint256 exitPositionTicket,
     address receiver,
     uint256 osTokenShares,
     bool isLiquidation
@@ -209,7 +231,7 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     _osTokenVaultController.updateState();
 
     // fetch user position
-    Position memory position = positions[positionId];
+    Position memory position = _positions[vault][exitPositionTicket];
     if (position.osTokenShares == 0) revert Errors.InvalidPosition();
     _syncPositionFee(position);
 
@@ -256,7 +278,7 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
 
     // update position
     position.osTokenShares -= SafeCast.toUint128(osTokenShares);
-    positions[positionId] = position;
+    _positions[vault][exitPositionTicket] = position;
 
     // transfer assets to the receiver
     _transferAssets(receiver, receivedAssets);
@@ -278,20 +300,6 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
       Math.mulDiv(position.osTokenShares, cumulativeFeePerShare, position.cumulativeFeePerShare)
     );
     position.cumulativeFeePerShare = SafeCast.toUint128(cumulativeFeePerShare);
-  }
-
-  /**
-   * @dev Internal function for calculating the maximum amount of osToken shares that can be backed by provided assets
-   * @param assets The amount of assets to convert to osToken shares
-   * @return maxOsTokenShares The maximum amount of osToken shares
-   */
-  function _calcMaxOsTokenShares(address vault, uint256 assets) private view returns (uint256) {
-    uint256 maxOsTokenAssets = Math.mulDiv(
-      assets,
-      _osTokenConfig.getConfig(vault).ltvPercent,
-      _maxPercent
-    );
-    return _osTokenVaultController.convertToShares(maxOsTokenAssets);
   }
 
   /**

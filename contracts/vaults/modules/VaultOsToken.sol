@@ -147,26 +147,47 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   }
 
   /// @inheritdoc IVaultOsToken
-  function enterOsTokenEscrow(address receiver) external override returns (uint256 positionTicket) {
-    // fetch user position
+  function transferOsTokenPositionToEscrow(
+    uint128 osTokenShares
+  ) external override returns (uint256 positionTicket) {
+    // check whether vault assets are up to date
+    _checkHarvested();
+
+    // fetch user osToken position
     OsTokenPosition memory position = _positions[msg.sender];
-
-    // sync fee
     _syncPositionFee(position);
+    if (position.shares == 0 || position.shares < osTokenShares) {
+      revert Errors.InvalidShares();
+    }
 
-    // enter the exit queue for all the user's shares
-    positionTicket = super.enterExitQueue(_balances[msg.sender], address(_osTokenVaultEscrow));
+    // calculate assets to enter the exit queue
+    uint256 exitAssets;
+    if (position.shares != osTokenShares) {
+      // calculate exit assets share
+      exitAssets = Math.mulDiv(exitAssets, osTokenShares, position.shares);
+      // update osToken position
+      position.shares -= osTokenShares;
+      _positions[msg.sender] = position;
+    } else {
+      // all the position assets are exited
+      exitAssets = convertToAssets(_balances[msg.sender]);
+      // remove the position
+      delete _positions[msg.sender];
+    }
 
-    // enter escrow
-    _osTokenVaultEscrow.register(
-      receiver,
-      positionTicket,
-      position.shares,
-      position.cumulativeFeePerShare
+    // enter the exit queue
+    positionTicket = super.enterExitQueue(
+      convertToShares(exitAssets),
+      address(_osTokenVaultEscrow)
     );
 
-    // clean up user position
-    delete _positions[msg.sender];
+    // transfer to escrow
+    _osTokenVaultEscrow.register(
+      msg.sender,
+      positionTicket,
+      osTokenShares,
+      position.cumulativeFeePerShare
+    );
   }
 
   /// @inheritdoc IVaultEnterExit
