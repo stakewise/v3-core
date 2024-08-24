@@ -15,7 +15,7 @@ import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { PANIC_CODES, SECURITY_DEPOSIT, ZERO_ADDRESS } from './shared/constants'
 import { collateralizeEthVault, getRewardsRootProof, updateRewards } from './shared/rewards'
-import { setBalance } from './shared/utils'
+import { extractDepositShares, setBalance } from './shared/utils'
 import { registerEthValidator } from './shared/validators'
 
 const ether = ethers.parseEther('1')
@@ -194,6 +194,7 @@ describe('EthVault - deposit', () => {
       await expect(receipt).to.emit(vault, 'Deposited')
       await expect(receipt).to.emit(keeper, 'Harvested')
       await expect(receipt).to.emit(mevEscrow, 'Harvested')
+      await expect(receipt).to.emit(vault, 'CheckpointCreated')
       await snapshotGasCost(receipt)
     })
 
@@ -226,6 +227,21 @@ describe('EthVault - deposit', () => {
       await expect(receipt)
         .to.emit(vault, 'Deposited')
         .withArgs(depositorMockAddress, depositorMockAddress, amount, expectedShares, ZERO_ADDRESS)
+      await snapshotGasCost(receipt)
+    })
+
+    it('executes action hook', async () => {
+      const amount = ethers.parseEther('100')
+      const hookMock = await ethers.deployContract('VaultActionHooksMock')
+      await vault.connect(admin).setActionHook(await hookMock.getAddress())
+
+      const receipt = await vault
+        .connect(sender)
+        .deposit(receiver.address, referrer, { value: amount })
+      const shares = await extractDepositShares(receipt)
+      await expect(receipt)
+        .to.emit(hookMock, 'UserBalanceChange')
+        .withArgs(sender.address, receiver.address, shares)
       await snapshotGasCost(receipt)
     })
   })

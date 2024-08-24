@@ -30,9 +30,9 @@ contract EthVaultV5Mock is EthVaultV4Mock {
     )
   {}
 
-  function initialize(bytes calldata data) external payable override reinitializer(4) {}
+  function initialize(bytes calldata data) external payable override reinitializer(5) {}
 
   function version() public pure virtual override returns (uint8) {
-    return 4;
+    return 5;
   }
 }

@@ -17,34 +17,48 @@ Object {
 exports[`EthVault - token permit accepts owner signature 1`] = `
 Object {
   "calldataByteLength": 228,
-  "gasUsed": 82401,
+  "gasUsed": 82433,
 }
 `;
 
 exports[`EthVault - token transfer from when the spender has enough allowance when the token owner has enough balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 54747,
+  "gasUsed": 57111,
 }
 `;
 
 exports[`EthVault - token transfer from when the spender has unlimited allowance does not decrease the spender allowance 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 61223,
+  "gasUsed": 63587,
+}
+`;
+
+exports[`EthVault - token transfer when the sender transfers all balance calls action hook 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 64055,
+}
+`;
+
+exports[`EthVault - token transfer when the sender transfers all balance does not fail with invalid action hook 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 60779,
 }
 `;
 
 exports[`EthVault - token transfer when the sender transfers all balance transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 54388,
+  "gasUsed": 56796,
 }
 `;
 
 exports[`EthVault - token transfer when the sender transfers zero tokens transfers the requested amount 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 36464,
+  "gasUsed": 38872,
 }
 `;

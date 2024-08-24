@@ -574,6 +574,25 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "caller",
+        "type": "address"
+      },
+      {
+        "indexed": false,
+        "internalType": "address",
+        "name": "hook",
+        "type": "address"
+      }
+    ],
+    "name": "VaultActionHookUpdated",
+    "type": "event"
+  },
+  {
     "inputs": [],
     "name": "DOMAIN_SEPARATOR",
     "outputs": [
@@ -744,17 +763,17 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "leftTickets",
+        "name": "leftShares",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "exitedTickets",
+        "name": "claimedShares",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "exitedAssets",
+        "name": "claimedAssets",
         "type": "uint256"
       }
     ],
@@ -1311,6 +1330,19 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "newActionHook",
+        "type": "address"
+      }
+    ],
+    "name": "setActionHook",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "_blocklistManager",
         "type": "address"
       }
@@ -1380,19 +1412,6 @@
         "internalType": "uint256",
         "name": "",
         "type": "uint256"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
-    "name": "totalExitingAssets",
-    "outputs": [
-      {
-        "internalType": "uint128",
-        "name": "",
-        "type": "uint128"
       }
     ],
     "stateMutability": "view",

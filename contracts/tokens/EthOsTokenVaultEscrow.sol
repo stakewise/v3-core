@@ -22,24 +22,36 @@ contract EthOsTokenVaultEscrow is ReentrancyGuard, OsTokenVaultEscrow {
 
   /**
    * @dev Constructor
-   * @param vaultsRegistry The address of the VaultsRegistry contract
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param initialOwner The address of the contract owner
+   * @param _authenticator The address of the OsTokenVaultEscrowAuth contract
+   * @param _liqThresholdPercent The liquidation threshold percent
+   * @param _liqBonusPercent The liquidation bonus percent
    */
   constructor(
-    address vaultsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
-    address gnoToken
-  ) ReentrancyGuard() OsTokenVaultEscrow(vaultsRegistry, osTokenVaultController, osTokenConfig) {}
+    address initialOwner,
+    address _authenticator,
+    uint256 _liqThresholdPercent,
+    uint256 _liqBonusPercent
+  )
+    ReentrancyGuard()
+    OsTokenVaultEscrow(
+      osTokenVaultController,
+      osTokenConfig,
+      initialOwner,
+      _authenticator,
+      _liqThresholdPercent,
+      _liqBonusPercent
+    )
+  {}
 
   /**
    * @dev Function for receiving assets from the vault
    */
   receive() external payable {
-    if (!_vaultsRegistry.vaults(msg.sender)) {
-      revert Errors.AccessDenied();
-    }
     emit AssetsReceived(msg.sender, msg.value);
   }
 

@@ -69,8 +69,11 @@ contract EthBlocklistErc20Vault is
   function initialize(
     bytes calldata params
   ) external payable virtual override(IEthErc20Vault, EthErc20Vault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
-    if (admin != address(0)) return;
+    // if admin is already set, it's an upgrade from version 2 to 3
+    if (admin != address(0)) {
+      __EthErc20Vault_initV3();
+      return;
+    }
 
     // initialize deployed vault
     address _admin = IEthVaultFactory(msg.sender).vaultAdmin();

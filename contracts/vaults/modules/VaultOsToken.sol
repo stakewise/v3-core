@@ -63,35 +63,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     uint256 osTokenShares,
     address referrer
   ) public virtual override returns (uint256 assets) {
-    _checkCollateralized();
-    _checkHarvested();
-
-    // mint osToken shares to the receiver
-    assets = _osTokenVaultController.mintShares(receiver, osTokenShares);
-
-    // fetch user position
-    OsTokenPosition memory position = _positions[msg.sender];
-    if (position.shares != 0) {
-      _syncPositionFee(position);
-    } else {
-      position.cumulativeFeePerShare = SafeCast.toUint128(
-        _osTokenVaultController.cumulativeFeePerShare()
-      );
-    }
-
-    // add minted shares to the position
-    position.shares += SafeCast.toUint128(osTokenShares);
-
-    // calculate and validate LTV
-    if (_calcMaxOsTokenShares(convertToAssets(_balances[msg.sender])) < position.shares) {
-      revert Errors.LowLtv();
-    }
-
-    // update state
-    _positions[msg.sender] = position;
-
-    // emit event
-    emit OsTokenMinted(msg.sender, receiver, assets, osTokenShares, referrer);
+    return _mintOsToken(msg.sender, receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IVaultOsToken
@@ -155,31 +127,27 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
 
     // fetch user osToken position
     OsTokenPosition memory position = _positions[msg.sender];
-    _syncPositionFee(position);
-    if (position.shares == 0 || position.shares < osTokenShares) {
-      revert Errors.InvalidShares();
-    }
+    if (position.shares == 0) revert Errors.InvalidShares();
 
-    // calculate assets to enter the exit queue
-    uint256 exitAssets;
+    // sync accumulated fee
+    _syncPositionFee(position);
+    if (position.shares < osTokenShares) revert Errors.InvalidShares();
+
+    // calculate shares to enter the exit queue
+    uint256 exitShares = _balances[msg.sender];
     if (position.shares != osTokenShares) {
-      // calculate exit assets share
-      exitAssets = Math.mulDiv(exitAssets, osTokenShares, position.shares);
+      // calculate exit shares
+      exitShares = Math.mulDiv(exitShares, osTokenShares, position.shares);
       // update osToken position
       position.shares -= SafeCast.toUint128(osTokenShares);
       _positions[msg.sender] = position;
     } else {
-      // all the position assets are exited
-      exitAssets = convertToAssets(_balances[msg.sender]);
-      // remove the position
+      // all the assets are sent to the exit queue, remove position
       delete _positions[msg.sender];
     }
 
     // enter the exit queue
-    positionTicket = super.enterExitQueue(
-      convertToShares(exitAssets),
-      address(_osTokenVaultEscrow)
-    );
+    positionTicket = super.enterExitQueue(exitShares, address(_osTokenVaultEscrow));
 
     // transfer to escrow
     _osTokenVaultEscrow.register(
@@ -197,6 +165,51 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 positionTicket) {
     positionTicket = super.enterExitQueue(shares, receiver);
     _checkOsTokenPosition(msg.sender);
+  }
+
+  /**
+   * @dev Internal function for minting osToken shares
+   * @param owner The owner of the osToken position
+   * @param receiver The receiver of the osToken shares
+   * @param osTokenShares The amount of osToken shares to mint
+   * @param referrer The address of the referrer
+   * @return assets The amount of assets minted
+   */
+  function _mintOsToken(
+    address owner,
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) internal returns (uint256 assets) {
+    _checkCollateralized();
+    _checkHarvested();
+
+    // mint osToken shares to the receiver
+    assets = _osTokenVaultController.mintShares(receiver, osTokenShares);
+
+    // fetch user position
+    OsTokenPosition memory position = _positions[owner];
+    if (position.shares != 0) {
+      _syncPositionFee(position);
+    } else {
+      position.cumulativeFeePerShare = SafeCast.toUint128(
+        _osTokenVaultController.cumulativeFeePerShare()
+      );
+    }
+
+    // add minted shares to the position
+    position.shares += SafeCast.toUint128(osTokenShares);
+
+    // calculate and validate LTV
+    if (_calcMaxOsTokenShares(convertToAssets(_balances[owner])) < position.shares) {
+      revert Errors.LowLtv();
+    }
+
+    // update state
+    _positions[owner] = position;
+
+    // emit event
+    emit OsTokenMinted(owner, receiver, assets, osTokenShares, referrer);
   }
 
   /**
@@ -336,6 +349,28 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
       _maxPercent
     );
     return _osTokenVaultController.convertToShares(maxOsTokenAssets);
+  }
+
+  /**
+   * @dev Internal function for calculating the maximum amount of osToken shares that can be minted
+   *      based on the current user balance
+   * @param user The address of the user
+   * @return The maximum amount of osToken shares that can be minted
+   */
+  function _calcMaxMintOsTokenShares(address user) internal view returns (uint256) {
+    uint256 userAssets = convertToAssets(_balances[user]);
+    if (userAssets == 0) return 0;
+
+    OsTokenPosition memory position = _positions[user];
+    if (position.shares != 0) _syncPositionFee(position);
+    // add 1 to avoid rounding errors
+    position.shares += 1;
+
+    uint256 userMaxOsTokenShares = _calcMaxOsTokenShares(userAssets);
+    unchecked {
+      // cannot underflow because userOsTokenShares < userMaxOsTokenShares
+      return position.shares < userMaxOsTokenShares ? userMaxOsTokenShares - position.shares : 0;
+    }
   }
 
   /**

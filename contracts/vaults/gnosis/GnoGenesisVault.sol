@@ -91,8 +91,11 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
   function initialize(
     bytes calldata params
   ) external virtual override(IGnoVault, GnoVault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 3 to 4, no initialization required
-    if (admin != address(0)) return;
+    // if admin is already set, it's an upgrade from version 3 to 4
+    if (admin != address(0)) {
+      __GnoVault_initV3();
+      return;
+    }
 
     // initialize deployed vault
     (address _admin, GnoVaultInitParams memory initParams) = abi.decode(
@@ -132,7 +135,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     bool isCollateralized = IKeeperRewards(_keeper).isCollateralized(address(this));
 
     // process total assets delta since last update
-    (int256 totalAssetsDelta, ) = _harvestAssets(harvestParams);
+    (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
 
     if (!isCollateralized) {
       // it's the first harvest, deduct rewards accumulated so far in legacy pool
@@ -145,6 +148,9 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
 
     // process total assets delta
     _processTotalAssetsDelta(totalAssetsDelta);
+
+    // update exit queue every time new update is harvested
+    if (harvested) _updateExitQueue();
   }
 
   /// @inheritdoc IGnoGenesisVault
@@ -164,6 +170,15 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     // update state
     _totalAssets += SafeCast.toUint128(assets);
     _mintShares(receiver, shares);
+
+    // mint max possible OsToken shares
+    uint256 mintOsTokenShares = Math.min(
+      _calcMaxMintOsTokenShares(receiver),
+      _calcMaxOsTokenShares(assets)
+    );
+    if (mintOsTokenShares > 0) {
+      _mintOsToken(receiver, receiver, mintOsTokenShares, address(0));
+    }
 
     emit Migrated(receiver, assets, shares);
   }

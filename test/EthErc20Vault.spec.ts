@@ -5,20 +5,13 @@ import {
   EthErc20Vault,
   Keeper,
   OsTokenVaultController,
-  VaultsRegistry,
-  OsTokenConfig,
-  SharedMevEscrow,
-  DepositDataRegistry,
   IKeeperRewards,
+  OsTokenConfig,
+  DepositDataRegistry,
   OsToken,
 } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import {
-  createDepositorMock,
-  deployEthVaultV1,
-  encodeEthErc20VaultInitParams,
-  ethVaultFixture,
-} from './shared/fixtures'
+import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { MAX_UINT256, ZERO_ADDRESS } from './shared/constants'
 import {
@@ -32,7 +25,6 @@ import keccak256 from 'keccak256'
 import { extractExitPositionTicket, setBalance } from './shared/utils'
 import { MAINNET_FORK } from '../helpers/constants'
 import { registerEthValidator } from './shared/validators'
-import { getEthErc20VaultV1Factory } from './shared/contracts'
 
 describe('EthErc20Vault', () => {
   const capacity = ethers.parseEther('1000')
@@ -46,9 +38,7 @@ describe('EthErc20Vault', () => {
     keeper: Keeper,
     validatorsRegistry: Contract,
     osTokenVaultController: OsTokenVaultController,
-    vaultsRegistry: VaultsRegistry,
     osTokenConfig: OsTokenConfig,
-    sharedMevEscrow: SharedMevEscrow,
     depositDataRegistry: DepositDataRegistry,
     osToken: OsToken
 
@@ -67,8 +57,6 @@ describe('EthErc20Vault', () => {
     validatorsRegistry = fixture.validatorsRegistry
     osTokenVaultController = fixture.osTokenVaultController
     osTokenConfig = fixture.osTokenConfig
-    vaultsRegistry = fixture.vaultsRegistry
-    sharedMevEscrow = fixture.sharedMevEscrow
     depositDataRegistry = fixture.depositDataRegistry
     osToken = fixture.osToken
   })
@@ -78,7 +66,7 @@ describe('EthErc20Vault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(2)
+    expect(await vault.version()).to.eq(3)
   })
 
   it('deposit emits transfer event', async () => {
@@ -127,8 +115,7 @@ describe('EthErc20Vault', () => {
 
   it('enter exit queue emits transfer event', async () => {
     await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
-    expect(await vault.totalExitingAssets()).to.be.eq(0)
-    const totalExitingBefore = await vault.totalExitingAssets()
+    const queuedSharesBefore = await vault.queuedShares()
     const totalAssetsBefore = await vault.totalAssets()
     const totalSharesBefore = await vault.totalShares()
 
@@ -143,35 +130,20 @@ describe('EthErc20Vault', () => {
     const receipt = await vault.connect(sender).enterExitQueue(shares, receiver.address)
     const positionTicket = await extractExitPositionTicket(receipt)
     await expect(receipt)
-      .to.emit(vault, 'V2ExitQueueEntered')
-      .withArgs(sender.address, receiver.address, positionTicket, shares, amount)
-    await expect(receipt).to.emit(vault, 'Transfer').withArgs(sender.address, ZERO_ADDRESS, shares)
-    expect(await vault.totalExitingAssets()).to.be.eq(totalExitingBefore + amount)
-    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore)
-    expect(await vault.totalSupply()).to.be.eq(totalSharesBefore)
+      .to.emit(vault, 'ExitQueueEntered')
+      .withArgs(sender.address, receiver.address, positionTicket, shares)
+    await expect(receipt)
+      .to.emit(vault, 'Transfer')
+      .withArgs(sender.address, await vault.getAddress(), shares)
+    expect(await vault.queuedShares()).to.be.eq(queuedSharesBefore + shares)
+    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore + amount)
+    expect(await vault.totalSupply()).to.be.eq(totalSharesBefore + shares)
     expect(await vault.balanceOf(sender.address)).to.be.eq(0)
 
     await snapshotGasCost(receipt)
   })
 
   it('update exit queue emits transfer event', async () => {
-    const vault = await deployEthVaultV1(
-      await getEthErc20VaultV1Factory(),
-      admin,
-      keeper,
-      vaultsRegistry,
-      validatorsRegistry,
-      osTokenVaultController,
-      osTokenConfig,
-      sharedMevEscrow,
-      encodeEthErc20VaultInitParams({
-        capacity,
-        name,
-        symbol,
-        feePercent,
-        metadataIpfsHash,
-      })
-    )
     const validatorDeposit = ethers.parseEther('32')
     await vault
       .connect(admin)

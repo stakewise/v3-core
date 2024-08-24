@@ -2,12 +2,14 @@
 
 pragma solidity ^0.8.22;
 
+import {IMulticall} from './IMulticall.sol';
+
 /**
  * @title IOsTokenVaultEscrow
  * @author StakeWise
  * @notice Interface for OsTokenVaultEscrow contract
  */
-interface IOsTokenVaultEscrow {
+interface IOsTokenVaultEscrow is IMulticall {
   /**
    * @notice Struct to store the escrow position details
    * @param owner The address of the assets owner
@@ -41,11 +43,13 @@ interface IOsTokenVaultEscrow {
   /**
    * @notice Event emitted on assets exit processing
    * @param vault The address of the vault
+   * @param caller The address of the caller
    * @param exitPositionTicket The exit position ticket
    * @param exitedAssets The amount of exited assets claimed
    */
   event ExitedAssetsProcessed(
     address indexed vault,
+    address indexed caller,
     uint256 indexed exitPositionTicket,
     uint256 exitedAssets
   );
@@ -103,6 +107,37 @@ interface IOsTokenVaultEscrow {
   );
 
   /**
+   * @notice Event emitted on configuration update
+   * @param liqThresholdPercent The liquidation threshold percent
+   * @param liqBonusPercent The liquidation bonus percent
+   */
+  event ConfigUpdated(uint256 liqThresholdPercent, uint256 liqBonusPercent);
+
+  /**
+   * @notice Event emitted on authenticator update
+   * @param newAuthenticator The address of the new authenticator
+   */
+  event AuthenticatorUpdated(address newAuthenticator);
+
+  /**
+   * @notice The liquidation threshold percent
+   * @return The liquidation threshold percent starting from which the osToken shares can be liquidated
+   */
+  function liqThresholdPercent() external view returns (uint256);
+
+  /**
+   * @notice The liquidation bonus percent
+   * @return The liquidation bonus percent paid for liquidating the osToken shares
+   */
+  function liqBonusPercent() external view returns (uint256);
+
+  /**
+   * @notice The address of the authenticator
+   * @return The address of the authenticator contract
+   */
+  function authenticator() external view returns (address);
+
+  /**
    * @notice Get the position details
    * @param vault The address of the vault
    * @param positionTicket The exit position ticket
@@ -133,11 +168,13 @@ interface IOsTokenVaultEscrow {
    * @param vault The address of the vault
    * @param exitPositionTicket The exit position ticket
    * @param timestamp The timestamp of the exit
+   * @param exitQueueIndex The index of the exit in the queue
    */
   function processExitedAssets(
     address vault,
     uint256 exitPositionTicket,
-    uint256 timestamp
+    uint256 timestamp,
+    uint256 exitQueueIndex
   ) external;
 
   /**
@@ -179,4 +216,17 @@ interface IOsTokenVaultEscrow {
     uint256 osTokenShares,
     address receiver
   ) external;
+
+  /**
+   * @notice Updates the authenticator. Can only be called by the owner.
+   * @param newAuthenticator The address of the new authenticator
+   */
+  function setAuthenticator(address newAuthenticator) external;
+
+  /**
+   * @notice Updates the configuration. Can only be called by the owner.
+   * @param _liqThresholdPercent The liquidation threshold percent
+   * @param _liqBonusPercent The liquidation bonus percent
+   */
+  function updateConfig(uint256 _liqThresholdPercent, uint256 _liqBonusPercent) external;
 }

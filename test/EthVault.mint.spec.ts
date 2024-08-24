@@ -216,7 +216,7 @@ describe('EthVault - mint', () => {
     // mint max shares
     let receipt = await vault
       .connect(other)
-      .depositAndMintOsToken(receiver.address, MAX_UINT256, ZERO_ADDRESS, { value: assets })
+      .depositAndMintOsToken(receiver.address, osTokenShares, ZERO_ADDRESS, { value: assets })
 
     if (MAINNET_FORK.enabled) {
       osTokenAssets -= 1n // rounding error
@@ -289,7 +289,9 @@ describe('EthVault - mint', () => {
 
     const config = await osTokenConfig.getConfig(await vault.getAddress())
     let osTokenAssets = (assets * config.ltvPercent) / ethers.parseEther('1')
-    const osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+    let osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
+    osTokenShares -= 1n // rounding error
+    osTokenAssets = await osTokenVaultController.convertToAssets(osTokenShares)
 
     const receipt = await vault
       .connect(other)

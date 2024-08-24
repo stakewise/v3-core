@@ -40,7 +40,7 @@ contract EthRestakeVault is
 {
   using EnumerableSet for EnumerableSet.AddressSet;
 
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -77,6 +77,12 @@ contract EthRestakeVault is
   function initialize(
     bytes calldata params
   ) external payable virtual override reinitializer(_version) {
+    // if admin is already set, it's an upgrade from version 2 to 3
+    if (admin != address(0)) {
+      __EthRestakeVault_initV3();
+      return;
+    }
+
     // initialize deployed vault
     __EthRestakeVault_init(
       IEthVaultFactory(msg.sender).vaultAdmin(),
@@ -134,6 +140,13 @@ contract EthRestakeVault is
     returns (uint256)
   {
     return super._validatorLength();
+  }
+
+  /**
+   * @dev Initializes the EthRestakeVault contract
+   */
+  function __EthRestakeVault_initV3() internal {
+    __VaultState_initV3();
   }
 
   /**

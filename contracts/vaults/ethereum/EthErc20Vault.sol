@@ -83,8 +83,11 @@ contract EthErc20Vault is
   function initialize(
     bytes calldata params
   ) external payable virtual override reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
-    if (admin != address(0)) return;
+    // if admin is already set, it's an upgrade from version 2 to 3
+    if (admin != address(0)) {
+      __EthErc20Vault_initV3();
+      return;
+    }
 
     // initialize deployed vault
     __EthErc20Vault_init(
@@ -151,7 +154,8 @@ contract EthErc20Vault is
     override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
     returns (uint256 positionTicket)
   {
-    return super.enterExitQueue(shares, receiver);
+    positionTicket = super.enterExitQueue(shares, receiver);
+    emit Transfer(msg.sender, address(this), shares);
   }
 
   /// @inheritdoc IVaultVersion
@@ -188,6 +192,13 @@ contract EthErc20Vault is
     uint256 shares
   ) internal virtual override(VaultState, VaultToken) {
     super._burnShares(owner, shares);
+  }
+
+  /**
+   * @dev Initializes the EthErc20Vault contract
+   */
+  function __EthErc20Vault_initV3() internal {
+    __VaultState_initV3();
   }
 
   /**

@@ -84,8 +84,11 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   function initialize(
     bytes calldata params
   ) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
-    if (admin != address(0)) return;
+    // if admin is already set, it's an upgrade from version 2 to 3
+    if (admin != address(0)) {
+      __EthVault_initV3();
+      return;
+    }
 
     // initialize deployed vault
     (address _admin, EthVaultInitParams memory initParams) = abi.decode(
@@ -160,6 +163,15 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     // update state
     _totalAssets += SafeCast.toUint128(assets);
     _mintShares(receiver, shares);
+
+    // mint max possible OsToken shares
+    uint256 mintOsTokenShares = Math.min(
+      _calcMaxMintOsTokenShares(receiver),
+      _calcMaxOsTokenShares(assets)
+    );
+    if (mintOsTokenShares > 0) {
+      _mintOsToken(receiver, receiver, mintOsTokenShares, address(0));
+    }
 
     emit Migrated(receiver, assets, shares);
   }

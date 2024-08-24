@@ -4,11 +4,12 @@ pragma solidity ^0.8.22;
 
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
+import {Ownable2Step, Ownable} from '@openzeppelin/contracts/access/Ownable2Step.sol';
 import {IOsTokenVaultEscrow} from '../interfaces/IOsTokenVaultEscrow.sol';
 import {IOsTokenVaultController} from '../interfaces/IOsTokenVaultController.sol';
-import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IVaultEnterExit} from '../interfaces/IVaultEnterExit.sol';
 import {IOsTokenConfig} from '../interfaces/IOsTokenConfig.sol';
+import {IOsTokenVaultEscrowAuth} from '../interfaces/IOsTokenVaultEscrowAuth.sol';
 import {Errors} from '../libraries/Errors.sol';
 import {Multicall} from '../base/Multicall.sol';
 
@@ -17,28 +18,47 @@ import {Multicall} from '../base/Multicall.sol';
  * @author StakeWise
  * @notice Used for initiating assets exits from the vault without burning osToken
  */
-abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
+abstract contract OsTokenVaultEscrow is Ownable2Step, Multicall, IOsTokenVaultEscrow {
   uint256 private constant _maxPercent = 1e18;
   uint256 private constant _wad = 1e18;
   uint256 private constant _hfLiqThreshold = 1e18;
-  uint256 private constant _disabledLiqThreshold = type(uint64).max;
 
-  IVaultsRegistry internal immutable _vaultsRegistry;
   IOsTokenVaultController private immutable _osTokenVaultController;
   IOsTokenConfig private immutable _osTokenConfig;
 
   mapping(address vault => mapping(uint256 positionTicket => Position)) private _positions;
 
+  /// @inheritdoc IOsTokenVaultEscrow
+  uint256 public override liqThresholdPercent;
+
+  /// @inheritdoc IOsTokenVaultEscrow
+  uint256 public override liqBonusPercent;
+
+  /// @inheritdoc IOsTokenVaultEscrow
+  address public override authenticator;
+
   /**
    * @dev Constructor
-   * @param vaultsRegistry The address of the VaultsRegistry contract
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param initialOwner The address of the contract owner
+   * @param _authenticator The address of the OsTokenVaultEscrowAuth contract
+   * @param _liqThresholdPercent The liquidation threshold percent
+   * @param _liqBonusPercent The liquidation bonus percent
    */
-  constructor(address vaultsRegistry, address osTokenVaultController, address osTokenConfig) {
-    _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
+  constructor(
+    address osTokenVaultController,
+    address osTokenConfig,
+    address initialOwner,
+    address _authenticator,
+    uint256 _liqThresholdPercent,
+    uint256 _liqBonusPercent
+  ) Ownable(msg.sender) {
     _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
     _osTokenConfig = IOsTokenConfig(osTokenConfig);
+    updateConfig(_liqThresholdPercent, _liqBonusPercent);
+    setAuthenticator(_authenticator);
+    _transferOwnership(initialOwner);
   }
 
   /// @inheritdoc IOsTokenVaultEscrow
@@ -47,7 +67,9 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     uint256 positionTicket
   ) external view returns (uint256, uint256) {
     Position memory position = _positions[vault][positionTicket];
-    _syncPositionFee(position);
+    if (position.osTokenShares != 0) {
+      _syncPositionFee(position);
+    }
     return (position.exitedAssets, position.osTokenShares);
   }
 
@@ -58,8 +80,15 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     uint256 osTokenShares,
     uint256 cumulativeFeePerShare
   ) external override {
-    // check if caller is a vault
-    if (!_vaultsRegistry.vaults(msg.sender)) {
+    // check if caller has permission
+    if (
+      !IOsTokenVaultEscrowAuth(authenticator).canRegister(
+        msg.sender,
+        owner,
+        exitPositionTicket,
+        osTokenShares
+      )
+    ) {
       revert Errors.AccessDenied();
     }
 
@@ -89,7 +118,8 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
   function processExitedAssets(
     address vault,
     uint256 exitPositionTicket,
-    uint256 timestamp
+    uint256 timestamp,
+    uint256 exitQueueIndex
   ) external override {
     // get position
     Position storage position = _positions[vault][exitPositionTicket];
@@ -100,17 +130,21 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
       address(this),
       exitPositionTicket,
       timestamp,
-      0
+      uint256(exitQueueIndex)
     );
     // the exit request must be fully processed (1 ticket could be a rounding error)
     if (leftTickets > 1) revert Errors.ExitRequestNotProcessed();
-    IVaultEnterExit(vault).claimExitedAssets(exitPositionTicket, timestamp, 0);
+    IVaultEnterExit(vault).claimExitedAssets(
+      exitPositionTicket,
+      timestamp,
+      uint256(exitQueueIndex)
+    );
 
     // update position
     position.exitedAssets = SafeCast.toUint96(exitedAssets);
 
     // emit event
-    emit ExitedAssetsProcessed(vault, exitPositionTicket, exitedAssets);
+    emit ExitedAssetsProcessed(vault, msg.sender, exitPositionTicket, exitedAssets);
   }
 
   /// @inheritdoc IOsTokenVaultEscrow
@@ -138,6 +172,7 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
       assetsToTransfer = Math.mulDiv(position.exitedAssets, osTokenShares, position.osTokenShares);
 
       // update position osTokenShares
+      position.exitedAssets -= SafeCast.toUint96(assetsToTransfer);
       position.osTokenShares -= SafeCast.toUint128(osTokenShares);
       _positions[vault][exitPositionTicket] = position;
     } else {
@@ -210,6 +245,39 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     );
   }
 
+  /// @inheritdoc IOsTokenVaultEscrow
+  function setAuthenticator(address newAuthenticator) public override onlyOwner {
+    if (authenticator == newAuthenticator) revert Errors.ValueNotChanged();
+    authenticator = newAuthenticator;
+    emit AuthenticatorUpdated(newAuthenticator);
+  }
+
+  /// @inheritdoc IOsTokenVaultEscrow
+  function updateConfig(
+    uint256 _liqThresholdPercent,
+    uint256 _liqBonusPercent
+  ) public override onlyOwner {
+    // validate liquidation threshold percent
+    if (_liqThresholdPercent == 0 || _liqThresholdPercent >= _maxPercent) {
+      revert Errors.InvalidLiqThresholdPercent();
+    }
+
+    // validate liquidation bonus percent
+    if (
+      _liqBonusPercent < _maxPercent ||
+      Math.mulDiv(_liqThresholdPercent, _liqBonusPercent, _maxPercent) > _maxPercent
+    ) {
+      revert Errors.InvalidLiqBonusPercent();
+    }
+
+    // update config
+    liqThresholdPercent = _liqThresholdPercent;
+    liqBonusPercent = _liqBonusPercent;
+
+    // emit event
+    emit ConfigUpdated(_liqThresholdPercent, _liqBonusPercent);
+  }
+
   /**
    * @dev Internal function for redeeming osToken shares
    * @param vault The address of the vault
@@ -217,6 +285,7 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
    * @param receiver The address of the receiver of the redeemed assets
    * @param osTokenShares The amount of osToken shares to redeem
    * @param isLiquidation Whether the redeem is a liquidation
+   * @return receivedAssets The amount of assets received
    */
   function _redeemOsToken(
     address vault,
@@ -235,17 +304,11 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     if (position.osTokenShares == 0) revert Errors.InvalidPosition();
     _syncPositionFee(position);
 
-    // SLOAD to memory
-    IOsTokenConfig.Config memory osTokenConfig = _osTokenConfig.getConfig(vault);
-    if (isLiquidation && osTokenConfig.liqThresholdPercent == _disabledLiqThreshold) {
-      revert Errors.LiquidationDisabled();
-    }
-
     // calculate received assets
     if (isLiquidation) {
       receivedAssets = Math.mulDiv(
         _osTokenVaultController.convertToAssets(osTokenShares),
-        osTokenConfig.liqBonusPercent,
+        liqBonusPercent,
         _maxPercent
       );
     } else {
@@ -258,13 +321,13 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
         revert Errors.InvalidReceivedAssets();
       }
 
-      uint256 mintedAssets = _osTokenVaultController.convertToAssets(position.osTokenShares);
       if (isLiquidation) {
         // check health factor violation in case of liquidation
+        uint256 mintedAssets = _osTokenVaultController.convertToAssets(position.osTokenShares);
         if (
           Math.mulDiv(
             position.exitedAssets * _wad,
-            osTokenConfig.liqThresholdPercent,
+            liqThresholdPercent,
             mintedAssets * _maxPercent
           ) >= _hfLiqThreshold
         ) {
@@ -277,6 +340,7 @@ abstract contract OsTokenVaultEscrow is Multicall, IOsTokenVaultEscrow {
     _osTokenVaultController.burnShares(msg.sender, osTokenShares);
 
     // update position
+    position.exitedAssets -= SafeCast.toUint96(receivedAssets);
     position.osTokenShares -= SafeCast.toUint128(osTokenShares);
     _positions[vault][exitPositionTicket] = position;
 

@@ -54,6 +54,10 @@ abstract contract VaultToken is Initializable, ERC20Upgradeable, VaultState, IVa
       _balances[to] += amount;
     }
 
+    // execute hook if exists
+    _executeUserBalanceChangeHook(from);
+    _executeUserBalanceChangeHook(to);
+
     emit Transfer(from, to, amount);
   }
 

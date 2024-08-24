@@ -6,14 +6,11 @@ import {
   Keeper,
   OwnMevEscrow__factory,
   SharedMevEscrow,
-  VaultsRegistry,
-  OsTokenVaultController,
-  OsTokenConfig,
   DepositDataRegistry,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import { deployEthVaultV1, encodeEthVaultInitParams, ethVaultFixture } from './shared/fixtures'
+import { ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import {
   MAX_UINT256,
@@ -24,13 +21,11 @@ import {
 } from './shared/constants'
 import { extractDepositShares, setBalance } from './shared/utils'
 import {
-  collateralizeEthV1Vault,
   collateralizeEthVault,
   getHarvestParams,
   getRewardsRootProof,
   updateRewards,
 } from './shared/rewards'
-import { getEthVaultV1Factory } from './shared/contracts'
 
 describe('EthVault - state', () => {
   const holderAssets = ethers.parseEther('1')
@@ -43,9 +38,6 @@ describe('EthVault - state', () => {
     keeper: Keeper,
     sharedMevEscrow: SharedMevEscrow,
     validatorsRegistry: Contract,
-    vaultsRegistry: VaultsRegistry,
-    osTokenVaultController: OsTokenVaultController,
-    osTokenConfig: OsTokenConfig,
     depositDataRegistry: DepositDataRegistry
 
   let createVault: ThenArg<ReturnType<typeof ethVaultFixture>>['createEthVault']
@@ -59,9 +51,6 @@ describe('EthVault - state', () => {
       keeper,
       validatorsRegistry,
       sharedMevEscrow,
-      vaultsRegistry,
-      osTokenVaultController,
-      osTokenConfig,
       depositDataRegistry,
     } = await loadFixture(ethVaultFixture))
     vault = await createVault(admin, {
@@ -228,63 +217,6 @@ describe('EthVault - state', () => {
     await snapshotGasCost(receipt)
   })
 
-  it('splits penalty between exiting assets and staking assets', async () => {
-    await expect(await vault.totalExitingAssets()).to.be.eq(0)
-    const holder = other
-    let totalShares = await vault.totalShares()
-    let totalAssets = await vault.totalAssets()
-    const withdrawableAssets = await vault.withdrawableAssets()
-    const vaultBalance = await ethers.provider.getBalance(await vault.getAddress())
-    const unclaimedAssets = vaultBalance - withdrawableAssets
-
-    const holderAssets = totalAssets
-    const tx = await vault.deposit(holder.address, ZERO_ADDRESS, {
-      value: holderAssets,
-    })
-    const holderShares = await extractDepositShares(tx)
-    expect(holderShares).to.be.eq(totalShares)
-    expect(await vault.getShares(holder.address)).to.be.eq(holderShares)
-    totalShares *= 2n
-    totalAssets *= 2n
-
-    expect(await vault.totalShares()).to.eq(totalShares)
-    expect(await vault.totalAssets()).to.eq(totalAssets)
-
-    await vault.connect(holder).enterExitQueue(holderShares, holder.address)
-    const exitingAssets = await vault.totalExitingAssets()
-    expect(exitingAssets).to.eq(holderAssets)
-    expect(await vault.totalShares()).to.be.eq(totalShares / 2n)
-    expect(await vault.getShares(holder.address)).to.be.eq(0)
-
-    // all assets are slashed
-    await setBalance(await vault.getAddress(), unclaimedAssets)
-    const vaultReward = getHarvestParams(await vault.getAddress(), -totalAssets, 0n)
-    const tree = await updateRewards(keeper, [vaultReward])
-    const proof = getRewardsRootProof(tree, {
-      vault: vaultReward.vault,
-      reward: vaultReward.reward,
-      unlockedMevReward: vaultReward.unlockedMevReward,
-    })
-
-    const receipt = await vault.updateState({
-      rewardsRoot: tree.root,
-      reward: vaultReward.reward,
-      unlockedMevReward: vaultReward.unlockedMevReward,
-      proof,
-    })
-    await expect(receipt)
-      .to.emit(vault, 'ExitingAssetsPenalized')
-      .withArgs(totalAssets / 2n)
-    await expect(receipt)
-      .emit(keeper, 'Harvested')
-      .withArgs(await vault.getAddress(), tree.root, -totalAssets, 0n)
-    await expect(receipt).not.emit(vault, 'FeeSharesMinted')
-    expect(await ethers.provider.getBalance(await vault.getAddress())).to.be.eq(unclaimedAssets)
-    expect(await vault.totalAssets()).to.be.eq(0n)
-    expect(await vault.totalExitingAssets()).to.be.eq(0n)
-    await snapshotGasCost(receipt)
-  })
-
   it('allocates fee to recipient when delta is above zero', async () => {
     // create vault with own mev escrow
     const vault = await createVault(
@@ -339,23 +271,53 @@ describe('EthVault - state', () => {
     await snapshotGasCost(receipt)
   })
 
-  it('updates exit queue', async () => {
-    const vault = await deployEthVaultV1(
-      await getEthVaultV1Factory(),
+  it('calls hook on fee allocation', async () => {
+    // create vault with own mev escrow
+    const vault = await createVault(
       admin,
-      keeper,
-      vaultsRegistry,
-      validatorsRegistry,
-      osTokenVaultController,
-      osTokenConfig,
-      sharedMevEscrow,
-      encodeEthVaultInitParams({
+      {
         capacity,
         feePercent,
         metadataIpfsHash,
-      })
+      },
+      true,
+      true
     )
-    await collateralizeEthV1Vault(vault, keeper, validatorsRegistry, admin)
+    await vault.connect(holder).deposit(holder.address, ZERO_ADDRESS, { value: holderAssets })
+
+    const rewardValidators = ethers.parseEther('0.5')
+    const vaultReward = getHarvestParams(await vault.getAddress(), rewardValidators, 0n)
+    const tree = await updateRewards(keeper, [vaultReward])
+    const proof = getRewardsRootProof(tree, vaultReward)
+
+    const hookMock = await ethers.deployContract('VaultActionHooksMock')
+    await vault.connect(admin).setActionHook(await hookMock.getAddress())
+
+    const receipt = await vault.connect(other).updateState({
+      rewardsRoot: tree.root,
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
+      proof,
+    })
+    const feeShares = await vault.getShares(await admin.getAddress())
+    await expect(receipt)
+      .to.emit(hookMock, 'UserBalanceChange')
+      .withArgs(other.address, await admin.getAddress(), feeShares)
+    await snapshotGasCost(receipt)
+  })
+
+  it('updates exit queue', async () => {
+    const vault = await createVault(
+      admin,
+      {
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      },
+      false,
+      true
+    )
+    await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
     const tx = await vault
       .connect(holder)
       .deposit(holder.address, ZERO_ADDRESS, { value: holderAssets })
@@ -404,5 +366,29 @@ describe('EthVault - state', () => {
     expect(await vault.totalShares()).to.be.eq(totalSharesAfter)
     expect(await vault.totalAssets()).to.be.eq(totalAssetsAfter)
     await snapshotGasCost(receipt)
+  })
+
+  describe('action hook', () => {
+    it('not admin cannot set action hook', async () => {
+      await expect(vault.connect(other).setActionHook(other.address)).revertedWithCustomError(
+        vault,
+        'AccessDenied'
+      )
+    })
+    it('cannot set action hook to the same value', async () => {
+      await vault.connect(admin).setActionHook(other.address)
+      await expect(vault.connect(admin).setActionHook(other.address)).revertedWithCustomError(
+        vault,
+        'ValueNotChanged'
+      )
+    })
+
+    it('admin can set action hook', async () => {
+      const tx = await vault.connect(admin).setActionHook(other.address)
+      await expect(tx)
+        .to.emit(vault, 'VaultActionHookUpdated')
+        .withArgs(await admin.getAddress(), other.address)
+      await snapshotGasCost(tx)
+    })
   })
 })

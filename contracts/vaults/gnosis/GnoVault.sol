@@ -81,8 +81,11 @@ contract GnoVault is
 
   /// @inheritdoc IGnoVault
   function initialize(bytes calldata params) external virtual override reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
-    if (admin != address(0)) return;
+    // if admin is already set, it's an upgrade from version 2 to 3
+    if (admin != address(0)) {
+      __GnoVault_initV3();
+      return;
+    }
 
     // initialize deployed vault
     __GnoVault_init(
@@ -113,6 +116,13 @@ contract GnoVault is
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
     return _version;
+  }
+
+  /**
+   * @dev Initializes the GnoVault contract
+   */
+  function __GnoVault_initV3() internal {
+    __VaultState_initV3();
   }
 
   /**

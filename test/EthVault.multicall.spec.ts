@@ -122,12 +122,11 @@ describe('EthVault - multicall', () => {
     const timestamp = await getBlockTimestamp(receipt)
     await expect(receipt).to.emit(keeper, 'Harvested')
     await expect(receipt).to.emit(mevEscrow, 'Harvested')
-    await expect(receipt).to.emit(vault, 'V2ExitQueueEntered')
+    await expect(receipt).to.emit(vault, 'ExitQueueEntered')
     await snapshotGasCost(receipt)
     const vaultTotalBalance =
       userAssets +
       (await ethers.provider.getBalance(vaultAddr)) +
-      (await vault.totalExitingAssets()) +
       (await vault.convertToAssets(await vault.queuedShares()))
 
     // wait for exit queue to complete and withdraw exited assets

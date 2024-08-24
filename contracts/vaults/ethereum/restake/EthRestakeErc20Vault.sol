@@ -43,7 +43,7 @@ contract EthRestakeErc20Vault is
 {
   using EnumerableSet for EnumerableSet.AddressSet;
 
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -80,6 +80,12 @@ contract EthRestakeErc20Vault is
   function initialize(
     bytes calldata params
   ) external payable virtual override reinitializer(_version) {
+    // if admin is already set, it's an upgrade from version 2 to 3
+    if (admin != address(0)) {
+      __EthRestakeErc20Vault_initV3();
+      return;
+    }
+
     // initialize deployed vault
     __EthRestakeErc20Vault_init(
       IEthVaultFactory(msg.sender).vaultAdmin(),
@@ -93,7 +99,8 @@ contract EthRestakeErc20Vault is
     uint256 shares,
     address receiver
   ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 positionTicket) {
-    return super.enterExitQueue(shares, receiver);
+    positionTicket = super.enterExitQueue(shares, receiver);
+    emit Transfer(msg.sender, address(this), shares);
   }
 
   /// @inheritdoc IVaultVersion
@@ -163,6 +170,13 @@ contract EthRestakeErc20Vault is
     returns (uint256)
   {
     return super._validatorLength();
+  }
+
+  /**
+   * @dev Initializes the EthRestakeErc20Vault contract
+   */
+  function __EthRestakeErc20Vault_initV3() internal {
+    __VaultState_initV3();
   }
 
   /**

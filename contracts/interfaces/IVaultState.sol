@@ -12,7 +12,7 @@ import {IVaultFee} from './IVaultFee.sol';
  */
 interface IVaultState is IVaultFee {
   /**
-   * @notice Event emitted on checkpoint creation (deprecated)
+   * @notice Event emitted on checkpoint creation
    * @param shares The number of burned shares
    * @param assets The amount of exited assets
    */
@@ -31,6 +31,13 @@ interface IVaultState is IVaultFee {
    * @param penalty The total penalty amount
    */
   event ExitingAssetsPenalized(uint256 penalty);
+
+  /**
+   * @notice Event emitted when the VaultActionHook is updated
+   * @param caller The address that called the update function
+   * @param hook The address of the new action hook
+   */
+  event VaultActionHookUpdated(address caller, address hook);
 
   /**
    * @notice Total assets in the Vault
@@ -57,16 +64,10 @@ interface IVaultState is IVaultFee {
   function withdrawableAssets() external view returns (uint256);
 
   /**
-   * @notice Queued Shares (deprecated)
+   * @notice Queued Shares
    * @return The total number of shares queued for exit
    */
   function queuedShares() external view returns (uint128);
-
-  /**
-   * @notice Total Exiting Assets
-   * @return The total number of assets queued for exit
-   */
-  function totalExitingAssets() external view returns (uint128);
 
   /**
    * @notice Returns the number of shares held by an account
@@ -76,14 +77,14 @@ interface IVaultState is IVaultFee {
   function getShares(address account) external view returns (uint256);
 
   /**
-   * @notice Converts shares to assets
+   * @notice Converts assets to shares
    * @param assets The amount of assets to convert to shares
    * @return shares The amount of shares that the Vault would exchange for the amount of assets provided
    */
   function convertToShares(uint256 assets) external view returns (uint256 shares);
 
   /**
-   * @notice Converts assets to shares
+   * @notice Converts shares to assets
    * @param shares The amount of shares to convert to assets
    * @return assets The amount of assets that the Vault would exchange for the amount of shares provided
    */
@@ -100,4 +101,10 @@ interface IVaultState is IVaultFee {
    * @param harvestParams The parameters for harvesting Keeper rewards
    */
   function updateState(IKeeperRewards.HarvestParams calldata harvestParams) external;
+
+  /**
+   * @notice Sets the actionHook contract address. Can only be called by the admin.
+   * @param newActionHook The address of the new actionHook contract
+   */
+  function setActionHook(address newActionHook) external;
 }

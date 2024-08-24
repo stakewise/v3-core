@@ -3,20 +3,20 @@
 exports[`EthRestakePrivErc20Vault deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 71091,
+  "gasUsed": 73279,
 }
 `;
 
 exports[`EthRestakePrivErc20Vault deposit deposit through receive fallback can be called by whitelisted sender 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 80518,
+  "gasUsed": 82706,
 }
 `;
 
 exports[`EthRestakePrivErc20Vault transfer can transfer to whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 56454,
+  "gasUsed": 58873,
 }
 `;

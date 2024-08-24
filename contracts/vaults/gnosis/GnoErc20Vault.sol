@@ -85,8 +85,11 @@ contract GnoErc20Vault is
 
   /// @inheritdoc IGnoErc20Vault
   function initialize(bytes calldata params) external virtual override reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
-    if (admin != address(0)) return;
+    // if admin is already set, it's an upgrade from version 2 to 3
+    if (admin != address(0)) {
+      __GnoErc20Vault_initV3();
+      return;
+    }
 
     // initialize deployed vault
     __GnoErc20Vault_init(
@@ -127,7 +130,8 @@ contract GnoErc20Vault is
     override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
     returns (uint256 positionTicket)
   {
-    return super.enterExitQueue(shares, receiver);
+    positionTicket = super.enterExitQueue(shares, receiver);
+    emit Transfer(msg.sender, address(this), shares);
   }
 
   /// @inheritdoc IVaultVersion
@@ -164,6 +168,13 @@ contract GnoErc20Vault is
     uint256 shares
   ) internal virtual override(VaultState, VaultToken) {
     super._burnShares(owner, shares);
+  }
+
+  /**
+   * @dev Initializes the GnoErc20Vault contract
+   */
+  function __GnoErc20Vault_initV3() internal {
+    __VaultState_initV3();
   }
 
   /**

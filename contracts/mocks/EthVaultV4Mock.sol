@@ -32,7 +32,7 @@ contract EthVaultV4Mock is EthVault {
     )
   {}
 
-  function initialize(bytes calldata data) external payable virtual override reinitializer(3) {
+  function initialize(bytes calldata data) external payable virtual override reinitializer(4) {
     (newVar) = abi.decode(data, (uint128));
   }
 
@@ -41,6 +41,6 @@ contract EthVaultV4Mock is EthVault {
   }
 
   function version() public pure virtual override returns (uint8) {
-    return 3;
+    return 4;
   }
 }

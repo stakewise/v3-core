@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.22;
 
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
@@ -79,8 +80,11 @@ contract EthVault is
   function initialize(
     bytes calldata params
   ) external payable virtual override reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
-    if (admin != address(0)) return;
+    // if admin is already set, it's an upgrade from version 2 to 3
+    if (admin != address(0)) {
+      __EthVault_initV3();
+      return;
+    }
 
     // initialize deployed vault
     __EthVault_init(
@@ -98,10 +102,17 @@ contract EthVault is
   ) public payable override returns (uint256) {
     deposit(msg.sender, referrer);
     if (osTokenShares == type(uint256).max) {
-      // mint max OsToken shares based on the deposited amount
-      osTokenShares = _calcMaxOsTokenShares(msg.value);
+      // calculate max OsToken shares based on the deposited amount
+      osTokenShares = Math.min(
+        _calcMaxMintOsTokenShares(msg.sender),
+        _calcMaxOsTokenShares(msg.value)
+      );
     }
-    mintOsToken(receiver, osTokenShares, referrer);
+
+    // mint OsToken shares
+    if (osTokenShares > 0) {
+      mintOsToken(receiver, osTokenShares, referrer);
+    }
     return osTokenShares;
   }
 
@@ -137,6 +148,13 @@ contract EthVault is
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
     return _version;
+  }
+
+  /**
+   * @dev Initializes the EthVault contract
+   */
+  function __EthVault_initV3() internal {
+    __VaultState_initV3();
   }
 
   /**
