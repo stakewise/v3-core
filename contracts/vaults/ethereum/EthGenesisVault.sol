@@ -20,7 +20,7 @@ import {EthVault, IEthVault} from './EthVault.sol';
 /**
  * @title EthGenesisVault
  * @author StakeWise
- * @notice Defines the Genesis Vault for Ethereum staking migrated from StakeWise v2
+ * @notice Defines the Genesis Vault for Ethereum staking migrated from StakeWise Legacy
  */
 contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   // slither-disable-next-line shadowing-state
@@ -46,8 +46,8 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
-   * @param poolEscrow The address of the pool escrow from StakeWise v2
-   * @param rewardEthToken The address of the rETH2 token from StakeWise v2
+   * @param poolEscrow The address of the pool escrow from StakeWise Legacy
+   * @param rewardEthToken The address of the rETH2 token from StakeWise Legacy
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor

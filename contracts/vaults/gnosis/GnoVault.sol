@@ -119,7 +119,7 @@ contract GnoVault is
   }
 
   /**
-   * @dev Initializes the GnoVault contract
+   * @dev Initializes the GnoVault contract upgrade to V3
    */
   function __GnoVault_initV3() internal {
     __VaultState_initV3();

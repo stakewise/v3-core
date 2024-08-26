@@ -576,17 +576,17 @@
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "leftShares",
+        "name": "leftTickets",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "claimedShares",
+        "name": "exitedTickets",
         "type": "uint256"
       },
       {
         "internalType": "uint256",
-        "name": "claimedAssets",
+        "name": "exitedAssets",
         "type": "uint256"
       }
     ],

@@ -21,7 +21,7 @@ import {GnoVault, IGnoVault} from './GnoVault.sol';
 /**
  * @title GnoGenesisVault
  * @author StakeWise
- * @notice Defines the Genesis Vault for Gnosis staking migrated from StakeWise v2
+ * @notice Defines the Genesis Vault for Gnosis staking migrated from StakeWise Legacy
  */
 contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
   // slither-disable-next-line shadowing-state
@@ -49,8 +49,8 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param gnoToken The address of the GNO token
    * @param xdaiExchange The address of the xDAI exchange
-   * @param poolEscrow The address of the pool escrow from StakeWise v2
-   * @param rewardGnoToken The address of the rGNO2 token from StakeWise v2
+   * @param poolEscrow The address of the pool escrow from StakeWise Legacy
+   * @param rewardGnoToken The address of the rGNO token from StakeWise Legacy
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -191,6 +191,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     // fetch total assets controlled by legacy pool
     uint256 legacyPrincipal = _rewardGnoToken.totalAssets() - _rewardGnoToken.totalPenalty();
     if (legacyPrincipal == 0) {
+      // legacy pool has no assets, process total assets delta as usual
       super._processTotalAssetsDelta(totalAssetsDelta);
       return;
     }

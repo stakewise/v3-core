@@ -195,7 +195,7 @@ contract EthErc20Vault is
   }
 
   /**
-   * @dev Initializes the EthErc20Vault contract
+   * @dev Initializes the EthErc20Vault contract upgrade to V3
    */
   function __EthErc20Vault_initV3() internal {
     __VaultState_initV3();

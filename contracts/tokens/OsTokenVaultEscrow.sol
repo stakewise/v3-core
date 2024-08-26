@@ -56,7 +56,7 @@ abstract contract OsTokenVaultEscrow is Ownable2Step, Multicall, IOsTokenVaultEs
   ) Ownable(msg.sender) {
     _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
     _osTokenConfig = IOsTokenConfig(osTokenConfig);
-    updateConfig(_liqThresholdPercent, _liqBonusPercent);
+    updateLiqConfig(_liqThresholdPercent, _liqBonusPercent);
     setAuthenticator(_authenticator);
     _transferOwnership(initialOwner);
   }
@@ -253,7 +253,7 @@ abstract contract OsTokenVaultEscrow is Ownable2Step, Multicall, IOsTokenVaultEs
   }
 
   /// @inheritdoc IOsTokenVaultEscrow
-  function updateConfig(
+  function updateLiqConfig(
     uint256 _liqThresholdPercent,
     uint256 _liqBonusPercent
   ) public override onlyOwner {
@@ -275,7 +275,7 @@ abstract contract OsTokenVaultEscrow is Ownable2Step, Multicall, IOsTokenVaultEs
     liqBonusPercent = _liqBonusPercent;
 
     // emit event
-    emit ConfigUpdated(_liqThresholdPercent, _liqBonusPercent);
+    emit LiqConfigUpdated(_liqThresholdPercent, _liqBonusPercent);
   }
 
   /**

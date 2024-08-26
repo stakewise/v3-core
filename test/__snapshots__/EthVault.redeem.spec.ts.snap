@@ -3,20 +3,20 @@
 exports[`EthVault - redeem osToken calculates redeem correctly 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 129040,
+  "gasUsed": 129041,
 }
 `;
 
 exports[`EthVault - redeem osToken calls action hook 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 133918,
+  "gasUsed": 133919,
 }
 `;
 
 exports[`EthVault - redeem osToken can redeem 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 129040,
+  "gasUsed": 129041,
 }
 `;

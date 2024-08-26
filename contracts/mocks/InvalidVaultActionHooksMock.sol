@@ -7,7 +7,7 @@ import {IVaultActionHooks} from '../interfaces/IVaultActionHooks.sol';
 contract InvalidVaultActionHooksMock is IVaultActionHooks {
   error CallFailed();
 
-  function onUserBalanceChange(address caller, address user, uint256 newBalance) external override {
+  function onUserBalanceChange(address, address, uint256) external pure override {
     revert CallFailed();
   }
 }

@@ -119,7 +119,7 @@ describe('EthOsTokenVaultEscrow', () => {
     it('cannot register with invalid osToken position', async () => {
       await expect(
         vault.connect(other).transferOsTokenPositionToEscrow(osTokenShares)
-      ).to.be.revertedWithCustomError(vault, 'InvalidShares')
+      ).to.be.revertedWithCustomError(vault, 'InvalidPosition')
       await expect(
         vault.connect(owner).transferOsTokenPositionToEscrow(0n)
       ).to.be.revertedWithCustomError(vault, 'InvalidShares')
@@ -737,35 +737,37 @@ describe('EthOsTokenVaultEscrow', () => {
 
     it('not owner cannot update config', async () => {
       await expect(
-        osTokenVaultEscrow.connect(other).updateConfig(newLiqThresholdPercent, newLiqBonusPercent)
+        osTokenVaultEscrow
+          .connect(other)
+          .updateLiqConfig(newLiqThresholdPercent, newLiqBonusPercent)
       ).to.revertedWithCustomError(osTokenConfig, 'OwnableUnauthorizedAccount')
     })
 
     it('fails with invalid liqThresholdPercent', async () => {
       await expect(
-        osTokenVaultEscrow.connect(dao).updateConfig(0n, newLiqBonusPercent)
+        osTokenVaultEscrow.connect(dao).updateLiqConfig(0n, newLiqBonusPercent)
       ).to.revertedWithCustomError(osTokenConfig, 'InvalidLiqThresholdPercent')
 
       await expect(
-        osTokenVaultEscrow.connect(dao).updateConfig(maxPercent, newLiqBonusPercent)
+        osTokenVaultEscrow.connect(dao).updateLiqConfig(maxPercent, newLiqBonusPercent)
       ).to.revertedWithCustomError(osTokenConfig, 'InvalidLiqThresholdPercent')
     })
 
     it('fails with invalid liqBonusPercent', async () => {
       await expect(
-        osTokenVaultEscrow.connect(dao).updateConfig(newLiqThresholdPercent, maxPercent - 1n)
+        osTokenVaultEscrow.connect(dao).updateLiqConfig(newLiqThresholdPercent, maxPercent - 1n)
       ).to.revertedWithCustomError(osTokenConfig, 'InvalidLiqBonusPercent')
       await expect(
-        osTokenVaultEscrow.connect(dao).updateConfig(parseEther('0.95'), parseEther('1.1'))
+        osTokenVaultEscrow.connect(dao).updateLiqConfig(parseEther('0.95'), parseEther('1.1'))
       ).to.revertedWithCustomError(osTokenConfig, 'InvalidLiqBonusPercent')
     })
 
     it('owner can update config', async () => {
       const tx = await osTokenVaultEscrow
         .connect(dao)
-        .updateConfig(newLiqThresholdPercent, newLiqBonusPercent)
+        .updateLiqConfig(newLiqThresholdPercent, newLiqBonusPercent)
       await expect(tx)
-        .to.emit(osTokenVaultEscrow, 'ConfigUpdated')
+        .to.emit(osTokenVaultEscrow, 'LiqConfigUpdated')
         .withArgs(newLiqThresholdPercent, newLiqBonusPercent)
       expect(await osTokenVaultEscrow.liqThresholdPercent()).to.be.eq(newLiqThresholdPercent)
       expect(await osTokenVaultEscrow.liqBonusPercent()).to.be.eq(newLiqBonusPercent)

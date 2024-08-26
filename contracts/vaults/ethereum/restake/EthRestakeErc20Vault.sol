@@ -173,7 +173,7 @@ contract EthRestakeErc20Vault is
   }
 
   /**
-   * @dev Initializes the EthRestakeErc20Vault contract
+   * @dev Initializes the EthRestakeErc20Vault contract upgrade to V3
    */
   function __EthRestakeErc20Vault_initV3() internal {
     __VaultState_initV3();

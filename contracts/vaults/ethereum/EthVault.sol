@@ -151,7 +151,7 @@ contract EthVault is
   }
 
   /**
-   * @dev Initializes the EthVault contract
+   * @dev Initializes the EthVault contract upgrade to V3
    */
   function __EthVault_initV3() internal {
     __VaultState_initV3();

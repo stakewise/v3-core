@@ -127,7 +127,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
 
     // fetch user osToken position
     OsTokenPosition memory position = _positions[msg.sender];
-    if (position.shares == 0) revert Errors.InvalidShares();
+    if (position.shares == 0) revert Errors.InvalidPosition();
 
     // sync accumulated fee
     _syncPositionFee(position);
@@ -139,7 +139,10 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
       // calculate exit shares
       exitShares = Math.mulDiv(exitShares, osTokenShares, position.shares);
       // update osToken position
-      position.shares -= SafeCast.toUint128(osTokenShares);
+      unchecked {
+        // cannot underflow because position.shares >= osTokenShares
+        position.shares -= SafeCast.toUint128(osTokenShares);
+      }
       _positions[msg.sender] = position;
     } else {
       // all the assets are sent to the exit queue, remove position
@@ -361,11 +364,13 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     uint256 userAssets = convertToAssets(_balances[user]);
     if (userAssets == 0) return 0;
 
+    // fetch user position
     OsTokenPosition memory position = _positions[user];
     if (position.shares != 0) _syncPositionFee(position);
     // add 1 to avoid rounding errors
     position.shares += 1;
 
+    // calculate max osToken shares that user can mint based on its current staked balance and osToken position
     uint256 userMaxOsTokenShares = _calcMaxOsTokenShares(userAssets);
     unchecked {
       // cannot underflow because userOsTokenShares < userMaxOsTokenShares

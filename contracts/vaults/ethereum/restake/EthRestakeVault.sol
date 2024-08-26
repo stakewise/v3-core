@@ -143,7 +143,7 @@ contract EthRestakeVault is
   }
 
   /**
-   * @dev Initializes the EthRestakeVault contract
+   * @dev Initializes the EthRestakeVault contract upgrade to V3
    */
   function __EthRestakeVault_initV3() internal {
     __VaultState_initV3();

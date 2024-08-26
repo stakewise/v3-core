@@ -107,11 +107,11 @@ interface IOsTokenVaultEscrow is IMulticall {
   );
 
   /**
-   * @notice Event emitted on configuration update
+   * @notice Event emitted on liquidation configuration update
    * @param liqThresholdPercent The liquidation threshold percent
    * @param liqBonusPercent The liquidation bonus percent
    */
-  event ConfigUpdated(uint256 liqThresholdPercent, uint256 liqBonusPercent);
+  event LiqConfigUpdated(uint256 liqThresholdPercent, uint256 liqBonusPercent);
 
   /**
    * @notice Event emitted on authenticator update
@@ -224,9 +224,9 @@ interface IOsTokenVaultEscrow is IMulticall {
   function setAuthenticator(address newAuthenticator) external;
 
   /**
-   * @notice Updates the configuration. Can only be called by the owner.
+   * @notice Updates the liquidation configuration. Can only be called by the owner.
    * @param _liqThresholdPercent The liquidation threshold percent
    * @param _liqBonusPercent The liquidation bonus percent
    */
-  function updateConfig(uint256 _liqThresholdPercent, uint256 _liqBonusPercent) external;
+  function updateLiqConfig(uint256 _liqThresholdPercent, uint256 _liqBonusPercent) external;
 }

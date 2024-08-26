@@ -185,7 +185,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     uint256 _queuedShares = queuedShares;
 
     // calculate position ticket
-    positionTicket = _exitQueue.getLatestTotalTickets() + _queuedShares + _totalExitingTickets;
+    positionTicket = _exitQueue.getLatestTotalTickets() + _totalExitingTickets + _queuedShares;
 
     // add to the exit requests
     _exitRequests[keccak256(abi.encode(receiver, block.timestamp, positionTicket))] = shares;

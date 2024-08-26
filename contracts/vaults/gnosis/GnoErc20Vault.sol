@@ -171,7 +171,7 @@ contract GnoErc20Vault is
   }
 
   /**
-   * @dev Initializes the GnoErc20Vault contract
+   * @dev Initializes the GnoErc20Vault contract upgrade to V3
    */
   function __GnoErc20Vault_initV3() internal {
     __VaultState_initV3();
