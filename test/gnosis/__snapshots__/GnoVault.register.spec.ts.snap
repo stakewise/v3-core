@@ -17,13 +17,13 @@ Object {
 exports[`GnoVault - register single validator pulls withdrawals on single validator registration 1`] = `
 Object {
   "calldataByteLength": 1188,
-  "gasUsed": 360894,
+  "gasUsed": 364686,
 }
 `;
 
 exports[`GnoVault - register single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 1188,
-  "gasUsed": 381090,
+  "gasUsed": 384882,
 }
 `;

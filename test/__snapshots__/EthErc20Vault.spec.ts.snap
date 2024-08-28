@@ -3,21 +3,21 @@
 exports[`EthErc20Vault can deposit and mint osToken in one transaction 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 215039,
+  "gasUsed": 211488,
 }
 `;
 
 exports[`EthErc20Vault can deposit and mint osToken in one transaction 2`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 176428,
+  "gasUsed": 177204,
 }
 `;
 
 exports[`EthErc20Vault can update state, deposit, and mint osToken in one transaction 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 271305,
+  "gasUsed": 238074,
 }
 `;
 

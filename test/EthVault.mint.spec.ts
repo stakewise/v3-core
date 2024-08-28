@@ -289,8 +289,7 @@ describe('EthVault - mint', () => {
 
     const config = await osTokenConfig.getConfig(await vault.getAddress())
     let osTokenAssets = (assets * config.ltvPercent) / ethers.parseEther('1')
-    let osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
-    osTokenShares -= 1n // rounding error
+    const osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
     osTokenAssets = await osTokenVaultController.convertToAssets(osTokenShares)
 
     const receipt = await vault

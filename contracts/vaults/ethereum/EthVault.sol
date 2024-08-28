@@ -101,19 +101,7 @@ contract EthVault is
     address referrer
   ) public payable override returns (uint256) {
     deposit(msg.sender, referrer);
-    if (osTokenShares == type(uint256).max) {
-      // calculate max OsToken shares based on the deposited amount
-      osTokenShares = Math.min(
-        _calcMaxMintOsTokenShares(msg.sender),
-        _calcMaxOsTokenShares(msg.value)
-      );
-    }
-
-    // mint OsToken shares
-    if (osTokenShares > 0) {
-      mintOsToken(receiver, osTokenShares, referrer);
-    }
-    return osTokenShares;
+    return mintOsToken(receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IEthVault

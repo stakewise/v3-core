@@ -294,23 +294,9 @@ describe('EthErc20Vault', () => {
     await setAvgRewardPerSecond(dao, vault, keeper, 0)
     const vaultAddr = await vault.getAddress()
     const assets = ethers.parseEther('1')
-    const sharesBefore = await vault.convertToShares(assets)
-
-    await updateRewards(
-      keeper,
-      [getHarvestParams(vaultAddr, ethers.parseEther('1'), ethers.parseEther('0'))],
-      0
-    )
-    const tree = await updateRewards(
-      keeper,
-      [getHarvestParams(vaultAddr, ethers.parseEther('1.2'), ethers.parseEther('0'))],
-      0
-    )
-    const vaultReward = getHarvestParams(
-      vaultAddr,
-      ethers.parseEther('1.2'),
-      ethers.parseEther('0')
-    )
+    const vaultReward = getHarvestParams(vaultAddr, 0n, 0n)
+    await updateRewards(keeper, [vaultReward], 0)
+    const tree = await updateRewards(keeper, [vaultReward], 0)
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
       rewardsRoot: tree.root,
       reward: vaultReward.reward,
@@ -336,23 +322,18 @@ describe('EthErc20Vault', () => {
         }
       )
 
-    let sharesAfter = await vault.convertToShares(assets)
-    sharesAfter += 1n // rounding error
-
+    const shares = await vault.convertToShares(assets)
     if (MAINNET_FORK.enabled) {
       osTokenAssets -= 1n // rounding error
     }
 
-    expect(sharesBefore).to.gt(sharesAfter)
     expect(await osToken.balanceOf(receiver.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(sender.address)).to.eq(osTokenShares)
-    expect(await vault.getShares(sender.address)).to.eq(sharesAfter)
+    expect(await vault.getShares(sender.address)).to.eq(shares)
     await expect(receipt)
       .to.emit(vault, 'Deposited')
-      .withArgs(sender.address, sender.address, assets, sharesAfter, ZERO_ADDRESS)
-    await expect(receipt)
-      .to.emit(vault, 'Transfer')
-      .withArgs(ZERO_ADDRESS, sender.address, sharesAfter)
+      .withArgs(sender.address, sender.address, assets, shares, ZERO_ADDRESS)
+    await expect(receipt).to.emit(vault, 'Transfer').withArgs(ZERO_ADDRESS, sender.address, shares)
     await expect(receipt)
       .to.emit(vault, 'OsTokenMinted')
       .withArgs(sender.address, receiver.address, osTokenAssets, osTokenShares, ZERO_ADDRESS)

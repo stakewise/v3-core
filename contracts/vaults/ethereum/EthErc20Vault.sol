@@ -104,12 +104,7 @@ contract EthErc20Vault is
     address referrer
   ) public payable override returns (uint256) {
     deposit(msg.sender, referrer);
-    if (osTokenShares == type(uint256).max) {
-      // mint max OsToken shares based on the deposited amount
-      osTokenShares = _calcMaxOsTokenShares(msg.value);
-    }
-    mintOsToken(receiver, osTokenShares, referrer);
-    return osTokenShares;
+    return mintOsToken(receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IEthErc20Vault

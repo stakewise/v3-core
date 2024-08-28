@@ -10,14 +10,14 @@ Object {
 exports[`EthOsTokenVaultEscrow claim exited assets succeeds succeeds for partial osToken shares 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 87969,
+  "gasUsed": 87945,
 }
 `;
 
 exports[`EthOsTokenVaultEscrow liquidate can liquidate 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 96847,
+  "gasUsed": 96859,
 }
 `;
 
@@ -31,7 +31,7 @@ Object {
 exports[`EthOsTokenVaultEscrow redeem can redeem 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 96176,
+  "gasUsed": 96164,
 }
 `;
 

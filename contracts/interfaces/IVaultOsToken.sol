@@ -91,7 +91,7 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
   /**
    * @notice Mints OsToken shares
    * @param receiver The address that will receive the minted OsToken shares
-   * @param osTokenShares The number of OsToken shares to mint to the receiver
+   * @param osTokenShares The number of OsToken shares to mint to the receiver. To mint the maximum amount of shares, use 2^256 - 1.
    * @param referrer The address of the referrer
    * @return assets The number of assets minted to the receiver
    */

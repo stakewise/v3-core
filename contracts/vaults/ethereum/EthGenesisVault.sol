@@ -185,6 +185,27 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     }
   }
 
+  /**
+   * @dev Internal function for calculating the maximum amount of osToken shares that can be minted
+   *      based on the current user balance
+   * @param user The address of the user
+   * @return The maximum amount of osToken shares that can be minted
+   */
+  function _calcMaxMintOsTokenShares(address user) internal view returns (uint256) {
+    uint256 userAssets = convertToAssets(_balances[user]);
+    if (userAssets == 0) return 0;
+
+    // fetch user position
+    uint256 mintedShares = osTokenPositions(user);
+
+    // calculate max osToken shares that user can mint based on its current staked balance and osToken position
+    uint256 userMaxOsTokenShares = _calcMaxOsTokenShares(userAssets);
+    unchecked {
+      // cannot underflow because userOsTokenShares < userMaxOsTokenShares
+      return mintedShares < userMaxOsTokenShares ? userMaxOsTokenShares - mintedShares : 0;
+    }
+  }
+
   /// @inheritdoc VaultState
   function _processTotalAssetsDelta(int256 totalAssetsDelta) internal override {
     // skip processing if there is no change in assets

@@ -51,7 +51,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   }
 
   /// @inheritdoc IVaultOsToken
-  function osTokenPositions(address user) external view override returns (uint128 shares) {
+  function osTokenPositions(address user) public view override returns (uint128 shares) {
     OsTokenPosition memory position = _positions[user];
     if (position.shares != 0) _syncPositionFee(position);
     return position.shares;
@@ -187,9 +187,6 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     _checkCollateralized();
     _checkHarvested();
 
-    // mint osToken shares to the receiver
-    assets = _osTokenVaultController.mintShares(receiver, osTokenShares);
-
     // fetch user position
     OsTokenPosition memory position = _positions[owner];
     if (position.shares != 0) {
@@ -200,11 +197,26 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
       );
     }
 
+    // calculate max osToken shares that user can mint
+    uint256 userMaxOsTokenShares = _calcMaxOsTokenShares(convertToAssets(_balances[owner]));
+    if (osTokenShares == type(uint256).max) {
+      // calculate max OsToken shares that can be minted
+      unchecked {
+        // cannot underflow because userOsTokenShares < userMaxOsTokenShares
+        osTokenShares = position.shares < userMaxOsTokenShares
+          ? userMaxOsTokenShares - position.shares
+          : 0;
+      }
+    }
+
+    // mint osToken shares to the receiver
+    assets = _osTokenVaultController.mintShares(receiver, osTokenShares);
+
     // add minted shares to the position
     position.shares += SafeCast.toUint128(osTokenShares);
 
     // calculate and validate LTV
-    if (_calcMaxOsTokenShares(convertToAssets(_balances[owner])) < position.shares) {
+    if (userMaxOsTokenShares < position.shares) {
       revert Errors.LowLtv();
     }
 
@@ -352,30 +364,6 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
       _maxPercent
     );
     return _osTokenVaultController.convertToShares(maxOsTokenAssets);
-  }
-
-  /**
-   * @dev Internal function for calculating the maximum amount of osToken shares that can be minted
-   *      based on the current user balance
-   * @param user The address of the user
-   * @return The maximum amount of osToken shares that can be minted
-   */
-  function _calcMaxMintOsTokenShares(address user) internal view returns (uint256) {
-    uint256 userAssets = convertToAssets(_balances[user]);
-    if (userAssets == 0) return 0;
-
-    // fetch user position
-    OsTokenPosition memory position = _positions[user];
-    if (position.shares != 0) _syncPositionFee(position);
-    // add 1 to avoid rounding errors
-    position.shares += 1;
-
-    // calculate max osToken shares that user can mint based on its current staked balance and osToken position
-    uint256 userMaxOsTokenShares = _calcMaxOsTokenShares(userAssets);
-    unchecked {
-      // cannot underflow because userOsTokenShares < userMaxOsTokenShares
-      return position.shares < userMaxOsTokenShares ? userMaxOsTokenShares - position.shares : 0;
-    }
   }
 
   /**
