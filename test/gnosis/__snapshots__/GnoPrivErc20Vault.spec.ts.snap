@@ -10,7 +10,7 @@ Object {
 exports[`GnoPrivErc20Vault mint osToken can mint from not whitelisted user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 178405,
+  "gasUsed": 178479,
 }
 `;
 

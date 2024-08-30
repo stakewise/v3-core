@@ -31,7 +31,7 @@ Object {
 exports[`EthOsTokenVaultEscrow redeem can redeem 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 96164,
+  "gasUsed": 96176,
 }
 `;
 

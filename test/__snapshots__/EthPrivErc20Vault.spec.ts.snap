@@ -17,7 +17,7 @@ Object {
 exports[`EthPrivErc20Vault mint osToken can mint from whitelisted user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 178523,
+  "gasUsed": 178622,
 }
 `;
 

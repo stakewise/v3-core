@@ -3,7 +3,7 @@
 exports[`GnoGenesisVault migrate migrates from rewardToken 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 230012,
+  "gasUsed": 230004,
 }
 `;
 

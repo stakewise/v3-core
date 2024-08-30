@@ -3,6 +3,6 @@
 exports[`EthPrivVault mint osToken can mint from not whitelisted user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 178334,
+  "gasUsed": 178433,
 }
 `;

@@ -10,14 +10,14 @@ Object {
 exports[`EthGenesisVault migrate calls action hook 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 235033,
+  "gasUsed": 235025,
 }
 `;
 
 exports[`EthGenesisVault migrate migrates from rewardEthToken 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 230155,
+  "gasUsed": 230147,
 }
 `;
 
