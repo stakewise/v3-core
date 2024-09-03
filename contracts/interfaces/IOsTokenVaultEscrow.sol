@@ -182,12 +182,13 @@ interface IOsTokenVaultEscrow is IMulticall {
    * @param vault The address of the vault
    * @param exitPositionTicket The exit position ticket
    * @param osTokenShares The amount of osToken shares to burn
+   * @return claimedAssets The amount of assets claimed
    */
   function claimExitedAssets(
     address vault,
     uint256 exitPositionTicket,
     uint256 osTokenShares
-  ) external;
+  ) external returns (uint256 claimedAssets);
 
   /**
    * @notice Liquidates the osToken shares

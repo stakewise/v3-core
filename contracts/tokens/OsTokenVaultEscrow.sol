@@ -152,7 +152,7 @@ abstract contract OsTokenVaultEscrow is Ownable2Step, Multicall, IOsTokenVaultEs
     address vault,
     uint256 exitPositionTicket,
     uint256 osTokenShares
-  ) external override {
+  ) external override returns (uint256 claimedAssets) {
     // burn osToken shares
     _osTokenVaultController.burnShares(msg.sender, osTokenShares);
 
@@ -167,33 +167,26 @@ abstract contract OsTokenVaultEscrow is Ownable2Step, Multicall, IOsTokenVaultEs
     }
 
     // calculate assets to withdraw
-    uint256 assetsToTransfer;
     if (position.osTokenShares != osTokenShares) {
-      assetsToTransfer = Math.mulDiv(position.exitedAssets, osTokenShares, position.osTokenShares);
+      claimedAssets = Math.mulDiv(position.exitedAssets, osTokenShares, position.osTokenShares);
 
       // update position osTokenShares
-      position.exitedAssets -= SafeCast.toUint96(assetsToTransfer);
+      position.exitedAssets -= SafeCast.toUint96(claimedAssets);
       position.osTokenShares -= SafeCast.toUint128(osTokenShares);
       _positions[vault][exitPositionTicket] = position;
     } else {
-      assetsToTransfer = position.exitedAssets;
+      claimedAssets = position.exitedAssets;
 
       // remove position as it is fully processed
       delete _positions[vault][exitPositionTicket];
     }
-    if (assetsToTransfer == 0) revert Errors.ExitRequestNotProcessed();
+    if (claimedAssets == 0) revert Errors.ExitRequestNotProcessed();
 
     // transfer assets
-    _transferAssets(position.owner, assetsToTransfer);
+    _transferAssets(position.owner, claimedAssets);
 
     // emit event
-    emit ExitedAssetsClaimed(
-      msg.sender,
-      vault,
-      exitPositionTicket,
-      osTokenShares,
-      assetsToTransfer
-    );
+    emit ExitedAssetsClaimed(msg.sender, vault, exitPositionTicket, osTokenShares, claimedAssets);
   }
 
   /// @inheritdoc IOsTokenVaultEscrow

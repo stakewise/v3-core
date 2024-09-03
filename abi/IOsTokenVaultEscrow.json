@@ -254,7 +254,13 @@
       }
     ],
     "name": "claimExitedAssets",
-    "outputs": [],
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "claimedAssets",
+        "type": "uint256"
+      }
+    ],
     "stateMutability": "nonpayable",
     "type": "function"
   },
