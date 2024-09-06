@@ -205,7 +205,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
       }
       // calculate max OsToken shares that can be minted
       unchecked {
-        // cannot underflow because userOsTokenShares < userMaxOsTokenShares
+        // cannot underflow because position.shares < userMaxOsTokenShares
         osTokenShares = userMaxOsTokenShares - position.shares;
       }
     }

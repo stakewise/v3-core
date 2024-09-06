@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.22;
 
-import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';

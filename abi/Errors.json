@@ -41,6 +41,11 @@
   },
   {
     "inputs": [],
+    "name": "FlashLoanFailed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "HarvestFailed",
     "type": "error"
   },

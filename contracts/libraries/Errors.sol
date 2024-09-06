@@ -54,4 +54,5 @@ library Errors {
   error InvalidWithdrawalCredentials();
   error EigenPodNotFound();
   error InvalidQueuedShares();
+  error FlashLoanFailed();
 }

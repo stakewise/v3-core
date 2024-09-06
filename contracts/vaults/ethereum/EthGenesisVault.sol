@@ -201,7 +201,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     // calculate max osToken shares that user can mint based on its current staked balance and osToken position
     uint256 userMaxOsTokenShares = _calcMaxOsTokenShares(userAssets);
     unchecked {
-      // cannot underflow because userOsTokenShares < userMaxOsTokenShares
+      // cannot underflow because mintedShares < userMaxOsTokenShares
       return mintedShares < userMaxOsTokenShares ? userMaxOsTokenShares - mintedShares : 0;
     }
   }
