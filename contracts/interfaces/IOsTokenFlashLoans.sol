@@ -18,8 +18,8 @@ interface IOsTokenFlashLoans {
   /**
    * @notice Flash loan OsToken shares
    * @param recipient The address of the recipient
-   * @param amount The flashLoan osToken shares amount
+   * @param osTokenShares The flashLoan osToken shares amount
    * @param userData Arbitrary data passed to the `IOsTokenFlashLoanRecipient.receiveFlashLoan` function
    */
-  function flashLoan(address recipient, uint256 amount, bytes memory userData) external;
+  function flashLoan(address recipient, uint256 osTokenShares, bytes memory userData) external;
 }

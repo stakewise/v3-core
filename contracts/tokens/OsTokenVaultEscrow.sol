@@ -65,12 +65,12 @@ abstract contract OsTokenVaultEscrow is Ownable2Step, Multicall, IOsTokenVaultEs
   function getPosition(
     address vault,
     uint256 positionTicket
-  ) external view returns (uint256, uint256) {
+  ) external view returns (address, uint256, uint256) {
     Position memory position = _positions[vault][positionTicket];
     if (position.osTokenShares != 0) {
       _syncPositionFee(position);
     }
-    return (position.exitedAssets, position.osTokenShares);
+    return (position.owner, position.exitedAssets, position.osTokenShares);
   }
 
   /// @inheritdoc IOsTokenVaultEscrow

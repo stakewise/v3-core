@@ -10,8 +10,8 @@ pragma solidity ^0.8.22;
 interface IOsTokenFlashLoanRecipient {
   /**
    * @notice Receive flash loan hook
-   * @param amount The osToken flash loan amount
+   * @param osTokenShares The osToken flash loan amount
    * @param userData Arbitrary data passed to the hook
    */
-  function receiveFlashLoan(uint256 amount, bytes memory userData) external;
+  function receiveFlashLoan(uint256 osTokenShares, bytes memory userData) external;
 }

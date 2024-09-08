@@ -3,7 +3,7 @@
     "inputs": [
       {
         "internalType": "uint256",
-        "name": "amount",
+        "name": "osTokenShares",
         "type": "uint256"
       },
       {

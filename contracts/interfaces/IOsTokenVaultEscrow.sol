@@ -141,13 +141,14 @@ interface IOsTokenVaultEscrow is IMulticall {
    * @notice Get the position details
    * @param vault The address of the vault
    * @param positionTicket The exit position ticket
+   * @return owner The address of the assets owner
    * @return exitedAssets The amount of assets exited and ready to be claimed
    * @return osTokenShares The amount of osToken shares
    */
   function getPosition(
     address vault,
     uint256 positionTicket
-  ) external view returns (uint256, uint256);
+  ) external view returns (address, uint256, uint256);
 
   /**
    * @notice Registers the new escrow position
