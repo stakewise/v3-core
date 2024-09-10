@@ -34,7 +34,7 @@ contract EthOsTokenVaultEscrow is ReentrancyGuard, OsTokenVaultEscrow {
     address osTokenConfig,
     address initialOwner,
     address _authenticator,
-    uint256 _liqThresholdPercent,
+    uint64 _liqThresholdPercent,
     uint256 _liqBonusPercent
   )
     ReentrancyGuard()

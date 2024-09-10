@@ -17,7 +17,7 @@ Object {
 exports[`EthVault - mint can update state, deposit, and mint osToken in one transaction 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 263858,
+  "gasUsed": 263846,
 }
 `;
 

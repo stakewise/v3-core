@@ -29,13 +29,13 @@ abstract contract OsTokenVaultEscrow is Ownable2Step, Multicall, IOsTokenVaultEs
   mapping(address vault => mapping(uint256 positionTicket => Position)) private _positions;
 
   /// @inheritdoc IOsTokenVaultEscrow
-  uint256 public override liqThresholdPercent;
-
-  /// @inheritdoc IOsTokenVaultEscrow
   uint256 public override liqBonusPercent;
 
   /// @inheritdoc IOsTokenVaultEscrow
   address public override authenticator;
+
+  /// @inheritdoc IOsTokenVaultEscrow
+  uint64 public override liqThresholdPercent;
 
   /**
    * @dev Constructor
@@ -51,7 +51,7 @@ abstract contract OsTokenVaultEscrow is Ownable2Step, Multicall, IOsTokenVaultEs
     address osTokenConfig,
     address initialOwner,
     address _authenticator,
-    uint256 _liqThresholdPercent,
+    uint64 _liqThresholdPercent,
     uint256 _liqBonusPercent
   ) Ownable(msg.sender) {
     _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
@@ -247,7 +247,7 @@ abstract contract OsTokenVaultEscrow is Ownable2Step, Multicall, IOsTokenVaultEs
 
   /// @inheritdoc IOsTokenVaultEscrow
   function updateLiqConfig(
-    uint256 _liqThresholdPercent,
+    uint64 _liqThresholdPercent,
     uint256 _liqBonusPercent
   ) public override onlyOwner {
     // validate liquidation threshold percent

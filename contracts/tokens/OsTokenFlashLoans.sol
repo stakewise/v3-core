@@ -15,7 +15,7 @@ import {Errors} from '../libraries/Errors.sol';
  * @notice Handles OsToken flash loans
  */
 contract OsTokenFlashLoans is ReentrancyGuard, IOsTokenFlashLoans {
-  uint256 private constant _maxFlashLoanAmount = 1_000_000 ether;
+  uint256 private constant _maxFlashLoanAmount = 100_000 ether;
   address private immutable _osToken;
 
   /**
@@ -27,11 +27,7 @@ contract OsTokenFlashLoans is ReentrancyGuard, IOsTokenFlashLoans {
   }
 
   /// @inheritdoc IOsTokenFlashLoans
-  function flashLoan(
-    address recipient,
-    uint256 osTokenShares,
-    bytes memory userData
-  ) external override nonReentrant {
+  function flashLoan(uint256 osTokenShares, bytes memory userData) external override nonReentrant {
     // check if not more than max flash loan amount requested
     if (osTokenShares == 0 || osTokenShares > _maxFlashLoanAmount) {
       revert Errors.InvalidShares();
@@ -40,11 +36,11 @@ contract OsTokenFlashLoans is ReentrancyGuard, IOsTokenFlashLoans {
     // get current balance
     uint256 preLoanBalance = IERC20(_osToken).balanceOf(address(this));
 
-    // mint OsToken shares for the recipient
-    IOsToken(_osToken).mint(recipient, osTokenShares);
+    // mint OsToken shares for the caller
+    IOsToken(_osToken).mint(msg.sender, osTokenShares);
 
     // execute callback
-    IOsTokenFlashLoanRecipient(recipient).receiveFlashLoan(osTokenShares, userData);
+    IOsTokenFlashLoanRecipient(msg.sender).receiveFlashLoan(osTokenShares, userData);
 
     // get post loan balance
     uint256 postLoanBalance = IERC20(_osToken).balanceOf(address(this));
@@ -58,6 +54,6 @@ contract OsTokenFlashLoans is ReentrancyGuard, IOsTokenFlashLoans {
     IOsToken(address(_osToken)).burn(address(this), osTokenShares);
 
     // emit event
-    emit OsTokenFlashLoan(recipient, osTokenShares);
+    emit OsTokenFlashLoan(msg.sender, osTokenShares);
   }
 }

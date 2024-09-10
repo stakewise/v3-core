@@ -9,17 +9,16 @@ pragma solidity ^0.8.22;
  */
 interface IOsTokenFlashLoans {
   /**
-   * @notice Event emitted on position creation
-   * @param recipient The address of the recipient
+   * @notice Event emitted on flash loan
+   * @param caller The address of the caller
    * @param amount The flashLoan osToken shares amount
    */
-  event OsTokenFlashLoan(address indexed recipient, uint256 amount);
+  event OsTokenFlashLoan(address indexed caller, uint256 amount);
 
   /**
    * @notice Flash loan OsToken shares
-   * @param recipient The address of the recipient
    * @param osTokenShares The flashLoan osToken shares amount
    * @param userData Arbitrary data passed to the `IOsTokenFlashLoanRecipient.receiveFlashLoan` function
    */
-  function flashLoan(address recipient, uint256 osTokenShares, bytes memory userData) external;
+  function flashLoan(uint256 osTokenShares, bytes memory userData) external;
 }

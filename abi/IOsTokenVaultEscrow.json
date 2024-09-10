@@ -85,9 +85,9 @@
     "inputs": [
       {
         "indexed": false,
-        "internalType": "uint256",
+        "internalType": "uint64",
         "name": "liqThresholdPercent",
-        "type": "uint256"
+        "type": "uint64"
       },
       {
         "indexed": false,
@@ -316,9 +316,9 @@
     "name": "liqThresholdPercent",
     "outputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint64",
         "name": "",
-        "type": "uint256"
+        "type": "uint64"
       }
     ],
     "stateMutability": "view",
@@ -471,9 +471,9 @@
   {
     "inputs": [
       {
-        "internalType": "uint256",
+        "internalType": "uint64",
         "name": "_liqThresholdPercent",
-        "type": "uint256"
+        "type": "uint64"
       },
       {
         "internalType": "uint256",

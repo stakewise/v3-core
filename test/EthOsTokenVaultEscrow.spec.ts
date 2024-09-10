@@ -142,8 +142,9 @@ describe('EthOsTokenVaultEscrow', () => {
       expect(await vault.getShares(owner.address)).to.equal(0n)
 
       const escrowPosition = await osTokenVaultEscrow.getPosition(vaultAddr, positionTicket)
-      expect(escrowPosition[0]).to.equal(0n)
-      expect(escrowPosition[1]).to.equal(sharesToRegister)
+      expect(escrowPosition[0]).to.equal(owner.address)
+      expect(escrowPosition[1]).to.equal(0n)
+      expect(escrowPosition[2]).to.equal(sharesToRegister)
       await snapshotGasCost(tx)
     })
 
@@ -172,8 +173,9 @@ describe('EthOsTokenVaultEscrow', () => {
       expect(vaultLtvAfter).to.equal(vaultLtvBefore)
 
       const escrowPosition = await osTokenVaultEscrow.getPosition(vaultAddr, positionTicket)
-      expect(escrowPosition[0]).to.equal(0n)
-      expect(escrowPosition[1]).to.equal(sharesToRegister)
+      expect(escrowPosition[0]).to.equal(owner.address)
+      expect(escrowPosition[1]).to.equal(0n)
+      expect(escrowPosition[2]).to.equal(sharesToRegister)
       await snapshotGasCost(tx)
     })
 
@@ -272,9 +274,10 @@ describe('EthOsTokenVaultEscrow', () => {
         .withArgs(vaultAddr, other.address, positionTicket, exitPosition.exitedAssets)
 
       const escrowPosition = await osTokenVaultEscrow.getPosition(vaultAddr, positionTicket)
-      expect(escrowPosition[0]).to.equal(exitPosition.exitedAssets)
+      expect(escrowPosition[0]).to.equal(owner.address)
       // accumulates fee
-      expect(escrowPosition[1]).to.greaterThan(exitOsTokenShares)
+      expect(escrowPosition[1]).to.equal(exitPosition.exitedAssets)
+      expect(escrowPosition[2]).to.greaterThan(exitOsTokenShares)
       await snapshotGasCost(tx)
     })
   })
@@ -361,7 +364,7 @@ describe('EthOsTokenVaultEscrow', () => {
         await setAvgRewardPerSecond(dao, vault, keeper, 0)
         const osTokenSharesToBurn = exitOsTokenShares / 2n
         let escrowPosition = await osTokenVaultEscrow.getPosition(vaultAddr, positionTicket)
-        const totalOsTokenShares = escrowPosition[1]
+        const totalOsTokenShares = escrowPosition[2]
 
         const assetsToWithdraw = (exitedAssets * osTokenSharesToBurn) / totalOsTokenShares
         const balanceBefore = await ethers.provider.getBalance(owner.address)
@@ -376,8 +379,8 @@ describe('EthOsTokenVaultEscrow', () => {
           .withArgs(owner.address, vaultAddr, positionTicket, osTokenSharesToBurn, assetsToWithdraw)
 
         escrowPosition = await osTokenVaultEscrow.getPosition(vaultAddr, positionTicket)
-        expect(escrowPosition[0]).to.equal(exitedAssets - assetsToWithdraw)
-        expect(escrowPosition[1]).to.equal(totalOsTokenShares - osTokenSharesToBurn)
+        expect(escrowPosition[1]).to.equal(exitedAssets - assetsToWithdraw)
+        expect(escrowPosition[2]).to.equal(totalOsTokenShares - osTokenSharesToBurn)
         await snapshotGasCost(tx)
       })
 
@@ -388,7 +391,7 @@ describe('EthOsTokenVaultEscrow', () => {
         })
 
         let escrowPosition = await osTokenVaultEscrow.getPosition(vaultAddr, positionTicket)
-        const osTokenSharesToBurn = escrowPosition[1]
+        const osTokenSharesToBurn = escrowPosition[2]
         const assetsToWithdraw = exitedAssets
         const balanceBefore = await ethers.provider.getBalance(owner.address)
         const tx = await osTokenVaultEscrow
@@ -402,8 +405,8 @@ describe('EthOsTokenVaultEscrow', () => {
           .withArgs(owner.address, vaultAddr, positionTicket, osTokenSharesToBurn, assetsToWithdraw)
 
         escrowPosition = await osTokenVaultEscrow.getPosition(vaultAddr, positionTicket)
-        expect(escrowPosition[0]).to.equal(0n)
         expect(escrowPosition[1]).to.equal(0n)
+        expect(escrowPosition[2]).to.equal(0n)
         await snapshotGasCost(tx)
       })
     })
@@ -437,8 +440,8 @@ describe('EthOsTokenVaultEscrow', () => {
         .processExitedAssets(vaultAddr, positionTicket, timestamp, index)
 
       const escrowPosition = await osTokenVaultEscrow.getPosition(vaultAddr, positionTicket)
-      exitedAssets = escrowPosition[0]
-      redeemedShares = escrowPosition[1]
+      exitedAssets = escrowPosition[1]
+      redeemedShares = escrowPosition[2]
 
       const redeemAssets = await osTokenVaultController.convertToAssets(redeemedShares)
       const vaultConfig = await osTokenConfig.getConfig(vaultAddr)
@@ -487,7 +490,7 @@ describe('EthOsTokenVaultEscrow', () => {
     it('cannot redeem osTokens when redeeming more than minted', async () => {
       await setAvgRewardPerSecond(dao, vault, keeper, 0)
       const escrowPosition = await osTokenVaultEscrow.getPosition(vaultAddr, positionTicket)
-      const redeemedShares = escrowPosition[1] + 1n
+      const redeemedShares = escrowPosition[2] + 1n
       await expect(
         osTokenVaultEscrow
           .connect(redeemer)
@@ -529,7 +532,7 @@ describe('EthOsTokenVaultEscrow', () => {
       const gasUsed = await getGasUsed(receipt)
 
       expect(await osToken.balanceOf(redeemer.address)).to.eq(osTokenBalanceBefore - redeemedShares)
-      expect(escrowPositionAfter[1]).to.be.eq(escrowPositionBefore[1] - redeemedShares)
+      expect(escrowPositionAfter[2]).to.be.eq(escrowPositionBefore[2] - redeemedShares)
 
       try {
         await expect(receipt)
@@ -556,7 +559,7 @@ describe('EthOsTokenVaultEscrow', () => {
           )
       }
 
-      expect(escrowPositionAfter[0]).to.be.eq(escrowPositionBefore[0] - redeemedAssets)
+      expect(escrowPositionAfter[1]).to.be.eq(escrowPositionBefore[1] - redeemedAssets)
       expect(assetsBalanceAfter).to.eq(assetsBalanceBefore + redeemedAssets - gasUsed)
 
       await expect(receipt)
@@ -607,7 +610,7 @@ describe('EthOsTokenVaultEscrow', () => {
         .processExitedAssets(vaultAddr, positionTicket, timestamp, index)
 
       const escrowPosition = await osTokenVaultEscrow.getPosition(vaultAddr, positionTicket)
-      liquidatedShares = escrowPosition[1]
+      liquidatedShares = escrowPosition[2]
       const liquidatedAssets = await osTokenVaultController.convertToAssets(liquidatedShares)
 
       const vaultConfig = await osTokenConfig.getConfig(vaultAddr)
@@ -662,7 +665,7 @@ describe('EthOsTokenVaultEscrow', () => {
       const escrowPositionBefore = await osTokenVaultEscrow.getPosition(vaultAddr, positionTicket)
       const assetsBalanceBefore = await ethers.provider.getBalance(liquidator.address)
 
-      let receivedAssets = escrowPositionBefore[0]
+      let receivedAssets = escrowPositionBefore[1]
       const liquidatedShares = await osTokenVaultController.convertToShares(
         (receivedAssets * parseEther('1')) / (await osTokenVaultEscrow.liqBonusPercent())
       )
@@ -679,8 +682,8 @@ describe('EthOsTokenVaultEscrow', () => {
       expect(await osToken.balanceOf(liquidator.address)).to.eq(
         osTokenBalanceBefore - liquidatedShares
       )
-      expect(escrowPositionAfter[0]).to.be.eq(escrowPositionBefore[0] - receivedAssets)
-      expect(escrowPositionAfter[1]).to.be.eq(escrowPositionBefore[1] - liquidatedShares)
+      expect(escrowPositionAfter[1]).to.be.eq(escrowPositionBefore[1] - receivedAssets)
+      expect(escrowPositionAfter[2]).to.be.eq(escrowPositionBefore[2] - liquidatedShares)
       await expect(receipt)
         .to.emit(osTokenVaultEscrow, 'OsTokenLiquidated')
         .withArgs(

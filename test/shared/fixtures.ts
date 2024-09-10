@@ -58,6 +58,8 @@ import {
   OsTokenVaultEscrow__factory,
   OsTokenVaultEscrowAuthMock,
   OsTokenVaultEscrowAuthMock__factory,
+  OsTokenFlashLoans,
+  OsTokenFlashLoans__factory,
 } from '../../typechain-types'
 import { getEthValidatorsRegistryFactory } from './contracts'
 import {
@@ -397,6 +399,15 @@ export const createOsTokenVaultEscrow = async function (
   return OsTokenVaultEscrow__factory.connect(await contract.getAddress(), signer)
 }
 
+export const createOsTokenFlashLoans = async function (
+  osToken: OsToken
+): Promise<OsTokenFlashLoans> {
+  const signer = await ethers.provider.getSigner()
+  const factory = await ethers.getContractFactory('OsTokenFlashLoans')
+  const contract = await factory.deploy(await osToken.getAddress())
+  return OsTokenFlashLoans__factory.connect(await contract.getAddress(), signer)
+}
+
 export const createCumulativeMerkleDrop = async function (
   token: string,
   owner: Wallet
@@ -680,6 +691,7 @@ interface EthVaultFixture {
   osTokenVaultController: OsTokenVaultController
   osTokenConfig: OsTokenConfig
   osTokenVaultEscrow: OsTokenVaultEscrow
+  osTokenFlashLoans: OsTokenFlashLoans
 
   createEthVault(
     admin: Signer,
@@ -816,6 +828,10 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
   // add to the vaults registry
   await vaultsRegistry.addVault(await osTokenVaultEscrow.getAddress())
 
+  // 8. deploy OsTokenFlashLoans
+  const osTokenFlashLoans = await createOsTokenFlashLoans(osToken)
+  await osToken.setController(await osTokenFlashLoans.getAddress(), true)
+
   // 9. deploy depositDataRegistry
   const depositDataRegistry = await createDepositDataRegistry(vaultsRegistry)
 
@@ -879,6 +895,7 @@ export const ethVaultFixture = async function (): Promise<EthVaultFixture> {
     osTokenConfig,
     osToken,
     osTokenVaultEscrow,
+    osTokenFlashLoans,
     createEthVault: async (
       admin: Signer,
       vaultParams: EthVaultInitParamsStruct,

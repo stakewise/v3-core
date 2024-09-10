@@ -111,7 +111,7 @@ interface IOsTokenVaultEscrow is IMulticall {
    * @param liqThresholdPercent The liquidation threshold percent
    * @param liqBonusPercent The liquidation bonus percent
    */
-  event LiqConfigUpdated(uint256 liqThresholdPercent, uint256 liqBonusPercent);
+  event LiqConfigUpdated(uint64 liqThresholdPercent, uint256 liqBonusPercent);
 
   /**
    * @notice Event emitted on authenticator update
@@ -123,7 +123,7 @@ interface IOsTokenVaultEscrow is IMulticall {
    * @notice The liquidation threshold percent
    * @return The liquidation threshold percent starting from which the osToken shares can be liquidated
    */
-  function liqThresholdPercent() external view returns (uint256);
+  function liqThresholdPercent() external view returns (uint64);
 
   /**
    * @notice The liquidation bonus percent
@@ -230,5 +230,5 @@ interface IOsTokenVaultEscrow is IMulticall {
    * @param _liqThresholdPercent The liquidation threshold percent
    * @param _liqBonusPercent The liquidation bonus percent
    */
-  function updateLiqConfig(uint256 _liqThresholdPercent, uint256 _liqBonusPercent) external;
+  function updateLiqConfig(uint64 _liqThresholdPercent, uint256 _liqBonusPercent) external;
 }

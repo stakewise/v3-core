@@ -17,7 +17,7 @@ Object {
 exports[`EthErc20Vault can update state, deposit, and mint osToken in one transaction 1`] = `
 Object {
   "calldataByteLength": 292,
-  "gasUsed": 238090,
+  "gasUsed": 238078,
 }
 `;
 
@@ -45,6 +45,6 @@ Object {
 exports[`EthErc20Vault update exit queue emits transfer event 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 139835,
+  "gasUsed": 139823,
 }
 `;

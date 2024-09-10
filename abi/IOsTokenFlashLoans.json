@@ -5,7 +5,7 @@
       {
         "indexed": true,
         "internalType": "address",
-        "name": "recipient",
+        "name": "caller",
         "type": "address"
       },
       {
@@ -20,11 +20,6 @@
   },
   {
     "inputs": [
-      {
-        "internalType": "address",
-        "name": "recipient",
-        "type": "address"
-      },
       {
         "internalType": "uint256",
         "name": "osTokenShares",
