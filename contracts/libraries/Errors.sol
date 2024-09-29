@@ -50,7 +50,6 @@ library Errors {
   error MaxOraclesExceeded();
   error ExitRequestNotProcessed();
   error ValueNotChanged();
-  error EigenInvalidWithdrawal();
   error InvalidWithdrawalCredentials();
   error EigenPodNotFound();
   error InvalidQueuedShares();

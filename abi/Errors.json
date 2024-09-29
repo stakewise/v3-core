@@ -26,11 +26,6 @@
   },
   {
     "inputs": [],
-    "name": "EigenInvalidWithdrawal",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "EigenPodNotFound",
     "type": "error"
   },
