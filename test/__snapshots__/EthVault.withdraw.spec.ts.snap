@@ -35,6 +35,8 @@ Object {
 }
 `;
 
+exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`] = `29876`;
+
 exports[`EthVault - withdraw redeem redeem transfers assets to receiver 1`] = `
 Object {
   "calldataByteLength": 68,
