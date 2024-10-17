@@ -61,6 +61,8 @@ describe('EthPrivVault', () => {
     let osTokenShares: bigint
 
     beforeEach(async () => {
+      admin = await ethers.getImpersonatedSigner(await vault.admin())
+      await vault.connect(admin).setWhitelister(await admin.getAddress())
       await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
       await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
       await vault.connect(admin).updateWhitelist(sender.address, true)

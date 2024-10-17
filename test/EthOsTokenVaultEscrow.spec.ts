@@ -45,7 +45,7 @@ describe('EthOsTokenVaultEscrow', () => {
     feePercent: 1000,
     metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u',
   }
-  let dao: Wallet, admin: Signer, owner: Wallet, other: Wallet, redeemer: Wallet, liquidator: Wallet
+  let dao: Signer, admin: Signer, owner: Wallet, other: Wallet, redeemer: Wallet, liquidator: Wallet
   let vault: EthVault,
     osToken: OsToken,
     osTokenConfig: OsTokenConfig,
@@ -445,7 +445,9 @@ describe('EthOsTokenVaultEscrow', () => {
 
       const redeemAssets = await osTokenVaultController.convertToAssets(redeemedShares)
       const vaultConfig = await osTokenConfig.getConfig(vaultAddr)
-      await osTokenConfig.connect(dao).setRedeemer(redeemer.address)
+      if ((await osTokenConfig.redeemer()) !== redeemer.address) {
+        await osTokenConfig.connect(dao).setRedeemer(redeemer.address)
+      }
       await vault
         .connect(redeemer)
         .depositAndMintOsToken(redeemer.address, MAX_UINT256, ZERO_ADDRESS, {
@@ -594,8 +596,17 @@ describe('EthOsTokenVaultEscrow', () => {
 
       // slashing received
       const vaultReward = getHarvestParams(await vault.getAddress(), penalty, 0n)
-      const tree = await updateRewards(keeper, [vaultReward], 0)
-      const harvestParams = {
+      let tree = await updateRewards(keeper, [vaultReward], 0)
+      let harvestParams = {
+        rewardsRoot: tree.root,
+        reward: vaultReward.reward,
+        unlockedMevReward: vaultReward.unlockedMevReward,
+        proof: getRewardsRootProof(tree, vaultReward),
+      }
+      await vault.connect(dao).updateState(harvestParams)
+
+      tree = await updateRewards(keeper, [vaultReward], 0)
+      harvestParams = {
         rewardsRoot: tree.root,
         reward: vaultReward.reward,
         unlockedMevReward: vaultReward.unlockedMevReward,

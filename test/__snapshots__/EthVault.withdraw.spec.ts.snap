@@ -28,39 +28,30 @@ Object {
 }
 `;
 
-exports[`EthVault - withdraw enter exit queue executes action hook 1`] = `
-Object {
-  "calldataByteLength": 68,
-  "gasUsed": 96334,
-}
-`;
-
 exports[`EthVault - withdraw enter exit queue locks shares for the time of exit 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 91453,
+  "gasUsed": 89271,
 }
 `;
-
-exports[`EthVault - withdraw get checkpoint index works with many checkpoints 1`] = `29876`;
 
 exports[`EthVault - withdraw redeem redeem transfers assets to receiver 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 57850,
+  "gasUsed": 55658,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue adds checkpoint 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 105760,
+  "gasUsed": 105787,
 }
 `;
 
 exports[`EthVault - withdraw update exit queue for not all the queued shares 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 105756,
+  "gasUsed": 105783,
 }
 `;

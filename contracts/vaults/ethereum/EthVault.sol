@@ -142,6 +142,7 @@ contract EthVault is
    */
   function __EthVault_initV3() internal {
     __VaultState_initV3();
+    __VaultValidators_initV3();
   }
 
   /**

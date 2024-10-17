@@ -225,34 +225,6 @@ describe('EthGenesisVault', () => {
       await expect(receipt).to.emit(vault, 'OsTokenMinted')
       await snapshotGasCost(receipt)
     })
-
-    it('calls action hook', async () => {
-      await acceptPoolEscrowOwnership()
-      await collatEthVault()
-      const assets = ethers.parseEther('10')
-      const expectedShares = await vault.convertToShares(assets)
-
-      let holder: Signer
-      if (MAINNET_FORK.enabled) {
-        holder = await ethers.getImpersonatedSigner(MAINNET_FORK.v2PoolHolder)
-      } else {
-        holder = other
-      }
-      const holderAddr = await holder.getAddress()
-
-      const hookMock = await ethers.deployContract('VaultActionHooksMock')
-      await vault.connect(admin).setActionHook(await hookMock.getAddress())
-
-      const receipt = await rewardEthToken.connect(holder).migrate(holderAddr, assets, 0)
-      expect(await vault.getShares(holderAddr)).to.eq(expectedShares)
-
-      await expect(receipt).to.emit(vault, 'Migrated').withArgs(holderAddr, assets, expectedShares)
-      await expect(receipt).to.emit(vault, 'OsTokenMinted')
-      await expect(receipt)
-        .to.emit(hookMock, 'UserBalanceChange')
-        .withArgs(await rewardEthToken.getAddress(), holderAddr, expectedShares)
-      await snapshotGasCost(receipt)
-    })
   })
 
   it('pulls assets on claim exited assets', async () => {

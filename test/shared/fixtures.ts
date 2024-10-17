@@ -128,6 +128,16 @@ export const upgradeVault = async function (
   const adminAddr = await vault.admin()
   const admin = await ethers.getImpersonatedSigner(adminAddr)
   await setBalance(adminAddr, ethers.parseEther('1'))
+
+  if ((await vault.version()) == 1n) {
+    // load v2 implementations
+    const vaultId = await vault.vaultId()
+    const fileName = '../../deployments/mainnet-vault-v2-upgrades.json'
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const upgrades = require(fileName)
+    const v2Implementation = upgrades[vaultId]['2']
+    await vault.connect(admin).upgradeToAndCall(v2Implementation, '0x')
+  }
   await vault.connect(admin).upgradeToAndCall(implementation, '0x')
   return vault
 }
@@ -258,10 +268,11 @@ export const createRewardSplitterFactory = async function (): Promise<RewardSpli
 }
 
 export const createDepositDataRegistry = async function (
-  vaultsRegistry: VaultsRegistry
+  vaultsRegistry: VaultsRegistry,
+  skipFork: boolean = false
 ): Promise<DepositDataRegistry> {
   const signer = await ethers.provider.getSigner()
-  if (MAINNET_FORK.enabled) {
+  if (MAINNET_FORK.enabled && !skipFork) {
     return DepositDataRegistry__factory.connect(mainnetDeployment.DepositDataRegistry, signer)
   }
   const factory = await ethers.getContractFactory('DepositDataRegistry')
@@ -350,11 +361,14 @@ export const createOsTokenConfig = async function (
   liqThresholdPercent: BigNumberish,
   liqBonusPercent: BigNumberish,
   ltvPercent: BigNumberish,
-  redeemer: Wallet
+  redeemer: Wallet,
+  skipFork: boolean = false
 ): Promise<OsTokenConfig> {
   const signer = await ethers.provider.getSigner()
-  if (MAINNET_FORK.enabled) {
-    return OsTokenConfig__factory.connect(mainnetDeployment.OsTokenConfig, signer)
+  if (MAINNET_FORK.enabled && !skipFork) {
+    const contract = OsTokenConfig__factory.connect(mainnetDeployment.OsTokenConfig, signer)
+    await transferOwnership(contract, owner)
+    return contract
   }
   const factory = await ethers.getContractFactory('OsTokenConfig')
   const contract = await factory.deploy(

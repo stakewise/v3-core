@@ -271,41 +271,6 @@ describe('EthVault - state', () => {
     await snapshotGasCost(receipt)
   })
 
-  it('calls hook on fee allocation', async () => {
-    // create vault with own mev escrow
-    const vault = await createVault(
-      admin,
-      {
-        capacity,
-        feePercent,
-        metadataIpfsHash,
-      },
-      true,
-      true
-    )
-    await vault.connect(holder).deposit(holder.address, ZERO_ADDRESS, { value: holderAssets })
-
-    const rewardValidators = ethers.parseEther('0.5')
-    const vaultReward = getHarvestParams(await vault.getAddress(), rewardValidators, 0n)
-    const tree = await updateRewards(keeper, [vaultReward])
-    const proof = getRewardsRootProof(tree, vaultReward)
-
-    const hookMock = await ethers.deployContract('VaultActionHooksMock')
-    await vault.connect(admin).setActionHook(await hookMock.getAddress())
-
-    const receipt = await vault.connect(other).updateState({
-      rewardsRoot: tree.root,
-      reward: vaultReward.reward,
-      unlockedMevReward: vaultReward.unlockedMevReward,
-      proof,
-    })
-    const feeShares = await vault.getShares(await admin.getAddress())
-    await expect(receipt)
-      .to.emit(hookMock, 'UserBalanceChange')
-      .withArgs(other.address, await admin.getAddress(), feeShares)
-    await snapshotGasCost(receipt)
-  })
-
   it('updates exit queue', async () => {
     const vault = await createVault(
       admin,
@@ -366,29 +331,5 @@ describe('EthVault - state', () => {
     expect(await vault.totalShares()).to.be.eq(totalSharesAfter)
     expect(await vault.totalAssets()).to.be.eq(totalAssetsAfter)
     await snapshotGasCost(receipt)
-  })
-
-  describe('action hook', () => {
-    it('not admin cannot set action hook', async () => {
-      await expect(vault.connect(other).setActionHook(other.address)).revertedWithCustomError(
-        vault,
-        'AccessDenied'
-      )
-    })
-    it('cannot set action hook to the same value', async () => {
-      await vault.connect(admin).setActionHook(other.address)
-      await expect(vault.connect(admin).setActionHook(other.address)).revertedWithCustomError(
-        vault,
-        'ValueNotChanged'
-      )
-    })
-
-    it('admin can set action hook', async () => {
-      const tx = await vault.connect(admin).setActionHook(other.address)
-      await expect(tx)
-        .to.emit(vault, 'VaultActionHookUpdated')
-        .withArgs(await admin.getAddress(), other.address)
-      await snapshotGasCost(tx)
-    })
   })
 })

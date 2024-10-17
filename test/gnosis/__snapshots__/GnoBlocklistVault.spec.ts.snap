@@ -3,7 +3,7 @@
 exports[`GnoBlocklistVault deposit can be called by not blocked user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 86856,
+  "gasUsed": 84627,
 }
 `;
 

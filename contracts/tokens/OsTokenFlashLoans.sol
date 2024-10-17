@@ -12,7 +12,7 @@ import {Errors} from '../libraries/Errors.sol';
 /**
  * @title OsTokenFlashLoans
  * @author StakeWise
- * @notice Handles OsToken flash loans
+ * @notice Mint and burn up to 100 000 osToken shares in single transaction.
  */
 contract OsTokenFlashLoans is ReentrancyGuard, IOsTokenFlashLoans {
   uint256 private constant _maxFlashLoanAmount = 100_000 ether;

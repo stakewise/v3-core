@@ -3,7 +3,7 @@
 exports[`GnoPrivVault deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 84884,
+  "gasUsed": 82655,
 }
 `;
 

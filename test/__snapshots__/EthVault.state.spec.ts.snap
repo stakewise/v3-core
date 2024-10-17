@@ -1,36 +1,22 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`EthVault - state action hook admin can set action hook 1`] = `
-Object {
-  "calldataByteLength": 36,
-  "gasUsed": 52787,
-}
-`;
-
 exports[`EthVault - state allocates fee to recipient when delta is above zero 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 122259,
+  "gasUsed": 120077,
 }
 `;
 
 exports[`EthVault - state applies penalty when delta is below zero 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 117859,
-}
-`;
-
-exports[`EthVault - state calls hook on fee allocation 1`] = `
-Object {
-  "calldataByteLength": 196,
-  "gasUsed": 118060,
+  "gasUsed": 117862,
 }
 `;
 
 exports[`EthVault - state updates exit queue 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 149265,
+  "gasUsed": 147083,
 }
 `;

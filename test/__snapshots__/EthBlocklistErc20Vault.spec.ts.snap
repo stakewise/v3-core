@@ -3,14 +3,14 @@
 exports[`EthBlocklistErc20Vault deposit can be called by not blocked user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 73347,
+  "gasUsed": 71137,
 }
 `;
 
 exports[`EthBlocklistErc20Vault deposit deposit through receive fallback can be called by not blocked sender 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 80535,
+  "gasUsed": 78347,
 }
 `;
 
@@ -24,6 +24,6 @@ Object {
 exports[`EthBlocklistErc20Vault transfer can transfer 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 61318,
+  "gasUsed": 58932,
 }
 `;

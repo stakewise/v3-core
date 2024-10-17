@@ -84,7 +84,7 @@ describe('EthVault - multicall', () => {
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
       rewardsRoot: tree.root,
       reward: vaultReward.reward,
-      unlockedMevReward: 0n,
+      unlockedMevReward: vaultReward.unlockedMevReward,
       proof: getRewardsRootProof(tree, {
         vault: vaultReward.vault,
         reward: vaultReward.reward,

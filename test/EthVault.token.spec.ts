@@ -184,34 +184,6 @@ describe('EthVault - token', () => {
           .to.emit(vault, 'Transfer')
           .withArgs(initialHolder.address, recipient.address, amount)
       })
-
-      it('calls action hook', async () => {
-        const hookMock = await ethers.deployContract('VaultActionHooksMock')
-        await vault.connect(admin).setActionHook(await hookMock.getAddress())
-
-        const receipt = await vault.connect(initialHolder).transfer(recipient.address, amount)
-
-        await expect(receipt)
-          .to.emit(hookMock, 'UserBalanceChange')
-          .withArgs(initialHolder.address, initialHolder.address, 0n)
-        await expect(receipt)
-          .to.emit(hookMock, 'UserBalanceChange')
-          .withArgs(initialHolder.address, recipient.address, amount)
-        await snapshotGasCost(receipt)
-      })
-
-      it('does not fail with invalid action hook', async () => {
-        const hookMock = await ethers.deployContract('InvalidVaultActionHooksMock')
-        await vault.connect(admin).setActionHook(await hookMock.getAddress())
-
-        const receipt = await vault.connect(initialHolder).transfer(recipient.address, amount)
-        await expect(receipt)
-          .to.emit(vault, 'Transfer')
-          .withArgs(initialHolder.address, recipient.address, amount)
-        expect(await vault.balanceOf(initialHolder.address)).to.eq(0)
-        expect(await vault.balanceOf(recipient.address)).to.eq(amount)
-        await snapshotGasCost(receipt)
-      })
     })
 
     describe('when the sender transfers zero tokens', () => {

@@ -3,13 +3,13 @@
 exports[`EthRestakeErc20Vault deposit emits transfer event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 70746,
+  "gasUsed": 68536,
 }
 `;
 
 exports[`EthRestakeErc20Vault enter exit queue emits transfer event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 90996,
+  "gasUsed": 88814,
 }
 `;

@@ -33,13 +33,6 @@ interface IVaultState is IVaultFee {
   event ExitingAssetsPenalized(uint256 penalty);
 
   /**
-   * @notice Event emitted when the VaultActionHook is updated
-   * @param caller The address that called the update function
-   * @param hook The address of the new action hook
-   */
-  event VaultActionHookUpdated(address caller, address hook);
-
-  /**
    * @notice Total assets in the Vault
    * @return The total amount of the underlying asset that is "managed" by Vault
    */
@@ -101,10 +94,4 @@ interface IVaultState is IVaultFee {
    * @param harvestParams The parameters for harvesting Keeper rewards
    */
   function updateState(IKeeperRewards.HarvestParams calldata harvestParams) external;
-
-  /**
-   * @notice Sets the actionHook contract address. Can only be called by the admin.
-   * @param newActionHook The address of the new actionHook contract
-   */
-  function setActionHook(address newActionHook) external;
 }

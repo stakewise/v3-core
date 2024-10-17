@@ -306,10 +306,6 @@ describe('EthVault - mint', () => {
     let sharesAfter = await vault.convertToShares(assets)
     sharesAfter += 1n // rounding error
 
-    if (MAINNET_FORK.enabled) {
-      osTokenAssets -= 1n // rounding error
-    }
-
     expect(sharesBefore).to.gt(sharesAfter)
     expect(await osToken.balanceOf(receiver.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(other.address)).to.eq(osTokenShares)

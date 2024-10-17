@@ -189,7 +189,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
    * @param user The address of the user
    * @return The maximum amount of osToken shares that can be minted
    */
-  function _calcMaxMintOsTokenShares(address user) internal view returns (uint256) {
+  function _calcMaxMintOsTokenShares(address user) private view returns (uint256) {
     uint256 userAssets = convertToAssets(_balances[user]);
     if (userAssets == 0) return 0;
 

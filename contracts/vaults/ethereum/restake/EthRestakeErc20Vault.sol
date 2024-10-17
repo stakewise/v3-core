@@ -177,6 +177,7 @@ contract EthRestakeErc20Vault is
    */
   function __EthRestakeErc20Vault_initV3() internal {
     __VaultState_initV3();
+    __VaultValidators_initV3();
   }
 
   /**

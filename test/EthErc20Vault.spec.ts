@@ -145,33 +145,36 @@ describe('EthErc20Vault', () => {
 
   it('update exit queue emits transfer event', async () => {
     const validatorDeposit = ethers.parseEther('32')
-    await vault
-      .connect(admin)
-      .deposit(await admin.getAddress(), ZERO_ADDRESS, { value: validatorDeposit })
+    await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: validatorDeposit })
     await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
-    const rewardsTree = await updateRewards(keeper, [
-      { vault: await vault.getAddress(), reward: 0n, unlockedMevReward: 0n },
-    ])
+    const vaultReward = getHarvestParams(await vault.getAddress(), 0n, 0n)
+    const rewardsTree = await updateRewards(keeper, [vaultReward])
     const proof = getRewardsRootProof(rewardsTree, {
       vault: await vault.getAddress(),
-      reward: 0n,
-      unlockedMevReward: 0n,
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
     })
 
     // exit validator
-    await vault.connect(admin).enterExitQueue(validatorDeposit, await admin.getAddress())
+    let shares = await vault.convertToShares(validatorDeposit)
+    await vault.connect(sender).enterExitQueue(shares, sender.address)
     await setBalance(await vault.getAddress(), validatorDeposit)
 
     const receipt = await vault.updateState({
       rewardsRoot: rewardsTree.root,
-      reward: 0n,
-      unlockedMevReward: 0n,
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
       proof,
     })
+
+    if (MAINNET_FORK.enabled) {
+      shares -= 1n // rounding error
+    }
+
     await expect(receipt)
       .to.emit(vault, 'Transfer')
-      .withArgs(await vault.getAddress(), ZERO_ADDRESS, validatorDeposit)
+      .withArgs(await vault.getAddress(), ZERO_ADDRESS, shares)
 
     await snapshotGasCost(receipt)
   })
@@ -322,9 +325,10 @@ describe('EthErc20Vault', () => {
         }
       )
 
-    const shares = await vault.convertToShares(assets)
+    let shares = await vault.convertToShares(assets)
     if (MAINNET_FORK.enabled) {
       osTokenAssets -= 1n // rounding error
+      shares += 1n // rounding error
     }
 
     expect(await osToken.balanceOf(receiver.address)).to.eq(osTokenShares)

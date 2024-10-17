@@ -194,6 +194,7 @@ contract EthErc20Vault is
    */
   function __EthErc20Vault_initV3() internal {
     __VaultState_initV3();
+    __VaultValidators_initV3();
   }
 
   /**

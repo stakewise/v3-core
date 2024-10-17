@@ -229,21 +229,4 @@ describe('EthVault - liquidate', () => {
 
     await snapshotGasCost(receipt)
   })
-
-  it('calls action hook', async () => {
-    const hookMock = await ethers.deployContract('VaultActionHooksMock')
-    await vault.connect(admin).setActionHook(await hookMock.getAddress())
-
-    const receipt = await vault
-      .connect(liquidator)
-      .liquidateOsToken(osTokenShares, owner.address, receiver.address)
-
-    await expect(receipt).to.emit(vault, 'OsTokenLiquidated')
-    await expect(receipt).to.emit(osToken, 'Transfer')
-    await expect(receipt).to.emit(osTokenVaultController, 'Burn')
-    await expect(receipt)
-      .to.emit(hookMock, 'UserBalanceChange')
-      .withArgs(liquidator.address, owner.address, await vault.getShares(owner.address))
-    await snapshotGasCost(receipt)
-  })
 })

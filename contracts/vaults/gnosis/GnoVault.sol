@@ -123,6 +123,7 @@ contract GnoVault is
    */
   function __GnoVault_initV3() internal {
     __VaultState_initV3();
+    __VaultValidators_initV3();
   }
 
   /**

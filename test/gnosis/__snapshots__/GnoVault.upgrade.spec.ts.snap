@@ -3,48 +3,48 @@
 exports[`GnoVault - upgrade does not modify the state variables 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 102798,
+  "gasUsed": 105491,
 }
 `;
 
 exports[`GnoVault - upgrade does not modify the state variables 2`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 103012,
+  "gasUsed": 105705,
 }
 `;
 
 exports[`GnoVault - upgrade does not modify the state variables 3`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 102902,
+  "gasUsed": 105595,
 }
 `;
 
 exports[`GnoVault - upgrade does not modify the state variables 4`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 103462,
+  "gasUsed": 106160,
 }
 `;
 
 exports[`GnoVault - upgrade does not modify the state variables 5`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 103676,
+  "gasUsed": 106374,
 }
 `;
 
 exports[`GnoVault - upgrade does not modify the state variables 6`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 103566,
+  "gasUsed": 106252,
 }
 `;
 
 exports[`GnoVault - upgrade does not modify the state variables 7`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 102876,
+  "gasUsed": 105581,
 }
 `;

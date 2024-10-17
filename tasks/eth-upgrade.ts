@@ -8,7 +8,7 @@ import { GovernorCall, NetworkConfig } from '../helpers/types'
 
 const DEPLOYMENTS_DIR = 'deployments'
 
-task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskArgs, hre) => {
+task('eth-upgrade', 'upgrades StakeWise for Ethereum').setAction(async (taskArgs, hre) => {
   const ethers = hre.ethers
   const networkName = hre.network.name
   const networkConfig: NetworkConfig = NETWORKS[networkName]
@@ -30,39 +30,59 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
   const keeperAddress = deployment.Keeper
   const osTokenVaultControllerAddress = deployment.OsTokenVaultController
   const genesisVaultAddress = deployment.EthGenesisVault
+  const foxVaultAddress = deployment.EthFoxVault
   const priceFeedAddress = deployment.PriceFeed
   const cumulativeMerkleDropAddress = deployment.CumulativeMerkleDrop
+  const osTokenConfigAddress = deployment.OsTokenConfig
+  const depositDataRegistryAddress = deployment.DepositDataRegistry
+  const ethValidatorsCheckerAddress = deployment.EthValidatorsChecker
+  const rewardSplitterFactoryAddress = deployment.RewardSplitterFactory
 
   // accumulate governor transaction
   const governorTransaction: GovernorCall[] = []
   const vaultUpgrades: Record<string, Record<string, string>> = {}
   const vaultsRegistry = await ethers.getContractAt('VaultsRegistry', vaultsRegistryAddress)
+  const osToken = await ethers.getContractAt('OsToken', osTokenAddress)
 
-  // Deploy OsTokenConfig
-  const osTokenConfig = await deployContract(
+  // Deploy EthOsTokenVaultEscrow
+  const osTokenVaultEscrow = await deployContract(
     hre,
-    'OsTokenConfig',
+    'EthOsTokenVaultEscrow',
     [
+      osTokenVaultControllerAddress,
+      osTokenConfigAddress,
       networkConfig.governor,
-      {
-        liqThresholdPercent: networkConfig.liqThresholdPercent,
-        liqBonusPercent: networkConfig.liqBonusPercent,
-        ltvPercent: networkConfig.ltvPercent,
-      },
-      networkConfig.governor,
+      networkConfig.osTokenVaultEscrow.authenticator,
+      networkConfig.osTokenVaultEscrow.liqThresholdPercent,
+      networkConfig.osTokenVaultEscrow.liqBonusPercent,
     ],
-    'contracts/tokens/OsTokenConfig.sol:OsTokenConfig'
+    'contracts/tokens/EthOsTokenVaultEscrow.sol:EthOsTokenVaultEscrow'
   )
-  const osTokenConfigAddress = await osTokenConfig.getAddress()
+  const osTokenVaultEscrowAddress = await osTokenVaultEscrow.getAddress()
 
-  // Deploy DepositDataRegistry
-  const depositDataRegistry = await deployContract(
-    hre,
-    'DepositDataRegistry',
-    [vaultsRegistryAddress],
-    'contracts/validators/DepositDataRegistry.sol:DepositDataRegistry'
+  // encode governor call to add escrow to the vaults registry
+  governorTransaction.push(
+    await encodeGovernorContractCall(vaultsRegistry, 'addVault(address)', [
+      osTokenVaultEscrowAddress,
+    ])
   )
-  const depositDataRegistryAddress = await depositDataRegistry.getAddress()
+
+  // Deploy OsTokenFlashLoans
+  const osTokenFlashLoans = await deployContract(
+    hre,
+    'OsTokenFlashLoans',
+    [osTokenAddress],
+    'contracts/tokens/OsTokenFlashLoans.sol:OsTokenFlashLoans'
+  )
+  const osTokenFlashLoansAddress = await osTokenFlashLoans.getAddress()
+
+  // encode governor call to add OsTokenFlashLoans as the OsToken controller
+  governorTransaction.push(
+    await encodeGovernorContractCall(osToken, 'setController(address,bool)', [
+      osTokenFlashLoansAddress,
+      true,
+    ])
+  )
 
   const factories: string[] = []
   for (const vaultType of [
@@ -80,6 +100,7 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
       networkConfig.validatorsRegistry,
       osTokenVaultControllerAddress,
       osTokenConfigAddress,
+      osTokenVaultEscrowAddress,
       sharedMevEscrowAddress,
       depositDataRegistryAddress,
       networkConfig.exitedAssetsClaimDelay,
@@ -133,12 +154,13 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
   }
 
   // Deploy EthGenesisVault implementation
-  let constructorArgs = [
+  const constructorArgs = [
     keeperAddress,
     vaultsRegistryAddress,
     networkConfig.validatorsRegistry,
     osTokenVaultControllerAddress,
     osTokenConfigAddress,
+    osTokenVaultEscrowAddress,
     sharedMevEscrowAddress,
     depositDataRegistryAddress,
     networkConfig.genesisVault.poolEscrow,
@@ -169,112 +191,7 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
       genesisVaultImplAddress,
     ])
   )
-  console.log(`NB! Upgrade EthGenesisVault to V2: ${genesisVaultImplAddress}`)
-
-  // Deploy EigenPodOwner implementation
-  constructorArgs = [
-    networkConfig.eigenPodManager,
-    networkConfig.eigenDelegationManager,
-    networkConfig.eigenDelayedWithdrawalRouter,
-  ]
-  const eigenPodOwnerImpl = await deployContract(
-    hre,
-    'EigenPodOwner',
-    constructorArgs,
-    'contracts/vaults/ethereum/restake/EigenPodOwner.sol:EigenPodOwner'
-  )
-  const eigenPodOwnerFactory = await ethers.getContractFactory('EigenPodOwner')
-  const eigenPodOwnerImplAddress = await eigenPodOwnerImpl.getAddress()
-  await simulateDeployImpl(hre, eigenPodOwnerFactory, { constructorArgs }, eigenPodOwnerImplAddress)
-
-  // Deploy restake vaults
-  for (const vaultType of [
-    'EthRestakeVault',
-    'EthRestakePrivVault',
-    'EthRestakeBlocklistVault',
-    'EthRestakeErc20Vault',
-    'EthRestakePrivErc20Vault',
-    'EthRestakeBlocklistErc20Vault',
-  ]) {
-    // Deploy Vault Implementation
-    const constructorArgs = [
-      keeperAddress,
-      vaultsRegistryAddress,
-      networkConfig.validatorsRegistry,
-      sharedMevEscrowAddress,
-      depositDataRegistryAddress,
-      eigenPodOwnerImplAddress,
-      networkConfig.exitedAssetsClaimDelay,
-    ]
-    const vaultImpl = await deployContract(
-      hre,
-      vaultType,
-      constructorArgs,
-      `contracts/vaults/ethereum/restake/${vaultType}.sol:${vaultType}`
-    )
-    const vaultImplAddress = await vaultImpl.getAddress()
-    await simulateDeployImpl(
-      hre,
-      await ethers.getContractFactory(vaultType),
-      { constructorArgs },
-      vaultImplAddress
-    )
-
-    // Deploy Restake Vault Factory
-    const vaultFactory = await deployContract(
-      hre,
-      'EthRestakeVaultFactory',
-      [networkConfig.governor, vaultImplAddress, vaultsRegistryAddress],
-      'contracts/vaults/ethereum/restake/EthRestakeVaultFactory.sol:EthRestakeVaultFactory'
-    )
-    const vaultFactoryAddress = await vaultFactory.getAddress()
-    factories.push(vaultFactoryAddress)
-
-    // add vault implementation updates
-    const vaultId = await vaultImpl.vaultId()
-    if (!(vaultId in vaultUpgrades)) {
-      vaultUpgrades[vaultId] = {}
-    }
-    const vaultVersion = await vaultImpl.version()
-    vaultUpgrades[vaultId][vaultVersion.toString()] = vaultImplAddress
-
-    // encode governor calls
-    governorTransaction.push(
-      await encodeGovernorContractCall(vaultsRegistry, 'addFactory(address)', [vaultFactoryAddress])
-    )
-  }
-
-  // Deploy RewardSplitter Implementation
-  const rewardSplitterImpl = await deployContract(
-    hre,
-    'RewardSplitter',
-    [],
-    'contracts/misc/RewardSplitter.sol:RewardSplitter'
-  )
-  const rewardSplitterImplAddress = await rewardSplitterImpl.getAddress()
-
-  // Deploy RewardSplitter factory
-  const rewardSplitterFactory = await deployContract(
-    hre,
-    'RewardSplitterFactory',
-    [rewardSplitterImplAddress],
-    'contracts/misc/RewardSplitterFactory.sol:RewardSplitterFactory'
-  )
-  const rewardSplitterFactoryAddress = await rewardSplitterFactory.getAddress()
-
-  // Deploy ValidatorsChecker
-  const ethValidatorsChecker = await deployContract(
-    hre,
-    'EthValidatorsChecker',
-    [
-      networkConfig.validatorsRegistry,
-      keeperAddress,
-      vaultsRegistryAddress,
-      depositDataRegistryAddress,
-    ],
-    'contracts/validators/EthValidatorsChecker.sol:EthValidatorsChecker'
-  )
-  const ethValidatorsCheckerAddress = await ethValidatorsChecker.getAddress()
+  console.log(`NB! Upgrade EthGenesisVault to V3: ${genesisVaultImplAddress}`)
 
   // Save the addresses
   const addresses = {
@@ -283,18 +200,13 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
     DepositDataRegistry: depositDataRegistryAddress,
     EthValidatorsChecker: ethValidatorsCheckerAddress,
     EthGenesisVault: genesisVaultAddress,
+    EthFoxVault: foxVaultAddress,
     EthVaultFactory: factories[0],
     EthPrivVaultFactory: factories[1],
     EthBlocklistVaultFactory: factories[2],
     EthErc20VaultFactory: factories[3],
     EthPrivErc20VaultFactory: factories[4],
     EthBlocklistErc20VaultFactory: factories[5],
-    EthRestakeVaultFactory: factories[6],
-    EthRestakePrivVaultFactory: factories[7],
-    EthRestakeBlocklistVaultFactory: factories[8],
-    EthRestakeErc20VaultFactory: factories[9],
-    EthRestakePrivErc20VaultFactory: factories[10],
-    EthRestakeBlocklistErc20VaultFactory: factories[11],
     SharedMevEscrow: sharedMevEscrowAddress,
     OsToken: osTokenAddress,
     OsTokenConfig: osTokenConfigAddress,
@@ -316,13 +228,13 @@ task('eth-upgrade', 'upgrades StakeWise V3 for Ethereum').setAction(async (taskA
 
   // save governor transactions
   json = JSON.stringify(governorTransaction, null, 2)
-  fileName = `${DEPLOYMENTS_DIR}/${networkName}-upgrade-tx.json`
+  fileName = `${DEPLOYMENTS_DIR}/${networkName}-v3-upgrade-tx.json`
   fs.writeFileSync(fileName, json, 'utf-8')
   console.log('Governor transaction saved to', fileName)
 
   // save vault upgrades
   json = JSON.stringify(vaultUpgrades, null, 2)
-  fileName = `${DEPLOYMENTS_DIR}/${networkName}-vault-upgrades.json`
+  fileName = `${DEPLOYMENTS_DIR}/${networkName}-v3-vault-upgrades.json`
   fs.writeFileSync(fileName, json, 'utf-8')
   console.log('Vault upgrades saved to', fileName)
 })

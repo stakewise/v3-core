@@ -3,13 +3,13 @@
 exports[`EthRestakeBlocklistVault deposit can be called by not blocked user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 73175,
+  "gasUsed": 70968,
 }
 `;
 
 exports[`EthRestakeBlocklistVault deposit deposit through receive fallback can be called by not blocked sender 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 78704,
+  "gasUsed": 76519,
 }
 `;

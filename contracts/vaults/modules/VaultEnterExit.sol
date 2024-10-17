@@ -193,9 +193,6 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     // reverts if owner does not have enough shares
     _balances[user] -= shares;
 
-    // execute hook if exists
-    _executeUserBalanceChangeHook(user);
-
     unchecked {
       // cannot overflow as it is capped with _totalShares
       queuedShares = SafeCast.toUint128(_queuedShares + shares);

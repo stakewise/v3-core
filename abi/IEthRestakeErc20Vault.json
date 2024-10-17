@@ -427,25 +427,6 @@
     "type": "event"
   },
   {
-    "anonymous": false,
-    "inputs": [
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "caller",
-        "type": "address"
-      },
-      {
-        "indexed": false,
-        "internalType": "address",
-        "name": "hook",
-        "type": "address"
-      }
-    ],
-    "name": "VaultActionHookUpdated",
-    "type": "event"
-  },
-  {
     "inputs": [],
     "name": "DOMAIN_SEPARATOR",
     "outputs": [
@@ -1049,19 +1030,6 @@
       }
     ],
     "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [
-      {
-        "internalType": "address",
-        "name": "newActionHook",
-        "type": "address"
-      }
-    ],
-    "name": "setActionHook",
-    "outputs": [],
-    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

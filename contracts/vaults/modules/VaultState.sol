@@ -7,7 +7,6 @@ import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {IVaultState} from '../../interfaces/IVaultState.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
-import {IVaultActionHooks} from '../../interfaces/IVaultActionHooks.sol';
 import {ExitQueue} from '../../libraries/ExitQueue.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultAdmin} from './VaultAdmin.sol';
@@ -38,8 +37,6 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultAdmin, Vaul
   uint128 internal _totalExitingAssets; // deprecated
   uint128 internal _totalExitingTickets; // deprecated
   uint256 internal _totalExitedTickets; // deprecated
-
-  address private _actionHook;
 
   /// @inheritdoc IVaultState
   function totalShares() external view override returns (uint256) {
@@ -106,14 +103,6 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultAdmin, Vaul
 
     // update exit queue every time new update is harvested
     if (harvested) _updateExitQueue();
-  }
-
-  /// @inheritdoc IVaultState
-  function setActionHook(address newActionHook) external override {
-    _checkAdmin();
-    if (_actionHook == newActionHook) revert Errors.ValueNotChanged();
-    _actionHook = newActionHook;
-    emit VaultActionHookUpdated(msg.sender, newActionHook);
   }
 
   /**
@@ -198,11 +187,8 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultAdmin, Vaul
    * @return burnedShares The total amount of burned shares
    */
   function _updateExitQueue() internal virtual returns (uint256 burnedShares) {
-    // SLOAD to memory
-    uint256 unclaimedAssets = _unclaimedAssets;
-
     // calculate assets that can be used to process the exit requests
-    uint256 availableAssets = _vaultAssets() - unclaimedAssets;
+    uint256 availableAssets = _vaultAssets() - _unclaimedAssets;
     if (availableAssets == 0) return 0;
 
     // SLOAD to memory
@@ -269,9 +255,6 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultAdmin, Vaul
       // balances can't exceed the max uint256 value
       _balances[owner] += shares;
     }
-
-    // execute hook if exists
-    _executeUserBalanceChangeHook(owner);
   }
 
   /**
@@ -287,24 +270,6 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultAdmin, Vaul
     unchecked {
       // cannot underflow because the sum of all shares can't exceed the _totalShares
       _totalShares -= SafeCast.toUint128(shares);
-    }
-
-    // execute hook if exists
-    _executeUserBalanceChangeHook(owner);
-  }
-
-  /**
-   * @dev Internal function for execution the user balance change hook
-   * @param user The address of the user
-   */
-  function _executeUserBalanceChangeHook(address user) internal {
-    // SLOAD to memory
-    address actionHook = _actionHook;
-    if (actionHook != address(0)) {
-      // do not block the flow if the hook fails
-      try
-        IVaultActionHooks(actionHook).onUserBalanceChange(msg.sender, user, _balances[user])
-      {} catch {}
     }
   }
 
@@ -385,5 +350,5 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultAdmin, Vaul
    * variables without shifting down storage in the inheritance chain.
    * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
    */
-  uint256[47] private __gap;
+  uint256[48] private __gap;
 }

@@ -3,21 +3,21 @@
 exports[`EthRestakeVault create eigen pod succeeds 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 675125,
+  "gasUsed": 651839,
 }
 `;
 
 exports[`EthRestakeVault multiple validators succeeds 1`] = `
 Object {
   "calldataByteLength": 2820,
-  "gasUsed": 554924,
+  "gasUsed": 556076,
 }
 `;
 
 exports[`EthRestakeVault restake operators manager succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 52674,
+  "gasUsed": 52652,
 }
 `;
 
@@ -31,6 +31,6 @@ Object {
 exports[`EthRestakeVault single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 1060,
-  "gasUsed": 268412,
+  "gasUsed": 268380,
 }
 `;

@@ -3,7 +3,7 @@
 exports[`VaultsRegistry factory can add vault 1`] = `
 Object {
   "calldataByteLength": 324,
-  "gasUsed": 355105,
+  "gasUsed": 352920,
 }
 `;
 

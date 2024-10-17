@@ -63,6 +63,7 @@ describe('EthPrivErc20Vault', () => {
     const amount = ethers.parseEther('1')
 
     beforeEach(async () => {
+      await vault.connect(admin).setWhitelister(await admin.getAddress())
       await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
       await vault.connect(admin).updateWhitelist(sender.address, true)
     })
@@ -152,6 +153,7 @@ describe('EthPrivErc20Vault', () => {
     const amount = ethers.parseEther('1')
 
     beforeEach(async () => {
+      await vault.connect(admin).setWhitelister(await admin.getAddress())
       await vault.connect(admin).updateWhitelist(sender.address, true)
       await vault.connect(sender).deposit(sender.address, referrer, { value: amount })
     })
@@ -189,6 +191,7 @@ describe('EthPrivErc20Vault', () => {
     let osTokenShares: bigint
 
     beforeEach(async () => {
+      await vault.connect(admin).setWhitelister(await admin.getAddress())
       await vault.connect(admin).updateWhitelist(sender.address, true)
       await vault.connect(admin).updateWhitelist(await admin.getAddress(), true)
       await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)

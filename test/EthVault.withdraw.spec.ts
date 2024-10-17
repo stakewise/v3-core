@@ -205,21 +205,6 @@ describe('EthVault - withdraw', () => {
 
       await snapshotGasCost(receipt)
     })
-
-    it('executes action hook', async () => {
-      const hookMock = await ethers.deployContract('VaultActionHooksMock')
-      await vault.connect(admin).setActionHook(await hookMock.getAddress())
-
-      const receipt = await vault.connect(holder).enterExitQueue(holderShares, receiver.address)
-      await expect(receipt)
-        .to.emit(vault, 'ExitQueueEntered')
-        .withArgs(holder.address, receiver.address, validatorDeposit, holderShares)
-
-      await expect(receipt)
-        .to.emit(hookMock, 'UserBalanceChange')
-        .withArgs(holder.address, holder.address, 0n)
-      await snapshotGasCost(receipt)
-    })
   })
 
   describe('update exit queue', () => {

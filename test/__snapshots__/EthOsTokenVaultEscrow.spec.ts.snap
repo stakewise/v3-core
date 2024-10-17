@@ -3,7 +3,7 @@
 exports[`EthOsTokenVaultEscrow claim exited assets succeeds succeeds for all osToken shares 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 77635,
+  "gasUsed": 77623,
 }
 `;
 
@@ -38,14 +38,14 @@ Object {
 exports[`EthOsTokenVaultEscrow register keeps LTV for the position left 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 172517,
+  "gasUsed": 170313,
 }
 `;
 
 exports[`EthOsTokenVaultEscrow register removes position if all the osToken shares transferred 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 162375,
+  "gasUsed": 160159,
 }
 `;
 

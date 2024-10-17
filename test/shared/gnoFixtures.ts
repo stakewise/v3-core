@@ -589,7 +589,8 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
     OSTOKEN_LIQ_THRESHOLD,
     OSTOKEN_LIQ_BONUS,
     OSTOKEN_LTV,
-    dao
+    dao,
+    true
   )
 
   // 7. deploys osTokenVaultEscrowAuthMock
@@ -632,7 +633,7 @@ export const gnoVaultFixture = async function (): Promise<GnoVaultFixture> {
   )
 
   // 11. deploy DepositDataRegistry
-  const depositDataRegistry = await createDepositDataRegistry(vaultsRegistry)
+  const depositDataRegistry = await createDepositDataRegistry(vaultsRegistry, true)
 
   // 12. deploy implementations and factories
   const factories = {}
