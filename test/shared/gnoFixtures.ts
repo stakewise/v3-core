@@ -130,7 +130,7 @@ export async function collateralizeGnoVault(
   const signer = (await ethers.getSigners())[0]
   try {
     await (<GnoPrivVault>vault).connect(admin).updateWhitelist(await signer.getAddress(), true)
-  } catch (e) {
+  } catch {
     /* empty */
   }
   const vaultAddress = await vault.getAddress()

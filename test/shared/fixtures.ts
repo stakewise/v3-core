@@ -133,7 +133,8 @@ export const upgradeVault = async function (
     // load v2 implementations
     const vaultId = await vault.vaultId()
     const fileName = '../../deployments/mainnet-vault-v2-upgrades.json'
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
+
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const upgrades = require(fileName)
     const v2Implementation = upgrades[vaultId]['2']
     await vault.connect(admin).upgradeToAndCall(v2Implementation, '0x')

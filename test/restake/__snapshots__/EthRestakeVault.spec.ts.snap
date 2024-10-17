@@ -10,7 +10,7 @@ Object {
 exports[`EthRestakeVault multiple validators succeeds 1`] = `
 Object {
   "calldataByteLength": 2820,
-  "gasUsed": 556076,
+  "gasUsed": 554984,
 }
 `;
 
@@ -31,6 +31,6 @@ Object {
 exports[`EthRestakeVault single validator succeeds 1`] = `
 Object {
   "calldataByteLength": 1060,
-  "gasUsed": 268380,
+  "gasUsed": 269388,
 }
 `;
