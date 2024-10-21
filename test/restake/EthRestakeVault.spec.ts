@@ -73,7 +73,7 @@ describe('EthRestakeVault', () => {
     const adminAddr = await admin.getAddress()
 
     // VaultVersion
-    expect(await vault.version()).to.be.eq(2)
+    expect(await vault.version()).to.be.eq(3)
     expect(await vault.vaultId()).to.be.eq(`0x${keccak256('EthRestakeVault').toString('hex')}`)
 
     // VaultFee

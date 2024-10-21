@@ -53,7 +53,6 @@ abstract contract VaultToken is Initializable, ERC20Upgradeable, VaultState, IVa
     unchecked {
       _balances[to] += amount;
     }
-
     emit Transfer(from, to, amount);
   }
 

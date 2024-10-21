@@ -46,10 +46,10 @@ describe('OsTokenConfig', () => {
     })
 
     it('cannot set redeemer to the same address', async () => {
-      await expect(osTokenConfig.connect(dao).setRedeemer(dao.address)).to.revertedWithCustomError(
-        osTokenConfig,
-        'ValueNotChanged'
-      )
+      const currentRedeemer = await osTokenConfig.redeemer()
+      await expect(
+        osTokenConfig.connect(dao).setRedeemer(currentRedeemer)
+      ).to.revertedWithCustomError(osTokenConfig, 'ValueNotChanged')
     })
 
     it('owner can update redeemer', async () => {

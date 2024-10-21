@@ -2491,9 +2491,7 @@
           ]
         }
       },
-      "allAddresses": [
-        "0xAEaE7d602b537b2065f3dA05DCCE754fB23A968d"
-      ]
+      "allAddresses": ["0xAEaE7d602b537b2065f3dA05DCCE754fB23A968d"]
     },
     "9ca02fae8617864b4e190510546945f5644c01a2d3a8bce1bf4c8417ffc9fc88": {
       "address": "0x35dC754f157b32Ba0941ffCD89d16d3D0B2cA6CF",

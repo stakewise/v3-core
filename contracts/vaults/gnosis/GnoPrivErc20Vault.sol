@@ -19,7 +19,7 @@ import {GnoErc20Vault, IGnoErc20Vault} from './GnoErc20Vault.sol';
  */
 contract GnoPrivErc20Vault is Initializable, GnoErc20Vault, VaultWhitelist, IGnoPrivErc20Vault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -30,6 +30,7 @@ contract GnoPrivErc20Vault is Initializable, GnoErc20Vault, VaultWhitelist, IGno
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param gnoToken The address of the GNO token
@@ -43,6 +44,7 @@ contract GnoPrivErc20Vault is Initializable, GnoErc20Vault, VaultWhitelist, IGno
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     address gnoToken,
@@ -55,6 +57,7 @@ contract GnoPrivErc20Vault is Initializable, GnoErc20Vault, VaultWhitelist, IGno
       _validatorsRegistry,
       osTokenVaultController,
       osTokenConfig,
+      osTokenVaultEscrow,
       sharedMevEscrow,
       depositDataRegistry,
       gnoToken,
@@ -67,6 +70,12 @@ contract GnoPrivErc20Vault is Initializable, GnoErc20Vault, VaultWhitelist, IGno
   function initialize(
     bytes calldata params
   ) external virtual override(IGnoErc20Vault, GnoErc20Vault) reinitializer(_version) {
+    // if admin is already set, it's an upgrade from version 2 to 3
+    if (admin != address(0)) {
+      __GnoErc20Vault_initV3();
+      return;
+    }
+
     // initialize deployed vault
     address _admin = IGnoVaultFactory(msg.sender).vaultAdmin();
     __GnoErc20Vault_init(

@@ -237,9 +237,7 @@ describe('EthVault - register', () => {
       const exitSignaturesIpfsHash = exitSignatureIpfsHashes[0]
       const vaultAddr = await vault.getAddress()
       const balance =
-        validatorDeposit * BigInt(validators.length) +
-        (await vault.totalExitingAssets()) +
-        (await ethers.provider.getBalance(vaultAddr))
+        validatorDeposit * BigInt(validators.length) + (await ethers.provider.getBalance(vaultAddr))
       await setBalance(vaultAddr, balance)
       signatures = getOraclesSignatures(
         await getEthValidatorsSigningData(

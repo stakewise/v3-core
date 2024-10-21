@@ -20,6 +20,7 @@ import {
 import { EXITING_ASSETS_MIN_DELAY, SECURITY_DEPOSIT, ZERO_ADDRESS } from '../shared/constants'
 import { registerEthValidator } from '../shared/validators'
 import keccak256 from 'keccak256'
+import { getHarvestParams, getRewardsRootProof, updateRewards } from '../shared/rewards'
 
 describe('GnoVault', () => {
   const vaultParams = {
@@ -51,7 +52,7 @@ describe('GnoVault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(2)
+    expect(await vault.version()).to.eq(3)
   })
 
   it('cannot initialize twice', async () => {
@@ -159,6 +160,16 @@ describe('GnoVault', () => {
 
     // withdrawals arrives
     await setGnoWithdrawals(validatorsRegistry, gnoToken, vault, assets)
+    const vaultReward = getHarvestParams(await vault.getAddress(), 0n, 0n)
+    const rewardsTree = await updateRewards(keeper, [vaultReward])
+    const proof = getRewardsRootProof(rewardsTree, vaultReward)
+    await vault.updateState({
+      rewardsRoot: rewardsTree.root,
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
+      proof,
+    })
+
     const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
     expect(exitQueueIndex).to.eq(0)
     expect(await vault.withdrawableAssets()).to.eq(0n)

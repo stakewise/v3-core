@@ -37,21 +37,28 @@ export const getBlockTimestamp = async (response: ContractTransactionResponse): 
   return block?.timestamp as number
 }
 
+export const getGasUsed = async (response: ContractTransactionResponse): Promise<bigint> => {
+  const tx = (await response.wait()) as any
+  return BigInt(tx.cumulativeGasUsed * tx.gasPrice)
+}
+
 export const extractExitPositionTicket = async (
   response: ContractTransactionResponse
 ): Promise<bigint> => {
   const receipt = (await response.wait()) as ContractTransactionReceipt
-  let log = receipt.logs?.[receipt.logs.length - 1]
-  if (!('args' in log)) {
+  if (receipt.logs?.length == 0) {
     throw new Error('No logs found')
   }
-  if (log.args?.positionTicket == undefined && receipt.logs?.length && receipt.logs?.length > 1) {
-    log = receipt.logs?.[receipt.logs.length - 2]
+  for (const log of receipt.logs) {
     if (!('args' in log)) {
-      throw new Error('No logs found')
+      continue
+    }
+    if (log.args?.positionTicket != undefined) {
+      return log.args.positionTicket as bigint
     }
   }
-  return log.args?.positionTicket as bigint
+
+  throw new Error('No logs found')
 }
 
 export const extractDepositShares = async (

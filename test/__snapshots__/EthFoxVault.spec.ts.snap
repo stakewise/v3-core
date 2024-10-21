@@ -17,21 +17,21 @@ Object {
 exports[`EthFoxVault deposit can be called by not blocked user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 68880,
+  "gasUsed": 68858,
 }
 `;
 
 exports[`EthFoxVault deposit deposit through receive fallback can be called by not blocked sender 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 76519,
+  "gasUsed": 76530,
 }
 `;
 
 exports[`EthFoxVault ejecting user blocklist manager can eject all of the user assets for collateralized vault 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 120023,
+  "gasUsed": 116988,
 }
 `;
 

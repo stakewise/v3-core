@@ -1151,19 +1151,6 @@
   },
   {
     "inputs": [],
-    "name": "totalExitingAssets",
-    "outputs": [
-      {
-        "internalType": "uint128",
-        "name": "",
-        "type": "uint128"
-      }
-    ],
-    "stateMutability": "view",
-    "type": "function"
-  },
-  {
-    "inputs": [],
     "name": "totalShares",
     "outputs": [
       {
@@ -1173,6 +1160,25 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "osTokenShares",
+        "type": "uint256"
+      }
+    ],
+    "name": "transferOsTokenPositionToEscrow",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "positionTicket",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "nonpayable",
     "type": "function"
   },
   {

@@ -1,5 +1,5 @@
 import hre, { ethers } from 'hardhat'
-import { Contract, Signer, Wallet } from 'ethers'
+import { Contract, ContractFactory, Signer, Wallet } from 'ethers'
 import { simulateDeployImpl } from '@openzeppelin/hardhat-upgrades/dist/utils'
 import EthereumWallet from 'ethereumjs-wallet'
 import {
@@ -35,7 +35,7 @@ import {
 } from './constants'
 import { EthRestakeErc20VaultInitParamsStruct, EthRestakeVaultInitParamsStruct } from './types'
 import { extractVaultAddress } from './utils'
-import { createDepositDataRegistry, transferOwnership } from './fixtures'
+import { createDepositDataRegistry, createEthVaultFactory, transferOwnership } from './fixtures'
 import { MAINNET_FORK, NETWORKS } from '../../helpers/constants'
 import { getEthValidatorsRegistryFactory } from './contracts'
 import mainnetDeployment from '../../deployments/mainnet.json'
@@ -71,6 +71,44 @@ export const deployEigenPodOwnerImplementation = async function (
   const eigenPodOwnerImpl = await contract.getAddress()
   await simulateDeployImpl(hre, factory, { constructorArgs }, eigenPodOwnerImpl)
   return eigenPodOwnerImpl
+}
+
+export async function deployEthRestakeVaultV2(
+  implFactory: ContractFactory,
+  admin: Signer,
+  keeper: Keeper,
+  vaultsRegistry: VaultsRegistry,
+  validatorsRegistry: Contract,
+  sharedMevEscrow: SharedMevEscrow,
+  depositDataRegistry: DepositDataRegistry,
+  eigenPodOwnerImpl: string,
+  encodedParams: string,
+  isOwnMevEscrow = false
+): Promise<Contract> {
+  const constructorArgs = [
+    await keeper.getAddress(),
+    await vaultsRegistry.getAddress(),
+    await validatorsRegistry.getAddress(),
+    await sharedMevEscrow.getAddress(),
+    await depositDataRegistry.getAddress(),
+    eigenPodOwnerImpl,
+    EXITING_ASSETS_MIN_DELAY,
+  ]
+  const vaultImpl = await implFactory.deploy(...constructorArgs)
+  const vaultImplAddr = await vaultImpl.getAddress()
+  await vaultsRegistry.addVaultImpl(vaultImplAddr)
+
+  const vaultFactory = await createEthVaultFactory(vaultImplAddr, vaultsRegistry)
+  await vaultsRegistry.addFactory(await vaultFactory.getAddress())
+
+  const tx = await vaultFactory.connect(admin).createVault(encodedParams, isOwnMevEscrow, {
+    value: SECURITY_DEPOSIT,
+  })
+  return new Contract(
+    await extractVaultAddress(tx),
+    implFactory.interface,
+    await ethers.provider.getSigner()
+  )
 }
 
 export const deployEthRestakeVaultImplementation = async function (
@@ -139,6 +177,7 @@ interface EthRestakeVaultFixture {
   ethRestakePrivErc20VaultFactory: EthRestakeVaultFactory
   ethRestakeBlocklistVaultFactory: EthRestakeVaultFactory
   ethRestakeBlocklistErc20VaultFactory: EthRestakeVaultFactory
+  eigenPodOwnerImplementation: string
 
   createEthRestakeVault(
     admin: Signer,
@@ -274,6 +313,7 @@ export const ethRestakeVaultFixture = async function (): Promise<EthRestakeVault
     ethRestakePrivErc20VaultFactory,
     ethRestakeBlocklistVaultFactory,
     ethRestakeBlocklistErc20VaultFactory,
+    eigenPodOwnerImplementation,
     createEthRestakeVault: async (
       admin: Signer,
       vaultParams: EthRestakeVaultInitParamsStruct,

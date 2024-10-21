@@ -42,7 +42,7 @@ contract EthErc20Vault is
   Multicall,
   IEthErc20Vault
 {
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -53,6 +53,7 @@ contract EthErc20Vault is
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
@@ -64,6 +65,7 @@ contract EthErc20Vault is
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
@@ -71,7 +73,7 @@ contract EthErc20Vault is
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
     VaultValidators(depositDataRegistry)
     VaultEnterExit(exitingAssetsClaimDelay)
-    VaultOsToken(osTokenVaultController, osTokenConfig)
+    VaultOsToken(osTokenVaultController, osTokenConfig, osTokenVaultEscrow)
     VaultMev(sharedMevEscrow)
   {
     _disableInitializers();
@@ -81,11 +83,12 @@ contract EthErc20Vault is
   function initialize(
     bytes calldata params
   ) external payable virtual override reinitializer(_version) {
-    // if admin is already set, it's an upgrade
+    // if admin is already set, it's an upgrade from version 2 to 3
     if (admin != address(0)) {
-      __EthErc20Vault_initV2();
+      __EthErc20Vault_initV3();
       return;
     }
+
     // initialize deployed vault
     __EthErc20Vault_init(
       IEthVaultFactory(msg.sender).vaultAdmin(),
@@ -101,12 +104,7 @@ contract EthErc20Vault is
     address referrer
   ) public payable override returns (uint256) {
     deposit(msg.sender, referrer);
-    if (osTokenShares == type(uint256).max) {
-      // mint max OsToken shares based on the deposited amount
-      osTokenShares = _calcMaxOsTokenShares(msg.value);
-    }
-    mintOsToken(receiver, osTokenShares, referrer);
-    return osTokenShares;
+    return mintOsToken(receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IEthErc20Vault
@@ -151,7 +149,8 @@ contract EthErc20Vault is
     override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
     returns (uint256 positionTicket)
   {
-    return super.enterExitQueue(shares, receiver);
+    positionTicket = super.enterExitQueue(shares, receiver);
+    emit Transfer(msg.sender, address(this), shares);
   }
 
   /// @inheritdoc IVaultVersion
@@ -191,6 +190,14 @@ contract EthErc20Vault is
   }
 
   /**
+   * @dev Initializes the EthErc20Vault contract upgrade to V3
+   */
+  function __EthErc20Vault_initV3() internal {
+    __VaultState_initV3();
+    __VaultValidators_initV3();
+  }
+
+  /**
    * @dev Initializes the EthErc20Vault contract
    * @param admin The address of the admin of the Vault
    * @param ownMevEscrow The address of the MEV escrow owned by the Vault. Zero address if shared MEV escrow is used.
@@ -209,14 +216,6 @@ contract EthErc20Vault is
     __VaultMev_init(ownMevEscrow);
     __VaultToken_init(params.name, params.symbol);
     __VaultEthStaking_init();
-  }
-
-  /**
-   * @dev Initializes the EthErc20Vault V2 contract
-   */
-  function __EthErc20Vault_initV2() internal onlyInitializing {
-    __VaultState_initV2();
-    __VaultValidators_initV2();
   }
 
   /**

@@ -26,17 +26,17 @@
   },
   {
     "inputs": [],
-    "name": "EigenInvalidWithdrawal",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "EigenPodNotFound",
     "type": "error"
   },
   {
     "inputs": [],
     "name": "ExitRequestNotProcessed",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "FlashLoanFailed",
     "type": "error"
   },
   {
@@ -76,11 +76,6 @@
   },
   {
     "inputs": [],
-    "name": "InvalidEigenQueuedWithdrawals",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidFeePercent",
     "type": "error"
   },
@@ -106,11 +101,6 @@
   },
   {
     "inputs": [],
-    "name": "InvalidLtv",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "InvalidLtvPercent",
     "type": "error"
   },
@@ -132,6 +122,11 @@
   {
     "inputs": [],
     "name": "InvalidProof",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidQueuedShares",
     "type": "error"
   },
   {
@@ -212,11 +207,6 @@
   {
     "inputs": [],
     "name": "PermitInvalidSigner",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "RedemptionExceeded",
     "type": "error"
   },
   {

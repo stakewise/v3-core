@@ -27,7 +27,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
+   * @param exitingAssetsClaimDelay The minimum delay after which the assets can be claimed after joining the exit queue
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(uint256 exitingAssetsClaimDelay) {
@@ -36,13 +36,8 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
 
   /// @inheritdoc IVaultEnterExit
   function getExitQueueIndex(uint256 positionTicket) external view override returns (int256) {
-    if (_exitQueue.isV1Position(queuedShares, positionTicket)) {
-      uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionTicket);
-      return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
-    }
-    // calculate total exited tickets
-    uint256 totalExitedTickets = _totalExitedTickets + _getTotalExitableTickets();
-    return (totalExitedTickets > positionTicket) ? int256(0) : -1;
+    uint256 checkpointIdx = _exitQueue.getCheckpointIndex(positionTicket);
+    return checkpointIdx < _exitQueue.checkpoints.length ? int256(checkpointIdx) : -1;
   }
 
   /// @inheritdoc IVaultEnterExit
@@ -70,17 +65,12 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     ];
     if (exitingTickets == 0) return (0, 0, 0);
 
-    if (_exitQueue.isV1Position(queuedShares, positionTicket)) {
-      // calculate exited assets in V1 exit queue
-      (exitedTickets, exitedAssets) = _exitQueue.calculateExitedAssets(
-        exitQueueIndex,
-        positionTicket,
-        exitingTickets
-      );
-    } else {
-      // calculate exited assets
-      (exitedTickets, exitedAssets) = _calculateExitedTickets(exitingTickets, positionTicket);
-    }
+    // calculate exited tickets and assets
+    (exitedTickets, exitedAssets) = _exitQueue.calculateExitedAssets(
+      exitQueueIndex,
+      positionTicket,
+      exitingTickets
+    );
     leftTickets = exitingTickets - exitedTickets;
   }
 
@@ -105,18 +95,8 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
       revert Errors.ExitRequestNotProcessed();
     }
 
-    if (_exitQueue.isV1Position(queuedShares, positionTicket)) {
-      // update unclaimed assets
-      _unclaimedAssets -= SafeCast.toUint128(exitedAssets);
-    } else {
-      // vault must be harvested to calculate exact withdrawable amount
-      _checkHarvested();
-
-      // update state
-      totalExitingAssets -= SafeCast.toUint128(exitedAssets);
-      _totalExitingTickets -= SafeCast.toUint128(exitedTickets);
-      _totalExitedTickets += exitedTickets;
-    }
+    // update unclaimed assets
+    _unclaimedAssets -= SafeCast.toUint128(exitedAssets);
 
     // clean up current exit request
     delete _exitRequests[keccak256(abi.encode(msg.sender, timestamp, positionTicket))];
@@ -132,24 +112,6 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     // transfer assets to the receiver
     _transferVaultAssets(msg.sender, exitedAssets);
     emit ExitedAssetsClaimed(msg.sender, positionTicket, newPositionTicket, exitedAssets);
-  }
-
-  function _calculateExitedTickets(
-    uint256 exitingTickets,
-    uint256 positionTicket
-  ) private view returns (uint256 exitedTickets, uint256 exitedAssets) {
-    // calculate total exitable tickets
-    uint256 exitableTickets = _getTotalExitableTickets();
-    // calculate total exited tickets
-    uint256 totalExitedTickets = _totalExitedTickets + exitableTickets;
-    if (totalExitedTickets <= positionTicket) return (0, 0);
-
-    // calculate exited tickets and assets
-    unchecked {
-      // cannot underflow as totalExitedTickets > positionTicket
-      exitedTickets = Math.min(exitingTickets, totalExitedTickets - positionTicket);
-    }
-    return (exitedTickets, _convertExitTicketsToAssets(exitedTickets));
   }
 
   /**
@@ -188,68 +150,55 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
   /**
    * @dev Internal function for sending user shares to the exit queue
    * @param user The address of the user
-   * @param shares The number of shares to lock
-   * @param receiver The address that will receive assets upon withdrawal
-   * @return positionTicket The position ticket of the exit queue
+   * @param shares The number of shares to send to exit queue
+   * @param receiver The address that will receive the assets
+   * @return positionTicket The position ticket in the exit queue. Returns max uint256 if no ticket is created.
    */
   function _enterExitQueue(
     address user,
     uint256 shares,
     address receiver
-  ) internal returns (uint256 positionTicket) {
-    _checkHarvested();
+  ) internal virtual returns (uint256 positionTicket) {
     if (shares == 0) revert Errors.InvalidShares();
     if (receiver == address(0)) revert Errors.ZeroAddress();
+    if (!_isCollateralized()) {
+      // calculate amount of assets to burn
+      uint256 assets = convertToAssets(shares);
+      if (assets == 0) revert Errors.InvalidAssets();
 
-    // calculate amount of assets to lock
-    uint256 assets = convertToAssets(shares);
-    if (assets == 0) revert Errors.InvalidAssets();
+      // update total assets
+      _totalAssets -= SafeCast.toUint128(assets);
 
-    // convert assets to exiting tickets
-    uint256 exitingTickets = _convertAssetsToExitTickets(assets);
+      // burn owner shares
+      _burnShares(user, shares);
 
-    // reduce total assets
-    _totalAssets -= SafeCast.toUint128(assets);
+      // transfer assets to the receiver
+      _transferVaultAssets(receiver, assets);
 
-    // burn shares
-    _burnShares(user, shares);
+      emit Redeemed(user, receiver, assets, shares);
+
+      // no ticket is created, return max value
+      return type(uint256).max;
+    }
 
     // SLOAD to memory
-    uint256 totalExitingTickets = _totalExitingTickets;
+    uint256 _queuedShares = queuedShares;
 
     // calculate position ticket
-    positionTicket = _totalExitedTickets + totalExitingTickets;
-
-    // increase total exiting assets and tickets
-    totalExitingAssets += SafeCast.toUint128(assets);
-    _totalExitingTickets = SafeCast.toUint128(totalExitingTickets + exitingTickets);
+    positionTicket = _exitQueue.getLatestTotalTickets() + _totalExitingTickets + _queuedShares;
 
     // add to the exit requests
-    _exitRequests[
-      keccak256(abi.encode(receiver, block.timestamp, positionTicket))
-    ] = exitingTickets;
+    _exitRequests[keccak256(abi.encode(receiver, block.timestamp, positionTicket))] = shares;
 
-    emit V2ExitQueueEntered(user, receiver, positionTicket, shares, assets);
-  }
+    // reverts if owner does not have enough shares
+    _balances[user] -= shares;
 
-  /**
-   * @dev Internal function for calculating the number of assets that can be withdrawn
-   * @return assets The number of assets that can be withdrawn
-   */
-  function _getTotalExitableTickets() private view returns (uint256) {
-    // calculate available assets
-    uint256 availableAssets = _vaultAssets() - _unclaimedAssets;
-    uint256 queuedAssets = convertToAssets(queuedShares);
-    if (queuedAssets > 0) {
-      unchecked {
-        // cannot underflow as availableAssets >= queuedV1Assets
-        availableAssets = availableAssets > queuedAssets ? availableAssets - queuedAssets : 0;
-      }
+    unchecked {
+      // cannot overflow as it is capped with _totalShares
+      queuedShares = SafeCast.toUint128(_queuedShares + shares);
     }
-    if (availableAssets == 0) return 0;
 
-    // calculate number of tickets that can be withdrawn based on available assets
-    return _convertAssetsToExitTickets(Math.min(availableAssets, totalExitingAssets));
+    emit ExitQueueEntered(user, receiver, positionTicket, shares);
   }
 
   /**

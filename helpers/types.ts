@@ -36,6 +36,13 @@ export type NetworkConfig = {
   liqBonusPercent: bigint
   ltvPercent: bigint
 
+  // OsTokenVaultEscrow
+  osTokenVaultEscrow: {
+    authenticator: string
+    liqThresholdPercent: bigint
+    liqBonusPercent: bigint
+  }
+
   // EthGenesisVault
   genesisVault: {
     admin: string

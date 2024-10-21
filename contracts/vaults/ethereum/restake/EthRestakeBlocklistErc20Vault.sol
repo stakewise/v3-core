@@ -26,7 +26,7 @@ contract EthRestakeBlocklistErc20Vault is
   using EnumerableSet for EnumerableSet.AddressSet;
 
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -71,6 +71,12 @@ contract EthRestakeBlocklistErc20Vault is
     override(IEthRestakeErc20Vault, EthRestakeErc20Vault)
     reinitializer(_version)
   {
+    // if admin is already set, it's an upgrade from version 2 to 3
+    if (admin != address(0)) {
+      __EthRestakeErc20Vault_initV3();
+      return;
+    }
+
     // initialize deployed vault
     address _admin = IEthVaultFactory(msg.sender).vaultAdmin();
     __EthRestakeErc20Vault_init(

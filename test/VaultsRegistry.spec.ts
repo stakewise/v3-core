@@ -32,12 +32,13 @@ describe('VaultsRegistry', () => {
     vaultsRegistry = fixture.vaultsRegistry
 
     newVaultImpl = await deployEthVaultImplementation(
-      'EthVaultV3Mock',
+      'EthVaultV4Mock',
       fixture.keeper,
       fixture.vaultsRegistry,
       await fixture.validatorsRegistry.getAddress(),
       fixture.osTokenVaultController,
       fixture.osTokenConfig,
+      fixture.osTokenVaultEscrow,
       fixture.sharedMevEscrow,
       fixture.depositDataRegistry,
       EXITING_ASSETS_MIN_DELAY

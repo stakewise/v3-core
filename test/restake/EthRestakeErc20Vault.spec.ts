@@ -43,7 +43,7 @@ describe('EthRestakeErc20Vault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(2)
+    expect(await vault.version()).to.eq(3)
   })
 
   it('cannot initialize twice', async () => {
@@ -73,8 +73,7 @@ describe('EthRestakeErc20Vault', () => {
   it('enter exit queue emits transfer event', async () => {
     await vault.connect(admin).createEigenPod()
     await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
-    expect(await vault.totalExitingAssets()).to.be.eq(0)
-    const totalExitingBefore = await vault.totalExitingAssets()
+    const queuedSharesBefore = await vault.queuedShares()
     const totalAssetsBefore = await vault.totalAssets()
     const totalSharesBefore = await vault.totalShares()
 
@@ -86,12 +85,14 @@ describe('EthRestakeErc20Vault', () => {
     const receipt = await vault.connect(sender).enterExitQueue(shares, receiver.address)
     const positionTicket = await extractExitPositionTicket(receipt)
     await expect(receipt)
-      .to.emit(vault, 'V2ExitQueueEntered')
-      .withArgs(sender.address, receiver.address, positionTicket, shares, amount)
-    await expect(receipt).to.emit(vault, 'Transfer').withArgs(sender.address, ZERO_ADDRESS, shares)
-    expect(await vault.totalExitingAssets()).to.be.eq(totalExitingBefore + amount)
-    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore)
-    expect(await vault.totalSupply()).to.be.eq(totalSharesBefore)
+      .to.emit(vault, 'ExitQueueEntered')
+      .withArgs(sender.address, receiver.address, positionTicket, shares)
+    await expect(receipt)
+      .to.emit(vault, 'Transfer')
+      .withArgs(sender.address, await vault.getAddress(), shares)
+    expect(await vault.queuedShares()).to.be.eq(queuedSharesBefore + shares)
+    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore + amount)
+    expect(await vault.totalSupply()).to.be.eq(totalSharesBefore + shares)
     expect(await vault.balanceOf(sender.address)).to.be.eq(0)
 
     await snapshotGasCost(receipt)
