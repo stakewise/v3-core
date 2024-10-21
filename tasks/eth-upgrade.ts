@@ -130,11 +130,12 @@ task('eth-upgrade', 'upgrades StakeWise for Ethereum').setAction(async (taskArgs
     factories.push(vaultFactoryAddress)
 
     // add vault implementation updates
-    const vaultId = await vaultImpl.vaultId()
+    const vault = await ethers.getContractAt('EthVault', vaultImplAddress)
+    const vaultId = await vault.vaultId()
     if (!(vaultId in vaultUpgrades)) {
       vaultUpgrades[vaultId] = {}
     }
-    const vaultVersion = await vaultImpl.version()
+    const vaultVersion = await vault.version()
     vaultUpgrades[vaultId][vaultVersion.toString()] = vaultImplAddress
 
     // encode governor calls
@@ -178,11 +179,12 @@ task('eth-upgrade', 'upgrades StakeWise for Ethereum').setAction(async (taskArgs
   await simulateDeployImpl(hre, genesisVaultFactory, { constructorArgs }, genesisVaultImplAddress)
 
   // add vault implementation update
-  const vaultId = await genesisVaultImpl.vaultId()
+  const vault = await ethers.getContractAt('EthVault', genesisVaultImplAddress)
+  const vaultId = await vault.vaultId()
   if (!(vaultId in vaultUpgrades)) {
     vaultUpgrades[vaultId] = {}
   }
-  const vaultVersion = await genesisVaultImpl.version()
+  const vaultVersion = await vault.version()
   vaultUpgrades[vaultId][vaultVersion.toString()] = genesisVaultImplAddress
 
   // encode governor calls
@@ -211,6 +213,8 @@ task('eth-upgrade', 'upgrades StakeWise for Ethereum').setAction(async (taskArgs
     OsToken: osTokenAddress,
     OsTokenConfig: osTokenConfigAddress,
     OsTokenVaultController: osTokenVaultControllerAddress,
+    EthOsTokenVaultEscrow: osTokenVaultEscrowAddress,
+    OsTokenFlashLoans: osTokenFlashLoansAddress,
     PriceFeed: priceFeedAddress,
     RewardSplitterFactory: rewardSplitterFactoryAddress,
     CumulativeMerkleDrop: cumulativeMerkleDropAddress,
@@ -228,13 +232,13 @@ task('eth-upgrade', 'upgrades StakeWise for Ethereum').setAction(async (taskArgs
 
   // save governor transactions
   json = JSON.stringify(governorTransaction, null, 2)
-  fileName = `${DEPLOYMENTS_DIR}/${networkName}-v3-upgrade-tx.json`
+  fileName = `${DEPLOYMENTS_DIR}/${networkName}-upgrade-v3-tx.json`
   fs.writeFileSync(fileName, json, 'utf-8')
   console.log('Governor transaction saved to', fileName)
 
   // save vault upgrades
   json = JSON.stringify(vaultUpgrades, null, 2)
-  fileName = `${DEPLOYMENTS_DIR}/${networkName}-v3-vault-upgrades.json`
+  fileName = `${DEPLOYMENTS_DIR}/${networkName}-vault-v3-upgrades.json`
   fs.writeFileSync(fileName, json, 'utf-8')
   console.log('Vault upgrades saved to', fileName)
 })
