@@ -2,13 +2,13 @@ import { ethers } from 'hardhat'
 import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
-  EthErc20Vault,
-  Keeper,
-  OsTokenVaultController,
-  IKeeperRewards,
-  OsTokenConfig,
   DepositDataRegistry,
+  EthErc20Vault,
+  IKeeperRewards,
+  Keeper,
   OsToken,
+  OsTokenConfig,
+  OsTokenVaultController,
 } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
@@ -273,10 +273,6 @@ describe('EthErc20Vault', () => {
     receipt = await vault
       .connect(receiver)
       .depositAndMintOsToken(other.address, osTokenShares, ZERO_ADDRESS, { value: assets })
-
-    if (MAINNET_FORK.enabled) {
-      osTokenAssets -= 1n // rounding error
-    }
 
     expect(await osToken.balanceOf(other.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(receiver.address)).to.eq(osTokenShares)
