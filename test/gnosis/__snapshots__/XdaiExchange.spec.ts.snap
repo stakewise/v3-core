@@ -24,7 +24,7 @@ Object {
 exports[`XdaiExchange swap successfully swaps 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 68108,
+  "gasUsed": 68132,
 }
 `;
 

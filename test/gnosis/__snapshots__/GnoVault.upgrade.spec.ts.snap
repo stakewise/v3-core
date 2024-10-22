@@ -17,7 +17,7 @@ Object {
 exports[`GnoVault - upgrade does not modify the state variables 3`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 105595,
+  "gasUsed": 105583,
 }
 `;
 
