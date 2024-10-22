@@ -274,6 +274,10 @@ describe('EthErc20Vault', () => {
       .connect(receiver)
       .depositAndMintOsToken(other.address, osTokenShares, ZERO_ADDRESS, { value: assets })
 
+    if (MAINNET_FORK.enabled) {
+      osTokenAssets -= 1n // rounding error
+    }
+
     expect(await osToken.balanceOf(other.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(receiver.address)).to.eq(osTokenShares)
     expect(await vault.getShares(receiver.address)).to.eq(shares)

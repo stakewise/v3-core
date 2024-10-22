@@ -331,10 +331,10 @@ export const MAINNET_FORK = {
     ethGenesisVault: '0xAC0F906E433d58FA868F936E8A43230473652885',
   },
   harvestParams: {
-    '0x663580b3edad914d0b59cea88616f06278d42bb2': {
+    '0x663580B3edAd914D0b59CeA88616F06278D42bb2': {
       rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
-      proofReward: 370271478000000000n,
-      proofUnlockedMevReward: 0n,
+      reward: 370271478000000000n,
+      unlockedMevReward: 0n,
       proof: [
         '0xeba2e46ead610b3c8adfba5a82347455780a60c09d39b710d15a6328eab1de9f',
         '0xc58722f8a3a2f5b912188b6acbb022bb54744fe503a657ac7003fc7ab89fae46',
@@ -343,10 +343,10 @@ export const MAINNET_FORK = {
         '0x2baff53a841f50a771305eaf2b89d0341c74f340802d00d904f67d1c0ac99a12',
       ],
     },
-    '0x089a97a8bc0c0f016f89f9cf42181ff06afb2daf': {
+    '0x089A97A8bC0C0F016f89F9CF42181Ff06afB2Daf': {
       rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
-      proofReward: 2601666098562034418n,
-      proofUnlockedMevReward: 379242282394372329n,
+      reward: 2601666098562034418n,
+      unlockedMevReward: 379242282394372329n,
       proof: [
         '0xab66ab73737efc81d39f0a47ef1d246d96792a076b995fbc6bc72a0c660966dc',
         '0x018a5b7f2279f13288ce78cb3cffa1c8516e8a07243c5f1da58d14084c445fe0',
@@ -356,10 +356,10 @@ export const MAINNET_FORK = {
         '0x768a161fdfb31a71b5157d2f7d0df43a0c9d5e854598d20c7ad170dc7adcb247',
       ],
     },
-    '0xcca8d532e625d30514ace25963283228f82ccdda': {
+    '0xcCa8d532e625d30514Ace25963283228F82CcdDa': {
       rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
-      proofReward: 36038818000000000n,
-      proofUnlockedMevReward: 0n,
+      reward: 36038818000000000n,
+      unlockedMevReward: 0n,
       proof: [
         '0x5a2cf20e40b748349bb7c4c9419055062e4be2782b34225cc6f0dd1caed3bd46',
         '0xcb42b5e68fc764cad24857634e45e53084bed23f0908b8c780cda29179af2cc6',
@@ -369,10 +369,10 @@ export const MAINNET_FORK = {
         '0x768a161fdfb31a71b5157d2f7d0df43a0c9d5e854598d20c7ad170dc7adcb247',
       ],
     },
-    '0xd66a71a68392767f26b7ee47e9a0293191a23072': {
+    '0xD66A71A68392767F26b7EE47e9a0293191A23072': {
       rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
-      proofReward: 17651468000000000n,
-      proofUnlockedMevReward: 0n,
+      reward: 17651468000000000n,
+      unlockedMevReward: 0n,
       proof: [
         '0x8d2ba9677e8a7d87b2bde1fabe8c83aabba7b4964a18bd89951041d042f722b5',
         '0x781ac864ad599fa62059dacbcc7a3ec16c7c0ff1c140c59a092b00b2309697da',
@@ -382,10 +382,10 @@ export const MAINNET_FORK = {
         '0x768a161fdfb31a71b5157d2f7d0df43a0c9d5e854598d20c7ad170dc7adcb247',
       ],
     },
-    '0x3102b4013cb506481e959c8f4500b994d2bff22e': {
+    '0x3102B4013cB506481e959c8F4500B994D2bFF22e': {
       rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
-      proofReward: 655782750000000000n,
-      proofUnlockedMevReward: 0n,
+      reward: 655782750000000000n,
+      unlockedMevReward: 0n,
       proof: [
         '0xc5004cfcce48426798a0a7da4a3291b70fae7e48ea4cc7cb8e1924427aa9074a',
         '0x81105a8489f0d024e3ccb62b6573aa8db4bbb7e5d435572bc2bb7bbe4aec776f',
@@ -395,10 +395,10 @@ export const MAINNET_FORK = {
         '0x768a161fdfb31a71b5157d2f7d0df43a0c9d5e854598d20c7ad170dc7adcb247',
       ],
     },
-    '0x9c29c571847a68a947acec8bacd303e36bc72ec5': {
+    '0x9c29c571847A68A947AceC8bacd303e36bC72ec5': {
       rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
-      proofReward: 838642149564534034n,
-      proofUnlockedMevReward: 108454527643194127n,
+      reward: 838642149564534034n,
+      unlockedMevReward: 108454527643194127n,
       proof: [
         '0xa890ed09db09b75b5a2e14d78f6129884daf9d63505f8dad1af12f36e56921e8',
         '0x5fe5be84d089057868886cf9dd57153017f92c5ffe686cc75e54d3de55297435',
@@ -408,10 +408,10 @@ export const MAINNET_FORK = {
         '0x768a161fdfb31a71b5157d2f7d0df43a0c9d5e854598d20c7ad170dc7adcb247',
       ],
     },
-    '0xac0f906e433d58fa868f936e8a43230473652885': {
+    '0xAC0F906E433d58FA868F936E8A43230473652885': {
       rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
-      proofReward: 10281264030482176612823n,
-      proofUnlockedMevReward: 439405911556251952650n,
+      reward: 10281264030482176612823n,
+      unlockedMevReward: 439405911556251952650n,
       proof: [
         '0xe2f045aaddf90b4dbc747cf1f71c853fe94c43acf634ed7c4e75a79958ec96f2',
         '0x9fed225a4ba8a8c1dfc347bbb2475c0a479f2c4b46cb3c6186b23a471b5bff6d',
