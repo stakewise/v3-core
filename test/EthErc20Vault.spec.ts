@@ -252,7 +252,6 @@ describe('EthErc20Vault', () => {
 
     if (MAINNET_FORK.enabled) {
       shares += 1n // rounding error
-      osTokenAssets -= 1n // rounding error
     }
 
     expect(await osToken.balanceOf(receiver.address)).to.eq(osTokenShares)
@@ -311,7 +310,7 @@ describe('EthErc20Vault', () => {
     expect(await vault.getShares(sender.address)).to.eq(0n)
 
     const config = await osTokenConfig.getConfig(await vault.getAddress())
-    let osTokenAssets = (assets * config.ltvPercent) / ethers.parseEther('1')
+    const osTokenAssets = (assets * config.ltvPercent) / ethers.parseEther('1')
     const osTokenShares = await osTokenVaultController.convertToShares(osTokenAssets)
     const receipt = await vault
       .connect(sender)
@@ -327,7 +326,6 @@ describe('EthErc20Vault', () => {
 
     let shares = await vault.convertToShares(assets)
     if (MAINNET_FORK.enabled) {
-      osTokenAssets -= 1n // rounding error
       shares += 1n // rounding error
     }
 
