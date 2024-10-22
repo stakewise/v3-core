@@ -3,7 +3,7 @@
 exports[`EthOsTokenVaultEscrow claim exited assets succeeds succeeds for all osToken shares 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 77635,
+  "gasUsed": 77623,
 }
 `;
 
