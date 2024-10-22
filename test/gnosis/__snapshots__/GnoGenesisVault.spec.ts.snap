@@ -38,6 +38,6 @@ Object {
 exports[`GnoGenesisVault update state splits reward between rewardToken and vault 1`] = `
 Object {
   "calldataByteLength": 196,
-  "gasUsed": 187119,
+  "gasUsed": 187107,
 }
 `;

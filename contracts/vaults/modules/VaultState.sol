@@ -9,7 +9,6 @@ import {IVaultState} from '../../interfaces/IVaultState.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {ExitQueue} from '../../libraries/ExitQueue.sol';
 import {Errors} from '../../libraries/Errors.sol';
-import {VaultAdmin} from './VaultAdmin.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
 import {VaultFee} from './VaultFee.sol';
 
@@ -18,7 +17,7 @@ import {VaultFee} from './VaultFee.sol';
  * @author StakeWise
  * @notice Defines Vault's state manipulation
  */
-abstract contract VaultState is VaultImmutables, Initializable, VaultAdmin, VaultFee, IVaultState {
+abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVaultState {
   using ExitQueue for ExitQueue.History;
 
   uint128 internal _totalShares;
