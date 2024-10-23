@@ -240,10 +240,6 @@ describe('EthVault - mint', () => {
       .connect(sender)
       .depositAndMintOsToken(other.address, osTokenShares, ZERO_ADDRESS, { value: assets })
 
-    if (MAINNET_FORK.enabled) {
-      osTokenAssets -= 1n // rounding error
-    }
-
     expect(await osToken.balanceOf(other.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(sender.address)).to.eq(osTokenShares)
     expect(await vault.getShares(sender.address)).to.eq(shares * 2n)

@@ -167,7 +167,7 @@ describe('EthOsTokenVaultEscrow', () => {
         .withArgs(vaultAddr, positionTicket, owner.address, sharesToRegister, cumulativeFeePerShare)
 
       if (MAINNET_FORK.enabled) {
-        sharesToRegister -= 1n // rounding error
+        sharesToRegister += 1n // rounding error
       }
       expect(await vault.osTokenPositions(owner.address)).to.equal(sharesToRegister)
       expect(await vault.getShares(owner.address)).to.equal(stakedShares / 2n)
