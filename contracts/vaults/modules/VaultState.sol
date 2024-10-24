@@ -33,6 +33,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
 
   uint256 private _capacity;
 
+  /// @inheritdoc IVaultState
   uint128 public override totalExitingAssets; // deprecated
   uint128 internal _totalExitingTickets; // deprecated
   uint256 internal _totalExitedTickets; // deprecated
