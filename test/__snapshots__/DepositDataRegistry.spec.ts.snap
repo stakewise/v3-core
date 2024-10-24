@@ -3,7 +3,7 @@
 exports[`DepositDataRegistry deposit data manager update succeeds 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 63831,
+  "gasUsed": 63853,
 }
 `;
 

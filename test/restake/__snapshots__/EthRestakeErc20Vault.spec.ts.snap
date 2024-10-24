@@ -3,7 +3,7 @@
 exports[`EthRestakeErc20Vault deposit emits transfer event 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 68536,
+  "gasUsed": 68558,
 }
 `;
 

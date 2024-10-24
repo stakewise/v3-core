@@ -27,6 +27,8 @@
     "full-deploy:mainnet": "hardhat eth-full-deploy --network mainnet",
     "upgrade:holesky": "hardhat eth-upgrade --network holesky",
     "upgrade:mainnet": "hardhat eth-upgrade --network mainnet",
+    "upgrade:chiado": "hardhat gno-upgrade --network chiado",
+    "upgrade:gnosis": "hardhat gno-upgrade --network gnosis",
     "full-deploy:eth-local": "hardhat eth-full-deploy-local --network local",
     "full-deploy:chiado": "hardhat gno-full-deploy --network chiado",
     "full-deploy:gnosis": "hardhat gno-full-deploy --network gnosis"

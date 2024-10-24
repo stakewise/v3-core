@@ -63,6 +63,12 @@ interface IVaultState is IVaultFee {
   function queuedShares() external view returns (uint128);
 
   /**
+   * @notice Total Exiting Assets (deprecated)
+   * @return The total number of assets queued for exit
+   */
+  function totalExitingAssets() external view returns (uint128);
+
+  /**
    * @notice Returns the number of shares held by an account
    * @param account The account for which to look up the number of shares it has, i.e. its balance
    * @return The number of shares held by the account

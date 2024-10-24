@@ -1151,6 +1151,19 @@
   },
   {
     "inputs": [],
+    "name": "totalExitingAssets",
+    "outputs": [
+      {
+        "internalType": "uint128",
+        "name": "",
+        "type": "uint128"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
     "name": "totalShares",
     "outputs": [
       {

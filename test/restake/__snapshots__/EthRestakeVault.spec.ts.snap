@@ -17,7 +17,7 @@ Object {
 exports[`EthRestakeVault restake operators manager succeeds 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 52652,
+  "gasUsed": 52674,
 }
 `;
 

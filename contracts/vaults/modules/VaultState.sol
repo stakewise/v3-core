@@ -33,7 +33,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
 
   uint256 private _capacity;
 
-  uint128 internal _totalExitingAssets; // deprecated
+  uint128 public override totalExitingAssets; // deprecated
   uint128 internal _totalExitingTickets; // deprecated
   uint256 internal _totalExitedTickets; // deprecated
 
@@ -79,7 +79,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
       // calculate assets that are reserved by users who queued for exit
       // cannot overflow as it is capped with underlying asset total supply
       uint256 reservedAssets = convertToAssets(queuedShares) +
-        _totalExitingAssets +
+        totalExitingAssets +
         _unclaimedAssets;
       return vaultAssets > reservedAssets ? vaultAssets - reservedAssets : 0;
     }
@@ -118,21 +118,21 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
       uint256 penalty = uint256(-totalAssetsDelta);
 
       // SLOAD to memory
-      uint256 totalExitingAssets = _totalExitingAssets;
-      if (totalExitingAssets > 0) {
+      uint256 _totalExitingAssets = totalExitingAssets;
+      if (_totalExitingAssets > 0) {
         // apply penalty to exiting assets
         uint256 exitingAssetsPenalty = Math.mulDiv(
           penalty,
-          totalExitingAssets,
-          totalExitingAssets + newTotalAssets
+          _totalExitingAssets,
+          _totalExitingAssets + newTotalAssets
         );
 
         // apply penalty to total exiting assets
         unchecked {
           // cannot underflow as exitingAssetsPenalty <= penalty
           penalty -= exitingAssetsPenalty;
-          // cannot underflow as exitingAssetsPenalty <= totalExitingAssets
-          _totalExitingAssets = SafeCast.toUint128(totalExitingAssets - exitingAssetsPenalty);
+          // cannot underflow as exitingAssetsPenalty <= _totalExitingAssets
+          totalExitingAssets = SafeCast.toUint128(_totalExitingAssets - exitingAssetsPenalty);
         }
         emit ExitingAssetsPenalized(exitingAssetsPenalty);
       }
@@ -191,27 +191,27 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     if (availableAssets == 0) return 0;
 
     // SLOAD to memory
-    uint256 totalExitingAssets = _totalExitingAssets;
-    if (totalExitingAssets > 0) {
+    uint256 _totalExitingAssets = totalExitingAssets;
+    if (_totalExitingAssets > 0) {
       // wait for all the exiting assets from v2 to be processed
-      if (availableAssets < totalExitingAssets) return 0;
+      if (availableAssets < _totalExitingAssets) return 0;
 
       // SLOAD to memory
       uint256 totalExitingTickets = _totalExitingTickets;
 
       // push checkpoint so that exited assets could be claimed
-      _exitQueue.push(totalExitingTickets, totalExitingAssets);
-      emit CheckpointCreated(totalExitingTickets, totalExitingAssets);
+      _exitQueue.push(totalExitingTickets, _totalExitingAssets);
+      emit CheckpointCreated(totalExitingTickets, _totalExitingAssets);
 
       unchecked {
-        // cannot underflow as totalExitingAssets <= availableAssets
-        availableAssets -= totalExitingAssets;
+        // cannot underflow as _totalExitingAssets <= availableAssets
+        availableAssets -= _totalExitingAssets;
       }
 
       // update state
-      _unclaimedAssets += SafeCast.toUint128(totalExitingAssets);
+      _unclaimedAssets += SafeCast.toUint128(_totalExitingAssets);
       _totalExitingTickets = 0;
-      _totalExitingAssets = 0;
+      totalExitingAssets = 0;
     }
 
     // SLOAD to memory

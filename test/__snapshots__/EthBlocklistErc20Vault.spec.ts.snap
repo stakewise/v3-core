@@ -3,7 +3,7 @@
 exports[`EthBlocklistErc20Vault deposit can be called by not blocked user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 71137,
+  "gasUsed": 71159,
 }
 `;
 
