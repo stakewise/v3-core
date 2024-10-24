@@ -52,7 +52,7 @@ describe('GnoBlocklistErc20Vault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(2)
+    expect(await vault.version()).to.eq(3)
   })
 
   it('cannot initialize twice', async () => {

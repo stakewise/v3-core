@@ -176,6 +176,17 @@ abstract contract VaultValidators is
   }
 
   /**
+   * @dev Initializes the V3 of the VaultValidators contract
+   */
+  function __VaultValidators_initV3() internal onlyInitializing {
+    // initialize domain separator
+    bytes32 newInitialDomainSeparator = _computeVaultValidatorsDomain();
+    if (newInitialDomainSeparator != _initialDomainSeparator) {
+      _initialDomainSeparator = newInitialDomainSeparator;
+    }
+  }
+
+  /**
    * @notice Get the hash to be signed by the validators manager
    * @param keeperParams The keeper approval parameters
    * @return The hash to be signed

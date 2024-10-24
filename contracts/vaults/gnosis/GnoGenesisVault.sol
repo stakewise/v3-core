@@ -21,11 +21,11 @@ import {GnoVault, IGnoVault} from './GnoVault.sol';
 /**
  * @title GnoGenesisVault
  * @author StakeWise
- * @notice Defines the Genesis Vault for Gnosis staking migrated from StakeWise v2
+ * @notice Defines the Genesis Vault for Gnosis staking migrated from StakeWise Legacy
  */
 contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 3;
+  uint8 private constant _version = 4;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IGnoPoolEscrow private immutable _poolEscrow;
@@ -44,12 +44,13 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param gnoToken The address of the GNO token
    * @param xdaiExchange The address of the xDAI exchange
-   * @param poolEscrow The address of the pool escrow from StakeWise v2
-   * @param rewardGnoToken The address of the rGNO2 token from StakeWise v2
+   * @param poolEscrow The address of the pool escrow from StakeWise Legacy
+   * @param rewardGnoToken The address of the rGNO token from StakeWise Legacy
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -59,6 +60,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     address gnoToken,
@@ -73,6 +75,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
       _validatorsRegistry,
       osTokenVaultController,
       osTokenConfig,
+      osTokenVaultEscrow,
       sharedMevEscrow,
       depositDataRegistry,
       gnoToken,
@@ -88,8 +91,11 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
   function initialize(
     bytes calldata params
   ) external virtual override(IGnoVault, GnoVault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3, no initialization required
-    if (admin != address(0)) return;
+    // if admin is already set, it's an upgrade from version 3 to 4
+    if (admin != address(0)) {
+      __GnoVault_initV3();
+      return;
+    }
 
     // initialize deployed vault
     (address _admin, GnoVaultInitParams memory initParams) = abi.decode(
@@ -129,7 +135,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     bool isCollateralized = IKeeperRewards(_keeper).isCollateralized(address(this));
 
     // process total assets delta since last update
-    (int256 totalAssetsDelta, ) = _harvestAssets(harvestParams);
+    (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
 
     if (!isCollateralized) {
       // it's the first harvest, deduct rewards accumulated so far in legacy pool
@@ -142,6 +148,9 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
 
     // process total assets delta
     _processTotalAssetsDelta(totalAssetsDelta);
+
+    // update exit queue every time new update is harvested
+    if (harvested) _updateExitQueue();
   }
 
   /// @inheritdoc IGnoGenesisVault
@@ -162,7 +171,37 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     _totalAssets += SafeCast.toUint128(assets);
     _mintShares(receiver, shares);
 
+    // mint max possible OsToken shares
+    uint256 mintOsTokenShares = Math.min(
+      _calcMaxMintOsTokenShares(receiver),
+      _calcMaxOsTokenShares(assets)
+    );
+    if (mintOsTokenShares > 0) {
+      _mintOsToken(receiver, receiver, mintOsTokenShares, address(0));
+    }
+
     emit Migrated(receiver, assets, shares);
+  }
+
+  /**
+   * @dev Internal function for calculating the maximum amount of osToken shares that can be minted
+   *      based on the current user balance
+   * @param user The address of the user
+   * @return The maximum amount of osToken shares that can be minted
+   */
+  function _calcMaxMintOsTokenShares(address user) private view returns (uint256) {
+    uint256 userAssets = convertToAssets(_balances[user]);
+    if (userAssets == 0) return 0;
+
+    // fetch user position
+    uint256 mintedShares = osTokenPositions(user);
+
+    // calculate max osToken shares that user can mint based on its current staked balance and osToken position
+    uint256 userMaxOsTokenShares = _calcMaxOsTokenShares(userAssets);
+    unchecked {
+      // cannot underflow because mintedShares < userMaxOsTokenShares
+      return mintedShares < userMaxOsTokenShares ? userMaxOsTokenShares - mintedShares : 0;
+    }
   }
 
   /// @inheritdoc VaultState
@@ -173,6 +212,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     // fetch total assets controlled by legacy pool
     uint256 legacyPrincipal = _rewardGnoToken.totalAssets() - _rewardGnoToken.totalPenalty();
     if (legacyPrincipal == 0) {
+      // legacy pool has no assets, process total assets delta as usual
       super._processTotalAssetsDelta(totalAssetsDelta);
       return;
     }

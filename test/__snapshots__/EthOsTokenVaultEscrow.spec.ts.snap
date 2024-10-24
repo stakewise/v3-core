@@ -1,0 +1,64 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`EthOsTokenVaultEscrow claim exited assets succeeds succeeds for all osToken shares 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 77635,
+}
+`;
+
+exports[`EthOsTokenVaultEscrow claim exited assets succeeds succeeds for partial osToken shares 1`] = `
+Object {
+  "calldataByteLength": 100,
+  "gasUsed": 88008,
+}
+`;
+
+exports[`EthOsTokenVaultEscrow liquidate can liquidate 1`] = `
+Object {
+  "calldataByteLength": 132,
+  "gasUsed": 96969,
+}
+`;
+
+exports[`EthOsTokenVaultEscrow process exited assets processes exited assets 1`] = `
+Object {
+  "calldataByteLength": 132,
+  "gasUsed": 64329,
+}
+`;
+
+exports[`EthOsTokenVaultEscrow redeem can redeem 1`] = `
+Object {
+  "calldataByteLength": 132,
+  "gasUsed": 96248,
+}
+`;
+
+exports[`EthOsTokenVaultEscrow register keeps LTV for the position left 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 170313,
+}
+`;
+
+exports[`EthOsTokenVaultEscrow register removes position if all the osToken shares transferred 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 160171,
+}
+`;
+
+exports[`EthOsTokenVaultEscrow set authenticator owner can update authenticator 1`] = `
+Object {
+  "calldataByteLength": 36,
+  "gasUsed": 30077,
+}
+`;
+
+exports[`EthOsTokenVaultEscrow update config owner can update config 1`] = `
+Object {
+  "calldataByteLength": 68,
+  "gasUsed": 35826,
+}
+`;

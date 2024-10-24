@@ -2,23 +2,16 @@ import { ethers } from 'hardhat'
 import { Contract, Signer, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
-  EthErc20Vault,
-  Keeper,
-  OsTokenVaultController,
-  VaultsRegistry,
-  OsTokenConfig,
-  SharedMevEscrow,
   DepositDataRegistry,
+  EthErc20Vault,
   IKeeperRewards,
+  Keeper,
   OsToken,
+  OsTokenConfig,
+  OsTokenVaultController,
 } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
-import {
-  createDepositorMock,
-  deployEthVaultV1,
-  encodeEthErc20VaultInitParams,
-  ethVaultFixture,
-} from './shared/fixtures'
+import { createDepositorMock, ethVaultFixture } from './shared/fixtures'
 import { expect } from './shared/expect'
 import { MAX_UINT256, ZERO_ADDRESS } from './shared/constants'
 import {
@@ -32,7 +25,6 @@ import keccak256 from 'keccak256'
 import { extractExitPositionTicket, setBalance } from './shared/utils'
 import { MAINNET_FORK } from '../helpers/constants'
 import { registerEthValidator } from './shared/validators'
-import { getEthErc20VaultV1Factory } from './shared/contracts'
 
 describe('EthErc20Vault', () => {
   const capacity = ethers.parseEther('1000')
@@ -46,9 +38,7 @@ describe('EthErc20Vault', () => {
     keeper: Keeper,
     validatorsRegistry: Contract,
     osTokenVaultController: OsTokenVaultController,
-    vaultsRegistry: VaultsRegistry,
     osTokenConfig: OsTokenConfig,
-    sharedMevEscrow: SharedMevEscrow,
     depositDataRegistry: DepositDataRegistry,
     osToken: OsToken
 
@@ -67,8 +57,6 @@ describe('EthErc20Vault', () => {
     validatorsRegistry = fixture.validatorsRegistry
     osTokenVaultController = fixture.osTokenVaultController
     osTokenConfig = fixture.osTokenConfig
-    vaultsRegistry = fixture.vaultsRegistry
-    sharedMevEscrow = fixture.sharedMevEscrow
     depositDataRegistry = fixture.depositDataRegistry
     osToken = fixture.osToken
   })
@@ -78,7 +66,7 @@ describe('EthErc20Vault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(2)
+    expect(await vault.version()).to.eq(3)
   })
 
   it('deposit emits transfer event', async () => {
@@ -127,8 +115,7 @@ describe('EthErc20Vault', () => {
 
   it('enter exit queue emits transfer event', async () => {
     await collateralizeEthVault(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
-    expect(await vault.totalExitingAssets()).to.be.eq(0)
-    const totalExitingBefore = await vault.totalExitingAssets()
+    const queuedSharesBefore = await vault.queuedShares()
     const totalAssetsBefore = await vault.totalAssets()
     const totalSharesBefore = await vault.totalShares()
 
@@ -143,63 +130,51 @@ describe('EthErc20Vault', () => {
     const receipt = await vault.connect(sender).enterExitQueue(shares, receiver.address)
     const positionTicket = await extractExitPositionTicket(receipt)
     await expect(receipt)
-      .to.emit(vault, 'V2ExitQueueEntered')
-      .withArgs(sender.address, receiver.address, positionTicket, shares, amount)
-    await expect(receipt).to.emit(vault, 'Transfer').withArgs(sender.address, ZERO_ADDRESS, shares)
-    expect(await vault.totalExitingAssets()).to.be.eq(totalExitingBefore + amount)
-    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore)
-    expect(await vault.totalSupply()).to.be.eq(totalSharesBefore)
+      .to.emit(vault, 'ExitQueueEntered')
+      .withArgs(sender.address, receiver.address, positionTicket, shares)
+    await expect(receipt)
+      .to.emit(vault, 'Transfer')
+      .withArgs(sender.address, await vault.getAddress(), shares)
+    expect(await vault.queuedShares()).to.be.eq(queuedSharesBefore + shares)
+    expect(await vault.totalAssets()).to.be.eq(totalAssetsBefore + amount)
+    expect(await vault.totalSupply()).to.be.eq(totalSharesBefore + shares)
     expect(await vault.balanceOf(sender.address)).to.be.eq(0)
 
     await snapshotGasCost(receipt)
   })
 
   it('update exit queue emits transfer event', async () => {
-    const vault = await deployEthVaultV1(
-      await getEthErc20VaultV1Factory(),
-      admin,
-      keeper,
-      vaultsRegistry,
-      validatorsRegistry,
-      osTokenVaultController,
-      osTokenConfig,
-      sharedMevEscrow,
-      encodeEthErc20VaultInitParams({
-        capacity,
-        name,
-        symbol,
-        feePercent,
-        metadataIpfsHash,
-      })
-    )
     const validatorDeposit = ethers.parseEther('32')
-    await vault
-      .connect(admin)
-      .deposit(await admin.getAddress(), ZERO_ADDRESS, { value: validatorDeposit })
+    await vault.connect(sender).deposit(sender.address, ZERO_ADDRESS, { value: validatorDeposit })
     await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
-    const rewardsTree = await updateRewards(keeper, [
-      { vault: await vault.getAddress(), reward: 0n, unlockedMevReward: 0n },
-    ])
+    const vaultReward = getHarvestParams(await vault.getAddress(), 0n, 0n)
+    const rewardsTree = await updateRewards(keeper, [vaultReward])
     const proof = getRewardsRootProof(rewardsTree, {
       vault: await vault.getAddress(),
-      reward: 0n,
-      unlockedMevReward: 0n,
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
     })
 
     // exit validator
-    await vault.connect(admin).enterExitQueue(validatorDeposit, await admin.getAddress())
+    let shares = await vault.convertToShares(validatorDeposit)
+    await vault.connect(sender).enterExitQueue(shares, sender.address)
     await setBalance(await vault.getAddress(), validatorDeposit)
 
     const receipt = await vault.updateState({
       rewardsRoot: rewardsTree.root,
-      reward: 0n,
-      unlockedMevReward: 0n,
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
       proof,
     })
+
+    if (MAINNET_FORK.enabled) {
+      shares -= 1n // rounding error
+    }
+
     await expect(receipt)
       .to.emit(vault, 'Transfer')
-      .withArgs(await vault.getAddress(), ZERO_ADDRESS, validatorDeposit)
+      .withArgs(await vault.getAddress(), ZERO_ADDRESS, shares)
 
     await snapshotGasCost(receipt)
   })
@@ -322,23 +297,9 @@ describe('EthErc20Vault', () => {
     await setAvgRewardPerSecond(dao, vault, keeper, 0)
     const vaultAddr = await vault.getAddress()
     const assets = ethers.parseEther('1')
-    const sharesBefore = await vault.convertToShares(assets)
-
-    await updateRewards(
-      keeper,
-      [getHarvestParams(vaultAddr, ethers.parseEther('1'), ethers.parseEther('0'))],
-      0
-    )
-    const tree = await updateRewards(
-      keeper,
-      [getHarvestParams(vaultAddr, ethers.parseEther('1.2'), ethers.parseEther('0'))],
-      0
-    )
-    const vaultReward = getHarvestParams(
-      vaultAddr,
-      ethers.parseEther('1.2'),
-      ethers.parseEther('0')
-    )
+    const vaultReward = getHarvestParams(vaultAddr, 0n, 0n)
+    await updateRewards(keeper, [vaultReward], 0)
+    const tree = await updateRewards(keeper, [vaultReward], 0)
     const harvestParams: IKeeperRewards.HarvestParamsStruct = {
       rewardsRoot: tree.root,
       reward: vaultReward.reward,
@@ -364,23 +325,19 @@ describe('EthErc20Vault', () => {
         }
       )
 
-    let sharesAfter = await vault.convertToShares(assets)
-    sharesAfter += 1n // rounding error
-
+    let shares = await vault.convertToShares(assets)
     if (MAINNET_FORK.enabled) {
+      shares += 1n // rounding error
       osTokenAssets -= 1n // rounding error
     }
 
-    expect(sharesBefore).to.gt(sharesAfter)
     expect(await osToken.balanceOf(receiver.address)).to.eq(osTokenShares)
     expect(await vault.osTokenPositions(sender.address)).to.eq(osTokenShares)
-    expect(await vault.getShares(sender.address)).to.eq(sharesAfter)
+    expect(await vault.getShares(sender.address)).to.eq(shares)
     await expect(receipt)
       .to.emit(vault, 'Deposited')
-      .withArgs(sender.address, sender.address, assets, sharesAfter, ZERO_ADDRESS)
-    await expect(receipt)
-      .to.emit(vault, 'Transfer')
-      .withArgs(ZERO_ADDRESS, sender.address, sharesAfter)
+      .withArgs(sender.address, sender.address, assets, shares, ZERO_ADDRESS)
+    await expect(receipt).to.emit(vault, 'Transfer').withArgs(ZERO_ADDRESS, sender.address, shares)
     await expect(receipt)
       .to.emit(vault, 'OsTokenMinted')
       .withArgs(sender.address, receiver.address, osTokenAssets, osTokenShares, ZERO_ADDRESS)

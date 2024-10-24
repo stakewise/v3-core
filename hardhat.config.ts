@@ -16,6 +16,7 @@ import { MAINNET_FORK, NETWORKS } from './helpers/constants'
 
 if (!process.env.SKIP_LOAD) {
   glob.sync('./tasks/*.ts').forEach((file) => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
     require(path.resolve(file))
   })
 }

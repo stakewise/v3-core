@@ -25,6 +25,7 @@ contract EthVaultMock is EthVault {
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
@@ -35,6 +36,7 @@ contract EthVaultMock is EthVault {
       _validatorsRegistry,
       osTokenVaultController,
       osTokenConfig,
+      osTokenVaultEscrow,
       sharedMevEscrow,
       depositDataRegistry,
       exitingAssetsClaimDelay

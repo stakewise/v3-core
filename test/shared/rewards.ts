@@ -139,23 +139,29 @@ export function getRewardsRootProof(tree: RewardsTree, vaultReward: VaultReward)
   return tree.getProof([vaultReward.vault, vaultReward.reward, vaultReward.unlockedMevReward])
 }
 
-export async function collateralizeEthV1Vault(
-  vault: Contract,
+export async function collateralizeEthVault(
+  vault: EthVaultType | EthRestakeVaultType,
   keeper: Keeper,
-  validatorsRegistry: Contract,
-  admin: Signer
+  depositDataRegistry: DepositDataRegistry,
+  admin: Signer,
+  validatorsRegistry: Contract
 ) {
+  const signer = (await ethers.getSigners())[0]
+  try {
+    await (<EthPrivVault>vault).connect(admin).updateWhitelist(await signer.getAddress(), true)
+  } catch {
+    /* empty */
+  }
   const vaultAddress = await vault.getAddress()
   const balanceBefore = await ethers.provider.getBalance(vaultAddress)
-  const adminAddr = await admin.getAddress()
 
   // register validator
   const validatorDeposit = ethers.parseEther('32')
   const tx = await vault
-    .connect(admin)
-    .deposit(adminAddr, ZERO_ADDRESS, { value: validatorDeposit })
-  const shares = await extractDepositShares(tx)
-  await registerEthValidator(vault, keeper, null, admin, validatorsRegistry)
+    .connect(signer)
+    .deposit(await signer.getAddress(), ZERO_ADDRESS, { value: validatorDeposit })
+  const receivedShares = await extractDepositShares(tx)
+  await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
 
   // update rewards tree
   const vaultReward = getHarvestParams(vaultAddress, 0n, 0n)
@@ -163,7 +169,9 @@ export async function collateralizeEthV1Vault(
   const proof = getRewardsRootProof(rewardsTree, vaultReward)
 
   // exit validator
-  const response = await vault.connect(admin).enterExitQueue(shares, adminAddr)
+  const response = await vault
+    .connect(signer)
+    .enterExitQueue(receivedShares, await signer.getAddress())
   const positionTicket = await extractExitPositionTicket(response)
   const timestamp = await getBlockTimestamp(response)
 
@@ -179,48 +187,9 @@ export async function collateralizeEthV1Vault(
 
   // claim exited assets
   const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
-  await vault.connect(admin).claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
+  await vault.connect(signer).claimExitedAssets(positionTicket, timestamp, exitQueueIndex)
 
   await increaseTime(ONE_DAY)
-  await setBalance(vaultAddress, balanceBefore)
-}
-
-export async function collateralizeEthVault(
-  vault: EthVaultType | EthRestakeVaultType,
-  keeper: Keeper,
-  depositDataRegistry: DepositDataRegistry,
-  admin: Signer,
-  validatorsRegistry: Contract
-) {
-  const signer = (await ethers.getSigners())[0]
-  try {
-    await (<EthPrivVault>vault).connect(admin).updateWhitelist(await signer.getAddress(), true)
-  } catch (e) {
-    /* empty */
-  }
-  const vaultAddress = await vault.getAddress()
-  const balanceBefore = await ethers.provider.getBalance(vaultAddress)
-
-  // register validator
-  const validatorDeposit = ethers.parseEther('32')
-  const tx = await vault
-    .connect(signer)
-    .deposit(await signer.getAddress(), ZERO_ADDRESS, { value: validatorDeposit })
-  const receivedShares = await extractDepositShares(tx)
-  await registerEthValidator(vault, keeper, depositDataRegistry, admin, validatorsRegistry)
-
-  // exit validator
-  const response = await vault
-    .connect(signer)
-    .enterExitQueue(receivedShares, await signer.getAddress())
-  const positionTicket = await extractExitPositionTicket(response)
-  const timestamp = await getBlockTimestamp(response)
-
-  await increaseTime(EXITING_ASSETS_MIN_DELAY)
-  await setBalance(vaultAddress, balanceBefore + (await vault.totalExitingAssets()))
-
-  // claim exited assets
-  await vault.connect(signer).claimExitedAssets(positionTicket, timestamp, 0)
   await setBalance(vaultAddress, balanceBefore)
 }
 

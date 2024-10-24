@@ -264,9 +264,9 @@ networks.forEach((network) => {
         ])
         const sortedVals = multiProof.leaves.map((v) => v[0])
 
-        ;(proof = multiProof.proof),
-          (proofFlags = multiProof.proofFlags),
-          (proofIndexes = validators.map((v) => sortedVals.indexOf(v)))
+        proof = multiProof.proof
+        proofFlags = multiProof.proofFlags
+        proofIndexes = validators.map((v) => sortedVals.indexOf(v))
       })
 
       it('fails for invalid validators registry root', async () => {

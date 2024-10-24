@@ -2,12 +2,12 @@ import { ethers } from 'hardhat'
 import { Contract, Wallet } from 'ethers'
 import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
+  DepositDataRegistry,
   EthVault,
   EthVaultMock,
   IKeeperRewards,
   Keeper,
   SharedMevEscrow,
-  DepositDataRegistry,
 } from '../typechain-types'
 import { ThenArg } from '../helpers/types'
 import snapshotGasCost from './shared/snapshotGasCost'
@@ -194,6 +194,7 @@ describe('EthVault - deposit', () => {
       await expect(receipt).to.emit(vault, 'Deposited')
       await expect(receipt).to.emit(keeper, 'Harvested')
       await expect(receipt).to.emit(mevEscrow, 'Harvested')
+      await expect(receipt).to.emit(vault, 'CheckpointCreated')
       await snapshotGasCost(receipt)
     })
 
