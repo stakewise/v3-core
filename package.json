@@ -1,14 +1,14 @@
 {
   "name": "@stakewise/v3-core",
-  "version": "2.0.1",
+  "version": "3.0.0",
   "description": "Liquid staking protocol for Ethereum",
   "main": "index.js",
   "scripts": {
     "compile": "SKIP_LOAD=true hardhat clean && SKIP_LOAD=true hardhat compile",
     "lint": "npm run lint:js && npm run lint:sol",
     "lint:fix": "npm run lint:js:fix && npm run lint:sol:fix",
-    "lint:js": "eslint --ignore-path .gitignore .",
-    "lint:js:fix": "eslint --ignore-path .gitignore --fix './**/*.ts'",
+    "lint:js": "eslint --ignore-pattern .gitignore .",
+    "lint:js:fix": "eslint --ignore-pattern .gitignore --fix './**/*.ts'",
     "lint:sol": "prettier -c 'contracts/**/*.sol'",
     "lint:sol:fix": "prettier --write 'contracts/**/*.sol'",
     "spdx": "hardhat prepend-spdx-license",
@@ -27,6 +27,8 @@
     "full-deploy:mainnet": "hardhat eth-full-deploy --network mainnet",
     "upgrade:holesky": "hardhat eth-upgrade --network holesky",
     "upgrade:mainnet": "hardhat eth-upgrade --network mainnet",
+    "upgrade:chiado": "hardhat gno-upgrade --network chiado",
+    "upgrade:gnosis": "hardhat gno-upgrade --network gnosis",
     "full-deploy:eth-local": "hardhat eth-full-deploy-local --network local",
     "full-deploy:chiado": "hardhat gno-full-deploy --network chiado",
     "full-deploy:gnosis": "hardhat gno-full-deploy --network gnosis"
@@ -40,34 +42,34 @@
   },
   "homepage": "https://github.com/stakewise/v3-core#readme",
   "devDependencies": {
-    "@chainsafe/ssz": "0.15.1",
-    "@metamask/eth-sig-util": "7.0.1",
+    "@chainsafe/ssz": "0.18.0",
+    "@metamask/eth-sig-util": "7.0.3",
     "@nomicfoundation/hardhat-toolbox": "5.0.0",
-    "@openzeppelin/hardhat-upgrades": "3.0.2",
-    "@openzeppelin/merkle-tree": "1.0.6",
-    "@typescript-eslint/eslint-plugin": "7.3.1",
-    "@typescript-eslint/parser": "7.3.1",
+    "@openzeppelin/hardhat-upgrades": "3.5.0",
+    "@openzeppelin/merkle-tree": "1.0.7",
+    "@typescript-eslint/eslint-plugin": "8.9.0",
+    "@typescript-eslint/parser": "8.9.0",
     "bls-eth-wasm": "1.1.1",
     "dotenv": "16.4.5",
-    "eslint": "8.57.0",
+    "eslint": "9.12.0",
     "eslint-config-prettier": "9.1.0",
-    "eslint-plugin-prettier": "5.1.3",
+    "eslint-plugin-prettier": "5.2.1",
     "ethereumjs-wallet": "1.0.2",
     "hardhat-abi-exporter": "2.10.1",
     "hardhat-contract-sizer": "2.10.0",
-    "hardhat-log-remover": "2.0.2",
-    "hardhat-spdx-license-identifier": "2.2.0",
-    "husky": "9.0.11",
+    "hardhat-log-remover": "2.1.1",
+    "hardhat-spdx-license-identifier": "2.3.1",
+    "husky": "9.1.6",
     "keccak256": "1.0.6",
-    "lint-staged": "15.2.2",
-    "mocha-chai-jest-snapshot": "1.1.4",
-    "prettier": "3.2.5",
-    "prettier-plugin-solidity": "1.3.1"
+    "lint-staged": "15.2.10",
+    "mocha-chai-jest-snapshot": "1.1.6",
+    "prettier": "3.3.3",
+    "prettier-plugin-solidity": "1.4.1"
   },
   "lint-staged": {
     "test/**/*.ts": [
       "prettier --write",
-      "eslint --ignore-path .gitignore --fix './**/*.ts'"
+      "eslint --ignore-pattern .gitignore --fix './**/*.ts'"
     ],
     "contracts/**/*.sol": [
       "prettier --write"
@@ -86,7 +88,7 @@
     "core"
   ],
   "dependencies": {
-    "@openzeppelin/contracts": "5.0.0",
-    "@openzeppelin/contracts-upgradeable": "5.0.0"
+    "@openzeppelin/contracts": "5.0.2",
+    "@openzeppelin/contracts-upgradeable": "5.0.2"
   }
 }

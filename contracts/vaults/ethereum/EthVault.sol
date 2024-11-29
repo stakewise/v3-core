@@ -38,7 +38,7 @@ contract EthVault is
   Multicall,
   IEthVault
 {
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -49,6 +49,7 @@ contract EthVault is
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
@@ -60,6 +61,7 @@ contract EthVault is
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
@@ -67,7 +69,7 @@ contract EthVault is
     VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
     VaultValidators(depositDataRegistry)
     VaultEnterExit(exitingAssetsClaimDelay)
-    VaultOsToken(osTokenVaultController, osTokenConfig)
+    VaultOsToken(osTokenVaultController, osTokenConfig, osTokenVaultEscrow)
     VaultMev(sharedMevEscrow)
   {
     _disableInitializers();
@@ -77,11 +79,12 @@ contract EthVault is
   function initialize(
     bytes calldata params
   ) external payable virtual override reinitializer(_version) {
-    // if admin is already set, it's an upgrade
+    // if admin is already set, it's an upgrade from version 2 to 3
     if (admin != address(0)) {
-      __EthVault_initV2();
+      __EthVault_initV3();
       return;
     }
+
     // initialize deployed vault
     __EthVault_init(
       IEthVaultFactory(msg.sender).vaultAdmin(),
@@ -97,12 +100,7 @@ contract EthVault is
     address referrer
   ) public payable override returns (uint256) {
     deposit(msg.sender, referrer);
-    if (osTokenShares == type(uint256).max) {
-      // mint max OsToken shares based on the deposited amount
-      osTokenShares = _calcMaxOsTokenShares(msg.value);
-    }
-    mintOsToken(receiver, osTokenShares, referrer);
-    return osTokenShares;
+    return mintOsToken(receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IEthVault
@@ -140,6 +138,14 @@ contract EthVault is
   }
 
   /**
+   * @dev Initializes the EthVault contract upgrade to V3
+   */
+  function __EthVault_initV3() internal {
+    __VaultState_initV3();
+    __VaultValidators_initV3();
+  }
+
+  /**
    * @dev Initializes the EthVault contract
    * @param admin The address of the admin of the Vault
    * @param ownMevEscrow The address of the MEV escrow owned by the Vault. Zero address if shared MEV escrow is used.
@@ -157,14 +163,6 @@ contract EthVault is
     __VaultValidators_init();
     __VaultMev_init(ownMevEscrow);
     __VaultEthStaking_init();
-  }
-
-  /**
-   * @dev Initializes the EthVault V2 contract
-   */
-  function __EthVault_initV2() internal onlyInitializing {
-    __VaultState_initV2();
-    __VaultValidators_initV2();
   }
 
   /**

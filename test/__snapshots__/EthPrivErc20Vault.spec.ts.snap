@@ -3,7 +3,7 @@
 exports[`EthPrivErc20Vault deposit can be called by whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 71125,
+  "gasUsed": 71147,
 }
 `;
 
@@ -17,13 +17,13 @@ Object {
 exports[`EthPrivErc20Vault mint osToken can mint from whitelisted user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 177804,
+  "gasUsed": 178622,
 }
 `;
 
 exports[`EthPrivErc20Vault transfer can transfer to whitelisted user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 58938,
+  "gasUsed": 58960,
 }
 `;

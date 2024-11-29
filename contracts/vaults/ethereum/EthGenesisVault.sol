@@ -20,11 +20,11 @@ import {EthVault, IEthVault} from './EthVault.sol';
 /**
  * @title EthGenesisVault
  * @author StakeWise
- * @notice Defines the Genesis Vault for Ethereum staking migrated from StakeWise v2
+ * @notice Defines the Genesis Vault for Ethereum staking migrated from StakeWise Legacy
  */
 contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IEthPoolEscrow private immutable _poolEscrow;
@@ -43,10 +43,11 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
-   * @param poolEscrow The address of the pool escrow from StakeWise v2
-   * @param rewardEthToken The address of the rETH2 token from StakeWise v2
+   * @param poolEscrow The address of the pool escrow from StakeWise Legacy
+   * @param rewardEthToken The address of the rETH2 token from StakeWise Legacy
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -56,6 +57,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     address poolEscrow,
@@ -68,6 +70,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       _validatorsRegistry,
       osTokenVaultController,
       osTokenConfig,
+      osTokenVaultEscrow,
       sharedMevEscrow,
       depositDataRegistry,
       exitingAssetsClaimDelay
@@ -81,11 +84,12 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   function initialize(
     bytes calldata params
   ) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade
+    // if admin is already set, it's an upgrade from version 2 to 3
     if (admin != address(0)) {
-      __EthVault_initV2();
+      __EthVault_initV3();
       return;
     }
+
     // initialize deployed vault
     (address _admin, EthVaultInitParams memory initParams) = abi.decode(
       params,
@@ -160,6 +164,15 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     _totalAssets += SafeCast.toUint128(assets);
     _mintShares(receiver, shares);
 
+    // mint max possible OsToken shares
+    uint256 mintOsTokenShares = Math.min(
+      _calcMaxMintOsTokenShares(receiver),
+      _calcMaxOsTokenShares(assets)
+    );
+    if (mintOsTokenShares > 0) {
+      _mintOsToken(receiver, receiver, mintOsTokenShares, address(0));
+    }
+
     emit Migrated(receiver, assets, shares);
   }
 
@@ -169,6 +182,27 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   receive() external payable virtual override {
     if (msg.sender != address(_poolEscrow)) {
       _deposit(msg.sender, msg.value, address(0));
+    }
+  }
+
+  /**
+   * @dev Internal function for calculating the maximum amount of osToken shares that can be minted
+   *      based on the current user balance
+   * @param user The address of the user
+   * @return The maximum amount of osToken shares that can be minted
+   */
+  function _calcMaxMintOsTokenShares(address user) private view returns (uint256) {
+    uint256 userAssets = convertToAssets(_balances[user]);
+    if (userAssets == 0) return 0;
+
+    // fetch user position
+    uint256 mintedShares = osTokenPositions(user);
+
+    // calculate max osToken shares that user can mint based on its current staked balance and osToken position
+    uint256 userMaxOsTokenShares = _calcMaxOsTokenShares(userAssets);
+    unchecked {
+      // cannot underflow because mintedShares < userMaxOsTokenShares
+      return mintedShares < userMaxOsTokenShares ? userMaxOsTokenShares - mintedShares : 0;
     }
   }
 

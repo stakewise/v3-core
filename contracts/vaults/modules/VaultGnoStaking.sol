@@ -81,22 +81,7 @@ abstract contract VaultGnoStaking is
 
   /// @inheritdoc VaultValidators
   function _registerSingleValidator(bytes calldata validator) internal virtual override {
-    // pull withdrawals from the deposit contract
-    _pullWithdrawals();
-
-    // register single validator
-    bytes calldata publicKey = validator[:48];
-    uint256 depositAmount = _validatorDeposit();
-    _gnoToken.approve(_validatorsRegistry, depositAmount);
-    IGnoValidatorsRegistry(_validatorsRegistry).deposit(
-      publicKey,
-      _withdrawalCredentials(),
-      validator[48:144],
-      bytes32(validator[144:_validatorLength()]),
-      depositAmount
-    );
-
-    emit ValidatorRegistered(publicKey);
+    _registerMultipleValidators(validator);
   }
 
   /// @inheritdoc VaultValidators

@@ -25,6 +25,7 @@ import {
 } from './shared/validators'
 import {
   deployEthVaultV1,
+  deployEthVaultV2,
   encodeEthVaultInitParams,
   ethVaultFixture,
   getOraclesSignatures,
@@ -37,7 +38,7 @@ import {
   ZERO_ADDRESS,
   ZERO_BYTES32,
 } from './shared/constants'
-import { getEthVaultV1Factory } from './shared/contracts'
+import { getEthVaultV1Factory, getEthVaultV2Factory } from './shared/contracts'
 import { getHarvestParams, getRewardsRootProof, updateRewards } from './shared/rewards'
 
 const gwei = 1000000000n
@@ -56,7 +57,8 @@ describe('DepositDataRegistry', () => {
     validatorsRegistry: Contract,
     vaultsRegistry: VaultsRegistry,
     depositDataRegistry: DepositDataRegistry,
-    v1Vault: Contract
+    v1Vault: Contract,
+    v2Vault: Contract
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
 
@@ -85,6 +87,22 @@ describe('DepositDataRegistry', () => {
       fixture.osTokenVaultController,
       fixture.osTokenConfig,
       fixture.sharedMevEscrow,
+      encodeEthVaultInitParams({
+        capacity,
+        feePercent,
+        metadataIpfsHash,
+      })
+    )
+    v2Vault = await deployEthVaultV2(
+      await getEthVaultV2Factory(),
+      admin,
+      keeper,
+      vaultsRegistry,
+      validatorsRegistry,
+      fixture.osTokenVaultController,
+      fixture.osTokenConfig,
+      fixture.sharedMevEscrow,
+      fixture.depositDataRegistry,
       encodeEthVaultInitParams({
         capacity,
         feePercent,
@@ -307,9 +325,7 @@ describe('DepositDataRegistry', () => {
       await depositDataRegistry.connect(admin).setDepositDataRoot(vaultAddr, validatorsData.root)
       indexes = validators.map((v) => sortedVals.indexOf(v))
       const balance =
-        validatorDeposit * BigInt(validators.length) +
-        (await vault.totalExitingAssets()) +
-        (await ethers.provider.getBalance(vaultAddr))
+        validatorDeposit * BigInt(validators.length) + (await ethers.provider.getBalance(vaultAddr))
       await setBalance(vaultAddr, balance)
       signatures = getOraclesSignatures(
         await getEthValidatorsSigningData(
@@ -455,7 +471,7 @@ describe('DepositDataRegistry', () => {
   })
 
   describe('migrate', () => {
-    beforeEach('set manager', async () => {
+    beforeEach('add vault', async () => {
       await vaultsRegistry.connect(dao).addVault(other.address)
     })
 
@@ -472,7 +488,7 @@ describe('DepositDataRegistry', () => {
       await v1Vault.connect(admin).setKeysManager(manager.address)
       const receipt = await v1Vault
         .connect(admin)
-        .upgradeToAndCall(await vault.implementation(), '0x')
+        .upgradeToAndCall(await v2Vault.implementation(), '0x')
       await expect(receipt)
         .to.emit(depositDataRegistry, 'DepositDataMigrated')
         .withArgs(v1VaultAddress, validatorsData.root, 0, manager.address)

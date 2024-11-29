@@ -86,7 +86,7 @@ describe('GnoGenesisVault', () => {
     const adminAddr = await admin.getAddress()
 
     // VaultVersion
-    expect(await vault.version()).to.be.eq(3)
+    expect(await vault.version()).to.be.eq(4)
     expect(await vault.vaultId()).to.be.eq(`0x${keccak256('GnoGenesisVault').toString('hex')}`)
 
     // VaultFee
@@ -95,7 +95,7 @@ describe('GnoGenesisVault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(3)
+    expect(await vault.version()).to.eq(4)
   })
 
   describe('migrate', () => {
@@ -201,7 +201,17 @@ describe('GnoGenesisVault', () => {
     expect(await vault.getExitQueueIndex(positionTicket)).to.eq(-1)
 
     // withdrawals arrives
+    const vaultReward = getHarvestParams(await vault.getAddress(), 0n, 0n)
+    const rewardsTree = await updateRewards(keeper, [vaultReward])
+    const proof = getRewardsRootProof(rewardsTree, vaultReward)
     await setGnoWithdrawals(validatorsRegistry, gnoToken, poolEscrow, assets)
+    await vault.updateState({
+      rewardsRoot: rewardsTree.root,
+      reward: vaultReward.reward,
+      unlockedMevReward: vaultReward.unlockedMevReward,
+      proof,
+    })
+
     const exitQueueIndex = await vault.getExitQueueIndex(positionTicket)
     expect(exitQueueIndex).to.eq(0)
     expect(await vault.withdrawableAssets()).to.eq(0n)
