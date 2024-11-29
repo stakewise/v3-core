@@ -113,16 +113,16 @@ interface IOsTokenVaultController {
   function totalAssets() external view returns (uint256);
 
   /**
-   * @notice Converts shares to assets
+   * @notice Converts assets to shares
    * @param assets The amount of assets to convert to shares
-   * @return shares The amount of shares that the OsToken would exchange for the amount of assets provided
+   * @return shares The amount of OsToken shares obtained when exchanging with the amount of assets provided
    */
   function convertToShares(uint256 assets) external view returns (uint256 shares);
 
   /**
-   * @notice Converts assets to shares
+   * @notice Converts shares to assets
    * @param shares The amount of shares to convert to assets
-   * @return assets The amount of assets that the OsToken would exchange for the amount of shares provided
+   * @return assets The amount of assets obtained when exchanging with the amount of OsToken shares provided
    */
   function convertToAssets(uint256 shares) external view returns (uint256 assets);
 
