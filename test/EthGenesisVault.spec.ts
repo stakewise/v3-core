@@ -95,7 +95,7 @@ describe('EthGenesisVault', () => {
     const adminAddr = await admin.getAddress()
 
     // VaultVersion
-    expect(await vault.version()).to.be.eq(2)
+    expect(await vault.version()).to.be.eq(3)
     expect(await vault.vaultId()).to.be.eq(`0x${keccak256('EthGenesisVault').toString('hex')}`)
 
     // VaultFee
@@ -107,7 +107,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(2)
+    expect(await vault.version()).to.eq(3)
   })
 
   describe('migrate', () => {
@@ -222,11 +222,12 @@ describe('EthGenesisVault', () => {
       expect(await vault.getShares(holderAddr)).to.eq(expectedShares)
 
       await expect(receipt).to.emit(vault, 'Migrated').withArgs(holderAddr, assets, expectedShares)
+      await expect(receipt).to.emit(vault, 'OsTokenMinted')
       await snapshotGasCost(receipt)
     })
   })
 
-  it('pulls withdrawals on claim exited assets', async () => {
+  it('pulls assets on claim exited assets', async () => {
     await acceptPoolEscrowOwnership()
     await collatEthVault()
 
@@ -239,10 +240,7 @@ describe('EthGenesisVault', () => {
     const poolEscrowAddr = await poolEscrow.getAddress()
     const poolEscrowBalance = await ethers.provider.getBalance(poolEscrowAddr)
     const vaultTotalBalance =
-      vaultBalance +
-      poolEscrowBalance +
-      (await vault.totalExitingAssets()) +
-      (await vault.convertToAssets(await vault.queuedShares()))
+      vaultBalance + poolEscrowBalance + (await vault.convertToAssets(await vault.queuedShares()))
 
     await setBalance(vaultAddr, 0n)
     const response = await vault.connect(other).enterExitQueue(shares, other.address)
@@ -288,7 +286,6 @@ describe('EthGenesisVault', () => {
       validatorDeposit +
       vaultBalance +
       poolEscrowBalance +
-      (await vault.totalExitingAssets()) +
       (await vault.convertToAssets(await vault.queuedShares()))
 
     await setBalance(vaultAddr, 0n)
@@ -347,10 +344,7 @@ describe('EthGenesisVault', () => {
     const poolEscrowAddr = await poolEscrow.getAddress()
     const poolEscrowBalance = await ethers.provider.getBalance(poolEscrowAddr)
     const vaultTotalBalance =
-      vaultBalance +
-      poolEscrowBalance +
-      (await vault.totalExitingAssets()) +
-      (await vault.convertToAssets(await vault.queuedShares()))
+      vaultBalance + poolEscrowBalance + (await vault.convertToAssets(await vault.queuedShares()))
 
     await setBalance(vaultAddr, 0n)
     await setBalance(poolEscrowAddr, vaultTotalBalance)

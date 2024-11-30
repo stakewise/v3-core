@@ -22,9 +22,7 @@ library Errors {
   error NotCollateralized();
   error InvalidProof();
   error LowLtv();
-  error RedemptionExceeded();
   error InvalidPosition();
-  error InvalidLtv();
   error InvalidHealthFactor();
   error InvalidReceivedAssets();
   error InvalidTokenMeta();
@@ -52,8 +50,8 @@ library Errors {
   error MaxOraclesExceeded();
   error ExitRequestNotProcessed();
   error ValueNotChanged();
-  error EigenInvalidWithdrawal();
-  error InvalidEigenQueuedWithdrawals();
   error InvalidWithdrawalCredentials();
   error EigenPodNotFound();
+  error InvalidQueuedShares();
+  error FlashLoanFailed();
 }

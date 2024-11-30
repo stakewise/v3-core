@@ -91,7 +91,7 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
   /**
    * @notice Mints OsToken shares
    * @param receiver The address that will receive the minted OsToken shares
-   * @param osTokenShares The number of OsToken shares to mint to the receiver
+   * @param osTokenShares The number of OsToken shares to mint to the receiver. To mint the maximum amount of shares, use 2^256 - 1.
    * @param referrer The address of the referrer
    * @return assets The number of assets minted to the receiver
    */
@@ -124,4 +124,13 @@ interface IVaultOsToken is IVaultState, IVaultEnterExit {
    * @param receiver The address of the receiver of the redeemed assets
    */
   function redeemOsToken(uint256 osTokenShares, address owner, address receiver) external;
+
+  /**
+   * @notice Transfers minted osToken shares to the OsTokenVaultEscrow contract, enters the exit queue for staked assets
+   * @param osTokenShares The number of osToken shares to transfer
+   * @return positionTicket The exit position ticket
+   */
+  function transferOsTokenPositionToEscrow(
+    uint256 osTokenShares
+  ) external returns (uint256 positionTicket);
 }

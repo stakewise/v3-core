@@ -31,21 +31,6 @@ library ExitQueue {
   }
 
   /**
-   * @notice Check whether the position is a V1 position
-   * @param self An array containing checkpoints
-   * @param queuedShares The number of shares that are queued for exiting
-   * @param positionTicket The position ticket to check
-   * @return true if the position is a V1 position, false otherwise
-   */
-  function isV1Position(
-    History storage self,
-    uint256 queuedShares,
-    uint256 positionTicket
-  ) internal view returns (bool) {
-    return positionTicket < getLatestTotalTickets(self) + queuedShares;
-  }
-
-  /**
    * @notice Get the latest checkpoint total tickets
    * @param self An array containing checkpoints
    * @return The current total tickets or zero if there are no checkpoints
@@ -173,7 +158,7 @@ library ExitQueue {
    * @param assets The number of assets that were exited for this checkpoint
    */
   function push(History storage self, uint256 shares, uint256 assets) internal {
-    if (shares == 0 || assets == 0) revert Errors.InvalidCheckpointValue();
+    if (shares == 0) revert Errors.InvalidCheckpointValue();
     Checkpoint memory checkpoint = Checkpoint({
       totalTickets: SafeCast.toUint160(getLatestTotalTickets(self) + shares),
       exitedAssets: SafeCast.toUint96(assets)

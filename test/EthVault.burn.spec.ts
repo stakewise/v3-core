@@ -106,7 +106,6 @@ describe('EthVault - burn', () => {
     expect(await vault.osTokenPositions(sender.address)).to.be.above(
       newPositionShares - currPositionShares
     )
-    expect
     await snapshotGasCost(receipt)
   })
 

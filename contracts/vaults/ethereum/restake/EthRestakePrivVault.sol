@@ -25,7 +25,7 @@ contract EthRestakePrivVault is
   using EnumerableSet for EnumerableSet.AddressSet;
 
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 2;
+  uint8 private constant _version = 3;
 
   /**
    * @dev Constructor
@@ -64,6 +64,12 @@ contract EthRestakePrivVault is
   function initialize(
     bytes calldata params
   ) external payable virtual override(IEthRestakeVault, EthRestakeVault) reinitializer(_version) {
+    // if admin is already set, it's an upgrade from version 2 to 3
+    if (admin != address(0)) {
+      __EthRestakeVault_initV3();
+      return;
+    }
+
     // initialize deployed vault
     address _admin = IEthVaultFactory(msg.sender).vaultAdmin();
     __EthRestakeVault_init(

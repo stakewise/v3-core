@@ -40,9 +40,18 @@ export const NETWORKS: {
     osTokenCapacity: parseEther('1000000'), // 1m ETH
     osTokenName: 'Staked ETH',
     osTokenSymbol: 'osETH',
+
+    // OsTokenConfig
     liqThresholdPercent: parseEther('0.92'), // 92%
     liqBonusPercent: parseEther('1.01'), // 101%
     ltvPercent: parseEther('0.90'), // 90%
+
+    // OsTokenVaultEscrow
+    osTokenVaultEscrow: {
+      authenticator: '0x0000000000000000000000000000000000000000',
+      liqThresholdPercent: parseEther('0.99986'), // 99.986%
+      liqBonusPercent: parseEther('1.000068'), // 0.0068%
+    },
 
     // EthGenesisVault
     genesisVault: {
@@ -112,6 +121,13 @@ export const NETWORKS: {
     liqBonusPercent: parseEther('1.01'), // 101%
     ltvPercent: parseEther('0.90'), // 90%
 
+    // OsTokenVaultEscrow
+    osTokenVaultEscrow: {
+      authenticator: '0x0000000000000000000000000000000000000000',
+      liqThresholdPercent: parseEther('0.99986'), // 99.986%
+      liqBonusPercent: parseEther('1.000068'), // 0.0068%
+    },
+
     // EthGenesisVault
     genesisVault: {
       admin: '0xf330b5fE72E91d1a3782E65eED876CF3624c7802',
@@ -179,6 +195,13 @@ export const NETWORKS: {
     liqThresholdPercent: parseEther('0.92'), // 92%
     liqBonusPercent: parseEther('1.01'), // 101%
     ltvPercent: parseEther('0.90'), // 90%
+
+    // OsTokenVaultEscrow
+    osTokenVaultEscrow: {
+      authenticator: '0x0000000000000000000000000000000000000000',
+      liqThresholdPercent: parseEther('0.99973'), // 99.9973%
+      liqBonusPercent: parseEther('1.000137'), // 0.0137%
+    },
 
     // GnoGenesisVault
     genesisVault: {
@@ -252,6 +275,13 @@ export const NETWORKS: {
     liqBonusPercent: parseEther('1.01'), // 101%
     ltvPercent: parseEther('0.90'), // 90%
 
+    // OsTokenVaultEscrow
+    osTokenVaultEscrow: {
+      authenticator: '0x0000000000000000000000000000000000000000',
+      liqThresholdPercent: parseEther('0.99973'), // 99.9973%
+      liqBonusPercent: parseEther('1.000137'), // 0.0137%
+    },
+
     // GnoGenesisVault
     genesisVault: {
       admin: '0x6Da6B1EfCCb7216078B9004535941b71EeD30b0F',
@@ -287,12 +317,12 @@ export const NETWORKS: {
 
 export const MAINNET_FORK = {
   enabled: process.env.ENABLE_MAINNET_FORK === 'true',
-  blockNumber: 19767930,
+  blockNumber: 21022710,
   rpcUrl: process.env.MAINNET_FORK_RPC_URL || '',
   vaults: {
-    ethVaultOwnMevEscrow: '0xe6d8d8aC54461b1C5eD15740EEe322043F696C08',
-    ethVaultSharedMevEscrow: '0x8A93A876912c9F03F88Bc9114847cf5b63c89f56',
-    ethPrivVaultOwnMevEscrow: '0x91804d6d10f2BD4E03338f40Dee01cF294085CD1',
+    ethVaultOwnMevEscrow: '0x663580B3edAd914D0b59CeA88616F06278D42bb2',
+    ethVaultSharedMevEscrow: '0x089A97A8bC0C0F016f89F9CF42181Ff06afB2Daf',
+    ethPrivVaultOwnMevEscrow: '0xcCa8d532e625d30514Ace25963283228F82CcdDa',
     ethPrivVaultSharedMevEscrow: '0xD66A71A68392767F26b7EE47e9a0293191A23072',
     ethErc20VaultOwnMevEscrow: '0x3102B4013cB506481e959c8F4500B994D2bFF22e',
     ethErc20VaultSharedMevEscrow: '0x9c29c571847A68A947AceC8bacd303e36bC72ec5',
@@ -301,88 +331,93 @@ export const MAINNET_FORK = {
     ethGenesisVault: '0xAC0F906E433d58FA868F936E8A43230473652885',
   },
   harvestParams: {
-    '0xe6d8d8aC54461b1C5eD15740EEe322043F696C08': {
-      rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
-      reward: 52991020397000000000n,
+    '0x663580B3edAd914D0b59CeA88616F06278D42bb2': {
+      rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
+      reward: 370271478000000000n,
       unlockedMevReward: 0n,
       proof: [
-        '0xea23b33df9b6419d0a63c89a298545cd3f0e28ed5e22b4ed8f18b033cf3e2e29',
-        '0xfaf300e92f58858943ef3b6de5d2531d9cb1cd8664fc8ec383956df0dedab802',
-        '0x56f0a4c39d244b76391fb82ffd0cff96fa318b128031713f90bdf8b22dcd5337',
-        '0x5f8b00267b5422b0f5d77d34ed0242eb90a630ef490185a5fdea11dd60ba46a9',
-        '0x56bec5cc22e1ef8e9b4cbe57c506b57a9b9f82f31505c10953aa365f6ac35446',
+        '0xeba2e46ead610b3c8adfba5a82347455780a60c09d39b710d15a6328eab1de9f',
+        '0xc58722f8a3a2f5b912188b6acbb022bb54744fe503a657ac7003fc7ab89fae46',
+        '0x268012151cfa636100d04670dce054810272e30f999af28f3f35c1858e85f7ec',
+        '0x81bd3f4859fc226bc7e862117af2627abb49fc301350ba32f559bbf3138b4234',
+        '0x2baff53a841f50a771305eaf2b89d0341c74f340802d00d904f67d1c0ac99a12',
       ],
     },
-    '0x8A93A876912c9F03F88Bc9114847cf5b63c89f56': {
-      rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
-      reward: 8305314689327766271n,
-      unlockedMevReward: 2144650088039107409n,
+    '0x089A97A8bC0C0F016f89F9CF42181Ff06afB2Daf': {
+      rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
+      reward: 2601666098562034418n,
+      unlockedMevReward: 379242282394372329n,
       proof: [
-        '0x7ff23ed94acddaf20fb0d3a953b2905b6042ff06d999f31b547f9787e1757442',
-        '0xd5bd9030eba170ef10454ff3e1838287298d0f97e8966832621e1fc7a271f0c1',
-        '0x0c750e36b45c48e2b479df72b9c0595591abc19cb5c7c35530e365551cf4f139',
-        '0xb6c5331254939b64546707c09a75d859762d449ad9596f7cf53f7aeadf1b3c8b',
-        '0x75dd316c99583927ee10707a5e97750a360ae8fee4f967b04e5580ac3e39a597',
+        '0xab66ab73737efc81d39f0a47ef1d246d96792a076b995fbc6bc72a0c660966dc',
+        '0x018a5b7f2279f13288ce78cb3cffa1c8516e8a07243c5f1da58d14084c445fe0',
+        '0x48f527f36d88907dd18e991ed351427c347e1a5aeee7bdf8a07db285ca3f3674',
+        '0x4edc01daf2151f4f6c3e190eac41140c88524d84a7321134a3ca8dd00a9437c6',
+        '0x3cf045ccf1a4cc4e7c14f42b2eaa3fc1da583236a7f8e3de1ac596921b663c63',
+        '0x768a161fdfb31a71b5157d2f7d0df43a0c9d5e854598d20c7ad170dc7adcb247',
       ],
     },
-    '0x91804d6d10f2BD4E03338f40Dee01cF294085CD1': {
-      rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
-      reward: 299963964000000000n,
+    '0xcCa8d532e625d30514Ace25963283228F82CcdDa': {
+      rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
+      reward: 36038818000000000n,
       unlockedMevReward: 0n,
       proof: [
-        '0x2a19b3bd065e33be7ba79b2653d94e80cb965fd17bd8557c150651a080f46c9e',
-        '0xb6a1254341c2e2be72395c6cf4ea2ce3a6547e78654b35340335b30eef083017',
-        '0xe8a0a835def6ed63ae56673b5d21a982238e6ee253d5856226239ffa7aaf3b5f',
-        '0xb6c5331254939b64546707c09a75d859762d449ad9596f7cf53f7aeadf1b3c8b',
-        '0x75dd316c99583927ee10707a5e97750a360ae8fee4f967b04e5580ac3e39a597',
-      ],
-    },
-    '0xAC0F906E433d58FA868F936E8A43230473652885': {
-      rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
-      reward: 9202456598247516271722n,
-      unlockedMevReward: 277043943440591611549n,
-      proof: [
-        '0xc2c2983bd307db1cdb5071c9650a36e608415830f4c2baf4904b495df8863983',
-        '0x375ba0dadf590e4235511ea5ffd709f3212c39655f80b25582de5759b602988f',
-        '0x5674104e6c0ba8a62cf55b6fb71e80f565362e562ba6076a6bcc0595bb5f348e',
-        '0x51527202b66e7c9d2cbee5f54f4ad2f99f3fa25e5d19b75782e7be060e56ca1e',
-        '0x75dd316c99583927ee10707a5e97750a360ae8fee4f967b04e5580ac3e39a597',
+        '0x5a2cf20e40b748349bb7c4c9419055062e4be2782b34225cc6f0dd1caed3bd46',
+        '0xcb42b5e68fc764cad24857634e45e53084bed23f0908b8c780cda29179af2cc6',
+        '0xde6b45c9b33a6de3c30c6865171710003311dd46b3addb26d1d8f0554295c467',
+        '0x789d2bb0a65e6fc55ce935d58c4375aa7e6a9246fd48d5b52866fc352685a4dc',
+        '0xd6f3d64c83c769ac76a7a98bccb7afd7cf5be14a8a211e7a10832c1b2bf7573a',
+        '0x768a161fdfb31a71b5157d2f7d0df43a0c9d5e854598d20c7ad170dc7adcb247',
       ],
     },
     '0xD66A71A68392767F26b7EE47e9a0293191A23072': {
-      rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
+      rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
       reward: 17651468000000000n,
       unlockedMevReward: 0n,
       proof: [
-        '0x963d6cd98d8aa8c3e1d4cb1f387db3722846dc9aeceb98dcf3b4be367dbab22b',
-        '0x8ae8d4d934c7f4831aa7246514adb826972cb6103e7230b2aedea4d4142c629a',
-        '0x08069cef83ce12be1833e93d784d8a7ffa294cfab998e08fc6d358184a9ba205',
-        '0x51527202b66e7c9d2cbee5f54f4ad2f99f3fa25e5d19b75782e7be060e56ca1e',
-        '0x75dd316c99583927ee10707a5e97750a360ae8fee4f967b04e5580ac3e39a597',
+        '0x8d2ba9677e8a7d87b2bde1fabe8c83aabba7b4964a18bd89951041d042f722b5',
+        '0x781ac864ad599fa62059dacbcc7a3ec16c7c0ff1c140c59a092b00b2309697da',
+        '0x5e4ec1f28a602e4c8a32ee3230025b9aef4c2d781f77ae083e6c378325189b6e',
+        '0x304900b975ba8fa13e4f8bfe8af28ede6836d3edbd4f88d10364902fca226f35',
+        '0x3cf045ccf1a4cc4e7c14f42b2eaa3fc1da583236a7f8e3de1ac596921b663c63',
+        '0x768a161fdfb31a71b5157d2f7d0df43a0c9d5e854598d20c7ad170dc7adcb247',
       ],
     },
     '0x3102B4013cB506481e959c8F4500B994D2bFF22e': {
-      rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
-      reward: 271531083000000000n,
+      rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
+      reward: 655782750000000000n,
       unlockedMevReward: 0n,
       proof: [
-        '0xa890ed09db09b75b5a2e14d78f6129884daf9d63505f8dad1af12f36e56921e8',
-        '0x0b3b2488077d45732138e88da27320bb53abb1b172c9c59347704e6a794729ba',
-        '0x08069cef83ce12be1833e93d784d8a7ffa294cfab998e08fc6d358184a9ba205',
-        '0x51527202b66e7c9d2cbee5f54f4ad2f99f3fa25e5d19b75782e7be060e56ca1e',
-        '0x75dd316c99583927ee10707a5e97750a360ae8fee4f967b04e5580ac3e39a597',
+        '0xc5004cfcce48426798a0a7da4a3291b70fae7e48ea4cc7cb8e1924427aa9074a',
+        '0x81105a8489f0d024e3ccb62b6573aa8db4bbb7e5d435572bc2bb7bbe4aec776f',
+        '0x62dd6f6c4d69dbc543f15c2c3519ca839410ccec7150d6ebfbbe56ef5d6a47ba',
+        '0x4edc01daf2151f4f6c3e190eac41140c88524d84a7321134a3ca8dd00a9437c6',
+        '0x3cf045ccf1a4cc4e7c14f42b2eaa3fc1da583236a7f8e3de1ac596921b663c63',
+        '0x768a161fdfb31a71b5157d2f7d0df43a0c9d5e854598d20c7ad170dc7adcb247',
       ],
     },
     '0x9c29c571847A68A947AceC8bacd303e36bC72ec5': {
-      rewardsRoot: '0xbaba3a48ff687913f0cbfabed786c608bca08e8abc64baeb2d4293731607a624',
-      reward: 350451159567197326n,
-      unlockedMevReward: 0n,
+      rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
+      reward: 838642149564534034n,
+      unlockedMevReward: 108454527643194127n,
       proof: [
-        '0x50c78f43bfb03d41de939985630a6ac6a69d8df763b0494be0d283574533cb72',
-        '0xef1addafb983ccd1b10c65bd3b771f3ae6b7a3808ae44a4136e7a4ba233ec3e2',
-        '0xe8a0a835def6ed63ae56673b5d21a982238e6ee253d5856226239ffa7aaf3b5f',
-        '0xb6c5331254939b64546707c09a75d859762d449ad9596f7cf53f7aeadf1b3c8b',
-        '0x75dd316c99583927ee10707a5e97750a360ae8fee4f967b04e5580ac3e39a597',
+        '0xa890ed09db09b75b5a2e14d78f6129884daf9d63505f8dad1af12f36e56921e8',
+        '0x5fe5be84d089057868886cf9dd57153017f92c5ffe686cc75e54d3de55297435',
+        '0xd8800fcf89fa6a4ddc6be9b5f07acf66ddf797b7b2b37d433d7e75b11e0d1222',
+        '0x304900b975ba8fa13e4f8bfe8af28ede6836d3edbd4f88d10364902fca226f35',
+        '0x3cf045ccf1a4cc4e7c14f42b2eaa3fc1da583236a7f8e3de1ac596921b663c63',
+        '0x768a161fdfb31a71b5157d2f7d0df43a0c9d5e854598d20c7ad170dc7adcb247',
+      ],
+    },
+    '0xAC0F906E433d58FA868F936E8A43230473652885': {
+      rewardsRoot: '0xfa786879b42abe1980a18209a73b7982e91554d82c495d687dd8c2a8109b0e96',
+      reward: 10281264030482176612823n,
+      unlockedMevReward: 439405911556251952650n,
+      proof: [
+        '0xe2f045aaddf90b4dbc747cf1f71c853fe94c43acf634ed7c4e75a79958ec96f2',
+        '0x9fed225a4ba8a8c1dfc347bbb2475c0a479f2c4b46cb3c6186b23a471b5bff6d',
+        '0x02e1b574ed1cbca2eedf1c583b9cfd54be5acff0ffb16dd76d73f9dbcab694a9',
+        '0x07333d832cb8b6e5ae0fafd3f8113b91b84b09b413dbae80f0b90b458c5e94b6',
+        '0x2baff53a841f50a771305eaf2b89d0341c74f340802d00d904f67d1c0ac99a12',
       ],
     },
   },
@@ -399,7 +434,7 @@ export const MAINNET_FORK = {
     '0xb5dBd61DAb7138aF20A61614e0A4587566C2A15A',
     '0x8Ce4f2800dE6476F42a070C79AfA58E0E209173e',
   ],
-  v2PoolHolder: '0x56556075Ab3e2Bb83984E90C52850AFd38F20883',
+  v2PoolHolder: '0xa48a523F3e0f1A9232BfE22bB6aE07Bb44bF36F1',
   eigenPodManager: '0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338',
   eigenDelegationManager: '0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A',
   eigenDelayedWithdrawalRouter: '0x7Fe7E9CC0F274d2435AD5d56D5fa73E47F6A23D8',

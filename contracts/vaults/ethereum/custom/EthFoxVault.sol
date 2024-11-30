@@ -147,7 +147,6 @@ contract EthFoxVault is
    * @dev Initializes the EthFoxVault V2 contract
    */
   function __EthFoxVault_initV2() internal onlyInitializing {
-    __VaultState_initV2();
     __VaultValidators_initV2();
   }
 

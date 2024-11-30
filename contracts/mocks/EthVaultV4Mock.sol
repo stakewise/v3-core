@@ -2,9 +2,11 @@
 
 pragma solidity ^0.8.22;
 
-import {EthVaultV3Mock} from './EthVaultV3Mock.sol';
+import {EthVault} from '../vaults/ethereum/EthVault.sol';
 
-contract EthVaultV4Mock is EthVaultV3Mock {
+contract EthVaultV4Mock is EthVault {
+  uint128 public newVar;
+
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
     address _keeper,
@@ -12,23 +14,31 @@ contract EthVaultV4Mock is EthVaultV3Mock {
     address _validatorsRegistry,
     address osTokenVaultController,
     address osTokenConfig,
+    address osTokenVaultEscrow,
     address sharedMevEscrow,
     address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
-    EthVaultV3Mock(
+    EthVault(
       _keeper,
       _vaultsRegistry,
       _validatorsRegistry,
       osTokenVaultController,
       osTokenConfig,
+      osTokenVaultEscrow,
       sharedMevEscrow,
       depositDataRegistry,
       exitingAssetsClaimDelay
     )
   {}
 
-  function initialize(bytes calldata data) external payable override reinitializer(4) {}
+  function initialize(bytes calldata data) external payable virtual override reinitializer(4) {
+    (newVar) = abi.decode(data, (uint128));
+  }
+
+  function somethingNew() external pure returns (bool) {
+    return true;
+  }
 
   function version() public pure virtual override returns (uint8) {
     return 4;

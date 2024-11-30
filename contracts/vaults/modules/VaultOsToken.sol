@@ -7,6 +7,7 @@ import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {IOsTokenVaultController} from '../../interfaces/IOsTokenVaultController.sol';
 import {IOsTokenConfig} from '../../interfaces/IOsTokenConfig.sol';
 import {IVaultOsToken} from '../../interfaces/IVaultOsToken.sol';
+import {IOsTokenVaultEscrow} from '../../interfaces/IOsTokenVaultEscrow.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
 import {VaultEnterExit, IVaultEnterExit} from './VaultEnterExit.sol';
@@ -29,6 +30,9 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IOsTokenConfig private immutable _osTokenConfig;
 
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  IOsTokenVaultEscrow private immutable _osTokenVaultEscrow;
+
   mapping(address => OsTokenPosition) private _positions;
 
   /**
@@ -37,15 +41,17 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address osTokenVaultController, address osTokenConfig) {
+  constructor(address osTokenVaultController, address osTokenConfig, address osTokenVaultEscrow) {
     _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
     _osTokenConfig = IOsTokenConfig(osTokenConfig);
+    _osTokenVaultEscrow = IOsTokenVaultEscrow(osTokenVaultEscrow);
   }
 
   /// @inheritdoc IVaultOsToken
-  function osTokenPositions(address user) external view override returns (uint128 shares) {
+  function osTokenPositions(address user) public view override returns (uint128 shares) {
     OsTokenPosition memory position = _positions[user];
     if (position.shares != 0) _syncPositionFee(position);
     return position.shares;
@@ -57,35 +63,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     uint256 osTokenShares,
     address referrer
   ) public virtual override returns (uint256 assets) {
-    _checkCollateralized();
-    _checkHarvested();
-
-    // mint osToken shares to the receiver
-    assets = _osTokenVaultController.mintShares(receiver, osTokenShares);
-
-    // fetch user position
-    OsTokenPosition memory position = _positions[msg.sender];
-    if (position.shares != 0) {
-      _syncPositionFee(position);
-    } else {
-      position.cumulativeFeePerShare = SafeCast.toUint128(
-        _osTokenVaultController.cumulativeFeePerShare()
-      );
-    }
-
-    // add minted shares to the position
-    position.shares += SafeCast.toUint128(osTokenShares);
-
-    // calculate and validate LTV
-    if (_calcMaxOsTokenShares(convertToAssets(_balances[msg.sender])) < position.shares) {
-      revert Errors.LowLtv();
-    }
-
-    // update state
-    _positions[msg.sender] = position;
-
-    // emit event
-    emit OsTokenMinted(msg.sender, receiver, assets, osTokenShares, referrer);
+    return _mintOsToken(msg.sender, receiver, osTokenShares, referrer);
   }
 
   /// @inheritdoc IVaultOsToken
@@ -140,6 +118,49 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     emit OsTokenRedeemed(msg.sender, owner, receiver, osTokenShares, burnedShares, receivedAssets);
   }
 
+  /// @inheritdoc IVaultOsToken
+  function transferOsTokenPositionToEscrow(
+    uint256 osTokenShares
+  ) external override returns (uint256 positionTicket) {
+    // check whether vault assets are up to date
+    _checkHarvested();
+
+    // fetch user osToken position
+    OsTokenPosition memory position = _positions[msg.sender];
+    if (position.shares == 0) revert Errors.InvalidPosition();
+
+    // sync accumulated fee
+    _syncPositionFee(position);
+    if (position.shares < osTokenShares) revert Errors.InvalidShares();
+
+    // calculate shares to enter the exit queue
+    uint256 exitShares = _balances[msg.sender];
+    if (position.shares != osTokenShares) {
+      // calculate exit shares
+      exitShares = Math.mulDiv(exitShares, osTokenShares, position.shares);
+      // update osToken position
+      unchecked {
+        // cannot underflow because position.shares >= osTokenShares
+        position.shares -= SafeCast.toUint128(osTokenShares);
+      }
+      _positions[msg.sender] = position;
+    } else {
+      // all the assets are sent to the exit queue, remove position
+      delete _positions[msg.sender];
+    }
+
+    // enter the exit queue
+    positionTicket = super.enterExitQueue(exitShares, address(_osTokenVaultEscrow));
+
+    // transfer to escrow
+    _osTokenVaultEscrow.register(
+      msg.sender,
+      positionTicket,
+      osTokenShares,
+      position.cumulativeFeePerShare
+    );
+  }
+
   /// @inheritdoc IVaultEnterExit
   function enterExitQueue(
     uint256 shares,
@@ -147,6 +168,64 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
   ) public virtual override(IVaultEnterExit, VaultEnterExit) returns (uint256 positionTicket) {
     positionTicket = super.enterExitQueue(shares, receiver);
     _checkOsTokenPosition(msg.sender);
+  }
+
+  /**
+   * @dev Internal function for minting osToken shares
+   * @param owner The owner of the osToken position
+   * @param receiver The receiver of the osToken shares
+   * @param osTokenShares The amount of osToken shares to mint
+   * @param referrer The address of the referrer
+   * @return assets The amount of assets minted
+   */
+  function _mintOsToken(
+    address owner,
+    address receiver,
+    uint256 osTokenShares,
+    address referrer
+  ) internal returns (uint256 assets) {
+    _checkCollateralized();
+    _checkHarvested();
+
+    // fetch user position
+    OsTokenPosition memory position = _positions[owner];
+    if (position.shares != 0) {
+      _syncPositionFee(position);
+    } else {
+      position.cumulativeFeePerShare = SafeCast.toUint128(
+        _osTokenVaultController.cumulativeFeePerShare()
+      );
+    }
+
+    // calculate max osToken shares that user can mint
+    uint256 userMaxOsTokenShares = _calcMaxOsTokenShares(convertToAssets(_balances[owner]));
+    if (osTokenShares == type(uint256).max) {
+      if (userMaxOsTokenShares <= position.shares) {
+        return 0;
+      }
+      // calculate max OsToken shares that can be minted
+      unchecked {
+        // cannot underflow because position.shares < userMaxOsTokenShares
+        osTokenShares = userMaxOsTokenShares - position.shares;
+      }
+    }
+
+    // mint osToken shares to the receiver
+    assets = _osTokenVaultController.mintShares(receiver, osTokenShares);
+
+    // add minted shares to the position
+    position.shares += SafeCast.toUint128(osTokenShares);
+
+    // calculate and validate LTV
+    if (userMaxOsTokenShares < position.shares) {
+      revert Errors.LowLtv();
+    }
+
+    // update state
+    _positions[owner] = position;
+
+    // emit event
+    emit OsTokenMinted(owner, receiver, assets, osTokenShares, referrer);
   }
 
   /**

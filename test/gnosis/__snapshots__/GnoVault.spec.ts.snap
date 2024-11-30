@@ -10,20 +10,20 @@ Object {
 exports[`GnoVault pulls withdrawals on claim exited assets 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 124696,
+  "gasUsed": 95778,
 }
 `;
 
 exports[`GnoVault swap xdai to gno can swap all xdai to gno 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 130563,
+  "gasUsed": 130585,
 }
 `;
 
 exports[`GnoVault swap xdai to gno skips swapping when balance less than 1 gwei xdai 1`] = `
 Object {
   "calldataByteLength": 4,
-  "gasUsed": 29162,
+  "gasUsed": 29184,
 }
 `;

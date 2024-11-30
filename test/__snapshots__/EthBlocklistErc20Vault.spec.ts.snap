@@ -3,7 +3,7 @@
 exports[`EthBlocklistErc20Vault deposit can be called by not blocked user 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 71137,
+  "gasUsed": 71159,
 }
 `;
 
@@ -17,13 +17,13 @@ Object {
 exports[`EthBlocklistErc20Vault mint osToken can mint from not blocked user 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 177779,
+  "gasUsed": 178597,
 }
 `;
 
 exports[`EthBlocklistErc20Vault transfer can transfer 1`] = `
 Object {
   "calldataByteLength": 68,
-  "gasUsed": 58910,
+  "gasUsed": 58932,
 }
 `;

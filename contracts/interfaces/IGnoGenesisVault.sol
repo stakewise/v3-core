@@ -11,7 +11,7 @@ import {IGnoVault} from './IGnoVault.sol';
  */
 interface IGnoGenesisVault is IGnoVault {
   /**
-   * @notice Event emitted on migration from StakeWise v2
+   * @notice Event emitted on migration from StakeWise Legacy
    * @param receiver The address of the shares receiver
    * @param assets The amount of assets migrated
    * @param shares The amount of shares migrated
@@ -33,7 +33,7 @@ interface IGnoGenesisVault is IGnoVault {
   );
 
   /**
-   * @notice Function for migrating from StakeWise v2. Can be called only by RewardGnoToken contract.
+   * @notice Function for migrating from StakeWise Legacy. Can be called only by RewardGnoToken contract.
    * @param receiver The address of the receiver
    * @param assets The amount of assets migrated
    * @return shares The amount of shares minted
