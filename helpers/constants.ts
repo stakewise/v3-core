@@ -48,9 +48,9 @@ export const NETWORKS: {
 
     // OsTokenVaultEscrow
     osTokenVaultEscrow: {
-      authenticator: '0x0000000000000000000000000000000000000000',
-      liqThresholdPercent: parseEther('0.99986'), // 99.986%
-      liqBonusPercent: parseEther('1.000068'), // 0.0068%
+      authenticator: '0x4abB9BBb82922A6893A5d6890cd2eE94610BEc48',
+      liqThresholdPercent: parseEther('0.99994'), // 99.994%
+      liqBonusPercent: parseEther('1.000027'), // 0.0027%
     },
 
     // EthGenesisVault
@@ -123,7 +123,7 @@ export const NETWORKS: {
 
     // OsTokenVaultEscrow
     osTokenVaultEscrow: {
-      authenticator: '0x0000000000000000000000000000000000000000',
+      authenticator: '0xFc8E3E7c919b4392D9F5B27015688e49c80015f0',
       liqThresholdPercent: parseEther('0.99986'), // 99.986%
       liqBonusPercent: parseEther('1.000068'), // 0.0068%
     },
@@ -198,9 +198,9 @@ export const NETWORKS: {
 
     // OsTokenVaultEscrow
     osTokenVaultEscrow: {
-      authenticator: '0x0000000000000000000000000000000000000000',
-      liqThresholdPercent: parseEther('0.99973'), // 99.9973%
-      liqBonusPercent: parseEther('1.000137'), // 0.0137%
+      authenticator: '0xCd4f0b056F56BCc28193Ca2Ca9B98AEdd940308d',
+      liqThresholdPercent: parseEther('0.99835'), // 99.835%
+      liqBonusPercent: parseEther('1.000821'), // 0.0821%
     },
 
     // GnoGenesisVault
@@ -277,9 +277,9 @@ export const NETWORKS: {
 
     // OsTokenVaultEscrow
     osTokenVaultEscrow: {
-      authenticator: '0x0000000000000000000000000000000000000000',
-      liqThresholdPercent: parseEther('0.99973'), // 99.9973%
-      liqBonusPercent: parseEther('1.000137'), // 0.0137%
+      authenticator: '0xe0Ae8B04922d6e3fA06c2496A94EF2875EFcC7BB',
+      liqThresholdPercent: parseEther('0.99972'), // 99.972%
+      liqBonusPercent: parseEther('1.000136'), // 0.0136%
     },
 
     // GnoGenesisVault
