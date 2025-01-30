@@ -349,6 +349,7 @@ contract VaultExitQueueClaimTest is Test {
       assertEq(exitedAssets, 0);
     }
 
+    // deploy upgrade
     address vaultV4Impl = address(
       new EthGenesisVault(
         keeper,
@@ -388,6 +389,7 @@ contract VaultExitQueueClaimTest is Test {
     (int192 assets1, ) = IKeeperRewards(keeper).rewards(genesisVault);
     (uint192 assets2, ) = IKeeperRewards(keeper).unlockedMevRewards(genesisVault);
 
+    // update state to create checkpoint
     IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(
       genesisVault,
       assets1,
@@ -396,6 +398,7 @@ contract VaultExitQueueClaimTest is Test {
     );
     IEthVault(genesisVault).updateState(harvestParams);
 
+    // check claim works for normal user
     exitQueueIndex1 = IEthVault(genesisVault).getExitQueueIndex(positionTicket1);
     (leftTickets, exitedTickets, exitedAssets) = IEthVault(genesisVault).calculateExitedAssets(
       user1,
@@ -420,7 +423,7 @@ contract VaultExitQueueClaimTest is Test {
     assertEq(exitedTickets, 0);
     assertEq(exitedAssets, 0);
 
-    // check issue reproduces for all the stuck users
+    // check claim works for all the stuck users
     for (uint256 i = 0; i < exitRequests.length; i++) {
       ExitRequest memory exitRequest = exitRequests[i];
       int256 exitQueueIndex = IEthVault(genesisVault).getExitQueueIndex(exitRequest.positionTicket);
