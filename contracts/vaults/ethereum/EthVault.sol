@@ -38,7 +38,7 @@ contract EthVault is
   Multicall,
   IEthVault
 {
-  uint8 private constant _version = 3;
+  uint8 private constant _version = 4;
 
   /**
    * @dev Constructor
@@ -79,9 +79,8 @@ contract EthVault is
   function initialize(
     bytes calldata params
   ) external payable virtual override reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3
+    // if admin is already set, it's an upgrade from version 3 to 4
     if (admin != address(0)) {
-      __EthVault_initV3();
       return;
     }
 
@@ -135,14 +134,6 @@ contract EthVault is
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
     return _version;
-  }
-
-  /**
-   * @dev Initializes the EthVault contract upgrade to V3
-   */
-  function __EthVault_initV3() internal {
-    __VaultState_initV3();
-    __VaultValidators_initV3();
   }
 
   /**
