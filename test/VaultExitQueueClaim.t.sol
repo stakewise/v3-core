@@ -17,7 +17,7 @@ import {StdAssertions} from '../lib/forge-std/src/StdAssertions.sol';
 import {StdChains} from '../lib/forge-std/src/StdChains.sol';
 import {StdCheats, StdCheatsSafe} from '../lib/forge-std/src/StdCheats.sol';
 import {StdUtils} from '../lib/forge-std/src/StdUtils.sol';
-import {Test, console} from '../lib/forge-std/src/Test.sol';
+import {Test} from '../lib/forge-std/src/Test.sol';
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
@@ -397,7 +397,6 @@ contract VaultExitQueueClaimTest is Test {
     IEthVault(genesisVault).updateState(harvestParams);
 
     exitQueueIndex1 = IEthVault(genesisVault).getExitQueueIndex(positionTicket1);
-    console.log('exitQueueIndex1', exitQueueIndex1);
     (leftTickets, exitedTickets, exitedAssets) = IEthVault(genesisVault).calculateExitedAssets(
       user1,
       positionTicket1,
