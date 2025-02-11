@@ -27,6 +27,12 @@ interface IRewardSplitter is IMulticall {
   }
 
   /**
+   * @notice Event emitted when the claim on behalf flag is updated
+   * @param enabled The flag indicating whether the claim on behalf is enabled
+   */
+  event ClaimOnBehalfUpdated(bool enabled);
+
+  /**
    * @notice Event emitted when the number of shares is increased for an account
    * @param account The address of the account for which the shares were increased
    * @param amount The amount of shares that were added
@@ -67,6 +73,12 @@ interface IRewardSplitter is IMulticall {
   function totalShares() external returns (uint256);
 
   /**
+   * @notice The flag indicating whether the claim on behalf is enabled
+   * @return `true` if the claim on behalf is enabled, `false` otherwise
+   */
+  function isClaimOnBehalfEnabled() external returns (bool);
+
+  /**
    * @notice The total amount of unclaimed rewards in the splitter
    * @return The total amount of rewards
    */
@@ -74,10 +86,15 @@ interface IRewardSplitter is IMulticall {
 
   /**
    * @notice Initializes the RewardSplitter contract
-   * @param owner The address of the owner of the RewardSplitter contract
    * @param _vault The address of the vault to which the RewardSplitter will be connected
    */
-  function initialize(address owner, address _vault) external;
+  function initialize(address _vault) external;
+
+  /**
+   * @notice Sets the flag indicating whether the claim on behalf is enabled.
+   * Can only be called by the vault admin.
+   */
+  function setClaimOnBehalf(bool enabled) external;
 
   /**
    * @notice Retrieves the amount of splitter shares for the given account.

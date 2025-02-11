@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.22;
 
+import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
@@ -12,14 +13,16 @@ import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IRewardSplitter} from '../interfaces/IRewardSplitter.sol';
 import {IVaultState} from '../interfaces/IVaultState.sol';
 import {IVaultEnterExit} from '../interfaces/IVaultEnterExit.sol';
+import {IVaultAdmin} from '../interfaces/IVaultAdmin.sol';
 import {Multicall} from '../base/Multicall.sol';
+import {Errors} from '../libraries/Errors.sol';
 
 /**
  * @title RewardSplitter
  * @author StakeWise
  * @notice The RewardSplitter can be used to split the rewards of the fee recipient of the vault based on configures shares
  */
-contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, Multicall {
+contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   uint256 private constant _wad = 1e18;
 
   /// @inheritdoc IRewardSplitter
@@ -28,8 +31,12 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   /// @inheritdoc IRewardSplitter
   uint256 public override totalShares;
 
+  /// @inheritdoc IRewardSplitter
+  bool public isClaimOnBehalfEnabled;
+
   mapping(address => ShareHolder) private _shareHolders;
   mapping(address => uint256) private _unclaimedRewards;
+  mapping(uint256 positionTicket => address onBehalf) public _exitPositions;
 
   uint128 private _totalRewards;
   uint128 private _rewardPerShare;
@@ -40,9 +47,15 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   }
 
   /// @inheritdoc IRewardSplitter
-  function initialize(address owner, address _vault) external override initializer {
-    __Ownable_init(owner);
+  function initialize(address _vault) external override initializer {
     vault = _vault;
+  }
+
+  /// @inheritdoc IRewardSplitter
+  function setClaimOnBehalf(bool enabled) external {
+    if (msg.sender != IVaultAdmin(vault).admin()) revert Errors.AccessDenied();
+    isClaimOnBehalfEnabled = enabled;
+    emit ClaimOnBehalfUpdated(enabled);
   }
 
   /// @inheritdoc IRewardSplitter
@@ -74,7 +87,8 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   }
 
   /// @inheritdoc IRewardSplitter
-  function increaseShares(address account, uint128 amount) external override onlyOwner {
+  function increaseShares(address account, uint128 amount) external override {
+    if (msg.sender != IVaultAdmin(vault).admin()) revert Errors.AccessDenied();
     if (account == address(0)) revert InvalidAccount();
     if (amount == 0) revert InvalidAmount();
 
@@ -96,7 +110,8 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   }
 
   /// @inheritdoc IRewardSplitter
-  function decreaseShares(address account, uint128 amount) external override onlyOwner {
+  function decreaseShares(address account, uint128 amount) external override {
+    if (msg.sender != IVaultAdmin(vault).admin()) revert Errors.AccessDenied();
     if (account == address(0)) revert InvalidAccount();
     if (amount == 0) revert InvalidAmount();
 
@@ -124,6 +139,9 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
 
   /// @inheritdoc IRewardSplitter
   function claimVaultTokens(uint256 rewards, address receiver) external override {
+    if (rewards == type(uint256).max) {
+      rewards = rewardsOf(msg.sender);
+    }
     _withdrawRewards(msg.sender, rewards);
     // NB! will revert if vault is not ERC-20
     SafeERC20.safeTransfer(IERC20(vault), receiver, rewards);
@@ -134,8 +152,47 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
     uint256 rewards,
     address receiver
   ) external override returns (uint256 positionTicket) {
+    if (rewards == type(uint256).max) {
+      rewards = rewardsOf(msg.sender);
+    }
     _withdrawRewards(msg.sender, rewards);
     return IVaultEnterExit(vault).enterExitQueue(rewards, receiver);
+  }
+
+  function enterExitQueueOnBehalf(uint256 rewards, address onBehalf) external {
+    if (!isClaimOnBehalfEnabled) return;
+
+    if (rewards == type(uint256).max) {
+      rewards = rewardsOf(onBehalf);
+    }
+    _withdrawRewards(onBehalf, rewards);
+    uint256 positionTicket = IVaultEnterExit(vault).enterExitQueue(rewards, address(this));
+    _exitPositions[positionTicket] = onBehalf;
+  }
+
+  function claimExitedAssetsOnBehalf(
+    uint256 positionTicket,
+    uint256 timestamp,
+    uint256 exitQueueIndex
+  ) external {
+    if (!isClaimOnBehalfEnabled) revert Errors.AccessDenied();
+    address onBehalf = _exitPositions[positionTicket];
+    if (onBehalf == address(0)) revert Errors.AccessDenied();
+
+    // calculate exited tickets and assets
+    (uint256 leftTickets, , uint256 exitedAssets) = IVaultEnterExit(vault).calculateExitedAssets(
+      address(this),
+      positionTicket,
+      timestamp,
+      exitQueueIndex
+    );
+    // disallow partial claims (1 ticket could be a rounding error)
+    if (leftTickets > 1) revert Errors.AccessDenied();
+
+    IVaultEnterExit(vault).claimExitedAssets(positionTicket, timestamp, exitQueueIndex);
+    _exitPositions[positionTicket] = address(0);
+
+    Address.sendValue(payable(onBehalf), exitedAssets);
   }
 
   /// @inheritdoc IRewardSplitter
@@ -170,11 +227,16 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   }
 
   function _withdrawRewards(address account, uint256 rewards) private {
+    // Sync rewards from the vault
+    syncRewards();
+
     // get user total number of rewards
     uint256 accountRewards = rewardsOf(account);
 
-    // update state
+    // withdraw shareholder rewards from the splitter
     _totalRewards -= SafeCast.toUint128(rewards);
+
+    // update shareholder
     // reverts if withdrawn rewards exceed total
     _unclaimedRewards[account] = accountRewards - rewards;
     _shareHolders[account].rewardPerShare = _rewardPerShare;
