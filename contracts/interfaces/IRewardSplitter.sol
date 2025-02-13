@@ -28,9 +28,10 @@ interface IRewardSplitter is IMulticall {
 
   /**
    * @notice Event emitted when the claim on behalf flag is updated
+   * @param caller The address of the account that called the function
    * @param enabled The flag indicating whether the claim on behalf is enabled
    */
-  event ClaimOnBehalfUpdated(bool enabled);
+  event ClaimOnBehalfUpdated(address caller, bool enabled);
 
   /**
    * @notice Event emitted when the number of shares is increased for an account
@@ -61,6 +62,26 @@ interface IRewardSplitter is IMulticall {
   event RewardsWithdrawn(address indexed account, uint256 amount);
 
   /**
+   * @notice Event emitted when the rewards are claimed on behalf
+   * @param onBehalf The address of the account on behalf of which the rewards were claimed
+   * @param positionTicket The position ticket in the exit queue
+   * @param amount The amount of rewards that were claimed
+   */
+  event ExitQueueEnteredOnBehalf(address indexed onBehalf, uint256 positionTicket, uint256 amount);
+
+  /**
+   * @notice Event emitted when the exited assets are claimed on behalf
+   * @param onBehalf The address of the account on behalf of which the assets were claimed
+   * @param positionTicket The position ticket in the exit queue
+   * @param amount The amount of assets that were claimed
+   */
+  event ExitedAssetsClaimedOnBehalf(
+    address indexed onBehalf,
+    uint256 positionTicket,
+    uint256 amount
+  );
+
+  /**
    * @notice The vault to which the RewardSplitter is connected
    * @return The address of the vault
    */
@@ -73,7 +94,7 @@ interface IRewardSplitter is IMulticall {
   function totalShares() external returns (uint256);
 
   /**
-   * @notice The flag indicating whether the claim on behalf is enabled
+   * @notice Returns whether the claim on behalf is enabled
    * @return `true` if the claim on behalf is enabled, `false` otherwise
    */
   function isClaimOnBehalfEnabled() external returns (bool);
@@ -92,6 +113,7 @@ interface IRewardSplitter is IMulticall {
 
   /**
    * @notice Sets the flag indicating whether the claim on behalf is enabled.
+   * @param enabled The flag indicating whether the claim on behalf is enabled
    * Can only be called by the vault admin.
    */
   function setClaimOnBehalf(bool enabled) external;

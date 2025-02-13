@@ -41,6 +41,16 @@ contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   uint128 private _totalRewards;
   uint128 private _rewardPerShare;
 
+  /**
+   * @dev Modifier to check if the caller is the vault admin
+   */
+  modifier onlyVaultAdmin() {
+    if (msg.sender != IVaultAdmin(vault).admin()) {
+      revert Errors.AccessDenied();
+    }
+    _;
+  }
+
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
@@ -51,11 +61,13 @@ contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     vault = _vault;
   }
 
+  /// Allows to claim rewards from the vault and receive them to the reward splitter address
+  receive() external payable {}
+
   /// @inheritdoc IRewardSplitter
-  function setClaimOnBehalf(bool enabled) external {
-    if (msg.sender != IVaultAdmin(vault).admin()) revert Errors.AccessDenied();
+  function setClaimOnBehalf(bool enabled) external onlyVaultAdmin {
     isClaimOnBehalfEnabled = enabled;
-    emit ClaimOnBehalfUpdated(enabled);
+    emit ClaimOnBehalfUpdated(msg.sender, enabled);
   }
 
   /// @inheritdoc IRewardSplitter
@@ -87,8 +99,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   }
 
   /// @inheritdoc IRewardSplitter
-  function increaseShares(address account, uint128 amount) external override {
-    if (msg.sender != IVaultAdmin(vault).admin()) revert Errors.AccessDenied();
+  function increaseShares(address account, uint128 amount) external override onlyVaultAdmin {
     if (account == address(0)) revert InvalidAccount();
     if (amount == 0) revert InvalidAmount();
 
@@ -110,8 +121,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   }
 
   /// @inheritdoc IRewardSplitter
-  function decreaseShares(address account, uint128 amount) external override {
-    if (msg.sender != IVaultAdmin(vault).admin()) revert Errors.AccessDenied();
+  function decreaseShares(address account, uint128 amount) external override onlyVaultAdmin {
     if (account == address(0)) revert InvalidAccount();
     if (amount == 0) revert InvalidAmount();
 
@@ -160,14 +170,18 @@ contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   }
 
   function enterExitQueueOnBehalf(uint256 rewards, address onBehalf) external {
-    if (!isClaimOnBehalfEnabled) return;
+    if (!isClaimOnBehalfEnabled) revert Errors.AccessDenied();
 
     if (rewards == type(uint256).max) {
       rewards = rewardsOf(onBehalf);
     }
     _withdrawRewards(onBehalf, rewards);
+
+    // Use the reward splitter address as receiver. This allows the reward splitter to claim the assets.
     uint256 positionTicket = IVaultEnterExit(vault).enterExitQueue(rewards, address(this));
     _exitPositions[positionTicket] = onBehalf;
+
+    emit ExitQueueEnteredOnBehalf(onBehalf, positionTicket, rewards);
   }
 
   function claimExitedAssetsOnBehalf(
@@ -175,9 +189,8 @@ contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     uint256 timestamp,
     uint256 exitQueueIndex
   ) external {
-    if (!isClaimOnBehalfEnabled) revert Errors.AccessDenied();
     address onBehalf = _exitPositions[positionTicket];
-    if (onBehalf == address(0)) revert Errors.AccessDenied();
+    if (onBehalf == address(0)) revert Errors.InvalidPosition();
 
     // calculate exited tickets and assets
     (uint256 leftTickets, , uint256 exitedAssets) = IVaultEnterExit(vault).calculateExitedAssets(
@@ -187,12 +200,14 @@ contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
       exitQueueIndex
     );
     // disallow partial claims (1 ticket could be a rounding error)
-    if (leftTickets > 1) revert Errors.AccessDenied();
+    if (leftTickets > 1) revert Errors.ExitRequestNotProcessed();
 
     IVaultEnterExit(vault).claimExitedAssets(positionTicket, timestamp, exitQueueIndex);
-    _exitPositions[positionTicket] = address(0);
+    delete _exitPositions[positionTicket];
 
     Address.sendValue(payable(onBehalf), exitedAssets);
+
+    emit ExitedAssetsClaimedOnBehalf(onBehalf, positionTicket, exitedAssets);
   }
 
   /// @inheritdoc IRewardSplitter
