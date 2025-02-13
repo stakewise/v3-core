@@ -2,13 +2,11 @@
 
 pragma solidity ^0.8.22;
 
-import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IRewardSplitter} from '../interfaces/IRewardSplitter.sol';
 import {IVaultState} from '../interfaces/IVaultState.sol';
@@ -20,9 +18,9 @@ import {Errors} from '../libraries/Errors.sol';
 /**
  * @title RewardSplitter
  * @author StakeWise
- * @notice The RewardSplitter can be used to split the rewards of the fee recipient of the vault based on configures shares
+ * @notice The RewardSplitter can be used to split the rewards of the fee recipient of the vault based on configured shares
  */
-contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
+abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   uint256 private constant _wad = 1e18;
 
   /// @inheritdoc IRewardSplitter
@@ -51,7 +49,6 @@ contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     _;
   }
 
-  /// @custom:oz-upgrades-unsafe-allow constructor
   constructor() {
     _disableInitializers();
   }
@@ -169,6 +166,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     return IVaultEnterExit(vault).enterExitQueue(rewards, receiver);
   }
 
+  /// @inheritdoc IRewardSplitter
   function enterExitQueueOnBehalf(uint256 rewards, address onBehalf) external {
     if (!isClaimOnBehalfEnabled) revert Errors.AccessDenied();
 
@@ -184,11 +182,24 @@ contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     emit ExitQueueEnteredOnBehalf(onBehalf, positionTicket, rewards);
   }
 
+  /// @inheritdoc IRewardSplitter
   function claimExitedAssetsOnBehalf(
     uint256 positionTicket,
     uint256 timestamp,
     uint256 exitQueueIndex
-  ) external {
+  ) external virtual;
+
+  /**
+   * @dev Internal function. Claims the exited assets from the vault on behalf of the shareholder.
+   * @param positionTicket The position ticket in the exit queue
+   * @param timestamp The timestamp when the shares entered the exit queue
+   * @param exitQueueIndex The exit queue index of the exit request
+   */
+  function _claimExitedAssetsOnBehalf(
+    uint256 positionTicket,
+    uint256 timestamp,
+    uint256 exitQueueIndex
+  ) internal {
     address onBehalf = _exitPositions[positionTicket];
     if (onBehalf == address(0)) revert Errors.InvalidPosition();
 
@@ -205,10 +216,17 @@ contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     IVaultEnterExit(vault).claimExitedAssets(positionTicket, timestamp, exitQueueIndex);
     delete _exitPositions[positionTicket];
 
-    Address.sendValue(payable(onBehalf), exitedAssets);
+    _transferRewards(onBehalf, exitedAssets);
 
     emit ExitedAssetsClaimedOnBehalf(onBehalf, positionTicket, exitedAssets);
   }
+
+  /**
+   * @dev Transfers the specified amount of rewards to the shareholder
+   * @param shareholder The address of the shareholder
+   * @param amount The amount of rewards to transfer
+   */
+  function _transferRewards(address shareholder, uint256 amount) internal virtual;
 
   /// @inheritdoc IRewardSplitter
   function syncRewards() public override {
