@@ -30,11 +30,11 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   uint256 public override totalShares;
 
   /// @inheritdoc IRewardSplitter
-  bool public isClaimOnBehalfEnabled;
+  bool public override isClaimOnBehalfEnabled;
 
   mapping(address => ShareHolder) private _shareHolders;
   mapping(address => uint256) private _unclaimedRewards;
-  mapping(uint256 positionTicket => address onBehalf) public _exitPositions;
+  mapping(uint256 positionTicket => address onBehalf) public exitPositions;
 
   uint128 private _totalRewards;
   uint128 private _rewardPerShare;
@@ -57,9 +57,6 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   function initialize(address _vault) external override initializer {
     vault = _vault;
   }
-
-  /// Allows to claim rewards from the vault and receive them to the reward splitter address
-  receive() external payable {}
 
   /// @inheritdoc IRewardSplitter
   function setClaimOnBehalf(bool enabled) external onlyVaultAdmin {
@@ -160,6 +157,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     address receiver
   ) external override returns (uint256 positionTicket) {
     if (rewards == type(uint256).max) {
+      syncRewards();
       rewards = rewardsOf(msg.sender);
     }
     _withdrawRewards(msg.sender, rewards);
@@ -177,30 +175,24 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
 
     // Use the reward splitter address as receiver. This allows the reward splitter to claim the assets.
     uint256 positionTicket = IVaultEnterExit(vault).enterExitQueue(rewards, address(this));
-    _exitPositions[positionTicket] = onBehalf;
+    exitPositions[positionTicket] = onBehalf;
 
     emit ExitQueueEnteredOnBehalf(onBehalf, positionTicket, rewards);
   }
 
-  /// @inheritdoc IRewardSplitter
-  function claimExitedAssetsOnBehalf(
-    uint256 positionTicket,
-    uint256 timestamp,
-    uint256 exitQueueIndex
-  ) external virtual;
-
   /**
-   * @dev Internal function. Claims the exited assets from the vault on behalf of the shareholder.
+   * @notice Claims the exited assets from the vault.
+   * @dev The function is made public (not external) to allow calling it via `super` in derived contracts.
    * @param positionTicket The position ticket in the exit queue
    * @param timestamp The timestamp when the shares entered the exit queue
    * @param exitQueueIndex The exit queue index of the exit request
    */
-  function _claimExitedAssetsOnBehalf(
+  function claimExitedAssetsOnBehalf(
     uint256 positionTicket,
     uint256 timestamp,
     uint256 exitQueueIndex
-  ) internal {
-    address onBehalf = _exitPositions[positionTicket];
+  ) public virtual {
+    address onBehalf = exitPositions[positionTicket];
     if (onBehalf == address(0)) revert Errors.InvalidPosition();
 
     // calculate exited tickets and assets
@@ -214,7 +206,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     if (leftTickets > 1) revert Errors.ExitRequestNotProcessed();
 
     IVaultEnterExit(vault).claimExitedAssets(positionTicket, timestamp, exitQueueIndex);
-    delete _exitPositions[positionTicket];
+    delete exitPositions[positionTicket];
 
     _transferRewards(onBehalf, exitedAssets);
 

@@ -13,19 +13,14 @@ import {RewardSplitter} from './RewardSplitter.sol';
   to split the rewards of the fee recipient of the vault based on configures shares
  */
 contract GnoRewardSplitter is RewardSplitter {
-  constructor() RewardSplitter() {}
+  IERC20 internal immutable _gnoToken;
 
-  /// @inheritdoc RewardSplitter
-  function claimExitedAssetsOnBehalf(
-    uint256 positionTicket,
-    uint256 timestamp,
-    uint256 exitQueueIndex
-  ) external override {
-    _claimExitedAssetsOnBehalf(positionTicket, timestamp, exitQueueIndex);
+  constructor(address gnoToken) RewardSplitter() {
+    _gnoToken = IERC20(gnoToken);
   }
 
   /// @inheritdoc RewardSplitter
   function _transferRewards(address shareholder, uint256 amount) internal override {
-    SafeERC20.safeTransfer(IERC20(address(this)), shareholder, amount);
+    SafeERC20.safeTransfer(_gnoToken, shareholder, amount);
   }
 }

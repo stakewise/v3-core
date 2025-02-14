@@ -185,18 +185,6 @@ interface IRewardSplitter is IMulticall {
   function enterExitQueueOnBehalf(uint256 rewards, address onBehalf) external;
 
   /**
-   * @notice Claims the exited assets from the vault.
-   * @param positionTicket The position ticket in the exit queue
-   * @param timestamp The timestamp when the shares entered the exit queue
-   * @param exitQueueIndex The exit queue index of the exit request
-   */
-  function claimExitedAssetsOnBehalf(
-    uint256 positionTicket,
-    uint256 timestamp,
-    uint256 exitQueueIndex
-  ) external;
-
-  /**
    * @notice Syncs the rewards from the vault to the splitter. The vault state must be up-to-date.
    */
   function syncRewards() external;

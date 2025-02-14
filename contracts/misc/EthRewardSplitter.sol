@@ -5,6 +5,7 @@ pragma solidity ^0.8.22;
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {ReentrancyGuard} from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 import {RewardSplitter} from './RewardSplitter.sol';
+import {IRewardSplitter} from '../interfaces/IRewardSplitter.sol';
 
 /**
  * @title EthRewardSplitter
@@ -15,13 +16,16 @@ import {RewardSplitter} from './RewardSplitter.sol';
 contract EthRewardSplitter is ReentrancyGuard, RewardSplitter {
   constructor() RewardSplitter() {}
 
+  /// Allows to claim rewards from the vault and receive them to the reward splitter address
+  receive() external payable {}
+
   /// @inheritdoc RewardSplitter
   function claimExitedAssetsOnBehalf(
     uint256 positionTicket,
     uint256 timestamp,
     uint256 exitQueueIndex
-  ) external override nonReentrant {
-    _claimExitedAssetsOnBehalf(positionTicket, timestamp, exitQueueIndex);
+  ) public override nonReentrant {
+    super.claimExitedAssetsOnBehalf(positionTicket, timestamp, exitQueueIndex);
   }
 
   /// @inheritdoc RewardSplitter
