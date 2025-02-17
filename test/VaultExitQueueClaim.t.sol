@@ -21,8 +21,10 @@ import {Test} from '../lib/forge-std/src/Test.sol';
 import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol';
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
+import {RewardsTest} from './Rewards.t.sol';
 
-contract VaultExitQueueClaimTest is Test {
+
+contract VaultExitQueueClaimTest is Test, RewardsTest {
   struct ExitRequest {
     uint256 totalTickets;
     uint256 positionTicket;
@@ -33,8 +35,6 @@ contract VaultExitQueueClaimTest is Test {
 
   uint256 public constant forkBlockNumber = 21737000;
   address public constant vaultsRegistry = 0x3a0008a588772446f6e656133C2D5029CC4FC20E;
-  address public constant validatorsRegistry = 0x00000000219ab540356cBB839Cbe05303d7705Fa;
-  address public constant keeper = 0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5;
   address public constant osTokenVaultController = 0x2A261e60FB14586B474C208b1B7AC6D0f5000306;
   address public constant osTokenConfig = 0x287d1e2A8dE183A8bf8f2b09Fa1340fBd766eb59;
   address public constant osTokenVaultEscrow = 0x09e84205DF7c68907e619D07aFD90143c5763605;
@@ -50,21 +50,12 @@ contract VaultExitQueueClaimTest is Test {
   address public constant user1 = address(0x1);
   address public constant user2 = address(0x2);
 
-  address public oracle;
-  uint256 public oraclePrivateKey;
-
   address public vault;
 
-  function setUp() public {
+  function setUp() public override {
     vm.createSelectFork(vm.envString('MAINNET_RPC_URL'), forkBlockNumber);
 
-    // setup oracle
-    (oracle, oraclePrivateKey) = makeAddrAndKey('oracle');
-    address keeperOwner = Keeper(keeper).owner();
-    vm.startPrank(keeperOwner);
-    Keeper(keeper).setValidatorsMinOracles(1);
-    Keeper(keeper).addOracle(oracle);
-    vm.stopPrank();
+    RewardsTest.setUp();
 
     vm.prank(VaultsRegistry(vaultsRegistry).owner());
     VaultsRegistry(vaultsRegistry).addFactory(v2VaultFactory);
@@ -454,103 +445,5 @@ contract VaultExitQueueClaimTest is Test {
       assertEq(exitedTickets, 0);
       assertEq(exitedAssets, 0);
     }
-  }
-
-  function _collateralizeVault(address _vault) private {
-    IKeeperValidators.ApprovalParams memory approvalParams = IKeeperValidators.ApprovalParams({
-      validatorsRegistryRoot: IValidatorsRegistry(validatorsRegistry).get_deposit_root(),
-      deadline: vm.getBlockTimestamp() + 1,
-      validators: 'validator1',
-      signatures: '',
-      exitSignaturesIpfsHash: 'ipfsHash'
-    });
-    bytes32 digest = _hashTypedDataV4(
-      keccak256(
-        abi.encode(
-          keccak256(
-            'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes validators,string exitSignaturesIpfsHash,uint256 deadline)'
-          ),
-          approvalParams.validatorsRegistryRoot,
-          _vault,
-          keccak256(approvalParams.validators),
-          keccak256(bytes(approvalParams.exitSignaturesIpfsHash)),
-          approvalParams.deadline
-        )
-      )
-    );
-    (uint8 v, bytes32 r, bytes32 s) = vm.sign(oraclePrivateKey, digest);
-    approvalParams.signatures = abi.encodePacked(r, s, v);
-
-    vm.prank(_vault);
-    Keeper(keeper).approveValidators(approvalParams);
-  }
-
-  function _setVaultRewards(
-    address _vault,
-    int256 reward,
-    uint256 unlockedMevReward,
-    uint256 avgRewardPerSecond
-  ) internal returns (IKeeperRewards.HarvestParams memory harvestParams) {
-    address keeperOwner = Keeper(keeper).owner();
-    vm.startPrank(keeperOwner);
-    Keeper(keeper).setRewardsMinOracles(1);
-    vm.stopPrank();
-
-    bytes32 root = keccak256(
-      bytes.concat(
-        keccak256(
-          abi.encode(_vault, SafeCast.toInt160(reward), SafeCast.toUint160(unlockedMevReward))
-        )
-      )
-    );
-    IKeeperRewards.RewardsUpdateParams memory params = IKeeperRewards.RewardsUpdateParams({
-      rewardsRoot: root,
-      avgRewardPerSecond: avgRewardPerSecond,
-      updateTimestamp: uint64(vm.getBlockTimestamp()),
-      rewardsIpfsHash: 'ipfsHash',
-      signatures: ''
-    });
-    bytes32 digest = _hashTypedDataV4(
-      keccak256(
-        abi.encode(
-          keccak256(
-            'KeeperRewards(bytes32 rewardsRoot,string rewardsIpfsHash,uint256 avgRewardPerSecond,uint64 updateTimestamp,uint64 nonce)'
-          ),
-          root,
-          keccak256(bytes(params.rewardsIpfsHash)),
-          params.avgRewardPerSecond,
-          params.updateTimestamp,
-          Keeper(keeper).rewardsNonce()
-        )
-      )
-    );
-    (uint8 v, bytes32 r, bytes32 s) = vm.sign(oraclePrivateKey, digest);
-    params.signatures = abi.encodePacked(r, s, v);
-    Keeper(keeper).updateRewards(params);
-    bytes32[] memory proof = new bytes32[](0);
-    harvestParams = IKeeperRewards.HarvestParams({
-      rewardsRoot: root,
-      reward: SafeCast.toInt160(reward),
-      unlockedMevReward: SafeCast.toUint160(unlockedMevReward),
-      proof: proof
-    });
-  }
-
-  function _hashTypedDataV4(bytes32 structHash) internal view returns (bytes32) {
-    return
-      MessageHashUtils.toTypedDataHash(
-        keccak256(
-          abi.encode(
-            keccak256(
-              'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
-            ),
-            keccak256(bytes('KeeperOracles')),
-            keccak256(bytes('1')),
-            block.chainid,
-            keeper
-          )
-        ),
-        structHash
-      );
   }
 }

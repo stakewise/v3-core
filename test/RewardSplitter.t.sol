@@ -11,6 +11,7 @@ import {IValidatorsRegistry} from '../contracts/interfaces/IValidatorsRegistry.s
 import {IVaultAdmin} from '../contracts/interfaces/IVaultAdmin.sol';
 import {IVaultFee} from '../contracts/interfaces/IVaultFee.sol';
 import {IOsTokenVaultController} from '../contracts/interfaces/IOsTokenVaultController.sol';
+import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {Keeper} from '../contracts/keeper/Keeper.sol';
 import {VaultsRegistry} from '../contracts/vaults/VaultsRegistry.sol';
 import {EthGenesisVault} from '../contracts/vaults/ethereum/EthGenesisVault.sol';
@@ -20,21 +21,27 @@ import {IRewardSplitterFactory} from '../contracts/interfaces/IRewardSplitterFac
 import {EthRewardSplitter} from '../contracts/misc/EthRewardSplitter.sol';
 import {RewardSplitter} from '../contracts/misc/RewardSplitter.sol';
 import {IRewardSplitter} from '../contracts/interfaces/IRewardSplitter.sol';
+import {IVaultState} from '../contracts/interfaces/IVaultState.sol';
+import {IVaultEthStaking} from '../contracts/interfaces/IVaultEthStaking.sol';
+import {RewardsTest} from './Rewards.t.sol';
 import {CommonBase} from '../lib/forge-std/src/Base.sol';
 import {StdAssertions} from '../lib/forge-std/src/StdAssertions.sol';
 import {StdChains} from '../lib/forge-std/src/StdChains.sol';
 import {StdCheats, StdCheatsSafe} from '../lib/forge-std/src/StdCheats.sol';
 import {StdUtils} from '../lib/forge-std/src/StdUtils.sol';
 import {Test} from '../lib/forge-std/src/Test.sol';
-import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
+import {Errors} from '../contracts/libraries/Errors.sol';
+import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 
+contract RewardSplitterTest is Test, RewardsTest {
 
-contract VaultExitQueueClaimTest is Test {
+  address ZERO_ADDRESS;
+  uint256 MAX_AVG_REWARD_PER_SECOND = 6341958397; // 20% APY
+  uint256 REWARDS_DELAY = 12 hours;
+  uint256 SECURITY_DEPOSIT = 1 gwei;
 
   uint256 public constant forkBlockNumber = 21737000;
   address public constant vaultsRegistry = 0x3a0008a588772446f6e656133C2D5029CC4FC20E;
-  address public constant validatorsRegistry = 0x00000000219ab540356cBB839Cbe05303d7705Fa;
-  address public constant keeper = 0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5;
   address public constant osTokenVaultController = 0x2A261e60FB14586B474C208b1B7AC6D0f5000306;
   address public constant osTokenConfig = 0x287d1e2A8dE183A8bf8f2b09Fa1340fBd766eb59;
   address public constant osTokenVaultEscrow = 0x09e84205DF7c68907e619D07aFD90143c5763605;
@@ -50,22 +57,15 @@ contract VaultExitQueueClaimTest is Test {
   address public constant user1 = address(0x1);
   address public constant user2 = address(0x2);
 
-  address public oracle;
-  uint256 public oraclePrivateKey;
   address public vault;
   address public vaultAdmin;
   address public rewardSplitter;
+  uint256 avgRewardPerSecond = 1585489600;
 
-  function setUp() public {
+  function setUp() public override {
     vm.createSelectFork(vm.envString('MAINNET_RPC_URL'), forkBlockNumber);
 
-    // setup oracle
-    (oracle, oraclePrivateKey) = makeAddrAndKey('oracle');
-    address keeperOwner = Keeper(keeper).owner();
-    vm.startPrank(keeperOwner);
-    Keeper(keeper).setValidatorsMinOracles(1);
-    Keeper(keeper).addOracle(oracle);
-    vm.stopPrank();
+    RewardsTest.setUp();
 
     vm.prank(VaultsRegistry(vaultsRegistry).owner());
     VaultsRegistry(vaultsRegistry).addFactory(v2VaultFactory);
@@ -100,50 +100,65 @@ contract VaultExitQueueClaimTest is Test {
     IRewardSplitter(rewardSplitter).increaseShares(user1, 0);
   }
 
-  function _collateralizeVault(address _vault) private {
-    IKeeperValidators.ApprovalParams memory approvalParams = IKeeperValidators.ApprovalParams({
-      validatorsRegistryRoot: IValidatorsRegistry(validatorsRegistry).get_deposit_root(),
-      deadline: vm.getBlockTimestamp() + 1,
-      validators: 'validator1',
-      signatures: '',
-      exitSignaturesIpfsHash: 'ipfsHash'
-    });
-    bytes32 digest = _hashTypedDataV4(
-      keccak256(
-        abi.encode(
-          keccak256(
-            'KeeperValidators(bytes32 validatorsRegistryRoot,address vault,bytes validators,string exitSignaturesIpfsHash,uint256 deadline)'
-          ),
-          approvalParams.validatorsRegistryRoot,
-          _vault,
-          keccak256(approvalParams.validators),
-          keccak256(bytes(approvalParams.exitSignaturesIpfsHash)),
-          approvalParams.deadline
-        )
-      )
-    );
-    (uint8 v, bytes32 r, bytes32 s) = vm.sign(oraclePrivateKey, digest);
-    approvalParams.signatures = abi.encodePacked(r, s, v);
-
-    vm.prank(_vault);
-    Keeper(keeper).approveValidators(approvalParams);
+  function test_increaseShares_failsWithZeroAccount() public {
+    vm.prank(vaultAdmin);
+    vm.expectRevert(IRewardSplitter.InvalidAccount.selector);
+    IRewardSplitter(rewardSplitter).increaseShares(ZERO_ADDRESS, 1);
   }
 
-  function _hashTypedDataV4(bytes32 structHash) internal view returns (bytes32) {
-    return
-      MessageHashUtils.toTypedDataHash(
-        keccak256(
-          abi.encode(
-            keccak256(
-              'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
-            ),
-            keccak256(bytes('KeeperOracles')),
-            keccak256(bytes('1')),
-            block.chainid,
-            keeper
-          )
-        ),
-        structHash
-      );
+  function test_increaseShares_failsByNotVaultAdmin() public {
+    vm.prank(user1);
+    vm.expectRevert(Errors.AccessDenied.selector);
+    IRewardSplitter(rewardSplitter).increaseShares(user1, 1);
+  }
+
+  function test_increaseShares_failsWhenVaultNotHarvested() public {
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(vaultAdmin, 1);
+
+    uint256 unlockedMevReward = 0;
+    vm.warp(block.timestamp + 13 hours);
+    _setVaultRewards(vault, 1 ether, unlockedMevReward, avgRewardPerSecond);
+    
+    vm.warp(block.timestamp + 13 hours);
+    _setVaultRewards(vault, 2 ether, unlockedMevReward, avgRewardPerSecond);
+
+    vm.prank(vaultAdmin);
+    vm.expectRevert(IRewardSplitter.NotHarvested.selector);
+    IRewardSplitter(rewardSplitter).increaseShares(vaultAdmin, 1);
+  }
+
+  function test_increaseShares_doesNotAffectOthersRewards() public {
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(user1, 100);
+    IVaultEthStaking(vault).deposit{value: 10 ether - SECURITY_DEPOSIT}(user1, ZERO_ADDRESS);
+    uint256 totalReward = 1 ether;
+    uint256 fee = 0.1 ether;
+    uint256 unlockedMevReward = 0;
+    vm.warp(block.timestamp + 13 hours);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, SafeCast.toInt256(totalReward), unlockedMevReward, 0);
+    IVaultState(vault).updateState(harvestParams);
+    uint256 feeShares = IVaultState(vault).convertToShares(fee);
+    
+    assertEq(IVaultFee(vault).feeRecipient(), rewardSplitter);
+    assertEq(IVaultState(vault).getShares(rewardSplitter), feeShares);
+
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(vaultAdmin, 100);
+    assertEq(IRewardSplitter(rewardSplitter).rewardsOf(user1), feeShares);
+    assertEq(IRewardSplitter(rewardSplitter).rewardsOf(vaultAdmin), 0);
+  }
+
+  function test_increaseShares_ownerCanIncreaseShares() public {
+    uint128 shares = 100;
+    
+    vm.prank(vaultAdmin);
+    vm.expectEmit(rewardSplitter);
+    emit IRewardSplitter.SharesIncreased(user1, shares);
+    
+    IRewardSplitter(rewardSplitter).increaseShares(user1, shares);
+
+    assertEq(IRewardSplitter(rewardSplitter).sharesOf(user1), shares);
+    assertEq(IRewardSplitter(rewardSplitter).totalShares(), shares);
   }
 }
