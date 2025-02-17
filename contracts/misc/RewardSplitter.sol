@@ -165,7 +165,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   }
 
   /// @inheritdoc IRewardSplitter
-  function enterExitQueueOnBehalf(uint256 rewards, address onBehalf) external {
+  function enterExitQueueOnBehalf(uint256 rewards, address onBehalf) external override {
     if (!isClaimOnBehalfEnabled) revert Errors.AccessDenied();
 
     if (rewards == type(uint256).max) {
@@ -180,18 +180,12 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     emit ExitQueueEnteredOnBehalf(onBehalf, positionTicket, rewards);
   }
 
-  /**
-   * @notice Claims the exited assets from the vault.
-   * @dev The function is made public (not external) to allow calling it via `super` in derived contracts.
-   * @param positionTicket The position ticket in the exit queue
-   * @param timestamp The timestamp when the shares entered the exit queue
-   * @param exitQueueIndex The exit queue index of the exit request
-   */
+  /// @inheritdoc IRewardSplitter
   function claimExitedAssetsOnBehalf(
     uint256 positionTicket,
     uint256 timestamp,
     uint256 exitQueueIndex
-  ) public virtual {
+  ) public virtual override {
     address onBehalf = exitPositions[positionTicket];
     if (onBehalf == address(0)) revert Errors.InvalidPosition();
 
