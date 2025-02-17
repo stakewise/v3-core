@@ -195,7 +195,7 @@ interface IRewardSplitter is IMulticall {
     uint256 timestamp,
     uint256 exitQueueIndex
   ) external;
-  
+
   /**
    * @notice Syncs the rewards from the vault to the splitter. The vault state must be up-to-date.
    */
