@@ -17,7 +17,7 @@ Object {
 exports[`EthGenesisVault pulls assets on claim exited assets 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 62333,
+  "gasUsed": 62472,
 }
 `;
 

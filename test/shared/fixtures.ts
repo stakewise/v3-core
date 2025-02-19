@@ -130,14 +130,14 @@ export const upgradeVault = async function (
   await setBalance(adminAddr, ethers.parseEther('1'))
 
   if ((await vault.version()) == 1n) {
-    // load v2 implementations
+    // load v3 implementations
     const vaultId = await vault.vaultId()
-    const fileName = '../../deployments/mainnet-vault-v2-upgrades.json'
+    const fileName = '../../deployments/mainnet-vault-v3-upgrades.json'
 
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const upgrades = require(fileName)
-    const v2Implementation = upgrades[vaultId]['2']
-    await vault.connect(admin).upgradeToAndCall(v2Implementation, '0x')
+    const v3Implementation = upgrades[vaultId]['3']
+    await vault.connect(admin).upgradeToAndCall(v3Implementation, '0x')
   }
   await vault.connect(admin).upgradeToAndCall(implementation, '0x')
   return vault
@@ -598,7 +598,7 @@ export async function deployEthVaultV1(
   )
 }
 
-export async function deployEthVaultV2(
+export async function deployEthVaultV3(
   implFactory: ContractFactory,
   admin: Signer,
   keeper: Keeper,
@@ -608,6 +608,7 @@ export async function deployEthVaultV2(
   osTokenConfig: OsTokenConfig,
   sharedMevEscrow: SharedMevEscrow,
   depositDataRegistry: DepositDataRegistry,
+  osTokenVaultEscrow: OsTokenVaultEscrow,
   encodedParams: string,
   isOwnMevEscrow = false
 ): Promise<Contract> {
@@ -617,6 +618,7 @@ export async function deployEthVaultV2(
     await validatorsRegistry.getAddress(),
     await osTokenVaultController.getAddress(),
     await osTokenConfig.getAddress(),
+    await osTokenVaultEscrow.getAddress(),
     await sharedMevEscrow.getAddress(),
     await depositDataRegistry.getAddress(),
     EXITING_ASSETS_MIN_DELAY,

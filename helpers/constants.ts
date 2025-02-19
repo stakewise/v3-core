@@ -317,7 +317,7 @@ export const NETWORKS: {
 
 export const MAINNET_FORK = {
   enabled: process.env.ENABLE_MAINNET_FORK === 'true',
-  blockNumber: 21022710,
+  blockNumber: 21866520,
   rpcUrl: process.env.MAINNET_FORK_RPC_URL || '',
   vaults: {
     ethVaultOwnMevEscrow: '0x663580B3edAd914D0b59CeA88616F06278D42bb2',

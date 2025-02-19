@@ -24,7 +24,7 @@ Object {
 exports[`EthOsTokenVaultEscrow process exited assets processes exited assets 1`] = `
 Object {
   "calldataByteLength": 132,
-  "gasUsed": 64329,
+  "gasUsed": 64607,
 }
 `;
 
@@ -45,7 +45,7 @@ Object {
 exports[`EthOsTokenVaultEscrow register removes position if all the osToken shares transferred 1`] = `
 Object {
   "calldataByteLength": 36,
-  "gasUsed": 160171,
+  "gasUsed": 160159,
 }
 `;
 

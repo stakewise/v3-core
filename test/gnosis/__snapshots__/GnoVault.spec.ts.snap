@@ -10,7 +10,7 @@ Object {
 exports[`GnoVault pulls withdrawals on claim exited assets 1`] = `
 Object {
   "calldataByteLength": 100,
-  "gasUsed": 95778,
+  "gasUsed": 95889,
 }
 `;
 

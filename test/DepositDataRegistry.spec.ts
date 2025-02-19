@@ -5,10 +5,10 @@ import { loadFixture } from '@nomicfoundation/hardhat-toolbox/network-helpers'
 import {
   DepositDataRegistry,
   EthVault,
+  IKeeperRewards,
   IKeeperValidators,
   Keeper,
   VaultsRegistry,
-  IKeeperRewards,
 } from '../typechain-types'
 import snapshotGasCost from './shared/snapshotGasCost'
 import { expect } from './shared/expect'
@@ -25,7 +25,6 @@ import {
 } from './shared/validators'
 import {
   deployEthVaultV1,
-  deployEthVaultV2,
   encodeEthVaultInitParams,
   ethVaultFixture,
   getOraclesSignatures,
@@ -38,7 +37,7 @@ import {
   ZERO_ADDRESS,
   ZERO_BYTES32,
 } from './shared/constants'
-import { getEthVaultV1Factory, getEthVaultV2Factory } from './shared/contracts'
+import { getEthVaultV1Factory } from './shared/contracts'
 import { getHarvestParams, getRewardsRootProof, updateRewards } from './shared/rewards'
 
 const gwei = 1000000000n
@@ -57,8 +56,7 @@ describe('DepositDataRegistry', () => {
     validatorsRegistry: Contract,
     vaultsRegistry: VaultsRegistry,
     depositDataRegistry: DepositDataRegistry,
-    v1Vault: Contract,
-    v2Vault: Contract
+    v1Vault: Contract
   let validatorsData: EthValidatorsData
   let validatorsRegistryRoot: string
 
@@ -87,22 +85,6 @@ describe('DepositDataRegistry', () => {
       fixture.osTokenVaultController,
       fixture.osTokenConfig,
       fixture.sharedMevEscrow,
-      encodeEthVaultInitParams({
-        capacity,
-        feePercent,
-        metadataIpfsHash,
-      })
-    )
-    v2Vault = await deployEthVaultV2(
-      await getEthVaultV2Factory(),
-      admin,
-      keeper,
-      vaultsRegistry,
-      validatorsRegistry,
-      fixture.osTokenVaultController,
-      fixture.osTokenConfig,
-      fixture.sharedMevEscrow,
-      fixture.depositDataRegistry,
       encodeEthVaultInitParams({
         capacity,
         feePercent,
@@ -479,23 +461,6 @@ describe('DepositDataRegistry', () => {
       await expect(
         depositDataRegistry.connect(admin).migrate(validatorsData.root, 0, manager.address)
       ).to.be.revertedWithCustomError(depositDataRegistry, 'InvalidVault')
-    })
-
-    it('succeeds', async () => {
-      const v1VaultAddress = await v1Vault.getAddress()
-      await vaultsRegistry.connect(dao).addVault(v1VaultAddress)
-      await v1Vault.connect(admin).setValidatorsRoot(validatorsData.root)
-      await v1Vault.connect(admin).setKeysManager(manager.address)
-      const receipt = await v1Vault
-        .connect(admin)
-        .upgradeToAndCall(await v2Vault.implementation(), '0x')
-      await expect(receipt)
-        .to.emit(depositDataRegistry, 'DepositDataMigrated')
-        .withArgs(v1VaultAddress, validatorsData.root, 0, manager.address)
-      expect(await depositDataRegistry.getDepositDataManager(v1VaultAddress)).to.eq(manager.address)
-      expect(await depositDataRegistry.depositDataRoots(v1VaultAddress)).to.eq(validatorsData.root)
-      expect(await depositDataRegistry.depositDataIndexes(v1VaultAddress)).to.eq(0)
-      await snapshotGasCost(receipt)
     })
   })
 })

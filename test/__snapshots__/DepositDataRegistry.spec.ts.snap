@@ -14,13 +14,6 @@ Object {
 }
 `;
 
-exports[`DepositDataRegistry migrate succeeds 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 165182,
-}
-`;
-
 exports[`DepositDataRegistry multiple validators succeeds 1`] = `
 Object {
   "calldataByteLength": 3364,
