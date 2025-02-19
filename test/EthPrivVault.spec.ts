@@ -46,7 +46,7 @@ describe('EthPrivVault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(3)
+    expect(await vault.version()).to.eq(4)
   })
 
   it('cannot initialize twice', async () => {

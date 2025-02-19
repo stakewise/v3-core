@@ -40,34 +40,34 @@ export async function getEthVaultV1Factory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthVaultV1.abi, EthVaultV1.bytecode)
 }
 
-export async function getEthVaultV2Factory(): Promise<ContractFactory> {
+export async function getEthVaultV3Factory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthVault.abi, EthVault.bytecode)
 }
 
-export async function getEthErc20VaultV2Factory(): Promise<ContractFactory> {
+export async function getEthErc20VaultV3Factory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthErc20Vault.abi, EthErc20Vault.bytecode)
 }
 
-export async function getEthPrivErc20VaultV2Factory(): Promise<ContractFactory> {
+export async function getEthPrivErc20VaultV3Factory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthPrivErc20Vault.abi, EthPrivErc20Vault.bytecode)
 }
 
-export async function getEthBlocklistErc20VaultV2Factory(): Promise<ContractFactory> {
+export async function getEthBlocklistErc20VaultV3Factory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(
     EthBlocklistErc20Vault.abi,
     EthBlocklistErc20Vault.bytecode
   )
 }
 
-export async function getEthPrivVaultV2Factory(): Promise<ContractFactory> {
+export async function getEthPrivVaultV3Factory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthPrivVault.abi, EthPrivVault.bytecode)
 }
 
-export async function getEthBlocklistVaultV2Factory(): Promise<ContractFactory> {
+export async function getEthBlocklistVaultV3Factory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthBlocklistVault.abi, EthBlocklistVault.bytecode)
 }
 
-export async function getEthGenesisVaultV2Factory(): Promise<ContractFactory> {
+export async function getEthGenesisVaultV3Factory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthGenesisVault.abi, EthGenesisVault.bytecode)
 }
 

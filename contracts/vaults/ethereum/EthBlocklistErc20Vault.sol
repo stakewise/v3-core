@@ -24,7 +24,7 @@ contract EthBlocklistErc20Vault is
   IEthBlocklistErc20Vault
 {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 3;
+  uint8 private constant _version = 4;
 
   /**
    * @dev Constructor
@@ -69,9 +69,8 @@ contract EthBlocklistErc20Vault is
   function initialize(
     bytes calldata params
   ) external payable virtual override(IEthErc20Vault, EthErc20Vault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3
+    // if admin is already set, it's an upgrade from version 3 to 4
     if (admin != address(0)) {
-      __EthErc20Vault_initV3();
       return;
     }
 

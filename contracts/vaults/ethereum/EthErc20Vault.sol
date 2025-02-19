@@ -42,7 +42,7 @@ contract EthErc20Vault is
   Multicall,
   IEthErc20Vault
 {
-  uint8 private constant _version = 3;
+  uint8 private constant _version = 4;
 
   /**
    * @dev Constructor
@@ -83,9 +83,8 @@ contract EthErc20Vault is
   function initialize(
     bytes calldata params
   ) external payable virtual override reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3
+    // if admin is already set, it's an upgrade from version 3 to 4
     if (admin != address(0)) {
-      __EthErc20Vault_initV3();
       return;
     }
 
@@ -187,14 +186,6 @@ contract EthErc20Vault is
     uint256 shares
   ) internal virtual override(VaultState, VaultToken) {
     super._burnShares(owner, shares);
-  }
-
-  /**
-   * @dev Initializes the EthErc20Vault contract upgrade to V3
-   */
-  function __EthErc20Vault_initV3() internal {
-    __VaultState_initV3();
-    __VaultValidators_initV3();
   }
 
   /**

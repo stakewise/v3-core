@@ -1,0 +1,72 @@
+[
+  {
+    "to": "0x3a0008a588772446f6e656133C2D5029CC4FC20E",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d000000000000000000000000decb606ee9140f229df78f9e40041ead61610f8f",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0xDecb606ee9140f229Df78F9E40041EAD61610F8f"
+    ]
+  },
+  {
+    "to": "0x3a0008a588772446f6e656133C2D5029CC4FC20E",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d000000000000000000000000135f45e0179dd928e73422b40bdc6c5d7047a035",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0x135f45e0179dd928E73422B40Bdc6C5d7047a035"
+    ]
+  },
+  {
+    "to": "0x3a0008a588772446f6e656133C2D5029CC4FC20E",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d000000000000000000000000d19e4b1d680a6aa672b08ebf483381bc0c9c8478",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0xd19E4B1d680a6aA672b08ebf483381bc0C9c8478"
+    ]
+  },
+  {
+    "to": "0x3a0008a588772446f6e656133C2D5029CC4FC20E",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d0000000000000000000000007e5198df09fed891e7aecd623cd2231443ceb5d5",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0x7E5198DF09fED891e7AecD623cD2231443cEb5d5"
+    ]
+  },
+  {
+    "to": "0x3a0008a588772446f6e656133C2D5029CC4FC20E",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d0000000000000000000000009488a7dd178f0d927707eec61a7d8c0ae9558c88",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0x9488A7dd178F0D927707eEc61A7D8C0ae9558c88"
+    ]
+  },
+  {
+    "to": "0x3a0008a588772446f6e656133C2D5029CC4FC20E",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d00000000000000000000000084d44a696539b3ef4162184fb8ab97596a311e9e",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0x84d44A696539B3eF4162184fb8ab97596A311e9E"
+    ]
+  },
+  {
+    "to": "0x3a0008a588772446f6e656133C2D5029CC4FC20E",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d0000000000000000000000009481a47c5650a868839c6511f0eef8bf962fabd7",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0x9481A47c5650A868839c6511f0Eef8bF962FABD7"
+    ]
+  }
+]

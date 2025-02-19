@@ -66,7 +66,7 @@ describe('EthErc20Vault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(3)
+    expect(await vault.version()).to.eq(4)
   })
 
   it('deposit emits transfer event', async () => {

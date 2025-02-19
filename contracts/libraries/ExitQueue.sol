@@ -107,6 +107,13 @@ library ExitQueue {
       revert Errors.InvalidCheckpointIndex();
     }
 
+    if (currTotalTickets > 1 && checkpointAssets == 0 && checkpointIdx + 1 < length) {
+      // only one checkpoint created in __VaultState_initV3 should pass this if
+      checkpoint = _unsafeAccess(self.checkpoints, checkpointIdx + 1);
+      uint256 totalShares = checkpoint.totalTickets - currTotalTickets;
+      return (positionShares, Math.mulDiv(positionShares, checkpoint.exitedAssets, totalShares));
+    }
+
     // calculate amount of available shares that will be updated while iterating over checkpoints
     uint256 availableShares;
     unchecked {

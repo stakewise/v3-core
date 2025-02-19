@@ -371,7 +371,7 @@ networks.forEach((network) => {
         expect(response.status).to.eq(Status.SUCCEEDED)
       })
 
-      it('succeeds for vault v2', async () => {
+      it('succeeds for vault v3', async () => {
         const blockNumber = await ethers.provider.getBlockNumber()
         const response = await validatorsChecker.checkDepositDataRoot(
           await vault.getAddress(),

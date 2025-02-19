@@ -18,7 +18,7 @@ import {EthVault, IEthVault} from './EthVault.sol';
  */
 contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 3;
+  uint8 private constant _version = 4;
 
   /**
    * @dev Constructor
@@ -63,9 +63,8 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
   function initialize(
     bytes calldata params
   ) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 2 to 3
+    // if admin is already set, it's an upgrade from version 3 to 4
     if (admin != address(0)) {
-      __EthVault_initV3();
       return;
     }
 

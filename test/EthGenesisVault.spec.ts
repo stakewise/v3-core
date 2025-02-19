@@ -95,7 +95,7 @@ describe('EthGenesisVault', () => {
     const adminAddr = await admin.getAddress()
 
     // VaultVersion
-    expect(await vault.version()).to.be.eq(3)
+    expect(await vault.version()).to.be.eq(4)
     expect(await vault.vaultId()).to.be.eq(`0x${keccak256('EthGenesisVault').toString('hex')}`)
 
     // VaultFee
@@ -107,7 +107,7 @@ describe('EthGenesisVault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(3)
+    expect(await vault.version()).to.eq(4)
   })
 
   describe('migrate', () => {

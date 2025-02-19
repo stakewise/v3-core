@@ -56,7 +56,7 @@ describe('EthPrivErc20Vault', () => {
   })
 
   it('has version', async () => {
-    expect(await vault.version()).to.eq(3)
+    expect(await vault.version()).to.eq(4)
   })
 
   describe('deposit', () => {
