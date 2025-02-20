@@ -144,6 +144,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   /// @inheritdoc IRewardSplitter
   function claimVaultTokens(uint256 rewards, address receiver) external override {
     if (rewards == type(uint256).max) {
+      syncRewards();
       rewards = rewardsOf(msg.sender);
     }
     _withdrawRewards(msg.sender, rewards);
@@ -169,6 +170,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     if (!isClaimOnBehalfEnabled) revert Errors.AccessDenied();
 
     if (rewards == type(uint256).max) {
+      syncRewards();
       rewards = rewardsOf(onBehalf);
     }
     _withdrawRewards(onBehalf, rewards);
