@@ -24,7 +24,9 @@ import {IRewardSplitter} from '../contracts/interfaces/IRewardSplitter.sol';
 import {IVaultState} from '../contracts/interfaces/IVaultState.sol';
 import {IVaultEthStaking} from '../contracts/interfaces/IVaultEthStaking.sol';
 import {RewardsTest} from './Rewards.t.sol';
+import {ConstantsTest} from './Constants.t.sol';
 import {CommonBase} from '../lib/forge-std/src/Base.sol';
+import {Vm} from '../lib/forge-std/src/Vm.sol';
 import {StdAssertions} from '../lib/forge-std/src/StdAssertions.sol';
 import {StdChains} from '../lib/forge-std/src/StdChains.sol';
 import {StdCheats, StdCheatsSafe} from '../lib/forge-std/src/StdCheats.sol';
@@ -33,7 +35,8 @@ import {Test} from '../lib/forge-std/src/Test.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 
-contract RewardSplitterTest is Test, RewardsTest {
+
+abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
 
   address ZERO_ADDRESS;
   uint256 MAX_AVG_REWARD_PER_SECOND = 6341958397; // 20% APY
@@ -62,9 +65,10 @@ contract RewardSplitterTest is Test, RewardsTest {
   address public rewardSplitter;
   uint256 avgRewardPerSecond = 1585489600;
 
-  function setUp() public override {
+  function setUp() public virtual override(ConstantsTest, RewardsTest) {
     vm.createSelectFork(vm.envString('MAINNET_RPC_URL'), forkBlockNumber);
 
+    ConstantsTest.setUp();
     RewardsTest.setUp();
 
     vm.prank(VaultsRegistry(vaultsRegistry).owner());
@@ -93,26 +97,28 @@ contract RewardSplitterTest is Test, RewardsTest {
     vm.stopPrank();
 
   }
+}
 
-  function test_increaseShares_failsWithZeroShares() public {
+contract RewardSplitterIncreaseSharesTest is RewardSplitterTest {
+  function test_failsWithZeroShares() public {
     vm.prank(vaultAdmin);
     vm.expectRevert(IRewardSplitter.InvalidAmount.selector);
     IRewardSplitter(rewardSplitter).increaseShares(user1, 0);
   }
 
-  function test_increaseShares_failsWithZeroAccount() public {
+  function test_failsWithZeroAccount() public {
     vm.prank(vaultAdmin);
     vm.expectRevert(IRewardSplitter.InvalidAccount.selector);
     IRewardSplitter(rewardSplitter).increaseShares(ZERO_ADDRESS, 1);
   }
 
-  function test_increaseShares_failsByNotVaultAdmin() public {
+  function test_failsByNotVaultAdmin() public {
     vm.prank(user1);
     vm.expectRevert(Errors.AccessDenied.selector);
     IRewardSplitter(rewardSplitter).increaseShares(user1, 1);
   }
 
-  function test_increaseShares_failsWhenVaultNotHarvested() public {
+  function test_failsWhenVaultNotHarvested() public {
     vm.prank(vaultAdmin);
     IRewardSplitter(rewardSplitter).increaseShares(vaultAdmin, 1);
 
@@ -128,7 +134,7 @@ contract RewardSplitterTest is Test, RewardsTest {
     IRewardSplitter(rewardSplitter).increaseShares(vaultAdmin, 1);
   }
 
-  function test_increaseShares_doesNotAffectOthersRewards() public {
+  function test_doesNotAffectOthersRewards() public {
     vm.prank(vaultAdmin);
     IRewardSplitter(rewardSplitter).increaseShares(user1, 100);
     IVaultEthStaking(vault).deposit{value: 10 ether - SECURITY_DEPOSIT}(user1, ZERO_ADDRESS);
@@ -149,7 +155,7 @@ contract RewardSplitterTest is Test, RewardsTest {
     assertEq(IRewardSplitter(rewardSplitter).rewardsOf(vaultAdmin), 0);
   }
 
-  function test_increaseShares_ownerCanIncreaseShares() public {
+  function test_vaultAdminCanIncreaseShares() public {
     uint128 shares = 100;
     
     vm.prank(vaultAdmin);
@@ -160,5 +166,115 @@ contract RewardSplitterTest is Test, RewardsTest {
 
     assertEq(IRewardSplitter(rewardSplitter).sharesOf(user1), shares);
     assertEq(IRewardSplitter(rewardSplitter).totalShares(), shares);
+  }
+}
+
+contract RewardSplitterDecreaseSharesTest is RewardSplitterTest {
+  uint128 public constant shares = 100;
+
+  function setUp() public override {
+    super.setUp();
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(user1, shares);
+  }
+
+  function test_failsWithZeroShares() public {
+    vm.prank(vaultAdmin);
+    vm.expectRevert(IRewardSplitter.InvalidAmount.selector);
+    IRewardSplitter(rewardSplitter).decreaseShares(user1, 0);
+  }
+
+  function test_failsWithZeroAccount() public {
+    vm.prank(vaultAdmin);
+    vm.expectRevert(IRewardSplitter.InvalidAccount.selector);
+    IRewardSplitter(rewardSplitter).decreaseShares(ZERO_ADDRESS, 1);
+  }
+
+  function test_failsByNotVaultAdmin() public {
+    vm.prank(user1);
+    vm.expectRevert(Errors.AccessDenied.selector);
+    IRewardSplitter(rewardSplitter).decreaseShares(user1, 1);
+  }
+
+  function test_failsWithAmountLargerThanBalance() public {
+    vm.prank(vaultAdmin);
+    expectRevertWithPanic(PanicCode.ARITHMETIC_UNDER_OR_OVERFLOW);
+    IRewardSplitter(rewardSplitter).decreaseShares(user1, shares + 1);
+  }
+
+  function test_failsWhenVaultNotHarvested() public {
+    uint256 unlockedMevReward = 0;
+    vm.warp(block.timestamp + 13 hours);
+    _setVaultRewards(vault, 1 ether, unlockedMevReward, avgRewardPerSecond);
+    
+    vm.warp(block.timestamp + 13 hours);
+    _setVaultRewards(vault, 2 ether, unlockedMevReward, avgRewardPerSecond);
+
+    vm.prank(vaultAdmin);
+    vm.expectRevert(IRewardSplitter.NotHarvested.selector);
+    IRewardSplitter(rewardSplitter).decreaseShares(user1, 1);
+  }
+
+  function test_doesNotAffectRewards() public {
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(vaultAdmin, shares);
+    IVaultEthStaking(vault).deposit{value: 10 ether - SECURITY_DEPOSIT}(user1, ZERO_ADDRESS);
+    uint256 totalReward = 1 ether;
+    uint256 fee = 0.1 ether;
+    uint256 unlockedMevReward = 0;
+    vm.warp(block.timestamp + 13 hours);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, SafeCast.toInt256(totalReward), unlockedMevReward, 0);
+    IVaultState(vault).updateState(harvestParams);
+    uint256 feeShares = IVaultState(vault).convertToShares(fee);
+    
+    assertEq(IVaultFee(vault).feeRecipient(), rewardSplitter);
+    assertEq(IVaultState(vault).getShares(rewardSplitter), feeShares);
+
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).decreaseShares(vaultAdmin, 1);
+    assertEq(IRewardSplitter(rewardSplitter).rewardsOf(user1), feeShares / 2);
+    assertEq(IRewardSplitter(rewardSplitter).rewardsOf(vaultAdmin), feeShares / 2);
+  }
+
+  function test_vaultAdminCanDecreaseShares() public {
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).decreaseShares(user1, 1);
+    
+    uint128 newShares = shares - 1;
+    assertEq(IRewardSplitter(rewardSplitter).sharesOf(user1), newShares);
+    assertEq(IRewardSplitter(rewardSplitter).totalShares(), newShares);
+  }
+}
+
+contract RewardSplitterSyncRewardsTest is Test, RewardSplitterTest {
+  uint128 public constant shares = 100;
+
+  function setUp() public override {
+    super.setUp();
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(user1, shares);
+  }
+
+  function test_NoOpWhenUpToDate() public {
+    uint256 totalReward = 1 ether;
+    uint256 unlockedMevReward = 0;
+    vm.warp(block.timestamp + 13 hours);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, SafeCast.toInt256(totalReward), unlockedMevReward, 0);
+    IVaultState(vault).updateState(harvestParams);
+
+    bool canSyncRewards;
+    canSyncRewards = IRewardSplitter(rewardSplitter).canSyncRewards();
+    assertTrue(canSyncRewards);
+    IRewardSplitter(rewardSplitter).syncRewards();
+
+    canSyncRewards = IRewardSplitter(rewardSplitter).canSyncRewards();
+    assertFalse(canSyncRewards);
+    
+    vm.recordLogs();
+    IRewardSplitter(rewardSplitter).syncRewards();
+
+    // check that RewardsSynced event was not emitted
+    Vm.Log[] memory logs = vm.getRecordedLogs();
+    assertEq(logs.length, 0);
   }
 }
