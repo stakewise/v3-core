@@ -1,6 +1,12 @@
+pragma solidity ^0.8.22;
+
 import {Test} from '../lib/forge-std/src/Test.sol';
 
 abstract contract ConstantsTest is Test {
+    address ZERO_ADDRESS;
+    uint256 REWARDS_DELAY = 12 hours;
+    uint256 SECURITY_DEPOSIT = 1 gwei;
+
     enum PanicCode {
       ARITHMETIC_UNDER_OR_OVERFLOW,
       DIVISION_BY_ZERO,

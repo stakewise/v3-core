@@ -4,6 +4,7 @@ pragma solidity ^0.8.22;
 
 
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
+import {IEthErc20Vault} from '../contracts/interfaces/IEthErc20Vault.sol';
 import {IEthVaultFactory} from '../contracts/interfaces/IEthVaultFactory.sol';
 import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {IKeeperValidators} from '../contracts/interfaces/IKeeperValidators.sol';
@@ -34,14 +35,11 @@ import {StdUtils} from '../lib/forge-std/src/StdUtils.sol';
 import {Test} from '../lib/forge-std/src/Test.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
+import 'forge-std/console.sol'; 
 
 
 abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
-
-  address ZERO_ADDRESS;
   uint256 MAX_AVG_REWARD_PER_SECOND = 6341958397; // 20% APY
-  uint256 REWARDS_DELAY = 12 hours;
-  uint256 SECURITY_DEPOSIT = 1 gwei;
 
   uint256 public constant forkBlockNumber = 21737000;
   address public constant vaultsRegistry = 0x3a0008a588772446f6e656133C2D5029CC4FC20E;
@@ -52,6 +50,7 @@ abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
   address public constant depositDataRegistry = 0x75AB6DdCe07556639333d3Df1eaa684F5735223e;
   uint256 public constant exitingAssetsClaimDelay = 24 hours;
   address public constant v2VaultFactory = 0xfaa05900019f6E465086bcE16Bb3F06992715D53;
+  address public constant erc20VaultFactory = 0x978302cAcAdEDE5d503390E176e86F3889Df6Ce6;
   address public constant vaultV3Impl = 0x9747e1fF73f1759217AFD212Dd36d21360D0880A;
   address public constant genesisVault = 0xAC0F906E433d58FA868F936E8A43230473652885;
   address public constant poolEscrow = 0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079;
@@ -63,6 +62,7 @@ abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
   address public vault;
   address public vaultAdmin;
   address public rewardSplitter;
+  address public rewardSplitterFactory;
   uint256 avgRewardPerSecond = 1585489600;
 
   function setUp() public virtual override(ConstantsTest, RewardsTest) {
@@ -77,7 +77,7 @@ abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
     // create V2 vault
     IEthVault.EthVaultInitParams memory params = IEthVault.EthVaultInitParams({
       capacity: type(uint256).max,
-      feePercent: 500,
+      feePercent: 1000,
       metadataIpfsHash: ''
     });
     vault = IEthVaultFactory(v2VaultFactory).createVault{value: 1 gwei}(abi.encode(params), false);
@@ -91,11 +91,10 @@ abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
     // create reward splitter and connect to vault
     vm.startPrank(vaultAdmin);
     address rewardSplitterImpl = address(new EthRewardSplitter());
-    address rewardSplitterFactory = address(new RewardSplitterFactory(rewardSplitterImpl));
+    rewardSplitterFactory = address(new RewardSplitterFactory(rewardSplitterImpl));
     rewardSplitter = IRewardSplitterFactory(rewardSplitterFactory).createRewardSplitter(vault);
     IVaultFee(vault).setFeeRecipient(rewardSplitter);
     vm.stopPrank();
-
   }
 }
 
@@ -123,10 +122,10 @@ contract RewardSplitterIncreaseSharesTest is RewardSplitterTest {
     IRewardSplitter(rewardSplitter).increaseShares(vaultAdmin, 1);
 
     uint256 unlockedMevReward = 0;
-    vm.warp(block.timestamp + 13 hours);
+    skip(REWARDS_DELAY + 1);
     _setVaultRewards(vault, 1 ether, unlockedMevReward, avgRewardPerSecond);
     
-    vm.warp(block.timestamp + 13 hours);
+    skip(REWARDS_DELAY + 1);
     _setVaultRewards(vault, 2 ether, unlockedMevReward, avgRewardPerSecond);
 
     vm.prank(vaultAdmin);
@@ -141,7 +140,7 @@ contract RewardSplitterIncreaseSharesTest is RewardSplitterTest {
     uint256 totalReward = 1 ether;
     uint256 fee = 0.1 ether;
     uint256 unlockedMevReward = 0;
-    vm.warp(block.timestamp + 13 hours);
+    skip(REWARDS_DELAY + 1);
     IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, SafeCast.toInt256(totalReward), unlockedMevReward, 0);
     IVaultState(vault).updateState(harvestParams);
     uint256 feeShares = IVaultState(vault).convertToShares(fee);
@@ -204,10 +203,10 @@ contract RewardSplitterDecreaseSharesTest is RewardSplitterTest {
 
   function test_failsWhenVaultNotHarvested() public {
     uint256 unlockedMevReward = 0;
-    vm.warp(block.timestamp + 13 hours);
+    skip(REWARDS_DELAY + 1);
     _setVaultRewards(vault, 1 ether, unlockedMevReward, avgRewardPerSecond);
     
-    vm.warp(block.timestamp + 13 hours);
+    skip(REWARDS_DELAY + 1);
     _setVaultRewards(vault, 2 ether, unlockedMevReward, avgRewardPerSecond);
 
     vm.prank(vaultAdmin);
@@ -221,9 +220,10 @@ contract RewardSplitterDecreaseSharesTest is RewardSplitterTest {
     IVaultEthStaking(vault).deposit{value: 10 ether - SECURITY_DEPOSIT}(user1, ZERO_ADDRESS);
     uint256 totalReward = 1 ether;
     uint256 fee = 0.1 ether;
-    uint256 unlockedMevReward = 0;
-    vm.warp(block.timestamp + 13 hours);
-    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, SafeCast.toInt256(totalReward), unlockedMevReward, 0);
+    skip(REWARDS_DELAY + 1);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(
+      vault, SafeCast.toInt256(totalReward), 0, 0
+      );
     IVaultState(vault).updateState(harvestParams);
     uint256 feeShares = IVaultState(vault).convertToShares(fee);
     
@@ -258,7 +258,7 @@ contract RewardSplitterSyncRewardsTest is Test, RewardSplitterTest {
   function test_NoOpWhenUpToDate() public {
     uint256 totalReward = 1 ether;
     uint256 unlockedMevReward = 0;
-    vm.warp(block.timestamp + 13 hours);
+    skip(REWARDS_DELAY + 1);
     IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, SafeCast.toInt256(totalReward), unlockedMevReward, 0);
     IVaultState(vault).updateState(harvestParams);
 
@@ -276,5 +276,178 @@ contract RewardSplitterSyncRewardsTest is Test, RewardSplitterTest {
     // check that RewardsSynced event was not emitted
     Vm.Log[] memory logs = vm.getRecordedLogs();
     assertEq(logs.length, 0);
+  }
+
+  function test_noOpWithZeroTotalShares() public {
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).decreaseShares(user1, shares);
+
+    uint256 totalReward = 1 ether;
+    uint256 unlockedMevReward = 0;
+    skip(REWARDS_DELAY + 1);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, SafeCast.toInt256(totalReward), unlockedMevReward, 0);
+    IVaultState(vault).updateState(harvestParams);
+
+    bool canSyncRewards = IRewardSplitter(rewardSplitter).canSyncRewards();
+    assertFalse(canSyncRewards);
+
+    vm.recordLogs();
+    IRewardSplitter(rewardSplitter).syncRewards();
+
+    // check that RewardsSynced event was not emitted
+    Vm.Log[] memory logs = vm.getRecordedLogs();
+    assertEq(logs.length, 0);
+  }
+
+  function test_anyoneCanSyncRewards() public {
+    vm.prank(vaultAdmin);
+    IVaultEthStaking(vault).deposit{value: 10 ether - SECURITY_DEPOSIT}(user1, ZERO_ADDRESS);
+    uint256 totalReward = 1 ether;
+    uint256 fee = 0.1 ether;
+    uint256 unlockedMevReward = 0;
+    skip(REWARDS_DELAY + 1);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, SafeCast.toInt256(totalReward), unlockedMevReward, 0);
+    IVaultState(vault).updateState(harvestParams);
+    uint256 feeShares = IVaultState(vault).convertToShares(fee);
+
+    assertTrue(IRewardSplitter(rewardSplitter).canSyncRewards());
+
+    vm.expectEmit(rewardSplitter);
+    emit IRewardSplitter.RewardsSynced(feeShares, feeShares * 1 ether / shares);
+    IRewardSplitter(rewardSplitter).syncRewards();
+  }
+}
+
+contract RewardSplitterClaimVaultTokensTest is RewardSplitterTest {
+  uint128 public constant shares = 100;
+  uint256 rewards;
+  address erc20Vault;
+  address erc20VaultAdmin;
+
+  function setUp() public override {
+    super.setUp();
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(user1, shares);
+
+    uint256 totalReward = 1 ether;
+    skip(REWARDS_DELAY + 1);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, SafeCast.toInt256(totalReward), 0, 0);
+    IVaultState(vault).updateState(harvestParams);
+    
+    IRewardSplitter(rewardSplitter).syncRewards();
+    rewards = IRewardSplitter(rewardSplitter).rewardsOf(user1);
+
+    IEthErc20Vault.EthErc20VaultInitParams memory params = IEthErc20Vault.EthErc20VaultInitParams({
+      capacity: type(uint256).max,
+      feePercent: 1000,
+      metadataIpfsHash: '',
+      name: 'SW ETH Vault',
+      symbol: 'SW-ETH-1'
+    });
+    erc20Vault = IEthVaultFactory(erc20VaultFactory).createVault{value: SECURITY_DEPOSIT}(abi.encode(params), true);
+
+    // collateralize vault (imitate validator creation)
+    _collateralizeVault(erc20Vault);
+
+    // Remember erc20 vault admin
+    erc20VaultAdmin = IVaultAdmin(erc20Vault).admin();
+  }
+
+  function test_revertsForNotErc20Vault() public {
+    vm.expectRevert();
+    IRewardSplitter(rewardSplitter).claimVaultTokens(rewards, user1);
+  }
+
+  function test_canClaimForErc20Vault() public {
+    // create reward splitter and connect to erc20 vault
+    vm.startPrank(erc20VaultAdmin);
+    rewardSplitter = IRewardSplitterFactory(rewardSplitterFactory).createRewardSplitter(erc20Vault);
+    IVaultFee(erc20Vault).setFeeRecipient(rewardSplitter);
+    vm.stopPrank();
+
+    // increase shares
+    vm.prank(erc20VaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(user1, shares);
+
+    // harvest vault rewards
+    uint256 totalReward = 1 ether;
+    skip(REWARDS_DELAY + 1);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(
+      erc20Vault, SafeCast.toInt256(totalReward), 0, 0
+    );
+    IVaultState(erc20Vault).updateState(harvestParams);
+
+    // sync rewards to splitter
+    IRewardSplitter(rewardSplitter).syncRewards();
+    rewards = IRewardSplitter(rewardSplitter).rewardsOf(user1);
+
+    // claim vault tokens
+    vm.prank(user1);
+    vm.expectEmit(rewardSplitter);
+    emit IRewardSplitter.RewardsWithdrawn(user1, rewards);
+    IRewardSplitter(rewardSplitter).claimVaultTokens(rewards, user1);
+
+    // check no rewards left
+    assertEq(IRewardSplitter(rewardSplitter).rewardsOf(user1), 0);
+
+    // second claim should fail
+    vm.prank(user1);
+    expectRevertWithPanic(PanicCode.ARITHMETIC_UNDER_OR_OVERFLOW);
+    IRewardSplitter(rewardSplitter).claimVaultTokens(rewards, user1);
+  }
+}
+
+contract RewardSplitterEnterExitQueueTest is RewardSplitterTest {
+  uint128 public constant shares = 100;
+  uint256 rewards;
+
+  function setUp() public override {
+    super.setUp();
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(user1, shares);
+
+    uint256 totalReward = 1 ether;
+    skip(REWARDS_DELAY + 1);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(vault, SafeCast.toInt256(totalReward), 0, 0);
+    IVaultState(vault).updateState(harvestParams);
+    
+    IRewardSplitter(rewardSplitter).syncRewards();
+    rewards = IRewardSplitter(rewardSplitter).rewardsOf(user1);
+  }
+
+  function test_enterExitQueueWithMulticall() public {
+    IVaultEthStaking(vault).deposit{value: 10 ether - SECURITY_DEPOSIT}(user1, ZERO_ADDRESS);
+
+    // harvest vault rewards
+    uint256 totalReward = 2 ether;
+    skip(REWARDS_DELAY + 1);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(
+      vault, SafeCast.toInt256(totalReward), 0, 0
+    );
+
+    // harvest vault rewards one more time
+    totalReward = 3 ether;
+    skip(REWARDS_DELAY + 1);
+    harvestParams = _setVaultRewards(
+      vault, SafeCast.toInt256(totalReward), 0, 0
+    );
+
+    // Prepare updateVaultState call
+    bytes memory updateStateCall = abi.encodeWithSignature(
+        "updateVaultState((bytes32,int160,uint160,bytes32[]))",
+        harvestParams
+    );
+
+    // Call enterExitQueue prepended with updateStateCall
+    vm.prank(user1);
+    bytes[] memory enterExitQueueCalls = new bytes[](2);
+    enterExitQueueCalls[0] = updateStateCall;
+    enterExitQueueCalls[1] = abi.encodeWithSignature(
+      "enterExitQueue(uint256,address)", type(uint256).max, user1
+    );
+    bytes[] memory results = IRewardSplitter(rewardSplitter).multicall(enterExitQueueCalls);
+
+    // check no rewards left
+    assertEq(IRewardSplitter(rewardSplitter).rewardsOf(user1), 0);
   }
 }
