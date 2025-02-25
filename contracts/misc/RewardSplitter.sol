@@ -53,8 +53,11 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     _disableInitializers();
   }
 
-  /// @inheritdoc IRewardSplitter
-  function initialize(address _vault) external override initializer {
+  /**
+   * @dev Initializes the RewardSplitter contract
+   * @param _vault The address of the vault to which the RewardSplitter will be connected
+   */
+  function __RewardSplitter_init(address _vault) internal onlyInitializing {
     vault = _vault;
   }
 

@@ -19,6 +19,10 @@ contract GnoRewardSplitter is RewardSplitter {
     _gnoToken = IERC20(gnoToken);
   }
 
+  function initialize(address _vault) public override initializer {
+    __RewardSplitter_init(_vault);
+  }
+
   /// @inheritdoc RewardSplitter
   function _transferRewards(address shareholder, uint256 amount) internal override {
     SafeERC20.safeTransfer(_gnoToken, shareholder, amount);

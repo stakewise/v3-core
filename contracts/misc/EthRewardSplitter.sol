@@ -3,7 +3,7 @@
 pragma solidity ^0.8.22;
 
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
-import {ReentrancyGuard} from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
+import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import {RewardSplitter} from './RewardSplitter.sol';
 import {IRewardSplitter} from '../interfaces/IRewardSplitter.sol';
 
@@ -13,7 +13,7 @@ import {IRewardSplitter} from '../interfaces/IRewardSplitter.sol';
  * @notice The EthRewardSplitter can be used on Ethereum networks 
  to split the rewards of the fee recipient of the vault based on configured shares
  */
-contract EthRewardSplitter is ReentrancyGuard, RewardSplitter {
+contract EthRewardSplitter is ReentrancyGuardUpgradeable, RewardSplitter {
   constructor() RewardSplitter() {}
 
   /// Allows to claim rewards from the vault and receive them to the reward splitter address
@@ -26,6 +26,11 @@ contract EthRewardSplitter is ReentrancyGuard, RewardSplitter {
     uint256 exitQueueIndex
   ) public override nonReentrant {
     super.claimExitedAssetsOnBehalf(positionTicket, timestamp, exitQueueIndex);
+  }
+
+  function initialize(address _vault) public override initializer {
+    __ReentrancyGuard_init();
+    __RewardSplitter_init(_vault);
   }
 
   /// @inheritdoc RewardSplitter
