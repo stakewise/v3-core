@@ -35,7 +35,6 @@ import {StdUtils} from '../lib/forge-std/src/StdUtils.sol';
 import {Test} from '../lib/forge-std/src/Test.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
-import 'forge-std/console.sol'; 
 
 
 abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
@@ -95,6 +94,34 @@ abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
     rewardSplitter = IRewardSplitterFactory(rewardSplitterFactory).createRewardSplitter(vault);
     IVaultFee(vault).setFeeRecipient(rewardSplitter);
     vm.stopPrank();
+  }
+}
+
+contract RewardSplitterSetClaimOnBehalfTest is RewardSplitterTest {
+  function test_failsByNotVaultAdmin() public {
+    vm.prank(user1);
+    vm.expectRevert(Errors.AccessDenied.selector);
+    IRewardSplitter(rewardSplitter).setClaimOnBehalf(true);
+  }
+
+  function test_normal() public {
+    // enable claim on behalf
+    vm.prank(vaultAdmin);
+    vm.expectEmit(rewardSplitter);
+    emit IRewardSplitter.ClaimOnBehalfUpdated(vaultAdmin, true);
+
+    IRewardSplitter(rewardSplitter).setClaimOnBehalf(true);
+
+    assertTrue(IRewardSplitter(rewardSplitter).isClaimOnBehalfEnabled());
+    
+    // disable claim on behalf
+    vm.prank(vaultAdmin);
+    vm.expectEmit(rewardSplitter);
+    emit IRewardSplitter.ClaimOnBehalfUpdated(vaultAdmin, false);
+
+    IRewardSplitter(rewardSplitter).setClaimOnBehalf(false);
+
+    assertFalse(IRewardSplitter(rewardSplitter).isClaimOnBehalfEnabled());
   }
 }
 
@@ -445,9 +472,172 @@ contract RewardSplitterEnterExitQueueTest is RewardSplitterTest {
     enterExitQueueCalls[1] = abi.encodeWithSignature(
       "enterExitQueue(uint256,address)", type(uint256).max, user1
     );
-    bytes[] memory results = IRewardSplitter(rewardSplitter).multicall(enterExitQueueCalls);
+    IRewardSplitter(rewardSplitter).multicall(enterExitQueueCalls);
 
-    // check no rewards left
+    // check updateState call succeeded
+    assertFalse(IVaultState(vault).isStateUpdateRequired());
+
+    // check splitter rewards are synced
+    assertFalse(IRewardSplitter(rewardSplitter).canSyncRewards());
+
+    // check all user rewards are withdrawn
     assertEq(IRewardSplitter(rewardSplitter).rewardsOf(user1), 0);
+  }
+}
+
+contract RewardSplitterEnterExitQueueOnBehalfTest is RewardSplitterTest {
+  uint128 public constant shares = 100;
+  uint256 rewards;
+
+  function setUp() public override {
+    super.setUp();
+
+    // add shareholder
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(user1, shares);
+
+    // deposit vault
+    IVaultEthStaking(vault).deposit{value: 10 ether - SECURITY_DEPOSIT}(user2, ZERO_ADDRESS);
+
+    // set vault rewards
+    uint256 totalReward = 1 ether;
+    skip(REWARDS_DELAY + 1);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(
+      vault, SafeCast.toInt256(totalReward), 0, 0
+    );
+    IVaultState(vault).updateState(harvestParams);
+    
+    // set shareholder rewards
+    IRewardSplitter(rewardSplitter).syncRewards();
+    rewards = IRewardSplitter(rewardSplitter).rewardsOf(user1);
+
+    // enable claim on behalf
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).setClaimOnBehalf(true);
+  }
+
+  function test_failsIfClaimOnBehalfDisabled() public {
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).setClaimOnBehalf(false);
+
+    vm.expectRevert(Errors.AccessDenied.selector);
+    IRewardSplitter(rewardSplitter).enterExitQueueOnBehalf(rewards, user1);
+  }
+
+  function test_withdrawFixedRewards() public {
+     // check onBehalf and rewards, do not check positionTicket
+    vm.expectEmit(true, false, true, false);
+    emit IRewardSplitter.ExitQueueEnteredOnBehalf(user1, 0, rewards);
+
+    // enter exit queue on behalf
+    IRewardSplitter(rewardSplitter).enterExitQueueOnBehalf(rewards, user1);
+
+    // check splitter rewards are synced
+    assertFalse(IRewardSplitter(rewardSplitter).canSyncRewards());
+
+    // check all user rewards are withdrawn
+    assertEq(IRewardSplitter(rewardSplitter).rewardsOf(user1), 0);
+  }
+
+  function test_withdrawAllRewards() public {
+    // set vault rewards
+    uint256 totalReward = 2 ether;
+    skip(REWARDS_DELAY + 1);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(
+      vault, SafeCast.toInt256(totalReward), 0, 0
+    );
+    IVaultState(vault).updateState(harvestParams);
+
+    // check onBehalf, do not check positionTicket and rewards
+    vm.expectEmit(true, false, false, false);
+    emit IRewardSplitter.ExitQueueEnteredOnBehalf(user1, 0, 0);
+
+    // enter exit queue on behalf
+    IRewardSplitter(rewardSplitter).enterExitQueueOnBehalf(type(uint256).max, user1);
+
+    // check splitter rewards are synced
+    assertFalse(IRewardSplitter(rewardSplitter).canSyncRewards());
+
+    // check all user rewards are withdrawn
+    assertEq(IRewardSplitter(rewardSplitter).rewardsOf(user1), 0);
+  }
+}
+
+
+contract RewardSplitterClaimExitedAssetsOnBehalfTest is RewardSplitterTest {
+  uint128 public constant shares = 100;
+  uint256 rewards;
+  uint256 positionTicket;
+  uint256 timestamp;
+
+  function setUp() public override {
+    super.setUp();
+
+    // add shareholder
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(user1, shares);
+
+    // deposit vault
+    IVaultEthStaking(vault).deposit{value: 10 ether - SECURITY_DEPOSIT}(user2, ZERO_ADDRESS);
+
+    // set vault rewards
+    uint256 totalReward = 1 ether;
+    skip(REWARDS_DELAY + 1);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(
+      vault, SafeCast.toInt256(totalReward), 0, 0
+    );
+    IVaultState(vault).updateState(harvestParams);
+    
+    // set shareholder rewards
+    IRewardSplitter(rewardSplitter).syncRewards();
+    rewards = IRewardSplitter(rewardSplitter).rewardsOf(user1);
+
+    // enable claim on behalf
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).setClaimOnBehalf(true);
+
+    // enter exit queue on behalf
+    positionTicket = IRewardSplitter(rewardSplitter).enterExitQueueOnBehalf(rewards, user1);
+    timestamp = block.timestamp;
+  }
+
+  function test_failsIfInvalidPosition() public {
+    positionTicket++;
+    int256 exitQueueIndex = IEthVault(vault).getExitQueueIndex(positionTicket);
+    
+    vm.expectRevert(Errors.InvalidPosition.selector);
+    
+    // claim exited assets on behalf
+    IRewardSplitter(rewardSplitter).claimExitedAssetsOnBehalf(
+      positionTicket, timestamp, SafeCast.toUint256(exitQueueIndex)
+    );
+  }
+
+  function test_basic() public {
+    skip(exitingAssetsClaimDelay + 1);
+
+    uint256 balanceBeforeClaim = user1.balance;
+
+    // check onBehalf, positionTicket, do not check amount
+    vm.expectEmit(true, true, false, false);
+    emit IRewardSplitter.ExitedAssetsClaimedOnBehalf(user1, positionTicket, 0);
+
+    // claim exited assets on behalf
+    int256 exitQueueIndex = IEthVault(vault).getExitQueueIndex(positionTicket);
+    IRewardSplitter(rewardSplitter).claimExitedAssetsOnBehalf(
+      positionTicket, timestamp, SafeCast.toUint256(exitQueueIndex)
+    );
+
+    // Take 1 ether vault reward, apply 10% vault fee
+    uint256 exitedAssets = 0.1 ether;
+
+    // check user balance change, leave 1 wei for rounding error
+    assertApproxEqAbs(user1.balance - balanceBeforeClaim, exitedAssets, 1 wei);
+
+    // check repeating call fails
+    vm.expectRevert(Errors.InvalidPosition.selector);
+    IRewardSplitter(rewardSplitter).claimExitedAssetsOnBehalf(
+      positionTicket, timestamp, SafeCast.toUint256(exitQueueIndex)
+    );
   }
 }
