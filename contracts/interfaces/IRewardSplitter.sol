@@ -182,7 +182,10 @@ interface IRewardSplitter is IMulticall {
    * @param rewards The amount of rewards to send to the exit queue
    * @param onBehalf The address of the account on behalf of which the rewards are sent to the exit queue
    */
-  function enterExitQueueOnBehalf(uint256 rewards, address onBehalf) external;
+  function enterExitQueueOnBehalf(
+    uint256 rewards,
+    address onBehalf
+  ) external returns (uint256 positionTicket);
 
   /**
    * @notice Claims the exited assets from the vault.

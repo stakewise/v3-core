@@ -169,7 +169,10 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   }
 
   /// @inheritdoc IRewardSplitter
-  function enterExitQueueOnBehalf(uint256 rewards, address onBehalf) external override {
+  function enterExitQueueOnBehalf(
+    uint256 rewards,
+    address onBehalf
+  ) external override returns (uint256 positionTicket) {
     if (!isClaimOnBehalfEnabled) revert Errors.AccessDenied();
 
     if (rewards == type(uint256).max) {
@@ -179,7 +182,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     _withdrawRewards(onBehalf, rewards);
 
     // Use the reward splitter address as receiver. This allows the reward splitter to claim the assets.
-    uint256 positionTicket = IVaultEnterExit(vault).enterExitQueue(rewards, address(this));
+    positionTicket = IVaultEnterExit(vault).enterExitQueue(rewards, address(this));
     exitPositions[positionTicket] = onBehalf;
 
     emit ExitQueueEnteredOnBehalf(onBehalf, positionTicket, rewards);
