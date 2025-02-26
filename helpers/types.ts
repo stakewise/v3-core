@@ -77,12 +77,6 @@ export type NetworkConfig = {
   // Cumulative MerkleDrop
   liquidityCommittee: string
   swiseToken: string
-
-  // Restake vault settings
-  eigenPodManager: string
-  eigenDelegationManager: string
-  eigenDelayedWithdrawalRouter: string
-  restakeFactoryOwner: string
 }
 
 export type GovernorCall = {

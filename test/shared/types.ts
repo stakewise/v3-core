@@ -12,12 +12,6 @@ import {
   GnoErc20Vault,
   GnoPrivErc20Vault,
   GnoGenesisVault,
-  EthRestakeVault,
-  EthRestakePrivVault,
-  EthRestakeErc20Vault,
-  EthRestakePrivErc20Vault,
-  EthRestakeBlocklistErc20Vault,
-  EthRestakeBlocklistVault,
 } from '../../typechain-types'
 
 export type EthVaultInitParamsStruct = {
@@ -32,12 +26,6 @@ export type GnoVaultInitParamsStruct = {
   metadataIpfsHash: string
 }
 
-export type EthRestakeVaultInitParamsStruct = {
-  capacity: bigint
-  feePercent: number
-  metadataIpfsHash: string
-}
-
 export type EthErc20VaultInitParamsStruct = {
   capacity: bigint
   feePercent: number
@@ -47,14 +35,6 @@ export type EthErc20VaultInitParamsStruct = {
 }
 
 export type GnoErc20VaultInitParamsStruct = {
-  capacity: bigint
-  feePercent: number
-  name: string
-  symbol: string
-  metadataIpfsHash: string
-}
-
-export type EthRestakeErc20VaultInitParamsStruct = {
   capacity: bigint
   feePercent: number
   name: string
@@ -78,11 +58,3 @@ export type GnoVaultType =
   | GnoErc20Vault
   | GnoPrivErc20Vault
   | GnoGenesisVault
-
-export type EthRestakeVaultType =
-  | EthRestakeVault
-  | EthRestakePrivVault
-  | EthRestakeBlocklistVault
-  | EthRestakeErc20Vault
-  | EthRestakePrivErc20Vault
-  | EthRestakeBlocklistErc20Vault

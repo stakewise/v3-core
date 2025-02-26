@@ -73,12 +73,6 @@ export const NETWORKS: {
     // Cumulative MerkleDrop
     liquidityCommittee: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
     swiseToken: '0x484871C6D54a3dAEBeBBDB0AB7a54c97D72986Bb',
-
-    // Restake vault settings
-    eigenPodManager: '0x30770d7E3e71112d7A6b7259542D1f680a70e315',
-    eigenDelegationManager: '0xA44151489861Fe9e3055d95adC98FbD462B948e7',
-    eigenDelayedWithdrawalRouter: '0x642c646053eaf2254f088e9019ACD73d9AE0FA32',
-    restakeFactoryOwner: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
   },
   [Networks.mainnet]: {
     url: process.env.MAINNET_RPC_URL || '',
@@ -148,12 +142,6 @@ export const NETWORKS: {
     // Cumulative MerkleDrop
     liquidityCommittee: '0x189Cb93839AD52b5e955ddA254Ed7212ae1B1f61',
     swiseToken: '0x48C3399719B582dD63eB5AADf12A40B4C3f52FA2',
-
-    // Restake vault settings
-    eigenPodManager: '0x91E677b07F7AF907ec9a428aafA9fc14a0d3A338',
-    eigenDelegationManager: '0x39053D51B77DC0d36036Fc1fCc8Cb819df8Ef37A',
-    eigenDelayedWithdrawalRouter: '0x7Fe7E9CC0F274d2435AD5d56D5fa73E47F6A23D8',
-    restakeFactoryOwner: '0xf91AA4a655B6F43243ed4C2853F3508314DaA2aB',
   },
   [Networks.chiado]: {
     url: process.env.CHIADO_RPC_URL || '',
@@ -227,12 +215,6 @@ export const NETWORKS: {
     // Cumulative MerkleDrop
     liquidityCommittee: '0x0000000000000000000000000000000000000000',
     swiseToken: '0x0000000000000000000000000000000000000000',
-
-    // Restake vault settings
-    eigenPodManager: '0x0000000000000000000000000000000000000000',
-    eigenDelegationManager: '0x0000000000000000000000000000000000000000',
-    eigenDelayedWithdrawalRouter: '0x0000000000000000000000000000000000000000',
-    restakeFactoryOwner: '0x0000000000000000000000000000000000000000',
   },
   [Networks.gnosis]: {
     url: process.env.GNOSIS_RPC_URL || '',
@@ -306,12 +288,6 @@ export const NETWORKS: {
     // Cumulative MerkleDrop
     liquidityCommittee: '0x0000000000000000000000000000000000000000',
     swiseToken: '0x0000000000000000000000000000000000000000',
-
-    // Restake vault settings
-    eigenPodManager: '0x0000000000000000000000000000000000000000',
-    eigenDelegationManager: '0x0000000000000000000000000000000000000000',
-    eigenDelayedWithdrawalRouter: '0x0000000000000000000000000000000000000000',
-    restakeFactoryOwner: '0x0000000000000000000000000000000000000000',
   },
 }
 

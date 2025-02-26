@@ -282,64 +282,6 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     await callContract(vaultsRegistry.addVault(foxVaultAddress))
     console.log('Added EthFoxVault to VaultsRegistry')
 
-    // Deploy EigenPodOwner implementation
-    constructorArgs = [
-      networkConfig.eigenPodManager,
-      networkConfig.eigenDelegationManager,
-      networkConfig.eigenDelayedWithdrawalRouter,
-    ]
-    const eigenPodOwnerImpl = await deployContract(hre, 'EigenPodOwner', constructorArgs)
-    const eigenPodOwnerFactory = await ethers.getContractFactory('EigenPodOwner')
-    const eigenPodOwnerImplAddress = await eigenPodOwnerImpl.getAddress()
-    await simulateDeployImpl(
-      hre,
-      eigenPodOwnerFactory,
-      { constructorArgs },
-      eigenPodOwnerImplAddress
-    )
-
-    // Deploy restake vaults
-    for (const vaultType of [
-      'EthRestakeVault',
-      'EthRestakePrivVault',
-      'EthRestakeBlocklistVault',
-      'EthRestakeErc20Vault',
-      'EthRestakePrivErc20Vault',
-      'EthRestakeBlocklistErc20Vault',
-    ]) {
-      // Deploy Vault Implementation
-      const constructorArgs = [
-        keeperAddress,
-        vaultsRegistryAddress,
-        validatorsRegistryAddress,
-        sharedMevEscrowAddress,
-        depositDataRegistryAddress,
-        eigenPodOwnerImplAddress,
-        networkConfig.exitedAssetsClaimDelay,
-      ]
-      const vaultImpl = await deployContract(hre, vaultType, constructorArgs)
-      const vaultImplAddress = await vaultImpl.getAddress()
-      await simulateDeployImpl(
-        hre,
-        await ethers.getContractFactory(vaultType),
-        { constructorArgs },
-        vaultImplAddress
-      )
-
-      // Deploy Restake Vault Factory
-      const vaultFactory = await deployContract(hre, 'EthRestakeVaultFactory', [
-        networkConfig.governor,
-        vaultImplAddress,
-        vaultsRegistryAddress,
-      ])
-      const vaultFactoryAddress = await vaultFactory.getAddress()
-      factories.push(vaultFactoryAddress)
-
-      // Add factory to registry
-      await callContract(vaultsRegistry.addFactory(vaultFactoryAddress))
-      console.log(`Added ${vaultType}Factory to VaultsRegistry`)
-    }
-
     // Deploy PriceFeed
     const priceFeed = await deployContract(hre, 'PriceFeed', [
       osTokenVaultControllerAddress,
@@ -384,12 +326,6 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       EthErc20VaultFactory: factories[3],
       EthPrivErc20VaultFactory: factories[4],
       EthBlocklistErc20VaultFactory: factories[5],
-      EthRestakeVaultFactory: factories[6],
-      EthRestakePrivVaultFactory: factories[7],
-      EthRestakeBlocklistVaultFactory: factories[8],
-      EthRestakeErc20VaultFactory: factories[9],
-      EthRestakePrivErc20VaultFactory: factories[10],
-      EthRestakeBlocklistErc20VaultFactory: factories[11],
       SharedMevEscrow: sharedMevEscrowAddress,
       OsToken: osTokenAddress,
       OsTokenConfig: osTokenConfigAddress,

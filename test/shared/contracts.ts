@@ -9,12 +9,6 @@ import EthPrivErc20Vault from './artifacts/EthPrivErc20Vault.json'
 import EthPrivVault from './artifacts/EthPrivVault.json'
 import EthBlocklistVault from './artifacts/EthBlocklistVault.json'
 import EthBlocklistErc20Vault from './artifacts/EthBlocklistErc20Vault.json'
-import EthRestakeVault from './artifacts/EthRestakeVault.json'
-import EthRestakePrivVault from './artifacts/EthRestakePrivVault.json'
-import EthRestakeErc20Vault from './artifacts/EthRestakeErc20Vault.json'
-import EthRestakePrivErc20Vault from './artifacts/EthRestakePrivErc20Vault.json'
-import EthRestakeBlocklistVault from './artifacts/EthRestakeBlocklistVault.json'
-import EthRestakeBlocklistErc20Vault from './artifacts/EthRestakeBlocklistErc20Vault.json'
 import GnoVault from './artifacts/GnoVault.json'
 import GnoPrivVault from './artifacts/GnoPrivVault.json'
 import GnoErc20Vault from './artifacts/GnoErc20Vault.json'
@@ -69,39 +63,6 @@ export async function getEthBlocklistVaultV3Factory(): Promise<ContractFactory> 
 
 export async function getEthGenesisVaultV3Factory(): Promise<ContractFactory> {
   return await ethers.getContractFactory(EthGenesisVault.abi, EthGenesisVault.bytecode)
-}
-
-export async function getEthRestakeVaultV2Factory(): Promise<ContractFactory> {
-  return await ethers.getContractFactory(EthRestakeVault.abi, EthRestakeVault.bytecode)
-}
-
-export async function getEthRestakePrivVaultV2Factory(): Promise<ContractFactory> {
-  return await ethers.getContractFactory(EthRestakePrivVault.abi, EthRestakePrivVault.bytecode)
-}
-
-export async function getEthRestakeErc20VaultV2Factory(): Promise<ContractFactory> {
-  return await ethers.getContractFactory(EthRestakeErc20Vault.abi, EthRestakeErc20Vault.bytecode)
-}
-
-export async function getEthRestakePrivErc20VaultV2Factory(): Promise<ContractFactory> {
-  return await ethers.getContractFactory(
-    EthRestakePrivErc20Vault.abi,
-    EthRestakePrivErc20Vault.bytecode
-  )
-}
-
-export async function getEthRestakeBlocklistVaultV2Factory(): Promise<ContractFactory> {
-  return await ethers.getContractFactory(
-    EthRestakeBlocklistVault.abi,
-    EthRestakeBlocklistVault.bytecode
-  )
-}
-
-export async function getEthRestakeBlocklistErc20VaultV2Factory(): Promise<ContractFactory> {
-  return await ethers.getContractFactory(
-    EthRestakeBlocklistErc20Vault.abi,
-    EthRestakeBlocklistErc20Vault.bytecode
-  )
 }
 
 export async function getGnoVaultV2Factory(): Promise<ContractFactory> {

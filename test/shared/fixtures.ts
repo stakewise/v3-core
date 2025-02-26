@@ -81,12 +81,7 @@ import {
   SECURITY_DEPOSIT,
   VALIDATORS_MIN_ORACLES,
 } from './constants'
-import {
-  EthErc20VaultInitParamsStruct,
-  EthRestakeVaultType,
-  EthVaultInitParamsStruct,
-  EthVaultType,
-} from './types'
+import { EthErc20VaultInitParamsStruct, EthVaultInitParamsStruct, EthVaultType } from './types'
 import { DepositorMock } from '../../typechain-types/contracts/mocks/DepositorMock'
 import { DepositorMock__factory } from '../../typechain-types/factories/contracts/mocks/DepositorMock__factory'
 import { UnknownVaultMock } from '../../typechain-types/contracts/mocks/UnknownVaultMock'
@@ -154,9 +149,7 @@ export const updateVaultState = async function (
   await vault.updateState(harvestParams)
 }
 
-export const createDepositorMock = async function (
-  vault: EthVaultType | EthRestakeVaultType
-): Promise<DepositorMock> {
+export const createDepositorMock = async function (vault: EthVaultType): Promise<DepositorMock> {
   const depositorMockFactory = await ethers.getContractFactory('DepositorMock')
   const contract = await depositorMockFactory.deploy(await vault.getAddress())
   return DepositorMock__factory.connect(
