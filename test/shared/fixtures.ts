@@ -8,8 +8,6 @@ import {
 import { signTypedData, SignTypedDataVersion } from '@metamask/eth-sig-util'
 import EthereumWallet from 'ethereumjs-wallet'
 import {
-  CumulativeMerkleDrop,
-  CumulativeMerkleDrop__factory,
   EthBlocklistErc20Vault,
   EthBlocklistErc20Vault__factory,
   EthBlocklistVault,
@@ -93,13 +91,7 @@ import { MAINNET_FORK, NETWORKS } from '../../helpers/constants'
 import mainnetDeployment from '../../deployments/mainnet.json'
 
 export const transferOwnership = async function (
-  contract:
-    | Keeper
-    | VaultsRegistry
-    | OsTokenVaultController
-    | OsToken
-    | OsTokenConfig
-    | CumulativeMerkleDrop,
+  contract: Keeper | VaultsRegistry | OsTokenVaultController | OsToken | OsTokenConfig,
   newOwner: Signer
 ) {
   const currentOwnerAddr = await contract.owner()
@@ -414,18 +406,6 @@ export const createOsTokenFlashLoans = async function (
   const factory = await ethers.getContractFactory('OsTokenFlashLoans')
   const contract = await factory.deploy(await osToken.getAddress())
   return OsTokenFlashLoans__factory.connect(await contract.getAddress(), signer)
-}
-
-export const createCumulativeMerkleDrop = async function (
-  token: string,
-  owner: Wallet
-): Promise<CumulativeMerkleDrop> {
-  const factory = await ethers.getContractFactory('CumulativeMerkleDrop')
-  const contract = await factory.deploy(owner.address, token)
-  return CumulativeMerkleDrop__factory.connect(
-    await contract.getAddress(),
-    await ethers.provider.getSigner()
-  )
 }
 
 export const createKeeper = async function (

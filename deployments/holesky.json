@@ -18,6 +18,5 @@
   "EthOsTokenVaultEscrow": "0x807305c086A99cbDBff07cB4256cE556d9d6F0af",
   "OsTokenFlashLoans": "0x3e30370cabD4B4D95Be17706D840FF9de1ADdb67",
   "PriceFeed": "0xe31FAf135A6047Cbe595F91B4b6802cDB9B46E2b",
-  "RewardSplitterFactory": "0x2Ed24638b3aB48cF0076f19199c78A62bfEb5889",
-  "CumulativeMerkleDrop": "0x6737277a4A9071AF88cCa91042d77b4237f368C4"
+  "RewardSplitterFactory": "0x2Ed24638b3aB48cF0076f19199c78A62bfEb5889"
 }

@@ -69,10 +69,6 @@ export const NETWORKS: {
       metadataIpfsHash: '',
     },
     priceFeedDescription: 'osETH/ETH',
-
-    // Cumulative MerkleDrop
-    liquidityCommittee: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
-    swiseToken: '0x484871C6D54a3dAEBeBBDB0AB7a54c97D72986Bb',
   },
   [Networks.mainnet]: {
     url: process.env.MAINNET_RPC_URL || '',
@@ -138,10 +134,6 @@ export const NETWORKS: {
       metadataIpfsHash: '',
     },
     priceFeedDescription: 'osETH/ETH',
-
-    // Cumulative MerkleDrop
-    liquidityCommittee: '0x189Cb93839AD52b5e955ddA254Ed7212ae1B1f61',
-    swiseToken: '0x48C3399719B582dD63eB5AADf12A40B4C3f52FA2',
   },
   [Networks.chiado]: {
     url: process.env.CHIADO_RPC_URL || '',
@@ -211,10 +203,6 @@ export const NETWORKS: {
       maxSlippage: 100, // 1%
       stalePriceTimeDelta: MAX_UINT128, // unlimited
     },
-
-    // Cumulative MerkleDrop
-    liquidityCommittee: '0x0000000000000000000000000000000000000000',
-    swiseToken: '0x0000000000000000000000000000000000000000',
   },
   [Networks.gnosis]: {
     url: process.env.GNOSIS_RPC_URL || '',
@@ -284,10 +272,6 @@ export const NETWORKS: {
       maxSlippage: 100, // 1%
       stalePriceTimeDelta: 172800n, // 48 hours
     },
-
-    // Cumulative MerkleDrop
-    liquidityCommittee: '0x0000000000000000000000000000000000000000',
-    swiseToken: '0x0000000000000000000000000000000000000000',
   },
 }
 

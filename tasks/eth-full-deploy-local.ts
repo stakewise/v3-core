@@ -299,13 +299,6 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
     ])
     const rewardSplitterFactoryAddress = await rewardSplitterFactory.getAddress()
 
-    // Deploy CumulativeMerkleDrop
-    const cumulativeMerkleDrop = await deployContract(hre, 'CumulativeMerkleDrop', [
-      networkConfig.liquidityCommittee,
-      networkConfig.swiseToken,
-    ])
-    const cumulativeMerkleDropAddress = await cumulativeMerkleDrop.getAddress()
-
     // transfer ownership to governor
     await callContract(vaultsRegistry.initialize(networkConfig.governor))
     console.log('VaultsRegistry ownership transferred to', networkConfig.governor)
@@ -332,7 +325,6 @@ task('eth-full-deploy-local', 'deploys StakeWise V3 for Ethereum to local networ
       OsTokenVaultController: osTokenVaultControllerAddress,
       PriceFeed: priceFeedAddress,
       RewardSplitterFactory: rewardSplitterFactoryAddress,
-      CumulativeMerkleDrop: cumulativeMerkleDropAddress,
     }
     const json = JSON.stringify(addresses, null, 2)
     const fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`
