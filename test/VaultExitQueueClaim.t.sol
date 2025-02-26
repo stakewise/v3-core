@@ -22,9 +22,10 @@ import {UUPSUpgradeable} from '@openzeppelin/contracts-upgradeable/proxy/utils/U
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {RewardsTest} from './Rewards.t.sol';
+import {MainnetForkTest} from './MainnetFork.t.sol';
 
 
-contract VaultExitQueueClaimTest is Test, RewardsTest {
+contract VaultExitQueueClaimTest is Test, MainnetForkTest, RewardsTest {
   struct ExitRequest {
     uint256 totalTickets;
     uint256 positionTicket;
@@ -33,27 +34,13 @@ contract VaultExitQueueClaimTest is Test, RewardsTest {
     uint256 timestamp;
   }
 
-  uint256 public constant forkBlockNumber = 21737000;
-  address public constant vaultsRegistry = 0x3a0008a588772446f6e656133C2D5029CC4FC20E;
-  address public constant osTokenVaultController = 0x2A261e60FB14586B474C208b1B7AC6D0f5000306;
-  address public constant osTokenConfig = 0x287d1e2A8dE183A8bf8f2b09Fa1340fBd766eb59;
-  address public constant osTokenVaultEscrow = 0x09e84205DF7c68907e619D07aFD90143c5763605;
-  address public constant sharedMevEscrow = 0x48319f97E5Da1233c21c48b80097c0FB7a20Ff86;
-  address public constant depositDataRegistry = 0x75AB6DdCe07556639333d3Df1eaa684F5735223e;
-  uint256 public constant exitingAssetsClaimDelay = 24 hours;
-  address public constant v2VaultFactory = 0xfaa05900019f6E465086bcE16Bb3F06992715D53;
-  address public constant vaultV3Impl = 0x9747e1fF73f1759217AFD212Dd36d21360D0880A;
-  address public constant genesisVault = 0xAC0F906E433d58FA868F936E8A43230473652885;
-  address public constant poolEscrow = 0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079;
-  address public constant rewardEthToken = 0x20BC832ca081b91433ff6c17f85701B6e92486c5;
-
   address public constant user1 = address(0x1);
   address public constant user2 = address(0x2);
 
   address public vault;
 
-  function setUp() public override {
-    vm.createSelectFork(vm.envString('MAINNET_RPC_URL'), forkBlockNumber);
+  function setUp() public override(MainnetForkTest, RewardsTest) {
+    MainnetForkTest.setUp();
 
     RewardsTest.setUp();
 

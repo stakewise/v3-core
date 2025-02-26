@@ -24,8 +24,6 @@ import {RewardSplitter} from '../contracts/misc/RewardSplitter.sol';
 import {IRewardSplitter} from '../contracts/interfaces/IRewardSplitter.sol';
 import {IVaultState} from '../contracts/interfaces/IVaultState.sol';
 import {IVaultEthStaking} from '../contracts/interfaces/IVaultEthStaking.sol';
-import {RewardsTest} from './Rewards.t.sol';
-import {ConstantsTest} from './Constants.t.sol';
 import {CommonBase} from '../lib/forge-std/src/Base.sol';
 import {Vm} from '../lib/forge-std/src/Vm.sol';
 import {StdAssertions} from '../lib/forge-std/src/StdAssertions.sol';
@@ -35,26 +33,11 @@ import {StdUtils} from '../lib/forge-std/src/StdUtils.sol';
 import {Test} from '../lib/forge-std/src/Test.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
+import {RewardsTest} from './Rewards.t.sol';
+import {ConstantsTest} from './Constants.t.sol';
+import {MainnetForkTest} from './MainnetFork.t.sol';
 
-
-abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
-  uint256 MAX_AVG_REWARD_PER_SECOND = 6341958397; // 20% APY
-
-  uint256 public constant forkBlockNumber = 21737000;
-  address public constant vaultsRegistry = 0x3a0008a588772446f6e656133C2D5029CC4FC20E;
-  address public constant osTokenVaultController = 0x2A261e60FB14586B474C208b1B7AC6D0f5000306;
-  address public constant osTokenConfig = 0x287d1e2A8dE183A8bf8f2b09Fa1340fBd766eb59;
-  address public constant osTokenVaultEscrow = 0x09e84205DF7c68907e619D07aFD90143c5763605;
-  address public constant sharedMevEscrow = 0x48319f97E5Da1233c21c48b80097c0FB7a20Ff86;
-  address public constant depositDataRegistry = 0x75AB6DdCe07556639333d3Df1eaa684F5735223e;
-  uint256 public constant exitingAssetsClaimDelay = 24 hours;
-  address public constant v2VaultFactory = 0xfaa05900019f6E465086bcE16Bb3F06992715D53;
-  address public constant erc20VaultFactory = 0x978302cAcAdEDE5d503390E176e86F3889Df6Ce6;
-  address public constant vaultV3Impl = 0x9747e1fF73f1759217AFD212Dd36d21360D0880A;
-  address public constant genesisVault = 0xAC0F906E433d58FA868F936E8A43230473652885;
-  address public constant poolEscrow = 0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079;
-  address public constant rewardEthToken = 0x20BC832ca081b91433ff6c17f85701B6e92486c5;
-
+abstract contract EthRewardSplitterTest is Test, ConstantsTest, RewardsTest, MainnetForkTest {
   address public constant user1 = address(0x1);
   address public constant user2 = address(0x2);
 
@@ -64,9 +47,8 @@ abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
   address public rewardSplitterFactory;
   uint256 avgRewardPerSecond = 1585489600;
 
-  function setUp() public virtual override(ConstantsTest, RewardsTest) {
-    vm.createSelectFork(vm.envString('MAINNET_RPC_URL'), forkBlockNumber);
-
+  function setUp() public virtual override(ConstantsTest, MainnetForkTest, RewardsTest) {
+    MainnetForkTest.setUp();
     ConstantsTest.setUp();
     RewardsTest.setUp();
 
@@ -84,7 +66,7 @@ abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
     // collateralize vault (imitate validator creation)
     _collateralizeVault(vault);
 
-    // Remember vault admin
+    // set vault admin
     vaultAdmin = IVaultAdmin(vault).admin();
 
     // create reward splitter and connect to vault
@@ -97,7 +79,7 @@ abstract contract RewardSplitterTest is Test, ConstantsTest, RewardsTest {
   }
 }
 
-contract RewardSplitterSetClaimOnBehalfTest is RewardSplitterTest {
+contract EthRewardSplitterSetClaimOnBehalfTest is EthRewardSplitterTest {
   function test_failsByNotVaultAdmin() public {
     vm.prank(user1);
     vm.expectRevert(Errors.AccessDenied.selector);
@@ -125,7 +107,7 @@ contract RewardSplitterSetClaimOnBehalfTest is RewardSplitterTest {
   }
 }
 
-contract RewardSplitterIncreaseSharesTest is RewardSplitterTest {
+contract EthRewardSplitterIncreaseSharesTest is EthRewardSplitterTest {
   function test_failsWithZeroShares() public {
     vm.prank(vaultAdmin);
     vm.expectRevert(IRewardSplitter.InvalidAmount.selector);
@@ -195,7 +177,7 @@ contract RewardSplitterIncreaseSharesTest is RewardSplitterTest {
   }
 }
 
-contract RewardSplitterDecreaseSharesTest is RewardSplitterTest {
+contract EthRewardSplitterDecreaseSharesTest is EthRewardSplitterTest {
   uint128 public constant shares = 100;
 
   function setUp() public override {
@@ -273,7 +255,7 @@ contract RewardSplitterDecreaseSharesTest is RewardSplitterTest {
   }
 }
 
-contract RewardSplitterSyncRewardsTest is Test, RewardSplitterTest {
+contract EthRewardSplitterSyncRewardsTest is Test, EthRewardSplitterTest {
   uint128 public constant shares = 100;
 
   function setUp() public override {
@@ -345,7 +327,7 @@ contract RewardSplitterSyncRewardsTest is Test, RewardSplitterTest {
   }
 }
 
-contract RewardSplitterClaimVaultTokensTest is RewardSplitterTest {
+contract EthRewardSplitterClaimVaultTokensTest is EthRewardSplitterTest {
   uint128 public constant shares = 100;
   uint256 rewards;
   address erc20Vault;
@@ -424,7 +406,7 @@ contract RewardSplitterClaimVaultTokensTest is RewardSplitterTest {
   }
 }
 
-contract RewardSplitterEnterExitQueueTest is RewardSplitterTest {
+contract EthRewardSplitterEnterExitQueueTest is EthRewardSplitterTest {
   uint128 public constant shares = 100;
   uint256 rewards;
 
@@ -485,7 +467,7 @@ contract RewardSplitterEnterExitQueueTest is RewardSplitterTest {
   }
 }
 
-contract RewardSplitterEnterExitQueueOnBehalfTest is RewardSplitterTest {
+contract EthRewardSplitterEnterExitQueueOnBehalfTest is EthRewardSplitterTest {
   uint128 public constant shares = 100;
   uint256 rewards;
 
@@ -564,7 +546,7 @@ contract RewardSplitterEnterExitQueueOnBehalfTest is RewardSplitterTest {
 }
 
 
-contract RewardSplitterClaimExitedAssetsOnBehalfTest is RewardSplitterTest {
+contract EthRewardSplitterClaimExitedAssetsOnBehalfTest is EthRewardSplitterTest {
   uint128 public constant shares = 100;
   uint256 rewards;
   uint256 positionTicket;

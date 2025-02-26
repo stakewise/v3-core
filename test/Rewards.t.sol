@@ -9,12 +9,10 @@ import {IKeeperValidators} from '../contracts/interfaces/IKeeperValidators.sol';
 import {IValidatorsRegistry} from '../contracts/interfaces/IValidatorsRegistry.sol';
 import {Keeper} from '../contracts/keeper/Keeper.sol';
 import {Test} from '../lib/forge-std/src/Test.sol';
+import {ForkTest} from './Fork.t.sol';
 
 
-abstract contract RewardsTest is Test {
-  address public constant keeper = 0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5;
-  address public constant validatorsRegistry = 0x00000000219ab540356cBB839Cbe05303d7705Fa;
-
+abstract contract RewardsTest is Test, ForkTest {
   address public oracle;
   uint256 public oraclePrivateKey;
 
