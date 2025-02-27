@@ -19,22 +19,13 @@ contract EthRewardSplitter is ReentrancyGuardUpgradeable, RewardSplitter {
   /// Allows to claim rewards from the vault and receive them to the reward splitter address
   receive() external payable {}
 
-  /// @inheritdoc RewardSplitter
-  function claimExitedAssetsOnBehalf(
-    uint256 positionTicket,
-    uint256 timestamp,
-    uint256 exitQueueIndex
-  ) public override nonReentrant {
-    super.claimExitedAssetsOnBehalf(positionTicket, timestamp, exitQueueIndex);
-  }
-
-  function initialize(address _vault) public override initializer {
+  function initialize(address _vault) external override initializer {
     __ReentrancyGuard_init();
     __RewardSplitter_init(_vault);
   }
 
   /// @inheritdoc RewardSplitter
-  function _transferRewards(address shareholder, uint256 amount) internal override {
+  function _transferRewards(address shareholder, uint256 amount) internal override nonReentrant {
     Address.sendValue(payable(shareholder), amount);
   }
 }

@@ -53,14 +53,6 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     _disableInitializers();
   }
 
-  /**
-   * @dev Initializes the RewardSplitter contract
-   * @param _vault The address of the vault to which the RewardSplitter will be connected
-   */
-  function __RewardSplitter_init(address _vault) internal onlyInitializing {
-    vault = _vault;
-  }
-
   /// @inheritdoc IRewardSplitter
   function setClaimOnBehalf(bool enabled) external onlyVaultAdmin {
     isClaimOnBehalfEnabled = enabled;
@@ -193,7 +185,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     uint256 positionTicket,
     uint256 timestamp,
     uint256 exitQueueIndex
-  ) public virtual override {
+  ) external override {
     address onBehalf = exitPositions[positionTicket];
     if (onBehalf == address(0)) revert Errors.InvalidPosition();
 
@@ -270,5 +262,13 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
 
     // emit event
     emit RewardsWithdrawn(account, rewards);
+  }
+
+  /**
+   * @dev Initializes the RewardSplitter contract
+   * @param _vault The address of the vault to which the RewardSplitter will be connected
+   */
+  function __RewardSplitter_init(address _vault) internal onlyInitializing {
+    vault = _vault;
   }
 }

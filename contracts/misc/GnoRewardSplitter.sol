@@ -13,13 +13,13 @@ import {RewardSplitter} from './RewardSplitter.sol';
   to split the rewards of the fee recipient of the vault based on configures shares
  */
 contract GnoRewardSplitter is RewardSplitter {
-  IERC20 internal immutable _gnoToken;
+  IERC20 private immutable _gnoToken;
 
   constructor(address gnoToken) RewardSplitter() {
     _gnoToken = IERC20(gnoToken);
   }
 
-  function initialize(address _vault) public override initializer {
+  function initialize(address _vault) external override initializer {
     __RewardSplitter_init(_vault);
   }
 
