@@ -138,11 +138,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
 
   /// @inheritdoc IRewardSplitter
   function claimVaultTokens(uint256 rewards, address receiver) external override {
-    if (rewards == type(uint256).max) {
-      syncRewards();
-      rewards = rewardsOf(msg.sender);
-    }
-    _withdrawRewards(msg.sender, rewards);
+    rewards = _withdrawRewards(msg.sender, rewards);
     // NB! will revert if vault is not ERC-20
     SafeERC20.safeTransfer(IERC20(vault), receiver, rewards);
   }
@@ -152,11 +148,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     uint256 rewards,
     address receiver
   ) external override returns (uint256 positionTicket) {
-    if (rewards == type(uint256).max) {
-      syncRewards();
-      rewards = rewardsOf(msg.sender);
-    }
-    _withdrawRewards(msg.sender, rewards);
+    rewards = _withdrawRewards(msg.sender, rewards);
     return IVaultEnterExit(vault).enterExitQueue(rewards, receiver);
   }
 
@@ -167,11 +159,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   ) external override returns (uint256 positionTicket) {
     if (!isClaimOnBehalfEnabled) revert Errors.AccessDenied();
 
-    if (rewards == type(uint256).max) {
-      syncRewards();
-      rewards = rewardsOf(onBehalf);
-    }
-    _withdrawRewards(onBehalf, rewards);
+    rewards = _withdrawRewards(onBehalf, rewards);
 
     // Use the reward splitter address as receiver. This allows the reward splitter to claim the assets.
     positionTicket = IVaultEnterExit(vault).enterExitQueue(rewards, address(this));
@@ -245,12 +233,17 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     emit RewardsSynced(newTotalRewards, newRewardPerShare);
   }
 
-  function _withdrawRewards(address account, uint256 rewards) private {
+  function _withdrawRewards(address account, uint256 rewards) private returns (uint256) {
     // Sync rewards from the vault
     syncRewards();
 
     // get user total number of rewards
     uint256 accountRewards = rewardsOf(account);
+
+    // Set actual amount of rewards if user requested to withdraw all available rewards
+    if (rewards == type(uint256).max) {
+      rewards = accountRewards;
+    }
 
     // withdraw shareholder rewards from the splitter
     _totalRewards -= SafeCast.toUint128(rewards);
@@ -262,6 +255,9 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
 
     // emit event
     emit RewardsWithdrawn(account, rewards);
+
+    // return actual amount of rewards withdrawn
+    return rewards;
   }
 
   /**
