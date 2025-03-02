@@ -623,3 +623,89 @@ contract EthRewardSplitterClaimExitedAssetsOnBehalfTest is EthRewardSplitterTest
     );
   }
 }
+
+
+contract EthRewardSplitterClaimExitedAssetsOnBehalfMultipleUsersTest is EthRewardSplitterTest {
+  uint128 public constant shares = 100;
+  uint256 rewards;
+  uint256 timestamp;
+
+  function setUp() public override {
+    super.setUp();
+
+    // add shareholder
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).increaseShares(user1, shares);
+
+    // assign 10% of shares to user1 and 90% to user2
+    IRewardSplitter(rewardSplitter).increaseShares(user2, 9 * shares);
+
+    // deposit vault
+    IVaultEthStaking(vault).deposit{value: 10 ether - SECURITY_DEPOSIT}(user2, ZERO_ADDRESS);
+
+    // set vault rewards
+    uint256 totalReward = 1 ether;
+    skip(REWARDS_DELAY + 1);
+    IKeeperRewards.HarvestParams memory harvestParams = _setVaultRewards(
+      vault, SafeCast.toInt256(totalReward), 0, 0
+    );
+    IVaultState(vault).updateState(harvestParams);
+
+    // enable claim on behalf
+    vm.prank(vaultAdmin);
+    IRewardSplitter(rewardSplitter).setClaimOnBehalf(true);
+  }
+
+  function test_multipleShareholder() public {
+    uint256 splitterBalanceBeforeClaim = rewardSplitter.balance;
+
+    console.log('splitter total rewards %s', IRewardSplitter(rewardSplitter).totalRewards());
+    console.log('splitter total shares %s', IRewardSplitter(rewardSplitter).totalShares());
+    console.log('user1 rewards %s', IRewardSplitter(rewardSplitter).rewardsOf(user1));
+    console.log('user2 rewards %s', IRewardSplitter(rewardSplitter).rewardsOf(user2));
+
+    // Take 1 ether vault reward, apply 10% vault fee
+    // got 0.1 ether
+    // 10% to user1, 90% to user2
+    uint256 exitedAssets1 = 0.01 ether;
+    uint256 exitedAssets2 = 0.09 ether;
+
+    // Each exit-claim combination adds up rounding error 1 wei
+    uint256 maxError1 = 1 wei;
+    uint256 maxError2 = 2 wei;
+
+    _claimExitedAssetsOnBehalf(user1, exitedAssets1, maxError1);
+    _claimExitedAssetsOnBehalf(user2, exitedAssets2, maxError2);
+
+    // check unclaimed rewards on splitter balance
+    assertEq(rewardSplitter.balance - splitterBalanceBeforeClaim, 0);
+  }
+
+  function _claimExitedAssetsOnBehalf(
+    address user, uint256 exitedAssets, uint256 maxError
+  ) internal {
+    // set balances before claim
+    uint256 userBalanceBeforeClaim = user.balance;
+
+    // enter exit queue on behalf
+    uint256 positionTicket = IRewardSplitter(rewardSplitter).enterExitQueueOnBehalf(
+      type(uint256).max, user
+    );
+    timestamp = block.timestamp;
+
+    skip(exitingAssetsClaimDelay + 1);
+
+    // check onBehalf, positionTicket, do not check amount
+    vm.expectEmit(true, true, false, false);
+    emit IRewardSplitter.ExitedAssetsClaimedOnBehalf(user, positionTicket, 0);
+
+    // claim exited assets on behalf
+    int256 exitQueueIndex = IEthVault(vault).getExitQueueIndex(positionTicket);
+    IRewardSplitter(rewardSplitter).claimExitedAssetsOnBehalf(
+      positionTicket, timestamp, SafeCast.toUint256(exitQueueIndex)
+    );
+    
+    // check user balance change, allow rounding error
+    assertApproxEqAbs(user.balance - userBalanceBeforeClaim, exitedAssets, maxError);
+  }
+}
