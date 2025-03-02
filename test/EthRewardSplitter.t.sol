@@ -2,20 +2,13 @@
 
 pragma solidity ^0.8.22;
 
-
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
 import {IEthErc20Vault} from '../contracts/interfaces/IEthErc20Vault.sol';
 import {IEthVaultFactory} from '../contracts/interfaces/IEthVaultFactory.sol';
 import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
-import {IKeeperValidators} from '../contracts/interfaces/IKeeperValidators.sol';
-import {IValidatorsRegistry} from '../contracts/interfaces/IValidatorsRegistry.sol';
 import {IVaultAdmin} from '../contracts/interfaces/IVaultAdmin.sol';
 import {IVaultFee} from '../contracts/interfaces/IVaultFee.sol';
-import {IOsTokenVaultController} from '../contracts/interfaces/IOsTokenVaultController.sol';
-import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
-import {Keeper} from '../contracts/keeper/Keeper.sol';
 import {VaultsRegistry} from '../contracts/vaults/VaultsRegistry.sol';
-import {EthGenesisVault} from '../contracts/vaults/ethereum/EthGenesisVault.sol';
 import {EthVault} from '../contracts/vaults/ethereum/EthVault.sol';
 import {RewardSplitterFactory} from '../contracts/misc/RewardSplitterFactory.sol';
 import {IRewardSplitterFactory} from '../contracts/interfaces/IRewardSplitterFactory.sol';
@@ -24,10 +17,7 @@ import {RewardSplitter} from '../contracts/misc/RewardSplitter.sol';
 import {IRewardSplitter} from '../contracts/interfaces/IRewardSplitter.sol';
 import {IVaultState} from '../contracts/interfaces/IVaultState.sol';
 import {IVaultEthStaking} from '../contracts/interfaces/IVaultEthStaking.sol';
-import {CommonBase} from '../lib/forge-std/src/Base.sol';
 import {Vm} from '../lib/forge-std/src/Vm.sol';
-import {StdAssertions} from '../lib/forge-std/src/StdAssertions.sol';
-import {StdChains} from '../lib/forge-std/src/StdChains.sol';
 import {StdCheats, StdCheatsSafe} from '../lib/forge-std/src/StdCheats.sol';
 import {StdUtils} from '../lib/forge-std/src/StdUtils.sol';
 import {Test} from '../lib/forge-std/src/Test.sol';
@@ -658,11 +648,6 @@ contract EthRewardSplitterClaimExitedAssetsOnBehalfMultipleUsersTest is EthRewar
 
   function test_multipleShareholder() public {
     uint256 splitterBalanceBeforeClaim = rewardSplitter.balance;
-
-    console.log('splitter total rewards %s', IRewardSplitter(rewardSplitter).totalRewards());
-    console.log('splitter total shares %s', IRewardSplitter(rewardSplitter).totalShares());
-    console.log('user1 rewards %s', IRewardSplitter(rewardSplitter).rewardsOf(user1));
-    console.log('user2 rewards %s', IRewardSplitter(rewardSplitter).rewardsOf(user2));
 
     // Take 1 ether vault reward, apply 10% vault fee
     // got 0.1 ether

@@ -2,17 +2,11 @@
 
 pragma solidity ^0.8.22;
 
-
 import {IGnoVault} from '../contracts/interfaces/IGnoVault.sol';
 import {IGnoVaultFactory} from '../contracts/interfaces/IGnoVaultFactory.sol';
 import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
-import {IKeeperValidators} from '../contracts/interfaces/IKeeperValidators.sol';
-import {IValidatorsRegistry} from '../contracts/interfaces/IValidatorsRegistry.sol';
 import {IVaultAdmin} from '../contracts/interfaces/IVaultAdmin.sol';
 import {IVaultFee} from '../contracts/interfaces/IVaultFee.sol';
-import {IOsTokenVaultController} from '../contracts/interfaces/IOsTokenVaultController.sol';
-import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
-import {Keeper} from '../contracts/keeper/Keeper.sol';
 import {VaultsRegistry} from '../contracts/vaults/VaultsRegistry.sol';
 import {GnoVault} from '../contracts/vaults/gnosis/GnoVault.sol';
 import {RewardSplitterFactory} from '../contracts/misc/RewardSplitterFactory.sol';
@@ -22,10 +16,7 @@ import {RewardSplitter} from '../contracts/misc/RewardSplitter.sol';
 import {IRewardSplitter} from '../contracts/interfaces/IRewardSplitter.sol';
 import {IVaultState} from '../contracts/interfaces/IVaultState.sol';
 import {IVaultGnoStaking} from '../contracts/interfaces/IVaultGnoStaking.sol';
-import {CommonBase} from '../lib/forge-std/src/Base.sol';
 import {Vm} from '../lib/forge-std/src/Vm.sol';
-import {StdAssertions} from '../lib/forge-std/src/StdAssertions.sol';
-import {StdChains} from '../lib/forge-std/src/StdChains.sol';
 import {StdCheats, StdCheatsSafe} from '../lib/forge-std/src/StdCheats.sol';
 import {StdUtils} from '../lib/forge-std/src/StdUtils.sol';
 import {Test} from '../lib/forge-std/src/Test.sol';
@@ -35,8 +26,6 @@ import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {RewardsTest} from './Rewards.t.sol';
 import {ConstantsTest} from './Constants.t.sol';
 import {GnosisForkTest} from './GnosisFork.t.sol';
-import {console} from "forge-std/console.sol";
-
 
 abstract contract GnoRewardSplitterTest is Test, ConstantsTest, GnosisForkTest, RewardsTest {
   address public constant user1 = address(0x1);
