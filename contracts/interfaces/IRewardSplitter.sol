@@ -85,25 +85,32 @@ interface IRewardSplitter is IMulticall {
    * @notice The vault to which the RewardSplitter is connected
    * @return The address of the vault
    */
-  function vault() external returns (address);
+  function vault() external view returns (address);
 
   /**
    * @notice The total number of shares in the splitter
    * @return The total number of shares
    */
-  function totalShares() external returns (uint256);
+  function totalShares() external view returns (uint256);
+
+  /**
+   * @notice Returns the address of shareholder on behalf of which the rewards are claimed
+   * @param exitPosition The position in the exit queue
+   * @return onBehalf The address of shareholder
+   */
+  function exitPositions(uint256 exitPosition) external view returns (address onBehalf);
 
   /**
    * @notice Returns whether the claim on behalf is enabled
    * @return `true` if the claim on behalf is enabled, `false` otherwise
    */
-  function isClaimOnBehalfEnabled() external returns (bool);
+  function isClaimOnBehalfEnabled() external view returns (bool);
 
   /**
    * @notice The total amount of unclaimed rewards in the splitter
    * @return The total amount of rewards
    */
-  function totalRewards() external returns (uint128);
+  function totalRewards() external view returns (uint128);
 
   /**
    * @notice Initializes the RewardSplitter contract
@@ -181,6 +188,7 @@ interface IRewardSplitter is IMulticall {
    * @notice Enters the exit queue on behalf of the shareholder. Can only be called if claim on behalf is enabled.
    * @param rewards The amount of rewards to send to the exit queue
    * @param onBehalf The address of the account on behalf of which the rewards are sent to the exit queue
+   * @return positionTicket The position ticket of the exit queue
    */
   function enterExitQueueOnBehalf(
     uint256 rewards,

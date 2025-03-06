@@ -14,11 +14,15 @@ import {IRewardSplitter} from '../interfaces/IRewardSplitter.sol';
  to split the rewards of the fee recipient of the vault based on configured shares
  */
 contract EthRewardSplitter is ReentrancyGuardUpgradeable, RewardSplitter {
+  /**
+   * @dev Constructor for EthRewardSplitter
+   */
   constructor() RewardSplitter() {}
 
   /// Allows to claim rewards from the vault and receive them to the reward splitter address
   receive() external payable {}
 
+  /// @inheritdoc IRewardSplitter
   function initialize(address _vault) external override initializer {
     __ReentrancyGuard_init();
     __RewardSplitter_init(_vault);

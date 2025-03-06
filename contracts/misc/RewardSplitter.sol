@@ -34,7 +34,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
 
   mapping(address => ShareHolder) private _shareHolders;
   mapping(address => uint256) private _unclaimedRewards;
-  mapping(uint256 positionTicket => address onBehalf) public exitPositions;
+  mapping(uint256 positionTicket => address onBehalf) public override exitPositions;
 
   uint128 private _totalRewards;
   uint128 private _rewardPerShare;
@@ -233,6 +233,12 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     emit RewardsSynced(newTotalRewards, newRewardPerShare);
   }
 
+  /**
+   * @dev Withdraws rewards for the given account
+   * @param account The address of the account to withdraw rewards for
+   * @param rewards The amount of rewards to withdraw
+   * @return The actual amount of rewards withdrawn
+   */
   function _withdrawRewards(address account, uint256 rewards) private returns (uint256) {
     // Sync rewards from the vault
     syncRewards();
