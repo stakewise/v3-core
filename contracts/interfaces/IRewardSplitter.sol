@@ -27,6 +27,13 @@ interface IRewardSplitter is IMulticall {
   }
 
   /**
+   * @notice Event emitted when the claim on behalf flag is updated
+   * @param caller The address of the account that called the function
+   * @param enabled The flag indicating whether the claim on behalf is enabled
+   */
+  event ClaimOnBehalfUpdated(address caller, bool enabled);
+
+  /**
    * @notice Event emitted when the number of shares is increased for an account
    * @param account The address of the account for which the shares were increased
    * @param amount The amount of shares that were added
@@ -55,29 +62,68 @@ interface IRewardSplitter is IMulticall {
   event RewardsWithdrawn(address indexed account, uint256 amount);
 
   /**
+   * @notice Event emitted when the rewards are claimed on behalf
+   * @param onBehalf The address of the account on behalf of which the rewards were claimed
+   * @param positionTicket The position ticket in the exit queue
+   * @param amount The amount of rewards that were claimed
+   */
+  event ExitQueueEnteredOnBehalf(address indexed onBehalf, uint256 positionTicket, uint256 amount);
+
+  /**
+   * @notice Event emitted when the exited assets are claimed on behalf
+   * @param onBehalf The address of the account on behalf of which the assets were claimed
+   * @param positionTicket The position ticket in the exit queue
+   * @param amount The amount of assets that were claimed
+   */
+  event ExitedAssetsClaimedOnBehalf(
+    address indexed onBehalf,
+    uint256 positionTicket,
+    uint256 amount
+  );
+
+  /**
    * @notice The vault to which the RewardSplitter is connected
    * @return The address of the vault
    */
-  function vault() external returns (address);
+  function vault() external view returns (address);
 
   /**
    * @notice The total number of shares in the splitter
    * @return The total number of shares
    */
-  function totalShares() external returns (uint256);
+  function totalShares() external view returns (uint256);
+
+  /**
+   * @notice Returns the address of shareholder on behalf of which the rewards are claimed
+   * @param exitPosition The position in the exit queue
+   * @return onBehalf The address of shareholder
+   */
+  function exitPositions(uint256 exitPosition) external view returns (address onBehalf);
+
+  /**
+   * @notice Returns whether the claim on behalf is enabled
+   * @return `true` if the claim on behalf is enabled, `false` otherwise
+   */
+  function isClaimOnBehalfEnabled() external view returns (bool);
 
   /**
    * @notice The total amount of unclaimed rewards in the splitter
    * @return The total amount of rewards
    */
-  function totalRewards() external returns (uint128);
+  function totalRewards() external view returns (uint128);
 
   /**
    * @notice Initializes the RewardSplitter contract
-   * @param owner The address of the owner of the RewardSplitter contract
    * @param _vault The address of the vault to which the RewardSplitter will be connected
    */
-  function initialize(address owner, address _vault) external;
+  function initialize(address _vault) external;
+
+  /**
+   * @notice Sets the flag indicating whether the claim on behalf is enabled.
+   * @param enabled The flag indicating whether the claim on behalf is enabled
+   * Can only be called by the vault admin.
+   */
+  function setClaimOnBehalf(bool enabled) external;
 
   /**
    * @notice Retrieves the amount of splitter shares for the given account.
@@ -137,6 +183,29 @@ interface IRewardSplitter is IMulticall {
     uint256 rewards,
     address receiver
   ) external returns (uint256 positionTicket);
+
+  /**
+   * @notice Enters the exit queue on behalf of the shareholder. Can only be called if claim on behalf is enabled.
+   * @param rewards The amount of rewards to send to the exit queue
+   * @param onBehalf The address of the account on behalf of which the rewards are sent to the exit queue
+   * @return positionTicket The position ticket of the exit queue
+   */
+  function enterExitQueueOnBehalf(
+    uint256 rewards,
+    address onBehalf
+  ) external returns (uint256 positionTicket);
+
+  /**
+   * @notice Claims the exited assets from the vault.
+   * @param positionTicket The position ticket in the exit queue
+   * @param timestamp The timestamp when the shares entered the exit queue
+   * @param exitQueueIndex The exit queue index of the exit request
+   */
+  function claimExitedAssetsOnBehalf(
+    uint256 positionTicket,
+    uint256 timestamp,
+    uint256 exitQueueIndex
+  ) external;
 
   /**
    * @notice Syncs the rewards from the vault to the splitter. The vault state must be up-to-date.

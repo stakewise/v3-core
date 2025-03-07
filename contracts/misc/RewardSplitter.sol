@@ -7,19 +7,20 @@ import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {OwnableUpgradeable} from '@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol';
 import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
 import {IRewardSplitter} from '../interfaces/IRewardSplitter.sol';
 import {IVaultState} from '../interfaces/IVaultState.sol';
 import {IVaultEnterExit} from '../interfaces/IVaultEnterExit.sol';
+import {IVaultAdmin} from '../interfaces/IVaultAdmin.sol';
 import {Multicall} from '../base/Multicall.sol';
+import {Errors} from '../libraries/Errors.sol';
 
 /**
  * @title RewardSplitter
  * @author StakeWise
- * @notice The RewardSplitter can be used to split the rewards of the fee recipient of the vault based on configures shares
+ * @notice The RewardSplitter can be used to split the rewards of the fee recipient of the vault based on configured shares
  */
-contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, Multicall {
+abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
   uint256 private constant _wad = 1e18;
 
   /// @inheritdoc IRewardSplitter
@@ -28,21 +29,34 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   /// @inheritdoc IRewardSplitter
   uint256 public override totalShares;
 
+  /// @inheritdoc IRewardSplitter
+  bool public override isClaimOnBehalfEnabled;
+
   mapping(address => ShareHolder) private _shareHolders;
   mapping(address => uint256) private _unclaimedRewards;
+  mapping(uint256 positionTicket => address onBehalf) public override exitPositions;
 
   uint128 private _totalRewards;
   uint128 private _rewardPerShare;
 
-  /// @custom:oz-upgrades-unsafe-allow constructor
+  /**
+   * @dev Modifier to check if the caller is the vault admin
+   */
+  modifier onlyVaultAdmin() {
+    if (msg.sender != IVaultAdmin(vault).admin()) {
+      revert Errors.AccessDenied();
+    }
+    _;
+  }
+
   constructor() {
     _disableInitializers();
   }
 
   /// @inheritdoc IRewardSplitter
-  function initialize(address owner, address _vault) external override initializer {
-    __Ownable_init(owner);
-    vault = _vault;
+  function setClaimOnBehalf(bool enabled) external onlyVaultAdmin {
+    isClaimOnBehalfEnabled = enabled;
+    emit ClaimOnBehalfUpdated(msg.sender, enabled);
   }
 
   /// @inheritdoc IRewardSplitter
@@ -74,7 +88,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   }
 
   /// @inheritdoc IRewardSplitter
-  function increaseShares(address account, uint128 amount) external override onlyOwner {
+  function increaseShares(address account, uint128 amount) external override onlyVaultAdmin {
     if (account == address(0)) revert InvalidAccount();
     if (amount == 0) revert InvalidAmount();
 
@@ -96,7 +110,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
   }
 
   /// @inheritdoc IRewardSplitter
-  function decreaseShares(address account, uint128 amount) external override onlyOwner {
+  function decreaseShares(address account, uint128 amount) external override onlyVaultAdmin {
     if (account == address(0)) revert InvalidAccount();
     if (amount == 0) revert InvalidAmount();
 
@@ -124,7 +138,7 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
 
   /// @inheritdoc IRewardSplitter
   function claimVaultTokens(uint256 rewards, address receiver) external override {
-    _withdrawRewards(msg.sender, rewards);
+    rewards = _withdrawRewards(msg.sender, rewards);
     // NB! will revert if vault is not ERC-20
     SafeERC20.safeTransfer(IERC20(vault), receiver, rewards);
   }
@@ -134,9 +148,59 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
     uint256 rewards,
     address receiver
   ) external override returns (uint256 positionTicket) {
-    _withdrawRewards(msg.sender, rewards);
+    rewards = _withdrawRewards(msg.sender, rewards);
     return IVaultEnterExit(vault).enterExitQueue(rewards, receiver);
   }
+
+  /// @inheritdoc IRewardSplitter
+  function enterExitQueueOnBehalf(
+    uint256 rewards,
+    address onBehalf
+  ) external override returns (uint256 positionTicket) {
+    if (!isClaimOnBehalfEnabled) revert Errors.AccessDenied();
+
+    rewards = _withdrawRewards(onBehalf, rewards);
+
+    // Use the reward splitter address as receiver. This allows the reward splitter to claim the assets.
+    positionTicket = IVaultEnterExit(vault).enterExitQueue(rewards, address(this));
+    exitPositions[positionTicket] = onBehalf;
+
+    emit ExitQueueEnteredOnBehalf(onBehalf, positionTicket, rewards);
+  }
+
+  /// @inheritdoc IRewardSplitter
+  function claimExitedAssetsOnBehalf(
+    uint256 positionTicket,
+    uint256 timestamp,
+    uint256 exitQueueIndex
+  ) external override {
+    address onBehalf = exitPositions[positionTicket];
+    if (onBehalf == address(0)) revert Errors.InvalidPosition();
+
+    // calculate exited tickets and assets
+    (uint256 leftTickets, , uint256 exitedAssets) = IVaultEnterExit(vault).calculateExitedAssets(
+      address(this),
+      positionTicket,
+      timestamp,
+      exitQueueIndex
+    );
+    // disallow partial claims (1 ticket could be a rounding error)
+    if (leftTickets > 1) revert Errors.ExitRequestNotProcessed();
+
+    IVaultEnterExit(vault).claimExitedAssets(positionTicket, timestamp, exitQueueIndex);
+    delete exitPositions[positionTicket];
+
+    _transferRewards(onBehalf, exitedAssets);
+
+    emit ExitedAssetsClaimedOnBehalf(onBehalf, positionTicket, exitedAssets);
+  }
+
+  /**
+   * @dev Transfers the specified amount of rewards to the shareholder
+   * @param shareholder The address of the shareholder
+   * @param amount The amount of rewards to transfer
+   */
+  function _transferRewards(address shareholder, uint256 amount) internal virtual;
 
   /// @inheritdoc IRewardSplitter
   function syncRewards() public override {
@@ -169,17 +233,44 @@ contract RewardSplitter is IRewardSplitter, Initializable, OwnableUpgradeable, M
     emit RewardsSynced(newTotalRewards, newRewardPerShare);
   }
 
-  function _withdrawRewards(address account, uint256 rewards) private {
+  /**
+   * @dev Withdraws rewards for the given account
+   * @param account The address of the account to withdraw rewards for
+   * @param rewards The amount of rewards to withdraw
+   * @return The actual amount of rewards withdrawn
+   */
+  function _withdrawRewards(address account, uint256 rewards) private returns (uint256) {
+    // Sync rewards from the vault
+    syncRewards();
+
     // get user total number of rewards
     uint256 accountRewards = rewardsOf(account);
 
-    // update state
+    // Set actual amount of rewards if user requested to withdraw all available rewards
+    if (rewards == type(uint256).max) {
+      rewards = accountRewards;
+    }
+
+    // withdraw shareholder rewards from the splitter
     _totalRewards -= SafeCast.toUint128(rewards);
+
+    // update shareholder
     // reverts if withdrawn rewards exceed total
     _unclaimedRewards[account] = accountRewards - rewards;
     _shareHolders[account].rewardPerShare = _rewardPerShare;
 
     // emit event
     emit RewardsWithdrawn(account, rewards);
+
+    // return actual amount of rewards withdrawn
+    return rewards;
+  }
+
+  /**
+   * @dev Initializes the RewardSplitter contract
+   * @param _vault The address of the vault to which the RewardSplitter will be connected
+   */
+  function __RewardSplitter_init(address _vault) internal onlyInitializing {
+    vault = _vault;
   }
 }

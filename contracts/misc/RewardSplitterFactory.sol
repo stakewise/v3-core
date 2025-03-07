@@ -27,7 +27,7 @@ contract RewardSplitterFactory is IRewardSplitterFactory {
   function createRewardSplitter(address vault) external override returns (address rewardSplitter) {
     // deploy and initialize reward splitter
     rewardSplitter = Clones.clone(implementation);
-    IRewardSplitter(rewardSplitter).initialize(msg.sender, vault);
+    IRewardSplitter(rewardSplitter).initialize(vault);
 
     // emit event
     emit RewardSplitterCreated(msg.sender, vault, rewardSplitter);
