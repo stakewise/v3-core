@@ -15,7 +15,7 @@ import {
   ZERO_BYTES32,
 } from './constants'
 import { getOraclesSignatures } from './fixtures'
-import { EthRestakeVaultType, EthVaultType, GnoVaultType } from './types'
+import { EthVaultType, GnoVaultType } from './types'
 
 export const secretKeys = [
   '0x2c66340f2d886f3fc4cfef10a802ddbaf4a37ffb49533b604f8a50804e8d198f',
@@ -190,31 +190,20 @@ export function appendDepositData(
 }
 
 export async function createEthValidatorsData(
-  vault: EthVaultType | GnoVaultType | EthRestakeVaultType,
+  vault: EthVaultType | GnoVaultType,
   genesisVaultPoolEscrow: string | null = null
 ): Promise<EthValidatorsData> {
   const validatorDeposit = ethers.parseEther('32')
 
   let withdrawalAddress: string
-  let isRestakeVault = false
   if (genesisVaultPoolEscrow !== null) {
     withdrawalAddress = genesisVaultPoolEscrow
-  } else if ((<EthRestakeVaultType>vault).restakeOperatorsManager) {
-    isRestakeVault = true
-    const eigenPods = await (<EthRestakeVaultType>vault).getEigenPods()
-    if (eigenPods.length === 0) {
-      throw new Error('No eigen pods found')
-    }
-    withdrawalAddress = eigenPods[0]
   } else {
     withdrawalAddress = await vault.getAddress()
   }
 
   const withdrawalCredentials = getWithdrawalCredentials(withdrawalAddress)
-  let validators = await createValidators(validatorDeposit, withdrawalCredentials)
-  if (isRestakeVault) {
-    validators = validators.map((v) => Buffer.concat([v, ethers.getBytes(withdrawalAddress)]))
-  }
+  const validators = await createValidators(validatorDeposit, withdrawalCredentials)
   const tree = StandardMerkleTree.of(
     validators.map((v, i) => [v, i]),
     ['bytes', 'uint256']
@@ -233,7 +222,7 @@ export async function getEthValidatorsSigningData(
   deadline: bigint,
   exitSignaturesIpfsHash: string,
   keeper: Keeper,
-  vault: EthVaultType | GnoVaultType | EthRestakeVaultType,
+  vault: EthVaultType | GnoVaultType,
   validatorsRegistryRoot: BytesLike
 ) {
   return {
@@ -257,7 +246,7 @@ export async function getEthValidatorsSigningData(
 
 export async function getValidatorsManagerSigningData(
   validators: Buffer,
-  vault: EthVaultType | GnoVaultType | EthRestakeVaultType,
+  vault: EthVaultType | GnoVaultType,
   validatorsRegistryRoot: BytesLike
 ) {
   return {
@@ -322,7 +311,7 @@ export function getValidatorsMultiProof(
 }
 
 export async function registerEthValidator(
-  vault: EthVaultType | GnoVaultType | EthRestakeVaultType,
+  vault: EthVaultType | GnoVaultType,
   keeper: Keeper,
   depositDataRegistry: DepositDataRegistry,
   admin: Signer,

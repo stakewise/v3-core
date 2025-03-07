@@ -26,11 +26,6 @@
   },
   {
     "inputs": [],
-    "name": "EigenPodNotFound",
-    "type": "error"
-  },
-  {
-    "inputs": [],
     "name": "ExitRequestNotProcessed",
     "type": "error"
   },
@@ -167,11 +162,6 @@
   {
     "inputs": [],
     "name": "InvalidVault",
-    "type": "error"
-  },
-  {
-    "inputs": [],
-    "name": "InvalidWithdrawalCredentials",
     "type": "error"
   },
   {

@@ -73,16 +73,6 @@ export type NetworkConfig = {
 
   // PriceFeed
   priceFeedDescription: string
-
-  // Cumulative MerkleDrop
-  liquidityCommittee: string
-  swiseToken: string
-
-  // Restake vault settings
-  eigenPodManager: string
-  eigenDelegationManager: string
-  eigenDelayedWithdrawalRouter: string
-  restakeFactoryOwner: string
 }
 
 export type GovernorCall = {

@@ -28,7 +28,7 @@ import {
 } from './utils'
 import { getOraclesSignatures } from './fixtures'
 import { MAINNET_FORK } from '../../helpers/constants'
-import { EthRestakeVaultType, EthVaultType } from './types'
+import { EthVaultType } from './types'
 
 export type RewardsTree = StandardMerkleTree<[string, bigint, bigint]>
 
@@ -140,7 +140,7 @@ export function getRewardsRootProof(tree: RewardsTree, vaultReward: VaultReward)
 }
 
 export async function collateralizeEthVault(
-  vault: EthVaultType | EthRestakeVaultType,
+  vault: EthVaultType,
   keeper: Keeper,
   depositDataRegistry: DepositDataRegistry,
   admin: Signer,
