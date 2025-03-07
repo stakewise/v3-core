@@ -32,7 +32,6 @@ task('eth-upgrade', 'upgrades StakeWise for Ethereum').setAction(async (taskArgs
   const genesisVaultAddress = deployment.EthGenesisVault
   const foxVaultAddress = deployment.EthFoxVault
   const priceFeedAddress = deployment.PriceFeed
-  const cumulativeMerkleDropAddress = deployment.CumulativeMerkleDrop
   const osTokenConfigAddress = deployment.OsTokenConfig
   const depositDataRegistryAddress = deployment.DepositDataRegistry
   const ethValidatorsCheckerAddress = deployment.EthValidatorsChecker
@@ -157,7 +156,6 @@ task('eth-upgrade', 'upgrades StakeWise for Ethereum').setAction(async (taskArgs
     OsTokenFlashLoans: osTokenFlashLoansAddress,
     PriceFeed: priceFeedAddress,
     RewardSplitterFactory: rewardSplitterFactoryAddress,
-    CumulativeMerkleDrop: cumulativeMerkleDropAddress,
   }
   let json = JSON.stringify(addresses, null, 2)
   let fileName = `${DEPLOYMENTS_DIR}/${networkName}.json`
