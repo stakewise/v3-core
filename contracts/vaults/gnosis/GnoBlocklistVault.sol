@@ -27,13 +27,14 @@ contract GnoBlocklistVault is Initializable, GnoVault, VaultBlocklist, IGnoBlock
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
+   * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param gnoToken The address of the GNO token
-   * @param xdaiExchange The address of the xDAI exchange
+   * @param gnosisDaiDistributor The address of the GnosisDaiDistributor contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -41,26 +42,28 @@ contract GnoBlocklistVault is Initializable, GnoVault, VaultBlocklist, IGnoBlock
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address _validatorsWithdrawals,
+    address _validatorsConsolidations,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
     address sharedMevEscrow,
-    address depositDataRegistry,
     address gnoToken,
-    address xdaiExchange,
+    address gnosisDaiDistributor,
     uint256 exitingAssetsClaimDelay
   )
     GnoVault(
       _keeper,
       _vaultsRegistry,
       _validatorsRegistry,
+      _validatorsWithdrawals,
+      _validatorsConsolidations,
       osTokenVaultController,
       osTokenConfig,
       osTokenVaultEscrow,
       sharedMevEscrow,
-      depositDataRegistry,
       gnoToken,
-      xdaiExchange,
+      gnosisDaiDistributor,
       exitingAssetsClaimDelay
     )
   {}

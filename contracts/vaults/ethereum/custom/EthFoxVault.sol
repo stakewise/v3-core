@@ -4,6 +4,7 @@ pragma solidity ^0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IEthFoxVault} from '../../../interfaces/IEthFoxVault.sol';
+import {Errors} from '../../../libraries/Errors.sol';
 import {Multicall} from '../../../base/Multicall.sol';
 import {VaultValidators} from '../../modules/VaultValidators.sol';
 import {VaultAdmin} from '../../modules/VaultAdmin.sol';
@@ -45,6 +46,8 @@ contract EthFoxVault is
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
+   * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
    * @param sharedMevEscrow The address of the shared MEV escrow
    * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
@@ -54,12 +57,19 @@ contract EthFoxVault is
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address _validatorsWithdrawals,
+    address _validatorsConsolidations,
     address sharedMevEscrow,
-    address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
-    VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
-    VaultValidators(depositDataRegistry)
+    VaultImmutables(
+      _keeper,
+      _vaultsRegistry,
+      _validatorsRegistry,
+      _validatorsWithdrawals,
+      _validatorsConsolidations
+    )
+    VaultValidators()
     VaultEnterExit(exitingAssetsClaimDelay)
     VaultMev(sharedMevEscrow)
   {
@@ -67,24 +77,12 @@ contract EthFoxVault is
   }
 
   /// @inheritdoc IEthFoxVault
-  function initialize(
-    bytes calldata params
-  ) external payable virtual override reinitializer(_version) {
-    // if admin is already set, it's an upgrade
-    if (admin != address(0)) {
-      __EthFoxVault_initV2();
-      return;
+  function initialize(bytes calldata) external payable virtual override reinitializer(_version) {
+    if (admin == address(0)) {
+      revert Errors.UpgradeFailed();
     }
-    // initialize deployed vault
-    EthFoxVaultInitParams memory initParams = abi.decode(params, (EthFoxVaultInitParams));
-    __EthFoxVault_init(initParams);
-    emit EthFoxVaultCreated(
-      initParams.admin,
-      initParams.ownMevEscrow,
-      initParams.capacity,
-      initParams.feePercent,
-      initParams.metadataIpfsHash
-    );
+    __VaultValidators_init();
+    __VaultState_initV3();
   }
 
   /// @inheritdoc IVaultEthStaking
@@ -125,29 +123,6 @@ contract EthFoxVault is
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
     return _version;
-  }
-
-  /**
-   * @dev Initializes the EthFoxVault contract
-   * @param params The decoded parameters for initializing the EthFoxVault contract
-   */
-  function __EthFoxVault_init(EthFoxVaultInitParams memory params) internal onlyInitializing {
-    __VaultAdmin_init(params.admin, params.metadataIpfsHash);
-    // fee recipient is initially set to admin address
-    __VaultFee_init(params.admin, params.feePercent);
-    __VaultState_init(params.capacity);
-    __VaultValidators_init();
-    __VaultMev_init(params.ownMevEscrow);
-    // blocklist manager is initially set to admin address
-    __VaultBlocklist_init(params.admin);
-    __VaultEthStaking_init();
-  }
-
-  /**
-   * @dev Initializes the EthFoxVault V2 contract
-   */
-  function __EthFoxVault_initV2() internal onlyInitializing {
-    __VaultValidators_initV2();
   }
 
   /**

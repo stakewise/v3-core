@@ -5,7 +5,6 @@ pragma solidity ^0.8.22;
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
-import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {IVaultEnterExit} from '../../interfaces/IVaultEnterExit.sol';
 import {ExitQueue} from '../../libraries/ExitQueue.sol';
 import {Errors} from '../../libraries/Errors.sol';

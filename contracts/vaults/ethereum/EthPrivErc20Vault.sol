@@ -19,7 +19,7 @@ import {EthErc20Vault, IEthErc20Vault} from './EthErc20Vault.sol';
  */
 contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEthPrivErc20Vault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 4;
+  uint8 private constant _version = 5;
 
   /**
    * @dev Constructor
@@ -28,6 +28,8 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
+   * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
@@ -40,22 +42,24 @@ contract EthPrivErc20Vault is Initializable, EthErc20Vault, VaultWhitelist, IEth
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address _validatorsWithdrawals,
+    address _validatorsConsolidations,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
     address sharedMevEscrow,
-    address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
     EthErc20Vault(
       _keeper,
       _vaultsRegistry,
       _validatorsRegistry,
+      _validatorsWithdrawals,
+      _validatorsConsolidations,
       osTokenVaultController,
       osTokenConfig,
       osTokenVaultEscrow,
       sharedMevEscrow,
-      depositDataRegistry,
       exitingAssetsClaimDelay
     )
   {}

@@ -25,7 +25,7 @@ contract EthValidatorsChecker is ValidatorsChecker {
   ) ValidatorsChecker(validatorsRegistry, keeper, vaultsRegistry, depositDataRegistry) {}
 
   /// @inheritdoc ValidatorsChecker
-  function _depositAmount() internal pure override returns (uint256) {
+  function _validatorMinEffectiveBalance() internal pure override returns (uint256) {
     return 32 ether;
   }
 }
