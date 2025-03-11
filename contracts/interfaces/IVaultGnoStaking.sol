@@ -12,7 +12,7 @@ import {IVaultEnterExit} from './IVaultEnterExit.sol';
  */
 interface IVaultGnoStaking is IVaultValidators, IVaultEnterExit {
   /**
-   * @notice Emitted when xDAI is swapped to GNO
+   * @notice Emitted when xDAI is swapped to GNO (deprecated)
    * @param amount The amount of xDAI swapped
    * @param assets The amount of GNO received
    */
@@ -30,9 +30,4 @@ interface IVaultGnoStaking is IVaultValidators, IVaultEnterExit {
     address receiver,
     address referrer
   ) external returns (uint256 shares);
-
-  /**
-   * @notice Swap xDAI accumulated in the vault to GNO
-   */
-  function swapXdaiToGno() external;
 }

@@ -18,7 +18,7 @@ import {EthVault, IEthVault} from './EthVault.sol';
  */
 contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 4;
+  uint8 private constant _version = 5;
 
   /**
    * @dev Constructor
@@ -27,11 +27,12 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
+   * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -39,22 +40,24 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address _validatorsWithdrawals,
+    address _validatorsConsolidations,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
     address sharedMevEscrow,
-    address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
     EthVault(
       _keeper,
       _vaultsRegistry,
       _validatorsRegistry,
+      _validatorsWithdrawals,
+      _validatorsConsolidations,
       osTokenVaultController,
       osTokenConfig,
       osTokenVaultEscrow,
       sharedMevEscrow,
-      depositDataRegistry,
       exitingAssetsClaimDelay
     )
   {}

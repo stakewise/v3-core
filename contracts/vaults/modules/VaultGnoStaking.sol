@@ -4,13 +4,10 @@ pragma solidity ^0.8.22;
 
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {SafeERC20} from '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
-import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import {IGnoValidatorsRegistry} from '../../interfaces/IGnoValidatorsRegistry.sol';
-import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
-import {IXdaiExchange} from '../../interfaces/IXdaiExchange.sol';
 import {IVaultGnoStaking} from '../../interfaces/IVaultGnoStaking.sol';
+import {IGnosisDaiDistributor} from '../../interfaces/IGnosisDaiDistributor.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultAdmin} from './VaultAdmin.sol';
 import {VaultState} from './VaultState.sol';
@@ -24,7 +21,6 @@ import {VaultEnterExit} from './VaultEnterExit.sol';
  */
 abstract contract VaultGnoStaking is
   Initializable,
-  ReentrancyGuardUpgradeable,
   VaultAdmin,
   VaultState,
   VaultValidators,
@@ -34,19 +30,19 @@ abstract contract VaultGnoStaking is
   uint256 private constant _securityDeposit = 1e9;
 
   IERC20 internal immutable _gnoToken;
-  address private immutable _xdaiExchange;
+  IGnosisDaiDistributor private immutable _gnosisDaiDistributor;
 
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param gnoToken The address of the GNO token
-   * @param xdaiExchange The address of the xDAI exchange
+   * @param gnosisDaiDistributor The address of the xDAI distributor contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address gnoToken, address xdaiExchange) {
+  constructor(address gnoToken, address gnosisDaiDistributor) {
     _gnoToken = IERC20(gnoToken);
-    _xdaiExchange = xdaiExchange;
+    _gnosisDaiDistributor = IGnosisDaiDistributor(gnosisDaiDistributor);
   }
 
   /// @inheritdoc IVaultGnoStaking
@@ -60,18 +56,14 @@ abstract contract VaultGnoStaking is
     shares = _deposit(receiver, assets, referrer);
   }
 
-  /// @inheritdoc IVaultGnoStaking
-  function swapXdaiToGno() external override nonReentrant {
+  /// @inheritdoc VaultState
+  function _processTotalAssetsDelta(int256 assetsDelta) internal virtual override {
+    super._processTotalAssetsDelta(assetsDelta);
+
     uint256 balance = address(this).balance;
-    // skip swapping for small amounts
-    if (balance < 1 gwei) return;
+    if (balance < 0.1 ether) return;
 
-    // swap through xDAI exchange
-    uint256 assets = IXdaiExchange(_xdaiExchange).swap{value: balance}();
-
-    // update total assets
-    _processTotalAssetsDelta(SafeCast.toInt256(assets));
-    emit XdaiSwapped(balance, assets);
+    _gnosisDaiDistributor.distributeDai{value: balance}();
   }
 
   /**
@@ -80,48 +72,27 @@ abstract contract VaultGnoStaking is
   receive() external payable {}
 
   /// @inheritdoc VaultValidators
-  function _registerSingleValidator(bytes calldata validator) internal virtual override {
-    _registerMultipleValidators(validator);
-  }
+  function _registerValidator(
+    bytes calldata validator
+  ) internal virtual override returns (bytes calldata publicKey, uint256 depositAmount) {
+    publicKey = validator[:48];
+    bytes calldata signature = validator[48:144];
+    bytes32 depositDataRoot = bytes32(validator[144:176]);
+    bytes1 withdrawalCredsPrefix = bytes1(validator[176:177]);
+    // deposit amount was encoded in gwei to save calldata space
+    depositAmount = abi.decode(validator[177:185], (uint64)) * 1 gwei;
 
-  /// @inheritdoc VaultValidators
-  function _registerMultipleValidators(bytes calldata validators) internal virtual override {
-    // pull withdrawals from the deposit contract
-    _pullWithdrawals();
-
-    // variables used for batch deposit
-    bytes memory publicKeys;
-    bytes memory signatures;
-
-    // prepare deposit data
-    uint256 startIndex;
-    uint256 endIndex;
-    bytes calldata validator;
-    uint256 validatorLength = _validatorLength();
-    uint256 validatorsCount = validators.length / validatorLength;
-    bytes32[] memory depositDataRoots = new bytes32[](validatorsCount);
-    for (uint256 i = 0; i < validatorsCount; ) {
-      endIndex += validatorLength;
-      validator = validators[startIndex:endIndex];
-      publicKeys = bytes.concat(publicKeys, validator[:48]);
-      signatures = bytes.concat(signatures, validator[48:144]);
-      depositDataRoots[i] = bytes32(validator[144:validatorLength]);
-      startIndex = endIndex;
-      emit ValidatorRegistered(validator[:48]);
-      startIndex = endIndex;
-      unchecked {
-        // cannot realistically overflow
-        ++i;
-      }
+    // check withdrawal credentials prefix
+    if (withdrawalCredsPrefix != bytes1(0x01) && withdrawalCredsPrefix != bytes1(0x02)) {
+      revert Errors.InvalidWithdrawalCredentialsPrefix();
     }
 
-    // register validators batch
-    _gnoToken.approve(_validatorsRegistry, _validatorDeposit() * validatorsCount);
-    IGnoValidatorsRegistry(_validatorsRegistry).batchDeposit(
-      publicKeys,
-      _withdrawalCredentials(),
-      signatures,
-      depositDataRoots
+    IGnoValidatorsRegistry(_validatorsRegistry).deposit(
+      publicKey,
+      abi.encodePacked(withdrawalCredsPrefix, bytes11(0x0), address(this)),
+      signature,
+      depositDataRoot,
+      depositAmount
     );
   }
 
@@ -144,21 +115,8 @@ abstract contract VaultGnoStaking is
   }
 
   /// @inheritdoc VaultValidators
-  function _validatorLength() internal pure virtual override returns (uint256) {
-    return 176;
-  }
-
-  /// @inheritdoc VaultValidators
-  function _validatorDeposit() internal pure virtual override returns (uint256) {
+  function _validatorMinEffectiveBalance() internal pure override returns (uint256) {
     return 1 ether;
-  }
-
-  /**
-   * @dev Internal function for calculating Vault withdrawal credentials
-   * @return The credentials used for the validators withdrawals
-   */
-  function _withdrawalCredentials() internal view virtual returns (bytes memory) {
-    return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
   }
 
   /**
@@ -172,11 +130,20 @@ abstract contract VaultGnoStaking is
    * @dev Initializes the VaultGnoStaking contract
    */
   function __VaultGnoStaking_init() internal onlyInitializing {
-    __ReentrancyGuard_init();
+    // approve transferring GNO for validators registration
+    _gnoToken.approve(_validatorsRegistry, type(uint256).max);
 
     _deposit(address(this), _securityDeposit, address(0));
     // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
     SafeERC20.safeTransferFrom(_gnoToken, msg.sender, address(this), _securityDeposit);
+  }
+
+  /**
+   * @dev Initializes the VaultGnoStaking contract upgrade to V3
+   */
+  function __VaultGnoStaking_initV3() internal onlyInitializing {
+    // approve transferring GNO for validators registration
+    _gnoToken.approve(_validatorsRegistry, type(uint256).max);
   }
 
   /**

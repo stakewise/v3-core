@@ -2,10 +2,11 @@
 
 pragma solidity ^0.8.22;
 
+import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IGnoErc20Vault} from '../../interfaces/IGnoErc20Vault.sol';
 import {IGnoVaultFactory} from '../../interfaces/IGnoVaultFactory.sol';
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {Multicall} from '../../base/Multicall.sol';
 import {ERC20Upgradeable} from '../../base/ERC20Upgradeable.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
@@ -50,13 +51,14 @@ contract GnoErc20Vault is
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
+   * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param gnoToken The address of the GNO token
-   * @param xdaiExchange The address of the xDAI exchange
+   * @param gnosisDaiDistributor The address of the GnosisDaiDistributor contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -64,21 +66,28 @@ contract GnoErc20Vault is
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address _validatorsWithdrawals,
+    address _validatorsConsolidations,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
     address sharedMevEscrow,
-    address depositDataRegistry,
     address gnoToken,
-    address xdaiExchange,
+    address gnosisDaiDistributor,
     uint256 exitingAssetsClaimDelay
   )
-    VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
-    VaultValidators(depositDataRegistry)
+    VaultImmutables(
+      _keeper,
+      _vaultsRegistry,
+      _validatorsRegistry,
+      _validatorsWithdrawals,
+      _validatorsConsolidations
+    )
+    VaultValidators()
     VaultEnterExit(exitingAssetsClaimDelay)
     VaultOsToken(osTokenVaultController, osTokenConfig, osTokenVaultEscrow)
     VaultMev(sharedMevEscrow)
-    VaultGnoStaking(gnoToken, xdaiExchange)
+    VaultGnoStaking(gnoToken, gnosisDaiDistributor)
   {
     _disableInitializers();
   }
@@ -145,6 +154,13 @@ contract GnoErc20Vault is
   }
 
   /// @inheritdoc VaultState
+  function _processTotalAssetsDelta(
+    int256 assetsDelta
+  ) internal virtual override(VaultState, VaultGnoStaking) {
+    super._processTotalAssetsDelta(assetsDelta);
+  }
+
+  /// @inheritdoc VaultState
   function _updateExitQueue()
     internal
     virtual
@@ -170,12 +186,25 @@ contract GnoErc20Vault is
     super._burnShares(owner, shares);
   }
 
+  /// @inheritdoc VaultValidators
+  function _checkCanWithdrawValidators(
+    bytes calldata validators,
+    bytes calldata validatorsManagerSignature
+  ) internal override {
+    if (
+      !_isValidatorsManager(validators, validatorsManagerSignature) &&
+      msg.sender != _osTokenConfig.redeemer()
+    ) {
+      revert Errors.AccessDenied();
+    }
+  }
+
   /**
    * @dev Initializes the GnoErc20Vault contract upgrade to V3
    */
   function __GnoErc20Vault_initV3() internal {
     __VaultState_initV3();
-    __VaultValidators_initV3();
+    __VaultGnoStaking_initV3();
   }
 
   /**

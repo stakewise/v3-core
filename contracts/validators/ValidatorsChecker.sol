@@ -13,7 +13,6 @@ import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IDepositDataRegistry} from '../interfaces/IDepositDataRegistry.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
-import {Errors} from '../libraries/Errors.sol';
 
 interface IVaultValidatorsV1 {
   function validatorsRoot() external view returns (bytes32);
@@ -28,9 +27,6 @@ interface IVaultValidatorsV1 {
  *  * checking deposit data root
  */
 abstract contract ValidatorsChecker is IValidatorsChecker {
-  bytes32 private constant _registerValidatorsTypeHash =
-    keccak256('VaultValidators(bytes32 validatorsRegistryRoot,bytes validators)');
-
   IValidatorsRegistry private immutable _validatorsRegistry;
   IKeeper private immutable _keeper;
   IVaultsRegistry private immutable _vaultsRegistry;
@@ -65,19 +61,27 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
     if (_validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
       return (block.number, Status.INVALID_VALIDATORS_REGISTRY_ROOT);
     }
-    if (!_vaultsRegistry.vaults(vault) || IVaultVersion(vault).version() < 2) {
+
+    uint256 vaultVersion = IVaultVersion(vault).version();
+    if (!_vaultsRegistry.vaults(vault) || vaultVersion < 2) {
       return (block.number, Status.INVALID_VAULT);
     }
 
     // verify vault has enough assets
     if (
-      !_keeper.isCollateralized(vault) && IVaultState(vault).withdrawableAssets() < _depositAmount()
+      !_keeper.isCollateralized(vault) &&
+      IVaultState(vault).withdrawableAssets() < _validatorMinEffectiveBalance()
     ) {
       return (block.number, Status.INSUFFICIENT_ASSETS);
     }
 
     // compose signing message
-    bytes32 message = _getValidatorsManagerMessageHash(vault, validatorsRegistryRoot, validators);
+    bytes32 message = _getValidatorsManagerMessageHash(
+      vault,
+      vaultVersion,
+      validatorsRegistryRoot,
+      validators
+    );
 
     // verify validators manager ECDSA signature
     if (
@@ -111,7 +115,8 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
 
     // verify vault has enough assets
     if (
-      !_keeper.isCollateralized(vault) && IVaultState(vault).withdrawableAssets() < _depositAmount()
+      !_keeper.isCollateralized(vault) &&
+      IVaultState(vault).withdrawableAssets() < _validatorMinEffectiveBalance()
     ) {
       return (block.number, Status.INSUFFICIENT_ASSETS);
     }
@@ -180,21 +185,41 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
   /**
    * @notice Get the hash to be signed by the validators manager
    * @param vault The address of the vault
+   * @param vaultVersion The version of the vault
    * @param validatorsRegistryRoot The validators registry root
    * @param validators The concatenation of the validators' public key, deposit signature, deposit root and optionally withdrawal address
    * @return The hash to be signed by the validators manager
    */
   function _getValidatorsManagerMessageHash(
     address vault,
+    uint256 vaultVersion,
     bytes32 validatorsRegistryRoot,
     bytes calldata validators
   ) private view returns (bytes32) {
     bytes32 domainSeparator = _computeVaultValidatorsDomain(vault);
+    if (vaultVersion < 5) {
+      // for vaults before Pectra, the nonce equals to the validators registry deposit root
+      return
+        MessageHashUtils.toTypedDataHash(
+          domainSeparator,
+          keccak256(
+            abi.encode(
+              keccak256('VaultValidators(bytes32 validatorsRegistryRoot,bytes validators)'),
+              validatorsRegistryRoot,
+              keccak256(validators)
+            )
+          )
+        );
+    }
     return
       MessageHashUtils.toTypedDataHash(
         domainSeparator,
         keccak256(
-          abi.encode(_registerValidatorsTypeHash, validatorsRegistryRoot, keccak256(validators))
+          abi.encode(
+            keccak256('VaultValidators(uint256 nonce,bytes validators)'),
+            IVaultValidators(vault).validatorsManagerNonce(),
+            keccak256(validators)
+          )
         )
       );
   }
@@ -220,8 +245,8 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
   }
 
   /**
-   * @notice Get the amount of assets required for validator deposit
-   * @return The amount of assets required for deposit
+   * @notice Get the validator minimum effective balance
+   * @return The minimum effective balance for the validator
    */
-  function _depositAmount() internal pure virtual returns (uint256);
+  function _validatorMinEffectiveBalance() internal pure virtual returns (uint256);
 }

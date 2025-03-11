@@ -12,22 +12,24 @@ contract EthPrivVaultV4Mock is EthPrivVault {
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address _validatorsWithdrawals,
+    address _validatorsConsolidations,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
     address sharedMevEscrow,
-    address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
     EthPrivVault(
       _keeper,
       _vaultsRegistry,
       _validatorsRegistry,
+      _validatorsWithdrawals,
+      _validatorsConsolidations,
       osTokenVaultController,
       osTokenConfig,
       osTokenVaultEscrow,
       sharedMevEscrow,
-      depositDataRegistry,
       exitingAssetsClaimDelay
     )
   {}

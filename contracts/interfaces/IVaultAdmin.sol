@@ -16,6 +16,13 @@ interface IVaultAdmin {
   event MetadataUpdated(address indexed caller, string metadataIpfsHash);
 
   /**
+   * @notice Event emitted on admin update
+   * @param caller The address of the function caller
+   * @param newAdmin The new admin address
+   */
+  event AdminUpdated(address indexed caller, address newAdmin);
+
+  /**
    * @notice The Vault admin
    * @return The address of the Vault admin
    */
@@ -26,4 +33,10 @@ interface IVaultAdmin {
    * @param metadataIpfsHash The new metadata IPFS hash
    */
   function setMetadata(string calldata metadataIpfsHash) external;
+
+  /**
+   * @notice Function for updating the admin address. Can only be called by Vault current admin.
+   * @param newAdmin The new admin address
+   */
+  function setAdmin(address newAdmin) external;
 }

@@ -108,7 +108,7 @@ library ExitQueue {
     }
 
     if (currTotalTickets > 1 && checkpointAssets == 0 && checkpointIdx + 1 < length) {
-      // only one checkpoint created in __VaultState_initV3 should pass this if
+      // only single checkpoint created during V2 -> V3 migration can pass this if
       checkpoint = _unsafeAccess(self.checkpoints, checkpointIdx + 1);
       uint256 totalShares = checkpoint.totalTickets - currTotalTickets;
       return (positionShares, Math.mulDiv(positionShares, checkpoint.exitedAssets, totalShares));

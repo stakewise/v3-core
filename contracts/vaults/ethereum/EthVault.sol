@@ -6,6 +6,7 @@ import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IEthVault} from '../../interfaces/IEthVault.sol';
 import {IEthVaultFactory} from '../../interfaces/IEthVaultFactory.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {Multicall} from '../../base/Multicall.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultAdmin} from '../modules/VaultAdmin.sol';
@@ -38,7 +39,7 @@ contract EthVault is
   Multicall,
   IEthVault
 {
-  uint8 private constant _version = 4;
+  uint8 private constant _version = 5;
 
   /**
    * @dev Constructor
@@ -47,11 +48,12 @@ contract EthVault is
    * @param _keeper The address of the Keeper contract
    * @param _vaultsRegistry The address of the VaultsRegistry contract
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
+   * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
@@ -59,15 +61,22 @@ contract EthVault is
     address _keeper,
     address _vaultsRegistry,
     address _validatorsRegistry,
+    address _validatorsWithdrawals,
+    address _validatorsConsolidations,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
     address sharedMevEscrow,
-    address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
-    VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
-    VaultValidators(depositDataRegistry)
+    VaultImmutables(
+      _keeper,
+      _vaultsRegistry,
+      _validatorsRegistry,
+      _validatorsWithdrawals,
+      _validatorsConsolidations
+    )
+    VaultValidators()
     VaultEnterExit(exitingAssetsClaimDelay)
     VaultOsToken(osTokenVaultController, osTokenConfig, osTokenVaultEscrow)
     VaultMev(sharedMevEscrow)
@@ -134,6 +143,19 @@ contract EthVault is
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
     return _version;
+  }
+
+  /// @inheritdoc VaultValidators
+  function _checkCanWithdrawValidators(
+    bytes calldata validators,
+    bytes calldata validatorsManagerSignature
+  ) internal override {
+    if (
+      !_isValidatorsManager(validators, validatorsManagerSignature) &&
+      msg.sender != _osTokenConfig.redeemer()
+    ) {
+      revert Errors.AccessDenied();
+    }
   }
 
   /**

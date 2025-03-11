@@ -4,7 +4,6 @@ pragma solidity ^0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IVaultFee} from '../../interfaces/IVaultFee.sol';
-import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultAdmin} from './VaultAdmin.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
@@ -16,6 +15,7 @@ import {VaultImmutables} from './VaultImmutables.sol';
  */
 abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVaultFee {
   uint256 internal constant _maxFeePercent = 10_000; // @dev 100.00 %
+  uint256 private constant _feeUpdateDelay = 7 days;
 
   /// @inheritdoc IVaultFee
   address public override feeRecipient;
@@ -23,10 +23,18 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
   /// @inheritdoc IVaultFee
   uint16 public override feePercent;
 
+  uint64 private _lastUpdateTimestamp;
+
   /// @inheritdoc IVaultFee
   function setFeeRecipient(address _feeRecipient) external override {
     _checkAdmin();
     _setFeeRecipient(_feeRecipient);
+  }
+
+  /// @inheritdoc IVaultFee
+  function setFeePercent(uint16 _feePercent) external override {
+    _checkAdmin();
+    _setFeePercent(_feePercent, false);
   }
 
   /**
@@ -43,15 +51,42 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
   }
 
   /**
+   * @dev Internal function for updating the fee percent
+   * @param _feePercent The new fee percent
+   * @param isVaultCreation Flag indicating whether the fee percent is set during the vault creation
+   */
+  function _setFeePercent(uint16 _feePercent, bool isVaultCreation) private {
+    _checkHarvested();
+    if (_feePercent > _maxFeePercent) revert Errors.InvalidFeePercent();
+
+    if (!isVaultCreation) {
+      if (_lastUpdateTimestamp + _feeUpdateDelay > block.timestamp) {
+        revert Errors.TooEarlyUpdate();
+      }
+
+      // check that the fee percent can be increase only by 20% at a time
+      // if the current fee is 0, then it can cannot exceed 1% initially
+      uint256 currentFeePercent = feePercent;
+      uint256 maxFeePercent = currentFeePercent > 0 ? (currentFeePercent * 120) / 100 : 100;
+      if (maxFeePercent < _feePercent) {
+        revert Errors.InvalidFeePercent();
+      }
+    }
+
+    // update fee percent
+    feePercent = _feePercent;
+    _lastUpdateTimestamp = uint64(block.timestamp);
+    emit FeePercentUpdated(msg.sender, _feePercent);
+  }
+
+  /**
    * @dev Initializes the VaultFee contract
    * @param _feeRecipient The address of the fee recipient
    * @param _feePercent The fee percent that is charged by the Vault
    */
   function __VaultFee_init(address _feeRecipient, uint16 _feePercent) internal onlyInitializing {
-    if (_feePercent > _maxFeePercent) revert Errors.InvalidFeePercent();
-
     _setFeeRecipient(_feeRecipient);
-    feePercent = _feePercent;
+    _setFeePercent(_feePercent, true);
   }
 
   /**

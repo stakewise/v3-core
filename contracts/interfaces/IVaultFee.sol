@@ -18,6 +18,13 @@ interface IVaultFee is IVaultAdmin {
   event FeeRecipientUpdated(address indexed caller, address indexed feeRecipient);
 
   /**
+   * @notice Event emitted on fee percent update
+   * @param caller The address of the function caller
+   * @param feePercent The new fee percent
+   */
+  event FeePercentUpdated(address indexed caller, uint16 feePercent);
+
+  /**
    * @notice The Vault's fee recipient
    * @return The address of the Vault's fee recipient
    */
@@ -34,4 +41,10 @@ interface IVaultFee is IVaultAdmin {
    * @param _feeRecipient The address of the new fee recipient
    */
   function setFeeRecipient(address _feeRecipient) external;
+
+  /**
+   * @notice Function for updating the fee percent. Can only be called by the admin.
+   * @param _feePercent The new fee percent
+   */
+  function setFeePercent(uint16 _feePercent) external;
 }
