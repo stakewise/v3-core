@@ -100,6 +100,11 @@ abstract contract VaultEthStaking is
     return 32 ether;
   }
 
+  /// @inheritdoc VaultValidators
+  function _validatorMaxEffectiveBalance() internal pure virtual override returns (uint256) {
+    return 2048 ether;
+  }
+
   /**
    * @dev Initializes the VaultEthStaking contract
    */

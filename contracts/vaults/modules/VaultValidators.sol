@@ -240,6 +240,12 @@ abstract contract VaultValidators is
   function _validatorMinEffectiveBalance() internal pure virtual returns (uint256);
 
   /**
+   * @dev Internal function for fetching validator maximum effective balance
+   * @return The maximum effective balance for the validator
+   */
+  function _validatorMaxEffectiveBalance() internal pure virtual returns (uint256);
+
+  /**
    * @dev Internal function for registering multiple validators
    * @param validators The concatenated validators data
    * @param validatorsManagerSignature The optional signature from the validators manager
