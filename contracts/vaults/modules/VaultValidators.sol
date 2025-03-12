@@ -29,7 +29,7 @@ abstract contract VaultValidators is
 {
   bytes32 private constant _registerValidatorsTypeHash =
     keccak256('VaultValidators(uint256 nonce,bytes validators)');
-  uint256 private constant _validatorDepositLength = 185;
+  uint256 internal constant _validatorDepositLength = 209;
   uint256 private constant _validatorWithdrawalLength = 56;
   uint256 private constant _validatorConsolidationLength = 96;
 
