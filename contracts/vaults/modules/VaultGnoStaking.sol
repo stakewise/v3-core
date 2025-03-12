@@ -75,6 +75,9 @@ abstract contract VaultGnoStaking is
   function _registerValidator(
     bytes calldata validator
   ) internal virtual override returns (bytes calldata publicKey, uint256 depositAmount) {
+    // pull withdrawals from the deposit contract
+    _pullWithdrawals();
+
     publicKey = validator[:48];
     bytes calldata signature = validator[48:144];
     bytes32 depositDataRoot = bytes32(validator[144:176]);
@@ -83,7 +86,15 @@ abstract contract VaultGnoStaking is
     depositAmount = abi.decode(validator[177:185], (uint64)) * 1 gwei;
 
     // check withdrawal credentials prefix
-    if (withdrawalCredsPrefix != bytes1(0x01) && withdrawalCredsPrefix != bytes1(0x02)) {
+    if (withdrawalCredsPrefix == bytes1(0x01)) {
+      if (depositAmount > _validatorMinEffectiveBalance()) {
+        revert Errors.InvalidAssets();
+      }
+    } else if (withdrawalCredsPrefix == bytes1(0x02)) {
+      if (depositAmount > _validatorMaxEffectiveBalance()) {
+        revert Errors.InvalidAssets();
+      }
+    } else {
       revert Errors.InvalidWithdrawalCredentialsPrefix();
     }
 
@@ -117,6 +128,11 @@ abstract contract VaultGnoStaking is
   /// @inheritdoc VaultValidators
   function _validatorMinEffectiveBalance() internal pure override returns (uint256) {
     return 1 ether;
+  }
+
+  /// @inheritdoc VaultValidators
+  function _validatorMaxEffectiveBalance() internal pure override returns (uint256) {
+    return 64 ether;
   }
 
   /**
