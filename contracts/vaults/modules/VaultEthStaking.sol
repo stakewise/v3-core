@@ -66,8 +66,7 @@ abstract contract VaultEthStaking is
     bytes calldata signature = validator[48:144];
     bytes32 depositDataRoot = bytes32(validator[144:176]);
     bytes1 withdrawalCredsPrefix = bytes1(validator[176:177]);
-    // deposit amount was encoded in gwei to save calldata space
-    depositAmount = abi.decode(validator[177:185], (uint64)) * 1 gwei;
+    depositAmount = abi.decode(validator[177:_validatorDepositLength], (uint256));
 
     // check withdrawal credentials prefix
     if (withdrawalCredsPrefix != bytes1(0x01) && withdrawalCredsPrefix != bytes1(0x02)) {
