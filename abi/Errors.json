@@ -146,6 +146,11 @@
   },
   {
     "inputs": [],
+    "name": "InvalidSignatures",
+    "type": "error"
+  },
+  {
+    "inputs": [],
     "name": "InvalidTokenMeta",
     "type": "error"
   },
@@ -162,6 +167,11 @@
   {
     "inputs": [],
     "name": "InvalidVault",
+    "type": "error"
+  },
+  {
+    "inputs": [],
+    "name": "InvalidWithdrawalCredentialsPrefix",
     "type": "error"
   },
   {
