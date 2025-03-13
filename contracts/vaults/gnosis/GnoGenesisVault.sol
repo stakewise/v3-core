@@ -41,6 +41,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
    * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
+   * @param _consolidationsChecker The contract address used for checking consolidations
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
@@ -58,6 +59,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     address _validatorsRegistry,
     address _validatorsWithdrawals,
     address _validatorsConsolidations,
+    address _consolidationsChecker,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
@@ -74,6 +76,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
       _validatorsRegistry,
       _validatorsWithdrawals,
       _validatorsConsolidations,
+      _consolidationsChecker,
       osTokenVaultController,
       osTokenConfig,
       osTokenVaultEscrow,
@@ -94,7 +97,7 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
     if (admin == address(0)) {
       revert Errors.UpgradeFailed();
     }
-    __GnoVault_initV3();
+    __GnoVault_upgrade();
   }
 
   /// @inheritdoc IVaultVersion

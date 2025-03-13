@@ -53,6 +53,7 @@ contract GnoErc20Vault is
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
    * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
+   * @param _consolidationsChecker The contract address used for checking consolidations
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
@@ -68,6 +69,7 @@ contract GnoErc20Vault is
     address _validatorsRegistry,
     address _validatorsWithdrawals,
     address _validatorsConsolidations,
+    address _consolidationsChecker,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
@@ -76,14 +78,13 @@ contract GnoErc20Vault is
     address gnosisDaiDistributor,
     uint256 exitingAssetsClaimDelay
   )
-    VaultImmutables(
-      _keeper,
-      _vaultsRegistry,
+    VaultImmutables(_keeper, _vaultsRegistry)
+    VaultValidators(
       _validatorsRegistry,
       _validatorsWithdrawals,
-      _validatorsConsolidations
+      _validatorsConsolidations,
+      _consolidationsChecker
     )
-    VaultValidators()
     VaultEnterExit(exitingAssetsClaimDelay)
     VaultOsToken(osTokenVaultController, osTokenConfig, osTokenVaultEscrow)
     VaultMev(sharedMevEscrow)
@@ -96,7 +97,7 @@ contract GnoErc20Vault is
   function initialize(bytes calldata params) external virtual override reinitializer(_version) {
     // if admin is already set, it's an upgrade from version 2 to 3
     if (admin != address(0)) {
-      __GnoErc20Vault_initV3();
+      __GnoErc20Vault_upgrade();
       return;
     }
 
@@ -199,12 +200,24 @@ contract GnoErc20Vault is
     }
   }
 
+  /// @inheritdoc VaultValidators
+  function _withdrawValidator(
+    bytes calldata validator
+  )
+    internal
+    override(VaultValidators, VaultGnoStaking)
+    returns (bytes calldata publicKey, uint256 withdrawnAmount, uint256 feePaid)
+  {
+    return super._withdrawValidator(validator);
+  }
+
   /**
-   * @dev Initializes the GnoErc20Vault contract upgrade to V3
+   * @dev Upgrades the GnoErc20Vault contract
    */
-  function __GnoErc20Vault_initV3() internal {
-    __VaultState_initV3();
-    __VaultGnoStaking_initV3();
+  function __GnoErc20Vault_upgrade() internal {
+    __VaultState_upgrade();
+    __VaultValidators_upgrade();
+    __VaultGnoStaking_upgrade();
   }
 
   /**

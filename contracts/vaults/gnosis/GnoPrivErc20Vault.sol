@@ -30,6 +30,7 @@ contract GnoPrivErc20Vault is Initializable, GnoErc20Vault, VaultWhitelist, IGno
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
    * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
+   * @param _consolidationsChecker The contract address used for checking consolidations
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
@@ -45,6 +46,7 @@ contract GnoPrivErc20Vault is Initializable, GnoErc20Vault, VaultWhitelist, IGno
     address _validatorsRegistry,
     address _validatorsWithdrawals,
     address _validatorsConsolidations,
+    address _consolidationsChecker,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
@@ -59,6 +61,7 @@ contract GnoPrivErc20Vault is Initializable, GnoErc20Vault, VaultWhitelist, IGno
       _validatorsRegistry,
       _validatorsWithdrawals,
       _validatorsConsolidations,
+      _consolidationsChecker,
       osTokenVaultController,
       osTokenConfig,
       osTokenVaultEscrow,
@@ -75,7 +78,7 @@ contract GnoPrivErc20Vault is Initializable, GnoErc20Vault, VaultWhitelist, IGno
   ) external virtual override(IGnoErc20Vault, GnoErc20Vault) reinitializer(_version) {
     // if admin is already set, it's an upgrade from version 2 to 3
     if (admin != address(0)) {
-      __GnoErc20Vault_initV3();
+      __GnoErc20Vault_upgrade();
       return;
     }
 

@@ -61,12 +61,18 @@ abstract contract VaultEthStaking is
   /// @inheritdoc VaultValidators
   function _registerValidator(
     bytes calldata validator
-  ) internal virtual override returns (bytes calldata publicKey, uint256 depositAmount) {
+  )
+    internal
+    virtual
+    override
+    returns (bytes calldata publicKey, bytes1 withdrawalCredsPrefix, uint256 depositAmount)
+  {
     publicKey = validator[:48];
     bytes calldata signature = validator[48:144];
     bytes32 depositDataRoot = bytes32(validator[144:176]);
-    bytes1 withdrawalCredsPrefix = bytes1(validator[176:177]);
-    depositAmount = abi.decode(validator[177:_validatorDepositLength], (uint256));
+    withdrawalCredsPrefix = bytes1(validator[176:177]);
+    // convert gwei to wei by multiplying by 1 gwei
+    depositAmount = (uint256(uint64(bytes8(validator[177:185]))) * 1 gwei);
 
     // check withdrawal credentials prefix
     if (withdrawalCredsPrefix != bytes1(0x01) && withdrawalCredsPrefix != bytes1(0x02)) {

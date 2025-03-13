@@ -316,9 +316,9 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   }
 
   /**
-   * @dev Initializes the VaultState contract upgrade to V3
+   * @dev Upgrades the VaultState contract
    */
-  function __VaultState_initV3() internal onlyInitializing {
+  function __VaultState_upgrade() internal onlyInitializing {
     // SLOAD to memory
     uint256 _queuedShares = queuedShares;
     if (_queuedShares > 1) revert Errors.InvalidQueuedShares();

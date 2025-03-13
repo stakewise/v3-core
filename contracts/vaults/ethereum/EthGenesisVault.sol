@@ -40,6 +40,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
    * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
+   * @param _consolidationsChecker The contract address used for checking consolidations
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
@@ -55,6 +56,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     address _validatorsRegistry,
     address _validatorsWithdrawals,
     address _validatorsConsolidations,
+    address _consolidationsChecker,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
@@ -69,6 +71,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
       _validatorsRegistry,
       _validatorsWithdrawals,
       _validatorsConsolidations,
+      _consolidationsChecker,
       osTokenVaultController,
       osTokenConfig,
       osTokenVaultEscrow,
@@ -87,6 +90,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     if (admin == address(0)) {
       revert Errors.UpgradeFailed();
     }
+    __EthVault_upgrade();
   }
 
   /// @inheritdoc IVaultVersion
@@ -189,7 +193,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     internal
     virtual
     override(VaultValidators, VaultEthStaking)
-    returns (bytes calldata publicKey, uint256 depositAmount)
+    returns (bytes calldata publicKey, bytes1 withdrawalCredsPrefix, uint256 depositAmount)
   {
     _pullWithdrawals();
     return super._registerValidator(validator);

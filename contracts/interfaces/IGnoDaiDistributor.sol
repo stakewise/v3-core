@@ -3,11 +3,11 @@
 pragma solidity ^0.8.22;
 
 /**
- * @title IGnosisDaiDistributor
+ * @title IGnoDaiDistributor
  * @author StakeWise
- * @notice Defines the interface for the GnosisDaiDistributor
+ * @notice Defines the interface for the GnoDaiDistributor
  */
-interface IGnosisDaiDistributor {
+interface IGnoDaiDistributor {
   /**
    * @notice Event emitted when sDAI is distributed to the users
    * @param vault The address of the vault

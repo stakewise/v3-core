@@ -29,6 +29,7 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
    * @param _validatorsRegistry The contract address used for registering validators in beacon chain
    * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
    * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
+   * @param _consolidationsChecker The contract address used for checking consolidations
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
@@ -42,6 +43,7 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
     address _validatorsRegistry,
     address _validatorsWithdrawals,
     address _validatorsConsolidations,
+    address _consolidationsChecker,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
@@ -54,6 +56,7 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
       _validatorsRegistry,
       _validatorsWithdrawals,
       _validatorsConsolidations,
+      _consolidationsChecker,
       osTokenVaultController,
       osTokenConfig,
       osTokenVaultEscrow,
@@ -66,8 +69,9 @@ contract EthPrivVault is Initializable, EthVault, VaultWhitelist, IEthPrivVault 
   function initialize(
     bytes calldata params
   ) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 3 to 4
+    // if admin is already set, it's an upgrade from version 4 to 5
     if (admin != address(0)) {
+      __EthVault_upgrade();
       return;
     }
 
