@@ -53,4 +53,5 @@ library Errors {
   error InvalidQueuedShares();
   error FlashLoanFailed();
   error InvalidWithdrawalCredentialsPrefix();
+  error InvalidSignatures();
 }

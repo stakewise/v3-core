@@ -9,6 +9,7 @@ import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/Messa
 import {SignatureChecker} from '@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol';
 import {IKeeperValidators} from '../../interfaces/IKeeperValidators.sol';
 import {IVaultValidators} from '../../interfaces/IVaultValidators.sol';
+import {IConsolidationsChecker} from '../../interfaces/IConsolidationsChecker.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
 import {VaultAdmin} from './VaultAdmin.sol';
@@ -27,14 +28,26 @@ abstract contract VaultValidators is
   VaultState,
   IVaultValidators
 {
-  bytes32 private constant _registerValidatorsTypeHash =
+  bytes32 private constant _validatorsManagerTypeHash =
     keccak256('VaultValidators(uint256 nonce,bytes validators)');
-  uint256 internal constant _validatorDepositLength = 209;
+  uint256 internal constant _validatorDepositLength = 185;
   uint256 private constant _validatorWithdrawalLength = 56;
   uint256 private constant _validatorConsolidationLength = 96;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   uint256 private immutable _initialChainId;
+
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  address internal immutable _validatorsRegistry;
+
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  address private immutable _validatorsWithdrawals;
+
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  address private immutable _validatorsConsolidations;
+
+  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
+  address private immutable _consolidationsChecker;
 
   /// deprecated. Deposit data management is moved to DepositDataRegistry contract
   bytes32 private __deprecated__validatorsRoot;
@@ -42,12 +55,13 @@ abstract contract VaultValidators is
   /// deprecated. Deposit data management is moved to DepositDataRegistry contract
   uint256 private __deprecated__validatorIndex;
 
-  address private _validatorsManager;
+  /// @inheritdoc IVaultValidators
+  address public override validatorsManager;
 
   bytes32 private _initialDomainSeparator;
 
   /// @inheritdoc IVaultValidators
-  mapping(bytes32 publicKeyHash => bool isRegistered) public override registeredValidators;
+  mapping(bytes32 publicKeyHash => bool isRegistered) public override trackedValidators;
 
   /// @inheritdoc IVaultValidators
   uint256 public override validatorsManagerNonce;
@@ -56,18 +70,23 @@ abstract contract VaultValidators is
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
+   * @param validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
+   * @param validatorsConsolidations The contract address used for consolidating validators in beacon chain
+   * @param consolidationsChecker The contract address used for verifying consolidation approvals
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor() {
+  constructor(
+    address validatorsRegistry,
+    address validatorsWithdrawals,
+    address validatorsConsolidations,
+    address consolidationsChecker
+  ) {
     _initialChainId = block.chainid;
-  }
-
-  /// @inheritdoc IVaultValidators
-  function validatorsManager() public view override returns (address) {
-    // SLOAD to memory
-    address validatorsManager_ = _validatorsManager;
-    // if validatorsManager is not set, default to admin
-    return validatorsManager_ == address(0) ? admin : validatorsManager_;
+    _validatorsRegistry = validatorsRegistry;
+    _validatorsWithdrawals = validatorsWithdrawals;
+    _validatorsConsolidations = validatorsConsolidations;
+    _consolidationsChecker = consolidationsChecker;
   }
 
   /// @inheritdoc IVaultValidators
@@ -136,10 +155,22 @@ abstract contract VaultValidators is
   /// @inheritdoc IVaultValidators
   function consolidateValidators(
     bytes calldata validators,
-    bytes calldata validatorsManagerSignature
+    bytes calldata validatorsManagerSignature,
+    bytes calldata oracleSignatures
   ) external payable override {
     if (!_isValidatorsManager(validators, validatorsManagerSignature)) {
       revert Errors.AccessDenied();
+    }
+
+    bool consolidationsApproved = false;
+    if (oracleSignatures.length > 0) {
+      // check whether oracles have approve validators consolidation
+      IConsolidationsChecker(_consolidationsChecker).verifySignatures(
+        address(this),
+        validators,
+        oracleSignatures
+      );
+      consolidationsApproved = true;
     }
 
     // check validators length is valid
@@ -152,6 +183,7 @@ abstract contract VaultValidators is
       }
     }
 
+    bytes32 publicKeyHash;
     uint256 feePaid;
     uint256 totalFeeAssets = msg.value;
     bytes calldata sourcePublicKey;
@@ -167,6 +199,12 @@ abstract contract VaultValidators is
       (sourcePublicKey, destPublicKey, feePaid) = _consolidateValidator(
         validators[startIndex:endIndex]
       );
+      publicKeyHash = keccak256(destPublicKey);
+      if (!trackedValidators[publicKeyHash]) {
+        // consolidations are only allowed for tracked or approved validators
+        if (!consolidationsApproved) revert Errors.InvalidValidators();
+        trackedValidators[publicKeyHash] = true;
+      }
       totalFeeAssets -= feePaid;
       emit ValidatorConsolidated(sourcePublicKey, destPublicKey, feePaid);
 
@@ -183,22 +221,26 @@ abstract contract VaultValidators is
   }
 
   /// @inheritdoc IVaultValidators
-  function setValidatorsManager(address validatorsManager_) external override {
+  function setValidatorsManager(address _validatorsManager) external override {
     _checkAdmin();
     // update validatorsManager address
-    _validatorsManager = validatorsManager_;
-    emit ValidatorsManagerUpdated(msg.sender, validatorsManager_);
+    validatorsManager = _validatorsManager;
+    emit ValidatorsManagerUpdated(msg.sender, _validatorsManager);
   }
 
   /**
    * @dev Internal function for registering validator
    * @param validator The validator registration data
    * @return publicKey The public key of the registered validator
+   * @return withdrawalCredsPrefix The withdrawal credentials prefix of the registered validator
    * @return depositAmount The amount of assets that was deposited
    */
   function _registerValidator(
     bytes calldata validator
-  ) internal virtual returns (bytes calldata publicKey, uint256 depositAmount);
+  )
+    internal
+    virtual
+    returns (bytes calldata publicKey, bytes1 withdrawalCredsPrefix, uint256 depositAmount);
 
   /**
    * @dev Internal function for withdrawing validator
@@ -209,9 +251,10 @@ abstract contract VaultValidators is
    */
   function _withdrawValidator(
     bytes calldata validator
-  ) private returns (bytes calldata publicKey, uint256 withdrawnAmount, uint256 feePaid) {
+  ) internal virtual returns (bytes calldata publicKey, uint256 withdrawnAmount, uint256 feePaid) {
     publicKey = validator[:48];
-    withdrawnAmount = abi.decode(validator[177:185], (uint64));
+    // convert gwei to wei by multiplying by 1 gwei
+    withdrawnAmount = (uint256(uint64(bytes8(validator[48:56]))) * 1 gwei);
     feePaid = abi.decode(Address.functionCall(_validatorsWithdrawals, ''), (uint256));
 
     Address.functionCallWithValue(_validatorsWithdrawals, validator, feePaid);
@@ -246,7 +289,7 @@ abstract contract VaultValidators is
   function _validatorMaxEffectiveBalance() internal pure virtual returns (uint256);
 
   /**
-   * @dev Internal function for registering multiple validators
+   * @dev Internal function for registering validators
    * @param validators The concatenated validators data
    * @param validatorsManagerSignature The optional signature from the validators manager
    * @param isTopUp Whether the registration is a balance top-up
@@ -272,31 +315,49 @@ abstract contract VaultValidators is
       }
     }
 
-    uint256 availableDeposits = withdrawableAssets();
-    uint256 depositAmount;
     bytes calldata publicKey;
+    bytes1 withdrawalCredsPrefix;
+    uint256 depositAmount;
     uint256 startIndex;
     uint256 endIndex;
     bytes32 publicKeyHash;
+
+    uint256 availableDeposits = withdrawableAssets();
+    uint256 maxEffectiveBalance = _validatorMaxEffectiveBalance();
+    uint256 minEffectiveBalance = _validatorMinEffectiveBalance();
     for (uint256 i = 0; i < validatorsCount; ) {
       unchecked {
         // cannot realistically overflow
         endIndex += _validatorDepositLength;
       }
 
-      (publicKey, depositAmount) = _registerValidator(validators[startIndex:endIndex]);
+      (publicKey, withdrawalCredsPrefix, depositAmount) = _registerValidator(
+        validators[startIndex:endIndex]
+      );
       availableDeposits -= depositAmount;
 
       publicKeyHash = keccak256(publicKey);
       if (isTopUp) {
-        // check whether validator was already approved by oracles in case of top-up
-        if (!registeredValidators[publicKeyHash]) {
-          revert Errors.InvalidValidators();
+        // check whether validator is tracked in case of the top-up
+        if (!trackedValidators[publicKeyHash]) revert Errors.InvalidValidators();
+
+        // should not exceed the max effective balance
+        if (depositAmount > maxEffectiveBalance) revert Errors.InvalidAssets();
+
+        // balance top up is only allowed for compounding validators
+        if (withdrawalCredsPrefix != bytes1(0x02)) {
+          revert Errors.InvalidWithdrawalCredentialsPrefix();
         }
         emit ValidatorFunded(publicKey, depositAmount);
       } else {
-        // mark validator public key as registered
-        registeredValidators[publicKeyHash] = true;
+        // initial deposit should be within the min and max effective balance
+        if (withdrawalCredsPrefix == bytes1(0x01) && depositAmount != minEffectiveBalance) {
+          revert Errors.InvalidAssets();
+        } else if (withdrawalCredsPrefix == bytes1(0x02) && depositAmount > maxEffectiveBalance) {
+          revert Errors.InvalidAssets();
+        }
+        // mark validator public key as tracked
+        trackedValidators[publicKeyHash] = true;
         emit ValidatorRegistered(publicKey, depositAmount);
       }
 
@@ -316,11 +377,7 @@ abstract contract VaultValidators is
   function _checkCanWithdrawValidators(
     bytes calldata validators,
     bytes calldata validatorsManagerSignature
-  ) internal virtual {
-    if (!_isValidatorsManager(validators, validatorsManagerSignature)) {
-      revert Errors.AccessDenied();
-    }
-  }
+  ) internal virtual;
 
   /**
    * @dev Internal function for checking whether the caller is the validators manager.
@@ -333,18 +390,24 @@ abstract contract VaultValidators is
     bytes calldata validators,
     bytes calldata validatorsManagerSignature
   ) internal returns (bool) {
-    address validatorsManager_ = validatorsManager();
-    if (msg.sender == validatorsManager_) {
+    // SLOAD to memory
+    address _validatorsManager = validatorsManager;
+    if (msg.sender == _validatorsManager) {
       return true;
     }
 
-    if (validators.length == 0 || validatorsManagerSignature.length == 0) {
+    if (
+      _validatorsManager == address(0) ||
+      validators.length == 0 ||
+      validatorsManagerSignature.length == 0
+    ) {
       return false;
     }
 
+    // check signature
     bool isValidSignature = SignatureChecker.isValidSignatureNow(
-      validatorsManager_,
-      _getSignedMessageHash(validatorsManagerNonce, validators),
+      _validatorsManager,
+      _getValidatorsManagerSigningMessage(validatorsManagerNonce, validators),
       validatorsManagerSignature
     );
 
@@ -360,12 +423,12 @@ abstract contract VaultValidators is
   }
 
   /**
-   * @notice Get the hash to be signed by the validators manager
+   * @notice Get the message to be signed by the validators manager
    * @param nonce The nonce of the message
    * @param validators The concatenated validators data
-   * @return The hash to be signed
+   * @return The message to be signed
    */
-  function _getSignedMessageHash(
+  function _getValidatorsManagerSigningMessage(
     uint256 nonce,
     bytes calldata validators
   ) private view returns (bytes32) {
@@ -376,7 +439,7 @@ abstract contract VaultValidators is
     return
       MessageHashUtils.toTypedDataHash(
         domainSeparator,
-        keccak256(abi.encode(_registerValidatorsTypeHash, nonce, keccak256(validators)))
+        keccak256(abi.encode(_validatorsManagerTypeHash, nonce, keccak256(validators)))
       );
   }
 
@@ -401,12 +464,10 @@ abstract contract VaultValidators is
   }
 
   /**
-   * @dev Initializes the VaultValidators contract
-   * @dev NB! This initializer must be called after VaultState initializer
+   * @dev Upgrades the VaultValidators contract
    */
-  function __VaultValidators_init() internal onlyInitializing {
+  function __VaultValidators_upgrade() internal onlyInitializing {
     __ReentrancyGuard_init();
-    if (capacity() < _validatorMinEffectiveBalance()) revert Errors.InvalidCapacity();
     // initialize domain separator
     bytes32 newInitialDomainSeparator = _computeVaultValidatorsDomain();
     if (newInitialDomainSeparator != _initialDomainSeparator) {
@@ -414,6 +475,16 @@ abstract contract VaultValidators is
     }
     delete __deprecated__validatorIndex;
     delete __deprecated__validatorsRoot;
+  }
+
+  /**
+   * @dev Initializes the VaultValidators contract
+   * @dev NB! This initializer must be called after VaultState initializer
+   */
+  function __VaultValidators_init() internal onlyInitializing {
+    __ReentrancyGuard_init();
+    if (capacity() < _validatorMinEffectiveBalance()) revert Errors.InvalidCapacity();
+    _initialDomainSeparator = _computeVaultValidatorsDomain();
   }
 
   /**

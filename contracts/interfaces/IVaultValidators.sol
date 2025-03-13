@@ -82,11 +82,11 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   function validatorsManagerNonce() external view returns (uint256);
 
   /**
-   * @notice Function for checking if the validator is registered
+   * @notice Function for checking if the validator is tracked in the contract
    * @param publicKeyHash The keccak256 hash of the public key of the validator
-   * @return Whether the validator is registered
+   * @return Whether the validator is tracked
    */
-  function registeredValidators(bytes32 publicKeyHash) external view returns (bool);
+  function trackedValidators(bytes32 publicKeyHash) external view returns (bool);
 
   /**
    * @notice Function for funding single or multiple existing validators
@@ -112,10 +112,12 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
    * @notice Function for consolidating single or multiple validators
    * @param validators The concatenated validators data
    * @param validatorsManagerSignature The optional signature from the validators manager
+   * @param oracleSignatures The optional signatures from the oracles
    */
   function consolidateValidators(
     bytes calldata validators,
-    bytes calldata validatorsManagerSignature
+    bytes calldata validatorsManagerSignature,
+    bytes calldata oracleSignatures
   ) external payable;
 
   /**
