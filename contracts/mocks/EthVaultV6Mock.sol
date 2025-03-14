@@ -7,29 +7,31 @@ import {EthVaultV5Mock} from './EthVaultV5Mock.sol';
 contract EthVaultV6Mock is EthVaultV5Mock {
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    address _keeper,
-    address _vaultsRegistry,
-    address _validatorsRegistry,
-    address _validatorsWithdrawals,
-    address _validatorsConsolidations,
-    address _consolidationsChecker,
+    address keeper,
+    address vaultsRegistry,
+    address validatorsRegistry,
+    address validatorsWithdrawals,
+    address validatorsConsolidations,
+    address consolidationsChecker,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
     address sharedMevEscrow,
+    address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
     EthVaultV5Mock(
-      _keeper,
-      _vaultsRegistry,
-      _validatorsRegistry,
-      _validatorsWithdrawals,
-      _validatorsConsolidations,
-      _consolidationsChecker,
+      keeper,
+      vaultsRegistry,
+      validatorsRegistry,
+      validatorsWithdrawals,
+      validatorsConsolidations,
+      consolidationsChecker,
       osTokenVaultController,
       osTokenConfig,
       osTokenVaultEscrow,
       sharedMevEscrow,
+      depositDataRegistry,
       exitingAssetsClaimDelay
     )
   {}

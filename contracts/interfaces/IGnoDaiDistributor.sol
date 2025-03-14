@@ -13,10 +13,10 @@ interface IGnoDaiDistributor {
    * @param vault The address of the vault
    * @param amount The amount of sDAI distributed
    */
-  event DaiDistributed(address indexed vault, uint256 amount);
+  event SDaiDistributed(address indexed vault, uint256 amount);
 
   /**
    * @notice Distribute sDAI to the users. Can be called only by the vaults. Must transfer xDAI together with the call.
    */
-  function distributeDai() external payable;
+  function distributeSDai() external payable;
 }

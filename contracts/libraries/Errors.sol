@@ -52,6 +52,6 @@ library Errors {
   error ValueNotChanged();
   error InvalidQueuedShares();
   error FlashLoanFailed();
-  error InvalidWithdrawalCredentialsPrefix();
+  error CannotTopUpV1Validators();
   error InvalidSignatures();
 }
