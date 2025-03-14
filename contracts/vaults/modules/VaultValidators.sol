@@ -383,7 +383,11 @@ abstract contract VaultValidators is
       } else {
         // mark validator public key as tracked
         trackedValidators[publicKeyHash] = true;
-        emit ValidatorRegistered(publicKey, depositAmount);
+        if (isV1Validators) {
+          emit ValidatorRegistered(publicKey);
+        } else {
+          emit ValidatorRegistered(publicKey, depositAmount);
+        }
       }
 
       startIndex = endIndex;
