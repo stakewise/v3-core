@@ -13,6 +13,7 @@ import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IDepositDataRegistry} from '../interfaces/IDepositDataRegistry.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
+import {Errors} from '../libraries/Errors.sol';
 
 interface IVaultValidatorsV1 {
   function validatorsRoot() external view returns (bytes32);

@@ -13,13 +13,13 @@ import {IVaultState} from './IVaultState.sol';
  */
 interface IVaultValidators is IVaultAdmin, IVaultState {
   /**
-   * @notice Event emitted on validator registration (deprecated)
+   * @notice Event emitted on V1 validator registration
    * @param publicKey The public key of the validator that was registered
    */
   event ValidatorRegistered(bytes publicKey);
 
   /**
-   * @notice Event emitted on validator registration
+   * @notice Event emitted on V2 validator registration
    * @param publicKey The public key of the validator that was registered
    * @param amount The amount of assets that was registered
    */
