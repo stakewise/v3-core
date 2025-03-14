@@ -63,7 +63,7 @@ abstract contract VaultGnoStaking is
     uint256 balance = address(this).balance;
     if (balance < 0.1 ether) return;
 
-    _gnoDaiDistributor.distributeDai{value: balance}();
+    _gnoDaiDistributor.distributeSDai{value: balance}();
   }
 
   /**
@@ -73,26 +73,28 @@ abstract contract VaultGnoStaking is
 
   /// @inheritdoc VaultValidators
   function _registerValidator(
-    bytes calldata validator
-  )
-    internal
-    virtual
-    override
-    returns (bytes calldata publicKey, bytes1 withdrawalCredsPrefix, uint256 depositAmount)
-  {
+    bytes calldata validator,
+    bool isV1Validator
+  ) internal virtual override returns (bytes calldata publicKey, uint256 depositAmount) {
     // pull withdrawals from the deposit contract
     _pullWithdrawals();
 
     publicKey = validator[:48];
     bytes calldata signature = validator[48:144];
     bytes32 depositDataRoot = bytes32(validator[144:176]);
-    withdrawalCredsPrefix = bytes1(validator[176:177]);
-    // convert gwei to wei by multiplying by 1 gwei, divide by 32 to convert mGNO to GNO
-    depositAmount = (uint256(uint64(bytes8(validator[177:185]))) * 1 gwei) / 32;
 
-    // check withdrawal credentials prefix
-    if (withdrawalCredsPrefix != bytes1(0x01) && withdrawalCredsPrefix != bytes1(0x02)) {
-      revert Errors.InvalidWithdrawalCredentialsPrefix();
+    // get the deposit amount and withdrawal credentials prefix
+    bytes1 withdrawalCredsPrefix;
+    if (isV1Validator) {
+      withdrawalCredsPrefix = 0x01;
+      depositAmount = _validatorMinEffectiveBalance();
+    } else {
+      withdrawalCredsPrefix = 0x02;
+      // extract amount from data, convert gwei to wei by multiplying by 1 gwei
+      // divide by 32 to convert mGNO to GNO
+      depositAmount = (uint256(uint64(bytes8(validator[176:184]))) * 1 gwei) / 32;
+      // should not exceed the max effective balance
+      if (depositAmount > _validatorMaxEffectiveBalance()) revert Errors.InvalidAssets();
     }
 
     IGnoValidatorsRegistry(_validatorsRegistry).deposit(

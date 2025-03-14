@@ -41,7 +41,7 @@ contract GnoDaiDistributor is ReentrancyGuard, IGnoDaiDistributor {
   }
 
   /// @inheritdoc IGnoDaiDistributor
-  function distributeDai() external payable nonReentrant {
+  function distributeSDai() external payable nonReentrant {
     // can be called only by vaults
     if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.AccessDenied();
 
@@ -53,6 +53,6 @@ contract GnoDaiDistributor is ReentrancyGuard, IGnoDaiDistributor {
     _merkleDistributor.distributeOneTime(_sDaiToken, sDaiAmount, '', abi.encode(msg.sender));
 
     // emit event
-    emit DaiDistributed(msg.sender, sDaiAmount);
+    emit SDaiDistributed(msg.sender, sDaiAmount);
   }
 }

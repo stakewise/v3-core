@@ -45,38 +45,41 @@ contract EthVault is
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _keeper The address of the Keeper contract
-   * @param _vaultsRegistry The address of the VaultsRegistry contract
-   * @param _validatorsRegistry The contract address used for registering validators in beacon chain
-   * @param _validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
-   * @param _validatorsConsolidations The contract address used for consolidating validators in beacon chain
-   * @param _consolidationsChecker The contract address used for checking consolidations
+   * @param keeper The address of the Keeper contract
+   * @param vaultsRegistry The address of the VaultsRegistry contract
+   * @param validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
+   * @param validatorsConsolidations The contract address used for consolidating validators in beacon chain
+   * @param consolidationsChecker The contract address used for checking consolidations
    * @param osTokenVaultController The address of the OsTokenVaultController contract
    * @param osTokenConfig The address of the OsTokenConfig contract
    * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
    * @param sharedMevEscrow The address of the shared MEV escrow
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
    * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    address _keeper,
-    address _vaultsRegistry,
-    address _validatorsRegistry,
-    address _validatorsWithdrawals,
-    address _validatorsConsolidations,
-    address _consolidationsChecker,
+    address keeper,
+    address vaultsRegistry,
+    address validatorsRegistry,
+    address validatorsWithdrawals,
+    address validatorsConsolidations,
+    address consolidationsChecker,
     address osTokenVaultController,
     address osTokenConfig,
     address osTokenVaultEscrow,
     address sharedMevEscrow,
+    address depositDataRegistry,
     uint256 exitingAssetsClaimDelay
   )
-    VaultImmutables(_keeper, _vaultsRegistry)
+    VaultImmutables(keeper, vaultsRegistry)
     VaultValidators(
-      _validatorsRegistry,
-      _validatorsWithdrawals,
-      _validatorsConsolidations,
-      _consolidationsChecker
+      depositDataRegistry,
+      validatorsRegistry,
+      validatorsWithdrawals,
+      validatorsConsolidations,
+      consolidationsChecker
     )
     VaultEnterExit(exitingAssetsClaimDelay)
     VaultOsToken(osTokenVaultController, osTokenConfig, osTokenVaultEscrow)
@@ -153,8 +156,11 @@ contract EthVault is
     bytes calldata validatorsManagerSignature
   ) internal override {
     if (
-      !_isValidatorsManager(validators, validatorsManagerSignature) &&
-      msg.sender != _osTokenConfig.redeemer()
+      !_isValidatorsManager(
+        validators,
+        bytes32(validatorsManagerSignature),
+        validatorsManagerSignature
+      ) && msg.sender != _osTokenConfig.redeemer()
     ) {
       revert Errors.AccessDenied();
     }

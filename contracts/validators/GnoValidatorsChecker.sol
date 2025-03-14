@@ -25,7 +25,7 @@ contract GnoValidatorsChecker is ValidatorsChecker {
   ) ValidatorsChecker(validatorsRegistry, keeper, vaultsRegistry, depositDataRegistry) {}
 
   /// @inheritdoc ValidatorsChecker
-  function _validatorMinEffectiveBalance() internal pure override returns (uint256) {
+  function _depositAmount() internal pure override returns (uint256) {
     return 1 ether;
   }
 }
