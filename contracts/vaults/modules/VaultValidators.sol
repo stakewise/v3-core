@@ -189,18 +189,7 @@ abstract contract VaultValidators is
       revert Errors.AccessDenied();
     }
 
-    bool consolidationsApproved = false;
-    if (oracleSignatures.length > 0) {
-      // check whether oracles have approve validators consolidation
-      IConsolidationsChecker(_consolidationsChecker).verifySignatures(
-        address(this),
-        validators,
-        oracleSignatures
-      );
-      consolidationsApproved = true;
-    }
-
-    // check validators length is valid
+    // Check validators length is valid
     uint256 validatorsCount = validators.length / _validatorConsolidationLength;
     unchecked {
       if (
@@ -210,38 +199,64 @@ abstract contract VaultValidators is
       }
     }
 
-    bytes32 publicKeyHash;
-    uint256 feePaid;
-    uint256 totalFeeAssets = msg.value;
-    bytes calldata sourcePublicKey;
-    bytes calldata destPublicKey;
-    uint256 startIndex;
-    uint256 endIndex;
-    for (uint256 i = 0; i < validatorsCount; ) {
-      unchecked {
-        // cannot realistically overflow
-        endIndex += _validatorConsolidationLength;
-      }
+    // Process the consolidation in smaller batches to avoid stack depth issues
+    _processConsolidation(validators, validatorsCount, oracleSignatures);
+  }
 
-      (sourcePublicKey, destPublicKey, feePaid) = _consolidateValidator(
-        validators[startIndex:endIndex]
+  /**
+   * @dev Internal function to process validator consolidations
+   * @param validators The concatenated validators data
+   * @param validatorsCount The number of validators to consolidate
+   * @param oracleSignatures The optional signatures from the oracles
+   */
+  function _processConsolidation(
+    bytes calldata validators,
+    uint256 validatorsCount,
+    bytes calldata oracleSignatures
+  ) private {
+    // Check for oracle approval if signatures provided
+    bool consolidationsApproved = false;
+    if (oracleSignatures.length > 0) {
+      // Check whether oracles have approved validators consolidation
+      IConsolidationsChecker(_consolidationsChecker).verifySignatures(
+        address(this),
+        validators,
+        oracleSignatures
       );
-      publicKeyHash = keccak256(destPublicKey);
+      consolidationsApproved = true;
+    }
+
+    uint256 totalFeeAssets = msg.value;
+
+    // Process each validator
+    for (uint256 i = 0; i < validatorsCount; ) {
+      uint256 startIndex = i * _validatorConsolidationLength;
+      uint256 endIndex = startIndex + _validatorConsolidationLength;
+
+      (
+        bytes calldata sourcePublicKey,
+        bytes calldata destPublicKey,
+        uint256 feePaid
+      ) = _consolidateValidator(validators[startIndex:endIndex]);
+
+      // Handle destination public key validation
+      bytes32 publicKeyHash = keccak256(destPublicKey);
       if (!trackedValidators[publicKeyHash]) {
-        // consolidations are only allowed for tracked or approved validators
+        // Consolidations are only allowed for tracked or approved validators
         if (!consolidationsApproved) revert Errors.InvalidValidators();
         trackedValidators[publicKeyHash] = true;
       }
-      totalFeeAssets -= feePaid;
-      emit ValidatorConsolidated(sourcePublicKey, destPublicKey, feePaid);
 
-      startIndex = endIndex;
+      // Update fees and emit event
       unchecked {
-        // cannot realistically overflow
+        totalFeeAssets -= feePaid;
         ++i;
       }
+
+      emit ValidatorConsolidated(sourcePublicKey, destPublicKey, feePaid);
     }
 
+    // refund unused fees
     if (totalFeeAssets > 0) {
       Address.sendValue(payable(msg.sender), totalFeeAssets);
     }
