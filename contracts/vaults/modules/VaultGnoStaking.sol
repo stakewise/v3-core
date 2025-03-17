@@ -95,7 +95,12 @@ abstract contract VaultGnoStaking is
       // divide by 32 to convert mGNO to GNO
       depositAmount = (uint256(uint64(bytes8(validator[176:184]))) * 1 gwei) / 32;
       // should not exceed the max effective balance
-      if (depositAmount > _validatorMaxEffectiveBalance()) revert Errors.InvalidAssets();
+      if (
+        depositAmount < _validatorMinEffectiveBalance() ||
+        depositAmount > _validatorMaxEffectiveBalance()
+      ) {
+        revert Errors.InvalidAssets();
+      }
     }
 
     // deposit GNO tokens to the validators registry

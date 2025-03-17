@@ -296,7 +296,7 @@ abstract contract VaultValidators is
     publicKey = validator[:48];
     // convert gwei to wei by multiplying by 1 gwei
     withdrawnAmount = (uint256(uint64(bytes8(validator[48:56]))) * 1 gwei);
-    feePaid = abi.decode(Address.functionCall(_validatorsWithdrawals, ''), (uint256));
+    feePaid = uint256(bytes32(Address.functionStaticCall(_validatorsWithdrawals, '')));
 
     Address.functionCallWithValue(_validatorsWithdrawals, validator, feePaid);
   }
@@ -312,7 +312,7 @@ abstract contract VaultValidators is
   ) private returns (bytes calldata fromPublicKey, bytes calldata toPublicKey, uint256 feePaid) {
     fromPublicKey = validator[:48];
     toPublicKey = validator[48:96];
-    feePaid = abi.decode(Address.functionCall(_validatorsConsolidations, ''), (uint256));
+    feePaid = uint256(bytes32(Address.functionStaticCall(_validatorsConsolidations, '')));
 
     Address.functionCallWithValue(_validatorsConsolidations, validator, feePaid);
   }
