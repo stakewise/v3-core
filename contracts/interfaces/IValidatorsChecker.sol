@@ -21,10 +21,28 @@ interface IValidatorsChecker {
   }
 
   /**
+   * @dev Struct for checking deposit data root
+   * @param vault The address of the vault
+   * @param validatorsRegistryRoot The validators registry root
+   * @param validators The concatenation of the validators' public key, deposit signature, deposit root
+   * @param proof The proof of the deposit data root
+   * @param proofFlags The flags of the proof
+   * @param proofIndexes The indexes of the proof
+   */
+  struct DepositDataRootCheckParams {
+    address vault;
+    bytes32 validatorsRegistryRoot;
+    bytes validators;
+    bytes32[] proof;
+    bool[] proofFlags;
+    uint256[] proofIndexes;
+  }
+
+  /**
    * @notice Function for checking validators manager signature
    * @param vault The address of the vault
    * @param validatorsRegistryRoot The validators registry root
-   * @param validators The concatenation of the validators' public key, deposit signature, deposit root and optionally withdrawal address
+   * @param validators The concatenation of the validators' public key, deposit signature, deposit root
    * @param signature The validators manager signature
    * @return blockNumber Current block number
    * @return status The status of the verification
@@ -38,21 +56,11 @@ interface IValidatorsChecker {
 
   /**
    * @notice Function for checking deposit data root
-   * @param vault The address of the vault
-   * @param validatorsRegistryRoot The validators registry root
-   * @param validators The concatenation of the validators' public key, deposit signature, deposit root and optionally withdrawal address
-   * @param proof The proof used for the merkle tree verification
-   * @param proofFlags The multi proof flags for the merkle tree verification
-   * @param proofIndexes The indexes of the leaves for the merkle tree multi proof verification
+   * @param params The parameters for checking deposit data root
    * @return blockNumber Current block number
    * @return status The status of the verification
    */
   function checkDepositDataRoot(
-    address vault,
-    bytes32 validatorsRegistryRoot,
-    bytes calldata validators,
-    bytes32[] calldata proof,
-    bool[] calldata proofFlags,
-    uint256[] calldata proofIndexes
+    DepositDataRootCheckParams calldata params
   ) external view returns (uint256 blockNumber, Status status);
 }

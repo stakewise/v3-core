@@ -61,9 +61,10 @@ abstract contract VaultEthStaking is
   /// @inheritdoc VaultValidators
   function _registerValidator(
     bytes calldata validator,
+    bool isTopUp,
     bool isV1Validator
-  ) internal virtual override returns (bytes calldata publicKey, uint256 depositAmount) {
-    publicKey = validator[:48];
+  ) internal virtual override returns (uint256 depositAmount) {
+    bytes calldata publicKey = validator[:48];
     bytes calldata signature = validator[48:144];
     bytes32 depositDataRoot = bytes32(validator[144:176]);
 
@@ -80,12 +81,28 @@ abstract contract VaultEthStaking is
       if (depositAmount > _validatorMaxEffectiveBalance()) revert Errors.InvalidAssets();
     }
 
+    // deposit to the validators registry
     IEthValidatorsRegistry(_validatorsRegistry).deposit{value: depositAmount}(
       publicKey,
       abi.encodePacked(withdrawalCredsPrefix, bytes11(0x0), address(this)),
       signature,
       depositDataRoot
     );
+
+    bytes32 publicKeyHash = keccak256(publicKey);
+    if (isTopUp) {
+      // check whether validator is tracked in case of the top-up
+      if (!trackedValidators[publicKeyHash]) revert Errors.InvalidValidators();
+      emit ValidatorFunded(publicKey, depositAmount);
+    } else {
+      // mark validator public key as tracked
+      trackedValidators[publicKeyHash] = true;
+      if (isV1Validator) {
+        emit ValidatorRegistered(publicKey);
+      } else {
+        emit ValidatorRegistered(publicKey, depositAmount);
+      }
+    }
   }
 
   /// @inheritdoc VaultState

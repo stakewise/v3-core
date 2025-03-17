@@ -3,9 +3,7 @@
 pragma solidity ^0.8.22;
 
 import {SafeCast} from '@openzeppelin/contracts/utils/math/SafeCast.sol';
-import {IEthValidatorsRegistry} from '../interfaces/IEthValidatorsRegistry.sol';
-import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
-import {EthVault} from '../vaults/ethereum/EthVault.sol';
+import {EthVault, IEthVault} from '../vaults/ethereum/EthVault.sol';
 import {ExitQueue} from '../libraries/ExitQueue.sol';
 
 /**
@@ -19,35 +17,7 @@ contract EthVaultMock is EthVault {
   uint256 private constant _securityDeposit = 1e9;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(
-    address keeper,
-    address vaultsRegistry,
-    address validatorsRegistry,
-    address validatorsWithdrawals,
-    address validatorsConsolidations,
-    address consolidationsChecker,
-    address osTokenVaultController,
-    address osTokenConfig,
-    address osTokenVaultEscrow,
-    address sharedMevEscrow,
-    address depositDataRegistry,
-    uint256 exitingAssetsClaimDelay
-  )
-    EthVault(
-      keeper,
-      vaultsRegistry,
-      validatorsRegistry,
-      validatorsWithdrawals,
-      validatorsConsolidations,
-      consolidationsChecker,
-      osTokenVaultController,
-      osTokenConfig,
-      osTokenVaultEscrow,
-      sharedMevEscrow,
-      depositDataRegistry,
-      exitingAssetsClaimDelay
-    )
-  {}
+  constructor(IEthVault.EthVaultConstructorArgs memory args) EthVault(args) {}
 
   function getGasCostOfGetExitQueueIndex(uint256 positionTicket) external view returns (uint256) {
     uint256 gasBefore = gasleft();

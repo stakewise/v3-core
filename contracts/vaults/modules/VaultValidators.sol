@@ -163,7 +163,7 @@ abstract contract VaultValidators is
 
       (publicKey, withdrawnAmount, feePaid) = _withdrawValidator(validators[startIndex:endIndex]);
       totalFeeAssets -= feePaid;
-      emit ValidatorWithdrawn(publicKey, withdrawnAmount, feePaid);
+      emit ValidatorWithdrawalSubmitted(publicKey, withdrawnAmount, feePaid);
 
       startIndex = endIndex;
       unchecked {
@@ -253,7 +253,7 @@ abstract contract VaultValidators is
         ++i;
       }
 
-      emit ValidatorConsolidated(sourcePublicKey, destPublicKey, feePaid);
+      emit ValidatorConsolidationSubmitted(sourcePublicKey, destPublicKey, feePaid);
     }
 
     // refund unused fees
@@ -273,14 +273,15 @@ abstract contract VaultValidators is
   /**
    * @dev Internal function for registering validator
    * @param validator The validator registration data
+   * @param isTopUp Whether the registration is a balance top-up
    * @param isV1Validator Whether the validator is V1 or V2
-   * @return publicKey The public key of the registered validator
    * @return depositAmount The amount of assets that was deposited
    */
   function _registerValidator(
     bytes calldata validator,
+    bool isTopUp,
     bool isV1Validator
-  ) internal virtual returns (bytes calldata publicKey, uint256 depositAmount);
+  ) internal virtual returns (uint256 depositAmount);
 
   /**
    * @dev Internal function for withdrawing validator
@@ -371,44 +372,22 @@ abstract contract VaultValidators is
     );
     uint256 validatorsCount = validatorsLength / _validatorDepositLength;
 
-    bytes calldata publicKey;
     uint256 depositAmount;
     uint256 startIndex;
-    uint256 endIndex;
-    bytes32 publicKeyHash;
 
     uint256 availableDeposits = withdrawableAssets();
     for (uint256 i = 0; i < validatorsCount; ) {
-      unchecked {
-        // cannot realistically overflow
-        endIndex += _validatorDepositLength;
-      }
-
-      (publicKey, depositAmount) = _registerValidator(
-        validators[startIndex:endIndex],
+      depositAmount = _registerValidator(
+        validators[startIndex:startIndex + _validatorDepositLength],
+        isTopUp,
         isV1Validators
       );
       availableDeposits -= depositAmount;
 
-      publicKeyHash = keccak256(publicKey);
-      if (isTopUp) {
-        // check whether validator is tracked in case of the top-up
-        if (!trackedValidators[publicKeyHash]) revert Errors.InvalidValidators();
-        emit ValidatorFunded(publicKey, depositAmount);
-      } else {
-        // mark validator public key as tracked
-        trackedValidators[publicKeyHash] = true;
-        if (isV1Validators) {
-          emit ValidatorRegistered(publicKey);
-        } else {
-          emit ValidatorRegistered(publicKey, depositAmount);
-        }
-      }
-
-      startIndex = endIndex;
       unchecked {
         // cannot realistically overflow
         ++i;
+        startIndex += _validatorDepositLength;
       }
     }
   }

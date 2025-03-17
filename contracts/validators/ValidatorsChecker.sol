@@ -95,33 +95,27 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
 
   /// @inheritdoc IValidatorsChecker
   function checkDepositDataRoot(
-    address vault,
-    bytes32 validatorsRegistryRoot,
-    bytes calldata validators,
-    bytes32[] calldata proof,
-    bool[] calldata proofFlags,
-    uint256[] calldata proofIndexes
+    DepositDataRootCheckParams calldata params
   ) external view override returns (uint256 blockNumber, Status status) {
-    if (_validatorsRegistry.get_deposit_root() != validatorsRegistryRoot) {
+    if (_validatorsRegistry.get_deposit_root() != params.validatorsRegistryRoot) {
       return (block.number, Status.INVALID_VALIDATORS_REGISTRY_ROOT);
     }
-    if (!_vaultsRegistry.vaults(vault)) {
+    if (!_vaultsRegistry.vaults(params.vault)) {
       return (block.number, Status.INVALID_VAULT);
     }
 
     // verify vault has enough assets
     if (
-      !_keeper.isCollateralized(vault) && IVaultState(vault).withdrawableAssets() < _depositAmount()
+      !_keeper.isCollateralized(params.vault) &&
+      IVaultState(params.vault).withdrawableAssets() < _depositAmount()
     ) {
       return (block.number, Status.INSUFFICIENT_ASSETS);
     }
 
-    uint8 vaultVersion = IVaultVersion(vault).version();
+    uint8 vaultVersion = IVaultVersion(params.vault).version();
     if (vaultVersion >= 2) {
-      address validatorsManager = IVaultValidators(vault).validatorsManager();
-
       // verify vault did not set custom validators manager
-      if (validatorsManager != address(_depositDataRegistry)) {
+      if (IVaultValidators(params.vault).validatorsManager() != address(_depositDataRegistry)) {
         return (block.number, Status.INVALID_VALIDATORS_MANAGER);
       }
     }
@@ -130,34 +124,34 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
     bytes32 depositDataRoot;
 
     if (vaultVersion >= 2) {
-      currentIndex = _depositDataRegistry.depositDataIndexes(vault);
-      depositDataRoot = _depositDataRegistry.depositDataRoots(vault);
+      currentIndex = _depositDataRegistry.depositDataIndexes(params.vault);
+      depositDataRoot = _depositDataRegistry.depositDataRoots(params.vault);
     } else {
-      currentIndex = IVaultValidatorsV1(vault).validatorIndex();
-      depositDataRoot = IVaultValidatorsV1(vault).validatorsRoot();
+      currentIndex = IVaultValidatorsV1(params.vault).validatorIndex();
+      depositDataRoot = IVaultValidatorsV1(params.vault).validatorsRoot();
     }
 
     // define leaves for multiproof
-    uint256 validatorsCount = proofIndexes.length;
+    uint256 validatorsCount = params.proofIndexes.length;
     if (validatorsCount == 0) {
       return (block.number, Status.INVALID_VALIDATORS_COUNT);
     }
-    bytes32[] memory leaves = new bytes32[](validatorsCount);
 
     // calculate validator length
-    uint256 validatorLength = validators.length / validatorsCount;
-    if (validatorLength == 0 || validatorsCount * validatorLength != validators.length) {
+    uint256 validatorLength = params.validators.length / params.proofIndexes.length;
+    if (validatorLength == 0 || params.proofIndexes.length % validatorLength != 0) {
       return (block.number, Status.INVALID_VALIDATORS_LENGTH);
     }
 
     // calculate leaves
+    bytes32[] memory leaves = new bytes32[](validatorsCount);
     {
       uint256 startIndex;
       uint256 endIndex;
       for (uint256 i = 0; i < validatorsCount; ) {
         endIndex += validatorLength;
-        leaves[proofIndexes[i]] = keccak256(
-          bytes.concat(keccak256(abi.encode(validators[startIndex:endIndex], currentIndex)))
+        leaves[params.proofIndexes[i]] = keccak256(
+          bytes.concat(keccak256(abi.encode(params.validators[startIndex:endIndex], currentIndex)))
         );
 
         startIndex = endIndex;
@@ -170,7 +164,14 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
     }
 
     // check matches merkle root and next validator index
-    if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, depositDataRoot, leaves)) {
+    if (
+      !MerkleProof.multiProofVerifyCalldata(
+        params.proof,
+        params.proofFlags,
+        depositDataRoot,
+        leaves
+      )
+    ) {
       return (block.number, Status.INVALID_PROOF);
     }
 
@@ -181,7 +182,7 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
    * @notice Get the hash to be signed by the validators manager
    * @param vault The address of the vault
    * @param validatorsRegistryRoot The validators registry root
-   * @param validators The concatenation of the validators' public key, deposit signature, deposit root and optionally withdrawal address
+   * @param validators The concatenation of the validators' public key, deposit signature, deposit root
    * @return The hash to be signed by the validators manager
    */
   function _getValidatorsManagerMessageHash(

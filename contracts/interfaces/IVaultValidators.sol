@@ -31,7 +31,7 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
    * @param amount The amount of assets that was withdrawn
    * @param feePaid The amount of fee that was paid
    */
-  event ValidatorWithdrawn(bytes publicKey, uint256 amount, uint256 feePaid);
+  event ValidatorWithdrawalSubmitted(bytes publicKey, uint256 amount, uint256 feePaid);
 
   /**
    * @notice Event emitted on validator balance top-up
@@ -46,7 +46,7 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
    * @param toPublicKey The public key of the validator that was consolidated to
    * @param feePaid The amount of fee that was paid
    */
-  event ValidatorConsolidated(bytes fromPublicKey, bytes toPublicKey, uint256 feePaid);
+  event ValidatorConsolidationSubmitted(bytes fromPublicKey, bytes toPublicKey, uint256 feePaid);
 
   /**
    * @notice Event emitted on keys manager address update (deprecated)

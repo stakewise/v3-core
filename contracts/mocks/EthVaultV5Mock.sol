@@ -2,41 +2,13 @@
 
 pragma solidity ^0.8.22;
 
-import {EthVault} from '../vaults/ethereum/EthVault.sol';
+import {EthVault, IEthVault} from '../vaults/ethereum/EthVault.sol';
 
 contract EthVaultV5Mock is EthVault {
   uint128 public newVar;
 
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(
-    address keeper,
-    address vaultsRegistry,
-    address validatorsRegistry,
-    address validatorsWithdrawals,
-    address validatorsConsolidations,
-    address consolidationsChecker,
-    address osTokenVaultController,
-    address osTokenConfig,
-    address osTokenVaultEscrow,
-    address sharedMevEscrow,
-    address depositDataRegistry,
-    uint256 exitingAssetsClaimDelay
-  )
-    EthVault(
-      keeper,
-      vaultsRegistry,
-      validatorsRegistry,
-      validatorsWithdrawals,
-      validatorsConsolidations,
-      consolidationsChecker,
-      osTokenVaultController,
-      osTokenConfig,
-      osTokenVaultEscrow,
-      sharedMevEscrow,
-      depositDataRegistry,
-      exitingAssetsClaimDelay
-    )
-  {}
+  constructor(IEthVault.EthVaultConstructorArgs memory args) EthVault(args) {}
 
   function initialize(bytes calldata data) external payable virtual override reinitializer(5) {
     (newVar) = abi.decode(data, (uint128));

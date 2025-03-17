@@ -135,18 +135,17 @@ contract DepositDataRegistry is Multicall, IDepositDataRegistry {
 
     // SLOAD to memory
     uint256 currentIndex = depositDataIndexes[vault];
-    bytes32 depositDataRoot = depositDataRoots[vault];
 
     // define leaves for multiproof
     uint256 validatorsCount = indexes.length;
     if (validatorsCount == 0) revert Errors.InvalidValidators();
-    bytes32[] memory leaves = new bytes32[](validatorsCount);
 
     // calculate validator length
     uint256 validatorLength = keeperParams.validators.length / validatorsCount;
     if (validatorLength == 0) revert Errors.InvalidValidators();
 
     // calculate leaves
+    bytes32[] memory leaves = new bytes32[](validatorsCount);
     {
       uint256 startIndex;
       uint256 endIndex;
@@ -167,13 +166,14 @@ contract DepositDataRegistry is Multicall, IDepositDataRegistry {
       }
     }
 
+    // increment index for the next validator
+    depositDataIndexes[vault] = currentIndex;
+
     // check matches merkle root and next validator index
+    bytes32 depositDataRoot = depositDataRoots[vault];
     if (!MerkleProof.multiProofVerifyCalldata(proof, proofFlags, depositDataRoot, leaves)) {
       revert Errors.InvalidProof();
     }
-
-    // increment index for the next validator
-    depositDataIndexes[vault] = currentIndex;
   }
 
   /// @inheritdoc IDepositDataRegistry
