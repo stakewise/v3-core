@@ -278,16 +278,17 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
     );
     GnoBlocklistErc20Vault blocklistVault = GnoBlocklistErc20Vault(payable(_vault));
 
-    _depositToVault(address(blocklistVault), 15 ether, admin, admin);
+    _depositToVault(address(blocklistVault), 15 ether, sender, sender);
     _registerGnoValidator(address(blocklistVault), 1 ether, true);
 
-    vm.prank(admin);
-    blocklistVault.enterExitQueue(10 ether, admin);
+    vm.prank(sender);
+    blocklistVault.enterExitQueue(10 ether, sender);
 
     uint256 totalSharesBefore = blocklistVault.totalShares();
     uint256 totalAssetsBefore = blocklistVault.totalAssets();
     uint256 totalExitingAssetsBefore = blocklistVault.totalExitingAssets();
     uint256 queuedSharesBefore = blocklistVault.queuedShares();
+    uint256 senderBalanceBefore = blocklistVault.getShares(sender);
 
     assertEq(blocklistVault.vaultId(), keccak256('GnoBlocklistErc20Vault'));
     assertEq(blocklistVault.version(), 2);
@@ -313,6 +314,7 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
     assertEq(blocklistVault.totalAssets(), totalAssetsBefore);
     assertEq(blocklistVault.totalExitingAssets(), totalExitingAssetsBefore);
     assertEq(blocklistVault.validatorsManagerNonce(), 0);
+    assertEq(blocklistVault.getShares(sender), senderBalanceBefore);
     assertEq(
       contracts.gnoToken.allowance(address(blocklistVault), address(contracts.validatorsRegistry)),
       type(uint256).max

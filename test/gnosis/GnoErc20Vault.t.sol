@@ -103,16 +103,17 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     address _vault = _createPrevVersionVault(VaultType.GnoErc20Vault, admin, initParams, false);
     GnoErc20Vault erc20Vault = GnoErc20Vault(payable(_vault));
 
-    _depositToVault(address(erc20Vault), 15 ether, admin, admin);
+    _depositToVault(address(erc20Vault), 15 ether, sender, sender);
     _registerGnoValidator(address(erc20Vault), 1 ether, true);
 
-    vm.prank(admin);
-    erc20Vault.enterExitQueue(10 ether, admin);
+    vm.prank(sender);
+    erc20Vault.enterExitQueue(10 ether, sender);
 
     uint256 totalSharesBefore = erc20Vault.totalShares();
     uint256 totalAssetsBefore = erc20Vault.totalAssets();
     uint256 totalExitingAssetsBefore = erc20Vault.totalExitingAssets();
     uint256 queuedSharesBefore = erc20Vault.queuedShares();
+    uint256 senderBalanceBefore = erc20Vault.getShares(sender);
 
     assertEq(erc20Vault.vaultId(), keccak256('GnoErc20Vault'));
     assertEq(erc20Vault.version(), 2);
@@ -137,6 +138,7 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     assertEq(erc20Vault.totalAssets(), totalAssetsBefore);
     assertEq(erc20Vault.totalExitingAssets(), totalExitingAssetsBefore);
     assertEq(erc20Vault.validatorsManagerNonce(), 0);
+    assertEq(erc20Vault.getShares(sender), senderBalanceBefore);
     assertEq(
       contracts.gnoToken.allowance(address(erc20Vault), address(contracts.validatorsRegistry)),
       type(uint256).max
