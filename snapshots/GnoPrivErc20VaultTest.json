@@ -1,0 +1,7 @@
+{
+  "GnoPrivErc20VaultTest_test_canDepositAsWhitelistedUser": "158245",
+  "GnoPrivErc20VaultTest_test_canMintOsTokenAsWhitelistedUser": "161315",
+  "GnoPrivErc20VaultTest_test_deploysCorrectly": "817176",
+  "GnoPrivErc20VaultTest_test_transfer": "59533",
+  "GnoPrivErc20VaultTest_test_upgradesCorrectly": "111749"
+}

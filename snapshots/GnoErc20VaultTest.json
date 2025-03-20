@@ -8,5 +8,5 @@
   "GnoErc20VaultTest_test_upgradesCorrectly": "111580",
   "VaultGnoErc20VaultTest_test_withdrawValidator_osTokenRedeemer": "66365",
   "VaultGnoErc20VaultTest_test_withdrawValidator_unknown": "51492",
-  "VaultGnoErc20VaultTest_test_withdrawValidator_validatorsManager": "61047"
+  "VaultGnoErc20VaultTest_test_withdrawValidator_validatorsManager": "61035"
 }
