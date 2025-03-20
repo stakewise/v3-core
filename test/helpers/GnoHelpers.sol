@@ -47,8 +47,8 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
   address private constant _sharedMevEscrow = 0x30db0d10d3774e78f8cB214b9e8B72D4B402488a;
   address internal constant _depositDataRegistry = 0x58e16621B5c0786D6667D2d54E28A20940269E16;
   address private constant _gnoToken = 0x9C58BAcC331c9aa871AFD802DB6379a98e80CEdb;
-  address private constant _poolEscrow = 0xfc9B67b6034F6B306EA9Bd8Ec1baf3eFA2490394;
-  address private constant _rewardGnoToken = 0x6aC78efae880282396a335CA2F79863A1e6831D4;
+  address internal constant _poolEscrow = 0xfc9B67b6034F6B306EA9Bd8Ec1baf3eFA2490394;
+  address internal constant _rewardGnoToken = 0x6aC78efae880282396a335CA2F79863A1e6831D4;
   address private constant _merkleDistributor = 0xFBceefdBB0ca25a4043b35EF49C2810425243710;
   address private constant _savingsXDaiAdapter = 0xD499b51fcFc66bd31248ef4b28d656d67E591A94;
   address private constant _sDaiToken = 0xaf204776c7245bF4147c2612BF6e5972Ee483701;
@@ -277,7 +277,11 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     vm.stopSnapshotGas();
   }
 
-  function _getForkVault(VaultType vaultType) private view returns (address) {
+  function _getForkVault(VaultType vaultType) internal view returns (address) {
+    if (vaultType == VaultType.GnoGenesisVault) {
+      return 0x4b4406Ed8659D03423490D8b62a1639206dA0A7a;
+    }
+
     if (!vm.envBool('GNOSIS_USE_FORK_VAULTS')) return address(0);
 
     if (vaultType == VaultType.GnoVault) {
@@ -286,8 +290,6 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
       return 0x79Dbec2d18A758C62D410F9763956D52fbd4A3CC;
     } else if (vaultType == VaultType.GnoPrivVault) {
       return 0x52Bd0fbF4839824680001d3653f2d503C6081085;
-    } else if (vaultType == VaultType.GnoGenesisVault) {
-      return 0x4b4406Ed8659D03423490D8b62a1639206dA0A7a;
     } else if (vaultType == VaultType.GnoErc20Vault) {
       return 0x33C346928eD9249Cf1d5fc16aE32a8CFFa1671AD;
     } else if (vaultType == VaultType.GnoPrivErc20Vault) {
@@ -301,6 +303,11 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     int160 newTotalReward,
     uint160 newUnlockedMevReward
   ) private view returns (int160, uint160) {
+    if (vault == 0x4b4406Ed8659D03423490D8b62a1639206dA0A7a) {
+      newTotalReward += 14465786742141121046698;
+      newUnlockedMevReward += 12291679027502580216003;
+    }
+
     if (!vm.envBool('GNOSIS_USE_FORK_VAULTS')) {
       return (newTotalReward, newUnlockedMevReward);
     }
@@ -313,9 +320,6 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
       newUnlockedMevReward += 3442955231281615690;
     } else if (vault == 0x52Bd0fbF4839824680001d3653f2d503C6081085) {
       newTotalReward += 32023359208750000000;
-    } else if (vault == 0x4b4406Ed8659D03423490D8b62a1639206dA0A7a) {
-      newTotalReward += 14465786742141121046698;
-      newUnlockedMevReward += 12291679027502580216003;
     } else if (vault == 0x33C346928eD9249Cf1d5fc16aE32a8CFFa1671AD) {
       newTotalReward += 93551557523312500000;
       newUnlockedMevReward += 199880304782632057829;
@@ -375,7 +379,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     vaultContract.upgradeToAndCall(newImpl, '0x');
   }
 
-  function _getOrCreateVaultImpl(VaultType _vaultType) private returns (address impl) {
+  function _getOrCreateVaultImpl(VaultType _vaultType) internal returns (address impl) {
     if (_vaultImplementations[_vaultType] != address(0)) {
       return _vaultImplementations[_vaultType];
     }
