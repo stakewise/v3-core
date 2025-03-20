@@ -3,8 +3,7 @@ pragma solidity ^0.8.22;
 
 import {Test} from 'forge-std/Test.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {GnoHelpers} from "../helpers/GnoHelpers.sol";
-
+import {GnoHelpers} from '../helpers/GnoHelpers.sol';
 import {Errors} from '../../contracts/libraries/Errors.sol';
 import {IGnoErc20Vault} from '../../contracts/interfaces/IGnoErc20Vault.sol';
 import {GnoBlocklistErc20Vault} from '../../contracts/vaults/gnosis/GnoBlocklistErc20Vault.sol';
@@ -181,7 +180,7 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
     uint256 amount = 1 ether;
 
     // First collateralize the vault
-    _collateralizeGnoVault();
+    _collateralizeGnoVault(address(vault));
 
     // Deposit GNO to get vault tokens
     _depositGno(amount, sender, sender);
@@ -204,7 +203,7 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
     uint256 amount = 1 ether;
 
     // First collateralize the vault
-    _collateralizeGnoVault();
+    _collateralizeGnoVault(address(vault));
 
     // Deposit GNO to get vault tokens
     _depositGno(amount, sender, sender);
@@ -227,11 +226,6 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
 
   // Helper function to deposit GNO to the vault
   function _depositGno(uint256 amount, address from, address to) internal {
-    _depositToVault(address(vault), amount, from, to, address(0));
-  }
-
-  // Helper function to collateralize the vault
-  function _collateralizeGnoVault() internal {
-    _collateralizeVault(address(vault));
+    _depositToVault(address(vault), amount, from, to);
   }
 }

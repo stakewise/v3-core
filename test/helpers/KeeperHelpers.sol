@@ -4,41 +4,71 @@ pragma solidity ^0.8.22;
 
 import {Test} from 'forge-std/Test.sol';
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
-import {IKeeperValidators} from '../../contracts/interfaces/IKeeperValidators.sol';
 import {IKeeperRewards} from '../../contracts/interfaces/IKeeperRewards.sol';
+import {IKeeperValidators} from '../../contracts/interfaces/IKeeperValidators.sol';
 import {IOsTokenVaultController} from '../../contracts/interfaces/IOsTokenVaultController.sol';
 import {Keeper} from '../../contracts/keeper/Keeper.sol';
 
 abstract contract KeeperHelpers is Test {
-  function _setVaultReward(
-    address keeper,
-    address osTokenCtrl,
-    address vault,
-    int160 totalReward,
-    uint160 unlockedMevReward
-  ) internal returns (IKeeperRewards.HarvestParams memory harvestParams) {
-    // setup oracle
-    (address oracle, uint256 oraclePrivateKey) = makeAddrAndKey('oracle');
-    address keeperOwner = Keeper(keeper).owner();
-    vm.startPrank(keeperOwner);
+  struct SetVaultRewardParams {
+    address keeper;
+    address osTokenCtrl;
+    address vault;
+    int160 totalReward;
+    uint160 unlockedMevReward;
+  }
+
+  address private _oracle;
+  uint256 internal _oraclePrivateKey;
+  uint256 private _validatorsMinOraclesBefore;
+  uint256 private _rewardsMinOraclesBefore;
+
+  function _startOracleImpersonate(address keeper) internal {
+    if (_oracle != address(0)) return;
+
+    _validatorsMinOraclesBefore = Keeper(keeper).validatorsMinOracles();
+    _rewardsMinOraclesBefore = Keeper(keeper).rewardsMinOracles();
+
+    (_oracle, _oraclePrivateKey) = makeAddrAndKey('oracle');
+    vm.startPrank(Keeper(keeper).owner());
     Keeper(keeper).setValidatorsMinOracles(1);
-    Keeper(keeper).addOracle(oracle);
+    Keeper(keeper).setRewardsMinOracles(1);
+    Keeper(keeper).addOracle(_oracle);
+    vm.stopPrank();
+  }
+
+  function _stopOracleImpersonate(address keeper) internal {
+    if (_oracle == address(0)) return;
+    vm.startPrank(Keeper(keeper).owner());
+    Keeper(keeper).setValidatorsMinOracles(_validatorsMinOraclesBefore);
+    Keeper(keeper).setRewardsMinOracles(_rewardsMinOraclesBefore);
+    Keeper(keeper).removeOracle(_oracle);
     vm.stopPrank();
 
-    bytes32[] memory leafs = new bytes32[](1);
-    leafs[0] = keccak256(
-      bytes.concat(keccak256(abi.encode(vault, totalReward, unlockedMevReward)))
+    _oracle = address(0);
+    _oraclePrivateKey = 0;
+    _validatorsMinOraclesBefore = 0;
+    _rewardsMinOraclesBefore = 0;
+  }
+
+  function _setVaultReward(
+    SetVaultRewardParams memory params
+  ) internal returns (IKeeperRewards.HarvestParams memory harvestParams) {
+    // setup oracle
+    _startOracleImpersonate(params.keeper);
+
+    bytes32 rewardsRoot = keccak256(
+      bytes.concat(
+        keccak256(abi.encode(params.vault, params.totalReward, params.unlockedMevReward))
+      )
     );
 
-    //    Merkle m = new Merkle();
-    //    bytes32 rewardsRoot = m.getRoot(leafs);
-    bytes32 rewardsRoot = bytes32(0);
-
-    uint256 avgRewardPerSecond = IOsTokenVaultController(osTokenCtrl).avgRewardPerSecond();
+    uint256 avgRewardPerSecond = IOsTokenVaultController(params.osTokenCtrl).avgRewardPerSecond();
     uint64 updateTimestamp = uint64(vm.getBlockTimestamp());
     string memory ipfsHash = 'rewardsIpfsHash';
+    uint256 rewardsNonce = Keeper(params.keeper).rewardsNonce();
     bytes32 digest = _hashKeeperTypedData(
-      address(keeper),
+      params.keeper,
       keccak256(
         abi.encode(
           keccak256(
@@ -48,12 +78,14 @@ abstract contract KeeperHelpers is Test {
           keccak256(bytes(ipfsHash)),
           avgRewardPerSecond,
           updateTimestamp,
-          Keeper(keeper).rewardsNonce()
+          rewardsNonce
         )
       )
     );
-    (uint8 v, bytes32 r, bytes32 s) = vm.sign(oraclePrivateKey, digest);
+    (uint8 v, bytes32 r, bytes32 s) = vm.sign(_oraclePrivateKey, digest);
 
+    // push down the stack
+    SetVaultRewardParams memory _params = params;
     IKeeperRewards.RewardsUpdateParams memory updateParams = IKeeperRewards.RewardsUpdateParams({
       rewardsRoot: rewardsRoot,
       rewardsIpfsHash: ipfsHash,
@@ -61,14 +93,21 @@ abstract contract KeeperHelpers is Test {
       updateTimestamp: updateTimestamp,
       signatures: abi.encodePacked(r, s, v)
     });
-    Keeper(keeper).updateRewards(updateParams);
 
+    vm.warp(
+      Keeper(_params.keeper).lastRewardsTimestamp() + Keeper(_params.keeper).rewardsDelay() + 1
+    );
+    Keeper(_params.keeper).updateRewards(updateParams);
+
+    _stopOracleImpersonate(params.keeper);
+
+    bytes32[] memory proof = new bytes32[](0);
     return
       IKeeperRewards.HarvestParams({
         rewardsRoot: rewardsRoot,
-        reward: totalReward,
-        unlockedMevReward: unlockedMevReward,
-        proof: leafs
+        reward: _params.totalReward,
+        unlockedMevReward: _params.unlockedMevReward,
+        proof: proof
       });
   }
 

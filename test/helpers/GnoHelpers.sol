@@ -9,13 +9,15 @@ import {IOsTokenConfig} from '../../contracts/interfaces/IOsTokenConfig.sol';
 import {IOsTokenVaultController} from '../../contracts/interfaces/IOsTokenVaultController.sol';
 import {IOsTokenVaultEscrow} from '../../contracts/interfaces/IOsTokenVaultEscrow.sol';
 import {ISharedMevEscrow} from '../../contracts/interfaces/ISharedMevEscrow.sol';
-import {IValidatorsRegistry} from '../../contracts/interfaces/IValidatorsRegistry.sol';
+import {IGnoValidatorsRegistry} from '../../contracts/interfaces/IGnoValidatorsRegistry.sol';
 import {IMerkleDistributor} from '../../contracts/interfaces/IMerkleDistributor.sol';
-import {GnoDaiDistributor} from '../../contracts/misc/GnoDaiDistributor.sol';
+import {IKeeperRewards} from '../../contracts/interfaces/IKeeperRewards.sol';
+import {IConsolidationsChecker} from '../../contracts/interfaces/IConsolidationsChecker.sol';
+import {GnoDaiDistributor, IGnoDaiDistributor} from '../../contracts/misc/GnoDaiDistributor.sol';
 import {ConsolidationsChecker} from '../../contracts/validators/ConsolidationsChecker.sol';
 import {GnoBlocklistErc20Vault} from '../../contracts/vaults/gnosis/GnoBlocklistErc20Vault.sol';
 import {GnoBlocklistVault} from '../../contracts/vaults/gnosis/GnoBlocklistVault.sol';
-import {GnoErc20Vault} from '../../contracts/vaults/gnosis/GnoErc20Vault.sol';
+import {GnoErc20Vault, IGnoErc20Vault} from '../../contracts/vaults/gnosis/GnoErc20Vault.sol';
 import {GnoGenesisVault} from '../../contracts/vaults/gnosis/GnoGenesisVault.sol';
 import {GnoPrivErc20Vault} from '../../contracts/vaults/gnosis/GnoPrivErc20Vault.sol';
 import {GnoPrivVault} from '../../contracts/vaults/gnosis/GnoPrivVault.sol';
@@ -42,13 +44,14 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
   address private constant _osTokenConfig = 0xd6672fbE1D28877db598DC0ac2559A15745FC3ec;
   address private constant _osTokenVaultEscrow = 0x28F325dD287a5984B754d34CfCA38af3A8429e71;
   address private constant _sharedMevEscrow = 0x30db0d10d3774e78f8cB214b9e8B72D4B402488a;
+  address private constant _depositDataRegistry = 0x58e16621B5c0786D6667D2d54E28A20940269E16;
   address private constant _gnoToken = 0x9C58BAcC331c9aa871AFD802DB6379a98e80CEdb;
   address private constant _poolEscrow = 0xfc9B67b6034F6B306EA9Bd8Ec1baf3eFA2490394;
   address private constant _rewardGnoToken = 0x6aC78efae880282396a335CA2F79863A1e6831D4;
   address private constant _merkleDistributor = 0xFBceefdBB0ca25a4043b35EF49C2810425243710;
   address private constant _savingsXDaiAdapter = 0xD499b51fcFc66bd31248ef4b28d656d67E591A94;
   address private constant _sDaiToken = 0xaf204776c7245bF4147c2612BF6e5972Ee483701;
-  uint256 private constant _exitingAssetsClaimDelay = 1 days;
+  uint256 internal constant _exitingAssetsClaimDelay = 1 days;
 
   enum VaultType {
     GnoVault,
@@ -62,22 +65,26 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
 
   struct ForkContracts {
     Keeper keeper;
-    IValidatorsRegistry validatorsRegistry;
+    IGnoValidatorsRegistry validatorsRegistry;
     VaultsRegistry vaultsRegistry;
     IOsTokenVaultController osTokenVaultController;
     IOsTokenConfig osTokenConfig;
     IOsTokenVaultEscrow osTokenVaultEscrow;
     ISharedMevEscrow sharedMevEscrow;
     IERC20 gnoToken;
+    IERC20 sdaiToken;
+    IConsolidationsChecker consolidationsChecker;
+    IGnoDaiDistributor gnoDaiDistributor;
+    IMerkleDistributor merkleDistributor;
   }
 
   mapping(VaultType vaultType => address vaultImpl) private _vaultImplementations;
   mapping(VaultType vaultType => address vaultFactory) private _vaultFactories;
 
-  address internal _gnoDaiDistributor;
-  address internal _consolidationsChecker;
-  address internal _validatorsWithdrawals;
-  address internal _validatorsConsolidations;
+  address private _gnoDaiDistributor;
+  address private _consolidationsChecker;
+  address private _validatorsWithdrawals;
+  address private _validatorsConsolidations;
 
   function _activateGnosisFork() internal returns (ForkContracts memory) {
     vm.createSelectFork(vm.envString('GNOSIS_RPC_URL'), forkBlockNumber);
@@ -94,69 +101,34 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     return
       ForkContracts({
         keeper: Keeper(_keeper),
-        validatorsRegistry: IValidatorsRegistry(_validatorsRegistry),
+        validatorsRegistry: IGnoValidatorsRegistry(_validatorsRegistry),
         vaultsRegistry: VaultsRegistry(_vaultsRegistry),
         osTokenVaultController: IOsTokenVaultController(_osTokenVaultController),
         osTokenConfig: IOsTokenConfig(_osTokenConfig),
         osTokenVaultEscrow: IOsTokenVaultEscrow(_osTokenVaultEscrow),
         sharedMevEscrow: ISharedMevEscrow(_sharedMevEscrow),
-        gnoToken: IERC20(_gnoToken)
+        gnoToken: IERC20(_gnoToken),
+        sdaiToken: IERC20(_sDaiToken),
+        consolidationsChecker: IConsolidationsChecker(_consolidationsChecker),
+        gnoDaiDistributor: IGnoDaiDistributor(_gnoDaiDistributor),
+        merkleDistributor: IMerkleDistributor(_merkleDistributor)
       });
   }
 
-  function _mintGnoToken(address _to, uint256 _amount) internal {
+  function _mintGnoToken(address to, uint256 amount) internal {
     vm.prank(IGnoToken(_gnoToken).owner());
-    IGnoToken(_gnoToken).mint(_to, _amount);
+    IGnoToken(_gnoToken).mint(to, amount);
   }
 
-  function _depositToVault(
-    address vault,
-    uint256 amount,
-    address from,
-    address to,
-    address referrer
-  ) internal {
+  function _depositToVault(address vault, uint256 amount, address from, address to) internal {
     vm.startPrank(from);
     IERC20(_gnoToken).approve(vault, amount);
-    IGnoVault(vault).deposit(amount, to, referrer);
+    IGnoVault(vault).deposit(amount, to, address(0));
     vm.stopPrank();
   }
 
-  function _collateralizeVault(address _vault) internal {
-    if (Keeper(_keeper).isCollateralized(_vault)) return;
-
-    uint256 validatorsMinOraclesBefore = Keeper(_keeper).validatorsMinOracles();
-
-    // setup oracle
-    (address oracle, uint256 oraclePrivateKey) = makeAddrAndKey('oracle');
-    address keeperOwner = Keeper(_keeper).owner();
-    vm.startPrank(keeperOwner);
-    Keeper(_keeper).setValidatorsMinOracles(1);
-    Keeper(_keeper).addOracle(oracle);
-    vm.stopPrank();
-
-    uint256[] memory depositAmounts = new uint256[](1);
-    depositAmounts[0] = 1 ether;
-    bytes1[] memory withdrawalCredsPrefixes = new bytes1[](1);
-    withdrawalCredsPrefixes[0] = 0x01;
-    IKeeperValidators.ApprovalParams memory approvalParams = _getValidatorsApproval(
-      oraclePrivateKey,
-      _keeper,
-      _validatorsRegistry,
-      _vault,
-      'ipfsHash',
-      depositAmounts,
-      withdrawalCredsPrefixes
-    );
-
-    vm.prank(_vault);
-    Keeper(_keeper).approveValidators(approvalParams);
-
-    // revert previous state
-    vm.startPrank(keeperOwner);
-    Keeper(_keeper).setValidatorsMinOracles(validatorsMinOraclesBefore);
-    Keeper(_keeper).removeOracle(oracle);
-    vm.stopPrank();
+  function _collateralizeGnoVault(address vault) internal {
+    _collateralizeVault(_keeper, _validatorsRegistry, vault);
   }
 
   function _setGnoVaultReward(
@@ -164,36 +136,44 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     int160 totalReward,
     uint160 unlockedMevReward
   ) internal returns (IKeeperRewards.HarvestParams memory harvestParams) {
-    return _setVaultReward(_keeper, _osTokenVaultController, vault, totalReward, unlockedMevReward);
+    (totalReward, unlockedMevReward) = _getVaultRewards(vault, totalReward, unlockedMevReward);
+    SetVaultRewardParams memory params = SetVaultRewardParams({
+      keeper: _keeper,
+      osTokenCtrl: _osTokenVaultController,
+      vault: vault,
+      totalReward: totalReward,
+      unlockedMevReward: unlockedMevReward
+    });
+    return _setVaultReward(params);
   }
 
-  function _getVaultRewards(
-    VaultType vaultType,
-    int160 newTotalReward,
-    uint160 newUnlockedMevReward
-  ) internal view returns (int160, uint160) {
-    if (!vm.envBool('GNOSIS_USE_FORK_VAULTS')) {
-      return (newTotalReward, newUnlockedMevReward);
-    }
+  function _registerGnoValidator(
+    address vault,
+    uint256 depositAmount,
+    bool isV1Validator
+  ) internal returns (bytes memory publicKey) {
+    // multiply by 32 to convert GNO to mGNO
+    return
+      _registerValidator(_keeper, _validatorsRegistry, vault, depositAmount * 32, isV1Validator);
+  }
 
-    if (vaultType == VaultType.GnoVault) {
-      newTotalReward += 393962803328781250000;
-      newUnlockedMevReward += 1680633820544574435947;
-    } else if (vaultType == VaultType.GnoBlocklistVault) {
-      newTotalReward += 1050592958531250000;
-      newUnlockedMevReward += 3442955231281615690;
-    } else if (vaultType == VaultType.GnoPrivVault) {
-      newTotalReward += 32023359208750000000;
-    } else if (vaultType == VaultType.GnoGenesisVault) {
-      newTotalReward += 14465786742141121046698;
-      newUnlockedMevReward += 12291679027502580216003;
-    } else if (vaultType == VaultType.GnoErc20Vault) {
-      newTotalReward += 93551557523312500000;
-      newUnlockedMevReward += 199880304782632057829;
-    } else if (vaultType == VaultType.GnoPrivErc20Vault) {
-      newTotalReward += 5690635875000000;
-    }
-    return (newTotalReward, newUnlockedMevReward);
+  function _getGnoValidatorApproval(
+    address vault,
+    uint256 depositAmount,
+    string memory ipfsHash,
+    bool isV1Validator
+  ) internal view returns (IKeeperValidators.ApprovalParams memory harvestParams) {
+    uint256[] memory deposits = new uint256[](1);
+    deposits[0] = (depositAmount * 32) / 1 gwei;
+
+    harvestParams = _getValidatorsApproval(
+      _keeper,
+      _validatorsRegistry,
+      vault,
+      ipfsHash,
+      deposits,
+      isV1Validator
+    );
   }
 
   function _getOrCreateVault(
@@ -214,6 +194,26 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
       vm.prank(currentAdmin);
       IGnoVault(vault).setAdmin(admin);
     }
+  }
+
+  function _getOrCreateFactory(VaultType _vaultType) internal returns (GnoVaultFactory) {
+    if (_vaultFactories[_vaultType] != address(0)) {
+      return GnoVaultFactory(_vaultFactories[_vaultType]);
+    }
+
+    address impl = _getOrCreateVaultImpl(_vaultType);
+    GnoVaultFactory factory = new GnoVaultFactory(
+      impl,
+      IVaultsRegistry(_vaultsRegistry),
+      _gnoToken
+    );
+
+    _vaultFactories[_vaultType] = address(factory);
+
+    vm.prank(VaultsRegistry(_vaultsRegistry).owner());
+    VaultsRegistry(_vaultsRegistry).addFactory(address(factory));
+
+    return factory;
   }
 
   function _setGnoWithdrawals(address vault, uint256 amount) internal {
@@ -274,12 +274,41 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     return address(0);
   }
 
+  function _getVaultRewards(
+    address vault,
+    int160 newTotalReward,
+    uint160 newUnlockedMevReward
+  ) private view returns (int160, uint160) {
+    if (!vm.envBool('GNOSIS_USE_FORK_VAULTS')) {
+      return (newTotalReward, newUnlockedMevReward);
+    }
+
+    if (vault == 0x00025C729A3364FaEf02c7D1F577068d87E90ba6) {
+      newTotalReward += 393962803328781250000;
+      newUnlockedMevReward += 1680633820544574435947;
+    } else if (vault == 0x79Dbec2d18A758C62D410F9763956D52fbd4A3CC) {
+      newTotalReward += 1050592958531250000;
+      newUnlockedMevReward += 3442955231281615690;
+    } else if (vault == 0x52Bd0fbF4839824680001d3653f2d503C6081085) {
+      newTotalReward += 32023359208750000000;
+    } else if (vault == 0x4b4406Ed8659D03423490D8b62a1639206dA0A7a) {
+      newTotalReward += 14465786742141121046698;
+      newUnlockedMevReward += 12291679027502580216003;
+    } else if (vault == 0x33C346928eD9249Cf1d5fc16aE32a8CFFa1671AD) {
+      newTotalReward += 93551557523312500000;
+      newUnlockedMevReward += 199880304782632057829;
+    } else if (vault == 0xdfdA4238359703180DAEc01e48F4625C1569c4dE) {
+      newTotalReward += 5690635875000000;
+    }
+    return (newTotalReward, newUnlockedMevReward);
+  }
+
   function _createVault(
     VaultType vaultType,
     address admin,
     bytes memory initParams,
     bool isOwnMevEscrow
-  ) private returns (address) {
+  ) internal returns (address) {
     GnoVaultFactory factory = _getOrCreateFactory(vaultType);
 
     vm.startPrank(admin);
@@ -288,26 +317,6 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     vm.stopPrank();
 
     return vaultAddress;
-  }
-
-  function _getOrCreateFactory(VaultType _vaultType) internal returns (GnoVaultFactory) {
-    if (_vaultFactories[_vaultType] != address(0)) {
-      return GnoVaultFactory(_vaultFactories[_vaultType]);
-    }
-
-    address impl = _getOrCreateVaultImpl(_vaultType);
-    GnoVaultFactory factory = new GnoVaultFactory(
-      impl,
-      IVaultsRegistry(_vaultsRegistry),
-      _gnoToken
-    );
-
-    _vaultFactories[_vaultType] = address(factory);
-
-    vm.prank(VaultsRegistry(_vaultsRegistry).owner());
-    VaultsRegistry(_vaultsRegistry).addFactory(address(factory));
-
-    return factory;
   }
 
   function _upgradeVault(VaultType vaultType, address vault) private {
@@ -332,135 +341,54 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     if (_vaultImplementations[_vaultType] != address(0)) {
       return _vaultImplementations[_vaultType];
     }
+    IGnoVault.GnoVaultConstructorArgs memory gnoArgs = IGnoVault.GnoVaultConstructorArgs(
+      _keeper,
+      _vaultsRegistry,
+      _validatorsRegistry,
+      _validatorsWithdrawals,
+      _validatorsConsolidations,
+      _consolidationsChecker,
+      _osTokenVaultController,
+      _osTokenConfig,
+      _osTokenVaultEscrow,
+      _sharedMevEscrow,
+      _depositDataRegistry,
+      _gnoToken,
+      _gnoDaiDistributor,
+      _exitingAssetsClaimDelay
+    );
+    IGnoErc20Vault.GnoErc20VaultConstructorArgs memory gnoErc20Args = IGnoErc20Vault
+      .GnoErc20VaultConstructorArgs(
+        _keeper,
+        _vaultsRegistry,
+        _validatorsRegistry,
+        _validatorsWithdrawals,
+        _validatorsConsolidations,
+        _consolidationsChecker,
+        _osTokenVaultController,
+        _osTokenConfig,
+        _osTokenVaultEscrow,
+        _sharedMevEscrow,
+        _depositDataRegistry,
+        _gnoToken,
+        _gnoDaiDistributor,
+        _exitingAssetsClaimDelay
+      );
 
     if (_vaultType == VaultType.GnoVault) {
-      impl = address(
-        new GnoVault(
-          _keeper,
-          _vaultsRegistry,
-          _validatorsRegistry,
-          _validatorsWithdrawals,
-          _validatorsConsolidations,
-          _consolidationsChecker,
-          _osTokenVaultController,
-          _osTokenConfig,
-          _osTokenVaultEscrow,
-          _sharedMevEscrow,
-          _gnoToken,
-          _gnoDaiDistributor,
-          _exitingAssetsClaimDelay
-        )
-      );
+      impl = address(new GnoVault(gnoArgs));
     } else if (_vaultType == VaultType.GnoBlocklistVault) {
-      impl = address(
-        new GnoBlocklistVault(
-          _keeper,
-          _vaultsRegistry,
-          _validatorsRegistry,
-          _validatorsWithdrawals,
-          _validatorsConsolidations,
-          _consolidationsChecker,
-          _osTokenVaultController,
-          _osTokenConfig,
-          _osTokenVaultEscrow,
-          _sharedMevEscrow,
-          _gnoToken,
-          _gnoDaiDistributor,
-          _exitingAssetsClaimDelay
-        )
-      );
+      impl = address(new GnoBlocklistVault(gnoArgs));
     } else if (_vaultType == VaultType.GnoPrivVault) {
-      impl = address(
-        new GnoPrivVault(
-          _keeper,
-          _vaultsRegistry,
-          _validatorsRegistry,
-          _validatorsWithdrawals,
-          _validatorsConsolidations,
-          _consolidationsChecker,
-          _osTokenVaultController,
-          _osTokenConfig,
-          _osTokenVaultEscrow,
-          _sharedMevEscrow,
-          _gnoToken,
-          _gnoDaiDistributor,
-          _exitingAssetsClaimDelay
-        )
-      );
+      impl = address(new GnoPrivVault(gnoArgs));
     } else if (_vaultType == VaultType.GnoGenesisVault) {
-      impl = address(
-        new GnoGenesisVault(
-          _keeper,
-          _vaultsRegistry,
-          _validatorsRegistry,
-          _validatorsWithdrawals,
-          _validatorsConsolidations,
-          _consolidationsChecker,
-          _osTokenVaultController,
-          _osTokenConfig,
-          _osTokenVaultEscrow,
-          _sharedMevEscrow,
-          _gnoToken,
-          _gnoDaiDistributor,
-          _poolEscrow,
-          _rewardGnoToken,
-          _exitingAssetsClaimDelay
-        )
-      );
+      impl = address(new GnoGenesisVault(gnoArgs, _poolEscrow, _rewardGnoToken));
     } else if (_vaultType == VaultType.GnoErc20Vault) {
-      impl = address(
-        new GnoErc20Vault(
-          _keeper,
-          _vaultsRegistry,
-          _validatorsRegistry,
-          _validatorsWithdrawals,
-          _validatorsConsolidations,
-          _consolidationsChecker,
-          _osTokenVaultController,
-          _osTokenConfig,
-          _osTokenVaultEscrow,
-          _sharedMevEscrow,
-          _gnoToken,
-          _gnoDaiDistributor,
-          _exitingAssetsClaimDelay
-        )
-      );
+      impl = address(new GnoErc20Vault(gnoErc20Args));
     } else if (_vaultType == VaultType.GnoBlocklistErc20Vault) {
-      impl = address(
-        new GnoBlocklistErc20Vault(
-          _keeper,
-          _vaultsRegistry,
-          _validatorsRegistry,
-          _validatorsWithdrawals,
-          _validatorsConsolidations,
-          _consolidationsChecker,
-          _osTokenVaultController,
-          _osTokenConfig,
-          _osTokenVaultEscrow,
-          _sharedMevEscrow,
-          _gnoToken,
-          _gnoDaiDistributor,
-          _exitingAssetsClaimDelay
-        )
-      );
+      impl = address(new GnoBlocklistErc20Vault(gnoErc20Args));
     } else if (_vaultType == VaultType.GnoPrivErc20Vault) {
-      impl = address(
-        new GnoPrivErc20Vault(
-          _keeper,
-          _vaultsRegistry,
-          _validatorsRegistry,
-          _validatorsWithdrawals,
-          _validatorsConsolidations,
-          _consolidationsChecker,
-          _osTokenVaultController,
-          _osTokenConfig,
-          _osTokenVaultEscrow,
-          _sharedMevEscrow,
-          _gnoToken,
-          _gnoDaiDistributor,
-          _exitingAssetsClaimDelay
-        )
-      );
+      impl = address(new GnoPrivErc20Vault(gnoErc20Args));
     }
     _vaultImplementations[_vaultType] = impl;
 

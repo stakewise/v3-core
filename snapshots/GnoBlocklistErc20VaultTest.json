@@ -1,0 +1,5 @@
+{
+  "GnoBlocklistErc20VaultTest_test_canDepositAsNonBlockedUser": "162316",
+  "GnoBlocklistErc20VaultTest_test_canMintOsTokenAsNonBlockedUser": "161296",
+  "GnoBlocklistErc20VaultTest_test_transfer": "61604"
+}
