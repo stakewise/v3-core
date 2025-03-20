@@ -224,7 +224,7 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
     assertEq(shares, osTokenShares);
   }
 
-  function test_deploys_correctly() public {
+  function test_deploysCorrectly() public {
     // create vault
     bytes memory initParams = abi.encode(
       IGnoErc20Vault.GnoErc20VaultInitParams({
@@ -236,7 +236,7 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
       })
     );
 
-    _startSnapshotGas('GnoBlocklistErc20VaultTest_test_deploys_correctly');
+    _startSnapshotGas('GnoBlocklistErc20VaultTest_test_deploysCorrectly');
     address _vault = _createVault(VaultType.GnoBlocklistErc20Vault, admin, initParams, true);
     _stopSnapshotGas();
     GnoBlocklistErc20Vault blocklistVault = GnoBlocklistErc20Vault(payable(_vault));
@@ -259,7 +259,7 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
     assertEq(blocklistVault.name(), 'SW GNO Vault');
   }
 
-  function test_upgrades_correctly() public {
+  function test_upgradesCorrectly() public {
     // create prev version vault
     bytes memory initParams = abi.encode(
       IGnoErc20Vault.GnoErc20VaultInitParams({
@@ -296,7 +296,7 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
       0
     );
 
-    _startSnapshotGas('GnoBlocklistErc20VaultTest_test_upgrades_correctly');
+    _startSnapshotGas('GnoBlocklistErc20VaultTest_test_upgradesCorrectly');
     _upgradeVault(VaultType.GnoBlocklistErc20Vault, address(blocklistVault));
     _stopSnapshotGas();
 

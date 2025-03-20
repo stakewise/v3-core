@@ -152,7 +152,7 @@ contract GnoBlocklistVaultTest is Test, GnoHelpers {
     assertEq(shares, osTokenShares);
   }
 
-  function test_deploys_correctly() public {
+  function test_deploysCorrectly() public {
     // create vault
     bytes memory initParams = abi.encode(
       IGnoVault.GnoVaultInitParams({
@@ -162,7 +162,7 @@ contract GnoBlocklistVaultTest is Test, GnoHelpers {
       })
     );
 
-    _startSnapshotGas('GnoBlocklistVaultTest_test_deploys_correctly');
+    _startSnapshotGas('GnoBlocklistVaultTest_test_deploysCorrectly');
     address _vault = _createVault(VaultType.GnoBlocklistVault, admin, initParams, false);
     _stopSnapshotGas();
     GnoBlocklistVault blocklistVault = GnoBlocklistVault(payable(_vault));
@@ -182,7 +182,7 @@ contract GnoBlocklistVaultTest is Test, GnoHelpers {
     assertEq(blocklistVault.validatorsManagerNonce(), 0);
   }
 
-  function test_upgrades_correctly() public {
+  function test_upgradesCorrectly() public {
     // create prev version vault
     bytes memory initParams = abi.encode(
       IGnoVault.GnoVaultInitParams({
@@ -212,7 +212,7 @@ contract GnoBlocklistVaultTest is Test, GnoHelpers {
       0
     );
 
-    _startSnapshotGas('GnoBlocklistVaultTest_test_upgrades_correctly');
+    _startSnapshotGas('GnoBlocklistVaultTest_test_upgradesCorrectly');
     _upgradeVault(VaultType.GnoBlocklistVault, address(blocklistVault));
     _stopSnapshotGas();
 
