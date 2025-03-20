@@ -146,7 +146,7 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     assertEq(erc20Vault.name(), 'SW GNO Vault');
   }
 
-  function test_depositEmitsTransfer() public {
+  function test_deposit_emitsTransfer() public {
     uint256 amount = 1 ether;
     uint256 shares = vault.convertToShares(amount);
 
@@ -160,11 +160,13 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     emit IERC20.Transfer(address(0), sender, shares);
 
     // Call deposit directly instead of the helper
+    _startSnapshotGas('GnoErc20VaultTest_test_deposit_emitsTransfer');
     vault.deposit(amount, sender, referrer);
+    _stopSnapshotGas();
     vm.stopPrank();
   }
 
-  function test_enterExitQueueEmitsTransfer() public {
+  function test_enterExitQueue_emitsTransfer() public {
     _collateralizeGnoVault(address(vault));
 
     uint256 amount = 1 ether;
@@ -180,7 +182,7 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     // Enter exit queue
     vm.prank(sender);
     uint256 timestamp = vm.getBlockTimestamp();
-    _startSnapshotGas('GnoErc20VaultTest_test_enterExitQueueEmitsTransfer');
+    _startSnapshotGas('GnoErc20VaultTest_test_enterExitQueue_emitsTransfer');
     uint256 positionTicket = vault.enterExitQueue(shares, sender);
     _stopSnapshotGas();
 
@@ -200,7 +202,39 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     vault.claimExitedAssets(positionTicket, timestamp, uint256(exitQueueIndex));
   }
 
-  function test_cannotTransferSharesWithLowLtv() public {
+  function test_redeem_emitsEvent() public {
+    bytes memory initParams = abi.encode(
+      IGnoErc20Vault.GnoErc20VaultInitParams({
+        capacity: 1000 ether,
+        feePercent: 1000,
+        name: 'SW GNO Vault',
+        symbol: 'SW-GNO-1',
+        metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
+      })
+    );
+    address _vault = _createVault(VaultType.GnoErc20Vault, admin, initParams, false);
+    GnoErc20Vault erc20Vault = GnoErc20Vault(payable(_vault));
+
+    uint256 amount = 1 ether;
+    uint256 shares = vault.convertToShares(amount);
+
+    // First deposit
+    _depositToVault(_vault, amount, sender, sender);
+
+    // Expect Transfer event when entering exit queue
+    vm.expectEmit(true, true, true, false, _vault);
+    emit IERC20.Transfer(sender, address(0), shares);
+
+    // Redeem
+    vm.prank(sender);
+    _startSnapshotGas('GnoErc20VaultTest_test_redeem_emitsEvent');
+    uint256 positionTicket = erc20Vault.enterExitQueue(shares, sender);
+    _stopSnapshotGas();
+
+    assertEq(positionTicket, type(uint256).max);
+  }
+
+  function test_cannotTransferFromSharesWithLowLtv() public {
     // First collateralize the vault
     _collateralizeGnoVault(address(vault));
 
@@ -213,15 +247,19 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     vm.prank(sender);
     vault.mintOsToken(sender, type(uint256).max, referrer);
 
-    // Try to transfer a significant amount
+    // Approve other to transfer a significant amount
     vm.prank(sender);
-    _startSnapshotGas('GnoErc20VaultTest_test_cannotTransferSharesWithLowLtv');
+    vault.approve(other, depositAmount / 4);
+
+    // Try to transferFrom a significant amount
+    vm.prank(other);
+    _startSnapshotGas('GnoErc20VaultTest_test_cannotTransferFromSharesWithLowLtv');
     vm.expectRevert(Errors.LowLtv.selector);
-    vault.transfer(other, depositAmount / 4); // 25% of collateral
+    vault.transferFrom(sender, other, depositAmount / 4); // 25% of collateral
     _stopSnapshotGas();
   }
 
-  function test_canTransferSharesWithHighLtv() public {
+  function test_canTransferFromSharesWithHighLtv() public {
     // First collateralize the vault
     _collateralizeGnoVault(address(vault));
 
@@ -235,10 +273,14 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     vm.prank(sender);
     vault.mintOsToken(sender, depositShares / 100, referrer); // Just 1% of deposit
 
-    // Should be able to transfer most shares
+    // Approve other to transfer shares
     vm.prank(sender);
-    _startSnapshotGas('GnoErc20VaultTest_test_canTransferSharesWithHighLtv');
-    vault.transfer(other, depositShares / 2);
+    vault.approve(other, depositShares / 2);
+
+    // Should be able to transferFrom most shares
+    vm.prank(other);
+    _startSnapshotGas('GnoErc20VaultTest_test_canTransferFromSharesWithHighLtv');
+    vault.transferFrom(sender, other, depositShares / 2);
     _stopSnapshotGas();
 
     // Verify the transfer succeeded
