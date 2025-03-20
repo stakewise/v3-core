@@ -12,6 +12,7 @@ import {ISharedMevEscrow} from '../../contracts/interfaces/ISharedMevEscrow.sol'
 import {IGnoValidatorsRegistry} from '../../contracts/interfaces/IGnoValidatorsRegistry.sol';
 import {IMerkleDistributor} from '../../contracts/interfaces/IMerkleDistributor.sol';
 import {IKeeperRewards} from '../../contracts/interfaces/IKeeperRewards.sol';
+import {IVaultState} from '../../contracts/interfaces/IVaultState.sol';
 import {IConsolidationsChecker} from '../../contracts/interfaces/IConsolidationsChecker.sol';
 import {GnoDaiDistributor, IGnoDaiDistributor} from '../../contracts/misc/GnoDaiDistributor.sol';
 import {ConsolidationsChecker} from '../../contracts/validators/ConsolidationsChecker.sol';
@@ -185,6 +186,10 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     vault = _getForkVault(vaultType);
     if (vault != address(0)) {
       _upgradeVault(vaultType, vault);
+      if (Keeper(_keeper).isHarvestRequired(vault)) {
+        IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(vault, 0, 0);
+        IVaultState(vault).updateState(harvestParams);
+      }
     } else {
       vault = _createVault(vaultType, admin, initParams, isOwnMevEscrow);
     }
@@ -336,21 +341,21 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     return vaultAddress;
   }
 
-    function _createPrevVersionVault(
-      VaultType vaultType,
-      address admin,
-      bytes memory initParams,
-      bool isOwnMevEscrow
-    ) internal returns (address) {
-      GnoVaultFactory factory = _getPrevVersionVaultFactory(vaultType);
+  function _createPrevVersionVault(
+    VaultType vaultType,
+    address admin,
+    bytes memory initParams,
+    bool isOwnMevEscrow
+  ) internal returns (address) {
+    GnoVaultFactory factory = _getPrevVersionVaultFactory(vaultType);
 
-      vm.startPrank(admin);
-      IERC20(_gnoToken).approve(address(factory), _securityDeposit);
-      address vaultAddress = factory.createVault(initParams, isOwnMevEscrow);
-      vm.stopPrank();
+    vm.startPrank(admin);
+    IERC20(_gnoToken).approve(address(factory), _securityDeposit);
+    address vaultAddress = factory.createVault(initParams, isOwnMevEscrow);
+    vm.stopPrank();
 
-      return vaultAddress;
-    }
+    return vaultAddress;
+  }
 
   function _upgradeVault(VaultType vaultType, address vault) internal {
     GnoVault vaultContract = GnoVault(payable(vault));

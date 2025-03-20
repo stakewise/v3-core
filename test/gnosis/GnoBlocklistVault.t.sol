@@ -89,7 +89,8 @@ contract GnoBlocklistVaultTest is Test, GnoHelpers {
   }
 
   function test_canDepositAsNonBlockedUser() public {
-    uint256 amount = 1 ether;
+    uint256 assets = 1 ether;
+    uint256 shares = vault.convertToShares(assets);
 
     // Set blocklist manager
     vm.prank(admin);
@@ -97,11 +98,11 @@ contract GnoBlocklistVaultTest is Test, GnoHelpers {
 
     // Deposit as non-blocked user
     _startSnapshotGas('GnoBlocklistVaultTest_test_canDepositAsNonBlockedUser');
-    _depositGno(amount, sender, receiver);
+    _depositGno(assets, sender, receiver);
     _stopSnapshotGas();
 
     // Check balances
-    assertEq(vault.getShares(receiver), amount);
+    assertApproxEqAbs(vault.getShares(receiver), shares, 1);
   }
 
   function test_cannotMintOsTokenFromBlockedUser() public {
