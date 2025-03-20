@@ -5,12 +5,12 @@ import {Test} from 'forge-std/Test.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {GnoHelpers} from '../helpers/GnoHelpers.sol';
 import {Errors} from '../../contracts/libraries/Errors.sol';
-import {IGnoErc20Vault} from '../../contracts/interfaces/IGnoErc20Vault.sol';
-import {GnoBlocklistErc20Vault} from '../../contracts/vaults/gnosis/GnoBlocklistErc20Vault.sol';
+import {IGnoVault} from '../../contracts/interfaces/IGnoVault.sol';
+import {GnoBlocklistVault} from '../../contracts/vaults/gnosis/GnoBlocklistVault.sol';
 
-contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
+contract GnoBlocklistVaultTest is Test, GnoHelpers {
   ForkContracts public contracts;
-  GnoBlocklistErc20Vault public vault;
+  GnoBlocklistVault public vault;
 
   address public sender;
   address public receiver;
@@ -37,91 +37,19 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
 
     // create vault
     bytes memory initParams = abi.encode(
-      IGnoErc20Vault.GnoErc20VaultInitParams({
+      IGnoVault.GnoVaultInitParams({
         capacity: 1000 ether,
         feePercent: 1000,
-        name: 'SW GNO Vault',
-        symbol: 'SW-GNO-1',
         metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
       })
     );
-    address _vault = _getOrCreateVault(VaultType.GnoBlocklistErc20Vault, admin, initParams, false);
-    vault = GnoBlocklistErc20Vault(payable(_vault));
-  }
-
-  function test_vaultId() public view {
-    bytes32 expectedId = keccak256('GnoBlocklistErc20Vault');
-    assertEq(vault.vaultId(), expectedId);
-  }
-
-  function test_version() public view {
-    assertEq(vault.version(), 3);
+    address _vault = _getOrCreateVault(VaultType.GnoBlocklistVault, admin, initParams, false);
+    vault = GnoBlocklistVault(payable(_vault));
   }
 
   function test_cannotInitializeTwice() public {
     vm.expectRevert(Initializable.InvalidInitialization.selector);
     vault.initialize('0x');
-  }
-
-  function test_transfer() public {
-    uint256 amount = 1 ether;
-
-    // Set blocklist manager
-    vm.prank(admin);
-    vault.setBlocklistManager(blocklistManager);
-
-    // Deposit GNO to get vault tokens
-    _depositGno(amount, sender, sender);
-
-    // Transfer tokens
-    vm.prank(sender);
-    _startSnapshotGas('GnoBlocklistErc20VaultTest_test_transfer');
-    vault.transfer(other, amount);
-    _stopSnapshotGas();
-
-    // Check balances
-    assertEq(vault.balanceOf(sender), 0);
-    assertEq(vault.balanceOf(other), amount);
-  }
-
-  function test_cannotTransferToBlockedUser() public {
-    uint256 amount = 1 ether;
-
-    // Set blocklist manager and block other
-    vm.prank(admin);
-    vault.setBlocklistManager(blocklistManager);
-
-    vm.prank(blocklistManager);
-    vault.updateBlocklist(other, true);
-
-    // Deposit GNO to get vault tokens
-    _depositGno(amount, sender, sender);
-
-    // Try to transfer to blocked user
-    vm.prank(sender);
-    vm.expectRevert(Errors.AccessDenied.selector);
-    vault.transfer(other, amount);
-  }
-
-  function test_cannotTransferFromBlockedUser() public {
-    uint256 amount = 1 ether;
-
-    // Set blocklist manager
-    vm.prank(admin);
-    vault.setBlocklistManager(blocklistManager);
-
-    // Deposit GNO for both users
-    _depositGno(amount, sender, sender);
-    _depositGno(amount, other, other);
-
-    // Block sender
-    vm.prank(blocklistManager);
-    vault.updateBlocklist(sender, true);
-
-    // Try to transfer from blocked user to other
-    vm.prank(sender);
-    vm.expectRevert(Errors.AccessDenied.selector);
-    vault.transfer(other, amount);
   }
 
   function test_cannotDepositFromBlockedSender() public {
@@ -168,12 +96,12 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
     vault.setBlocklistManager(blocklistManager);
 
     // Deposit as non-blocked user
-    _startSnapshotGas('GnoBlocklistErc20VaultTest_test_canDepositAsNonBlockedUser');
+    _startSnapshotGas('GnoBlocklistVaultTest_test_canDepositAsNonBlockedUser');
     _depositGno(amount, sender, receiver);
     _stopSnapshotGas();
 
     // Check balances
-    assertEq(vault.balanceOf(receiver), amount);
+    assertEq(vault.getShares(receiver), amount);
   }
 
   function test_cannotMintOsTokenFromBlockedUser() public {
@@ -215,7 +143,7 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
     // Mint osToken as non-blocked user
     uint256 osTokenShares = amount / 2;
     vm.prank(sender);
-    _startSnapshotGas('GnoBlocklistErc20VaultTest_test_canMintOsTokenAsNonBlockedUser');
+    _startSnapshotGas('GnoBlocklistVaultTest_test_canMintOsTokenAsNonBlockedUser');
     vault.mintOsToken(sender, osTokenShares, referrer);
     _stopSnapshotGas();
 
@@ -227,21 +155,19 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
   function test_deploys_correctly() public {
     // create vault
     bytes memory initParams = abi.encode(
-      IGnoErc20Vault.GnoErc20VaultInitParams({
+      IGnoVault.GnoVaultInitParams({
         capacity: 1000 ether,
         feePercent: 1000,
-        name: 'SW GNO Vault',
-        symbol: 'SW-GNO-1',
         metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
       })
     );
 
-    _startSnapshotGas('GnoBlocklistErc20VaultTest_test_deploys_correctly');
-    address _vault = _createVault(VaultType.GnoBlocklistErc20Vault, admin, initParams, true);
+    _startSnapshotGas('GnoBlocklistVaultTest_test_deploys_correctly');
+    address _vault = _createVault(VaultType.GnoBlocklistVault, admin, initParams, false);
     _stopSnapshotGas();
-    GnoBlocklistErc20Vault blocklistVault = GnoBlocklistErc20Vault(payable(_vault));
+    GnoBlocklistVault blocklistVault = GnoBlocklistVault(payable(_vault));
 
-    assertEq(blocklistVault.vaultId(), keccak256('GnoBlocklistErc20Vault'));
+    assertEq(blocklistVault.vaultId(), keccak256('GnoBlocklistVault'));
     assertEq(blocklistVault.version(), 3);
     assertEq(blocklistVault.admin(), admin);
     assertEq(blocklistVault.blocklistManager(), admin);
@@ -254,29 +180,19 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
     assertEq(blocklistVault.totalAssets(), _securityDeposit);
     assertEq(blocklistVault.totalExitingAssets(), 0);
     assertEq(blocklistVault.validatorsManagerNonce(), 0);
-    assertEq(blocklistVault.totalSupply(), _securityDeposit);
-    assertEq(blocklistVault.symbol(), 'SW-GNO-1');
-    assertEq(blocklistVault.name(), 'SW GNO Vault');
   }
 
   function test_upgrades_correctly() public {
     // create prev version vault
     bytes memory initParams = abi.encode(
-      IGnoErc20Vault.GnoErc20VaultInitParams({
+      IGnoVault.GnoVaultInitParams({
         capacity: 1000 ether,
         feePercent: 1000,
-        name: 'SW GNO Vault',
-        symbol: 'SW-GNO-1',
         metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
       })
     );
-    address _vault = _createPrevVersionVault(
-      VaultType.GnoBlocklistErc20Vault,
-      admin,
-      initParams,
-      true
-    );
-    GnoBlocklistErc20Vault blocklistVault = GnoBlocklistErc20Vault(payable(_vault));
+    address _vault = _createPrevVersionVault(VaultType.GnoBlocklistVault, admin, initParams, false);
+    GnoBlocklistVault blocklistVault = GnoBlocklistVault(payable(_vault));
 
     _depositToVault(address(blocklistVault), 15 ether, admin, admin);
     _registerGnoValidator(address(blocklistVault), 1 ether, true);
@@ -289,18 +205,18 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
     uint256 totalExitingAssetsBefore = blocklistVault.totalExitingAssets();
     uint256 queuedSharesBefore = blocklistVault.queuedShares();
 
-    assertEq(blocklistVault.vaultId(), keccak256('GnoBlocklistErc20Vault'));
+    assertEq(blocklistVault.vaultId(), keccak256('GnoBlocklistVault'));
     assertEq(blocklistVault.version(), 2);
     assertEq(
       contracts.gnoToken.allowance(address(blocklistVault), address(contracts.validatorsRegistry)),
       0
     );
 
-    _startSnapshotGas('GnoBlocklistErc20VaultTest_test_upgrades_correctly');
-    _upgradeVault(VaultType.GnoBlocklistErc20Vault, address(blocklistVault));
+    _startSnapshotGas('GnoBlocklistVaultTest_test_upgrades_correctly');
+    _upgradeVault(VaultType.GnoBlocklistVault, address(blocklistVault));
     _stopSnapshotGas();
 
-    assertEq(blocklistVault.vaultId(), keccak256('GnoBlocklistErc20Vault'));
+    assertEq(blocklistVault.vaultId(), keccak256('GnoBlocklistVault'));
     assertEq(blocklistVault.version(), 3);
     assertEq(blocklistVault.admin(), admin);
     assertEq(blocklistVault.blocklistManager(), admin);
@@ -317,9 +233,6 @@ contract GnoBlocklistErc20VaultTest is Test, GnoHelpers {
       contracts.gnoToken.allowance(address(blocklistVault), address(contracts.validatorsRegistry)),
       type(uint256).max
     );
-    assertEq(blocklistVault.totalSupply(), totalSharesBefore);
-    assertEq(blocklistVault.symbol(), 'SW-GNO-1');
-    assertEq(blocklistVault.name(), 'SW GNO Vault');
   }
 
   // Helper function to deposit GNO to the vault

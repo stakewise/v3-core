@@ -9,6 +9,6 @@
   "VaultGnoStakingTest_test_transferVaultAssets": "81956",
   "VaultGnoStakingTest_test_vaultGnoStaking_init": "511667",
   "VaultGnoStakingTest_test_withdrawValidator_fullFlow": "61019",
-  "test_registerValidators_succeeds_0x01": "297910",
-  "test_registerValidators_succeeds_0x02": "488267"
+  "test_registerValidators_succeeds_0x01": "297922",
+  "test_registerValidators_succeeds_0x02": "488243"
 }

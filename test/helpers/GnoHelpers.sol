@@ -36,7 +36,7 @@ interface IGnoToken {
 
 abstract contract GnoHelpers is Test, ValidatorsHelpers {
   uint256 internal constant forkBlockNumber = 39014183;
-  uint256 private constant _securityDeposit = 1e9;
+  uint256 internal constant _securityDeposit = 1e9;
   address private constant _keeper = 0xcAC0e3E35d3BA271cd2aaBE688ac9DB1898C26aa;
   address private constant _validatorsRegistry = 0x0B98057eA310F4d31F2a452B414647007d1645d9;
   address private constant _vaultsRegistry = 0x7d014B3C6ee446563d4e0cB6fBD8C3D0419867cB;
@@ -44,7 +44,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
   address private constant _osTokenConfig = 0xd6672fbE1D28877db598DC0ac2559A15745FC3ec;
   address private constant _osTokenVaultEscrow = 0x28F325dD287a5984B754d34CfCA38af3A8429e71;
   address private constant _sharedMevEscrow = 0x30db0d10d3774e78f8cB214b9e8B72D4B402488a;
-  address private constant _depositDataRegistry = 0x58e16621B5c0786D6667D2d54E28A20940269E16;
+  address internal constant _depositDataRegistry = 0x58e16621B5c0786D6667D2d54E28A20940269E16;
   address private constant _gnoToken = 0x9C58BAcC331c9aa871AFD802DB6379a98e80CEdb;
   address private constant _poolEscrow = 0xfc9B67b6034F6B306EA9Bd8Ec1baf3eFA2490394;
   address private constant _rewardGnoToken = 0x6aC78efae880282396a335CA2F79863A1e6831D4;
@@ -216,6 +216,23 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     return factory;
   }
 
+  function _getPrevVersionVaultFactory(
+    VaultType _vaultType
+  ) internal pure returns (GnoVaultFactory) {
+    if (_vaultType == VaultType.GnoVault) {
+      return GnoVaultFactory(0xC2ecc7620416bd65bfab7010B0db955a0e49579a);
+    } else if (_vaultType == VaultType.GnoPrivVault) {
+      return GnoVaultFactory(0x574952EC88b2fC271d0C0dB130794c86Ea42139A);
+    } else if (_vaultType == VaultType.GnoBlocklistVault) {
+      return GnoVaultFactory(0x78FbfBd1DD38892476Ac469325df36604A27F5B7);
+    } else if (_vaultType == VaultType.GnoErc20Vault) {
+      return GnoVaultFactory(0xF6BBBc05536Ab198d4b7Ab74a93f8e2d4cAd5354);
+    } else if (_vaultType == VaultType.GnoPrivErc20Vault) {
+      return GnoVaultFactory(0x48319f97E5Da1233c21c48b80097c0FB7a20Ff86);
+    }
+    return GnoVaultFactory(0x99E4300326867FE3f97864a74e500d19654c19e9);
+  }
+
   function _setGnoWithdrawals(address vault, uint256 amount) internal {
     // Mint GNO to the validators registry
     _mintGnoToken(_validatorsRegistry, amount);
@@ -319,7 +336,23 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     return vaultAddress;
   }
 
-  function _upgradeVault(VaultType vaultType, address vault) private {
+    function _createPrevVersionVault(
+      VaultType vaultType,
+      address admin,
+      bytes memory initParams,
+      bool isOwnMevEscrow
+    ) internal returns (address) {
+      GnoVaultFactory factory = _getPrevVersionVaultFactory(vaultType);
+
+      vm.startPrank(admin);
+      IERC20(_gnoToken).approve(address(factory), _securityDeposit);
+      address vaultAddress = factory.createVault(initParams, isOwnMevEscrow);
+      vm.stopPrank();
+
+      return vaultAddress;
+    }
+
+  function _upgradeVault(VaultType vaultType, address vault) internal {
     GnoVault vaultContract = GnoVault(payable(vault));
     uint256 currentVersion = vaultContract.version();
     if (vaultType == VaultType.GnoGenesisVault) {
