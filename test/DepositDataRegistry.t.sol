@@ -8,6 +8,7 @@ import {IDepositDataRegistry} from '../contracts/interfaces/IDepositDataRegistry
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
 import {IVaultVersion} from '../contracts/interfaces/IVaultVersion.sol';
 import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
+import {IKeeperValidators} from '../contracts/interfaces/IKeeperValidators.sol';
 import {IVaultsRegistry} from '../contracts/interfaces/IVaultsRegistry.sol';
 
 contract DepositDataRegistryTest is Test, EthHelpers {
@@ -19,6 +20,7 @@ contract DepositDataRegistryTest is Test, EthHelpers {
   address private admin;
   address private nonAdmin;
   address private newDepositDataManager;
+  uint256 private exitingAssets;
 
   function setUp() public {
     contracts = _activateEthereumFork();
@@ -40,6 +42,9 @@ contract DepositDataRegistryTest is Test, EthHelpers {
       ),
       false
     );
+    exitingAssets =
+      IEthVault(validVault).totalExitingAssets() +
+      IEthVault(validVault).convertToAssets(IEthVault(validVault).queuedShares());
 
     invalidVault = makeAddr('invalidVault');
     nonAdmin = makeAddr('nonAdmin');
@@ -217,9 +222,49 @@ contract DepositDataRegistryTest is Test, EthHelpers {
   function test_registerValidator_failsForInvalidVault() public {}
   function test_registerValidator_failsForInvalidVaultVersion() public {}
   function test_registerValidator_failsWithInvalidProof() public {}
-  function test_registerValidator_failsWithNoValidator() public {}
-  function test_registerValidator_failsWithInvalidValidatorLength() public {}
-  function test_registerValidator_succeedsWith0x01Validator() public {}
+
+  function test_registerValidator_succeedsWith0x01Validator() public {
+    vm.deal(validVault, exitingAssets + 32 ether);
+
+    uint256 validatorIndex = 0;
+    uint256[] memory deposits = new uint256[](1);
+    deposits[0] = 32 ether / 1 gwei;
+
+    _startOracleImpersonate(address(contracts.keeper));
+    IKeeperValidators.ApprovalParams memory keeperParams = _getValidatorsApproval(
+      address(contracts.keeper),
+      address(contracts.validatorsRegistry),
+      validVault,
+      'ipfsHash',
+      deposits,
+      true
+    );
+
+    // Create root
+    bytes32 depositDataRoot = keccak256(
+      bytes.concat(keccak256(abi.encode(keeperParams.validators, validatorIndex)))
+    );
+    bytes32[] memory proof = new bytes32[](0);
+
+    vm.prank(admin);
+    depositDataRegistry.setDepositDataManager(validVault, admin);
+    vm.prank(admin);
+    depositDataRegistry.setDepositDataRoot(validVault, depositDataRoot);
+
+    _startSnapshotGas('DepositDataRegistryTest_test_registerValidator_succeedsWith0x01Validator');
+    depositDataRegistry.registerValidator(validVault, keeperParams, proof);
+    _stopSnapshotGas();
+
+    _stopOracleImpersonate(address(contracts.keeper));
+
+    // Verify the validator index was incremented
+    assertEq(
+      depositDataRegistry.depositDataIndexes(validVault),
+      1,
+      'Validator index should be incremented'
+    );
+  }
+
   function test_registerValidator_succeedsWith0x02Validator() public {}
   function test_registerValidators_failsForInvalidVault() public {}
   function test_registerValidators_failsForInvalidVaultVersion() public {}
