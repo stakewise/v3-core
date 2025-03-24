@@ -218,12 +218,12 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
   }
 
   function _startSnapshotGas(string memory label) internal {
-    if (vm.envBool('ETH_USE_FORK_VAULTS')) return;
+    if (vm.envBool('USE_FORK_VAULTS')) return;
     return vm.startSnapshotGas(label);
   }
 
   function _stopSnapshotGas() internal {
-    if (vm.envBool('ETH_USE_FORK_VAULTS')) return;
+    if (vm.envBool('USE_FORK_VAULTS')) return;
     vm.stopSnapshotGas();
   }
 
@@ -234,7 +234,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
       return 0x4FEF9D741011476750A243aC70b9789a63dd47Df;
     }
 
-    if (!vm.envBool('ETH_USE_FORK_VAULTS')) return address(0);
+    if (!vm.envBool('USE_FORK_VAULTS')) return address(0);
 
     // Update with actual deployed vault addresses for each type
     if (vaultType == VaultType.EthVault) {
@@ -265,7 +265,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
       newTotalReward += 242948554351000000000;
     }
 
-    if (!vm.envBool('ETH_USE_FORK_VAULTS')) {
+    if (!vm.envBool('USE_FORK_VAULTS')) {
       return (newTotalReward, newUnlockedMevReward);
     }
 
