@@ -2,6 +2,7 @@
 pragma solidity ^0.8.22;
 
 import {Test} from '../lib/forge-std/src/Test.sol';
+import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {IDepositDataRegistry} from '../contracts/interfaces/IDepositDataRegistry.sol';
@@ -44,7 +45,8 @@ contract DepositDataRegistryTest is Test, EthHelpers {
     );
     exitingAssets =
       IEthVault(validVault).totalExitingAssets() +
-      IEthVault(validVault).convertToAssets(IEthVault(validVault).queuedShares());
+      IEthVault(validVault).convertToAssets(IEthVault(validVault).queuedShares()) +
+      address(validVault).balance;
 
     invalidVault = makeAddr('invalidVault');
     nonAdmin = makeAddr('nonAdmin');
@@ -387,11 +389,237 @@ contract DepositDataRegistryTest is Test, EthHelpers {
     );
   }
 
-  function test_registerValidators_failsForInvalidVault() public {}
-  function test_registerValidators_failsForInvalidVaultVersion() public {}
-  function test_registerValidators_failsWithNoValidators() public {}
-  function test_registerValidators_failsWithInvalidValidatorsLength() public {}
-  function test_registerValidators_failWithInvalidProof() public {}
-  function test_registerValidators_successWith0x01Validators() public {}
+  function test_registerValidators_failsForInvalidVault() public {
+    // Create validator approval params
+    uint256[] memory deposits = new uint256[](2);
+    deposits[0] = 32 ether / 1 gwei;
+    deposits[1] = 32 ether / 1 gwei;
+
+    _startOracleImpersonate(address(contracts.keeper));
+    IKeeperValidators.ApprovalParams memory keeperParams = _getValidatorsApproval(
+      address(contracts.keeper),
+      address(contracts.validatorsRegistry),
+      validVault,
+      'ipfsHash',
+      deposits,
+      true
+    );
+
+    // Prepare proof params for multi-proof
+    uint256[] memory indexes = new uint256[](2);
+    indexes[0] = 0;
+    indexes[1] = 1;
+    bool[] memory proofFlags = new bool[](1);
+    proofFlags[0] = true;
+    bytes32[] memory proof = new bytes32[](1);
+    proof[0] = bytes32(uint256(1));
+
+    // Attempt to register validators for an invalid vault
+    vm.expectRevert(Errors.InvalidVault.selector);
+    depositDataRegistry.registerValidators(invalidVault, keeperParams, indexes, proofFlags, proof);
+
+    _stopOracleImpersonate(address(contracts.keeper));
+  }
+
+  function test_registerValidators_failsForInvalidVaultVersion() public {
+    // Create validator approval params
+    uint256[] memory deposits = new uint256[](2);
+    deposits[0] = 32 ether / 1 gwei;
+    deposits[1] = 32 ether / 1 gwei;
+
+    _startOracleImpersonate(address(contracts.keeper));
+    IKeeperValidators.ApprovalParams memory keeperParams = _getValidatorsApproval(
+      address(contracts.keeper),
+      address(contracts.validatorsRegistry),
+      lowVersionVault,
+      'ipfsHash',
+      deposits,
+      true
+    );
+
+    // Prepare proof params for multi-proof
+    uint256[] memory indexes = new uint256[](2);
+    indexes[0] = 0;
+    indexes[1] = 1;
+    bool[] memory proofFlags = new bool[](1);
+    proofFlags[0] = true;
+    bytes32[] memory proof = new bytes32[](1);
+    proof[0] = bytes32(uint256(1));
+
+    // Attempt to register validators for a vault with version < 2
+    vm.expectRevert(Errors.InvalidVault.selector);
+    depositDataRegistry.registerValidators(
+      lowVersionVault,
+      keeperParams,
+      indexes,
+      proofFlags,
+      proof
+    );
+
+    _stopOracleImpersonate(address(contracts.keeper));
+  }
+
+  function test_registerValidators_failsWithNoIndexes() public {
+    vm.deal(validVault, exitingAssets + 64 ether);
+
+    // Create validator approval params
+    uint256[] memory deposits = new uint256[](2);
+    deposits[0] = 32 ether / 1 gwei;
+    deposits[1] = 32 ether / 1 gwei;
+
+    _startOracleImpersonate(address(contracts.keeper));
+    IKeeperValidators.ApprovalParams memory keeperParams = _getValidatorsApproval(
+      address(contracts.keeper),
+      address(contracts.validatorsRegistry),
+      validVault,
+      'ipfsHash',
+      deposits,
+      true
+    );
+
+    uint256[] memory indexes = new uint256[](0);
+
+    bool[] memory proofFlags = new bool[](1);
+    proofFlags[0] = true;
+    bytes32[] memory proof = new bytes32[](1);
+    proof[0] = bytes32(uint256(1));
+
+    // Create a deposit data root
+    bytes32 depositDataRoot = keccak256('root');
+
+    // Set up the root
+    vm.prank(admin);
+    depositDataRegistry.setDepositDataManager(validVault, admin);
+    vm.prank(admin);
+    depositDataRegistry.setDepositDataRoot(validVault, depositDataRoot);
+
+    // Attempt to register with invalid validators length
+    vm.expectRevert(Errors.InvalidValidators.selector);
+    depositDataRegistry.registerValidators(validVault, keeperParams, indexes, proofFlags, proof);
+
+    _stopOracleImpersonate(address(contracts.keeper));
+  }
+
+  function test_registerValidators_failWithInvalidProof() public {
+    vm.deal(validVault, exitingAssets + 64 ether);
+
+    uint256[] memory deposits = new uint256[](2);
+    deposits[0] = 32 ether / 1 gwei;
+    deposits[1] = 32 ether / 1 gwei;
+
+    _startOracleImpersonate(address(contracts.keeper));
+    IKeeperValidators.ApprovalParams memory keeperParams = _getValidatorsApproval(
+      address(contracts.keeper),
+      address(contracts.validatorsRegistry),
+      validVault,
+      'ipfsHash',
+      deposits,
+      true
+    );
+
+    // Prepare valid proof params
+    uint256[] memory indexes = new uint256[](2);
+    indexes[0] = 0;
+    indexes[1] = 1;
+
+    bool[] memory proofFlags = new bool[](2);
+    proofFlags[0] = true;
+    proofFlags[1] = true;
+
+    // Create an invalid proof
+    bytes32[] memory invalidProof = new bytes32[](1);
+    invalidProof[0] = bytes32(uint256(123)); // Some random value
+
+    // Create a deposit data root that doesn't match the validators
+    bytes32 depositDataRoot = keccak256('incorrect_root');
+
+    // Set up the root
+    vm.prank(admin);
+    depositDataRegistry.setDepositDataManager(validVault, admin);
+    vm.prank(admin);
+    depositDataRegistry.setDepositDataRoot(validVault, depositDataRoot);
+
+    // Attempt to register with invalid proof
+    vm.expectRevert(MerkleProof.MerkleProofInvalidMultiproof.selector);
+    depositDataRegistry.registerValidators(
+      validVault,
+      keeperParams,
+      indexes,
+      proofFlags,
+      invalidProof
+    );
+    _stopOracleImpersonate(address(contracts.keeper));
+  }
+
+  function test_registerValidators_successWith0x01Validators() public {
+    vm.deal(validVault, exitingAssets + 64 ether);
+
+    // Create validator approval params for 2 validators
+    uint256[] memory deposits = new uint256[](2);
+    deposits[0] = 32 ether / 1 gwei;
+    deposits[1] = 32 ether / 1 gwei;
+
+    _startOracleImpersonate(address(contracts.keeper));
+    IKeeperValidators.ApprovalParams memory keeperParams = _getValidatorsApproval(
+      address(contracts.keeper),
+      address(contracts.validatorsRegistry),
+      validVault,
+      'ipfsHash',
+      deposits,
+      true
+    );
+
+    // Setup for multi-proof verification
+    uint256 validatorIndex = 0;
+
+    // Extract each validator's data (each 176 bytes long for 0x01 validator)
+    bytes memory validator1 = _extractBytes(keeperParams.validators, 0, 176);
+    bytes memory validator2 = _extractBytes(keeperParams.validators, 176, 176);
+
+    // Create a Merkle tree with the correct format for validator registration
+    bytes32[] memory leaves = new bytes32[](2);
+    leaves[0] = keccak256(bytes.concat(keccak256(abi.encode(validator1, validatorIndex))));
+    leaves[1] = keccak256(bytes.concat(keccak256(abi.encode(validator2, validatorIndex + 1))));
+
+    // Sort the leaves before calculating the Merkle root
+    if (leaves[0] > leaves[1]) {
+      (leaves[0], leaves[1]) = (leaves[1], leaves[0]);
+    }
+
+    // Calculate the Merkle root (for simplicity with only 2 leaves, it's just the hash of both leaves)
+    bytes32 depositDataRoot = keccak256(abi.encodePacked(leaves[0], leaves[1]));
+
+    // Setup multi-proof parameters
+    uint256[] memory indexes = new uint256[](2);
+    indexes[0] = 0;
+    indexes[1] = 1;
+
+    // For a tree with just 2 leaves and we're verifying both, we don't need a complex proof
+    bool[] memory proofFlags = new bool[](1);
+    proofFlags[0] = true;
+
+    bytes32[] memory proof = new bytes32[](0);
+
+    // Set up the root in the registry
+    vm.prank(admin);
+    depositDataRegistry.setDepositDataManager(validVault, admin);
+    vm.prank(admin);
+    depositDataRegistry.setDepositDataRoot(validVault, depositDataRoot);
+
+    // Register validators
+    _startSnapshotGas('DepositDataRegistryTest_test_registerValidators_successWith0x01Validators');
+    depositDataRegistry.registerValidators(validVault, keeperParams, indexes, proofFlags, proof);
+    _stopSnapshotGas();
+
+    // Verify the validator index was incremented by 2
+    assertEq(
+      depositDataRegistry.depositDataIndexes(validVault),
+      2,
+      'Validator index should be incremented by 2'
+    );
+
+    _stopOracleImpersonate(address(contracts.keeper));
+  }
+
   function test_registerValidators_successWith0x02Validators() public {}
 }
