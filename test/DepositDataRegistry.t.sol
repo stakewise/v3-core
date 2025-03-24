@@ -621,5 +621,74 @@ contract DepositDataRegistryTest is Test, EthHelpers {
     _stopOracleImpersonate(address(contracts.keeper));
   }
 
-  function test_registerValidators_successWith0x02Validators() public {}
+  function test_registerValidators_successWith0x02Validators() public {
+    // Fund the vault with enough ETH for two validators with 45 ETH each
+    vm.deal(validVault, exitingAssets + 90 ether);
+
+    // Create validator approval params for 2 validators with 45 ETH each
+    uint256[] memory deposits = new uint256[](2);
+    deposits[0] = 45 ether / 1 gwei; // 45 ETH for first validator
+    deposits[1] = 45 ether / 1 gwei; // 45 ETH for second validator
+
+    _startOracleImpersonate(address(contracts.keeper));
+    IKeeperValidators.ApprovalParams memory keeperParams = _getValidatorsApproval(
+      address(contracts.keeper),
+      address(contracts.validatorsRegistry),
+      validVault,
+      'ipfsHash',
+      deposits,
+      false // 0x02 validators
+    );
+
+    // Setup for multi-proof verification
+    uint256 validatorIndex = 0;
+
+    // Extract each validator's data (each 184 bytes long for 0x02 validator)
+    bytes memory validator1 = _extractBytes(keeperParams.validators, 0, 184);
+    bytes memory validator2 = _extractBytes(keeperParams.validators, 184, 184);
+
+    // Create a Merkle tree with the correct format for validator registration
+    bytes32[] memory leaves = new bytes32[](2);
+    leaves[0] = keccak256(bytes.concat(keccak256(abi.encode(validator1, validatorIndex))));
+    leaves[1] = keccak256(bytes.concat(keccak256(abi.encode(validator2, validatorIndex + 1))));
+
+    // Sort the leaves before calculating the Merkle root
+    if (leaves[0] > leaves[1]) {
+      (leaves[0], leaves[1]) = (leaves[1], leaves[0]);
+    }
+
+    // Calculate the Merkle root (for simplicity with only 2 leaves, it's just the hash of both leaves)
+    bytes32 depositDataRoot = keccak256(abi.encodePacked(leaves[0], leaves[1]));
+
+    // Setup multi-proof parameters
+    uint256[] memory indexes = new uint256[](2);
+    indexes[0] = 0;
+    indexes[1] = 1;
+
+    // For a tree with just 2 leaves and we're verifying both, we don't need a complex proof
+    bool[] memory proofFlags = new bool[](1);
+    proofFlags[0] = true;
+
+    bytes32[] memory proof = new bytes32[](0);
+
+    // Set up the root in the registry
+    vm.prank(admin);
+    depositDataRegistry.setDepositDataManager(validVault, admin);
+    vm.prank(admin);
+    depositDataRegistry.setDepositDataRoot(validVault, depositDataRoot);
+
+    // Register validators
+    _startSnapshotGas('DepositDataRegistryTest_test_registerValidators_successWith0x02Validators');
+    depositDataRegistry.registerValidators(validVault, keeperParams, indexes, proofFlags, proof);
+    _stopSnapshotGas();
+
+    // Verify the validator index was incremented by 2
+    assertEq(
+      depositDataRegistry.depositDataIndexes(validVault),
+      2,
+      'Validator index should be incremented by 2'
+    );
+
+    _stopOracleImpersonate(address(contracts.keeper));
+  }
 }
