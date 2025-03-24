@@ -165,10 +165,9 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     return factory;
   }
 
-  function _depositEth(uint256 amount, address from, address to) internal {
-    vm.deal(from, from.balance + amount);
+  function _depositToVault(address vault, uint256 amount, address from, address to) internal {
     vm.prank(from);
-    IEthVault(payable(to)).deposit{value: amount}(to, address(0));
+    IEthVault(vault).deposit{value: amount}(to, address(0));
   }
 
   function _collateralizeEthVault(address vault) internal {
