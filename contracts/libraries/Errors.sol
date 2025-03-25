@@ -12,7 +12,6 @@ library Errors {
   error InvalidShares();
   error InvalidAssets();
   error ZeroAddress();
-  error InsufficientAssets();
   error CapacityExceeded();
   error InvalidCapacity();
   error InvalidSecurityDeposit();
