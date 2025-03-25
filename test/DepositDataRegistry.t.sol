@@ -7,10 +7,18 @@ import {EthHelpers} from './helpers/EthHelpers.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {IDepositDataRegistry} from '../contracts/interfaces/IDepositDataRegistry.sol';
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
+import {IVaultState} from '../contracts/interfaces/IVaultState.sol';
 import {IVaultVersion} from '../contracts/interfaces/IVaultVersion.sol';
+import {IVaultValidators} from '../contracts/interfaces/IVaultValidators.sol';
 import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {IKeeperValidators} from '../contracts/interfaces/IKeeperValidators.sol';
 import {IVaultsRegistry} from '../contracts/interfaces/IVaultsRegistry.sol';
+
+interface IVaultValidatorsV1 {
+  function validatorsRoot() external view returns (bytes32);
+  function validatorIndex() external view returns (uint256);
+  function keysManager() external view returns (address);
+}
 
 contract DepositDataRegistryTest is Test, EthHelpers {
   ForkContracts private contracts;
@@ -690,5 +698,71 @@ contract DepositDataRegistryTest is Test, EthHelpers {
     );
 
     _stopOracleImpersonate(address(contracts.keeper));
+  }
+
+  function test_migrate_failsForInvalidVault() public {
+    // Attempt to migrate for an invalid vault
+    vm.expectRevert(Errors.InvalidVault.selector);
+    vm.prank(invalidVault);
+    depositDataRegistry.migrate(bytes32(0), 0, admin);
+  }
+
+  function test_migrate_failsForInvalidVaultVersion() public {
+    // Attempt to migrate for a vault with version < 2
+    vm.expectRevert(Errors.InvalidVault.selector);
+    vm.prank(lowVersionVault);
+    depositDataRegistry.migrate(bytes32(0), 0, admin);
+  }
+
+  function test_migrate_failsWhenAlreadyMigrated() public {
+    address foxVault = _getForkVault(VaultType.EthFoxVault);
+
+    _upgradeVault(VaultType.EthFoxVault, foxVault);
+    if (contracts.keeper.isHarvestRequired(foxVault)) {
+      IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(foxVault, 0, 0);
+      IVaultState(foxVault).updateState(harvestParams);
+    }
+
+    // Attempt to migrate when the vault has already been migrated
+    vm.expectRevert(Errors.AccessDenied.selector);
+    vm.prank(foxVault);
+    depositDataRegistry.migrate(bytes32(0), 0, admin);
+  }
+
+  function test_migrate_succeeds() public {
+    address foxVault = _getForkVault(VaultType.EthFoxVault);
+
+    address depositDataManagerBefore = IVaultValidatorsV1(foxVault).keysManager();
+    bytes32 depositDataRootBefore = IVaultValidatorsV1(foxVault).validatorsRoot();
+    uint256 depositDataIndexBefore = IVaultValidatorsV1(foxVault).validatorIndex();
+
+    _upgradeVault(VaultType.EthFoxVault, foxVault);
+    if (contracts.keeper.isHarvestRequired(foxVault)) {
+      IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(foxVault, 0, 0);
+      IVaultState(foxVault).updateState(harvestParams);
+    }
+
+    // Check the vault has been upgraded
+    assertEq(
+      IVaultValidators(foxVault).validatorsManager(),
+      address(depositDataRegistry),
+      'Validators manager should be set to the deposit data registry after upgrade'
+    );
+    assertEq(IVaultVersion(foxVault).version(), 2, 'Vault should have been upgraded to version 2');
+    assertEq(
+      depositDataRegistry.getDepositDataManager(foxVault),
+      depositDataManagerBefore,
+      'Deposit data manager should be the same after upgrade'
+    );
+    assertEq(
+      depositDataRegistry.depositDataIndexes(foxVault),
+      depositDataIndexBefore,
+      'Deposit data index should be the same after upgrade'
+    );
+    assertEq(
+      depositDataRegistry.depositDataRoots(foxVault),
+      depositDataRootBefore,
+      'Deposit data root should be the same after upgrade'
+    );
   }
 }
