@@ -334,4 +334,233 @@ contract VaultOsTokenTest is Test, EthHelpers {
     uint256 ownerPosition = vault.osTokenPositions(owner);
     assertEq(ownerPosition, mintAmount * 2, 'Owner position should track all minting');
   }
+
+  // Test basic burn functionality
+  function test_burnOsToken_basic() public {
+    // First mint some OsToken shares
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Verify initial position
+    uint256 initialPosition = vault.osTokenPositions(owner);
+    assertEq(initialPosition, mintAmount, 'Initial position should equal minted amount');
+
+    // Burn a portion of shares
+    uint128 burnAmount = uint128(mintAmount / 2);
+
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_basic');
+    uint256 burnedAssets = vault.burnOsToken(burnAmount);
+    _stopSnapshotGas();
+
+    // Verify position is updated correctly
+    uint256 remainingPosition = vault.osTokenPositions(owner);
+    assertEq(
+      remainingPosition,
+      initialPosition - burnAmount,
+      'Position should be reduced by burn amount'
+    );
+
+    // Verify assets were returned
+    assertGt(burnedAssets, 0, 'Should return positive asset amount');
+  }
+
+  // Test burning all shares
+  function test_burnOsToken_allShares() public {
+    // First mint some OsToken shares
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Verify initial position
+    uint256 initialPosition = vault.osTokenPositions(owner);
+
+    // Burn all shares
+    uint128 burnAmount = uint128(initialPosition);
+
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_allShares');
+    uint256 burnedAssets = vault.burnOsToken(burnAmount);
+    _stopSnapshotGas();
+
+    // Verify position is updated correctly
+    uint256 remainingPosition = vault.osTokenPositions(owner);
+    assertEq(remainingPosition, 0, 'Position should be zero after burning all shares');
+
+    // Verify assets were returned
+    assertGt(burnedAssets, 0, 'Should return positive asset amount');
+  }
+
+  // Test attempting to burn zero shares
+  function test_burnOsToken_zeroShares() public {
+    // First mint some OsToken shares
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Try to burn zero shares
+    uint128 burnAmount = 0;
+
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_zeroShares');
+    vm.expectRevert(Errors.InvalidShares.selector);
+    vault.burnOsToken(burnAmount);
+    _stopSnapshotGas();
+  }
+
+  // Test attempting to burn more shares than owned
+  function test_burnOsToken_exceedingShares() public {
+    // First mint some OsToken shares
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Try to burn more than owned
+    uint128 burnAmount = uint128(mintAmount * 2);
+
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_exceedingShares');
+    vm.expectRevert(); // Should revert, possibly with an arithmetic underflow
+    vault.burnOsToken(burnAmount);
+    _stopSnapshotGas();
+  }
+
+  // Test burning with non-existent position
+  function test_burnOsToken_invalidPosition() public {
+    // Use a different address that has no position
+    address nonPositionHolder = makeAddr('nonPositionHolder');
+
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(nonPositionHolder, mintAmount, referrer);
+
+    uint128 burnAmount = 1000;
+    vm.prank(nonPositionHolder);
+    _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_invalidPosition');
+    vm.expectRevert(Errors.InvalidPosition.selector);
+    vault.burnOsToken(burnAmount);
+    _stopSnapshotGas();
+  }
+
+  // Test burning after fee sync
+  function test_burnOsToken_afterFeeSync() public {
+    // First mint some OsToken shares
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Record initial position
+    uint256 initialPosition = vault.osTokenPositions(owner);
+
+    // Simulate time passing and reward accumulation
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(
+      address(vault),
+      int160(int256(0.1 ether)),
+      0
+    );
+
+    vm.roll(block.number + 1000);
+    vm.warp(vm.getBlockTimestamp() + 1 days);
+
+    // Update states to trigger fee sync
+    vault.updateState(harvestParams);
+    osTokenVaultController.updateState();
+
+    // Position should have grown due to fee sync
+    uint256 positionAfterFeeSync = vault.osTokenPositions(owner);
+    assertGt(positionAfterFeeSync, initialPosition, 'Position should increase after fee sync');
+
+    // Burn a portion of shares
+    uint128 burnAmount = uint128(mintAmount / 2);
+
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_afterFeeSync');
+    uint256 burnedAssets = vault.burnOsToken(burnAmount);
+    _stopSnapshotGas();
+
+    // Verify position is updated correctly
+    uint256 remainingPosition = vault.osTokenPositions(owner);
+    assertLt(remainingPosition, positionAfterFeeSync, 'Position should decrease after burning');
+    assertGt(burnedAssets, 0, 'Should return positive asset amount');
+  }
+
+  // Test multiple burn operations
+  function test_burnOsToken_multipleBurns() public {
+    // First mint some OsToken shares
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(2 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Verify initial position
+    uint256 initialPosition = vault.osTokenPositions(owner);
+
+    // Burn in multiple steps
+    uint128 burnAmount1 = uint128(mintAmount / 4);
+    uint128 burnAmount2 = uint128(mintAmount / 4);
+
+    // First burn
+    vm.prank(owner);
+    uint256 burnedAssets1 = vault.burnOsToken(burnAmount1);
+
+    // Verify position after first burn
+    uint256 positionAfterFirstBurn = vault.osTokenPositions(owner);
+    assertEq(
+      positionAfterFirstBurn,
+      initialPosition - burnAmount1,
+      'Position incorrect after first burn'
+    );
+
+    // Second burn
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_multipleBurns');
+    uint256 burnedAssets2 = vault.burnOsToken(burnAmount2);
+    _stopSnapshotGas();
+
+    // Verify position after second burn
+    uint256 positionAfterSecondBurn = vault.osTokenPositions(owner);
+    assertEq(
+      positionAfterSecondBurn,
+      initialPosition - burnAmount1 - burnAmount2,
+      'Position incorrect after second burn'
+    );
+
+    assertGt(burnedAssets1, 0, 'First burn should return positive assets');
+    assertGt(burnedAssets2, 0, 'Second burn should return positive assets');
+  }
+
+  // Test that burn succeeds when it would have previously violated LTV
+  function test_burnOsToken_improvesLTV() public {
+    // First mint maximum OsToken shares
+    uint256 userShares = vault.getShares(owner);
+    uint256 userAssets = vault.convertToAssets(userShares);
+
+    // Get LTV percent from config
+    IOsTokenConfig.Config memory config = osTokenConfig.getConfig(address(vault));
+    uint256 maxOsTokenAssets = (userAssets * config.ltvPercent) / 1e18;
+    uint256 maxOsTokenShares = osTokenVaultController.convertToShares(maxOsTokenAssets);
+
+    // Mint maximum OsToken shares
+    vm.prank(owner);
+    vault.mintOsToken(owner, maxOsTokenShares, referrer);
+
+    // Try to enter exit queue with some shares - should fail due to LTV
+    uint256 exitAmount = userShares / 10;
+    vm.prank(owner);
+    vm.expectRevert(Errors.LowLtv.selector);
+    vault.enterExitQueue(exitAmount, owner);
+
+    // Now burn some OsToken shares
+    uint128 burnAmount = uint128(maxOsTokenShares / 5);
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_improvesLTV');
+    uint256 burnedAssets = vault.burnOsToken(burnAmount);
+    _stopSnapshotGas();
+
+    assertGt(burnedAssets, 0, 'Should return positive asset amount');
+
+    // Now should be able to enter exit queue
+    vm.prank(owner);
+    vault.enterExitQueue(exitAmount, owner);
+  }
 }
