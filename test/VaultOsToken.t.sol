@@ -563,4 +563,303 @@ contract VaultOsTokenTest is Test, EthHelpers {
     vm.prank(owner);
     vault.enterExitQueue(exitAmount, owner);
   }
+
+  // Test that only the redeemer can call redeemOsToken
+  function test_redeemOsToken_onlyRedeemer() public {
+    // Create a position first
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Try to redeem as non-redeemer
+    address nonRedeemer = makeAddr('nonRedeemer');
+    vm.prank(nonRedeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_onlyRedeemer');
+    vm.expectRevert(Errors.AccessDenied.selector);
+    vault.redeemOsToken(mintAmount, owner, receiver);
+    _stopSnapshotGas();
+
+    // Get current redeemer
+    address redeemer = osTokenConfig.redeemer();
+    vm.prank(redeemer);
+    vault.redeemOsToken(mintAmount / 2, owner, receiver);
+
+    // Verify position was reduced
+    assertLt(
+      vault.osTokenPositions(owner),
+      mintAmount,
+      'Position should be reduced after redemption'
+    );
+  }
+
+  // Test basic redemption functionality
+  function test_redeemOsToken_basic() public {
+    // Create a position first
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Initial position
+    uint256 initialPosition = vault.osTokenPositions(owner);
+    uint256 initialReceiverBalance = receiver.balance;
+
+    // Get current redeemer and perform redemption
+    address redeemer = osTokenConfig.redeemer();
+    uint256 redeemAmount = mintAmount / 2;
+
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_basic');
+    vault.redeemOsToken(redeemAmount, owner, receiver);
+    _stopSnapshotGas();
+
+    // Verify position was updated correctly
+    uint256 finalPosition = vault.osTokenPositions(owner);
+    assertEq(
+      finalPosition,
+      initialPosition - redeemAmount,
+      'Position should be reduced by redemption amount'
+    );
+
+    // Verify receiver got the assets
+    assertGt(receiver.balance, initialReceiverBalance, 'Receiver should receive assets');
+  }
+
+  // Test redemption with non-existent position
+  function test_redeemOsToken_nonExistentPosition() public {
+    // Try to redeem from an address with no position
+    address noPositionAddr = makeAddr('noPosition');
+    address redeemer = osTokenConfig.redeemer();
+
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_nonExistentPosition');
+    vm.expectRevert(Errors.InvalidPosition.selector);
+    vault.redeemOsToken(1 ether, noPositionAddr, receiver);
+    _stopSnapshotGas();
+  }
+
+  // Test redemption with insufficient shares
+  function test_redeemOsToken_insufficientShares() public {
+    // Create a small position
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Try to redeem more than available
+    address redeemer = osTokenConfig.redeemer();
+
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_insufficientShares');
+    vm.expectRevert(); // Should revert due to arithmetic underflow
+    vault.redeemOsToken(mintAmount * 2, owner, receiver);
+    _stopSnapshotGas();
+  }
+
+  // Test redemption after fee sync occurs
+  function test_redeemOsToken_afterFeeSync() public {
+    // Create a position first
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Record initial position
+    uint256 initialPosition = vault.osTokenPositions(owner);
+
+    // Simulate time passing and reward accumulation
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(
+      address(vault),
+      int160(int256(0.1 ether)),
+      0
+    );
+
+    vm.roll(block.number + 1000);
+    vm.warp(vm.getBlockTimestamp() + 1 days);
+
+    // Update states to trigger fee sync
+    vault.updateState(harvestParams);
+    osTokenVaultController.updateState();
+
+    // Position should have grown due to fee sync
+    uint256 positionAfterFeeSync = vault.osTokenPositions(owner);
+    assertGt(positionAfterFeeSync, initialPosition, 'Position should increase after fee sync');
+
+    // Redeem a portion of shares
+    uint256 redeemAmount = mintAmount / 2;
+    address redeemer = osTokenConfig.redeemer();
+
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_afterFeeSync');
+    vault.redeemOsToken(redeemAmount, owner, receiver);
+    _stopSnapshotGas();
+
+    // Verify position is updated correctly
+    uint256 remainingPosition = vault.osTokenPositions(owner);
+    assertLt(remainingPosition, positionAfterFeeSync, 'Position should decrease after redemption');
+  }
+
+  // Test redemption with health factor above liquidation threshold
+  function test_redeemOsToken_goodHealthFactor() public {
+    // First mint some OsToken shares
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Health factor is good at this point
+
+    // Redemption should work even with good health factor
+    address redeemer = osTokenConfig.redeemer();
+
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_goodHealthFactor');
+    vault.redeemOsToken(mintAmount / 2, owner, receiver);
+    _stopSnapshotGas();
+
+    // Verify position was updated
+    assertLt(
+      vault.osTokenPositions(owner),
+      mintAmount,
+      'Position should be reduced after redemption'
+    );
+  }
+
+  // Test redemption with zero address receiver
+  function test_redeemOsToken_zeroAddressReceiver() public {
+    // First mint some OsToken shares
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Try to redeem to zero address
+    address redeemer = osTokenConfig.redeemer();
+
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_zeroAddressReceiver');
+    vm.expectRevert(Errors.ZeroAddress.selector);
+    vault.redeemOsToken(mintAmount / 2, owner, address(0));
+    _stopSnapshotGas();
+  }
+
+  // Test redemption with zero shares
+  function test_redeemOsToken_zeroShares() public {
+    // First mint some OsToken shares
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Try to redeem zero shares
+    address redeemer = osTokenConfig.redeemer();
+
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_zeroShares');
+    vm.expectRevert(); // Will revert but not with Errors.InvalidShares since validation happens at different point
+    vault.redeemOsToken(0, owner, receiver);
+    _stopSnapshotGas();
+  }
+
+  // Test full redemption of position
+  function test_redeemOsToken_fullPosition() public {
+    // First mint some OsToken shares
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Redeem entire position
+    address redeemer = osTokenConfig.redeemer();
+
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_fullPosition');
+    vault.redeemOsToken(mintAmount, owner, receiver);
+    _stopSnapshotGas();
+
+    // Verify position is zero
+    uint256 finalPosition = vault.osTokenPositions(owner);
+    assertEq(finalPosition, 0, 'Position should be zero after full redemption');
+  }
+
+  // Test redemption after state update
+  function test_redeemOsToken_afterStateUpdate() public {
+    // First mint some OsToken shares
+    uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, mintAmount, referrer);
+
+    // Force state update required
+    _setEthVaultReward(address(vault), int160(int256(0.1 ether)), 0);
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(
+      address(vault),
+      int160(int256(0.1 ether)),
+      0
+    );
+
+    vm.warp(vm.getBlockTimestamp() + 1 days);
+
+    // Vault needs harvesting at this point
+    assertTrue(contracts.keeper.isHarvestRequired(address(vault)), 'Vault should need harvesting');
+
+    // Try to redeem - should fail due to not harvested
+    address redeemer = osTokenConfig.redeemer();
+
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_afterStateUpdate_fail');
+    vm.expectRevert(Errors.NotHarvested.selector);
+    vault.redeemOsToken(mintAmount / 2, owner, receiver);
+    _stopSnapshotGas();
+
+    // Update state
+    vault.updateState(harvestParams);
+
+    // Now redemption should work
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_afterStateUpdate_success');
+    vault.redeemOsToken(mintAmount / 2, owner, receiver);
+    _stopSnapshotGas();
+
+    // Verify position was updated
+    assertLt(
+      vault.osTokenPositions(owner),
+      mintAmount,
+      'Position should be reduced after redemption'
+    );
+  }
+
+  // Test comparison between liquidation and redemption
+  function test_redeemVsLiquidate() public {
+    // First mint maximum OsToken shares
+    uint256 userShares = vault.getShares(owner);
+    uint256 userAssets = vault.convertToAssets(userShares);
+
+    // Get LTV percent from config
+    IOsTokenConfig.Config memory config = osTokenConfig.getConfig(address(vault));
+    uint256 maxOsTokenAssets = (userAssets * config.ltvPercent) / 1e18;
+    uint256 maxOsTokenShares = osTokenVaultController.convertToShares(maxOsTokenAssets);
+
+    // Mint maximum OsToken shares
+    vm.prank(owner);
+    vault.mintOsToken(owner, maxOsTokenShares, referrer);
+
+    // Enter exit queue with almost all vault shares to create poor health factor
+    uint256 exitAmount = (userShares * 90) / 100; // Exit 90% of shares
+    vm.prank(owner);
+    vm.expectRevert(Errors.LowLtv.selector); // Should fail due to poor health factor
+    vault.enterExitQueue(exitAmount, owner);
+
+    // Try to liquidate - will fail because health factor not below threshold yet
+    address liquidator = makeAddr('liquidator');
+    vm.prank(liquidator);
+    vm.expectRevert(Errors.InvalidHealthFactor.selector);
+    vault.liquidateOsToken(maxOsTokenShares / 2, owner, liquidator);
+
+    // But redeemer can redeem regardless of health factor
+    address redeemer = osTokenConfig.redeemer();
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultOsTokenTest_test_redeemVsLiquidate');
+    vault.redeemOsToken(maxOsTokenShares / 2, owner, receiver);
+    _stopSnapshotGas();
+
+    // Verify redemption worked
+    assertLt(
+      vault.osTokenPositions(owner),
+      maxOsTokenShares,
+      'Position should be reduced after redemption'
+    );
+  }
 }
