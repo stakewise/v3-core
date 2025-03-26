@@ -381,6 +381,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
     // Burn a portion of shares
     uint128 burnAmount = uint128(mintAmount / 2);
 
+    // Expect OsTokenBurned event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenBurned(owner, 0, burnAmount);
+
     vm.prank(owner);
     _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_basic');
     uint256 burnedAssets = vault.burnOsToken(burnAmount);
@@ -410,6 +414,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
 
     // Burn all shares
     uint128 burnAmount = uint128(initialPosition);
+
+    // Expect OsTokenBurned event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenBurned(owner, 0, burnAmount);
 
     vm.prank(owner);
     _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_allShares');
@@ -506,6 +514,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
     // Burn a portion of shares
     uint128 burnAmount = uint128(mintAmount / 2);
 
+    // Expect OsTokenBurned event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenBurned(owner, 0, burnAmount);
+
     vm.prank(owner);
     _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_afterFeeSync');
     uint256 burnedAssets = vault.burnOsToken(burnAmount);
@@ -531,6 +543,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
     uint128 burnAmount1 = uint128(mintAmount / 4);
     uint128 burnAmount2 = uint128(mintAmount / 4);
 
+    // Expect OsTokenBurned event for first burn
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenBurned(owner, 0, burnAmount1);
+
     // First burn
     vm.prank(owner);
     uint256 burnedAssets1 = vault.burnOsToken(burnAmount1);
@@ -542,6 +558,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
       initialPosition - burnAmount1,
       'Position incorrect after first burn'
     );
+
+    // Expect OsTokenBurned event for second burn
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenBurned(owner, 0, burnAmount2);
 
     // Second burn
     vm.prank(owner);
@@ -584,6 +604,11 @@ contract VaultOsTokenTest is Test, EthHelpers {
 
     // Now burn some OsToken shares
     uint128 burnAmount = uint128(maxOsTokenShares / 5);
+
+    // Expect OsTokenBurned event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenBurned(owner, 0, burnAmount);
+
     vm.prank(owner);
     _startSnapshotGas('VaultOsTokenTest_test_burnOsToken_improvesLTV');
     uint256 burnedAssets = vault.burnOsToken(burnAmount);
@@ -638,6 +663,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
     // Get current redeemer and perform redemption
     address redeemer = osTokenConfig.redeemer();
     uint256 redeemAmount = mintAmount / 2;
+
+    // Expect OsTokenRedeemed event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenRedeemed(redeemer, owner, receiver, redeemAmount, 0, 0);
 
     vm.prank(redeemer);
     _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_basic');
@@ -718,6 +747,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
     uint256 redeemAmount = mintAmount / 2;
     address redeemer = osTokenConfig.redeemer();
 
+    // Expect OsTokenRedeemed event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenRedeemed(redeemer, owner, receiver, redeemAmount, 0, 0);
+
     vm.prank(redeemer);
     _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_afterFeeSync');
     vault.redeemOsToken(redeemAmount, owner, receiver);
@@ -739,6 +772,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
 
     // Redemption should work even with good health factor
     address redeemer = osTokenConfig.redeemer();
+
+    // Expect OsTokenRedeemed event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenRedeemed(redeemer, owner, receiver, mintAmount / 2, 0, 0);
 
     vm.prank(redeemer);
     _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_goodHealthFactor');
@@ -797,6 +834,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
     // Redeem entire position
     address redeemer = osTokenConfig.redeemer();
 
+    // Expect OsTokenRedeemed event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenRedeemed(redeemer, owner, receiver, mintAmount, 0, 0);
+
     vm.prank(redeemer);
     _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_fullPosition');
     vault.redeemOsToken(mintAmount, owner, receiver);
@@ -840,6 +881,11 @@ contract VaultOsTokenTest is Test, EthHelpers {
     vault.updateState(harvestParams);
 
     // Now redemption should work
+
+    // Expect OsTokenRedeemed event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenRedeemed(redeemer, owner, receiver, mintAmount / 2, 0, 0);
+
     vm.prank(redeemer);
     _startSnapshotGas('VaultOsTokenTest_test_redeemOsToken_afterStateUpdate_success');
     vault.redeemOsToken(mintAmount / 2, owner, receiver);
@@ -882,6 +928,11 @@ contract VaultOsTokenTest is Test, EthHelpers {
 
     // But redeemer can redeem regardless of health factor
     address redeemer = osTokenConfig.redeemer();
+
+    // Expect OsTokenRedeemed event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenRedeemed(redeemer, owner, receiver, maxOsTokenShares / 2, 0, 0);
+
     vm.prank(redeemer);
     _startSnapshotGas('VaultOsTokenTest_test_redeemVsLiquidate');
     vault.redeemOsToken(maxOsTokenShares / 2, owner, receiver);
