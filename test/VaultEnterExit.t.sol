@@ -53,6 +53,207 @@ contract VaultEnterExitTest is Test, EthHelpers {
     );
   }
 
+  function test_deposit_zeroAddress() public {
+    // Try to deposit to address(0)
+    vm.prank(sender);
+    vm.expectRevert(Errors.ZeroAddress.selector);
+    _startSnapshotGas('VaultEnterExitTest_test_deposit_zeroAddress');
+    vault.deposit{value: depositAmount}(address(0), referrer);
+    _stopSnapshotGas();
+  }
+
+  function test_deposit_zeroAmount() public {
+    // Try to deposit 0 ETH
+    vm.prank(sender);
+    vm.expectRevert(Errors.InvalidAssets.selector);
+    _startSnapshotGas('VaultEnterExitTest_test_deposit_zeroAmount');
+    vault.deposit{value: 0}(receiver, referrer);
+    _stopSnapshotGas();
+  }
+
+  function test_deposit_exceedingCapacity() public {
+    // Create a new vault with a small capacity
+    bytes memory initParams = abi.encode(
+      IEthVault.EthVaultInitParams({
+        capacity: 33 ether,
+        feePercent: 1000, // 10%
+        metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
+      })
+    );
+    address vaultAddr = _createVault(VaultType.EthVault, admin, initParams, false);
+    EthVault smallVault = EthVault(payable(vaultAddr));
+
+    // First deposit an amount under capacity
+    _depositToVault(address(smallVault), 32 ether, sender, sender);
+
+    // Then try to deposit an amount that would exceed capacity
+    vm.prank(sender);
+    vm.expectRevert(Errors.CapacityExceeded.selector);
+    _startSnapshotGas('VaultEnterExitTest_test_deposit_exceedingCapacity');
+    smallVault.deposit{value: 1.1 ether}(sender, referrer);
+    _stopSnapshotGas();
+  }
+
+  function test_deposit_success_basic() public {
+    // Record initial balances and state
+    uint256 senderBalanceBefore = sender.balance;
+    uint256 vaultBalanceBefore = address(vault).balance;
+    uint256 totalSharesBefore = vault.totalShares();
+    uint256 totalAssetsBefore = vault.totalAssets();
+
+    // Perform the deposit
+    vm.prank(sender);
+    _startSnapshotGas('VaultEnterExitTest_test_deposit_success_basic');
+    uint256 shares = vault.deposit{value: depositAmount}(sender, referrer);
+    _stopSnapshotGas();
+
+    // Verify ETH was transferred correctly
+    assertEq(
+      sender.balance,
+      senderBalanceBefore - depositAmount,
+      "Sender's ETH balance should decrease"
+    );
+    assertEq(
+      address(vault).balance,
+      vaultBalanceBefore + depositAmount,
+      "Vault's ETH balance should increase"
+    );
+
+    // Verify shares were minted correctly
+    assertEq(vault.getShares(sender), shares, 'Sender should receive the correct number of shares');
+    assertEq(
+      vault.totalShares(),
+      totalSharesBefore + shares,
+      'Total shares should increase by the minted amount'
+    );
+    assertEq(
+      vault.totalAssets(),
+      totalAssetsBefore + depositAmount,
+      'Total assets should increase by deposit amount'
+    );
+
+    // Verify the conversion between assets and shares
+    assertEq(
+      vault.convertToAssets(shares),
+      depositAmount,
+      'Shares should convert back to the deposited amount'
+    );
+  }
+
+  function test_deposit_success_differentReceiver() public {
+    // Record initial balances and state
+    uint256 senderSharesBefore = vault.getShares(sender);
+    uint256 receiverSharesBefore = vault.getShares(receiver);
+
+    // Perform the deposit with a different receiver
+    uint256 depositAssets = 1.5 ether;
+    vm.prank(sender);
+    _startSnapshotGas('VaultEnterExitTest_test_deposit_success_differentReceiver');
+    uint256 shares = vault.deposit{value: depositAssets}(receiver, referrer);
+    _stopSnapshotGas();
+
+    // Verify shares were minted to the receiver, not the sender
+    assertEq(vault.getShares(sender), senderSharesBefore, "Sender's shares should not change");
+    assertEq(
+      vault.getShares(receiver),
+      receiverSharesBefore + shares,
+      'Receiver should get the minted shares'
+    );
+  }
+
+  function test_deposit_success_multipleDeposits() public {
+    // First deposit
+    uint256 firstDeposit = 1 ether;
+    vm.prank(sender);
+    uint256 firstShares = vault.deposit{value: firstDeposit}(sender, referrer);
+
+    // Second deposit
+    uint256 secondDeposit = 2 ether;
+    vm.prank(sender);
+    _startSnapshotGas('VaultEnterExitTest_test_deposit_success_multipleDeposits');
+    uint256 secondShares = vault.deposit{value: secondDeposit}(sender, referrer);
+    _stopSnapshotGas();
+
+    // Check the relationship between deposits
+    // Second deposit is 2x the first, so should get approximately 2x the shares
+    // (allowing for minor differences due to rounding or fees)
+    assertApproxEqRel(
+      secondShares,
+      firstShares * 2,
+      0.01e18, // 1% tolerance
+      'Second deposit should get proportional shares relative to the first deposit'
+    );
+
+    // Verify total shares
+    assertEq(
+      vault.getShares(sender),
+      firstShares + secondShares,
+      'Total shares should be the sum of both deposits'
+    );
+  }
+
+  function test_deposit_success_withReferrer() public {
+    // Set up a referrer
+    address validReferrer = makeAddr('referrer');
+
+    // Record initial balances and state
+    uint256 senderBalanceBefore = sender.balance;
+    uint256 vaultBalanceBefore = address(vault).balance;
+
+    // Perform the deposit with a referrer
+    vm.prank(sender);
+    _startSnapshotGas('VaultEnterExitTest_test_deposit_success_withReferrer');
+    uint256 shares = vault.deposit{value: depositAmount}(sender, validReferrer);
+    _stopSnapshotGas();
+
+    // Verify deposit succeeded with referrer
+    assertEq(
+      sender.balance,
+      senderBalanceBefore - depositAmount,
+      "Sender's ETH balance should decrease"
+    );
+    assertEq(
+      address(vault).balance,
+      vaultBalanceBefore + depositAmount,
+      "Vault's ETH balance should increase"
+    );
+    assertEq(vault.getShares(sender), shares, 'Sender should receive the correct number of shares');
+
+    // Note: In a real implementation, we might want to check for referral tracking or rewards,
+    // but the current contract doesn't seem to have specific referrer handling beyond the event
+  }
+
+  function test_deposit_success_receiveFunction() public {
+    // Record initial balances and state
+    uint256 senderBalanceBefore = sender.balance;
+    uint256 vaultBalanceBefore = address(vault).balance;
+    uint256 senderSharesBefore = vault.getShares(sender);
+
+    // Deposit using the receive function (direct transfer)
+    vm.prank(sender);
+    _startSnapshotGas('VaultEnterExitTest_test_deposit_success_receiveFunction');
+    (bool success, ) = address(vault).call{value: depositAmount}('');
+    _stopSnapshotGas();
+
+    // Verify transfer succeeded
+    assertTrue(success, 'Direct transfer should succeed');
+
+    // Verify ETH was transferred correctly
+    assertEq(
+      sender.balance,
+      senderBalanceBefore - depositAmount,
+      "Sender's ETH balance should decrease"
+    );
+    assertEq(
+      address(vault).balance,
+      vaultBalanceBefore + depositAmount,
+      "Vault's ETH balance should increase"
+    );
+
+    // Verify shares were minted to the sender
+    assertGt(vault.getShares(sender), senderSharesBefore, 'Sender should receive shares');
+  }
+
   function test_enterExitQueue_basicFlow() public {
     // 1. Deposit ETH
     _depositToVault(address(vault), depositAmount, sender, sender);
