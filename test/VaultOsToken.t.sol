@@ -6,6 +6,7 @@ import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
 import {IOsTokenVaultController} from '../contracts/interfaces/IOsTokenVaultController.sol';
 import {IOsTokenConfig} from '../contracts/interfaces/IOsTokenConfig.sol';
+import {IVaultOsToken} from '../contracts/interfaces/IVaultOsToken.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {EthVault} from '../contracts/vaults/ethereum/EthVault.sol';
@@ -66,6 +67,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
     // Calculate a portion of max mintable amount to use
     uint256 osTokenSharesToMint = contracts.osTokenVaultController.convertToShares(1 ether);
 
+    // Expect the OsTokenMinted event to be emitted
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenMinted(owner, receiver, 0, osTokenSharesToMint, referrer);
+
     // Mint OsToken
     vm.prank(owner);
     _startSnapshotGas('VaultOsTokenTest_test_mintOsToken_basic');
@@ -85,6 +90,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
   function test_mintOsToken_maxAmount() public {
     // Start with clean slate
     uint256 initialOsTokenShares = vault.osTokenPositions(owner);
+
+    // Expect the OsTokenMinted event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenMinted(owner, receiver, 0, 0, referrer); // We don't know exact share amount, just verify caller
 
     // Mint max OsToken
     vm.prank(owner);
@@ -138,6 +147,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
     uint256 maxOsTokenAssets = (userAssets * config.ltvPercent) / 1e18;
     uint256 maxOsTokenShares = osTokenVaultController.convertToShares(maxOsTokenAssets);
 
+    // Expect OsTokenMinted event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenMinted(owner, owner, 0, maxOsTokenShares, referrer);
+
     // Mint maximum OsToken shares
     vm.prank(owner);
     vault.mintOsToken(owner, maxOsTokenShares, referrer);
@@ -154,6 +167,11 @@ contract VaultOsTokenTest is Test, EthHelpers {
 
     // Verify that burning some OsToken shares first would allow entering exit queue
     uint128 burnAmount = uint128(maxOsTokenShares / 5); // Burn 20% of OsToken position
+
+    // Expect OsTokenBurned event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenBurned(owner, 0, burnAmount);
+
     vm.prank(owner);
     vault.burnOsToken(burnAmount);
 
@@ -166,6 +184,11 @@ contract VaultOsTokenTest is Test, EthHelpers {
   function test_mintOsToken_feeSync() public {
     // First mint to create position
     uint256 firstMintShares = contracts.osTokenVaultController.convertToShares(1 ether);
+
+    // Expect OsTokenMinted event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenMinted(owner, owner, 0, firstMintShares, referrer);
+
     vm.prank(owner);
     vault.mintOsToken(owner, firstMintShares, referrer);
 
@@ -185,6 +208,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
 
     // Record position before second mint
     uint256 positionBefore = vault.osTokenPositions(owner);
+
+    // Expect OsTokenMinted event for second mint
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenMinted(owner, owner, 0, firstMintShares / 2, referrer);
 
     // Mint more OsToken shares
     vm.prank(owner);
@@ -270,6 +297,11 @@ contract VaultOsTokenTest is Test, EthHelpers {
 
     // Update state and try again - should work
     vault.updateState(harvestParams);
+
+    // Expect OsTokenMinted event
+    vm.expectEmit(true, false, false, false);
+    emit IVaultOsToken.OsTokenMinted(owner, receiver, 0, mintAmount, referrer);
+
     vm.prank(owner);
     uint256 assets = vault.mintOsToken(receiver, mintAmount, referrer);
     assertGt(assets, 0, 'Should mint after harvesting');
