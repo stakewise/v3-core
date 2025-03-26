@@ -78,7 +78,12 @@ abstract contract VaultEthStaking is
       // extract amount from data, convert gwei to wei by multiplying by 1 gwei
       depositAmount = (uint256(uint64(bytes8(validator[176:184]))) * 1 gwei);
       // should not exceed the max effective balance
-      if (depositAmount > _validatorMaxEffectiveBalance()) revert Errors.InvalidAssets();
+      if (
+        (!isTopUp && depositAmount < _validatorMinEffectiveBalance()) ||
+        depositAmount > _validatorMaxEffectiveBalance()
+      ) {
+        revert Errors.InvalidAssets();
+      }
     }
 
     // deposit to the validators registry

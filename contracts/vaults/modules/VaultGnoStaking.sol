@@ -96,7 +96,7 @@ abstract contract VaultGnoStaking is
       depositAmount = (uint256(uint64(bytes8(validator[176:184]))) * 1 gwei) / 32;
       // should not exceed the max effective balance
       if (
-        depositAmount < _validatorMinEffectiveBalance() ||
+        (!isTopUp && depositAmount < _validatorMinEffectiveBalance()) ||
         depositAmount > _validatorMaxEffectiveBalance()
       ) {
         revert Errors.InvalidAssets();
