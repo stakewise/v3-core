@@ -94,9 +94,7 @@ abstract contract KeeperHelpers is Test {
       signatures: abi.encodePacked(r, s, v)
     });
 
-    vm.warp(
-      Keeper(_params.keeper).lastRewardsTimestamp() + Keeper(_params.keeper).rewardsDelay() + 1
-    );
+    vm.warp(vm.getBlockTimestamp() + Keeper(_params.keeper).rewardsDelay() + 1);
     Keeper(_params.keeper).updateRewards(updateParams);
 
     _stopOracleImpersonate(params.keeper);
