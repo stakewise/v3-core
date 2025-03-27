@@ -7,12 +7,23 @@ import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
 import {IOsTokenVaultController} from '../contracts/interfaces/IOsTokenVaultController.sol';
 import {IOsTokenConfig} from '../contracts/interfaces/IOsTokenConfig.sol';
+import {IVaultEnterExit} from '../contracts/interfaces/IVaultEnterExit.sol';
 import {IVaultOsToken} from '../contracts/interfaces/IVaultOsToken.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {EthVault} from '../contracts/vaults/ethereum/EthVault.sol';
 
+interface IStrategiesRegistry {
+  function addStrategyProxy(bytes32 strategyProxyId, address proxy) external;
+  function setStrategy(address strategy, bool enabled) external;
+
+  function owner() external view returns (address);
+}
+
 contract VaultOsTokenTest is Test, EthHelpers {
+  IStrategiesRegistry private constant _strategiesRegistry =
+    IStrategiesRegistry(0x90b82E4b3aa385B4A02B7EBc1892a4BeD6B5c465);
+
   ForkContracts public contracts;
   EthVault public vault;
   IOsTokenVaultController public osTokenVaultController;
@@ -1262,5 +1273,198 @@ contract VaultOsTokenTest is Test, EthHelpers {
     vm.expectRevert(Errors.InvalidReceivedAssets.selector);
     vault.liquidateOsToken(osTokenShares, owner, liquidator);
     _stopSnapshotGas();
+  }
+
+  function test_transferOsTokenPositionToEscrow_basic() public {
+    vm.prank(_strategiesRegistry.owner());
+    _strategiesRegistry.setStrategy(address(this), true);
+    _strategiesRegistry.addStrategyProxy(keccak256(abi.encode(owner)), owner);
+
+    // First mint some osToken shares
+    uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, osTokenShares, referrer);
+
+    // Record initial position
+    uint256 initialPosition = vault.osTokenPositions(owner);
+    assertEq(initialPosition, osTokenShares, 'Initial position incorrect');
+
+    // Transfer osToken position to escrow
+    uint256 timestamp = vm.getBlockTimestamp();
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_transferOsTokenPositionToEscrow_basic');
+    uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(osTokenShares);
+    _stopSnapshotGas();
+
+    // Verify osToken position is transferred (should be zero)
+    uint256 afterTransferPosition = vault.osTokenPositions(owner);
+    assertEq(afterTransferPosition, 0, 'osToken position was not fully transferred');
+
+    // Verify position in escrow
+    (address escrowOwner, uint256 exitedAssets, uint256 escrowOsTokenShares) = contracts
+      .osTokenVaultEscrow
+      .getPosition(address(vault), exitPositionTicket);
+
+    assertEq(escrowOwner, owner, 'Incorrect owner in escrow position');
+    assertEq(exitedAssets, 0, 'Exited assets should be zero initially');
+    assertEq(escrowOsTokenShares, osTokenShares, 'Incorrect osToken shares in escrow');
+
+    // Update state to process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+
+    // Ensure enough time has passed for claiming
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+
+    // Process the exited assets
+    _startSnapshotGas('VaultOsTokenTest_test_transferOsTokenPositionToEscrow_process');
+    contracts.osTokenVaultEscrow.processExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      timestamp,
+      uint256(vault.getExitQueueIndex(exitPositionTicket))
+    );
+    _stopSnapshotGas();
+
+    // Record user's ETH balance before claiming
+    uint256 ownerBalanceBefore = owner.balance;
+
+    // Claim exited assets
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_transferOsTokenPositionToEscrow_claim');
+    uint256 claimedAssets = contracts.osTokenVaultEscrow.claimExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      osTokenShares
+    );
+    _stopSnapshotGas();
+
+    // Verify assets were received
+    uint256 ownerBalanceAfter = owner.balance;
+    assertEq(
+      ownerBalanceAfter - ownerBalanceBefore,
+      claimedAssets,
+      'Incorrect amount of assets transferred'
+    );
+    assertGt(claimedAssets, 0, 'No assets were claimed');
+  }
+
+  function test_transferOsTokenPositionToEscrow_zeroShares() public {
+    // Mint some osToken shares first
+    uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, osTokenShares, referrer);
+
+    // Try to transfer zero shares
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_transferOsTokenPositionToEscrow_zeroShares');
+    vm.expectRevert(Errors.InvalidShares.selector);
+    vault.transferOsTokenPositionToEscrow(0);
+    _stopSnapshotGas();
+  }
+
+  function test_transferOsTokenPositionToEscrow_moreThanOwned() public {
+    // Mint some osToken shares first
+    uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, osTokenShares, referrer);
+
+    // Try to transfer more shares than owned
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_transferOsTokenPositionToEscrow_moreThanOwned');
+    vm.expectRevert(Errors.InvalidShares.selector);
+    vault.transferOsTokenPositionToEscrow(osTokenShares * 2);
+    _stopSnapshotGas();
+  }
+
+  function test_transferOsTokenPositionToEscrow_notHarvested() public {
+    // Mint some osToken shares first
+    uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, osTokenShares, referrer);
+
+    // Force vault to need harvesting
+    _setEthVaultReward(address(vault), int160(int256(0.5 ether)), 0);
+    _setEthVaultReward(address(vault), int160(int256(0.5 ether)), 0);
+
+    vm.warp(vm.getBlockTimestamp() + 1 days);
+
+    // Try to transfer when vault needs harvesting
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_transferOsTokenPositionToEscrow_notHarvested');
+    vm.expectRevert(Errors.NotHarvested.selector);
+    vault.transferOsTokenPositionToEscrow(osTokenShares);
+    _stopSnapshotGas();
+  }
+
+  function test_transferOsTokenPositionToEscrow_noPosition() public {
+    // Try to transfer with no position
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_transferOsTokenPositionToEscrow_noPosition');
+    vm.expectRevert(Errors.InvalidPosition.selector);
+    vault.transferOsTokenPositionToEscrow(1 ether);
+    _stopSnapshotGas();
+  }
+
+  function test_transferOsTokenPositionToEscrow_partialTransfer() public {
+    vm.prank(_strategiesRegistry.owner());
+    _strategiesRegistry.setStrategy(address(this), true);
+    _strategiesRegistry.addStrategyProxy(keccak256(abi.encode(owner)), owner);
+
+    // Mint some osToken shares first
+    uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(2 ether);
+    vm.prank(owner);
+    vault.mintOsToken(owner, osTokenShares, referrer);
+
+    // Transfer half of the position
+    uint256 transferAmount = osTokenShares / 2;
+
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_transferOsTokenPositionToEscrow_partialTransfer');
+    uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(transferAmount);
+    _stopSnapshotGas();
+
+    // Verify remaining position
+    uint256 remainingPosition = vault.osTokenPositions(owner);
+    assertEq(remainingPosition, osTokenShares - transferAmount, 'Remaining position incorrect');
+
+    // Verify position in escrow
+    (address escrowOwner, , uint256 escrowOsTokenShares) = contracts.osTokenVaultEscrow.getPosition(
+      address(vault),
+      exitPositionTicket
+    );
+
+    assertEq(escrowOwner, owner, 'Incorrect owner in escrow position');
+    assertEq(escrowOsTokenShares, transferAmount, 'Incorrect osToken shares in escrow');
+  }
+
+  function test_transferOsTokenPositionToEscrow_maxAmount() public {
+    vm.prank(_strategiesRegistry.owner());
+    _strategiesRegistry.setStrategy(address(this), true);
+    _strategiesRegistry.addStrategyProxy(keccak256(abi.encode(owner)), owner);
+
+    // Mint maximum osToken shares
+    vm.prank(owner);
+    vault.mintOsToken(owner, type(uint256).max, referrer);
+    uint256 mintedShares = vault.osTokenPositions(owner);
+
+    // Transfer all minted shares
+    vm.prank(owner);
+    _startSnapshotGas('VaultOsTokenTest_test_transferOsTokenPositionToEscrow_maxAmount');
+    uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(mintedShares);
+    _stopSnapshotGas();
+
+    // Verify position in escrow
+    (address escrowOwner, , uint256 escrowOsTokenShares) = contracts.osTokenVaultEscrow.getPosition(
+      address(vault),
+      exitPositionTicket
+    );
+
+    assertEq(escrowOwner, owner, 'Incorrect owner in escrow position');
+    assertEq(escrowOsTokenShares, mintedShares, 'Incorrect osToken shares in escrow');
+
+    // Verify position is fully transferred
+    uint256 remainingPosition = vault.osTokenPositions(owner);
+    assertEq(remainingPosition, 0, 'Position should be fully transferred');
   }
 }
