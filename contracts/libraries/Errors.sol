@@ -49,7 +49,6 @@ library Errors {
   error MaxOraclesExceeded();
   error ExitRequestNotProcessed();
   error ValueNotChanged();
-  error InvalidQueuedShares();
   error FlashLoanFailed();
   error CannotTopUpV1Validators();
   error InvalidSignatures();
