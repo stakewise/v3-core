@@ -2,6 +2,7 @@
 pragma solidity ^0.8.22;
 
 import {Test} from 'forge-std/Test.sol';
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
 import {IOsTokenVaultController} from '../contracts/interfaces/IOsTokenVaultController.sol';
@@ -57,6 +58,8 @@ contract VaultOsTokenTest is Test, EthHelpers {
 
     // Collateralize vault (required for minting OsToken)
     _collateralizeEthVault(address(vault));
+
+    vm.warp(vm.getBlockTimestamp() + 7 days + 1);
   }
 
   // Test basic minting functionality
@@ -944,5 +947,276 @@ contract VaultOsTokenTest is Test, EthHelpers {
       maxOsTokenShares,
       'Position should be reduced after redemption'
     );
+  }
+
+  // Test basic liquidation functionality
+  function test_liquidateOsToken_basic() public {
+    _depositToVault(address(vault), 10 ether, owner, owner);
+
+    vm.prank(owner);
+    uint256 osTokenAssets = vault.mintOsToken(owner, type(uint256).max, referrer);
+    uint256 osTokenShares = osTokenVaultController.convertToShares(osTokenAssets);
+
+    // Get vault state and configuration
+    IOsTokenConfig.Config memory config = osTokenConfig.getConfig(address(vault));
+    int256 requiredPenalty = int256(vault.totalAssets()) -
+      int256((vault.totalAssets() * config.liqThresholdPercent) / 1e18);
+    requiredPenalty = -requiredPenalty;
+
+    // Apply the penalty
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(
+      address(vault),
+      int160(requiredPenalty),
+      0
+    );
+    vault.updateState(harvestParams);
+
+    // Verify the position is now liquidatable
+    address liquidator = makeAddr('liquidator');
+    uint256 liquidatorInitialBalance = liquidator.balance;
+    _mintOsToken(liquidator, osTokenShares);
+
+    // Perform liquidation
+    vm.prank(liquidator);
+    _startSnapshotGas('VaultOsTokenTest_test_liquidateOsToken_basic');
+    vault.liquidateOsToken(osTokenShares, owner, liquidator);
+    _stopSnapshotGas();
+
+    // Verify liquidation results
+    assertApproxEqAbs(
+      vault.osTokenPositions(owner),
+      0,
+      0.0001 ether,
+      'Position should be reduced after liquidation'
+    );
+    assertGt(liquidator.balance, liquidatorInitialBalance, 'Liquidator should receive assets');
+  }
+
+  // Test liquidation bonus calculation
+  function test_liquidateOsToken_bonus() public {
+    _depositToVault(address(vault), 10 ether, owner, owner);
+
+    vm.prank(owner);
+    uint256 osTokenAssets = vault.mintOsToken(owner, type(uint256).max, referrer);
+    uint256 osTokenShares = osTokenVaultController.convertToShares(osTokenAssets);
+
+    // Get configuration
+    IOsTokenConfig.Config memory config = osTokenConfig.getConfig(address(vault));
+
+    // Calculate and apply penalty to make position liquidatable
+    int256 requiredPenalty = int256(vault.totalAssets()) -
+      int256((vault.totalAssets() * config.liqThresholdPercent) / 1e18);
+    requiredPenalty = -requiredPenalty;
+
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(
+      address(vault),
+      int160(requiredPenalty),
+      0
+    );
+    vault.updateState(harvestParams);
+
+    // Calculate expected bonus
+    uint256 liquidationAmount = osTokenShares / 4;
+    uint256 normalAssets = osTokenVaultController.convertToAssets(liquidationAmount);
+    uint256 expectedAssets = (normalAssets * config.liqBonusPercent) / 1e18;
+
+    // Prepare liquidator
+    address liquidator = makeAddr('liquidator');
+    uint256 liquidatorInitialBalance = liquidator.balance;
+    _mintOsToken(liquidator, liquidationAmount);
+
+    // Perform liquidation
+    vm.prank(liquidator);
+    _startSnapshotGas('VaultOsTokenTest_test_liquidateOsToken_bonus');
+    vault.liquidateOsToken(liquidationAmount, owner, liquidator);
+    _stopSnapshotGas();
+
+    // Verify liquidator received a bonus
+    uint256 receivedAssets = liquidator.balance - liquidatorInitialBalance;
+    assertGt(receivedAssets, normalAssets, 'Liquidator should receive bonus');
+
+    // Check the bonus is approximately as expected (with some tolerance for gas costs)
+    uint256 tolerance = expectedAssets / 20; // 5% tolerance
+    assertApproxEqAbs(
+      receivedAssets,
+      expectedAssets,
+      tolerance,
+      'Received assets should match expected bonus calculation'
+    );
+  }
+
+  // Test that liquidation is disabled when configured
+  function test_liquidateOsToken_liquidationDisabled() public {
+    // Create a vault with disabled liquidations
+    address adminWithDisabledLiq = makeAddr('adminWithDisabledLiq');
+    vm.deal(adminWithDisabledLiq, 100 ether);
+    bytes memory initParams = abi.encode(
+      IEthVault.EthVaultInitParams({
+        capacity: 1000 ether,
+        feePercent: 1000, // 10%
+        metadataIpfsHash: 'test'
+      })
+    );
+
+    address vaultAddr = _getOrCreateVault(
+      VaultType.EthVault,
+      adminWithDisabledLiq,
+      initParams,
+      false
+    );
+    EthVault vaultWithDisabledLiq = EthVault(payable(vaultAddr));
+
+    // Disable liquidations
+    vm.startPrank(Ownable(address(osTokenConfig)).owner());
+    IOsTokenConfig.Config memory disabledLiqConfig = IOsTokenConfig.Config({
+      ltvPercent: 0.9999 ether,
+      liqThresholdPercent: type(uint64).max, // Disable liquidations
+      liqBonusPercent: 0
+    });
+    osTokenConfig.updateConfig(address(vaultWithDisabledLiq), disabledLiqConfig);
+    vm.stopPrank();
+
+    // Deposit to vault and collateralize
+    address vaultOwner = makeAddr('vaultOwner');
+    vm.deal(vaultOwner, 100 ether);
+    _depositToVault(address(vaultWithDisabledLiq), 50 ether, vaultOwner, vaultOwner);
+    _collateralizeEthVault(address(vaultWithDisabledLiq));
+
+    // Create a position
+    vm.prank(vaultOwner);
+    uint256 osTokenAssets = vaultWithDisabledLiq.mintOsToken(
+      vaultOwner,
+      type(uint256).max,
+      referrer
+    );
+    uint256 osTokenShares = osTokenVaultController.convertToShares(osTokenAssets);
+
+    // Apply severe penalty
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(
+      address(vaultWithDisabledLiq),
+      int160(int256(-10 ether)),
+      0
+    );
+    vaultWithDisabledLiq.updateState(harvestParams);
+
+    // Prepare liquidator
+    address liquidator = makeAddr('liquidator');
+    uint256 liquidationAmount = osTokenShares / 4;
+    _mintOsToken(liquidator, liquidationAmount);
+
+    // Try to liquidate - should fail because liquidations are disabled
+    vm.prank(liquidator);
+    _startSnapshotGas('VaultOsTokenTest_test_liquidateOsToken_liquidationDisabled');
+    vm.expectRevert(Errors.LiquidationDisabled.selector);
+    vaultWithDisabledLiq.liquidateOsToken(liquidationAmount, vaultOwner, liquidator);
+    _stopSnapshotGas();
+  }
+
+  // Test that liquidation fails if vault is not harvested
+  function test_liquidateOsToken_notHarvested() public {
+    _setEthVaultReward(address(vault), 0, 0);
+    _setEthVaultReward(address(vault), 0, 0);
+
+    _startSnapshotGas('VaultOsTokenTest_test_test_liquidateOsToken_notHarvested');
+    vm.expectRevert(Errors.NotHarvested.selector);
+    vault.liquidateOsToken(1 ether, owner, owner);
+    _stopSnapshotGas();
+  }
+
+  // Test partial liquidation
+  function test_liquidateOsToken_partialLiquidation() public {
+    _depositToVault(address(vault), 10 ether, owner, owner);
+
+    vm.prank(owner);
+    uint256 osTokenAssets = vault.mintOsToken(owner, type(uint256).max, referrer);
+    uint256 osTokenShares = osTokenVaultController.convertToShares(osTokenAssets);
+
+    // Get configuration
+    IOsTokenConfig.Config memory config = osTokenConfig.getConfig(address(vault));
+
+    // Calculate and apply penalty to make position liquidatable
+    int256 requiredPenalty = int256(vault.totalAssets()) -
+      int256((vault.totalAssets() * config.liqThresholdPercent) / 1e18);
+    requiredPenalty = -requiredPenalty;
+
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(
+      address(vault),
+      int160(requiredPenalty),
+      0
+    );
+    vault.updateState(harvestParams);
+
+    // Record initial position
+    uint256 initialPosition = vault.osTokenPositions(owner);
+
+    // Prepare for partial liquidation
+    address liquidator = makeAddr('liquidator');
+    uint256 liquidationAmount = osTokenShares / 3;
+    _mintOsToken(liquidator, liquidationAmount);
+
+    // Perform first liquidation
+    vm.prank(liquidator);
+    _startSnapshotGas('VaultOsTokenTest_test_liquidateOsToken_partialLiquidation');
+    vault.liquidateOsToken(liquidationAmount, owner, liquidator);
+    _stopSnapshotGas();
+
+    // Verify position is reduced correctly
+    uint256 positionAfterLiquidation = vault.osTokenPositions(owner);
+    assertEq(
+      positionAfterLiquidation,
+      initialPosition - liquidationAmount,
+      'Position should be reduced by liquidation amount'
+    );
+
+    // Prepare for second liquidation
+    uint256 remainingAmount = osTokenShares - liquidationAmount;
+    _mintOsToken(liquidator, remainingAmount);
+
+    // Liquidate remainder and verify position becomes zero
+    vm.prank(liquidator);
+    vault.liquidateOsToken(remainingAmount, owner, liquidator);
+
+    assertApproxEqAbs(
+      vault.osTokenPositions(owner),
+      0,
+      0.0001 ether,
+      'Position should be zero after complete liquidation'
+    );
+  }
+
+  function test_liquidateOsToken_invalidReceivedAssets() public {
+    _depositToVault(address(vault), 10 ether, owner, owner);
+
+    vm.prank(owner);
+    uint256 osTokenAssets = vault.mintOsToken(owner, type(uint256).max, referrer);
+    uint256 osTokenShares = osTokenVaultController.convertToShares(osTokenAssets);
+
+    // Get vault state and configuration
+    IOsTokenConfig.Config memory config = osTokenConfig.getConfig(address(vault));
+    int256 requiredPenalty = int256(vault.totalAssets()) -
+      int256((vault.totalAssets() * config.liqThresholdPercent) / 1e18);
+    requiredPenalty = -requiredPenalty;
+
+    // Apply the penalty
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(
+      address(vault),
+      int160(requiredPenalty),
+      0
+    );
+    vault.updateState(harvestParams);
+
+    // Verify the position is now liquidatable
+    address liquidator = makeAddr('liquidator');
+    _mintOsToken(liquidator, osTokenShares);
+
+    // remove withdrawable assets
+    vm.deal(address(vault), address(vault).balance - vault.withdrawableAssets());
+
+    // Perform liquidation
+    vm.prank(liquidator);
+    _startSnapshotGas('VaultOsTokenTest_test_liquidateOsToken_invalidReceivedAssets');
+    vm.expectRevert(Errors.InvalidReceivedAssets.selector);
+    vault.liquidateOsToken(osTokenShares, owner, liquidator);
+    _stopSnapshotGas();
   }
 }

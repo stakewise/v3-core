@@ -174,6 +174,11 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     _collateralizeVault(_keeper, _validatorsRegistry, vault);
   }
 
+  function _mintOsToken(address user, uint256 amount) internal {
+    vm.prank(_getForkVault(VaultType.EthGenesisVault));
+    IOsTokenVaultController(_osTokenVaultController).mintShares(user, amount);
+  }
+
   function _setEthVaultReward(
     address vault,
     int160 totalReward,
