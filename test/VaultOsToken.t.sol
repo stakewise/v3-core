@@ -976,6 +976,17 @@ contract VaultOsTokenTest is Test, EthHelpers {
     uint256 liquidatorInitialBalance = liquidator.balance;
     _mintOsToken(liquidator, osTokenShares);
 
+    // Expect OsTokenLiquidated event
+    vm.expectEmit(true, true, false, false);
+    emit IVaultOsToken.OsTokenLiquidated(
+      liquidator, // caller
+      owner, // user
+      liquidator, // receiver
+      osTokenShares,
+      0, // shares - we don't know exact value
+      0 // receivedAssets - we don't know exact value
+    );
+
     // Perform liquidation
     vm.prank(liquidator);
     _startSnapshotGas('VaultOsTokenTest_test_liquidateOsToken_basic');
@@ -1024,6 +1035,17 @@ contract VaultOsTokenTest is Test, EthHelpers {
     address liquidator = makeAddr('liquidator');
     uint256 liquidatorInitialBalance = liquidator.balance;
     _mintOsToken(liquidator, liquidationAmount);
+
+    // Expect OsTokenLiquidated event
+    vm.expectEmit(true, true, false, false);
+    emit IVaultOsToken.OsTokenLiquidated(
+      liquidator, // caller
+      owner, // user
+      liquidator, // receiver
+      liquidationAmount,
+      0, // shares - we don't know exact value
+      0 // receivedAssets - we don't know exact value
+    );
 
     // Perform liquidation
     vm.prank(liquidator);
@@ -1154,6 +1176,17 @@ contract VaultOsTokenTest is Test, EthHelpers {
     uint256 liquidationAmount = osTokenShares / 3;
     _mintOsToken(liquidator, liquidationAmount);
 
+    // Expect OsTokenLiquidated event for first liquidation
+    vm.expectEmit(true, true, false, false);
+    emit IVaultOsToken.OsTokenLiquidated(
+      liquidator, // caller
+      owner, // user
+      liquidator, // receiver
+      liquidationAmount,
+      0, // shares - we don't know exact value
+      0 // receivedAssets - we don't know exact value
+    );
+
     // Perform first liquidation
     vm.prank(liquidator);
     _startSnapshotGas('VaultOsTokenTest_test_liquidateOsToken_partialLiquidation');
@@ -1171,6 +1204,17 @@ contract VaultOsTokenTest is Test, EthHelpers {
     // Prepare for second liquidation
     uint256 remainingAmount = osTokenShares - liquidationAmount;
     _mintOsToken(liquidator, remainingAmount);
+
+    // Expect OsTokenLiquidated event for second liquidation
+    vm.expectEmit(true, true, false, false);
+    emit IVaultOsToken.OsTokenLiquidated(
+      liquidator, // caller
+      owner, // user
+      liquidator, // receiver
+      remainingAmount,
+      0, // shares - we don't know exact value
+      0 // receivedAssets - we don't know exact value
+    );
 
     // Liquidate remainder and verify position becomes zero
     vm.prank(liquidator);
