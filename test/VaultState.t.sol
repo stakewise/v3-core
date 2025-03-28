@@ -4,8 +4,10 @@ pragma solidity ^0.8.22;
 import {Test} from 'forge-std/Test.sol';
 import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
-import {EthHelpers} from './helpers/EthHelpers.sol';
+import {IVaultEnterExit} from '../contracts/interfaces/IVaultEnterExit.sol';
+import {IVaultState} from '../contracts/interfaces/IVaultState.sol';
 import {EthVault} from '../contracts/vaults/ethereum/EthVault.sol';
+import {EthHelpers} from './helpers/EthHelpers.sol';
 
 contract VaultStateTest is Test, EthHelpers {
   ForkContracts public contracts;
@@ -164,8 +166,11 @@ contract VaultStateTest is Test, EthHelpers {
     // Get initial values
     uint256 initialTotalAssets = vault.totalAssets();
     uint256 initialTotalShares = vault.totalShares();
+    address feeRecipient = vault.feeRecipient();
 
     // Update state to process reward
+    vm.expectEmit(true, true, true, false);
+    emit IVaultState.FeeSharesMinted(feeRecipient, 0, 0);
     vault.updateState(harvestParams);
 
     // Verify total assets increased
@@ -173,7 +178,6 @@ contract VaultStateTest is Test, EthHelpers {
     assertGt(finalTotalAssets, initialTotalAssets, 'Total assets should increase after reward');
 
     // Verify fee recipient received shares
-    address feeRecipient = vault.feeRecipient();
     uint256 feeRecipientShares = vault.getShares(feeRecipient);
     assertGt(feeRecipientShares, 0, 'Fee recipient should receive shares');
 
@@ -218,6 +222,9 @@ contract VaultStateTest is Test, EthHelpers {
     uint256 ownerShares = vault.getShares(owner);
     uint256 exitShares = ownerShares / 2;
 
+    vm.expectEmit(true, true, true, false);
+    emit IVaultEnterExit.ExitQueueEntered(owner, owner, 0, exitShares);
+
     vm.prank(owner);
     uint256 positionTicket = vault.enterExitQueue(exitShares, owner);
     uint256 timestamp = vm.getBlockTimestamp();
@@ -244,6 +251,9 @@ contract VaultStateTest is Test, EthHelpers {
 
     // Claim exited assets
     uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(positionTicket));
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultEnterExit.ExitedAssetsClaimed(owner, positionTicket, 0, 0);
     vm.prank(owner);
     vault.claimExitedAssets(positionTicket, timestamp, exitQueueIndex);
 
@@ -265,6 +275,9 @@ contract VaultStateTest is Test, EthHelpers {
     // Record owner's ETH balance before
     uint256 ownerBalanceBefore = owner.balance;
     uint256 queuedSharesBefore = vault.queuedShares();
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultEnterExit.ExitQueueEntered(owner, owner, 0, exitShares);
 
     // Enter exit queue
     vm.prank(owner);
@@ -288,6 +301,9 @@ contract VaultStateTest is Test, EthHelpers {
 
     // Update state to process exit queue
     IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultState.CheckpointCreated(0, 0);
     vault.updateState(harvestParams);
 
     // Fast forward time past the claiming delay
@@ -296,6 +312,9 @@ contract VaultStateTest is Test, EthHelpers {
     // Claim exited assets
     uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(positionTicket));
     vm.prank(owner);
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultEnterExit.ExitedAssetsClaimed(owner, positionTicket, 0, 0);
     vault.claimExitedAssets(positionTicket, timestamp, exitQueueIndex);
 
     // Verify owner received assets
@@ -323,11 +342,17 @@ contract VaultStateTest is Test, EthHelpers {
     // Enter exit queue to burn shares
     uint256 user1Shares = vault.getShares(user1);
 
+    vm.expectEmit(true, true, true, false);
+    emit IVaultEnterExit.ExitQueueEntered(user1, user1, 0, user1Shares);
+
     vm.prank(user1);
     vault.enterExitQueue(user1Shares, user1);
 
     // Update state to process exit queue
     IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultState.CheckpointCreated(0, 0);
     vault.updateState(harvestParams);
 
     // Verify total shares decreased after exit queue is processed
@@ -347,9 +372,15 @@ contract VaultStateTest is Test, EthHelpers {
     uint256 user1Shares = vault.getShares(user1);
     uint256 user2Shares = vault.getShares(user2);
 
+    vm.expectEmit(true, true, true, false);
+    emit IVaultEnterExit.ExitQueueEntered(user1, user1, 0, user1Shares);
+
     vm.prank(user1);
     uint256 positionTicket1 = vault.enterExitQueue(user1Shares, user1);
     uint256 timestamp1 = vm.getBlockTimestamp();
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultEnterExit.ExitQueueEntered(user2, user2, 0, user2Shares);
 
     vm.prank(user2);
     uint256 positionTicket2 = vault.enterExitQueue(user2Shares, user2);
@@ -357,6 +388,9 @@ contract VaultStateTest is Test, EthHelpers {
 
     // Update state to process exit queue
     IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultState.CheckpointCreated(0, 0);
     vault.updateState(harvestParams);
 
     // Fast forward time
@@ -364,10 +398,16 @@ contract VaultStateTest is Test, EthHelpers {
 
     // Both users claim exited assets
     uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(positionTicket1));
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultEnterExit.ExitedAssetsClaimed(user1, positionTicket1, 0, 0);
     vm.prank(user1);
     vault.claimExitedAssets(positionTicket1, timestamp1, exitQueueIndex);
 
     exitQueueIndex = uint256(vault.getExitQueueIndex(positionTicket2));
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultEnterExit.ExitedAssetsClaimed(user2, positionTicket2, 0, 0);
     vm.prank(user2);
     vault.claimExitedAssets(positionTicket2, timestamp2, exitQueueIndex);
 
@@ -399,8 +439,10 @@ contract VaultStateTest is Test, EthHelpers {
     // Enter exit queue in non-collateralized vault
     uint256 user1Shares = newVault.getShares(user1);
 
-    // Should immediately redeem rather than enter queue
     uint256 user1BalanceBefore = user1.balance;
+
+    vm.expectEmit(true, true, true, true);
+    emit IVaultEnterExit.Redeemed(user1, user1, user1Shares, user1Shares);
 
     vm.prank(user1);
     uint256 positionTicket = newVault.enterExitQueue(user1Shares, user1);
@@ -424,5 +466,80 @@ contract VaultStateTest is Test, EthHelpers {
 
     // Should not revert and should be a no-op
     vault.updateState(harvestParams);
+  }
+
+  // Test an exit position processed across multiple checkpoints
+  function test_exitQueue_multipleCheckpoints() public {
+    // Step 1: User deposits a large amount
+    _depositToVault(address(vault), 20 ether, user1, user1);
+
+    // Step 2: User enters exit queue with all shares
+    uint256 user1Shares = vault.getShares(user1);
+
+    uint256 vaultBalance = vault.totalExitingAssets() +
+      vault.convertToAssets(vault.queuedShares()) +
+      address(vault).balance -
+      vault.withdrawableAssets();
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultEnterExit.ExitQueueEntered(user1, user1, 0, user1Shares);
+
+    vm.prank(user1);
+    uint256 positionTicket = vault.enterExitQueue(user1Shares, user1);
+    uint256 timestamp = vm.getBlockTimestamp();
+
+    // Step 3: Artificially limit vault assets by moving ETH out
+    uint256 exitAssetsNeeded = vault.convertToAssets(user1Shares);
+
+    // Move ETH out to simulate limited availability (leave only 30% of what's needed)
+    uint256 partialAmount = (exitAssetsNeeded * 30) / 100;
+    vm.deal(address(vault), vaultBalance + partialAmount);
+
+    // Step 4: Process first checkpoint with limited assets
+    IKeeperRewards.HarvestParams memory harvestParams1 = _setEthVaultReward(address(vault), 0, 0);
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultState.CheckpointCreated(0, 0);
+
+    vault.updateState(harvestParams1);
+
+    // Step 5: Restore full assets for second checkpoint
+    vm.deal(address(vault), vaultBalance + exitAssetsNeeded);
+
+    // Step 6: Process second checkpoint
+    IKeeperRewards.HarvestParams memory harvestParams2 = _setEthVaultReward(address(vault), 0, 0);
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultState.CheckpointCreated(0, 0);
+    vault.updateState(harvestParams2);
+
+    // Step 7: Fast forward time past the claiming delay
+    vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
+
+    // Step 8: Claim exited assets
+    uint256 user1BalanceBefore = user1.balance;
+
+    // Get the exit queue index
+    int256 exitQueueIndexInt = vault.getExitQueueIndex(positionTicket);
+    assertGt(exitQueueIndexInt, -1, 'Exit queue index should be valid');
+    uint256 exitQueueIndex = uint256(exitQueueIndexInt);
+
+    vm.expectEmit(true, true, true, false);
+    emit IVaultEnterExit.ExitedAssetsClaimed(user1, positionTicket, 0, exitAssetsNeeded);
+
+    vm.prank(user1);
+    vault.claimExitedAssets(positionTicket, timestamp, exitQueueIndex);
+
+    // Step 9: Verify user received all expected assets despite multiple checkpoints
+    uint256 user1BalanceAfter = user1.balance;
+    uint256 receivedAssets = user1BalanceAfter - user1BalanceBefore;
+
+    // The user should receive approximately what they put in, minor differences due to fees/rounding
+    assertApproxEqRel(
+      receivedAssets,
+      exitAssetsNeeded,
+      0.01e18, // 1% tolerance
+      'User should receive all expected assets across multiple checkpoints'
+    );
   }
 }

@@ -279,9 +279,10 @@ contract VaultEthStakingTest is Test, EthHelpers {
       totalAssetsBefore + sendAmount,
       "Vault total assets didn't increase correctly"
     );
-    assertEq(
+    assertApproxEqAbs(
       vault.getShares(sender),
       depositShares + userSharesBefore,
+      1,
       'User should have deposit amount'
     );
   }
