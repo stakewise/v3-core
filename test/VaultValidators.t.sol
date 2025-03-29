@@ -965,4 +965,239 @@ contract VaultValidatorsTest is Test, EthHelpers {
     // Cleanup
     _stopOracleImpersonate(address(contracts.keeper));
   }
+
+  // Test successful validator withdrawal by validator manager
+  function test_withdrawValidators_byManager() public {
+    // 1. First register a validator to track it and provide funds to withdraw
+    _depositToVault(address(vault), validatorDeposit, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // 2. Prepare withdrawal data - for Ethereum validators,
+    // _validatorWithdrawalLength is 56 (48 bytes publicKey + 8 bytes amount)
+    uint256 withdrawalAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes memory withdrawalData = abi.encodePacked(publicKey, bytes8(uint64(withdrawalAmount)));
+
+    // 3. Mock the withdrawal fee
+    uint256 withdrawalFee = 0.1 ether;
+    vm.deal(validatorsManager, withdrawalFee);
+
+    // 4. Expect ValidatorWithdrawalSubmitted event
+    vm.expectEmit(true, true, true, true);
+    emit IVaultValidators.ValidatorWithdrawalSubmitted(publicKey, 1 ether, withdrawalFee);
+
+    // 5. Call withdrawValidators from validatorsManager
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_withdrawValidators_byManager');
+    vault.withdrawValidators{value: withdrawalFee}(withdrawalData, '');
+    _stopSnapshotGas();
+  }
+
+  // Test validator withdrawal with manager signature
+  function test_withdrawValidators_withSignature() public {
+    // 1. First register a validator
+    _depositToVault(address(vault), validatorDeposit, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // 2. Prepare withdrawal data
+    uint256 withdrawalAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes memory withdrawalData = abi.encodePacked(publicKey, bytes8(uint64(withdrawalAmount)));
+
+    // 3. Create validator manager signature
+    bytes32 message = _getValidatorsManagerSigningMessage(
+      address(vault),
+      bytes32(vault.validatorsManagerNonce()),
+      withdrawalData
+    );
+    (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorsManagerPrivateKey, message);
+    bytes memory signature = abi.encodePacked(r, s, v);
+
+    // 4. Record current nonce
+    uint256 currentNonce = vault.validatorsManagerNonce();
+
+    // 5. Fund non-manager for withdrawal fee
+    uint256 withdrawalFee = 0.1 ether;
+    vm.deal(nonManager, withdrawalFee);
+
+    // 6. Expect ValidatorWithdrawalSubmitted event
+    vm.expectEmit(true, true, true, true);
+    emit IVaultValidators.ValidatorWithdrawalSubmitted(publicKey, 1 ether, withdrawalFee);
+
+    // 7. Call withdrawValidators from non-manager with valid signature
+    vm.prank(nonManager);
+    _startSnapshotGas('VaultValidatorsTest_test_withdrawValidators_withSignature');
+    vault.withdrawValidators{value: withdrawalFee}(withdrawalData, signature);
+    _stopSnapshotGas();
+
+    // 8. Verify nonce was incremented
+    assertEq(
+      vault.validatorsManagerNonce(),
+      currentNonce + 1,
+      'Validators manager nonce should be incremented'
+    );
+  }
+
+  // Test withdrawal by osToken redeemer
+  function test_withdrawValidators_byRedeemer() public {
+    // 1. Register a validator
+    _depositToVault(address(vault), validatorDeposit, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // 2. Prepare withdrawal data
+    uint256 withdrawalAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes memory withdrawalData = abi.encodePacked(publicKey, bytes8(uint64(withdrawalAmount)));
+
+    // 3. Get the redeemer from osTokenConfig
+    address redeemer = contracts.osTokenConfig.redeemer();
+    vm.deal(redeemer, 0.1 ether);
+
+    // 4. Expect ValidatorWithdrawalSubmitted event
+    vm.expectEmit(true, true, true, true);
+    emit IVaultValidators.ValidatorWithdrawalSubmitted(publicKey, 1 ether, 0.1 ether);
+
+    // 5. Call withdrawValidators from redeemer
+    vm.prank(redeemer);
+    _startSnapshotGas('VaultValidatorsTest_test_withdrawValidators_byRedeemer');
+    vault.withdrawValidators{value: 0.1 ether}(withdrawalData, '');
+    _stopSnapshotGas();
+  }
+
+  // Test failed withdrawal by unauthorized user
+  function test_withdrawValidators_notAuthorized() public {
+    // 1. Register a validator
+    _depositToVault(address(vault), validatorDeposit, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // 2. Prepare withdrawal data
+    uint256 withdrawalAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes memory withdrawalData = abi.encodePacked(publicKey, bytes8(uint64(withdrawalAmount)));
+
+    // 3. Fund unauthorized user
+    vm.deal(nonManager, 0.1 ether);
+
+    // 4. Call withdrawValidators from unauthorized user without signature
+    vm.prank(nonManager);
+    _startSnapshotGas('VaultValidatorsTest_test_withdrawValidators_notAuthorized');
+    vm.expectRevert(Errors.AccessDenied.selector);
+    vault.withdrawValidators{value: 0.1 ether}(withdrawalData, '');
+    _stopSnapshotGas();
+  }
+
+  // Test failed withdrawal with invalid signature
+  function test_withdrawValidators_invalidSignature() public {
+    // 1. Register a validator
+    _depositToVault(address(vault), validatorDeposit, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // 2. Prepare withdrawal data
+    uint256 withdrawalAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes memory withdrawalData = abi.encodePacked(publicKey, bytes8(uint64(withdrawalAmount)));
+
+    // 3. Create invalid signature (wrong signer)
+    (, uint256 wrongPrivateKey) = makeAddrAndKey('wrong');
+    bytes32 message = _getValidatorsManagerSigningMessage(
+      address(vault),
+      bytes32(vault.validatorsManagerNonce()),
+      withdrawalData
+    );
+    (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongPrivateKey, message);
+    bytes memory invalidSignature = abi.encodePacked(r, s, v);
+
+    // 4. Fund unauthorized user
+    vm.deal(nonManager, 0.1 ether);
+
+    // 5. Call withdrawValidators with invalid signature
+    vm.prank(nonManager);
+    _startSnapshotGas('VaultValidatorsTest_test_withdrawValidators_invalidSignature');
+    vm.expectRevert(Errors.AccessDenied.selector);
+    vault.withdrawValidators{value: 0.1 ether}(withdrawalData, invalidSignature);
+    _stopSnapshotGas();
+  }
+
+  // Test failed withdrawal with invalid validator data
+  function test_withdrawValidators_invalidValidators() public {
+    // 1. Prepare invalid withdrawal data (zero length)
+    bytes memory invalidWithdrawalData = new bytes(0);
+
+    // 2. Fund validator manager
+    vm.deal(validatorsManager, 0.1 ether);
+
+    // 3. Call withdrawValidators with empty data
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_withdrawValidators_invalidValidatorsEmpty');
+    vm.expectRevert(Errors.InvalidValidators.selector);
+    vault.withdrawValidators{value: 0.1 ether}(invalidWithdrawalData, '');
+    _stopSnapshotGas();
+
+    // 4. Test with invalid length (not a multiple of _validatorWithdrawalLength)
+    // For Ethereum validators, _validatorWithdrawalLength is 56 (48 bytes publicKey + 8 bytes amount)
+    bytes memory invalidLengthData = new bytes(30); // Not a multiple of 56
+
+    // 5. Call withdrawValidators with invalid length data
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_withdrawValidators_invalidValidatorsLength');
+    vm.expectRevert(Errors.InvalidValidators.selector);
+    vault.withdrawValidators{value: 0.1 ether}(invalidLengthData, '');
+    _stopSnapshotGas();
+  }
+
+  // Test fee handling and refunds
+  function test_withdrawValidators_feeHandling() public {
+    // 1. Register a validator
+    _depositToVault(address(vault), validatorDeposit, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // 2. Prepare withdrawal data
+    uint256 withdrawalAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes memory withdrawalData = abi.encodePacked(publicKey, bytes8(uint64(withdrawalAmount)));
+
+    // 3. Set excess fee (more than needed)
+    uint256 actualFee = 0.1 ether;
+    uint256 excessFee = 0.5 ether; // Overpay
+    vm.deal(validatorsManager, excessFee);
+
+    // 4. Record initial balance
+    uint256 initialBalance = validatorsManager.balance;
+
+    // 5. Call withdrawValidators with excess fee
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_withdrawValidators_feeHandling');
+    vault.withdrawValidators{value: excessFee}(withdrawalData, '');
+    _stopSnapshotGas();
+
+    // 6. Verify the correct fee was deducted and excess was refunded
+    uint256 finalBalance = validatorsManager.balance;
+    assertEq(finalBalance, initialBalance - actualFee, 'Excess fee should be refunded');
+  }
+
+  // Test withdrawing multiple validators in a single call
+  function test_withdrawValidators_multipleValidators() public {
+    // 1. First register multiple validators
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory publicKey1 = _registerEthValidator(address(vault), validatorDeposit, false);
+    bytes memory publicKey2 = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // 2. Prepare withdrawal data for both validators
+    uint256 withdrawalAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes memory withdrawalData1 = abi.encodePacked(publicKey1, bytes8(uint64(withdrawalAmount)));
+    bytes memory withdrawalData2 = abi.encodePacked(publicKey2, bytes8(uint64(withdrawalAmount)));
+    bytes memory combinedData = bytes.concat(withdrawalData1, withdrawalData2);
+
+    // 3. Set fee for two withdrawals
+    uint256 feePerValidator = 0.1 ether;
+    uint256 totalFee = feePerValidator * 2;
+    vm.deal(validatorsManager, totalFee);
+
+    // 4. Expect events for both withdrawals
+    vm.expectEmit(true, true, true, true);
+    emit IVaultValidators.ValidatorWithdrawalSubmitted(publicKey1, 1 ether, feePerValidator);
+
+    vm.expectEmit(true, true, true, true);
+    emit IVaultValidators.ValidatorWithdrawalSubmitted(publicKey2, 1 ether, feePerValidator);
+
+    // 5. Call withdrawValidators with combined data
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_withdrawValidators_multipleValidators');
+    vault.withdrawValidators{value: totalFee}(combinedData, '');
+    _stopSnapshotGas();
+  }
 }

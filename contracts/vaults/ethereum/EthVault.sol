@@ -136,7 +136,7 @@ contract EthVault is
     if (
       !_isValidatorsManager(
         validators,
-        bytes32(validatorsManagerSignature),
+        bytes32(validatorsManagerNonce),
         validatorsManagerSignature
       ) && msg.sender != _osTokenConfig.redeemer()
     ) {
