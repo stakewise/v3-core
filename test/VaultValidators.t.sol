@@ -9,9 +9,6 @@ import {EthHelpers} from './helpers/EthHelpers.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {EthVault} from '../contracts/vaults/ethereum/EthVault.sol';
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
-import {SignatureChecker} from '@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol';
-import {ECDSA} from '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
-import {IValidatorsRegistry} from '../contracts/interfaces/IValidatorsRegistry.sol';
 
 contract VaultValidatorsTest is Test, EthHelpers {
   // Declare events we're testing for
@@ -409,6 +406,10 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // Extract the public key from validators data
     bytes memory publicKey = _extractBytes(approvalParams.validators, 0, 48);
+    vm.assertFalse(
+      vault.trackedValidators(keccak256(publicKey)),
+      'Validator should not be tracked'
+    );
 
     // For V1 validators, the event is emitted without deposit amount
     vm.expectEmit(true, true, true, false);
@@ -422,6 +423,11 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // Cleanup
     _stopOracleImpersonate(address(contracts.keeper));
+
+    vm.assertFalse(
+      vault.trackedValidators(keccak256(publicKey)),
+      'Validator should not be tracked'
+    );
   }
 
   // Test V2 validator registration (with 0x02 prefix)
@@ -439,6 +445,10 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // Extract the public key from validators data
     bytes memory publicKey = _extractBytes(approvalParams.validators, 0, 48);
+    vm.assertFalse(
+      vault.trackedValidators(keccak256(publicKey)),
+      'Validator should not be tracked'
+    );
 
     // For V2 validators, the event includes deposit amount
     vm.expectEmit(true, true, true, true);
@@ -449,6 +459,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
     _startSnapshotGas('VaultValidatorsTest_test_registerValidators_v2Validators');
     vault.registerValidators(approvalParams, '');
     _stopSnapshotGas();
+
+    vm.assertTrue(vault.trackedValidators(keccak256(publicKey)), 'Validator should be tracked');
 
     // Cleanup
     _stopOracleImpersonate(address(contracts.keeper));
@@ -535,5 +547,422 @@ contract VaultValidatorsTest is Test, EthHelpers {
     );
 
     return MessageHashUtils.toTypedDataHash(domainSeparator, structHash);
+  }
+
+  // Test successful validator funding by validator manager
+  function test_fundValidators_byManager() public {
+    // First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // Prepare top-up data
+    bytes memory signature = vm.randomBytes(96);
+    bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
+    uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes32 depositDataRoot = _getDepositDataRoot(
+      publicKey,
+      signature,
+      withdrawalCredentials,
+      topUpAmount
+    );
+
+    // Create valid top-up data
+    bytes memory validTopUpData = bytes.concat(
+      publicKey,
+      signature,
+      depositDataRoot,
+      bytes8(uint64(topUpAmount))
+    );
+
+    // Check for ValidatorFunded event
+    vm.expectEmit(true, true, true, true);
+    emit IVaultValidators.ValidatorFunded(publicKey, 1 ether);
+
+    // Call fundValidators from validatorsManager
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_fundValidators_byManager');
+    vault.fundValidators(validTopUpData, '');
+    _stopSnapshotGas();
+  }
+
+  // Test validator funding with manager signature
+  function test_fundValidators_withSignature() public {
+    // First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // Prepare top-up data
+    bytes memory signature = vm.randomBytes(96);
+    bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
+    uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes32 depositDataRoot = _getDepositDataRoot(
+      publicKey,
+      signature,
+      withdrawalCredentials,
+      topUpAmount
+    );
+
+    // Create valid top-up data
+    bytes memory validTopUpData = bytes.concat(
+      publicKey,
+      signature,
+      depositDataRoot,
+      bytes8(uint64(topUpAmount))
+    );
+
+    // Create validator manager signature
+    bytes32 message = _getValidatorsManagerSigningMessage(
+      address(vault),
+      bytes32(vault.validatorsManagerNonce()),
+      validTopUpData
+    );
+    (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorsManagerPrivateKey, message);
+    bytes memory validatorManagerSignature = abi.encodePacked(r, s, v);
+
+    // Record current nonce
+    uint256 currentNonce = vault.validatorsManagerNonce();
+
+    // Check for ValidatorFunded event
+    vm.expectEmit(true, true, true, true);
+    emit IVaultValidators.ValidatorFunded(publicKey, 1 ether);
+
+    // Call fundValidators from non-manager with valid signature
+    vm.prank(nonManager);
+    _startSnapshotGas('VaultValidatorsTest_test_fundValidators_withSignature');
+    vault.fundValidators(validTopUpData, validatorManagerSignature);
+    _stopSnapshotGas();
+
+    // Verify nonce was incremented
+    assertEq(
+      vault.validatorsManagerNonce(),
+      currentNonce + 1,
+      'Validators manager nonce should be incremented'
+    );
+  }
+
+  // Test failure when trying to fund a non-existing validator
+  function test_fundValidators_nonExistingValidator() public {
+    // Deposit enough ETH for funding
+    _depositToVault(address(vault), validatorDeposit, user, user);
+
+    // Create a non-existing validator public key
+    bytes memory nonExistingPublicKey = vm.randomBytes(48);
+    bytes memory signature = vm.randomBytes(96);
+    bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
+    uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes32 depositDataRoot = _getDepositDataRoot(
+      nonExistingPublicKey,
+      signature,
+      withdrawalCredentials,
+      topUpAmount
+    );
+
+    // Create top-up data for non-existing validator
+    bytes memory invalidTopUpData = bytes.concat(
+      nonExistingPublicKey,
+      signature,
+      depositDataRoot,
+      bytes8(uint64(topUpAmount))
+    );
+
+    // Call fundValidators with non-existing validator - should fail
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_fundValidators_nonExistingValidator');
+    vm.expectRevert(Errors.InvalidValidators.selector);
+    vault.fundValidators(invalidTopUpData, '');
+    _stopSnapshotGas();
+  }
+
+  // Test failure when called by non-manager without signature
+  function test_fundValidators_notManager() public {
+    // First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // Prepare top-up data
+    bytes memory signature = vm.randomBytes(96);
+    bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
+    uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes32 depositDataRoot = _getDepositDataRoot(
+      publicKey,
+      signature,
+      withdrawalCredentials,
+      topUpAmount
+    );
+
+    // Create valid top-up data
+    bytes memory validTopUpData = bytes.concat(
+      publicKey,
+      signature,
+      depositDataRoot,
+      bytes8(uint64(topUpAmount))
+    );
+
+    // Call fundValidators from non-manager without signature
+    vm.prank(nonManager);
+    _startSnapshotGas('VaultValidatorsTest_test_fundValidators_notManager');
+    vm.expectRevert(Errors.AccessDenied.selector);
+    vault.fundValidators(validTopUpData, '');
+    _stopSnapshotGas();
+  }
+
+  // Test failure with invalid signature
+  function test_fundValidators_invalidSignature() public {
+    // First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // Prepare top-up data
+    bytes memory signature = vm.randomBytes(96);
+    bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
+    uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes32 depositDataRoot = _getDepositDataRoot(
+      publicKey,
+      signature,
+      withdrawalCredentials,
+      topUpAmount
+    );
+
+    // Create valid top-up data
+    bytes memory validTopUpData = bytes.concat(
+      publicKey,
+      signature,
+      depositDataRoot,
+      bytes8(uint64(topUpAmount))
+    );
+
+    // Create invalid signature (wrong signer)
+    (, uint256 wrongPrivateKey) = makeAddrAndKey('wrong');
+    bytes32 message = _getValidatorsManagerSigningMessage(
+      address(vault),
+      bytes32(vault.validatorsManagerNonce()),
+      validTopUpData
+    );
+    (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongPrivateKey, message);
+    bytes memory invalidSignature = abi.encodePacked(r, s, v);
+
+    // Call fundValidators with invalid signature
+    vm.prank(nonManager);
+    _startSnapshotGas('VaultValidatorsTest_test_fundValidators_invalidSignature');
+    vm.expectRevert(Errors.AccessDenied.selector);
+    vault.fundValidators(validTopUpData, invalidSignature);
+    _stopSnapshotGas();
+  }
+
+  // Test failure with invalid validators data
+  function test_fundValidators_invalidValidators() public {
+    // First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // Create empty validators data
+    bytes memory emptyValidatorsData = new bytes(0);
+
+    // Call fundValidators with empty validators data
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_fundValidators_invalidValidators');
+    vm.expectRevert(Errors.InvalidValidators.selector);
+    vault.fundValidators(emptyValidatorsData, '');
+    _stopSnapshotGas();
+  }
+
+  // Test failure with insufficient assets
+  function test_fundValidators_insufficientAssets() public {
+    // First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit + 0.5 ether, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // Prepare top-up data with more ETH than available in the vault
+    bytes memory signature = vm.randomBytes(96);
+    bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
+    uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes32 depositDataRoot = _getDepositDataRoot(
+      publicKey,
+      signature,
+      withdrawalCredentials,
+      topUpAmount
+    );
+
+    // Create valid top-up data
+    bytes memory validTopUpData = bytes.concat(
+      publicKey,
+      signature,
+      depositDataRoot,
+      bytes8(uint64(topUpAmount))
+    );
+
+    // Drain most of the vault's funds to make it insufficient
+    uint256 exitShares = vault.getShares(user) - vault.convertToShares(0.1 ether);
+    vm.prank(user);
+    vault.enterExitQueue(exitShares, user);
+
+    // Process exit queue to remove assets
+    vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay);
+    vault.updateState(_setEthVaultReward(address(vault), 0, 0));
+
+    // Call fundValidators with insufficient assets
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_fundValidators_insufficientAssets');
+    vm.expectRevert();
+    vault.fundValidators(validTopUpData, '');
+    _stopSnapshotGas();
+  }
+
+  // Test failure when vault not harvested
+  function test_fundValidators_notHarvested() public {
+    // First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // Collateralize vault to enable rewards
+    _collateralizeEthVault(address(vault));
+
+    // Force vault to need harvesting by updating rewards twice
+    _setEthVaultReward(address(vault), int160(int256(0.1 ether)), 0);
+    _setEthVaultReward(address(vault), int160(int256(0.1 ether)), 0);
+
+    // Verify the vault needs harvesting
+    assertTrue(contracts.keeper.isHarvestRequired(address(vault)), 'Vault should need harvesting');
+
+    // Prepare top-up data
+    bytes memory signature = vm.randomBytes(96);
+    bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
+    uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes32 depositDataRoot = _getDepositDataRoot(
+      publicKey,
+      signature,
+      withdrawalCredentials,
+      topUpAmount
+    );
+
+    // Create valid top-up data
+    bytes memory validTopUpData = bytes.concat(
+      publicKey,
+      signature,
+      depositDataRoot,
+      bytes8(uint64(topUpAmount))
+    );
+
+    // Call fundValidators when vault needs harvesting
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_fundValidators_notHarvested');
+    vm.expectRevert(Errors.NotHarvested.selector);
+    vault.fundValidators(validTopUpData, '');
+    _stopSnapshotGas();
+  }
+
+  // Test that V1 validators can't be topped up
+  function test_fundValidators_v1Validators() public {
+    // First register a V1 validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, true); // V1 validator
+
+    // Prepare top-up data for V1 validator
+    bytes memory signature = vm.randomBytes(96);
+    bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x01), bytes11(0x0), vault); // V1 prefix
+    uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+    bytes32 depositDataRoot = _getDepositDataRoot(
+      publicKey,
+      signature,
+      withdrawalCredentials,
+      topUpAmount
+    );
+
+    // Create top-up data for V1 validator - actual validator format needs to be V1
+    bytes memory invalidTopUpData = bytes.concat(publicKey, signature, depositDataRoot);
+
+    // Call fundValidators with V1 validator - should fail
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_fundValidators_v1Validators');
+    vm.expectRevert(Errors.CannotTopUpV1Validators.selector);
+    vault.fundValidators(invalidTopUpData, '');
+    _stopSnapshotGas();
+  }
+
+  // Test funding multiple validators in one call
+  function test_fundValidators_multipleValidators() public {
+    vm.deal(user, 200 ether);
+
+    // Register multiple validators to make them tracked
+    _depositToVault(address(vault), validatorDeposit * 4, user, user);
+
+    // Setup oracle for approval
+    _startOracleImpersonate(address(contracts.keeper));
+
+    // Register two validators
+    uint256[] memory initialDeposits = new uint256[](2);
+    initialDeposits[0] = 32 ether / 1 gwei;
+    initialDeposits[1] = 32 ether / 1 gwei;
+
+    IKeeperValidators.ApprovalParams memory approvalParams = _getValidatorsApproval(
+      address(contracts.keeper),
+      address(contracts.validatorsRegistry),
+      address(vault),
+      exitSignatureIpfsHash,
+      initialDeposits,
+      false
+    );
+
+    vm.prank(validatorsManager);
+    vault.registerValidators(approvalParams, '');
+
+    // Calculate validator length for each validator
+    uint256 validatorLength = 184; // Length for V2 validator
+
+    // Extract validator public keys
+    bytes memory publicKey1 = _extractBytes(approvalParams.validators, 0, 48);
+    bytes memory publicKey2 = _extractBytes(approvalParams.validators, validatorLength, 48);
+
+    // Prepare top-up data for both validators
+    bytes memory signature = vm.randomBytes(96);
+    bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
+    uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
+
+    // Create deposit data for first validator
+    bytes32 depositDataRoot1 = _getDepositDataRoot(
+      publicKey1,
+      signature,
+      withdrawalCredentials,
+      topUpAmount
+    );
+    bytes memory validatorData1 = bytes.concat(
+      publicKey1,
+      signature,
+      depositDataRoot1,
+      bytes8(uint64(topUpAmount))
+    );
+
+    // Create deposit data for second validator
+    bytes32 depositDataRoot2 = _getDepositDataRoot(
+      publicKey2,
+      signature,
+      withdrawalCredentials,
+      topUpAmount
+    );
+    bytes memory validatorData2 = bytes.concat(
+      publicKey2,
+      signature,
+      depositDataRoot2,
+      bytes8(uint64(topUpAmount))
+    );
+
+    // Combine data for both validators
+    bytes memory combinedValidatorsData = bytes.concat(validatorData1, validatorData2);
+
+    // Expect validator funded events
+    vm.expectEmit(true, true, true, true);
+    emit IVaultValidators.ValidatorFunded(publicKey1, 1 ether);
+
+    vm.expectEmit(true, true, true, true);
+    emit IVaultValidators.ValidatorFunded(publicKey2, 1 ether);
+
+    // Call fundValidators with multiple validators
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_fundValidators_multipleValidators');
+    vault.fundValidators(combinedValidatorsData, '');
+    _stopSnapshotGas();
+
+    // Cleanup
+    _stopOracleImpersonate(address(contracts.keeper));
   }
 }

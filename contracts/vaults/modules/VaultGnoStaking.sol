@@ -117,14 +117,15 @@ abstract contract VaultGnoStaking is
       // check whether validator is tracked in case of the top-up
       if (!trackedValidators[publicKeyHash]) revert Errors.InvalidValidators();
       emit ValidatorFunded(publicKey, depositAmount);
-    } else {
-      // mark validator public key as tracked
+      return depositAmount;
+    }
+
+    // mark v2 validator public key as tracked
+    if (!isV1Validator) {
       trackedValidators[publicKeyHash] = true;
-      if (isV1Validator) {
-        emit ValidatorRegistered(publicKey);
-      } else {
-        emit ValidatorRegistered(publicKey, depositAmount);
-      }
+      emit ValidatorRegistered(publicKey, depositAmount);
+    } else {
+      emit ValidatorRegistered(publicKey);
     }
   }
 
