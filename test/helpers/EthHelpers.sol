@@ -69,9 +69,9 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
   mapping(VaultType vaultType => address vaultFactory) private _vaultFactories;
   mapping(VaultType vaultType => address vaultFactory) private _vaultPrevFactories;
 
-  address private _consolidationsChecker;
-  address private _validatorsWithdrawals;
-  address private _validatorsConsolidations;
+  address internal _consolidationsChecker;
+  address internal _validatorsWithdrawals;
+  address internal _validatorsConsolidations;
 
   function _activateEthereumFork() internal returns (ForkContracts memory) {
     vm.createSelectFork(vm.envString('MAINNET_RPC_URL'), forkBlockNumber);

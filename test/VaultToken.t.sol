@@ -6,6 +6,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {IEthErc20Vault} from '../contracts/interfaces/IEthErc20Vault.sol';
 import {EthErc20Vault} from '../contracts/vaults/ethereum/EthErc20Vault.sol';
+import {EthVaultFactory} from '../contracts/vaults/ethereum/EthVaultFactory.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 
@@ -57,7 +58,18 @@ contract VaultTokenTest is Test, EthHelpers {
   }
 
   // Test basic metadata like name, symbol, decimals
-  function test_tokenMetadata() public view {
+  function test_tokenMetadata() public {
+    bytes memory initParams = abi.encode(
+      IEthErc20Vault.EthErc20VaultInitParams({
+        capacity: 1000 ether,
+        feePercent: 1000, // 10%
+        name: 'SW ETH Vault',
+        symbol: 'SW-ETH-1',
+        metadataIpfsHash: 'bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u'
+      })
+    );
+    address vaultAddr = _createVault(VaultType.EthErc20Vault, admin, initParams, false);
+    vault = EthErc20Vault(payable(vaultAddr));
     assertEq(vault.name(), 'SW ETH Vault', 'Name should match initialization parameters');
     assertEq(vault.symbol(), 'SW-ETH-1', 'Symbol should match initialization parameters');
     assertEq(vault.decimals(), 18, 'Decimals should be 18');
@@ -584,9 +596,13 @@ contract VaultTokenTest is Test, EthHelpers {
       })
     );
 
+    EthVaultFactory factory = _getOrCreateFactory(VaultType.EthErc20Vault);
+    vm.deal(admin, admin.balance + _securityDeposit);
+
     _startSnapshotGas('VaultTokenTest_test_invalidTokenMetaNameTooLong');
     vm.expectRevert(Errors.InvalidTokenMeta.selector);
-    _createVault(VaultType.EthErc20Vault, newAdmin, initParams, false);
+    vm.prank(admin);
+    factory.createVault{value: _securityDeposit}(initParams, true);
     _stopSnapshotGas();
   }
 
@@ -607,9 +623,13 @@ contract VaultTokenTest is Test, EthHelpers {
       })
     );
 
+    EthVaultFactory factory = _getOrCreateFactory(VaultType.EthErc20Vault);
+    vm.deal(admin, admin.balance + _securityDeposit);
+
     _startSnapshotGas('VaultTokenTest_test_invalidTokenMetaSymbolTooLong');
     vm.expectRevert(Errors.InvalidTokenMeta.selector);
-    _createVault(VaultType.EthErc20Vault, newAdmin, initParams, false);
+    vm.prank(admin);
+    factory.createVault{value: _securityDeposit}(initParams, false);
     _stopSnapshotGas();
   }
 }
