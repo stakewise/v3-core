@@ -82,11 +82,11 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
   function validatorsManagerNonce() external view returns (uint256);
 
   /**
-   * @notice Function for checking if the validator is tracked in the contract
+   * @notice Function for checking if the validator is tracked V2 validator
    * @param publicKeyHash The keccak256 hash of the public key of the validator
-   * @return Whether the validator is tracked
+   * @return Whether the validator is tracked V2 validator
    */
-  function trackedValidators(bytes32 publicKeyHash) external view returns (bool);
+  function v2Validators(bytes32 publicKeyHash) external view returns (bool);
 
   /**
    * @notice Function for funding single or multiple existing validators

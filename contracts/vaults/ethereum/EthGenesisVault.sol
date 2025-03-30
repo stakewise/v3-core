@@ -155,11 +155,15 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   /// @inheritdoc VaultValidators
   function _registerValidator(
     bytes calldata validator,
-    bool isTopUp,
     bool isV1Validator
-  ) internal virtual override(VaultValidators, VaultEthStaking) returns (uint256 depositAmount) {
+  )
+    internal
+    virtual
+    override(VaultValidators, VaultEthStaking)
+    returns (uint256 depositAmount, bytes calldata publicKey)
+  {
     _pullWithdrawals();
-    return super._registerValidator(validator, isTopUp, isV1Validator);
+    return super._registerValidator(validator, isV1Validator);
   }
 
   /**

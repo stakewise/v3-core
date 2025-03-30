@@ -65,7 +65,7 @@ abstract contract VaultValidators is
   bytes32 private _initialDomainSeparator;
 
   /// @inheritdoc IVaultValidators
-  mapping(bytes32 publicKeyHash => bool isRegistered) public override trackedValidators;
+  mapping(bytes32 publicKeyHash => bool isRegistered) public override v2Validators;
 
   /// @inheritdoc IVaultValidators
   uint256 public override validatorsManagerNonce;
@@ -124,6 +124,7 @@ abstract contract VaultValidators is
     bytes calldata validators,
     bytes calldata validatorsManagerSignature
   ) external override {
+    _checkCollateralized();
     _registerValidators(
       validators,
       bytes32(validatorsManagerNonce),
@@ -137,14 +138,13 @@ abstract contract VaultValidators is
     bytes calldata validators,
     bytes calldata validatorsManagerSignature
   ) external payable override nonReentrant {
+    _checkCollateralized();
     _checkCanWithdrawValidators(validators, validatorsManagerSignature);
 
     // check validators length is valid
     uint256 validatorsCount = validators.length / _validatorWithdrawalLength;
     unchecked {
-      if (
-        validatorsCount == 0 || validatorsCount * _validatorWithdrawalLength != validators.length
-      ) {
+      if (validatorsCount == 0 || validators.length % _validatorWithdrawalLength != 0) {
         revert Errors.InvalidValidators();
       }
     }
@@ -154,21 +154,17 @@ abstract contract VaultValidators is
     uint256 totalFeeAssets = msg.value;
     bytes calldata publicKey;
     uint256 startIndex;
-    uint256 endIndex;
     for (uint256 i = 0; i < validatorsCount; ) {
-      unchecked {
-        // cannot realistically overflow
-        endIndex += _validatorWithdrawalLength;
-      }
-
-      (publicKey, withdrawnAmount, feePaid) = _withdrawValidator(validators[startIndex:endIndex]);
+      (publicKey, withdrawnAmount, feePaid) = _withdrawValidator(
+        validators[startIndex:startIndex + _validatorWithdrawalLength]
+      );
       totalFeeAssets -= feePaid;
       emit ValidatorWithdrawalSubmitted(publicKey, withdrawnAmount, feePaid);
 
-      startIndex = endIndex;
       unchecked {
         // cannot realistically overflow
         ++i;
+        startIndex += _validatorWithdrawalLength;
       }
     }
 
@@ -183,6 +179,7 @@ abstract contract VaultValidators is
     bytes calldata validatorsManagerSignature,
     bytes calldata oracleSignatures
   ) external payable override {
+    _checkCollateralized();
     if (
       !_isValidatorsManager(validators, bytes32(validatorsManagerNonce), validatorsManagerSignature)
     ) {
@@ -192,28 +189,11 @@ abstract contract VaultValidators is
     // Check validators length is valid
     uint256 validatorsCount = validators.length / _validatorConsolidationLength;
     unchecked {
-      if (
-        validatorsCount == 0 || validatorsCount * _validatorConsolidationLength != validators.length
-      ) {
+      if (validatorsCount == 0 || validators.length % _validatorConsolidationLength != 0) {
         revert Errors.InvalidValidators();
       }
     }
 
-    // Process the consolidation in smaller batches to avoid stack depth issues
-    _processConsolidation(validators, validatorsCount, oracleSignatures);
-  }
-
-  /**
-   * @dev Internal function to process validator consolidations
-   * @param validators The concatenated validators data
-   * @param validatorsCount The number of validators to consolidate
-   * @param oracleSignatures The optional signatures from the oracles
-   */
-  function _processConsolidation(
-    bytes calldata validators,
-    uint256 validatorsCount,
-    bytes calldata oracleSignatures
-  ) private {
     // Check for oracle approval if signatures provided
     bool consolidationsApproved = false;
     if (oracleSignatures.length > 0) {
@@ -226,30 +206,48 @@ abstract contract VaultValidators is
       consolidationsApproved = true;
     }
 
+    // Process the consolidation in smaller batches to avoid stack depth issues
+    _processConsolidation(validators, validatorsCount, consolidationsApproved);
+  }
+
+  /**
+   * @dev Internal function to process validator consolidations
+   * @param validators The concatenated validators data
+   * @param validatorsCount The number of validators to consolidate
+   * @param consolidationsApproved Whether the consolidations are approved by oracles
+   */
+  function _processConsolidation(
+    bytes calldata validators,
+    uint256 validatorsCount,
+    bool consolidationsApproved
+  ) private {
     uint256 totalFeeAssets = msg.value;
 
     // Process each validator
+    bytes32 destPubKeyHash;
+    bytes calldata sourcePublicKey;
+    bytes calldata destPublicKey;
+    uint256 feePaid;
+    uint256 startIndex;
     for (uint256 i = 0; i < validatorsCount; ) {
-      uint256 startIndex = i * _validatorConsolidationLength;
-      uint256 endIndex = startIndex + _validatorConsolidationLength;
+      // consolidate validators
+      (sourcePublicKey, destPublicKey, feePaid) = _consolidateValidator(
+        validators[startIndex:startIndex + _validatorConsolidationLength]
+      );
 
-      (
-        bytes calldata sourcePublicKey,
-        bytes calldata destPublicKey,
-        uint256 feePaid
-      ) = _consolidateValidator(validators[startIndex:endIndex]);
-
-      // Handle destination public key validation
-      bytes32 publicKeyHash = keccak256(destPublicKey);
-      if (!trackedValidators[publicKeyHash]) {
-        // Consolidations are only allowed for tracked or approved validators
-        if (!consolidationsApproved) revert Errors.InvalidValidators();
-        trackedValidators[publicKeyHash] = true;
+      // check whether the destination public key is tracked or approved
+      destPubKeyHash = keccak256(destPublicKey);
+      if (consolidationsApproved) {
+        v2Validators[destPubKeyHash] = true;
+      } else if (!v2Validators[destPubKeyHash]) {
+        revert Errors.InvalidValidators();
       }
 
       // Update fees and emit event
       unchecked {
+        // cannot realistically overflow
         totalFeeAssets -= feePaid;
+        startIndex += _validatorConsolidationLength;
         ++i;
       }
 
@@ -273,15 +271,14 @@ abstract contract VaultValidators is
   /**
    * @dev Internal function for registering validator
    * @param validator The validator registration data
-   * @param isTopUp Whether the registration is a balance top-up
    * @param isV1Validator Whether the validator is V1 or V2
    * @return depositAmount The amount of assets that was deposited
+   * @return publicKey The public key of the registered validator
    */
   function _registerValidator(
     bytes calldata validator,
-    bool isTopUp,
     bool isV1Validator
-  ) internal virtual returns (uint256 depositAmount);
+  ) internal virtual returns (uint256 depositAmount, bytes calldata publicKey);
 
   /**
    * @dev Internal function for withdrawing validator
@@ -372,17 +369,44 @@ abstract contract VaultValidators is
     );
     uint256 validatorsCount = validatorsLength / _validatorDepositLength;
 
-    uint256 depositAmount;
     uint256 startIndex;
-
     uint256 availableDeposits = withdrawableAssets();
+    bytes calldata validators_ = validators; // push down the stack
     for (uint256 i = 0; i < validatorsCount; ) {
-      depositAmount = _registerValidator(
-        validators[startIndex:startIndex + _validatorDepositLength],
-        isTopUp,
+      (uint256 depositAmount, bytes calldata publicKey) = _registerValidator(
+        validators_[startIndex:startIndex + _validatorDepositLength],
         isV1Validators
       );
       availableDeposits -= depositAmount;
+
+      bytes32 publicKeyHash = keccak256(publicKey);
+      if (isTopUp) {
+        // check whether validator is tracked in case of the top-up
+        if (!v2Validators[publicKeyHash]) revert Errors.InvalidValidators();
+        emit ValidatorFunded(publicKey, depositAmount);
+        unchecked {
+          // cannot realistically overflow
+          ++i;
+          startIndex += _validatorDepositLength;
+        }
+        continue;
+      }
+
+      // check the registration amount
+      if (
+        depositAmount > _validatorMaxEffectiveBalance() ||
+        depositAmount < _validatorMinEffectiveBalance()
+      ) {
+        revert Errors.InvalidAssets();
+      }
+
+      // mark v2 validator public key as tracked
+      if (!isV1Validators) {
+        v2Validators[publicKeyHash] = true;
+        emit ValidatorRegistered(publicKey, depositAmount);
+      } else {
+        emit ValidatorRegistered(publicKey);
+      }
 
       unchecked {
         // cannot realistically overflow

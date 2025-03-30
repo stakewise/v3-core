@@ -407,7 +407,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
     // Extract the public key from validators data
     bytes memory publicKey = _extractBytes(approvalParams.validators, 0, 48);
     vm.assertFalse(
-      vault.trackedValidators(keccak256(publicKey)),
+      vault.v2Validators(keccak256(publicKey)),
       'Validator should not be tracked'
     );
 
@@ -425,7 +425,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
     _stopOracleImpersonate(address(contracts.keeper));
 
     vm.assertFalse(
-      vault.trackedValidators(keccak256(publicKey)),
+      vault.v2Validators(keccak256(publicKey)),
       'Validator should not be tracked'
     );
   }
@@ -446,7 +446,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
     // Extract the public key from validators data
     bytes memory publicKey = _extractBytes(approvalParams.validators, 0, 48);
     vm.assertFalse(
-      vault.trackedValidators(keccak256(publicKey)),
+      vault.v2Validators(keccak256(publicKey)),
       'Validator should not be tracked'
     );
 
@@ -460,7 +460,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
     vault.registerValidators(approvalParams, '');
     _stopSnapshotGas();
 
-    vm.assertTrue(vault.trackedValidators(keccak256(publicKey)), 'Validator should be tracked');
+    vm.assertTrue(vault.v2Validators(keccak256(publicKey)), 'Validator should be tracked');
 
     // Cleanup
     _stopOracleImpersonate(address(contracts.keeper));
@@ -1313,7 +1313,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // Verify the destination validator is not tracked initially
     assertFalse(
-      vault.trackedValidators(keccak256(destPublicKey)),
+      vault.v2Validators(keccak256(destPublicKey)),
       'Destination validator should not be tracked initially'
     );
 
@@ -1325,7 +1325,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // Verify the destination validator is now tracked
     assertTrue(
-      vault.trackedValidators(keccak256(destPublicKey)),
+      vault.v2Validators(keccak256(destPublicKey)),
       'Destination validator should be tracked after consolidation with oracle approval'
     );
 
@@ -1428,7 +1428,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // 3. Verify destination is not tracked
     assertFalse(
-      vault.trackedValidators(keccak256(destPublicKey)),
+      vault.v2Validators(keccak256(destPublicKey)),
       'Destination validator should not be tracked initially'
     );
 

@@ -74,13 +74,12 @@ abstract contract VaultGnoStaking is
   /// @inheritdoc VaultValidators
   function _registerValidator(
     bytes calldata validator,
-    bool isTopUp,
     bool isV1Validator
-  ) internal virtual override returns (uint256 depositAmount) {
+  ) internal virtual override returns (uint256 depositAmount, bytes calldata publicKey) {
     // pull withdrawals from the deposit contract
     _pullWithdrawals();
 
-    bytes calldata publicKey = validator[:48];
+    publicKey = validator[:48];
     bytes calldata signature = validator[48:144];
     bytes32 depositDataRoot = bytes32(validator[144:176]);
 
@@ -94,13 +93,6 @@ abstract contract VaultGnoStaking is
       // extract amount from data, convert gwei to wei by multiplying by 1 gwei
       // divide by 32 to convert mGNO to GNO
       depositAmount = (uint256(uint64(bytes8(validator[176:184]))) * 1 gwei) / 32;
-      // should not exceed the max effective balance
-      if (
-        (!isTopUp && depositAmount < _validatorMinEffectiveBalance()) ||
-        depositAmount > _validatorMaxEffectiveBalance()
-      ) {
-        revert Errors.InvalidAssets();
-      }
     }
 
     // deposit GNO tokens to the validators registry
@@ -111,22 +103,6 @@ abstract contract VaultGnoStaking is
       depositDataRoot,
       depositAmount
     );
-
-    bytes32 publicKeyHash = keccak256(publicKey);
-    if (isTopUp) {
-      // check whether validator is tracked in case of the top-up
-      if (!trackedValidators[publicKeyHash]) revert Errors.InvalidValidators();
-      emit ValidatorFunded(publicKey, depositAmount);
-      return depositAmount;
-    }
-
-    // mark v2 validator public key as tracked
-    if (!isV1Validator) {
-      trackedValidators[publicKeyHash] = true;
-      emit ValidatorRegistered(publicKey, depositAmount);
-    } else {
-      emit ValidatorRegistered(publicKey);
-    }
   }
 
   /// @inheritdoc VaultValidators
