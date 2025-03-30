@@ -642,6 +642,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
   // Test failure when trying to fund a non-existing validator
   function test_fundValidators_nonExistingValidator() public {
+    _collateralizeEthVault(address(vault));
+
     // Deposit enough ETH for funding
     _depositToVault(address(vault), validatorDeposit, user, user);
 
@@ -1115,6 +1117,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
   // Test failed withdrawal with invalid validator data
   function test_withdrawValidators_invalidValidators() public {
+    _collateralizeEthVault(address(vault));
+
     // 1. Prepare invalid withdrawal data (zero length)
     bytes memory invalidWithdrawalData = new bytes(0);
 
@@ -1199,5 +1203,308 @@ contract VaultValidatorsTest is Test, EthHelpers {
     _startSnapshotGas('VaultValidatorsTest_test_withdrawValidators_multipleValidators');
     vault.withdrawValidators{value: totalFee}(combinedData, '');
     _stopSnapshotGas();
+  }
+
+  // Test successful validator consolidation by validator manager
+  function test_consolidateValidators_byManager() public {
+    // First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory sourcePublicKey = _registerEthValidator(address(vault), validatorDeposit, true);
+
+    // Register a second validator to use as destination (must be tracked to avoid oracle requirement)
+    bytes memory destPublicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+    bytes memory consolidationData = bytes.concat(sourcePublicKey, destPublicKey);
+
+    // Set up the consolidation fee
+    uint256 consolidationFee = 0.1 ether;
+    vm.deal(validatorsManager, consolidationFee);
+
+    // Call consolidateValidators from validatorsManager
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_consolidateValidators_byManager');
+    vault.consolidateValidators{value: consolidationFee}(consolidationData, '', '');
+    _stopSnapshotGas();
+  }
+
+  // Test validator consolidation with manager signature
+  function test_consolidateValidators_withSignature() public {
+    // First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory sourcePublicKey = _registerEthValidator(address(vault), validatorDeposit, true);
+
+    // Register a second validator to use as destination (must be tracked)
+    bytes memory destPublicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+    bytes memory consolidationData = bytes.concat(sourcePublicKey, destPublicKey);
+
+    // Create validator manager signature
+    bytes32 message = _getValidatorsManagerSigningMessage(
+      address(vault),
+      bytes32(vault.validatorsManagerNonce()),
+      consolidationData
+    );
+    (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorsManagerPrivateKey, message);
+    bytes memory signature = abi.encodePacked(r, s, v);
+
+    // Record current nonce
+    uint256 currentNonce = vault.validatorsManagerNonce();
+
+    // Set up the consolidation fee
+    uint256 consolidationFee = 0.1 ether;
+    vm.deal(nonManager, consolidationFee);
+
+    // Call consolidateValidators from non-manager with valid signature
+    vm.prank(nonManager);
+    _startSnapshotGas('VaultValidatorsTest_test_consolidateValidators_withSignature');
+    vault.consolidateValidators{value: consolidationFee}(consolidationData, signature, '');
+    _stopSnapshotGas();
+
+    // Verify nonce was incremented
+    assertEq(
+      vault.validatorsManagerNonce(),
+      currentNonce + 1,
+      'Validators manager nonce should be incremented'
+    );
+  }
+
+  // Test validator consolidation with oracle signatures
+  function test_consolidateValidators_withOracleSignatures() public {
+    // Register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory sourcePublicKey = _registerEthValidator(address(vault), validatorDeposit, true);
+
+    // Prepare consolidation data (to an untracked destination validator)
+    bytes memory destPublicKey = vm.randomBytes(48);
+    bytes memory consolidationData = bytes.concat(sourcePublicKey, destPublicKey);
+
+    // Create oracle signature using our known oracle private key
+    bytes32 digest = keccak256(
+      abi.encodePacked(
+        '\x19\x01',
+        keccak256(
+          abi.encode(
+            keccak256(
+              'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
+            ),
+            keccak256('ConsolidationsChecker'),
+            keccak256('1'),
+            block.chainid,
+            address(contracts.consolidationsChecker)
+          )
+        ),
+        keccak256(
+          abi.encode(
+            keccak256('ConsolidationsChecker(address vault,bytes validators)'),
+            address(vault),
+            keccak256(consolidationData)
+          )
+        )
+      )
+    );
+
+    // setup oracles
+    _startOracleImpersonate(address(contracts.keeper));
+
+    (uint8 v, bytes32 r, bytes32 s) = vm.sign(_oraclePrivateKey, digest);
+    bytes memory oracleSignatures = abi.encodePacked(r, s, v);
+
+    // Set up the consolidation fee
+    uint256 consolidationFee = 0.1 ether;
+    vm.deal(validatorsManager, consolidationFee);
+
+    // Verify the destination validator is not tracked initially
+    assertFalse(
+      vault.trackedValidators(keccak256(destPublicKey)),
+      'Destination validator should not be tracked initially'
+    );
+
+    // Call consolidateValidators with oracle signatures
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_consolidateValidators_withOracleSignatures');
+    vault.consolidateValidators{value: consolidationFee}(consolidationData, '', oracleSignatures);
+    _stopSnapshotGas();
+
+    // Verify the destination validator is now tracked
+    assertTrue(
+      vault.trackedValidators(keccak256(destPublicKey)),
+      'Destination validator should be tracked after consolidation with oracle approval'
+    );
+
+    _stopOracleImpersonate(address(contracts.keeper));
+  }
+
+  // Test failure when called by non-manager without signature
+  function test_consolidateValidators_notManager() public {
+    // 1. First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory sourcePublicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // 2. Prepare consolidation data
+    bytes memory destPublicKey = vm.randomBytes(48);
+    bytes memory consolidationData = bytes.concat(sourcePublicKey, destPublicKey);
+
+    // 3. Set up the consolidation fee
+    uint256 consolidationFee = 0.1 ether;
+    vm.deal(nonManager, consolidationFee);
+
+    // 4. Call consolidateValidators from non-manager without signature
+    vm.prank(nonManager);
+    _startSnapshotGas('VaultValidatorsTest_test_consolidateValidators_notManager');
+    vm.expectRevert(Errors.AccessDenied.selector);
+    vault.consolidateValidators{value: consolidationFee}(consolidationData, '', '');
+    _stopSnapshotGas();
+  }
+
+  // Test failure with invalid signature
+  function test_consolidateValidators_invalidSignature() public {
+    // 1. First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory sourcePublicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // 2. Prepare consolidation data
+    bytes memory destPublicKey = vm.randomBytes(48);
+    bytes memory consolidationData = bytes.concat(sourcePublicKey, destPublicKey);
+
+    // 3. Create invalid signature (wrong signer)
+    (, uint256 wrongPrivateKey) = makeAddrAndKey('wrong');
+    bytes32 message = _getValidatorsManagerSigningMessage(
+      address(vault),
+      bytes32(vault.validatorsManagerNonce()),
+      consolidationData
+    );
+    (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongPrivateKey, message);
+    bytes memory invalidSignature = abi.encodePacked(r, s, v);
+
+    // 4. Set up the consolidation fee
+    uint256 consolidationFee = 0.1 ether;
+    vm.deal(nonManager, consolidationFee);
+
+    // 5. Call consolidateValidators with invalid signature
+    vm.prank(nonManager);
+    _startSnapshotGas('VaultValidatorsTest_test_consolidateValidators_invalidSignature');
+    vm.expectRevert(Errors.AccessDenied.selector);
+    vault.consolidateValidators{value: consolidationFee}(consolidationData, invalidSignature, '');
+    _stopSnapshotGas();
+  }
+
+  // Test failure with invalid validators data
+  function test_consolidateValidators_invalidValidators() public {
+    _collateralizeEthVault(address(vault));
+
+    // 1. Set up the consolidation fee
+    uint256 consolidationFee = 0.1 ether;
+    vm.deal(validatorsManager, consolidationFee);
+
+    // 2. Create empty validators data
+    bytes memory emptyValidatorsData = new bytes(0);
+
+    // 3. Call consolidateValidators with empty validators data
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_consolidateValidators_invalidValidatorsEmpty');
+    vm.expectRevert(Errors.InvalidValidators.selector);
+    vault.consolidateValidators{value: consolidationFee}(emptyValidatorsData, '', '');
+    _stopSnapshotGas();
+
+    // 4. Test with invalid length (not a multiple of _validatorConsolidationLength)
+    // For consolidation, _validatorConsolidationLength is 96 (48 bytes sourcePublicKey + 48 bytes destPublicKey)
+    bytes memory invalidLengthData = new bytes(50); // Not a multiple of 96
+
+    // 5. Call consolidateValidators with invalid length data
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_consolidateValidators_invalidValidatorsLength');
+    vm.expectRevert(Errors.InvalidValidators.selector);
+    vault.consolidateValidators{value: consolidationFee}(invalidLengthData, '', '');
+    _stopSnapshotGas();
+  }
+
+  // Test failure for untracked destination without oracle approval
+  function test_consolidateValidators_untrackedDestination() public {
+    // 1. First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory sourcePublicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // 2. Prepare consolidation data with untracked destination
+    bytes memory destPublicKey = vm.randomBytes(48);
+    bytes memory consolidationData = bytes.concat(sourcePublicKey, destPublicKey);
+
+    // 3. Verify destination is not tracked
+    assertFalse(
+      vault.trackedValidators(keccak256(destPublicKey)),
+      'Destination validator should not be tracked initially'
+    );
+
+    // 4. Set up the consolidation fee
+    uint256 consolidationFee = 0.1 ether;
+    vm.deal(validatorsManager, consolidationFee);
+
+    // 5. Attempt consolidation without oracle signatures
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_consolidateValidators_untrackedDestination');
+    vm.expectRevert(Errors.InvalidValidators.selector);
+    vault.consolidateValidators{value: consolidationFee}(consolidationData, '', '');
+    _stopSnapshotGas();
+  }
+
+  // Test fee handling and refunds
+  function test_consolidateValidators_feeHandling() public {
+    // 1. First register a validator to make it tracked
+    _depositToVault(address(vault), validatorDeposit * 2, user, user);
+    bytes memory sourcePublicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // 2. Prepare consolidation data (to another tracked validator)
+    bytes memory destPublicKey = _registerEthValidator(address(vault), validatorDeposit, false);
+    bytes memory consolidationData = bytes.concat(sourcePublicKey, destPublicKey);
+
+    // 3. Set excess fee (more than needed)
+    uint256 actualFee = 0.1 ether;
+    uint256 excessFee = 0.5 ether; // Overpay
+    vm.deal(validatorsManager, excessFee);
+
+    // 4. Record initial balance
+    uint256 initialBalance = validatorsManager.balance;
+
+    // 5. Call consolidateValidators with excess fee
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_consolidateValidators_feeHandling');
+    vault.consolidateValidators{value: excessFee}(consolidationData, '', '');
+    _stopSnapshotGas();
+
+    // 6. Verify the correct fee was deducted and excess was refunded
+    uint256 finalBalance = validatorsManager.balance;
+    assertEq(finalBalance, initialBalance - actualFee, 'Excess fee should be refunded');
+  }
+
+  // Test consolidating multiple validators in a single call
+  function test_consolidateValidators_multipleValidators() public {
+    vm.deal(user, 200 ether);
+
+    // Register source validators
+    _depositToVault(address(vault), validatorDeposit * 3, user, user);
+    bytes memory sourcePublicKey1 = _registerEthValidator(address(vault), validatorDeposit, true);
+    bytes memory destPublicKey1 = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // Consolidate the same validator
+    bytes memory sourcePublicKey2 = _registerEthValidator(address(vault), validatorDeposit, false);
+
+    // Combine data for both consolidations
+    bytes memory consolidationData1 = bytes.concat(sourcePublicKey1, destPublicKey1);
+    bytes memory consolidationData2 = bytes.concat(sourcePublicKey2, sourcePublicKey2);
+    bytes memory combinedData = bytes.concat(consolidationData1, consolidationData2);
+
+    // setup oracle
+    _stopOracleImpersonate(address(contracts.keeper));
+
+    // Set fee for two consolidations
+    uint256 feePerConsolidation = 0.1 ether;
+    uint256 totalFee = feePerConsolidation * 2;
+    vm.deal(validatorsManager, totalFee);
+
+    // Call consolidateValidators with multiple validators
+    vm.prank(validatorsManager);
+    _startSnapshotGas('VaultValidatorsTest_test_consolidateValidators_multipleValidators');
+    vault.consolidateValidators{value: totalFee}(combinedData, '', '');
+    _stopSnapshotGas();
+
+    // remove oracle
+    _stopOracleImpersonate(address(contracts.keeper));
   }
 }
