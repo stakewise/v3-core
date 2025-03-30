@@ -124,7 +124,6 @@ abstract contract VaultValidators is
     bytes calldata validators,
     bytes calldata validatorsManagerSignature
   ) external override {
-    _checkCollateralized();
     _registerValidators(
       validators,
       bytes32(validatorsManagerNonce),
