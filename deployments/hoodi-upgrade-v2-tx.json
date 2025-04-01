@@ -1,0 +1,172 @@
+[
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0x4b37c73f0000000000000000000000002a49951faffcfe3bf5247834ead8a5df8638ad9e",
+    "method": "removeFactory(address)",
+    "params": [
+      "0x2A49951FafFcfe3Bf5247834eAd8A5dF8638Ad9e"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0x29ce1ec5000000000000000000000000f0f07383f621370eb59a794f36b7d80063d06147",
+    "method": "addFactory(address)",
+    "params": [
+      "0xf0F07383F621370Eb59A794f36b7D80063d06147"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d000000000000000000000000fe974c6502e59d760b3a27e6d5a4315dc668d716",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0xFe974c6502E59d760B3a27e6D5a4315DC668d716"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0x4b37c73f00000000000000000000000075cfa03086f4832d7ed238dbba59b1c6cba01cfe",
+    "method": "removeFactory(address)",
+    "params": [
+      "0x75CFa03086F4832D7eD238dbba59B1c6CBa01CFe"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0x29ce1ec50000000000000000000000000f8c209445282d937dac0ea0a6706590250f9afd",
+    "method": "addFactory(address)",
+    "params": [
+      "0x0F8c209445282d937DaC0eA0a6706590250F9aFD"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d0000000000000000000000003bec3c1cf81a1176c12550b4315bdd53a2b4fd5d",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0x3BEc3c1cf81A1176c12550B4315bdd53A2B4Fd5D"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0x29ce1ec5000000000000000000000000b4fea836cdd93ac900100bb6462fe73872e5b524",
+    "method": "addFactory(address)",
+    "params": [
+      "0xB4FEA836CDd93Ac900100bB6462fE73872E5B524"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d000000000000000000000000d506fe0b3ddf9e685c16e000514a835d3a511b26",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0xD506fE0B3dDF9e685C16E000514a835D3a511b26"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0x4b37c73f000000000000000000000000a321619a6232bdc03ab1a82affb5783518a9f5bb",
+    "method": "removeFactory(address)",
+    "params": [
+      "0xa321619a6232BdC03Ab1a82aFFb5783518A9f5BB"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0x29ce1ec500000000000000000000000068d17efa7cf9e1d121e9ff6138f2336bdb1ccbca",
+    "method": "addFactory(address)",
+    "params": [
+      "0x68D17eFa7cf9e1d121e9ff6138f2336bDB1CcBcA"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d0000000000000000000000000c2ec14603ad9c14a820ad0c91122210ab84a9e5",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0x0C2eC14603Ad9c14a820ad0C91122210Ab84A9e5"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0x4b37c73f000000000000000000000000f9d18fc3d4f917e87400c445429440ca73d970e4",
+    "method": "removeFactory(address)",
+    "params": [
+      "0xf9D18Fc3D4F917E87400C445429440CA73D970E4"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0x29ce1ec5000000000000000000000000ac40b56e7bb98c2be5ee5b3e8b28568b33fa76ce",
+    "method": "addFactory(address)",
+    "params": [
+      "0xac40b56E7Bb98C2Be5Ee5b3E8B28568b33Fa76CE"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d00000000000000000000000060ce7c5547ada69042df8ac4f40b74ed0031e90d",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0x60CE7c5547Ada69042Df8aC4f40B74ED0031E90d"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0x29ce1ec500000000000000000000000076747fee60601be298e84a8a3d4d2d0dc82555f4",
+    "method": "addFactory(address)",
+    "params": [
+      "0x76747FeE60601be298E84A8a3D4D2D0dc82555F4"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d000000000000000000000000028dba0ca8c761c7831fa0a681b8b61ba04ce939",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0x028DbA0cA8C761C7831fA0A681b8B61bA04ce939"
+    ]
+  },
+  {
+    "to": "0xf16fea93D3253A401C3f73B0De890C6586740B25",
+    "operation": "0",
+    "value": "0.0",
+    "data": "0xaff7947d000000000000000000000000be89b8a90018f1bd458803e713575287e23ca04a",
+    "method": "addVaultImpl(address)",
+    "params": [
+      "0xBe89b8a90018f1bD458803e713575287E23CA04a"
+    ]
+  }
+]

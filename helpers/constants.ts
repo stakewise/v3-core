@@ -5,12 +5,12 @@ import { MAX_UINT128, MAX_UINT256 } from '../test/shared/constants'
 export const NETWORKS: {
   [network in Networks]: NetworkConfig
 } = {
-  [Networks.holesky]: {
-    url: process.env.HOLESKY_RPC_URL || '',
-    chainId: 17000,
+  [Networks.hoodi]: {
+    url: process.env.HOODI_RPC_URL || '',
+    chainId: 560048,
 
     governor: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
-    validatorsRegistry: '0x4242424242424242424242424242424242424242',
+    validatorsRegistry: '0x00000000219ab540356cBB839Cbe05303d7705Fa',
     securityDeposit: 1000000000n, // 1 gwei
     exitedAssetsClaimDelay: 24 * 60 * 60, // 24 hours
 
@@ -32,7 +32,7 @@ export const NETWORKS: {
     validatorsMinOracles: 6,
     rewardsDelay: 12 * 60 * 60, // 12 hours
     maxAvgRewardPerSecond: 6341958397n, // 20% APY
-    oraclesConfigIpfsHash: 'QmPpm82rEJTfgw34noJKugYovHSg7BFdWHWzUV5eNC91Zs',
+    oraclesConfigIpfsHash: 'Qmb1vAihRCDuEkhe22RL2FkW19MZ2jXKLERuFLwdXvWdQC',
 
     // OsToken
     treasury: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
@@ -48,7 +48,7 @@ export const NETWORKS: {
 
     // OsTokenVaultEscrow
     osTokenVaultEscrow: {
-      authenticator: '0x4abB9BBb82922A6893A5d6890cd2eE94610BEc48',
+      authenticator: '0x4a745DFF39bBEa970Da28DBA2ba94DB81938AC39',
       liqThresholdPercent: parseEther('0.99994'), // 99.994%
       liqBonusPercent: parseEther('1.000027'), // 0.0027%
     },
@@ -56,8 +56,8 @@ export const NETWORKS: {
     // EthGenesisVault
     genesisVault: {
       admin: '0xFF2B6d2d5c205b99E2e6f607B6aFA3127B9957B6',
-      poolEscrow: '0xA9f21D016E2846BC9Be972Cf45d9e410283c971e',
-      rewardToken: '0x2ee2E20702B5881a1171c5dbEd01C3d1e49Bf632',
+      poolEscrow: '0x291Fa5849215847081B475450cBE5De46CfD4fAE',
+      rewardToken: '0x75c57bd50A3EB7291Da3429956D3566E0153A38f',
       capacity: parseEther('1000000'), // 1m ETH
       feePercent: 500, // 5%
     },
