@@ -73,7 +73,7 @@ const config: HardhatUserConfig = {
     ],
   },
   networks: {
-    holesky: getCommonNetworkConfig(Networks.holesky),
+    hoodi: getCommonNetworkConfig(Networks.hoodi),
     mainnet: getCommonNetworkConfig(Networks.mainnet),
     chiado: getCommonNetworkConfig(Networks.chiado),
     gnosis: getCommonNetworkConfig(Networks.gnosis),
@@ -113,11 +113,11 @@ const config: HardhatUserConfig = {
     apiKey: BLOCK_EXPLORER_KEY,
     customChains: [
       {
-        network: 'holesky',
-        chainId: 17000,
+        network: 'hoodi',
+        chainId: 560048,
         urls: {
-          apiURL: 'https://api-holesky.etherscan.io/api',
-          browserURL: 'https://holesky.etherscan.io',
+          apiURL: 'https://api-hoodi.etherscan.io/api',
+          browserURL: 'https://hoodi.etherscan.io',
         },
       },
     ],

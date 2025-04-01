@@ -2,7 +2,7 @@ export type ThenArg<T> = T extends PromiseLike<infer U> ? U : T
 
 export enum Networks {
   mainnet = 'mainnet',
-  holesky = 'holesky',
+  hoodi = 'hoodi',
   chiado = 'chiado',
   gnosis = 'gnosis',
 }
