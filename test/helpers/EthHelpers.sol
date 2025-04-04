@@ -34,6 +34,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
   address private constant _keeper = 0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5;
   address private constant _validatorsRegistry = 0x00000000219ab540356cBB839Cbe05303d7705Fa;
   address private constant _vaultsRegistry = 0x3a0008a588772446f6e656133C2D5029CC4FC20E;
+  address internal constant _osToken = 0xf1C9acDc66974dFB6dEcB12aA385b9cD01190E38;
   address private constant _osTokenVaultController = 0x2A261e60FB14586B474C208b1B7AC6D0f5000306;
   address private constant _osTokenConfig = 0x287d1e2A8dE183A8bf8f2b09Fa1340fBd766eb59;
   address private constant _osTokenVaultEscrow = 0x09e84205DF7c68907e619D07aFD90143c5763605;
