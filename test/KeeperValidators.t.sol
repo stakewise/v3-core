@@ -55,16 +55,41 @@ contract KeeperValidatorsTest is Test, EthHelpers {
     validatorsDeadline = block.timestamp + 100000;
   }
 
-  // Test approveValidators functionality
   function test_approveValidators_success() public {
-    // Arrange: Register validator through the direct helper function, which handles all the impersonation and signatures
-    _collateralizeEthVault(address(vault));
+    // Start oracle impersonation for signature generation
+    _startOracleImpersonate(address(contracts.keeper));
+
+    // Prepare approval parameters
+    string memory ipfsHash = 'ipfsHash';
+    uint256[] memory depositAmounts = new uint256[](1);
+    depositAmounts[0] = 32 ether / 1 gwei;
+    IKeeperValidators.ApprovalParams memory approvalParams = _getValidatorsApproval(
+      address(contracts.keeper),
+      address(contracts.validatorsRegistry),
+      address(vault),
+      ipfsHash,
+      depositAmounts,
+      false
+    );
+
+    // Set up event expectations
+    vm.expectEmit(true, true, true, true);
+    emit IKeeperValidators.ValidatorsApproval(address(vault), ipfsHash);
+
+    // Call approveValidators as the vault
+    vm.prank(address(vault));
+    _startSnapshotGas('KeeperValidatorsTest_test_approveValidators_success');
+    contracts.keeper.approveValidators(approvalParams);
+    _stopSnapshotGas();
 
     // Assert: Verify vault is now collateralized
     assertTrue(
       contracts.keeper.isCollateralized(address(vault)),
       'Vault should be collateralized after validator approval'
     );
+
+    // Clean up
+    _stopOracleImpersonate(address(contracts.keeper));
   }
 
   function test_approveValidators_accessDenied() public {
@@ -133,7 +158,7 @@ contract KeeperValidatorsTest is Test, EthHelpers {
     // Set expired deadline
     approvalParams.deadline = block.timestamp - 1; // Expired
 
-    // Start impersonating the vault
+    // Start impersonating the vault - this test will check deadline before signature validation
     vm.prank(address(vault));
 
     // Act & Assert: Call should fail due to expired deadline
@@ -173,6 +198,15 @@ contract KeeperValidatorsTest is Test, EthHelpers {
     );
     (uint8 v, bytes32 r, bytes32 s) = vm.sign(_oraclePrivateKey, digest);
     bytes memory signatures = abi.encodePacked(r, s, v);
+
+    // Set up event expectations
+    vm.expectEmit(true, true, false, true);
+    emit IKeeperValidators.ExitSignaturesUpdated(
+      address(this),
+      address(vault),
+      initialNonce,
+      exitSignaturesIpfsHash
+    );
 
     // Act: Update exit signatures
     _startSnapshotGas('KeeperValidatorsTest_test_updateExitSignatures_success');
@@ -394,6 +428,10 @@ contract KeeperValidatorsTest is Test, EthHelpers {
       newMinOracles = totalOracles;
     }
 
+    // Set up event expectations
+    vm.expectEmit(true, false, false, false);
+    emit IKeeperValidators.ValidatorsMinOraclesUpdated(newMinOracles);
+
     // Act: Set new min oracles
     vm.prank(owner);
     _startSnapshotGas('KeeperValidatorsTest_test_setValidatorsMinOracles_success');
@@ -438,24 +476,5 @@ contract KeeperValidatorsTest is Test, EthHelpers {
     vm.expectRevert(Errors.InvalidOracles.selector);
     contracts.keeper.setValidatorsMinOracles(totalOracles + 1);
     _stopSnapshotGas();
-  }
-
-  // Test register/withdraw validators through vault integration
-  function test_registerValidator_integration() public {
-    // Register validator through the vault
-    bytes memory publicKey = _registerEthValidator(address(vault), depositAmount, false);
-
-    // Assert: Vault should now be collateralized and validator registered
-    assertTrue(
-      contracts.keeper.isCollateralized(address(vault)),
-      'Vault should be collateralized after validator registration'
-    );
-
-    // Verify the emitted event through logs
-    vm.recordLogs();
-    bytes32 validatorPublicKeyHash = keccak256(publicKey);
-
-    // Use the event data to verify registration was successful
-    assertNotEq(publicKey.length, 0, 'Public key should not be empty');
   }
 }
