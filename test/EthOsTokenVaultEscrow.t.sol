@@ -280,7 +280,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
     vault.mintOsToken(user, osTokenShares, address(0));
 
     // Transfer position to escrow (which calls register internally)
-    uint256 timestamp = block.timestamp;
+    uint256 timestamp = vm.getBlockTimestamp();
     vm.prank(user);
     uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(osTokenShares);
 
@@ -333,7 +333,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
     contracts.osTokenVaultEscrow.processExitedAssets(
       address(vault),
       nonExistentTicket,
-      block.timestamp,
+      vm.getBlockTimestamp(),
       0
     );
     _stopSnapshotGas();
@@ -352,7 +352,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
     vm.prank(user);
     vault.mintOsToken(user, osTokenShares, address(0));
 
-    uint256 timestamp = block.timestamp;
+    uint256 timestamp = vm.getBlockTimestamp();
     vm.prank(user);
     uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(osTokenShares);
 
@@ -386,7 +386,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
     vm.prank(user);
     vault.mintOsToken(user, osTokenShares, address(0));
 
-    uint256 timestamp = block.timestamp;
+    uint256 timestamp = vm.getBlockTimestamp();
     vm.prank(user);
     uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(osTokenShares);
 
@@ -470,7 +470,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
     vm.prank(user);
     vault.mintOsToken(user, osTokenShares, address(0));
 
-    uint256 timestamp = block.timestamp;
+    uint256 timestamp = vm.getBlockTimestamp();
     vm.prank(user);
     uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(osTokenShares);
 
@@ -550,5 +550,284 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
       'Exited assets should be reduced by claimed amount'
     );
     assertEq(sharesAfter, shares - halfShares, 'Shares should be reduced by claimed amount');
+  }
+
+  function test_claimExitedAssets_notOwner() public {
+    // Setup a position
+    _collateralizeEthVault(address(vault));
+    uint256 depositAmount = 10 ether;
+    _depositToVault(address(vault), depositAmount, user, user);
+
+    IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(vault));
+    uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+    uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+
+    vm.prank(user);
+    vault.mintOsToken(user, osTokenShares, address(0));
+
+    uint256 timestamp = vm.getBlockTimestamp();
+    vm.prank(user);
+    uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(osTokenShares);
+
+    // Process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+
+    uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(exitPositionTicket));
+    contracts.osTokenVaultEscrow.processExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      timestamp,
+      exitQueueIndex
+    );
+
+    // Try to claim as a different user
+    address otherUser = makeAddr('otherUser');
+    _mintOsToken(otherUser, osTokenShares); // Give them the required osToken shares
+
+    vm.startPrank(otherUser);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_claimExitedAssets_notOwner');
+    vm.expectRevert(Errors.AccessDenied.selector);
+    contracts.osTokenVaultEscrow.claimExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      osTokenShares
+    );
+    _stopSnapshotGas();
+    vm.stopPrank();
+  }
+
+  function test_claimExitedAssets_insufficientShares() public {
+    // Setup a position
+    _collateralizeEthVault(address(vault));
+    uint256 depositAmount = 10 ether;
+    _depositToVault(address(vault), depositAmount, user, user);
+
+    IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(vault));
+    uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+    uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+
+    vm.prank(user);
+    vault.mintOsToken(user, osTokenShares, address(0));
+
+    uint256 timestamp = vm.getBlockTimestamp();
+    vm.prank(user);
+    uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(osTokenShares);
+
+    // Process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+
+    uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(exitPositionTicket));
+    contracts.osTokenVaultEscrow.processExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      timestamp,
+      exitQueueIndex
+    );
+
+    // Mint extra shares to the user so they have enough to try claiming
+    _mintOsToken(user, osTokenShares * 2);
+
+    // Try to claim more shares than available
+    vm.prank(user);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_claimExitedAssets_insufficientShares');
+    vm.expectRevert(Errors.InvalidShares.selector);
+    contracts.osTokenVaultEscrow.claimExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      osTokenShares * 2 // More than available
+    );
+    _stopSnapshotGas();
+  }
+
+  function test_claimExitedAssets_nonExistentPosition() public {
+    // Try to claim from a non-existent position ticket
+    uint256 nonExistentTicket = 9999;
+
+    _mintOsToken(user, 1 ether); // Give them some osToken shares
+
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_claimExitedAssets_nonExistentPosition');
+    vm.expectRevert(); // Will revert with a custom error
+    contracts.osTokenVaultEscrow.claimExitedAssets(address(vault), nonExistentTicket, 1 ether);
+    _stopSnapshotGas();
+  }
+
+  function test_claimExitedAssets_noProcessedAssets() public {
+    // Setup a position without processing exited assets
+    _collateralizeEthVault(address(vault));
+    uint256 depositAmount = 10 ether;
+    _depositToVault(address(vault), depositAmount, user, user);
+
+    IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(vault));
+    uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+    uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+
+    vm.prank(user);
+    vault.mintOsToken(user, osTokenShares, address(0));
+
+    uint256 timestamp = vm.getBlockTimestamp();
+    vm.prank(user);
+    uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(osTokenShares);
+
+    // Skip processing exit queue
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+
+    // Try to claim without processed assets
+    vm.prank(user);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_claimExitedAssets_noProcessedAssets');
+    vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
+    contracts.osTokenVaultEscrow.claimExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      osTokenShares
+    );
+    _stopSnapshotGas();
+  }
+
+  function test_claimExitedAssets_withFeeAccrual() public {
+    // Set up a realistic APR for fee accrual
+    vm.prank(address(contracts.keeper));
+    IOsTokenVaultController(contracts.osTokenVaultController).setAvgRewardPerSecond(868240800); // ~3% APR
+
+    // Setup a position
+    _collateralizeEthVault(address(vault));
+    uint256 depositAmount = 10 ether;
+    _depositToVault(address(vault), depositAmount, user, user);
+
+    IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(vault));
+    uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+    uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+
+    vm.prank(user);
+    vault.mintOsToken(user, osTokenShares, address(0));
+
+    uint256 initialCumulativeFeePerShare = contracts.osTokenVaultController.cumulativeFeePerShare();
+
+    uint256 timestamp = vm.getBlockTimestamp();
+    vm.prank(user);
+    uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(osTokenShares);
+
+    // Process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+
+    // Fast forward time to accrue fees
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 30 days);
+
+    uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(exitPositionTicket));
+    contracts.osTokenVaultEscrow.processExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      timestamp,
+      exitQueueIndex
+    );
+
+    // Check if fees accrued
+    uint256 newCumulativeFeePerShare = contracts.osTokenVaultController.cumulativeFeePerShare();
+    assertGt(newCumulativeFeePerShare, initialCumulativeFeePerShare, 'Fees should have accrued');
+
+    // Get position details before claiming
+    (, uint256 exitedAssets, uint256 positionShares) = contracts.osTokenVaultEscrow.getPosition(
+      address(vault),
+      exitPositionTicket
+    );
+
+    // Shares should have increased due to fee accrual
+    assertGt(positionShares, osTokenShares, 'Position shares should have increased due to fees');
+
+    // Record user balance before claiming
+    uint256 userBalanceBefore = user.balance;
+
+    // Claim assets
+    vm.prank(user);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_claimExitedAssets_withFeeAccrual');
+    uint256 claimedAssets = contracts.osTokenVaultEscrow.claimExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      osTokenShares
+    );
+    _stopSnapshotGas();
+
+    // Verify assets were received
+    uint256 userBalanceAfter = user.balance;
+    assertEq(
+      userBalanceAfter - userBalanceBefore,
+      claimedAssets,
+      'User should receive the correct amount of assets'
+    );
+    assertLt(claimedAssets, exitedAssets, 'Fee assets should not be included in the claim');
+  }
+
+  function test_claimExitedAssets_minimalAmount() public {
+    // disable fee shares accrual
+    vm.prank(address(contracts.keeper));
+    IOsTokenVaultController(contracts.osTokenVaultController).setAvgRewardPerSecond(0);
+
+    // Setup a position
+    _collateralizeEthVault(address(vault));
+    uint256 depositAmount = 10 ether;
+    _depositToVault(address(vault), depositAmount, user, user);
+
+    IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(vault));
+    uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+    uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+
+    vm.prank(user);
+    vault.mintOsToken(user, osTokenShares, address(0));
+
+    uint256 timestamp = vm.getBlockTimestamp();
+    vm.prank(user);
+    uint256 exitPositionTicket = vault.transferOsTokenPositionToEscrow(osTokenShares);
+
+    // Process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+
+    uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(exitPositionTicket));
+    contracts.osTokenVaultEscrow.processExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      timestamp,
+      exitQueueIndex
+    );
+
+    // Get position details
+    (, uint256 exitedAssets, uint256 shares) = contracts.osTokenVaultEscrow.getPosition(
+      address(vault),
+      exitPositionTicket
+    );
+
+    // Try to claim minimal shares (1 wei)
+    uint256 minimalShares = 1;
+    uint256 userBalanceBefore = user.balance;
+
+    vm.prank(user);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_claimExitedAssets_minimalAmount');
+    uint256 claimedAssets = contracts.osTokenVaultEscrow.claimExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      minimalShares
+    );
+    _stopSnapshotGas();
+
+    // Verify appropriate tiny amount was claimed
+    uint256 userBalanceAfter = user.balance;
+    assertEq(
+      userBalanceAfter - userBalanceBefore,
+      claimedAssets,
+      'User should receive the claimed assets'
+    );
+
+    // Expected claimed assets for tiny share amount
+    uint256 expectedClaimedAssets = (exitedAssets * minimalShares) / shares;
+    assertEq(
+      claimedAssets,
+      expectedClaimedAssets,
+      'Claimed assets should be proportional to shares'
+    );
   }
 }
