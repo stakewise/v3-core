@@ -2,6 +2,7 @@
 pragma solidity ^0.8.22;
 
 import {Test} from 'forge-std/Test.sol';
+import {console} from 'forge-std/console.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
 import {IOsTokenConfig} from '../contracts/interfaces/IOsTokenConfig.sol';
@@ -27,6 +28,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
 
   address public user;
   address public admin;
+  address public liquidator;
 
   function setUp() public {
     // Activate Ethereum fork and get contracts
@@ -35,10 +37,12 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
     // Setup addresses
     user = makeAddr('user');
     admin = makeAddr('admin');
+    liquidator = makeAddr('liquidator');
 
     // Fund accounts
     vm.deal(user, 100 ether);
     vm.deal(admin, 100 ether);
+    vm.deal(liquidator, 100 ether);
 
     // Register user
     vm.prank(_strategiesRegistry.owner());
@@ -829,5 +833,136 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
       expectedClaimedAssets,
       'Claimed assets should be proportional to shares'
     );
+  }
+
+  // Helper function to setup a position in escrow
+  function _setupEscrowPosition()
+    internal
+    returns (uint256 exitPositionTicket, uint256 osTokenShares, uint256 timestamp)
+  {
+    // Collateralize vault and deposit
+    _collateralizeEthVault(address(vault));
+    uint256 depositAmount = 10 ether;
+    _depositToVault(address(vault), depositAmount, user, user);
+
+    // Calculate and mint osToken shares
+    IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(vault));
+    uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+    osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+
+    vm.prank(user);
+    vault.mintOsToken(user, osTokenShares, address(0));
+
+    // Transfer position to escrow
+    timestamp = vm.getBlockTimestamp();
+    vm.prank(user);
+    exitPositionTicket = vault.transferOsTokenPositionToEscrow(osTokenShares);
+
+    return (exitPositionTicket, osTokenShares, timestamp);
+  }
+
+  // Helper function to make a position unhealthy for liquidation
+  function _makePositionUnhealthy(
+    address _vault,
+    uint256 exitPositionTicket,
+    uint256 timestamp,
+    uint256 exitQueueIndex
+  ) internal {
+    // Process exited assets first
+    contracts.osTokenVaultEscrow.processExitedAssets(
+      _vault,
+      exitPositionTicket,
+      timestamp,
+      exitQueueIndex
+    );
+
+    // Artificially manipulate the position to make it unhealthy
+    // We'll simulate a price drop by increasing the value of the osToken shares relative to exited assets
+    // This is done by setting a high average reward per second in the vault controller
+    vm.prank(address(contracts.keeper));
+    contracts.osTokenVaultController.setAvgRewardPerSecond(4341204000); // 15 %
+
+    // Advance time to allow the high APR to take effect
+    vm.warp(vm.getBlockTimestamp() + 365 days);
+
+    // Force an update of the osToken state to reflect the new values
+    contracts.osTokenVaultController.updateState();
+
+    vm.prank(address(contracts.keeper));
+    contracts.osTokenVaultController.setAvgRewardPerSecond(0);
+  }
+
+  function test_liquidateOsToken_success() public {
+    // Setup a position in escrow
+    (uint256 exitPositionTicket, uint256 osTokenShares, uint256 timestamp) = _setupEscrowPosition();
+
+    // Process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+    uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(exitPositionTicket));
+
+    // Make the position unhealthy for liquidation
+    _makePositionUnhealthy(address(vault), exitPositionTicket, timestamp, exitQueueIndex);
+
+    // Mint osToken shares to liquidator
+    _mintOsToken(liquidator, osTokenShares);
+
+    // Get position details before liquidation
+    (address ownerBefore, uint256 exitedAssetsBefore, uint256 sharesBefore) = contracts
+      .osTokenVaultEscrow
+      .getPosition(address(vault), exitPositionTicket);
+
+    // push down the stack
+    uint256 exitPositionTicket_ = exitPositionTicket;
+
+    // Record liquidator balance before
+    uint256 liquidatorBalanceBefore = liquidator.balance;
+
+    // Expected bonus based on the liquidation bonus from the contract
+    uint256 liqBonusPercent = contracts.osTokenVaultEscrow.liqBonusPercent();
+    uint256 liquidationAssets = (exitedAssetsBefore * 1e18) / liqBonusPercent;
+    uint256 liquidationShares = contracts.osTokenVaultController.convertToShares(liquidationAssets);
+
+    // Expect liquidation event
+    vm.expectEmit(true, true, true, false);
+    emit IOsTokenVaultEscrow.OsTokenLiquidated(
+      liquidator,
+      address(vault),
+      exitPositionTicket_,
+      liquidator,
+      liquidationShares,
+      exitedAssetsBefore
+    );
+
+    // Liquidate the position
+    vm.prank(liquidator);
+    _startSnapshotGas('OsTokenLiquidationTest_test_liquidateOsToken_success');
+    contracts.osTokenVaultEscrow.liquidateOsToken(
+      address(vault),
+      exitPositionTicket_,
+      liquidationShares,
+      liquidator
+    );
+    _stopSnapshotGas();
+
+    // Get position details after liquidation
+    (address ownerAfter, uint256 exitedAssetsAfter, uint256 sharesAfter) = contracts
+      .osTokenVaultEscrow
+      .getPosition(address(vault), exitPositionTicket_);
+
+    // Verify liquidator received assets
+    uint256 liquidatorBalanceAfter = liquidator.balance;
+    assertApproxEqAbs(
+      liquidatorBalanceAfter - liquidatorBalanceBefore,
+      exitedAssetsBefore,
+      2,
+      'Liquidator did not receive correct amount of assets'
+    );
+
+    // Verify position was updated
+    assertEq(ownerAfter, ownerBefore, 'Owner should not change');
+    assertApproxEqAbs(exitedAssetsAfter, 0, 2, 'Exited assets not correctly reduced');
+    assertLt(sharesAfter, sharesBefore, 'Shares not correctly reduced');
   }
 }
