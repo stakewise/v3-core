@@ -41,7 +41,7 @@ contract VaultsRegistryTest is Test, EthHelpers {
     registry.acceptOwnership();
   }
 
-  function test_initialState() public {
+  function test_initialState() public view {
     // Verify the initial state of the registry
     assertEq(registry.owner(), owner, 'Registry owner should be set');
     assertFalse(registry.factories(mockFactory), 'Mock factory should not be registered initially');

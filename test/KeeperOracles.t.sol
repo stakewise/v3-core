@@ -203,11 +203,7 @@ contract KeeperOraclesTest is Test, EthHelpers {
 
     // Perform rewards update which uses _verifySignatures internally
     _startSnapshotGas('KeeperOraclesTest_test_verifySignatures_throughKeeperRewards');
-    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(
-      genesisVault,
-      int160(int256(1 ether)),
-      0
-    );
+    _setEthVaultReward(genesisVault, int160(int256(1 ether)), 0);
     _stopSnapshotGas();
 
     // Clean up
