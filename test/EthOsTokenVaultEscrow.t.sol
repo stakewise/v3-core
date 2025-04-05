@@ -2,8 +2,7 @@
 pragma solidity ^0.8.22;
 
 import {Test} from 'forge-std/Test.sol';
-import {console} from 'forge-std/console.sol';
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
+import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
 import {IOsTokenConfig} from '../contracts/interfaces/IOsTokenConfig.sol';
 import {IOsTokenVaultEscrow} from '../contracts/interfaces/IOsTokenVaultEscrow.sol';
@@ -964,5 +963,329 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
     assertEq(ownerAfter, ownerBefore, 'Owner should not change');
     assertApproxEqAbs(exitedAssetsAfter, 0, 2, 'Exited assets not correctly reduced');
     assertLt(sharesAfter, sharesBefore, 'Shares not correctly reduced');
+  }
+
+  function test_liquidateOsToken_invalidHealthFactor() public {
+    // Setup a position in escrow
+    (uint256 exitPositionTicket, uint256 osTokenShares, uint256 timestamp) = _setupEscrowPosition();
+
+    // Process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+    uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(exitPositionTicket));
+
+    // Process exited assets without making the position unhealthy
+    contracts.osTokenVaultEscrow.processExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      timestamp,
+      exitQueueIndex
+    );
+
+    // Mint osToken shares to liquidator
+    _mintOsToken(liquidator, osTokenShares);
+
+    // Get liquidation amount
+    (, , uint256 sharesBefore) = contracts.osTokenVaultEscrow.getPosition(
+      address(vault),
+      exitPositionTicket
+    );
+    uint256 liquidationShares = sharesBefore / 2;
+
+    // Try to liquidate a healthy position
+    vm.prank(liquidator);
+    _startSnapshotGas('OsTokenLiquidationTest_test_liquidateOsToken_invalidHealthFactor');
+    vm.expectRevert(Errors.InvalidHealthFactor.selector);
+    contracts.osTokenVaultEscrow.liquidateOsToken(
+      address(vault),
+      exitPositionTicket,
+      liquidationShares,
+      liquidator
+    );
+    _stopSnapshotGas();
+  }
+
+  function test_liquidateOsToken_invalidPosition() public {
+    // Setup a non-existent position
+    uint256 nonExistentTicket = 9999;
+
+    // Mint osToken shares to liquidator
+    _mintOsToken(liquidator, 1 ether);
+
+    // Try to liquidate a non-existent position
+    vm.prank(liquidator);
+    _startSnapshotGas('OsTokenLiquidationTest_test_liquidateOsToken_invalidPosition');
+    vm.expectRevert(Errors.InvalidPosition.selector);
+    contracts.osTokenVaultEscrow.liquidateOsToken(
+      address(vault),
+      nonExistentTicket,
+      1 ether,
+      liquidator
+    );
+    _stopSnapshotGas();
+  }
+
+  function test_liquidateOsToken_zeroAddress() public {
+    // Setup a position in escrow
+    (uint256 exitPositionTicket, uint256 osTokenShares, uint256 timestamp) = _setupEscrowPosition();
+
+    // Process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+    uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(exitPositionTicket));
+
+    // Make the position unhealthy for liquidation
+    _makePositionUnhealthy(address(vault), exitPositionTicket, timestamp, exitQueueIndex);
+
+    // Mint osToken shares to liquidator
+    _mintOsToken(liquidator, osTokenShares);
+
+    // Try to liquidate to zero address
+    vm.prank(liquidator);
+    _startSnapshotGas('OsTokenLiquidationTest_test_liquidateOsToken_zeroAddress');
+    vm.expectRevert(Errors.ZeroAddress.selector);
+    contracts.osTokenVaultEscrow.liquidateOsToken(
+      address(vault),
+      exitPositionTicket,
+      osTokenShares,
+      address(0)
+    );
+    _stopSnapshotGas();
+  }
+
+  function test_liquidateOsToken_invalidReceivedAssets() public {
+    // Setup a position in escrow
+    (uint256 exitPositionTicket, uint256 osTokenShares, uint256 timestamp) = _setupEscrowPosition();
+
+    // Process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+    uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(exitPositionTicket));
+
+    // Make the position unhealthy for liquidation
+    _makePositionUnhealthy(address(vault), exitPositionTicket, timestamp, exitQueueIndex);
+
+    // Mint too many osToken shares to liquidator (much more than the position value)
+    uint256 excessiveShares = osTokenShares * 100;
+    _mintOsToken(liquidator, excessiveShares);
+
+    // Try to liquidate with excessive shares
+    vm.prank(liquidator);
+    _startSnapshotGas('OsTokenLiquidationTest_test_liquidateOsToken_invalidReceivedAssets');
+    vm.expectRevert(Errors.InvalidReceivedAssets.selector);
+    contracts.osTokenVaultEscrow.liquidateOsToken(
+      address(vault),
+      exitPositionTicket,
+      excessiveShares,
+      liquidator
+    );
+    _stopSnapshotGas();
+  }
+
+  function test_liquidateOsToken_partialLiquidation() public {
+    // Setup a position in escrow
+    (uint256 exitPositionTicket, , uint256 timestamp) = _setupEscrowPosition();
+
+    // Process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+    uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(exitPositionTicket));
+
+    // Make the position unhealthy for liquidation
+    _makePositionUnhealthy(address(vault), exitPositionTicket, timestamp, exitQueueIndex);
+
+    // Get position details before liquidation
+    (address ownerBefore, uint256 exitedAssetsBefore, uint256 sharesBefore) = contracts
+      .osTokenVaultEscrow
+      .getPosition(address(vault), exitPositionTicket);
+
+    // Only liquidate half of the position
+    uint256 liqBonusPercent = contracts.osTokenVaultEscrow.liqBonusPercent();
+    uint256 halfExitedAssets = exitedAssetsBefore / 2;
+    uint256 halfLiquidationAssets = (halfExitedAssets * 1e18) / liqBonusPercent;
+    uint256 halfLiquidationShares = contracts.osTokenVaultController.convertToShares(
+      halfLiquidationAssets
+    );
+
+    // Mint osToken shares to liquidator
+    _mintOsToken(liquidator, halfLiquidationShares);
+
+    // Record liquidator balance before
+    uint256 liquidatorBalanceBefore = liquidator.balance;
+
+    // Liquidate half the position
+    vm.prank(liquidator);
+    _startSnapshotGas('OsTokenLiquidationTest_test_liquidateOsToken_partialLiquidation');
+    contracts.osTokenVaultEscrow.liquidateOsToken(
+      address(vault),
+      exitPositionTicket,
+      halfLiquidationShares,
+      liquidator
+    );
+    _stopSnapshotGas();
+
+    // push down the stack
+    uint256 exitPositionTicket_ = exitPositionTicket;
+
+    // Get position details after liquidation
+    (address ownerAfter, uint256 exitedAssetsAfter, uint256 sharesAfter) = contracts
+      .osTokenVaultEscrow
+      .getPosition(address(vault), exitPositionTicket_);
+
+    // Verify partial liquidation results
+    assertEq(ownerAfter, ownerBefore, 'Owner should not change');
+    assertApproxEqAbs(
+      exitedAssetsAfter,
+      exitedAssetsBefore - halfExitedAssets,
+      10,
+      'Exited assets should be reduced by approximately half'
+    );
+    assertLt(sharesAfter, sharesBefore, 'Shares should be reduced');
+
+    // Verify liquidator received assets
+    uint256 liquidatorBalanceAfter = liquidator.balance;
+    assertApproxEqAbs(
+      liquidatorBalanceAfter - liquidatorBalanceBefore,
+      halfExitedAssets,
+      10,
+      'Liquidator should receive approximately half of the exited assets'
+    );
+  }
+
+  function test_redeemOsToken_success() public {
+    vm.prank(address(contracts.keeper));
+    contracts.osTokenVaultController.setAvgRewardPerSecond(0);
+
+    // Setup a position in escrow
+    (uint256 exitPositionTicket, uint256 osTokenShares, uint256 timestamp) = _setupEscrowPosition();
+
+    // Process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+    uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(exitPositionTicket));
+
+    // Process exited assets
+    contracts.osTokenVaultEscrow.processExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      timestamp,
+      exitQueueIndex
+    );
+
+    // Get position details before redemption
+    (address ownerBefore, uint256 exitedAssetsBefore, ) = contracts.osTokenVaultEscrow.getPosition(
+      address(vault),
+      exitPositionTicket
+    );
+    uint256 expectedAssets = contracts.osTokenVaultController.convertToAssets(osTokenShares);
+
+    // Mint osToken shares to the redeemer
+    address redeemer = makeAddr('redeemer');
+    _mintOsToken(redeemer, osTokenShares);
+
+    // set redeemer
+    vm.prank(Ownable(address(contracts.keeper)).owner());
+    contracts.osTokenConfig.setRedeemer(redeemer);
+
+    // Record redeemer balance before
+    address receiver = makeAddr('receiver');
+    uint256 receiverBalanceBefore = receiver.balance;
+
+    // Expect OsTokenRedeemed event
+    vm.expectEmit(true, true, true, true);
+    emit IOsTokenVaultEscrow.OsTokenRedeemed(
+      redeemer,
+      address(vault),
+      exitPositionTicket,
+      receiver,
+      osTokenShares,
+      expectedAssets
+    );
+
+    // Redeem the position
+    vm.prank(redeemer);
+    _startSnapshotGas('OsTokenLiquidationTest_test_redeemOsToken_success');
+    contracts.osTokenVaultEscrow.redeemOsToken(
+      address(vault),
+      exitPositionTicket,
+      osTokenShares,
+      receiver
+    );
+    _stopSnapshotGas();
+
+    // Verify receiver received assets
+    uint256 receiverBalanceAfter = receiver.balance;
+    assertEq(
+      receiverBalanceAfter - receiverBalanceBefore,
+      expectedAssets,
+      'Receiver should receive all exited assets'
+    );
+
+    // push down the stack
+    uint256 exitPositionTicket_ = exitPositionTicket;
+
+    // Get position details after redemption
+    (address ownerAfter, uint256 exitedAssetsAfter, uint256 sharesAfter) = contracts
+      .osTokenVaultEscrow
+      .getPosition(address(vault), exitPositionTicket_);
+
+    // Verify position was updated
+    assertEq(ownerAfter, ownerBefore, 'Owner should not change');
+    assertEq(
+      exitedAssetsAfter,
+      exitedAssetsBefore - expectedAssets,
+      'Exited assets should be zero'
+    );
+    assertEq(sharesAfter, 0, 'Shares should be zero');
+  }
+
+  function test_redeemOsToken_notRedeemer() public {
+    // Setup a position in escrow
+    (uint256 exitPositionTicket, uint256 osTokenShares, uint256 timestamp) = _setupEscrowPosition();
+
+    // Process exit queue
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+    vault.updateState(harvestParams);
+    vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+    uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(exitPositionTicket));
+
+    // Process exited assets
+    contracts.osTokenVaultEscrow.processExitedAssets(
+      address(vault),
+      exitPositionTicket,
+      timestamp,
+      exitQueueIndex
+    );
+
+    // Mock the osTokenConfig.redeemer call to return an official redeemer address
+    address officialRedeemer = makeAddr('officialRedeemer');
+    vm.mockCall(
+      address(contracts.osTokenConfig),
+      abi.encodeWithSelector(bytes4(keccak256('redeemer()'))),
+      abi.encode(officialRedeemer)
+    );
+
+    // Try to redeem from an unauthorized address
+    address unauthorizedCaller = makeAddr('unauthorizedCaller');
+    _mintOsToken(unauthorizedCaller, osTokenShares);
+
+    vm.prank(unauthorizedCaller);
+    _startSnapshotGas('OsTokenLiquidationTest_test_redeemOsToken_notRedeemer');
+    vm.expectRevert(Errors.AccessDenied.selector);
+    contracts.osTokenVaultEscrow.redeemOsToken(
+      address(vault),
+      exitPositionTicket,
+      osTokenShares,
+      unauthorizedCaller
+    );
+    _stopSnapshotGas();
+
+    // Clear the mock
+    vm.clearMockedCalls();
   }
 }
