@@ -3,18 +3,18 @@ pragma solidity ^0.8.22;
 
 import {Test} from 'forge-std/Test.sol';
 import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {OsTokenFlashLoans} from '../contracts/tokens/OsTokenFlashLoans.sol';
+import {OsTokenFlashLoans, IOsTokenFlashLoans} from '../contracts/tokens/OsTokenFlashLoans.sol';
 import {OsTokenFlashLoanRecipientMock} from '../contracts/mocks/OsTokenFlashLoanRecipientMock.sol';
 import {OsToken} from '../contracts/tokens/OsToken.sol';
-import {IOsToken} from '../contracts/interfaces/IOsToken.sol';
 import {IOsTokenFlashLoanRecipient} from '../contracts/interfaces/IOsTokenFlashLoanRecipient.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
+import {EthHelpers} from './helpers/EthHelpers.sol';
 
-contract OsTokenFlashLoansTest is Test {
+contract OsTokenFlashLoansTest is Test, EthHelpers {
   // Constants for deployed contracts
-  address public constant FLASH_LOANS_ADDRESS = 0xeBe12d858E55DDc5FC5A8153dC3e117824fbf5d2;
-  address public constant OS_TOKEN_ADDRESS = 0xf1C9acDc66974dFB6dEcB12aA385b9cD01190E38;
   uint256 public constant MAX_FLASH_LOAN_AMOUNT = 100_000 ether;
+
+  ForkContracts public contracts;
 
   // Contract instances
   OsTokenFlashLoans public flashLoans;
@@ -27,11 +27,11 @@ contract OsTokenFlashLoansTest is Test {
 
   function setUp() public {
     // Fork mainnet
-    vm.createSelectFork(vm.envString('MAINNET_RPC_URL'));
+    contracts = _activateEthereumFork();
 
     // Connect to deployed contracts
-    flashLoans = OsTokenFlashLoans(FLASH_LOANS_ADDRESS);
-    osToken = OsToken(OS_TOKEN_ADDRESS);
+    flashLoans = OsTokenFlashLoans(_osTokenFlashLoans);
+    osToken = OsToken(_osToken);
 
     // Set up test accounts
     admin = makeAddr('admin');
@@ -39,22 +39,13 @@ contract OsTokenFlashLoansTest is Test {
     vm.deal(user, 100 ether);
 
     // Deploy mock recipient
-    recipient = new OsTokenFlashLoanRecipientMock(OS_TOKEN_ADDRESS, FLASH_LOANS_ADDRESS);
-
-    // Set up permissions and balances
-    address osTokenOwner = osToken.owner();
-    vm.startPrank(osTokenOwner);
-
-    // Ensure flash loans contract has permission to mint/burn
-    osToken.setController(FLASH_LOANS_ADDRESS, true);
+    recipient = new OsTokenFlashLoanRecipientMock(_osToken, _osTokenFlashLoans);
 
     // Mint tokens to the recipient for repayment
-    // (The recipient repays the loan from its own balance)
-    osToken.mint(address(recipient), 1000 ether);
-    vm.stopPrank();
+    _mintOsToken(address(recipient), 1000 ether);
   }
 
-  function test_FlashLoan_Success() public {
+  function test_flashLoan_success() public {
     // Configure recipient to repay the loan
     recipient.setShouldRepayLoan(true);
 
@@ -62,18 +53,18 @@ contract OsTokenFlashLoansTest is Test {
 
     // Record pre-loan state
     uint256 recipientPreBalance = osToken.balanceOf(address(recipient));
-    uint256 flashLoansPreBalance = osToken.balanceOf(FLASH_LOANS_ADDRESS);
+    uint256 flashLoansPreBalance = osToken.balanceOf(_osTokenFlashLoans);
 
     // Execute the flash loan
     vm.expectEmit(true, true, false, false);
-    emit OsTokenFlashLoans.OsTokenFlashLoan(address(recipient), flashLoanAmount);
+    emit IOsTokenFlashLoans.OsTokenFlashLoan(address(recipient), flashLoanAmount);
 
     vm.prank(address(recipient));
     recipient.executeFlashLoan(flashLoanAmount, '0x');
 
     // Verify post-loan state
     uint256 recipientPostBalance = osToken.balanceOf(address(recipient));
-    uint256 flashLoansPostBalance = osToken.balanceOf(FLASH_LOANS_ADDRESS);
+    uint256 flashLoansPostBalance = osToken.balanceOf(_osTokenFlashLoans);
 
     // Flash loan contract's balance should be unchanged
     // (It mints tokens, receives repayment, then burns the tokens)
@@ -87,12 +78,12 @@ contract OsTokenFlashLoansTest is Test {
     // (It repays the loan from its own balance)
     assertEq(
       recipientPostBalance,
-      recipientPreBalance - flashLoanAmount,
-      'Recipient should have spent tokens repaying the loan'
+      recipientPreBalance,
+      'Recipient should have the same balance after repaying the loan'
     );
   }
 
-  function test_FlashLoan_Failure() public {
+  function test_flashLoan_failure() public {
     // Configure recipient to NOT repay the loan
     recipient.setShouldRepayLoan(false);
 
@@ -104,14 +95,14 @@ contract OsTokenFlashLoansTest is Test {
     recipient.executeFlashLoan(flashLoanAmount, '0x');
   }
 
-  function test_FlashLoan_ZeroAmount() public {
+  function test_flashLoan_zeroAmount() public {
     // Try to execute flash loan with 0 amount - should revert
     vm.prank(address(recipient));
     vm.expectRevert(Errors.InvalidShares.selector);
     recipient.executeFlashLoan(0, '0x');
   }
 
-  function test_FlashLoan_ExcessiveAmount() public {
+  function test_flashLoan_excessiveAmount() public {
     // Try to execute flash loan with more than the max amount - should revert
     uint256 excessiveAmount = MAX_FLASH_LOAN_AMOUNT + 1;
 
@@ -120,7 +111,7 @@ contract OsTokenFlashLoansTest is Test {
     recipient.executeFlashLoan(excessiveAmount, '0x');
   }
 
-  function test_FlashLoan_WithUserData() public {
+  function test_flashLoan_withUserData() public {
     // Configure recipient to repay the loan
     recipient.setShouldRepayLoan(true);
 
@@ -135,14 +126,12 @@ contract OsTokenFlashLoansTest is Test {
     // (We can't easily verify the userData was received correctly without modifying the recipient)
   }
 
-  function test_FlashLoan_MaxAmount() public {
+  function test_flashLoan_maxAmount() public {
     // Configure recipient to repay the loan
     recipient.setShouldRepayLoan(true);
 
     // Ensure recipient has enough tokens to repay max loan
-    address osTokenOwner = osToken.owner();
-    vm.prank(osTokenOwner);
-    osToken.mint(address(recipient), MAX_FLASH_LOAN_AMOUNT);
+    _mintOsToken(address(recipient), MAX_FLASH_LOAN_AMOUNT);
 
     // Execute flash loan with maximum allowed amount
     vm.prank(address(recipient));
@@ -151,14 +140,12 @@ contract OsTokenFlashLoansTest is Test {
     // Test passes if the loan executes without reverting
   }
 
-  function test_FlashLoan_ReEntrancy() public {
+  function test_flashLoan_reentrancy() public {
     // Create a malicious recipient that attempts re-entrancy
-    MaliciousRecipient malicious = new MaliciousRecipient(OS_TOKEN_ADDRESS, FLASH_LOANS_ADDRESS);
+    MaliciousRecipient malicious = new MaliciousRecipient(_osToken, _osTokenFlashLoans);
 
     // Mint tokens to the malicious recipient for repayment
-    address osTokenOwner = osToken.owner();
-    vm.prank(osTokenOwner);
-    osToken.mint(address(malicious), 1000 ether);
+    _mintOsToken(address(recipient), 1000 ether);
 
     // Attempt the attack - should fail due to nonReentrant modifier
     vm.prank(address(malicious));
@@ -166,7 +153,7 @@ contract OsTokenFlashLoansTest is Test {
     malicious.executeAttack(100 ether);
   }
 
-  function test_FlashLoan_GasUsage() public {
+  function test_flashLoan_gasUsage() public {
     // Configure recipient to repay the loan
     recipient.setShouldRepayLoan(true);
 
@@ -177,9 +164,6 @@ contract OsTokenFlashLoansTest is Test {
     uint256 gasStart = gasleft();
     recipient.executeFlashLoan(flashLoanAmount, '0x');
     uint256 gasUsed = gasStart - gasleft();
-
-    // Log gas usage for informational purposes
-    console.log('Flash loan gas usage:', gasUsed);
 
     // Optional: assert gas usage is below a reasonable threshold
     assertLt(gasUsed, 300000, 'Flash loan gas usage should be reasonable');
