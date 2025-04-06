@@ -377,4 +377,51 @@ contract OsTokenConfigTest is Test, EthHelpers {
       'Should return default liquidation bonus'
     );
   }
+
+  function test_updateDefaultConfig_success() public {
+    // Define new default configuration values
+    uint64 newLtvPercent = 0.7e18; // 70%
+    uint64 newLiqThresholdPercent = 0.8e18; // 80%
+    uint128 newLiqBonusPercent = 1.1e18; // 110%
+
+    IOsTokenConfig.Config memory newDefaultConfig = IOsTokenConfig.Config({
+      ltvPercent: newLtvPercent,
+      liqThresholdPercent: newLiqThresholdPercent,
+      liqBonusPercent: newLiqBonusPercent
+    });
+
+    // Test address that doesn't have a specific config
+    address randomVault = makeAddr('randomVault');
+
+    // Expect OsTokenConfigUpdated event
+    vm.expectEmit(true, false, true, true);
+    emit IOsTokenConfig.OsTokenConfigUpdated(
+      address(0),
+      newLiqBonusPercent,
+      newLiqThresholdPercent,
+      newLtvPercent
+    );
+
+    // Update the default configuration
+    vm.prank(owner);
+    _startSnapshotGas('OsTokenConfigTest_test_updateDefaultConfig_success');
+    osTokenConfig.updateConfig(address(0), newDefaultConfig);
+    _stopSnapshotGas();
+
+    // Get the config for a random vault without specific config
+    IOsTokenConfig.Config memory retrievedConfig = osTokenConfig.getConfig(randomVault);
+
+    // Verify the default config was updated and is returned for vaults without specific config
+    assertEq(retrievedConfig.ltvPercent, newLtvPercent, 'LTV percent not updated correctly');
+    assertEq(
+      retrievedConfig.liqThresholdPercent,
+      newLiqThresholdPercent,
+      'Liquidation threshold percent not updated correctly'
+    );
+    assertEq(
+      retrievedConfig.liqBonusPercent,
+      newLiqBonusPercent,
+      'Liquidation bonus percent not updated correctly'
+    );
+  }
 }

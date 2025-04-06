@@ -139,7 +139,7 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
 
     // calculate validator length
     uint256 validatorLength = params.validators.length / params.proofIndexes.length;
-    if (validatorLength == 0 || params.proofIndexes.length % validatorLength != 0) {
+    if (validatorLength == 0 || params.validators.length % validatorLength != 0) {
       return (block.number, Status.INVALID_VALIDATORS_LENGTH);
     }
 

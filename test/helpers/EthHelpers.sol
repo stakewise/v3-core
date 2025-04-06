@@ -317,6 +317,23 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     return vaultAddress;
   }
 
+  function _createV1EthVault(
+    address admin,
+    bytes memory initParams,
+    bool isOwnMevEscrow
+  ) internal returns (address) {
+    EthVaultFactory factory = EthVaultFactory(0xDada5a8E3703B1e3EA2bAe5Ab704627eb2659fCC);
+
+    vm.prank(VaultsRegistry(_vaultsRegistry).owner());
+    VaultsRegistry(_vaultsRegistry).addFactory(address(factory));
+
+    vm.deal(admin, admin.balance + _securityDeposit);
+    vm.prank(admin);
+    address vaultAddress = factory.createVault{value: _securityDeposit}(initParams, isOwnMevEscrow);
+
+    return vaultAddress;
+  }
+
   function _upgradeVault(VaultType vaultType, address vault) internal {
     EthVault vaultContract = EthVault(payable(vault));
     uint256 currentVersion = vaultContract.version();
