@@ -1288,4 +1288,154 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
     // Clear the mock
     vm.clearMockedCalls();
   }
+
+  function test_updateLiqConfig_success() public {
+    // Get the owner of the escrow contract
+    address escrowOwner = Ownable(address(contracts.osTokenVaultEscrow)).owner();
+
+    // Define new values - using conservative values
+    uint64 newLiqThresholdPercent = 5e17; // 50%
+    uint256 newLiqBonusPercent = 1.1e18; // 110%
+
+    // Expect LiqConfigUpdated event
+    vm.expectEmit(true, true, false, false);
+    emit IOsTokenVaultEscrow.LiqConfigUpdated(newLiqThresholdPercent, newLiqBonusPercent);
+
+    // Call updateLiqConfig as owner
+    vm.prank(escrowOwner);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_updateLiqConfig_success');
+    contracts.osTokenVaultEscrow.updateLiqConfig(newLiqThresholdPercent, newLiqBonusPercent);
+    _stopSnapshotGas();
+
+    // Verify state was updated
+    assertEq(
+      contracts.osTokenVaultEscrow.liqThresholdPercent(),
+      newLiqThresholdPercent,
+      'liqThresholdPercent not updated correctly'
+    );
+    assertEq(
+      contracts.osTokenVaultEscrow.liqBonusPercent(),
+      newLiqBonusPercent,
+      'liqBonusPercent not updated correctly'
+    );
+  }
+
+  function test_updateLiqConfig_onlyOwner() public {
+    // Define values
+    uint64 newLiqThresholdPercent = 5e17; // 50%
+    uint256 newLiqBonusPercent = 1.1e18; // 110%
+
+    // Get a non-owner address
+    address nonOwner = makeAddr('nonOwner');
+
+    // Call updateLiqConfig as non-owner, should revert
+    vm.prank(nonOwner);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_updateLiqConfig_onlyOwner');
+    vm.expectRevert(abi.encodeWithSignature('OwnableUnauthorizedAccount(address)', nonOwner));
+    contracts.osTokenVaultEscrow.updateLiqConfig(newLiqThresholdPercent, newLiqBonusPercent);
+    _stopSnapshotGas();
+  }
+
+  function test_updateLiqConfig_invalidThreshold() public {
+    // Get the owner of the escrow contract
+    address escrowOwner = Ownable(address(contracts.osTokenVaultEscrow)).owner();
+
+    // Test with threshold = 0
+    vm.prank(escrowOwner);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_updateLiqConfig_invalidThreshold_zero');
+    vm.expectRevert(Errors.InvalidLiqThresholdPercent.selector);
+    contracts.osTokenVaultEscrow.updateLiqConfig(0, 1.1e18);
+    _stopSnapshotGas();
+
+    // Test with threshold = 1e18 (100%)
+    vm.prank(escrowOwner);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_updateLiqConfig_invalidThreshold_max');
+    vm.expectRevert(Errors.InvalidLiqThresholdPercent.selector);
+    contracts.osTokenVaultEscrow.updateLiqConfig(1e18, 1.1e18);
+    _stopSnapshotGas();
+  }
+
+  function test_updateLiqConfig_invalidBonus() public {
+    // Get the owner of the escrow contract
+    address escrowOwner = Ownable(address(contracts.osTokenVaultEscrow)).owner();
+
+    // Test with bonus < _maxPercent (1e18)
+    vm.prank(escrowOwner);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_updateLiqConfig_invalidBonus_low');
+    vm.expectRevert(Errors.InvalidLiqBonusPercent.selector);
+    contracts.osTokenVaultEscrow.updateLiqConfig(5e17, 0.9e18);
+    _stopSnapshotGas();
+
+    // Test with bonus too high (threshold * bonus > _maxPercent)
+    // If threshold = 90% (0.9e18) and bonus = 112% (1.12e18),
+    // then 0.9e18 * 1.12e18 / 1e18 = 1.008e18 > 1e18
+    vm.prank(escrowOwner);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_updateLiqConfig_invalidBonus_high');
+    vm.expectRevert(Errors.InvalidLiqBonusPercent.selector);
+    contracts.osTokenVaultEscrow.updateLiqConfig(9e17, 1.12e18);
+    _stopSnapshotGas();
+  }
+
+  function test_setAuthenticator_success() public {
+    // Get the owner of the escrow contract
+    address escrowOwner = Ownable(address(contracts.osTokenVaultEscrow)).owner();
+
+    // Get current authenticator
+    address currentAuthenticator = contracts.osTokenVaultEscrow.authenticator();
+
+    // Create a new authenticator address
+    address newAuthenticator = makeAddr('newAuthenticator');
+
+    // Ensure it's different from the current one
+    if (newAuthenticator == currentAuthenticator) {
+      newAuthenticator = makeAddr('newAuthenticator2');
+    }
+
+    // Expect AuthenticatorUpdated event
+    vm.expectEmit(true, false, false, false);
+    emit IOsTokenVaultEscrow.AuthenticatorUpdated(newAuthenticator);
+
+    // Call setAuthenticator as owner
+    vm.prank(escrowOwner);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_setAuthenticator_success');
+    contracts.osTokenVaultEscrow.setAuthenticator(newAuthenticator);
+    _stopSnapshotGas();
+
+    // Verify state was updated
+    assertEq(
+      contracts.osTokenVaultEscrow.authenticator(),
+      newAuthenticator,
+      'Authenticator not updated correctly'
+    );
+  }
+
+  function test_setAuthenticator_onlyOwner() public {
+    // Create a new authenticator address
+    address newAuthenticator = makeAddr('newAuthenticator');
+
+    // Get a non-owner address
+    address nonOwner = makeAddr('nonOwner');
+
+    // Call setAuthenticator as non-owner, should revert
+    vm.prank(nonOwner);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_setAuthenticator_onlyOwner');
+    vm.expectRevert(abi.encodeWithSignature('OwnableUnauthorizedAccount(address)', nonOwner));
+    contracts.osTokenVaultEscrow.setAuthenticator(newAuthenticator);
+    _stopSnapshotGas();
+  }
+
+  function test_setAuthenticator_valueNotChanged() public {
+    // Get the owner of the escrow contract
+    address escrowOwner = Ownable(address(contracts.osTokenVaultEscrow)).owner();
+
+    // Get current authenticator
+    address currentAuthenticator = contracts.osTokenVaultEscrow.authenticator();
+
+    // Call setAuthenticator with the same authenticator, should revert
+    vm.prank(escrowOwner);
+    _startSnapshotGas('EthOsTokenVaultEscrowTest_test_setAuthenticator_valueNotChanged');
+    vm.expectRevert(Errors.ValueNotChanged.selector);
+    contracts.osTokenVaultEscrow.setAuthenticator(currentAuthenticator);
+    _stopSnapshotGas();
+  }
 }
