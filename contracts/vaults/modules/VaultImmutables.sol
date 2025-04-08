@@ -17,22 +17,17 @@ abstract contract VaultImmutables {
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   address internal immutable _vaultsRegistry;
 
-  /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-  address internal immutable _validatorsRegistry;
-
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
    * @param keeper The address of the Keeper contract
    * @param vaultsRegistry The address of the VaultsRegistry contract
-   * @param validatorsRegistry The contract address used for registering validators in beacon chain
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(address keeper, address vaultsRegistry, address validatorsRegistry) {
+  constructor(address keeper, address vaultsRegistry) {
     _keeper = keeper;
     _vaultsRegistry = vaultsRegistry;
-    _validatorsRegistry = validatorsRegistry;
   }
 
   /**

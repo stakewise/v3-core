@@ -9,7 +9,6 @@ import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
 import {IEthPoolEscrow} from '../../interfaces/IEthPoolEscrow.sol';
 import {IEthGenesisVault} from '../../interfaces/IEthGenesisVault.sol';
 import {IRewardEthToken} from '../../interfaces/IRewardEthToken.sol';
-import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {Errors} from '../../libraries/Errors.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
@@ -24,7 +23,7 @@ import {EthVault, IEthVault} from './EthVault.sol';
  */
 contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 4;
+  uint8 private constant _version = 5;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IEthPoolEscrow private immutable _poolEscrow;
@@ -32,82 +31,32 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IRewardEthToken private immutable _rewardEthToken;
 
-  error InvalidInitialHarvest();
-
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _keeper The address of the Keeper contract
-   * @param _vaultsRegistry The address of the VaultsRegistry contract
-   * @param _validatorsRegistry The contract address used for registering validators in beacon chain
-   * @param osTokenVaultController The address of the OsTokenVaultController contract
-   * @param osTokenConfig The address of the OsTokenConfig contract
-   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
-   * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataRegistry The address of the DepositDataRegistry contract
-   * @param poolEscrow The address of the pool escrow from StakeWise Legacy
-   * @param rewardEthToken The address of the rETH2 token from StakeWise Legacy
-   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
+   * @param args The arguments for initializing the EthVault contract
+   * @param poolEscrow The address of the pool escrow contract
+   * @param rewardEthToken The address of the reward ETH token contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    address _keeper,
-    address _vaultsRegistry,
-    address _validatorsRegistry,
-    address osTokenVaultController,
-    address osTokenConfig,
-    address osTokenVaultEscrow,
-    address sharedMevEscrow,
-    address depositDataRegistry,
+    EthVaultConstructorArgs memory args,
     address poolEscrow,
-    address rewardEthToken,
-    uint256 exitingAssetsClaimDelay
-  )
-    EthVault(
-      _keeper,
-      _vaultsRegistry,
-      _validatorsRegistry,
-      osTokenVaultController,
-      osTokenConfig,
-      osTokenVaultEscrow,
-      sharedMevEscrow,
-      depositDataRegistry,
-      exitingAssetsClaimDelay
-    )
-  {
+    address rewardEthToken
+  ) EthVault(args) {
     _poolEscrow = IEthPoolEscrow(poolEscrow);
     _rewardEthToken = IRewardEthToken(rewardEthToken);
   }
 
   /// @inheritdoc IEthVault
   function initialize(
-    bytes calldata params
+    bytes calldata
   ) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 3 to 4
-    if (admin != address(0)) {
-      return;
+    if (admin == address(0)) {
+      revert Errors.UpgradeFailed();
     }
-
-    // initialize deployed vault
-    (address _admin, EthVaultInitParams memory initParams) = abi.decode(
-      params,
-      (address, EthVaultInitParams)
-    );
-    // use shared MEV escrow
-    __EthVault_init(_admin, address(0), initParams);
-    emit GenesisVaultCreated(
-      _admin,
-      initParams.capacity,
-      initParams.feePercent,
-      initParams.metadataIpfsHash
-    );
-  }
-
-  /// @inheritdoc IEthGenesisVault
-  function acceptPoolEscrowOwnership() external override {
-    _checkAdmin();
-    _poolEscrow.applyOwnershipTransfer();
+    __EthVault_upgrade();
   }
 
   /// @inheritdoc IVaultVersion
@@ -118,31 +67,6 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, EthVault) returns (uint8) {
     return _version;
-  }
-
-  /// @inheritdoc IVaultState
-  function updateState(
-    IKeeperRewards.HarvestParams calldata harvestParams
-  ) public override(IVaultState, VaultState) {
-    bool isCollateralized = IKeeperRewards(_keeper).isCollateralized(address(this));
-
-    // process total assets delta since last update
-    (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
-
-    if (!isCollateralized) {
-      // it's the first harvest, deduct rewards accumulated so far in legacy pool
-      totalAssetsDelta -= SafeCast.toInt256(_rewardEthToken.totalRewards());
-      // the first state update must be with positive delta
-      if (_poolEscrow.owner() != address(this) || totalAssetsDelta < 0) {
-        revert InvalidInitialHarvest();
-      }
-    }
-
-    // process total assets delta
-    _processTotalAssetsDelta(totalAssetsDelta);
-
-    // update exit queue every time new update is harvested
-    if (harvested) _updateExitQueue();
   }
 
   /// @inheritdoc IEthGenesisVault
@@ -205,43 +129,6 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     }
   }
 
-  /// @inheritdoc VaultState
-  function _processTotalAssetsDelta(int256 totalAssetsDelta) internal override {
-    // skip processing if there is no change in assets
-    if (totalAssetsDelta == 0) return;
-
-    // fetch total assets controlled by legacy pool
-    uint256 legacyPrincipal = _rewardEthToken.totalAssets() - _rewardEthToken.totalPenalty();
-    if (legacyPrincipal == 0) {
-      // legacy pool has no assets, process total assets delta as usual
-      super._processTotalAssetsDelta(totalAssetsDelta);
-      return;
-    }
-
-    // calculate total principal
-    uint256 totalPrincipal = _totalAssets + legacyPrincipal;
-    if (totalAssetsDelta < 0) {
-      // calculate and update penalty for legacy pool
-      int256 legacyPenalty = SafeCast.toInt256(
-        Math.mulDiv(uint256(-totalAssetsDelta), legacyPrincipal, totalPrincipal)
-      );
-      _rewardEthToken.updateTotalRewards(-legacyPenalty);
-      // deduct penalty from total assets delta
-      totalAssetsDelta += legacyPenalty;
-    } else {
-      // calculate and update reward for legacy pool
-      int256 legacyReward = SafeCast.toInt256(
-        Math.mulDiv(uint256(totalAssetsDelta), legacyPrincipal, totalPrincipal)
-      );
-      _rewardEthToken.updateTotalRewards(legacyReward);
-      // deduct reward from total assets delta
-      totalAssetsDelta -= legacyReward;
-    }
-
-    // process total assets delta
-    super._processTotalAssetsDelta(totalAssetsDelta);
-  }
-
   /// @inheritdoc VaultEnterExit
   function _transferVaultAssets(
     address receiver,
@@ -266,19 +153,17 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   }
 
   /// @inheritdoc VaultValidators
-  function _registerSingleValidator(
-    bytes calldata validator
-  ) internal virtual override(VaultValidators, VaultEthStaking) {
+  function _registerValidator(
+    bytes calldata validator,
+    bool isV1Validator
+  )
+    internal
+    virtual
+    override(VaultValidators, VaultEthStaking)
+    returns (uint256 depositAmount, bytes calldata publicKey)
+  {
     _pullWithdrawals();
-    super._registerSingleValidator(validator);
-  }
-
-  /// @inheritdoc VaultValidators
-  function _registerMultipleValidators(
-    bytes calldata validators
-  ) internal virtual override(VaultValidators, VaultEthStaking) {
-    _pullWithdrawals();
-    return super._registerMultipleValidators(validators);
+    return super._registerValidator(validator, isV1Validator);
   }
 
   /**

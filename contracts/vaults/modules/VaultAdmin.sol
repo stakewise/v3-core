@@ -21,6 +21,29 @@ abstract contract VaultAdmin is Initializable, IVaultAdmin {
     emit MetadataUpdated(msg.sender, metadataIpfsHash);
   }
 
+  /// @inheritdoc IVaultAdmin
+  function setAdmin(address newAdmin) external override {
+    _checkAdmin();
+    _setAdmin(newAdmin);
+  }
+
+  /**
+   * @dev Internal method for checking whether the caller is admin
+   */
+  function _checkAdmin() internal view {
+    if (msg.sender != admin) revert Errors.AccessDenied();
+  }
+
+  /**
+   * @dev Internal method for updating the admin
+   * @param newAdmin The address of the new admin
+   */
+  function _setAdmin(address newAdmin) private {
+    if (newAdmin == address(0)) revert Errors.ZeroAddress();
+    admin = newAdmin;
+    emit AdminUpdated(msg.sender, newAdmin);
+  }
+
   /**
    * @dev Initializes the VaultAdmin contract
    * @param _admin The address of the Vault admin
@@ -29,16 +52,8 @@ abstract contract VaultAdmin is Initializable, IVaultAdmin {
     address _admin,
     string memory metadataIpfsHash
   ) internal onlyInitializing {
-    if (_admin == address(0)) revert Errors.ZeroAddress();
-    admin = _admin;
+    _setAdmin(_admin);
     emit MetadataUpdated(msg.sender, metadataIpfsHash);
-  }
-
-  /**
-   * @dev Internal method for checking whether the caller is admin
-   */
-  function _checkAdmin() internal view {
-    if (msg.sender != admin) revert Errors.AccessDenied();
   }
 
   /**

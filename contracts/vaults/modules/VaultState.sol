@@ -316,20 +316,9 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
   }
 
   /**
-   * @dev Initializes the VaultState contract upgrade to V3
+   * @dev Upgrades the VaultState contract
    */
-  function __VaultState_initV3() internal onlyInitializing {
-    // SLOAD to memory
-    uint256 _queuedShares = queuedShares;
-    if (_queuedShares > 1) revert Errors.InvalidQueuedShares();
-    if (_queuedShares == 1) {
-      // burn the rounding error queued share
-      _totalShares -= 1;
-      queuedShares = 0;
-      _exitQueue.push(1, 0);
-      emit CheckpointCreated(1, 0);
-    }
-
+  function __VaultState_upgrade() internal onlyInitializing {
     // SLOAD to memory
     uint256 totalExitedTickets = _totalExitedTickets;
     uint256 exitQueueTicket = _exitQueue.getLatestTotalTickets();

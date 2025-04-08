@@ -24,53 +24,26 @@ contract EthBlocklistErc20Vault is
   IEthBlocklistErc20Vault
 {
   // slither-disable-next-line shadowing-state
-  uint8 private constant _version = 4;
+  uint8 private constant _version = 5;
 
   /**
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _keeper The address of the Keeper contract
-   * @param _vaultsRegistry The address of the VaultsRegistry contract
-   * @param _validatorsRegistry The contract address used for registering validators in beacon chain
-   * @param osTokenVaultController The address of the OsTokenVaultController contract
-   * @param osTokenConfig The address of the OsTokenConfig contract
-   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
-   * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataRegistry The address of the DepositDataRegistry contract
-   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
+   * @param args The arguments for initializing the EthErc20Vault contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(
-    address _keeper,
-    address _vaultsRegistry,
-    address _validatorsRegistry,
-    address osTokenVaultController,
-    address osTokenConfig,
-    address osTokenVaultEscrow,
-    address sharedMevEscrow,
-    address depositDataRegistry,
-    uint256 exitingAssetsClaimDelay
-  )
-    EthErc20Vault(
-      _keeper,
-      _vaultsRegistry,
-      _validatorsRegistry,
-      osTokenVaultController,
-      osTokenConfig,
-      osTokenVaultEscrow,
-      sharedMevEscrow,
-      depositDataRegistry,
-      exitingAssetsClaimDelay
-    )
-  {}
+  constructor(EthErc20VaultConstructorArgs memory args) EthErc20Vault(args) {
+    _disableInitializers();
+  }
 
   /// @inheritdoc IEthErc20Vault
   function initialize(
     bytes calldata params
   ) external payable virtual override(IEthErc20Vault, EthErc20Vault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 3 to 4
+    // if admin is already set, it's an upgrade from version 4 to 5
     if (admin != address(0)) {
+      __EthErc20Vault_upgrade();
       return;
     }
 

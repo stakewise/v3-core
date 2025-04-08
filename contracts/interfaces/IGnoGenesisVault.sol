@@ -19,7 +19,7 @@ interface IGnoGenesisVault is IGnoVault {
   event Migrated(address receiver, uint256 assets, uint256 shares);
 
   /**
-   * @notice Event emitted on GnoGenesisVault creation
+   * @notice Event emitted on GnoGenesisVault creation (deprecated)
    * @param admin The address of the Vault admin
    * @param capacity The capacity of the Vault
    * @param feePercent The fee percent of the Vault
@@ -39,9 +39,4 @@ interface IGnoGenesisVault is IGnoVault {
    * @return shares The amount of shares minted
    */
   function migrate(address receiver, uint256 assets) external returns (uint256 shares);
-
-  /**
-   * @notice Function for accepting PoolEscrow contract ownership. Can only be called once by the admin.
-   */
-  function acceptPoolEscrowOwnership() external;
 }

@@ -3,7 +3,6 @@
 pragma solidity ^0.8.22;
 
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
-import {ReentrancyGuardUpgradeable} from '@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol';
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {IEthValidatorsRegistry} from '../../interfaces/IEthValidatorsRegistry.sol';
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
@@ -21,7 +20,6 @@ import {VaultMev} from './VaultMev.sol';
  */
 abstract contract VaultEthStaking is
   Initializable,
-  ReentrancyGuardUpgradeable,
   VaultState,
   VaultValidators,
   VaultEnterExit,
@@ -61,45 +59,32 @@ abstract contract VaultEthStaking is
   }
 
   /// @inheritdoc VaultValidators
-  function _registerSingleValidator(bytes calldata validator) internal virtual override {
-    bytes calldata publicKey = validator[:48];
-    IEthValidatorsRegistry(_validatorsRegistry).deposit{value: _validatorDeposit()}(
-      publicKey,
-      _withdrawalCredentials(),
-      validator[48:144],
-      bytes32(validator[144:_validatorLength()])
-    );
-    emit ValidatorRegistered(publicKey);
-  }
+  function _registerValidator(
+    bytes calldata validator,
+    bool isV1Validator
+  ) internal virtual override returns (uint256 depositAmount, bytes calldata publicKey) {
+    publicKey = validator[:48];
+    bytes calldata signature = validator[48:144];
+    bytes32 depositDataRoot = bytes32(validator[144:176]);
 
-  /// @inheritdoc VaultValidators
-  function _registerMultipleValidators(bytes calldata validators) internal virtual override {
-    uint256 startIndex;
-    uint256 endIndex;
-    uint256 validatorsCount = validators.length / _validatorLength();
-    bytes memory withdrawalCredentials = _withdrawalCredentials();
-    bytes calldata validator;
-    bytes calldata publicKey;
-    for (uint256 i = 0; i < validatorsCount; ) {
-      unchecked {
-        // cannot realistically overflow
-        endIndex += _validatorLength();
-      }
-      validator = validators[startIndex:endIndex];
-      publicKey = validator[:48];
-      IEthValidatorsRegistry(_validatorsRegistry).deposit{value: _validatorDeposit()}(
-        publicKey,
-        withdrawalCredentials,
-        validator[48:144],
-        bytes32(validator[144:_validatorLength()])
-      );
-      emit ValidatorRegistered(publicKey);
-      startIndex = endIndex;
-      unchecked {
-        // cannot realistically overflow
-        ++i;
-      }
+    // get the deposit amount and withdrawal credentials prefix
+    bytes1 withdrawalCredsPrefix;
+    if (isV1Validator) {
+      withdrawalCredsPrefix = 0x01;
+      depositAmount = _validatorMinEffectiveBalance();
+    } else {
+      withdrawalCredsPrefix = 0x02;
+      // extract amount from data, convert gwei to wei by multiplying by 1 gwei
+      depositAmount = (uint256(uint64(bytes8(validator[176:184]))) * 1 gwei);
     }
+
+    // deposit to the validators registry
+    IEthValidatorsRegistry(_validatorsRegistry).deposit{value: depositAmount}(
+      publicKey,
+      abi.encodePacked(withdrawalCredsPrefix, bytes11(0x0), address(this)),
+      signature,
+      depositDataRoot
+    );
   }
 
   /// @inheritdoc VaultState
@@ -116,29 +101,19 @@ abstract contract VaultEthStaking is
   }
 
   /// @inheritdoc VaultValidators
-  function _validatorLength() internal pure virtual override returns (uint256) {
-    return 176;
-  }
-
-  /// @inheritdoc VaultValidators
-  function _validatorDeposit() internal pure virtual override returns (uint256) {
+  function _validatorMinEffectiveBalance() internal pure virtual override returns (uint256) {
     return 32 ether;
   }
 
-  /**
-   * @dev Internal function for calculating Vault withdrawal credentials
-   * @return The credentials used for the validators withdrawals
-   */
-  function _withdrawalCredentials() private view returns (bytes memory) {
-    return abi.encodePacked(bytes1(0x01), bytes11(0x0), address(this));
+  /// @inheritdoc VaultValidators
+  function _validatorMaxEffectiveBalance() internal pure virtual override returns (uint256) {
+    return 2048 ether;
   }
 
   /**
    * @dev Initializes the VaultEthStaking contract
    */
   function __VaultEthStaking_init() internal onlyInitializing {
-    __ReentrancyGuard_init();
-
     // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
     if (msg.value < _securityDeposit) revert Errors.InvalidSecurityDeposit();
     _deposit(address(this), msg.value, address(0));

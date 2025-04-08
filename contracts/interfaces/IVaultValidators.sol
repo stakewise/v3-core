@@ -13,10 +13,40 @@ import {IVaultState} from './IVaultState.sol';
  */
 interface IVaultValidators is IVaultAdmin, IVaultState {
   /**
-   * @notice Event emitted on validator registration
+   * @notice Event emitted on V1 validator registration
    * @param publicKey The public key of the validator that was registered
    */
   event ValidatorRegistered(bytes publicKey);
+
+  /**
+   * @notice Event emitted on V2 validator registration
+   * @param publicKey The public key of the validator that was registered
+   * @param amount The amount of assets that was registered
+   */
+  event ValidatorRegistered(bytes publicKey, uint256 amount);
+
+  /**
+   * @notice Event emitted on validator withdrawal
+   * @param publicKey The public key of the validator that was withdrawn
+   * @param amount The amount of assets that was withdrawn
+   * @param feePaid The amount of fee that was paid
+   */
+  event ValidatorWithdrawalSubmitted(bytes publicKey, uint256 amount, uint256 feePaid);
+
+  /**
+   * @notice Event emitted on validator balance top-up
+   * @param publicKey The public key of the validator that was funded
+   * @param amount The amount of assets that was funded
+   */
+  event ValidatorFunded(bytes publicKey, uint256 amount);
+
+  /**
+   * @notice Event emitted on validators consolidation
+   * @param fromPublicKey The public key of the validator that was consolidated
+   * @param toPublicKey The public key of the validator that was consolidated to
+   * @param feePaid The amount of fee that was paid
+   */
+  event ValidatorConsolidationSubmitted(bytes fromPublicKey, bytes toPublicKey, uint256 feePaid);
 
   /**
    * @notice Event emitted on keys manager address update (deprecated)
@@ -44,6 +74,51 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
    * @return The address that can register validators
    */
   function validatorsManager() external view returns (address);
+
+  /**
+   * @notice The nonce for the validators manager used for signing
+   * @return The nonce for the validators manager
+   */
+  function validatorsManagerNonce() external view returns (uint256);
+
+  /**
+   * @notice Function for checking if the validator is tracked V2 validator
+   * @param publicKeyHash The keccak256 hash of the public key of the validator
+   * @return Whether the validator is tracked V2 validator
+   */
+  function v2Validators(bytes32 publicKeyHash) external view returns (bool);
+
+  /**
+   * @notice Function for funding single or multiple existing validators
+   * @param validators The concatenated validators data
+   * @param validatorsManagerSignature The optional signature from the validators manager
+   */
+  function fundValidators(
+    bytes calldata validators,
+    bytes calldata validatorsManagerSignature
+  ) external;
+
+  /**
+   * @notice Function for withdrawing single or multiple validators
+   * @param validators The concatenated validators data
+   * @param validatorsManagerSignature The optional signature from the validators manager
+   */
+  function withdrawValidators(
+    bytes calldata validators,
+    bytes calldata validatorsManagerSignature
+  ) external payable;
+
+  /**
+   * @notice Function for consolidating single or multiple validators
+   * @param validators The concatenated validators data
+   * @param validatorsManagerSignature The optional signature from the validators manager
+   * @param oracleSignatures The optional signatures from the oracles
+   */
+  function consolidateValidators(
+    bytes calldata validators,
+    bytes calldata validatorsManagerSignature,
+    bytes calldata oracleSignatures
+  ) external payable;
 
   /**
    * @notice Function for registering single or multiple validators

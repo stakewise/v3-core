@@ -27,7 +27,7 @@ interface IVaultState is IVaultFee {
   event FeeSharesMinted(address receiver, uint256 shares, uint256 assets);
 
   /**
-   * @notice Event emitted when exiting assets are penalized
+   * @notice Event emitted when exiting assets are penalized (deprecated)
    * @param penalty The total penalty amount
    */
   event ExitingAssetsPenalized(uint256 penalty);

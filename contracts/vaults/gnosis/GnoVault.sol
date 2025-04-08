@@ -5,6 +5,7 @@ pragma solidity ^0.8.22;
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {IGnoVault} from '../../interfaces/IGnoVault.sol';
 import {IGnoVaultFactory} from '../../interfaces/IGnoVaultFactory.sol';
+import {Errors} from '../../libraries/Errors.sol';
 import {Multicall} from '../../base/Multicall.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultAdmin} from '../modules/VaultAdmin.sol';
@@ -43,38 +44,24 @@ contract GnoVault is
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _keeper The address of the Keeper contract
-   * @param _vaultsRegistry The address of the VaultsRegistry contract
-   * @param _validatorsRegistry The contract address used for registering validators in beacon chain
-   * @param osTokenVaultController The address of the OsTokenVaultController contract
-   * @param osTokenConfig The address of the OsTokenConfig contract
-   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
-   * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataRegistry The address of the DepositDataRegistry contract
-   * @param gnoToken The address of the GNO token
-   * @param xdaiExchange The address of the xDAI exchange
-   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
+   * @param args The arguments for initializing the GnoVault contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    address _keeper,
-    address _vaultsRegistry,
-    address _validatorsRegistry,
-    address osTokenVaultController,
-    address osTokenConfig,
-    address osTokenVaultEscrow,
-    address sharedMevEscrow,
-    address depositDataRegistry,
-    address gnoToken,
-    address xdaiExchange,
-    uint256 exitingAssetsClaimDelay
+    GnoVaultConstructorArgs memory args
   )
-    VaultImmutables(_keeper, _vaultsRegistry, _validatorsRegistry)
-    VaultValidators(depositDataRegistry)
-    VaultEnterExit(exitingAssetsClaimDelay)
-    VaultOsToken(osTokenVaultController, osTokenConfig, osTokenVaultEscrow)
-    VaultMev(sharedMevEscrow)
-    VaultGnoStaking(gnoToken, xdaiExchange)
+    VaultImmutables(args.keeper, args.vaultsRegistry)
+    VaultValidators(
+      args.depositDataRegistry,
+      args.validatorsRegistry,
+      args.validatorsWithdrawals,
+      args.validatorsConsolidations,
+      args.consolidationsChecker
+    )
+    VaultEnterExit(args.exitingAssetsClaimDelay)
+    VaultOsToken(args.osTokenVaultController, args.osTokenConfig, args.osTokenVaultEscrow)
+    VaultMev(args.sharedMevEscrow)
+    VaultGnoStaking(args.gnoToken, args.gnoDaiDistributor)
   {
     _disableInitializers();
   }
@@ -83,7 +70,7 @@ contract GnoVault is
   function initialize(bytes calldata params) external virtual override reinitializer(_version) {
     // if admin is already set, it's an upgrade from version 2 to 3
     if (admin != address(0)) {
-      __GnoVault_initV3();
+      __GnoVault_upgrade();
       return;
     }
 
@@ -118,12 +105,47 @@ contract GnoVault is
     return _version;
   }
 
+  /// @inheritdoc VaultState
+  function _processTotalAssetsDelta(
+    int256 assetsDelta
+  ) internal virtual override(VaultState, VaultGnoStaking) {
+    super._processTotalAssetsDelta(assetsDelta);
+  }
+
+  /// @inheritdoc VaultValidators
+  function _checkCanWithdrawValidators(
+    bytes calldata validators,
+    bytes calldata validatorsManagerSignature
+  ) internal override {
+    if (
+      !_isValidatorsManager(
+        validators,
+        bytes32(validatorsManagerNonce),
+        validatorsManagerSignature
+      ) && msg.sender != _osTokenConfig.redeemer()
+    ) {
+      revert Errors.AccessDenied();
+    }
+  }
+
+  /// @inheritdoc VaultValidators
+  function _withdrawValidator(
+    bytes calldata validator
+  )
+    internal
+    override(VaultValidators, VaultGnoStaking)
+    returns (bytes calldata publicKey, uint256 withdrawnAmount, uint256 feePaid)
+  {
+    return super._withdrawValidator(validator);
+  }
+
   /**
-   * @dev Initializes the GnoVault contract upgrade to V3
+   * @dev Upgrades the GnoVault contract
    */
-  function __GnoVault_initV3() internal {
-    __VaultState_initV3();
-    __VaultValidators_initV3();
+  function __GnoVault_upgrade() internal {
+    __VaultState_upgrade();
+    __VaultValidators_upgrade();
+    __VaultGnoStaking_upgrade();
   }
 
   /**

@@ -30,46 +30,12 @@ contract GnoBlocklistErc20Vault is
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _keeper The address of the Keeper contract
-   * @param _vaultsRegistry The address of the VaultsRegistry contract
-   * @param _validatorsRegistry The contract address used for registering validators in beacon chain
-   * @param osTokenVaultController The address of the OsTokenVaultController contract
-   * @param osTokenConfig The address of the OsTokenConfig contract
-   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
-   * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataRegistry The address of the DepositDataRegistry contract
-   * @param gnoToken The address of the GNO token
-   * @param xdaiExchange The address of the xDAI exchange
-   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
+   * @param args The arguments for initializing the GnoErc20Vault contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(
-    address _keeper,
-    address _vaultsRegistry,
-    address _validatorsRegistry,
-    address osTokenVaultController,
-    address osTokenConfig,
-    address osTokenVaultEscrow,
-    address sharedMevEscrow,
-    address depositDataRegistry,
-    address gnoToken,
-    address xdaiExchange,
-    uint256 exitingAssetsClaimDelay
-  )
-    GnoErc20Vault(
-      _keeper,
-      _vaultsRegistry,
-      _validatorsRegistry,
-      osTokenVaultController,
-      osTokenConfig,
-      osTokenVaultEscrow,
-      sharedMevEscrow,
-      depositDataRegistry,
-      gnoToken,
-      xdaiExchange,
-      exitingAssetsClaimDelay
-    )
-  {}
+  constructor(GnoErc20VaultConstructorArgs memory args) GnoErc20Vault(args) {
+    _disableInitializers();
+  }
 
   /// @inheritdoc IGnoErc20Vault
   function initialize(
@@ -77,7 +43,7 @@ contract GnoBlocklistErc20Vault is
   ) external virtual override(IGnoErc20Vault, GnoErc20Vault) reinitializer(_version) {
     // if admin is already set, it's an upgrade from version 2 to 3
     if (admin != address(0)) {
-      __GnoErc20Vault_initV3();
+      __GnoErc20Vault_upgrade();
       return;
     }
 

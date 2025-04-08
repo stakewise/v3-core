@@ -10,10 +10,7 @@ import {IVaultVersion} from '../../interfaces/IVaultVersion.sol';
 import {IGnoPoolEscrow} from '../../interfaces/IGnoPoolEscrow.sol';
 import {IGnoGenesisVault} from '../../interfaces/IGnoGenesisVault.sol';
 import {IRewardGnoToken} from '../../interfaces/IRewardGnoToken.sol';
-import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {Errors} from '../../libraries/Errors.sol';
-import {VaultValidators} from '../modules/VaultValidators.sol';
-import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
 import {VaultGnoStaking} from '../modules/VaultGnoStaking.sol';
 import {VaultState, IVaultState} from '../modules/VaultState.sol';
 import {GnoVault, IGnoVault} from './GnoVault.sol';
@@ -39,83 +36,28 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _keeper The address of the Keeper contract
-   * @param _vaultsRegistry The address of the VaultsRegistry contract
-   * @param _validatorsRegistry The contract address used for registering validators in beacon chain
-   * @param osTokenVaultController The address of the OsTokenVaultController contract
-   * @param osTokenConfig The address of the OsTokenConfig contract
-   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
-   * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataRegistry The address of the DepositDataRegistry contract
-   * @param gnoToken The address of the GNO token
-   * @param xdaiExchange The address of the xDAI exchange
+   * @param args The arguments for initializing the GnoVault contract
    * @param poolEscrow The address of the pool escrow from StakeWise Legacy
    * @param rewardGnoToken The address of the rGNO token from StakeWise Legacy
-   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
   constructor(
-    address _keeper,
-    address _vaultsRegistry,
-    address _validatorsRegistry,
-    address osTokenVaultController,
-    address osTokenConfig,
-    address osTokenVaultEscrow,
-    address sharedMevEscrow,
-    address depositDataRegistry,
-    address gnoToken,
-    address xdaiExchange,
+    GnoVaultConstructorArgs memory args,
     address poolEscrow,
-    address rewardGnoToken,
-    uint256 exitingAssetsClaimDelay
-  )
-    GnoVault(
-      _keeper,
-      _vaultsRegistry,
-      _validatorsRegistry,
-      osTokenVaultController,
-      osTokenConfig,
-      osTokenVaultEscrow,
-      sharedMevEscrow,
-      depositDataRegistry,
-      gnoToken,
-      xdaiExchange,
-      exitingAssetsClaimDelay
-    )
-  {
+    address rewardGnoToken
+  ) GnoVault(args) {
     _poolEscrow = IGnoPoolEscrow(poolEscrow);
     _rewardGnoToken = IRewardGnoToken(rewardGnoToken);
   }
 
   /// @inheritdoc IGnoVault
   function initialize(
-    bytes calldata params
+    bytes calldata
   ) external virtual override(IGnoVault, GnoVault) reinitializer(_version) {
-    // if admin is already set, it's an upgrade from version 3 to 4
-    if (admin != address(0)) {
-      __GnoVault_initV3();
-      return;
+    if (admin == address(0)) {
+      revert Errors.UpgradeFailed();
     }
-
-    // initialize deployed vault
-    (address _admin, GnoVaultInitParams memory initParams) = abi.decode(
-      params,
-      (address, GnoVaultInitParams)
-    );
-    // use shared MEV escrow
-    __GnoVault_init(_admin, address(0), initParams);
-    emit GenesisVaultCreated(
-      _admin,
-      initParams.capacity,
-      initParams.feePercent,
-      initParams.metadataIpfsHash
-    );
-  }
-
-  /// @inheritdoc IGnoGenesisVault
-  function acceptPoolEscrowOwnership() external override {
-    _checkAdmin();
-    _poolEscrow.applyOwnershipTransfer();
+    __GnoVault_upgrade();
   }
 
   /// @inheritdoc IVaultVersion
@@ -126,31 +68,6 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
   /// @inheritdoc IVaultVersion
   function version() public pure virtual override(IVaultVersion, GnoVault) returns (uint8) {
     return _version;
-  }
-
-  /// @inheritdoc IVaultState
-  function updateState(
-    IKeeperRewards.HarvestParams calldata harvestParams
-  ) public override(IVaultState, VaultState) {
-    bool isCollateralized = IKeeperRewards(_keeper).isCollateralized(address(this));
-
-    // process total assets delta since last update
-    (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
-
-    if (!isCollateralized) {
-      // it's the first harvest, deduct rewards accumulated so far in legacy pool
-      totalAssetsDelta -= SafeCast.toInt256(_rewardGnoToken.totalRewards());
-      // the first state update must be with positive delta
-      if (_poolEscrow.owner() != address(this) || totalAssetsDelta < 0) {
-        revert InvalidInitialHarvest();
-      }
-    }
-
-    // process total assets delta
-    _processTotalAssetsDelta(totalAssetsDelta);
-
-    // update exit queue every time new update is harvested
-    if (harvested) _updateExitQueue();
   }
 
   /// @inheritdoc IGnoGenesisVault
@@ -202,43 +119,6 @@ contract GnoGenesisVault is Initializable, GnoVault, IGnoGenesisVault {
       // cannot underflow because mintedShares < userMaxOsTokenShares
       return mintedShares < userMaxOsTokenShares ? userMaxOsTokenShares - mintedShares : 0;
     }
-  }
-
-  /// @inheritdoc VaultState
-  function _processTotalAssetsDelta(int256 totalAssetsDelta) internal override {
-    // skip processing if there is no change in assets
-    if (totalAssetsDelta == 0) return;
-
-    // fetch total assets controlled by legacy pool
-    uint256 legacyPrincipal = _rewardGnoToken.totalAssets() - _rewardGnoToken.totalPenalty();
-    if (legacyPrincipal == 0) {
-      // legacy pool has no assets, process total assets delta as usual
-      super._processTotalAssetsDelta(totalAssetsDelta);
-      return;
-    }
-
-    // calculate total principal
-    uint256 totalPrincipal = _totalAssets + legacyPrincipal;
-    if (totalAssetsDelta < 0) {
-      // calculate and update penalty for legacy pool
-      int256 legacyPenalty = SafeCast.toInt256(
-        Math.mulDiv(uint256(-totalAssetsDelta), legacyPrincipal, totalPrincipal)
-      );
-      _rewardGnoToken.updateTotalRewards(-legacyPenalty);
-      // deduct penalty from total assets delta
-      totalAssetsDelta += legacyPenalty;
-    } else {
-      // calculate and update reward for legacy pool
-      int256 legacyReward = SafeCast.toInt256(
-        Math.mulDiv(uint256(totalAssetsDelta), legacyPrincipal, totalPrincipal)
-      );
-      _rewardGnoToken.updateTotalRewards(legacyReward);
-      // deduct reward from total assets delta
-      totalAssetsDelta -= legacyReward;
-    }
-
-    // process total assets delta
-    super._processTotalAssetsDelta(totalAssetsDelta);
   }
 
   /// @inheritdoc VaultState

@@ -34,6 +34,36 @@ interface IEthErc20Vault is
   IMulticall
 {
   /**
+   * @dev Struct for deploying the EthErc20Vault contract
+   * @param keeper The address of the Keeper contract
+   * @param vaultsRegistry The address of the VaultsRegistry contract
+   * @param validatorsRegistry The contract address used for registering validators in beacon chain
+   * @param validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
+   * @param validatorsConsolidations The contract address used for consolidating validators in beacon chain
+   * @param consolidationsChecker The contract address used for checking consolidations
+   * @param osTokenVaultController The address of the OsTokenVaultController contract
+   * @param osTokenConfig The address of the OsTokenConfig contract
+   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
+   * @param sharedMevEscrow The address of the shared MEV escrow
+   * @param depositDataRegistry The address of the DepositDataRegistry contract
+   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
+   */
+  struct EthErc20VaultConstructorArgs {
+    address keeper;
+    address vaultsRegistry;
+    address validatorsRegistry;
+    address validatorsWithdrawals;
+    address validatorsConsolidations;
+    address consolidationsChecker;
+    address osTokenVaultController;
+    address osTokenConfig;
+    address osTokenVaultEscrow;
+    address sharedMevEscrow;
+    address depositDataRegistry;
+    uint64 exitingAssetsClaimDelay;
+  }
+
+  /**
    * @dev Struct for initializing the EthErc20Vault contract
    * @param capacity The Vault stops accepting deposits after exceeding the capacity
    * @param feePercent The fee percent that is charged by the Vault

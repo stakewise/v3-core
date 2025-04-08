@@ -24,46 +24,10 @@ contract GnoBlocklistVault is Initializable, GnoVault, VaultBlocklist, IGnoBlock
    * @dev Constructor
    * @dev Since the immutable variable value is stored in the bytecode,
    *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-   * @param _keeper The address of the Keeper contract
-   * @param _vaultsRegistry The address of the VaultsRegistry contract
-   * @param _validatorsRegistry The contract address used for registering validators in beacon chain
-   * @param osTokenVaultController The address of the OsTokenVaultController contract
-   * @param osTokenConfig The address of the OsTokenConfig contract
-   * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
-   * @param sharedMevEscrow The address of the shared MEV escrow
-   * @param depositDataRegistry The address of the DepositDataRegistry contract
-   * @param gnoToken The address of the GNO token
-   * @param xdaiExchange The address of the xDAI exchange
-   * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
+   * @param args The arguments for initializing the GnoVault contract
    */
   /// @custom:oz-upgrades-unsafe-allow constructor
-  constructor(
-    address _keeper,
-    address _vaultsRegistry,
-    address _validatorsRegistry,
-    address osTokenVaultController,
-    address osTokenConfig,
-    address osTokenVaultEscrow,
-    address sharedMevEscrow,
-    address depositDataRegistry,
-    address gnoToken,
-    address xdaiExchange,
-    uint256 exitingAssetsClaimDelay
-  )
-    GnoVault(
-      _keeper,
-      _vaultsRegistry,
-      _validatorsRegistry,
-      osTokenVaultController,
-      osTokenConfig,
-      osTokenVaultEscrow,
-      sharedMevEscrow,
-      depositDataRegistry,
-      gnoToken,
-      xdaiExchange,
-      exitingAssetsClaimDelay
-    )
-  {}
+  constructor(GnoVaultConstructorArgs memory args) GnoVault(args) {}
 
   /// @inheritdoc IGnoVault
   function initialize(
@@ -71,7 +35,7 @@ contract GnoBlocklistVault is Initializable, GnoVault, VaultBlocklist, IGnoBlock
   ) external virtual override(IGnoVault, GnoVault) reinitializer(_version) {
     // if admin is already set, it's an upgrade from version 2 to 3
     if (admin != address(0)) {
-      __GnoVault_initV3();
+      __GnoVault_upgrade();
       return;
     }
 
