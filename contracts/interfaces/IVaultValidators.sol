@@ -23,7 +23,7 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
    * @param publicKey The public key of the validator that was registered
    * @param amount The amount of assets that was registered
    */
-  event ValidatorRegistered(bytes publicKey, uint256 amount);
+  event V2ValidatorRegistered(bytes publicKey, uint256 amount);
 
   /**
    * @notice Event emitted on validator withdrawal
