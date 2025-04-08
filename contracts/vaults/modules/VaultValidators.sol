@@ -457,9 +457,11 @@ abstract contract VaultValidators is
     );
 
     // update signature nonce
-    unchecked {
-      // cannot realistically overflow
-      validatorsManagerNonce += 1;
+    if (isValidSignature) {
+      unchecked {
+        // cannot realistically overflow
+        validatorsManagerNonce += 1;
+      }
     }
 
     return isValidSignature;
