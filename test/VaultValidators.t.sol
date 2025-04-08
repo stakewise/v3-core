@@ -11,9 +11,6 @@ import {EthVault} from '../contracts/vaults/ethereum/EthVault.sol';
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
 
 contract VaultValidatorsTest is Test, EthHelpers {
-  // Declare events we're testing for
-  event ValidatorRegistered(bytes publicKey);
-  event ValidatorRegistered(bytes publicKey, uint256 depositAmount);
   ForkContracts public contracts;
   EthVault public vault;
 
@@ -79,7 +76,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // Expect ValidatorRegistered event emission
     vm.expectEmit(true, true, true, true);
-    emit IVaultValidators.ValidatorRegistered(publicKey, validatorDeposit);
+    emit IVaultValidators.V2ValidatorRegistered(publicKey, validatorDeposit);
 
     // Call registerValidators from validatorsManager
     vm.prank(validatorsManager);
@@ -118,7 +115,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // Expect ValidatorRegistered event emission
     vm.expectEmit(true, true, true, true);
-    emit IVaultValidators.ValidatorRegistered(publicKey, validatorDeposit);
+    emit IVaultValidators.V2ValidatorRegistered(publicKey, validatorDeposit);
 
     // Call registerValidators from a non-manager address but with valid signature
     vm.prank(nonManager);
@@ -226,7 +223,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
     // Call registerValidators with empty validators
     vm.prank(validatorsManager);
     _startSnapshotGas('VaultValidatorsTest_test_registerValidators_invalidValidators');
-    vm.expectRevert(Errors.InvalidValidators.selector);
+    vm.expectRevert(Errors.AccessDenied.selector);
     vault.registerValidators(approvalParams, '');
     _stopSnapshotGas();
 
@@ -374,12 +371,12 @@ contract VaultValidatorsTest is Test, EthHelpers {
     // Extract first validator's public key and expect its event
     bytes memory publicKey1 = _extractBytes(approvalParams.validators, 0, 48);
     vm.expectEmit(true, true, true, true);
-    emit IVaultValidators.ValidatorRegistered(publicKey1, validatorDeposit);
+    emit IVaultValidators.V2ValidatorRegistered(publicKey1, validatorDeposit);
 
     // Extract second validator's public key and expect its event
     bytes memory publicKey2 = _extractBytes(approvalParams.validators, validatorLength, 48);
     vm.expectEmit(true, true, true, true);
-    emit IVaultValidators.ValidatorRegistered(publicKey2, validatorDeposit);
+    emit IVaultValidators.V2ValidatorRegistered(publicKey2, validatorDeposit);
 
     // Call registerValidators with multiple validators
     vm.prank(validatorsManager);
@@ -452,7 +449,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // For V2 validators, the event includes deposit amount
     vm.expectEmit(true, true, true, true);
-    emit IVaultValidators.ValidatorRegistered(publicKey, validatorDeposit);
+    emit IVaultValidators.V2ValidatorRegistered(publicKey, validatorDeposit);
 
     // Call registerValidators with V2 validator
     vm.prank(validatorsManager);
@@ -493,7 +490,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // Expect event for first use
     vm.expectEmit(true, true, true, true);
-    emit IVaultValidators.ValidatorRegistered(publicKey, validatorDeposit);
+    emit IVaultValidators.V2ValidatorRegistered(publicKey, validatorDeposit);
 
     // Use the signature once
     vm.prank(nonManager);
@@ -763,7 +760,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
     // Call fundValidators with empty validators data
     vm.prank(validatorsManager);
     _startSnapshotGas('VaultValidatorsTest_test_fundValidators_invalidValidators');
-    vm.expectRevert(Errors.InvalidValidators.selector);
+    vm.expectRevert(Errors.AccessDenied.selector);
     vault.fundValidators(emptyValidatorsData, '');
     _stopSnapshotGas();
   }
@@ -1128,7 +1125,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
     // 3. Call withdrawValidators with empty data
     vm.prank(validatorsManager);
     _startSnapshotGas('VaultValidatorsTest_test_withdrawValidators_invalidValidatorsEmpty');
-    vm.expectRevert(Errors.InvalidValidators.selector);
+    vm.expectRevert(Errors.AccessDenied.selector);
     vault.withdrawValidators{value: 0.1 ether}(invalidWithdrawalData, '');
     _stopSnapshotGas();
 
@@ -1400,7 +1397,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
     // 3. Call consolidateValidators with empty validators data
     vm.prank(validatorsManager);
     _startSnapshotGas('VaultValidatorsTest_test_consolidateValidators_invalidValidatorsEmpty');
-    vm.expectRevert(Errors.InvalidValidators.selector);
+    vm.expectRevert(Errors.AccessDenied.selector);
     vault.consolidateValidators{value: consolidationFee}(emptyValidatorsData, '', '');
     _stopSnapshotGas();
 

@@ -219,7 +219,7 @@ abstract contract VaultValidators is
     bytes calldata validators,
     uint256 validatorsCount,
     bool consolidationsApproved
-  ) private {
+  ) private nonReentrant {
     uint256 totalFeeAssets = msg.value;
 
     // Process each validator
@@ -402,7 +402,7 @@ abstract contract VaultValidators is
       // mark v2 validator public key as tracked
       if (!isV1Validators) {
         v2Validators[publicKeyHash] = true;
-        emit ValidatorRegistered(publicKey, depositAmount);
+        emit V2ValidatorRegistered(publicKey, depositAmount);
       } else {
         emit ValidatorRegistered(publicKey);
       }
@@ -440,16 +440,13 @@ abstract contract VaultValidators is
   ) internal returns (bool) {
     // SLOAD to memory
     address validatorsManager_ = validatorsManager();
-    if (msg.sender == validatorsManager_) {
-      return true;
+    if (validatorsManager_ == address(0) || validators.length == 0) {
+      return false;
     }
 
-    if (
-      validatorsManager_ == address(0) ||
-      validators.length == 0 ||
-      validatorsManagerSignature.length == 0
-    ) {
-      return false;
+    if (validatorsManagerSignature.length == 0) {
+      // if no signature is provided, check if the caller is the validators manager
+      return msg.sender == validatorsManager_;
     }
 
     // check signature
