@@ -423,7 +423,7 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     // Update vault state through reward splitter
     rewardSplitter.updateVaultState(harvestParams);
 
-    // Verify rewards can be sync'd
+    // Verify rewards can be synced
     assertTrue(rewardSplitter.canSyncRewards(), 'Should be able to sync rewards after update');
 
     // Sync and verify rewards

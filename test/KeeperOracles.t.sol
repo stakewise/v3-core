@@ -3,7 +3,6 @@ pragma solidity ^0.8.22;
 
 import {Test} from 'forge-std/Test.sol';
 import {IKeeperOracles} from '../contracts/interfaces/IKeeperOracles.sol';
-import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {Keeper} from '../contracts/keeper/Keeper.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
