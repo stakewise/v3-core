@@ -125,7 +125,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     assertGt(newShares, initialShares, 'RewardSplitter should have received vault shares');
 
     // Sync rewards in the splitter
+    _startSnapshotGas('GnoRewardSplitter_syncRewards');
     rewardSplitter.syncRewards();
+    _stopSnapshotGas();
 
     // Check available rewards
     uint256 rewards1 = rewardSplitter.rewardsOf(shareholder1);
@@ -139,7 +141,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     // Shareholder1 enters exit queue with their vault shares
     vm.prank(shareholder1);
     uint256 timestamp = vm.getBlockTimestamp();
+    _startSnapshotGas('GnoRewardSplitter_enterExitQueue');
     uint256 positionTicket = rewardSplitter.enterExitQueue(rewards1, shareholder1);
+    _stopSnapshotGas();
 
     // Process the exit queue
     harvestParams = _setGnoVaultReward(vault, int160(int256(1 ether)), 0);
@@ -164,7 +168,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
 
     // Shareholder2 directly claims tokens without going through exit queue
     vm.prank(shareholder2);
+    _startSnapshotGas('GnoRewardSplitter_claimVaultTokens');
     rewardSplitter.claimVaultTokens(rewards2, shareholder2);
+    _stopSnapshotGas();
 
     // Verify shareholder2 received vault tokens
     assertGt(IVaultState(vault).getShares(shareholder2), 0, 'Shareholder2 should receive vault tokens directly');
@@ -194,7 +200,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     vm.prank(shareholder1);
     vm.expectEmit(true, false, false, true);
     emit IRewardSplitter.RewardsWithdrawn(shareholder1, totalRewards);
+    _startSnapshotGas('GnoRewardSplitter_enterExitQueueMaxWithdrawal');
     rewardSplitter.enterExitQueue(type(uint256).max, shareholder1);
+    _stopSnapshotGas();
 
     // Check rewards were fully claimed
     assertEq(rewardSplitter.rewardsOf(shareholder1), 0, 'All rewards should be withdrawn');
@@ -288,7 +296,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     vm.prank(admin);
     vm.expectEmit(true, false, false, true);
     emit IRewardSplitter.ClaimOnBehalfUpdated(admin, true);
+    _startSnapshotGas('GnoRewardSplitter_setClaimOnBehalf');
     rewardSplitter.setClaimOnBehalf(true);
+    _stopSnapshotGas();
 
     // Generate rewards
     vm.startPrank(depositor);
@@ -316,7 +326,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     uint256 timestamp = vm.getBlockTimestamp();
     vm.expectEmit(true, false, false, false);
     emit IRewardSplitter.ExitQueueEnteredOnBehalf(shareholder1, 0, rewards); // Position ticket is unknown at this point
+    _startSnapshotGas('GnoRewardSplitter_enterExitQueueOnBehalf');
     uint256 positionTicket = rewardSplitter.enterExitQueueOnBehalf(rewards, shareholder1);
+    _stopSnapshotGas();
 
     // Verify position is tracked correctly
     assertEq(
@@ -345,7 +357,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     vm.prank(admin);
     vm.expectEmit(true, false, false, true);
     emit IRewardSplitter.ExitedAssetsClaimedOnBehalf(shareholder1, positionTicket, exitedAssets);
+    _startSnapshotGas('GnoRewardSplitter_claimExitedAssetsOnBehalf');
     rewardSplitter.claimExitedAssetsOnBehalf(positionTicket, timestamp, uint256(exitQueueIndex));
+    _stopSnapshotGas();
 
     // Verify shareholder1 received GNO tokens
     assertGt(
@@ -392,7 +406,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     int256 exitQueueIndex = IVaultEnterExit(vault).getExitQueueIndex(positionTicket);
 
     vm.prank(shareholder1);
+    _startSnapshotGas('GnoRewardSplitter_claimExitedAssets');
     IVaultEnterExit(vault).claimExitedAssets(positionTicket, timestamp, uint256(exitQueueIndex));
+    _stopSnapshotGas();
 
     // Verify GNO tokens were transferred to shareholder1
     uint256 finalBalance = IERC20(contracts.gnoToken).balanceOf(shareholder1);
@@ -409,7 +425,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     vm.prank(admin);
     vm.expectEmit(true, false, false, true);
     emit IRewardSplitter.SharesIncreased(shareholder1, increaseAmount);
+    _startSnapshotGas('GnoRewardSplitter_increaseShares');
     rewardSplitter.increaseShares(shareholder1, increaseAmount);
+    _stopSnapshotGas();
 
     uint256 newSharesShareholder1 = rewardSplitter.sharesOf(shareholder1);
     uint256 newTotalShares = rewardSplitter.totalShares();
@@ -420,7 +438,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     vm.prank(admin);
     vm.expectEmit(true, false, false, true);
     emit IRewardSplitter.SharesDecreased(shareholder1, increaseAmount);
+    _startSnapshotGas('GnoRewardSplitter_decreaseShares');
     rewardSplitter.decreaseShares(shareholder1, increaseAmount);
+    _stopSnapshotGas();
 
     uint256 finalSharesShareholder1 = rewardSplitter.sharesOf(shareholder1);
     uint256 finalTotalShares = rewardSplitter.totalShares();
@@ -452,7 +472,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     // Sync rewards
     vm.expectEmit(false, false, false, false); // We don't check the parameters
     emit IRewardSplitter.RewardsSynced(0, 0); // Placeholder values
+    _startSnapshotGas('GnoRewardSplitter_syncRewardsDetailed');
     rewardSplitter.syncRewards();
+    _stopSnapshotGas();
 
     // Verify rewards were synced
     uint256 newTotalRewards = rewardSplitter.totalRewards();
@@ -482,5 +504,27 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
       0.0001e18, // 0.01% tolerance
       'Shareholder2 rewards should be proportional to shares'
     );
+  }
+
+  function test_updateVaultState() public {
+    // Generate rewards with a callback from reward splitter
+    IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(
+      vault,
+      int160(int256(1 ether)),
+      0
+    );
+
+    // Update vault state through reward splitter
+    _startSnapshotGas('GnoRewardSplitter_updateVaultState');
+    rewardSplitter.updateVaultState(harvestParams);
+    _stopSnapshotGas();
+
+    // Verify rewards can be synced
+    assertTrue(rewardSplitter.canSyncRewards(), 'Should be able to sync rewards after update');
+
+    // Sync and verify rewards
+    rewardSplitter.syncRewards();
+    uint256 totalRewards = rewardSplitter.totalRewards();
+    assertGt(totalRewards, 0, 'Total rewards should be greater than zero');
   }
 }
