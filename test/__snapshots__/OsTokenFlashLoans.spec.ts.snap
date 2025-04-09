@@ -1,8 +1,0 @@
-// Jest Snapshot v1, https://goo.gl/fbAQLP
-
-exports[`OsTokenFlashLoans flashLoan should mint OsTokens for the recipient and successfully repay the loan 1`] = `
-Object {
-  "calldataByteLength": 100,
-  "gasUsed": 96072,
-}
-`;

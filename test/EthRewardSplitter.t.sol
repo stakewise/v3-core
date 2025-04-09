@@ -118,7 +118,9 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     assertGt(newShares, initialShares, 'RewardSplitter should have received vault shares');
 
     // Sync rewards in the splitter
+    _startSnapshotGas('EthRewardSplitter_syncRewards');
     rewardSplitter.syncRewards();
+    _stopSnapshotGas();
 
     // Check available rewards
     uint256 rewards1 = rewardSplitter.rewardsOf(shareholder1);
@@ -132,7 +134,9 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     // Shareholder1 enters exit queue with their vault shares
     vm.prank(shareholder1);
     uint256 timestamp = vm.getBlockTimestamp();
+    _startSnapshotGas('EthRewardSplitter_enterExitQueue');
     uint256 positionTicket = rewardSplitter.enterExitQueue(rewards1, shareholder1);
+    _stopSnapshotGas();
 
     // Process the exit queue
     harvestParams = _setEthVaultReward(address(vault), int160(int256(1 ether)), 0);
@@ -157,8 +161,10 @@ contract EthRewardSplitterTest is Test, EthHelpers {
 
     // Shareholder2 directly claims tokens without going through exit queue
     vm.prank(shareholder2);
+    _startSnapshotGas('EthRewardSplitter_claimVaultTokens');
     address receiver = shareholder2;
     rewardSplitter.claimVaultTokens(rewards2, receiver);
+    _stopSnapshotGas();
 
     // Verify shareholder2 received vault tokens
     assertGt(vault.getShares(receiver), 0, 'Shareholder2 should receive vault tokens directly');
@@ -186,7 +192,9 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     vm.prank(shareholder1);
     vm.expectEmit(true, false, false, true);
     emit IRewardSplitter.RewardsWithdrawn(shareholder1, totalRewards);
+    _startSnapshotGas('EthRewardSplitter_enterExitQueueMaxWithdrawal');
     rewardSplitter.enterExitQueue(type(uint256).max, shareholder1);
+    _stopSnapshotGas();
 
     // Check rewards were fully claimed
     assertEq(rewardSplitter.rewardsOf(shareholder1), 0, 'All rewards should be withdrawn');
@@ -274,7 +282,9 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     vm.prank(admin);
     vm.expectEmit(true, false, false, true);
     emit IRewardSplitter.ClaimOnBehalfUpdated(admin, true);
+    _startSnapshotGas('EthRewardSplitter_setClaimOnBehalf');
     rewardSplitter.setClaimOnBehalf(true);
+    _stopSnapshotGas();
 
     // Generate rewards
     vm.prank(depositor);
@@ -300,7 +310,9 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     uint256 timestamp = vm.getBlockTimestamp();
     vm.expectEmit(true, false, false, true);
     emit IRewardSplitter.ExitQueueEnteredOnBehalf(shareholder1, 0, rewards); // Position ticket is unknown at this point
+    _startSnapshotGas('EthRewardSplitter_enterExitQueueOnBehalf');
     uint256 positionTicket = rewardSplitter.enterExitQueueOnBehalf(rewards, shareholder1);
+    _stopSnapshotGas();
 
     // Verify position is tracked correctly
     assertEq(
@@ -329,7 +341,9 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     vm.prank(admin);
     vm.expectEmit(true, false, false, true);
     emit IRewardSplitter.ExitedAssetsClaimedOnBehalf(shareholder1, positionTicket, exitedAssets);
+    _startSnapshotGas('EthRewardSplitter_claimExitedAssetsOnBehalf');
     rewardSplitter.claimExitedAssetsOnBehalf(positionTicket, timestamp, uint256(exitQueueIndex));
+    _stopSnapshotGas();
 
     // Verify shareholder1 received rewards
     assertGt(
@@ -361,7 +375,9 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     // Sync rewards with event check
     vm.expectEmit(false, false, false, false); // We don't know exact values
     emit IRewardSplitter.RewardsSynced(0, 0); // Placeholder values
+    _startSnapshotGas('EthRewardSplitter_syncRewardsDetailed');
     rewardSplitter.syncRewards();
+    _stopSnapshotGas();
 
     // Verify rewards were synced
     uint256 newTotalRewards = rewardSplitter.totalRewards();
@@ -395,7 +411,9 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     vm.prank(admin);
     vm.expectEmit(true, false, false, true);
     emit IRewardSplitter.SharesIncreased(shareholder1, 1000);
+    _startSnapshotGas('EthRewardSplitter_increaseShares');
     rewardSplitter.increaseShares(shareholder1, 1000);
+    _stopSnapshotGas();
 
     assertEq(
       rewardSplitter.sharesOf(shareholder1),
@@ -407,7 +425,9 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     vm.prank(admin);
     vm.expectEmit(true, false, false, true);
     emit IRewardSplitter.SharesDecreased(shareholder1, 1000);
+    _startSnapshotGas('EthRewardSplitter_decreaseShares');
     rewardSplitter.decreaseShares(shareholder1, 1000);
+    _stopSnapshotGas();
 
     assertEq(rewardSplitter.sharesOf(shareholder1), SHARE1, 'Shares should decrease by 1000');
   }
@@ -421,9 +441,11 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     );
 
     // Update vault state through reward splitter
+    _startSnapshotGas('EthRewardSplitter_updateVaultState');
     rewardSplitter.updateVaultState(harvestParams);
+    _stopSnapshotGas();
 
-    // Verify rewards can be sync'd
+    // Verify rewards can be synced
     assertTrue(rewardSplitter.canSyncRewards(), 'Should be able to sync rewards after update');
 
     // Sync and verify rewards
@@ -438,7 +460,9 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     uint256 initialBalance = address(rewardSplitter).balance;
 
     // Send ETH
+    _startSnapshotGas('EthRewardSplitter_receiveEth');
     (bool success, ) = address(rewardSplitter).call{value: amount}('');
+    _stopSnapshotGas();
     assertTrue(success, 'ETH transfer should succeed');
 
     // Verify balance increased
