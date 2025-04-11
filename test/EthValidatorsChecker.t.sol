@@ -396,7 +396,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
 
     // 5. Create the message hash that matches the contract's implementation
     bytes32 validatorsManagerTypeHash = keccak256(
-      'VaultValidators(bytes32 nonce,bytes validators)'
+      'VaultValidators(bytes32 validatorsRegistryRoot,bytes validators)'
     );
     bytes32 messageHash = keccak256(
       abi.encode(validatorsManagerTypeHash, validRegistryRoot, keccak256(validatorData))

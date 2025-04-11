@@ -528,7 +528,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     bytes32 structHash = keccak256(
       abi.encode(
-        keccak256('VaultValidators(bytes32 nonce,bytes validators)'),
+        keccak256('VaultValidators(bytes32 validatorsRegistryRoot,bytes validators)'),
         validatorsRegistryRoot,
         keccak256(validators)
       )
