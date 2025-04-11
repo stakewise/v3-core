@@ -181,10 +181,10 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     }
 
     // SLOAD to memory
-    uint256 _queuedShares = queuedShares;
+    uint256 queuedShares = _queuedShares;
 
     // calculate position ticket
-    positionTicket = _exitQueue.getLatestTotalTickets() + _totalExitingTickets + _queuedShares;
+    positionTicket = _exitQueue.getLatestTotalTickets() + _totalExitingTickets + queuedShares;
 
     // add to the exit requests
     _exitRequests[keccak256(abi.encode(receiver, block.timestamp, positionTicket))] = shares;
@@ -194,7 +194,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
 
     unchecked {
       // cannot overflow as it is capped with _totalShares
-      queuedShares = SafeCast.toUint128(_queuedShares + shares);
+      _queuedShares = SafeCast.toUint128(queuedShares + shares);
     }
 
     emit ExitQueueEntered(user, receiver, positionTicket, shares);

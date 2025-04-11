@@ -173,7 +173,11 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     _stopSnapshotGas();
 
     // Verify shareholder2 received vault tokens
-    assertGt(IVaultState(vault).getShares(shareholder2), 0, 'Shareholder2 should receive vault tokens directly');
+    assertGt(
+      IVaultState(vault).getShares(shareholder2),
+      0,
+      'Shareholder2 should receive vault tokens directly'
+    );
   }
 
   function test_maxWithdrawal() public {
@@ -431,8 +435,16 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
 
     uint256 newSharesShareholder1 = rewardSplitter.sharesOf(shareholder1);
     uint256 newTotalShares = rewardSplitter.totalShares();
-    assertEq(newSharesShareholder1, initialSharesShareholder1 + increaseAmount, "Shares should be increased correctly");
-    assertEq(newTotalShares, initialTotalShares + increaseAmount, "Total shares should be increased correctly");
+    assertEq(
+      newSharesShareholder1,
+      initialSharesShareholder1 + increaseAmount,
+      'Shares should be increased correctly'
+    );
+    assertEq(
+      newTotalShares,
+      initialTotalShares + increaseAmount,
+      'Total shares should be increased correctly'
+    );
 
     // Test decrease shares
     vm.prank(admin);
@@ -444,8 +456,16 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
 
     uint256 finalSharesShareholder1 = rewardSplitter.sharesOf(shareholder1);
     uint256 finalTotalShares = rewardSplitter.totalShares();
-    assertEq(finalSharesShareholder1, initialSharesShareholder1, "Shares should be decreased back to original amount");
-    assertEq(finalTotalShares, initialTotalShares, "Total shares should be decreased back to original amount");
+    assertEq(
+      finalSharesShareholder1,
+      initialSharesShareholder1,
+      'Shares should be decreased back to original amount'
+    );
+    assertEq(
+      finalTotalShares,
+      initialTotalShares,
+      'Total shares should be decreased back to original amount'
+    );
   }
 
   function test_syncRewards() public {

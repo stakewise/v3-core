@@ -10,6 +10,7 @@ import {IEthPoolEscrow} from '../../interfaces/IEthPoolEscrow.sol';
 import {IEthGenesisVault} from '../../interfaces/IEthGenesisVault.sol';
 import {IRewardEthToken} from '../../interfaces/IRewardEthToken.sol';
 import {Errors} from '../../libraries/Errors.sol';
+import {ValidatorUtils} from '../../libraries/ValidatorUtils.sol';
 import {VaultValidators} from '../modules/VaultValidators.sol';
 import {VaultEnterExit} from '../modules/VaultEnterExit.sol';
 import {VaultEthStaking} from '../modules/VaultEthStaking.sol';
@@ -153,17 +154,11 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
   }
 
   /// @inheritdoc VaultValidators
-  function _registerValidator(
-    bytes calldata validator,
-    bool isV1Validator
-  )
-    internal
-    virtual
-    override(VaultValidators, VaultEthStaking)
-    returns (uint256 depositAmount, bytes calldata publicKey)
-  {
+  function _registerValidators(
+    ValidatorUtils.ValidatorDeposit[] memory deposits
+  ) internal virtual override(VaultValidators, VaultEthStaking) {
     _pullWithdrawals();
-    return super._registerValidator(validator, isV1Validator);
+    return super._registerValidators(deposits);
   }
 
   /**

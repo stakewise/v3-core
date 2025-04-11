@@ -12,6 +12,11 @@ import {EthGenesisVault} from '../contracts/vaults/ethereum/EthGenesisVault.sol'
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
 
+interface IVaultStateV4 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
+
 contract EthGenesisVaultTest is Test, EthHelpers {
   ForkContracts public contracts;
   address public admin;
@@ -63,8 +68,8 @@ contract EthGenesisVaultTest is Test, EthHelpers {
 
     vm.deal(
       vaultAddr,
-      existingVault.totalExitingAssets() +
-        existingVault.convertToAssets(existingVault.queuedShares()) +
+      IVaultStateV4(address(existingVault)).totalExitingAssets() +
+        existingVault.convertToAssets(IVaultStateV4(address(existingVault)).queuedShares()) +
         vaultAddr.balance
     );
     _depositToVault(address(existingVault), 40 ether, user, user);
@@ -76,14 +81,14 @@ contract EthGenesisVaultTest is Test, EthHelpers {
     // Record initial state
     uint256 initialTotalAssets = existingVault.totalAssets();
     uint256 initialTotalShares = existingVault.totalShares();
-    uint256 totalExitingAssetsBefore = existingVault.totalExitingAssets();
-    uint256 queuedSharesBefore = existingVault.queuedShares();
     uint256 senderBalanceBefore = existingVault.getShares(user);
     uint256 initialCapacity = existingVault.capacity();
     uint256 initialFeePercent = existingVault.feePercent();
     address validatorsManager = existingVault.validatorsManager();
     address feeRecipient = existingVault.feeRecipient();
     address adminBefore = existingVault.admin();
+    uint256 queuedSharesBefore = IVaultStateV4(address(existingVault)).queuedShares();
+    uint256 totalExitingAssetsBefore = IVaultStateV4(address(existingVault)).totalExitingAssets();
 
     assertEq(existingVault.vaultId(), keccak256('EthGenesisVault'));
     assertEq(existingVault.version(), 4);
@@ -92,6 +97,8 @@ contract EthGenesisVaultTest is Test, EthHelpers {
     _upgradeVault(VaultType.EthGenesisVault, address(existingVault));
     _stopSnapshotGas();
 
+    (uint128 queuedSharesAfter, , uint128 totalExitingAssetsAfter, ) = existingVault
+      .getExitQueueData();
     assertEq(existingVault.vaultId(), keccak256('EthGenesisVault'));
     assertEq(existingVault.version(), 5);
     assertEq(existingVault.admin(), adminBefore);
@@ -99,10 +106,10 @@ contract EthGenesisVaultTest is Test, EthHelpers {
     assertEq(existingVault.feePercent(), initialFeePercent);
     assertEq(existingVault.feeRecipient(), feeRecipient);
     assertEq(existingVault.validatorsManager(), validatorsManager);
-    assertEq(existingVault.queuedShares(), queuedSharesBefore);
+    assertEq(queuedSharesAfter, queuedSharesBefore);
     assertEq(existingVault.totalShares(), initialTotalShares);
     assertEq(existingVault.totalAssets(), initialTotalAssets);
-    assertEq(existingVault.totalExitingAssets(), totalExitingAssetsBefore);
+    assertEq(totalExitingAssetsAfter, totalExitingAssetsBefore);
     assertEq(existingVault.validatorsManagerNonce(), 0);
     assertEq(existingVault.getShares(user), senderBalanceBefore);
   }
@@ -255,11 +262,10 @@ contract EthGenesisVaultTest is Test, EthHelpers {
     // Add some ETH to the pool escrow
     uint256 escrowAmount = 40 ether;
     vm.deal(poolEscrow, poolEscrow.balance + escrowAmount);
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = vault.getExitQueueData();
     vm.deal(
       address(vault),
-      address(vault).balance +
-        vault.convertToAssets(vault.queuedShares()) +
-        vault.totalExitingAssets()
+      address(vault).balance + vault.convertToAssets(queuedShares) + totalExitingAssets
     );
 
     // Record initial balances
@@ -335,9 +341,10 @@ contract EthGenesisVaultTest is Test, EthHelpers {
     address vaultAddr = _getOrCreateVault(VaultType.EthGenesisVault, admin, initParams, false);
     EthGenesisVault vault = EthGenesisVault(payable(vaultAddr));
 
-    uint256 vaultAmount = vault.totalExitingAssets() +
-      vault.convertToAssets(vault.queuedShares()) +
-      vaultAddr.balance;
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = vault.getExitQueueData();
+    uint256 vaultAmount = address(vault).balance +
+      vault.convertToAssets(queuedShares) +
+      totalExitingAssets;
 
     uint256 depositAmount = 3 ether;
     uint256 shares = vault.convertToShares(depositAmount);

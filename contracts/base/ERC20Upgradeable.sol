@@ -7,6 +7,7 @@ import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {IERC20Permit} from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol';
 import {IERC20Metadata} from '@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol';
 import {Errors} from '../libraries/Errors.sol';
+import {EIP712Utils} from '../libraries/EIP712Utils.sol';
 
 /**
  * @title ERC20 Upgradeable
@@ -128,18 +129,7 @@ abstract contract ERC20Upgradeable is Initializable, IERC20Permit, IERC20, IERC2
    * @dev This function is used to compute the hash of the EIP712 typed data
    */
   function _computeDomainSeparator() private view returns (bytes32) {
-    return
-      keccak256(
-        abi.encode(
-          keccak256(
-            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
-          ),
-          keccak256(bytes(name)),
-          keccak256('1'),
-          block.chainid,
-          address(this)
-        )
-      );
+    return EIP712Utils.computeDomainSeparator(name, address(this));
   }
 
   /**

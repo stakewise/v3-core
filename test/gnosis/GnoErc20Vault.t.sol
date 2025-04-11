@@ -11,6 +11,11 @@ import {Errors} from '../../contracts/libraries/Errors.sol';
 import {GnoErc20Vault} from '../../contracts/vaults/gnosis/GnoErc20Vault.sol';
 import {GnoHelpers} from '../helpers/GnoHelpers.sol';
 
+interface IVaultStateV2 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
+
 contract GnoErc20VaultTest is Test, GnoHelpers {
   ForkContracts public contracts;
   GnoErc20Vault public vault;
@@ -72,6 +77,13 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     _stopSnapshotGas();
     GnoErc20Vault erc20Vault = GnoErc20Vault(payable(_vault));
 
+    (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    ) = erc20Vault.getExitQueueData();
+
     assertEq(erc20Vault.vaultId(), keccak256('GnoErc20Vault'));
     assertEq(erc20Vault.version(), 3);
     assertEq(erc20Vault.admin(), admin);
@@ -79,14 +91,16 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     assertEq(erc20Vault.feePercent(), 1000);
     assertEq(erc20Vault.feeRecipient(), admin);
     assertEq(erc20Vault.validatorsManager(), _depositDataRegistry);
-    assertEq(erc20Vault.queuedShares(), 0);
     assertEq(erc20Vault.totalShares(), _securityDeposit);
     assertEq(erc20Vault.totalAssets(), _securityDeposit);
-    assertEq(erc20Vault.totalExitingAssets(), 0);
     assertEq(erc20Vault.validatorsManagerNonce(), 0);
     assertEq(erc20Vault.totalSupply(), _securityDeposit);
     assertEq(erc20Vault.symbol(), 'SW-GNO-1');
     assertEq(erc20Vault.name(), 'SW GNO Vault');
+    assertEq(queuedShares, 0);
+    assertEq(unclaimedAssets, 0);
+    assertEq(totalExitingAssets, 0);
+    assertEq(totalTickets, 0);
   }
 
   function test_upgradesCorrectly() public {
@@ -111,9 +125,9 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
 
     uint256 totalSharesBefore = erc20Vault.totalShares();
     uint256 totalAssetsBefore = erc20Vault.totalAssets();
-    uint256 totalExitingAssetsBefore = erc20Vault.totalExitingAssets();
-    uint256 queuedSharesBefore = erc20Vault.queuedShares();
     uint256 senderBalanceBefore = erc20Vault.getShares(sender);
+    uint256 totalExitingAssetsBefore = IVaultStateV2(address(erc20Vault)).totalExitingAssets();
+    uint256 queuedSharesBefore = IVaultStateV2(address(erc20Vault)).queuedShares();
 
     assertEq(erc20Vault.vaultId(), keccak256('GnoErc20Vault'));
     assertEq(erc20Vault.version(), 2);
@@ -126,6 +140,7 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     _upgradeVault(VaultType.GnoErc20Vault, address(erc20Vault));
     _stopSnapshotGas();
 
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = erc20Vault.getExitQueueData();
     assertEq(erc20Vault.vaultId(), keccak256('GnoErc20Vault'));
     assertEq(erc20Vault.version(), 3);
     assertEq(erc20Vault.admin(), admin);
@@ -133,10 +148,8 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     assertEq(erc20Vault.feePercent(), 1000);
     assertEq(erc20Vault.feeRecipient(), admin);
     assertEq(erc20Vault.validatorsManager(), _depositDataRegistry);
-    assertEq(erc20Vault.queuedShares(), queuedSharesBefore);
     assertEq(erc20Vault.totalShares(), totalSharesBefore);
     assertEq(erc20Vault.totalAssets(), totalAssetsBefore);
-    assertEq(erc20Vault.totalExitingAssets(), totalExitingAssetsBefore);
     assertEq(erc20Vault.validatorsManagerNonce(), 0);
     assertEq(erc20Vault.getShares(sender), senderBalanceBefore);
     assertEq(
@@ -146,6 +159,8 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     assertEq(erc20Vault.totalSupply(), totalSharesBefore);
     assertEq(erc20Vault.symbol(), 'SW-GNO-1');
     assertEq(erc20Vault.name(), 'SW GNO Vault');
+    assertEq(queuedShares, queuedSharesBefore);
+    assertEq(totalExitingAssets, totalExitingAssetsBefore);
   }
 
   function test_deposit_emitsTransfer() public {

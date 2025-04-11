@@ -11,6 +11,11 @@ import {Errors} from '../contracts/libraries/Errors.sol';
 import {EthErc20Vault} from '../contracts/vaults/ethereum/EthErc20Vault.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
 
+interface IVaultStateV4 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
+
 contract EthErc20VaultTest is Test, EthHelpers {
   ForkContracts public contracts;
   EthErc20Vault public vault;
@@ -72,6 +77,12 @@ contract EthErc20VaultTest is Test, EthHelpers {
     _stopSnapshotGas();
     EthErc20Vault erc20Vault = EthErc20Vault(payable(_vault));
 
+    (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    ) = erc20Vault.getExitQueueData();
     assertEq(erc20Vault.vaultId(), keccak256('EthErc20Vault'));
     assertEq(erc20Vault.version(), 5);
     assertEq(erc20Vault.admin(), admin);
@@ -79,14 +90,16 @@ contract EthErc20VaultTest is Test, EthHelpers {
     assertEq(erc20Vault.feePercent(), 1000);
     assertEq(erc20Vault.feeRecipient(), admin);
     assertEq(erc20Vault.validatorsManager(), _depositDataRegistry);
-    assertEq(erc20Vault.queuedShares(), 0);
     assertEq(erc20Vault.totalShares(), _securityDeposit);
     assertEq(erc20Vault.totalAssets(), _securityDeposit);
-    assertEq(erc20Vault.totalExitingAssets(), 0);
     assertEq(erc20Vault.validatorsManagerNonce(), 0);
     assertEq(erc20Vault.totalSupply(), _securityDeposit);
     assertEq(erc20Vault.symbol(), 'SW-ETH-1');
     assertEq(erc20Vault.name(), 'SW ETH Vault');
+    assertEq(queuedShares, 0);
+    assertEq(unclaimedAssets, 0);
+    assertEq(totalExitingAssets, 0);
+    assertEq(totalTickets, 0);
   }
 
   function test_upgradesCorrectly() public {
@@ -116,9 +129,9 @@ contract EthErc20VaultTest is Test, EthHelpers {
 
     uint256 totalSharesBefore = erc20Vault.totalShares();
     uint256 totalAssetsBefore = erc20Vault.totalAssets();
-    uint256 totalExitingAssetsBefore = erc20Vault.totalExitingAssets();
-    uint256 queuedSharesBefore = erc20Vault.queuedShares();
     uint256 senderBalanceBefore = erc20Vault.getShares(sender);
+    uint256 totalExitingAssetsBefore = IVaultStateV4(address(erc20Vault)).totalExitingAssets();
+    uint256 queuedSharesBefore = IVaultStateV4(address(erc20Vault)).queuedShares();
 
     assertEq(erc20Vault.vaultId(), keccak256('EthErc20Vault'));
     assertEq(erc20Vault.version(), 4);
@@ -127,6 +140,8 @@ contract EthErc20VaultTest is Test, EthHelpers {
     _upgradeVault(VaultType.EthErc20Vault, address(erc20Vault));
     _stopSnapshotGas();
 
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = erc20Vault.getExitQueueData();
+
     assertEq(erc20Vault.vaultId(), keccak256('EthErc20Vault'));
     assertEq(erc20Vault.version(), 5);
     assertEq(erc20Vault.admin(), admin);
@@ -134,10 +149,10 @@ contract EthErc20VaultTest is Test, EthHelpers {
     assertEq(erc20Vault.feePercent(), 1000);
     assertEq(erc20Vault.feeRecipient(), admin);
     assertEq(erc20Vault.validatorsManager(), _depositDataRegistry);
-    assertEq(erc20Vault.queuedShares(), queuedSharesBefore);
+    assertEq(queuedShares, queuedSharesBefore);
     assertEq(erc20Vault.totalShares(), totalSharesBefore);
     assertEq(erc20Vault.totalAssets(), totalAssetsBefore);
-    assertEq(erc20Vault.totalExitingAssets(), totalExitingAssetsBefore);
+    assertEq(totalExitingAssets, totalExitingAssetsBefore);
     assertEq(erc20Vault.validatorsManagerNonce(), 0);
     assertEq(erc20Vault.getShares(sender), senderBalanceBefore);
     assertEq(erc20Vault.totalSupply(), totalSharesBefore);
@@ -465,7 +480,8 @@ contract EthErc20VaultTest is Test, EthHelpers {
 
     // Verify the exit queue was processed correctly
     // The queue might not be fully processed in one update, so we'll check that progress was made
-    assertLt(vault.queuedShares(), exitShares, 'Exit queue should be at least partially processed');
+    (uint128 queuedShares, , , ) = vault.getExitQueueData();
+    assertLt(queuedShares, exitShares, 'Exit queue should be at least partially processed');
   }
 
   // Helper function to deposit ETH to the vault

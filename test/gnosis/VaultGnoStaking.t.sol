@@ -189,8 +189,11 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
   function test_vaultAssets() public {
     // Initial check
     uint256 initialAssets = vault.totalAssets();
-    uint256 senderDeposit = vault.convertToAssets(vault.queuedShares()) +
-      vault.totalExitingAssets() +
+    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ) = vault
+      .getExitQueueData();
+    uint256 senderDeposit = vault.convertToAssets(queuedShares) +
+      totalExitingAssets +
+      unclaimedAssets +
       1 ether;
 
     // Deposit GNO
@@ -455,7 +458,7 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
 
     // Check for ValidatorFunded event
     vm.expectEmit(true, true, true, true);
-    emit IVaultValidators.ValidatorFunded(publicKey, 1 ether);
+    emit IVaultValidators.ValidatorFunded(publicKey, 32 ether);
 
     vm.prank(validatorsManager);
     _startSnapshotGas('VaultGnoStakingCoverageTest_test_registerValidator_topUp_valid');
@@ -490,8 +493,11 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     _collateralizeGnoVault(address(vault));
 
     // Deposit GNO to the vault
-    uint256 senderDeposit = vault.convertToAssets(vault.queuedShares()) +
-      vault.totalExitingAssets() +
+    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ) = vault
+      .getExitQueueData();
+    uint256 senderDeposit = vault.convertToAssets(queuedShares) +
+      totalExitingAssets +
+      unclaimedAssets +
       depositAmount;
     _mintGnoToken(sender, senderDeposit);
     _depositGno(senderDeposit, sender, sender);

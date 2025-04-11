@@ -7,10 +7,14 @@ import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
-import {IOsTokenConfig} from '../contracts/interfaces/IOsTokenConfig.sol';
 import {Errors} from '../contracts/libraries/Errors.sol';
 import {EthVault} from '../contracts/vaults/ethereum/EthVault.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
+
+interface IVaultStateV4 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
 
 contract EthVaultTest is Test, EthHelpers {
   ForkContracts public contracts;
@@ -54,9 +58,10 @@ contract EthVaultTest is Test, EthHelpers {
     vm.prank(admin);
     vault.setValidatorsManager(validatorsManager);
 
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = IEthVault(vault).getExitQueueData();
     exitingAssets =
-      vault.totalExitingAssets() +
-      vault.convertToAssets(vault.queuedShares()) +
+      totalExitingAssets +
+      IEthVault(vault).convertToAssets(queuedShares) +
       vaultAddr.balance;
   }
 
@@ -81,6 +86,12 @@ contract EthVaultTest is Test, EthHelpers {
     _stopSnapshotGas();
 
     EthVault newVault = EthVault(payable(vaultAddr));
+    (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    ) = newVault.getExitQueueData();
 
     // Verify the vault was deployed correctly
     assertEq(newVault.vaultId(), keccak256('EthVault'));
@@ -90,10 +101,12 @@ contract EthVaultTest is Test, EthHelpers {
     assertEq(newVault.feePercent(), 1000);
     assertEq(newVault.feeRecipient(), admin);
     assertEq(newVault.validatorsManager(), _depositDataRegistry);
-    assertEq(newVault.queuedShares(), 0);
+    assertEq(queuedShares, 0);
+    assertEq(totalTickets, 0);
+    assertEq(unclaimedAssets, 0);
     assertEq(newVault.totalShares(), _securityDeposit);
     assertEq(newVault.totalAssets(), _securityDeposit);
-    assertEq(newVault.totalExitingAssets(), 0);
+    assertEq(totalExitingAssets, 0);
     assertEq(newVault.validatorsManagerNonce(), 0);
   }
 
@@ -122,9 +135,9 @@ contract EthVaultTest is Test, EthHelpers {
     // Record state before upgrade
     uint256 totalSharesBefore = prevVault.totalShares();
     uint256 totalAssetsBefore = prevVault.totalAssets();
-    uint256 totalExitingAssetsBefore = prevVault.totalExitingAssets();
-    uint256 queuedSharesBefore = prevVault.queuedShares();
     uint256 senderBalanceBefore = prevVault.getShares(sender);
+    uint256 queuedSharesBefore = IVaultStateV4(address(prevVault)).queuedShares();
+    uint256 totalExitingAssetsBefore = IVaultStateV4(address(prevVault)).totalExitingAssets();
 
     // Verify current version
     assertEq(prevVault.vaultId(), keccak256('EthVault'));
@@ -136,6 +149,7 @@ contract EthVaultTest is Test, EthHelpers {
     _stopSnapshotGas();
 
     // Check that the vault was upgraded correctly
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = prevVault.getExitQueueData();
     assertEq(prevVault.vaultId(), keccak256('EthVault'));
     assertEq(prevVault.version(), 5);
     assertEq(prevVault.admin(), admin);
@@ -145,12 +159,12 @@ contract EthVaultTest is Test, EthHelpers {
     assertEq(prevVault.validatorsManager(), _depositDataRegistry);
 
     // State should be preserved
-    assertEq(prevVault.queuedShares(), queuedSharesBefore);
     assertEq(prevVault.totalShares(), totalSharesBefore);
     assertEq(prevVault.totalAssets(), totalAssetsBefore);
-    assertEq(prevVault.totalExitingAssets(), totalExitingAssetsBefore);
     assertEq(prevVault.validatorsManagerNonce(), 0);
     assertEq(prevVault.getShares(sender), senderBalanceBefore);
+    assertEq(queuedShares, queuedSharesBefore);
+    assertEq(totalExitingAssets, totalExitingAssetsBefore);
   }
 
   function test_exitQueue_works() public {
@@ -163,7 +177,12 @@ contract EthVaultTest is Test, EthHelpers {
 
     // Get initial state
     uint256 senderSharesBefore = vault.getShares(sender);
-    uint256 queuedSharesBefore = vault.queuedShares();
+    (
+      uint128 queuedSharesBefore,
+      uint128 unclaimedAssetsBefore,
+      uint128 totalExitingAssetsBefore,
+      uint256 totalTicketsBefore
+    ) = vault.getExitQueueData();
 
     // Amount to exit with
     uint256 exitAmount = senderSharesBefore / 2;
@@ -175,13 +194,55 @@ contract EthVaultTest is Test, EthHelpers {
     uint256 positionTicket = vault.enterExitQueue(exitAmount, receiver);
     _stopSnapshotGas();
 
+    (
+      uint128 queuedSharesAfter,
+      uint128 unclaimedAssetsAfter,
+      uint128 totalExitingAssetsAfter,
+      uint256 totalTicketsAfter
+    ) = vault.getExitQueueData();
+
     // Check state after entering exit queue
     assertEq(vault.getShares(sender), senderSharesBefore - exitAmount, 'Sender shares not reduced');
-    assertEq(vault.queuedShares(), queuedSharesBefore + exitAmount, 'Queued shares not increased');
+    assertEq(queuedSharesAfter, queuedSharesBefore + exitAmount, 'Queued shares not increased');
+    assertEq(unclaimedAssetsAfter, unclaimedAssetsBefore, 'Unclaimed assets should not change');
+    assertEq(
+      totalExitingAssetsAfter,
+      totalExitingAssetsBefore,
+      'Total exiting assets should not change'
+    );
+    assertEq(totalTicketsAfter, totalTicketsBefore, 'Total tickets should not change');
+
+    queuedSharesBefore = queuedSharesAfter;
+    unclaimedAssetsBefore = unclaimedAssetsAfter;
+    totalExitingAssetsBefore = totalExitingAssetsAfter;
+    totalTicketsBefore = totalTicketsAfter;
 
     // Process exit queue by updating state
     IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
     vault.updateState(harvestParams);
+
+    (queuedSharesAfter, unclaimedAssetsAfter, totalExitingAssetsAfter, totalTicketsAfter) = vault
+      .getExitQueueData();
+    assertLt(
+      queuedSharesAfter,
+      queuedSharesBefore,
+      'Queued shares should be reduced after processing exit queue'
+    );
+    assertGt(
+      unclaimedAssetsAfter,
+      unclaimedAssetsBefore,
+      'Unclaimed assets should increase after processing exit queue'
+    );
+    assertEq(
+      totalExitingAssetsAfter,
+      totalExitingAssetsBefore,
+      'Total exiting assets should not change after processing exit queue'
+    );
+    assertGt(
+      totalTicketsAfter,
+      totalTicketsBefore,
+      'Total tickets should increase after processing exit queue'
+    );
 
     // Check that position can be found in exit queue
     int256 exitQueueIndex = vault.getExitQueueIndex(positionTicket);
@@ -344,7 +405,12 @@ contract EthVaultTest is Test, EthHelpers {
     _stopSnapshotGas();
 
     // Verify sender got vault shares
-    assertApproxEqAbs(vault.getShares(sender), depositShares, 1, 'Incorrect amount of vault shares');
+    assertApproxEqAbs(
+      vault.getShares(sender),
+      depositShares,
+      1,
+      'Incorrect amount of vault shares'
+    );
 
     // Verify osToken position
     uint128 osTokenShares = vault.osTokenPositions(sender);

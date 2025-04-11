@@ -10,6 +10,11 @@ import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {EthBlocklistVault} from '../contracts/vaults/ethereum/EthBlocklistVault.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
 
+interface IVaultStateV4 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
+
 contract EthBlocklistVaultTest is Test, EthHelpers {
   ForkContracts public contracts;
   EthBlocklistVault public vault;
@@ -224,6 +229,12 @@ contract EthBlocklistVaultTest is Test, EthHelpers {
     _stopSnapshotGas();
     EthBlocklistVault blocklistVault = EthBlocklistVault(payable(_vault));
 
+    (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    ) = blocklistVault.getExitQueueData();
     assertEq(blocklistVault.vaultId(), keccak256('EthBlocklistVault'));
     assertEq(blocklistVault.version(), 5);
     assertEq(blocklistVault.admin(), admin);
@@ -232,11 +243,13 @@ contract EthBlocklistVaultTest is Test, EthHelpers {
     assertEq(blocklistVault.feePercent(), 1000);
     assertEq(blocklistVault.feeRecipient(), admin);
     assertEq(blocklistVault.validatorsManager(), _depositDataRegistry);
-    assertEq(blocklistVault.queuedShares(), 0);
     assertEq(blocklistVault.totalShares(), _securityDeposit);
     assertEq(blocklistVault.totalAssets(), _securityDeposit);
-    assertEq(blocklistVault.totalExitingAssets(), 0);
     assertEq(blocklistVault.validatorsManagerNonce(), 0);
+    assertEq(queuedShares, 0);
+    assertEq(totalExitingAssets, 0);
+    assertEq(unclaimedAssets, 0);
+    assertEq(totalTickets, 0);
   }
 
   function test_upgradesCorrectly() public {
@@ -259,8 +272,8 @@ contract EthBlocklistVaultTest is Test, EthHelpers {
 
     uint256 totalSharesBefore = blocklistVault.totalShares();
     uint256 totalAssetsBefore = blocklistVault.totalAssets();
-    uint256 totalExitingAssetsBefore = blocklistVault.totalExitingAssets();
-    uint256 queuedSharesBefore = blocklistVault.queuedShares();
+    uint256 totalExitingAssetsBefore = IVaultStateV4(address(blocklistVault)).totalExitingAssets();
+    uint256 queuedSharesBefore = IVaultStateV4(address(blocklistVault)).queuedShares();
     uint256 senderSharesBefore = blocklistVault.getShares(sender);
 
     assertEq(blocklistVault.vaultId(), keccak256('EthBlocklistVault'));
@@ -270,6 +283,8 @@ contract EthBlocklistVaultTest is Test, EthHelpers {
     _upgradeVault(VaultType.EthBlocklistVault, address(blocklistVault));
     _stopSnapshotGas();
 
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = blocklistVault.getExitQueueData();
+
     assertEq(blocklistVault.vaultId(), keccak256('EthBlocklistVault'));
     assertEq(blocklistVault.version(), 5);
     assertEq(blocklistVault.admin(), admin);
@@ -278,10 +293,10 @@ contract EthBlocklistVaultTest is Test, EthHelpers {
     assertEq(blocklistVault.feePercent(), 1000);
     assertEq(blocklistVault.feeRecipient(), admin);
     assertEq(blocklistVault.validatorsManager(), _depositDataRegistry);
-    assertEq(blocklistVault.queuedShares(), queuedSharesBefore);
+    assertEq(queuedShares, queuedSharesBefore);
     assertEq(blocklistVault.totalShares(), totalSharesBefore);
     assertEq(blocklistVault.totalAssets(), totalAssetsBefore);
-    assertEq(blocklistVault.totalExitingAssets(), totalExitingAssetsBefore);
+    assertEq(totalExitingAssets, totalExitingAssetsBefore);
     assertEq(blocklistVault.validatorsManagerNonce(), 0);
     assertEq(blocklistVault.getShares(sender), senderSharesBefore);
   }

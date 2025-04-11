@@ -52,7 +52,7 @@ library ExitQueue {
   function getCheckpointIndex(
     History storage self,
     uint256 positionTicket
-  ) internal view returns (uint256) {
+  ) external view returns (uint256) {
     uint256 high = self.checkpoints.length;
     uint256 low;
     while (low < high) {
@@ -83,7 +83,7 @@ library ExitQueue {
     uint256 checkpointIdx,
     uint256 positionTicket,
     uint256 positionShares
-  ) internal view returns (uint256 burnedShares, uint256 exitedAssets) {
+  ) external view returns (uint256 burnedShares, uint256 exitedAssets) {
     uint256 length = self.checkpoints.length;
     // there are no exited assets for such checkpoint index or no shares to burn
     if (checkpointIdx >= length || positionShares == 0) return (0, 0);

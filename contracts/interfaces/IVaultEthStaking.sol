@@ -2,7 +2,6 @@
 
 pragma solidity ^0.8.22;
 
-import {IVaultState} from './IVaultState.sol';
 import {IVaultValidators} from './IVaultValidators.sol';
 import {IVaultEnterExit} from './IVaultEnterExit.sol';
 import {IKeeperRewards} from './IKeeperRewards.sol';
@@ -13,7 +12,7 @@ import {IVaultMev} from './IVaultMev.sol';
  * @author StakeWise
  * @notice Defines the interface for the VaultEthStaking contract
  */
-interface IVaultEthStaking is IVaultState, IVaultValidators, IVaultEnterExit, IVaultMev {
+interface IVaultEthStaking is IVaultValidators, IVaultEnterExit, IVaultMev {
   /**
    * @notice Deposit ETH to the Vault
    * @param receiver The address that will receive Vault's shares

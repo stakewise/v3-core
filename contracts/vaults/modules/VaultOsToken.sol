@@ -12,6 +12,7 @@ import {Errors} from '../../libraries/Errors.sol';
 import {VaultImmutables} from './VaultImmutables.sol';
 import {VaultEnterExit, IVaultEnterExit} from './VaultEnterExit.sol';
 import {VaultState} from './VaultState.sol';
+import {OsTokenUtils} from '../../libraries/OsTokenUtils.sol';
 
 /**
  * @title VaultOsToken
@@ -19,10 +20,7 @@ import {VaultState} from './VaultState.sol';
  * @notice Defines the functionality for minting OsToken
  */
 abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, IVaultOsToken {
-  uint256 private constant _wad = 1e18;
-  uint256 private constant _hfLiqThreshold = 1e18;
   uint256 private constant _maxPercent = 1e18;
-  uint256 private constant _disabledLiqThreshold = type(uint64).max;
 
   /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
   IOsTokenVaultController private immutable _osTokenVaultController;
@@ -254,44 +252,18 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     if (position.shares == 0) revert Errors.InvalidPosition();
     _syncPositionFee(position);
 
-    // SLOAD to memory
-    IOsTokenConfig.Config memory osTokenConfig = _osTokenConfig.getConfig(address(this));
-    if (isLiquidation && osTokenConfig.liqThresholdPercent == _disabledLiqThreshold) {
-      revert Errors.LiquidationDisabled();
-    }
-
     // calculate received assets
-    if (isLiquidation) {
-      receivedAssets = Math.mulDiv(
-        _osTokenVaultController.convertToAssets(osTokenShares),
-        osTokenConfig.liqBonusPercent,
-        _maxPercent
-      );
-    } else {
-      receivedAssets = _osTokenVaultController.convertToAssets(osTokenShares);
-    }
-
-    {
-      // check whether received assets are valid
-      uint256 depositedAssets = convertToAssets(_balances[owner]);
-      if (receivedAssets > depositedAssets || receivedAssets > withdrawableAssets()) {
-        revert Errors.InvalidReceivedAssets();
-      }
-
-      uint256 mintedAssets = _osTokenVaultController.convertToAssets(position.shares);
-      if (isLiquidation) {
-        // check health factor violation in case of liquidation
-        if (
-          Math.mulDiv(
-            depositedAssets * _wad,
-            osTokenConfig.liqThresholdPercent,
-            mintedAssets * _maxPercent
-          ) >= _hfLiqThreshold
-        ) {
-          revert Errors.InvalidHealthFactor();
-        }
-      }
-    }
+    receivedAssets = OsTokenUtils.calculateReceivedAssets(
+      _osTokenConfig,
+      _osTokenVaultController,
+      OsTokenUtils.RedemptionData({
+        mintedAssets: _osTokenVaultController.convertToAssets(position.shares),
+        depositedAssets: convertToAssets(_balances[owner]),
+        redeemedOsTokenShares: osTokenShares,
+        availableAssets: withdrawableAssets(),
+        isLiquidation: isLiquidation
+      })
+    );
 
     // reduce osToken supply
     _osTokenVaultController.burnShares(msg.sender, osTokenShares);

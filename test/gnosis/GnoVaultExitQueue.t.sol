@@ -8,6 +8,11 @@ import {IGnoVault} from '../../contracts/interfaces/IGnoVault.sol';
 import {IVaultState} from '../../contracts/interfaces/IVaultState.sol';
 import {GnoVault} from '../../contracts/vaults/gnosis/GnoVault.sol';
 
+interface IVaultStateV2 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
+
 contract GnoVaultExitQueueTest is Test, GnoHelpers {
   ForkContracts public contracts;
   GnoVault public vault;
@@ -92,7 +97,7 @@ contract GnoVaultExitQueueTest is Test, GnoHelpers {
 
     // Step 2: Add 3 exit requests to the vault
     uint256 exitShares = vault.convertToShares(exitAmount);
-    uint256 totalExitingAssetsBefore = vault.totalExitingAssets();
+    uint256 totalExitingAssetsBefore = IVaultStateV2(address(vault)).totalExitingAssets();
 
     timestamp1 = vm.getBlockTimestamp();
     vm.prank(user1);
@@ -108,7 +113,7 @@ contract GnoVaultExitQueueTest is Test, GnoHelpers {
 
     // Verify exit requests are in the queue
     assertEq(
-      vault.totalExitingAssets(),
+      IVaultStateV2(address(vault)).totalExitingAssets(),
       totalExitingAssetsBefore + exitAmount * 3,
       'Exit requests not added to queue'
     );
@@ -287,15 +292,16 @@ contract GnoVaultExitQueueTest is Test, GnoHelpers {
     vm.prank(user1);
     vault.enterExitQueue(exitAmount, user1);
 
-    uint256 totalExitingAssetsBefore = vault.totalExitingAssets();
+    uint256 totalExitingAssetsBefore = IVaultStateV2(address(vault)).totalExitingAssets();
 
     // Upgrade the vault to v3
     _upgradeVault(VaultType.GnoVault, vaultAddr);
 
     // Calculate what the penalty should be
+    (, , uint128 totalExitingAssets, ) = vault.getExitQueueData();
     int256 penalty = -1 ether; // 1 GNO worth of penalty
-    uint256 expectedPenalty = (uint256(-penalty) * uint256(vault.totalExitingAssets())) /
-      (uint256(vault.totalExitingAssets()) + uint256(vault.totalAssets()));
+    uint256 expectedPenalty = (uint256(-penalty) * uint256(totalExitingAssets)) /
+      (uint256(totalExitingAssets) + uint256(vault.totalAssets()));
 
     // Set a negative reward (penalty) and update the vault state
     IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(
@@ -313,8 +319,9 @@ contract GnoVaultExitQueueTest is Test, GnoHelpers {
     _stopSnapshotGas();
 
     // Verify the exiting assets were penalized
+    (, , totalExitingAssets, ) = vault.getExitQueueData();
     assertLt(
-      vault.totalExitingAssets(),
+      totalExitingAssets,
       totalExitingAssetsBefore + exitAmount,
       'Exiting assets should be reduced by the penalty'
     );

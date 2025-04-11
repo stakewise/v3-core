@@ -51,7 +51,8 @@ contract EthFoxVaultTest is Test, EthHelpers {
     );
     address _vault = _getOrCreateVault(VaultType.EthFoxVault, admin, initParams, false);
     vault = EthFoxVault(payable(_vault));
-    exitingAssets = vault.convertToAssets(vault.queuedShares()) + address(vault).balance;
+    (uint128 queuedShares, , , ) = vault.getExitQueueData();
+    exitingAssets = vault.convertToAssets(queuedShares) + address(vault).balance;
   }
 
   function test_deployFails() public {
@@ -194,7 +195,7 @@ contract EthFoxVaultTest is Test, EthHelpers {
 
     // Deposit ETH to get vault shares
     _depositToVault(address(vault), amount, sender, sender);
-    uint256 queueSharesBefore = vault.queuedShares();
+    (uint256 queuedSharesBefore, , , ) = vault.getExitQueueData();
 
     // Set blocklist manager
     vm.prank(admin);
@@ -214,7 +215,8 @@ contract EthFoxVaultTest is Test, EthHelpers {
 
     // User's shares should be in exit queue
     assertEq(vault.getShares(sender), 0);
-    assertApproxEqAbs(vault.queuedShares(), queueSharesBefore + shares, 1);
+    (uint256 queuedShares, , , ) = vault.getExitQueueData();
+    assertApproxEqAbs(queuedShares, queuedSharesBefore + shares, 1);
   }
 
   function test_ejectUserWithNoShares() public {
@@ -222,7 +224,7 @@ contract EthFoxVaultTest is Test, EthHelpers {
     vm.prank(admin);
     vault.setBlocklistManager(blocklistManager);
 
-    uint256 queueSharesBefore = vault.queuedShares();
+    (uint256 queuedSharesBefore, , , ) = vault.getExitQueueData();
 
     // Eject user with no shares
     _startSnapshotGas('EthFoxVaultTest_test_ejectUserWithNoShares');
@@ -234,7 +236,8 @@ contract EthFoxVaultTest is Test, EthHelpers {
     assertTrue(vault.blockedAccounts(sender));
 
     // No shares should be in exit queue
-    assertEq(vault.queuedShares(), queueSharesBefore);
+    (uint256 queuedShares, , , ) = vault.getExitQueueData();
+    assertEq(queuedShares, queuedSharesBefore);
   }
 
   function test_ejectUserFailsFromNonBlocklistManager() public {

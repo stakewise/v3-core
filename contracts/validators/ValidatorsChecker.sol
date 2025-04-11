@@ -3,8 +3,6 @@
 pragma solidity ^0.8.22;
 
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
-import {SignatureChecker} from '@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol';
 import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
 import {IKeeper} from '../interfaces/IKeeper.sol';
 import {IValidatorsChecker} from '../interfaces/IValidatorsChecker.sol';
@@ -13,7 +11,8 @@ import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IDepositDataRegistry} from '../interfaces/IDepositDataRegistry.sol';
 import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
-import {Errors} from '../libraries/Errors.sol';
+import {EIP712Utils} from '../libraries/EIP712Utils.sol';
+import {ValidatorUtils} from '../libraries/ValidatorUtils.sol';
 
 interface IVaultValidatorsV1 {
   function validatorsRoot() external view returns (bytes32);
@@ -28,9 +27,6 @@ interface IVaultValidatorsV1 {
  *  * checking deposit data root
  */
 abstract contract ValidatorsChecker is IValidatorsChecker {
-  bytes32 private constant _registerValidatorsTypeHash =
-    keccak256('VaultValidators(bytes32 validatorsRegistryRoot,bytes validators)');
-
   IValidatorsRegistry private immutable _validatorsRegistry;
   IKeeper private immutable _keeper;
   IVaultsRegistry private immutable _vaultsRegistry;
@@ -76,17 +72,17 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
       return (block.number, Status.INSUFFICIENT_ASSETS);
     }
 
-    // compose signing message
-    bytes32 message = _getValidatorsManagerMessageHash(vault, validatorsRegistryRoot, validators);
+    // validate signature
+    bool isValidSignature = ValidatorUtils.isValidManagerSignature(
+      validatorsRegistryRoot,
+      _computeVaultValidatorsDomain(vault),
+      IVaultValidators(vault).validatorsManager(),
+      validators,
+      signature
+    );
 
     // verify validators manager ECDSA signature
-    if (
-      !SignatureChecker.isValidSignatureNow(
-        IVaultValidators(vault).validatorsManager(),
-        message,
-        signature
-      )
-    ) {
+    if (!isValidSignature) {
       return (block.number, Status.INVALID_SIGNATURE);
     }
 
@@ -179,45 +175,12 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
   }
 
   /**
-   * @notice Get the hash to be signed by the validators manager
-   * @param vault The address of the vault
-   * @param validatorsRegistryRoot The validators registry root
-   * @param validators The concatenation of the validators' public key, deposit signature, deposit root
-   * @return The hash to be signed by the validators manager
-   */
-  function _getValidatorsManagerMessageHash(
-    address vault,
-    bytes32 validatorsRegistryRoot,
-    bytes calldata validators
-  ) private view returns (bytes32) {
-    bytes32 domainSeparator = _computeVaultValidatorsDomain(vault);
-    return
-      MessageHashUtils.toTypedDataHash(
-        domainSeparator,
-        keccak256(
-          abi.encode(_registerValidatorsTypeHash, validatorsRegistryRoot, keccak256(validators))
-        )
-      );
-  }
-
-  /**
    * @notice Computes the hash of the EIP712 typed data for the vault
    * @dev This function is used to compute the hash of the EIP712 typed data
    * @return The hash of the EIP712 typed data
    */
   function _computeVaultValidatorsDomain(address vault) private view returns (bytes32) {
-    return
-      keccak256(
-        abi.encode(
-          keccak256(
-            'EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)'
-          ),
-          keccak256(bytes('VaultValidators')),
-          keccak256('1'),
-          block.chainid,
-          vault
-        )
-      );
+    return EIP712Utils.computeDomainSeparator('VaultValidators', vault);
   }
 
   /**

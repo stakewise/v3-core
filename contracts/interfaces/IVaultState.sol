@@ -57,16 +57,21 @@ interface IVaultState is IVaultFee {
   function withdrawableAssets() external view returns (uint256);
 
   /**
-   * @notice Queued Shares
-   * @return The total number of shares queued for exit
+   * @notice Get exit queue data
+   * @return queuedShares The number of shares in the exit queue
+   * @return unclaimedAssets The amount of unclaimed assets in the exit queue
+   * @return totalExitingAssets The total amount of exiting assets
+   * @return totalTickets The total number of tickets in the exit queue
    */
-  function queuedShares() external view returns (uint128);
-
-  /**
-   * @notice Total Exiting Assets (deprecated)
-   * @return The total number of assets queued for exit
-   */
-  function totalExitingAssets() external view returns (uint128);
+  function getExitQueueData()
+    external
+    view
+    returns (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    );
 
   /**
    * @notice Returns the number of shares held by an account

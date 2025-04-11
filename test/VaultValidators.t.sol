@@ -403,10 +403,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // Extract the public key from validators data
     bytes memory publicKey = _extractBytes(approvalParams.validators, 0, 48);
-    vm.assertFalse(
-      vault.v2Validators(keccak256(publicKey)),
-      'Validator should not be tracked'
-    );
+    vm.assertFalse(vault.v2Validators(keccak256(publicKey)), 'Validator should not be tracked');
 
     // For V1 validators, the event is emitted without deposit amount
     vm.expectEmit(true, true, true, false);
@@ -421,10 +418,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
     // Cleanup
     _stopOracleImpersonate(address(contracts.keeper));
 
-    vm.assertFalse(
-      vault.v2Validators(keccak256(publicKey)),
-      'Validator should not be tracked'
-    );
+    vm.assertFalse(vault.v2Validators(keccak256(publicKey)), 'Validator should not be tracked');
   }
 
   // Test V2 validator registration (with 0x02 prefix)
@@ -442,10 +436,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     // Extract the public key from validators data
     bytes memory publicKey = _extractBytes(approvalParams.validators, 0, 48);
-    vm.assertFalse(
-      vault.v2Validators(keccak256(publicKey)),
-      'Validator should not be tracked'
-    );
+    vm.assertFalse(vault.v2Validators(keccak256(publicKey)), 'Validator should not be tracked');
 
     // For V2 validators, the event includes deposit amount
     vm.expectEmit(true, true, true, true);
@@ -537,7 +528,7 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
     bytes32 structHash = keccak256(
       abi.encode(
-        keccak256('VaultValidators(bytes32 validatorsRegistryRoot,bytes validators)'),
+        keccak256('VaultValidators(bytes32 nonce,bytes validators)'),
         validatorsRegistryRoot,
         keccak256(validators)
       )

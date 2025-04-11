@@ -10,6 +10,11 @@ import {GnoGenesisVault} from '../../contracts/vaults/gnosis/GnoGenesisVault.sol
 import {Errors} from '../../contracts/libraries/Errors.sol';
 import {GnoHelpers} from '../helpers/GnoHelpers.sol';
 
+interface IVaultStateV3 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
+
 contract GnoGenesisVaultTest is Test, GnoHelpers {
   ForkContracts public contracts;
   address public admin;
@@ -66,10 +71,10 @@ contract GnoGenesisVaultTest is Test, GnoHelpers {
     existingVault.enterExitQueue(10 ether, user);
 
     // Record initial state
+    uint256 totalExitingAssetsBefore = IVaultStateV3(address(existingVault)).totalExitingAssets();
+    uint256 queuedSharesBefore = IVaultStateV3(address(existingVault)).queuedShares();
     uint256 initialTotalAssets = existingVault.totalAssets();
     uint256 initialTotalShares = existingVault.totalShares();
-    uint256 totalExitingAssetsBefore = existingVault.totalExitingAssets();
-    uint256 queuedSharesBefore = existingVault.queuedShares();
     uint256 senderBalanceBefore = existingVault.getShares(user);
     uint256 initialCapacity = existingVault.capacity();
     uint256 initialFeePercent = existingVault.feePercent();
@@ -84,6 +89,7 @@ contract GnoGenesisVaultTest is Test, GnoHelpers {
     _upgradeVault(VaultType.GnoGenesisVault, address(existingVault));
     _stopSnapshotGas();
 
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = existingVault.getExitQueueData();
     assertEq(existingVault.vaultId(), keccak256('GnoGenesisVault'));
     assertEq(existingVault.version(), 4);
     assertEq(existingVault.admin(), adminBefore);
@@ -91,10 +97,10 @@ contract GnoGenesisVaultTest is Test, GnoHelpers {
     assertEq(existingVault.feePercent(), initialFeePercent);
     assertEq(existingVault.feeRecipient(), feeRecipient);
     assertEq(existingVault.validatorsManager(), validatorsManager);
-    assertEq(existingVault.queuedShares(), queuedSharesBefore);
+    assertEq(queuedShares, queuedSharesBefore);
     assertEq(existingVault.totalShares(), initialTotalShares);
     assertEq(existingVault.totalAssets(), initialTotalAssets);
-    assertEq(existingVault.totalExitingAssets(), totalExitingAssetsBefore);
+    assertEq(totalExitingAssets, totalExitingAssetsBefore);
     assertEq(existingVault.validatorsManagerNonce(), 0);
     assertEq(existingVault.getShares(user), senderBalanceBefore);
     assertEq(
