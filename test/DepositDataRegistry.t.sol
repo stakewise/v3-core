@@ -51,10 +51,13 @@ contract DepositDataRegistryTest is Test, EthHelpers {
       ),
       false
     );
+    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ) = IEthVault(
+      validVault
+    ).getExitQueueData();
     exitingAssets =
-      IEthVault(validVault).totalExitingAssets() +
-      IEthVault(validVault).convertToAssets(IEthVault(validVault).queuedShares()) +
-      address(validVault).balance;
+      totalExitingAssets +
+      IEthVault(validVault).convertToAssets(queuedShares) +
+      unclaimedAssets;
 
     invalidVault = makeAddr('invalidVault');
     nonAdmin = makeAddr('nonAdmin');

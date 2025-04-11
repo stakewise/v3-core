@@ -60,11 +60,10 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
     vault = IEthVault(_vault);
 
     // Ensure the vault has enough ETH to process exit requests
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = vault.getExitQueueData();
     vm.deal(
       address(vault),
-      address(vault).balance +
-        vault.totalExitingAssets() +
-        vault.convertToAssets(vault.queuedShares())
+      address(vault).balance + vault.convertToAssets(queuedShares) + totalExitingAssets
     );
   }
 

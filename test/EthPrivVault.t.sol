@@ -10,6 +10,11 @@ import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {EthPrivVault} from '../contracts/vaults/ethereum/EthPrivVault.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
 
+interface IVaultStateV4 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
+
 contract EthPrivVaultTest is Test, EthHelpers {
   ForkContracts public contracts;
   EthPrivVault public vault;
@@ -305,6 +310,13 @@ contract EthPrivVaultTest is Test, EthHelpers {
     _stopSnapshotGas();
     EthPrivVault privVault = EthPrivVault(payable(_vault));
 
+    (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    ) = privVault.getExitQueueData();
+
     assertEq(privVault.vaultId(), keccak256('EthPrivVault'));
     assertEq(privVault.version(), 5);
     assertEq(privVault.admin(), admin);
@@ -313,11 +325,13 @@ contract EthPrivVaultTest is Test, EthHelpers {
     assertEq(privVault.feePercent(), 1000);
     assertEq(privVault.feeRecipient(), admin);
     assertEq(privVault.validatorsManager(), _depositDataRegistry);
-    assertEq(privVault.queuedShares(), 0);
     assertEq(privVault.totalShares(), _securityDeposit);
     assertEq(privVault.totalAssets(), _securityDeposit);
-    assertEq(privVault.totalExitingAssets(), 0);
     assertEq(privVault.validatorsManagerNonce(), 0);
+    assertEq(queuedShares, 0);
+    assertEq(unclaimedAssets, 0);
+    assertEq(totalExitingAssets, 0);
+    assertEq(totalTickets, 0);
   }
 
   function test_upgradesCorrectly() public {
@@ -348,10 +362,10 @@ contract EthPrivVaultTest is Test, EthHelpers {
 
     uint256 totalSharesBefore = privVault.totalShares();
     uint256 totalAssetsBefore = privVault.totalAssets();
-    uint256 totalExitingAssetsBefore = privVault.totalExitingAssets();
-    uint256 queuedSharesBefore = privVault.queuedShares();
     uint256 senderSharesBefore = privVault.getShares(sender);
     bool senderWhitelistedBefore = privVault.whitelistedAccounts(sender);
+    uint256 totalExitingAssetsBefore = IVaultStateV4(address(privVault)).totalExitingAssets();
+    uint256 queuedSharesBefore = IVaultStateV4(address(privVault)).queuedShares();
 
     assertEq(privVault.vaultId(), keccak256('EthPrivVault'));
     assertEq(privVault.version(), 4);
@@ -360,6 +374,7 @@ contract EthPrivVaultTest is Test, EthHelpers {
     _upgradeVault(VaultType.EthPrivVault, address(privVault));
     _stopSnapshotGas();
 
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = privVault.getExitQueueData();
     assertEq(privVault.vaultId(), keccak256('EthPrivVault'));
     assertEq(privVault.version(), 5);
     assertEq(privVault.admin(), admin);
@@ -368,13 +383,13 @@ contract EthPrivVaultTest is Test, EthHelpers {
     assertEq(privVault.feePercent(), 1000);
     assertEq(privVault.feeRecipient(), admin);
     assertEq(privVault.validatorsManager(), _depositDataRegistry);
-    assertEq(privVault.queuedShares(), queuedSharesBefore);
     assertEq(privVault.totalShares(), totalSharesBefore);
     assertEq(privVault.totalAssets(), totalAssetsBefore);
-    assertEq(privVault.totalExitingAssets(), totalExitingAssetsBefore);
     assertEq(privVault.validatorsManagerNonce(), 0);
     assertEq(privVault.getShares(sender), senderSharesBefore);
     assertEq(privVault.whitelistedAccounts(sender), senderWhitelistedBefore);
+    assertEq(totalExitingAssets, totalExitingAssetsBefore);
+    assertEq(queuedShares, queuedSharesBefore);
   }
 
   function test_setWhitelister() public {

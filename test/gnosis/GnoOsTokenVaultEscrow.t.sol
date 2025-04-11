@@ -93,10 +93,8 @@ contract GnoOsTokenVaultEscrowTest is Test, GnoHelpers {
     assertEq(escrowOsTokenShares, osTokenShares, 'Incorrect osToken shares in escrow');
 
     IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 0, 0);
-    _mintGnoToken(
-      address(vault),
-      vault.totalExitingAssets() + vault.convertToAssets(vault.queuedShares())
-    );
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = vault.getExitQueueData();
+    _mintGnoToken(address(vault), totalExitingAssets + vault.convertToAssets(queuedShares));
     vault.updateState(harvestParams);
 
     vm.warp(timestamp + _exitingAssetsClaimDelay + 1);

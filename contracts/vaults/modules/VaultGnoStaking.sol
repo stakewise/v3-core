@@ -8,7 +8,7 @@ import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IGnoValidatorsRegistry} from '../../interfaces/IGnoValidatorsRegistry.sol';
 import {IVaultGnoStaking} from '../../interfaces/IVaultGnoStaking.sol';
 import {IGnoDaiDistributor} from '../../interfaces/IGnoDaiDistributor.sol';
-import {Errors} from '../../libraries/Errors.sol';
+import {ValidatorUtils} from '../../libraries/ValidatorUtils.sol';
 import {VaultAdmin} from './VaultAdmin.sol';
 import {VaultState} from './VaultState.sol';
 import {VaultValidators} from './VaultValidators.sol';
@@ -72,51 +72,38 @@ abstract contract VaultGnoStaking is
   receive() external payable {}
 
   /// @inheritdoc VaultValidators
-  function _registerValidator(
-    bytes calldata validator,
-    bool isV1Validator
-  ) internal virtual override returns (uint256 depositAmount, bytes calldata publicKey) {
+  function _registerValidators(
+    ValidatorUtils.ValidatorDeposit[] memory deposits
+  ) internal virtual override {
     // pull withdrawals from the deposit contract
     _pullWithdrawals();
 
-    publicKey = validator[:48];
-    bytes calldata signature = validator[48:144];
-    bytes32 depositDataRoot = bytes32(validator[144:176]);
+    uint256 totalDeposits = deposits.length;
+    uint256 availableAssets = withdrawableAssets();
+    ValidatorUtils.ValidatorDeposit memory depositData;
+    for (uint256 i = 0; i < totalDeposits; ) {
+      depositData = deposits[i];
 
-    // get the deposit amount and withdrawal credentials prefix
-    bytes1 withdrawalCredsPrefix;
-    if (isV1Validator) {
-      withdrawalCredsPrefix = 0x01;
-      depositAmount = _validatorMinEffectiveBalance();
-    } else {
-      withdrawalCredsPrefix = 0x02;
-      // extract amount from data, convert gwei to wei by multiplying by 1 gwei
       // divide by 32 to convert mGNO to GNO
-      depositAmount = (uint256(uint64(bytes8(validator[176:184]))) * 1 gwei) / 32;
+      depositData.depositAmount /= 32;
+
+      // deposit GNO tokens to the validators registry
+      IGnoValidatorsRegistry(_validatorsRegistry).deposit(
+        depositData.publicKey,
+        depositData.withdrawalCredentials,
+        depositData.signature,
+        depositData.depositDataRoot,
+        depositData.depositAmount
+      );
+
+      // will revert if not enough assets
+      availableAssets -= depositData.depositAmount;
+
+      unchecked {
+        // cannot realistically overflow
+        ++i;
+      }
     }
-
-    // deposit GNO tokens to the validators registry
-    IGnoValidatorsRegistry(_validatorsRegistry).deposit(
-      publicKey,
-      abi.encodePacked(withdrawalCredsPrefix, bytes11(0x0), address(this)),
-      signature,
-      depositDataRoot,
-      depositAmount
-    );
-  }
-
-  /// @inheritdoc VaultValidators
-  function _withdrawValidator(
-    bytes calldata validator
-  )
-    internal
-    virtual
-    override
-    returns (bytes calldata publicKey, uint256 withdrawnAmount, uint256 feePaid)
-  {
-    (publicKey, withdrawnAmount, feePaid) = super._withdrawValidator(validator);
-    // convert mGNO to GNO
-    withdrawnAmount /= 32;
   }
 
   /// @inheritdoc VaultState
@@ -135,16 +122,6 @@ abstract contract VaultGnoStaking is
       _pullWithdrawals();
     }
     SafeERC20.safeTransfer(_gnoToken, receiver, assets);
-  }
-
-  /// @inheritdoc VaultValidators
-  function _validatorMinEffectiveBalance() internal pure override returns (uint256) {
-    return 1 ether;
-  }
-
-  /// @inheritdoc VaultValidators
-  function _validatorMaxEffectiveBalance() internal pure override returns (uint256) {
-    return 64 ether;
   }
 
   /**

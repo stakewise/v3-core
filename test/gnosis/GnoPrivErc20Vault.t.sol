@@ -8,6 +8,11 @@ import {Errors} from '../../contracts/libraries/Errors.sol';
 import {IGnoErc20Vault} from '../../contracts/interfaces/IGnoErc20Vault.sol';
 import {GnoPrivErc20Vault} from '../../contracts/vaults/gnosis/GnoPrivErc20Vault.sol';
 
+interface IVaultStateV2 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
+
 contract GnoPrivErc20VaultTest is Test, GnoHelpers {
   ForkContracts public contracts;
   GnoPrivErc20Vault public vault;
@@ -263,6 +268,12 @@ contract GnoPrivErc20VaultTest is Test, GnoHelpers {
     _stopSnapshotGas();
     GnoPrivErc20Vault privErc20Vault = GnoPrivErc20Vault(payable(_vault));
 
+    (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    ) = privErc20Vault.getExitQueueData();
     assertEq(privErc20Vault.vaultId(), keccak256('GnoPrivErc20Vault'));
     assertEq(privErc20Vault.version(), 3);
     assertEq(privErc20Vault.admin(), admin);
@@ -271,14 +282,16 @@ contract GnoPrivErc20VaultTest is Test, GnoHelpers {
     assertEq(privErc20Vault.feePercent(), 1000);
     assertEq(privErc20Vault.feeRecipient(), admin);
     assertEq(privErc20Vault.validatorsManager(), _depositDataRegistry);
-    assertEq(privErc20Vault.queuedShares(), 0);
     assertEq(privErc20Vault.totalShares(), _securityDeposit);
     assertEq(privErc20Vault.totalAssets(), _securityDeposit);
-    assertEq(privErc20Vault.totalExitingAssets(), 0);
     assertEq(privErc20Vault.validatorsManagerNonce(), 0);
     assertEq(privErc20Vault.totalSupply(), _securityDeposit);
     assertEq(privErc20Vault.symbol(), 'SW-GNO-1');
     assertEq(privErc20Vault.name(), 'SW GNO Vault');
+    assertEq(queuedShares, 0);
+    assertEq(unclaimedAssets, 0);
+    assertEq(totalExitingAssets, 0);
+    assertEq(totalTickets, 0);
   }
 
   function test_upgradesCorrectly() public {
@@ -307,9 +320,9 @@ contract GnoPrivErc20VaultTest is Test, GnoHelpers {
 
     uint256 totalSharesBefore = privErc20Vault.totalShares();
     uint256 totalAssetsBefore = privErc20Vault.totalAssets();
-    uint256 totalExitingAssetsBefore = privErc20Vault.totalExitingAssets();
-    uint256 queuedSharesBefore = privErc20Vault.queuedShares();
     uint256 senderBalanceBefore = privErc20Vault.getShares(sender);
+    uint256 totalExitingAssetsBefore = IVaultStateV2(address(privErc20Vault)).totalExitingAssets();
+    uint256 queuedSharesBefore = IVaultStateV2(address(privErc20Vault)).queuedShares();
 
     assertEq(privErc20Vault.vaultId(), keccak256('GnoPrivErc20Vault'));
     assertEq(privErc20Vault.version(), 2);
@@ -322,6 +335,7 @@ contract GnoPrivErc20VaultTest is Test, GnoHelpers {
     _upgradeVault(VaultType.GnoPrivErc20Vault, address(privErc20Vault));
     _stopSnapshotGas();
 
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = privErc20Vault.getExitQueueData();
     assertEq(privErc20Vault.vaultId(), keccak256('GnoPrivErc20Vault'));
     assertEq(privErc20Vault.version(), 3);
     assertEq(privErc20Vault.admin(), admin);
@@ -330,10 +344,8 @@ contract GnoPrivErc20VaultTest is Test, GnoHelpers {
     assertEq(privErc20Vault.feePercent(), 1000);
     assertEq(privErc20Vault.feeRecipient(), admin);
     assertEq(privErc20Vault.validatorsManager(), _depositDataRegistry);
-    assertEq(privErc20Vault.queuedShares(), queuedSharesBefore);
     assertEq(privErc20Vault.totalShares(), totalSharesBefore);
     assertEq(privErc20Vault.totalAssets(), totalAssetsBefore);
-    assertEq(privErc20Vault.totalExitingAssets(), totalExitingAssetsBefore);
     assertEq(privErc20Vault.validatorsManagerNonce(), 0);
     assertEq(privErc20Vault.getShares(sender), senderBalanceBefore);
     assertEq(
@@ -343,6 +355,8 @@ contract GnoPrivErc20VaultTest is Test, GnoHelpers {
     assertEq(privErc20Vault.totalSupply(), totalSharesBefore);
     assertEq(privErc20Vault.symbol(), 'SW-GNO-1');
     assertEq(privErc20Vault.name(), 'SW GNO Vault');
+    assertEq(queuedShares, queuedSharesBefore);
+    assertEq(totalExitingAssets, totalExitingAssetsBefore);
   }
 
   // Helper function to deposit GNO to the vault

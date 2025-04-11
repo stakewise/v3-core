@@ -8,6 +8,7 @@ import {IEthValidatorsRegistry} from '../../interfaces/IEthValidatorsRegistry.so
 import {IKeeperRewards} from '../../interfaces/IKeeperRewards.sol';
 import {IVaultEthStaking} from '../../interfaces/IVaultEthStaking.sol';
 import {Errors} from '../../libraries/Errors.sol';
+import {ValidatorUtils} from '../../libraries/ValidatorUtils.sol';
 import {VaultValidators} from './VaultValidators.sol';
 import {VaultState} from './VaultState.sol';
 import {VaultEnterExit} from './VaultEnterExit.sol';
@@ -59,32 +60,30 @@ abstract contract VaultEthStaking is
   }
 
   /// @inheritdoc VaultValidators
-  function _registerValidator(
-    bytes calldata validator,
-    bool isV1Validator
-  ) internal virtual override returns (uint256 depositAmount, bytes calldata publicKey) {
-    publicKey = validator[:48];
-    bytes calldata signature = validator[48:144];
-    bytes32 depositDataRoot = bytes32(validator[144:176]);
+  function _registerValidators(
+    ValidatorUtils.ValidatorDeposit[] memory deposits
+  ) internal virtual override {
+    uint256 totalDeposits = deposits.length;
+    uint256 availableAssets = withdrawableAssets();
+    ValidatorUtils.ValidatorDeposit memory depositData;
+    for (uint256 i = 0; i < totalDeposits; ) {
+      depositData = deposits[i];
+      // deposit to the validators registry
+      IEthValidatorsRegistry(_validatorsRegistry).deposit{value: depositData.depositAmount}(
+        depositData.publicKey,
+        depositData.withdrawalCredentials,
+        depositData.signature,
+        depositData.depositDataRoot
+      );
 
-    // get the deposit amount and withdrawal credentials prefix
-    bytes1 withdrawalCredsPrefix;
-    if (isV1Validator) {
-      withdrawalCredsPrefix = 0x01;
-      depositAmount = _validatorMinEffectiveBalance();
-    } else {
-      withdrawalCredsPrefix = 0x02;
-      // extract amount from data, convert gwei to wei by multiplying by 1 gwei
-      depositAmount = (uint256(uint64(bytes8(validator[176:184]))) * 1 gwei);
+      // will revert if not enough assets
+      availableAssets -= depositData.depositAmount;
+
+      unchecked {
+        // cannot realistically overflow
+        ++i;
+      }
     }
-
-    // deposit to the validators registry
-    IEthValidatorsRegistry(_validatorsRegistry).deposit{value: depositAmount}(
-      publicKey,
-      abi.encodePacked(withdrawalCredsPrefix, bytes11(0x0), address(this)),
-      signature,
-      depositDataRoot
-    );
   }
 
   /// @inheritdoc VaultState
@@ -98,16 +97,6 @@ abstract contract VaultEthStaking is
     uint256 assets
   ) internal virtual override nonReentrant {
     return Address.sendValue(payable(receiver), assets);
-  }
-
-  /// @inheritdoc VaultValidators
-  function _validatorMinEffectiveBalance() internal pure virtual override returns (uint256) {
-    return 32 ether;
-  }
-
-  /// @inheritdoc VaultValidators
-  function _validatorMaxEffectiveBalance() internal pure virtual override returns (uint256) {
-    return 2048 ether;
   }
 
   /**

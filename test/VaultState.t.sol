@@ -47,7 +47,12 @@ contract VaultStateTest is Test, EthHelpers {
     address vaultAddr = _getOrCreateVault(VaultType.EthVault, admin, initParams, false);
     vault = EthVault(payable(vaultAddr));
 
-    vm.deal(vaultAddr, vault.totalExitingAssets() + vault.convertToAssets(vault.queuedShares()));
+    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ) = vault
+      .getExitQueueData();
+    vm.deal(
+      address(vault),
+      unclaimedAssets + vault.convertToAssets(queuedShares) + totalExitingAssets
+    );
 
     // Initial deposit to the vault
     _depositToVault(address(vault), initialDeposit, owner, owner);
@@ -274,7 +279,7 @@ contract VaultStateTest is Test, EthHelpers {
 
     // Record owner's ETH balance before
     uint256 ownerBalanceBefore = owner.balance;
-    uint256 queuedSharesBefore = vault.queuedShares();
+    (uint128 queuedSharesBefore, , , ) = vault.getExitQueueData();
 
     vm.expectEmit(true, true, true, false);
     emit IVaultEnterExit.ExitQueueEntered(owner, owner, 0, exitShares);
@@ -293,8 +298,9 @@ contract VaultStateTest is Test, EthHelpers {
     );
 
     // Verify queued shares increased
+    (uint128 queuedShares, , , ) = vault.getExitQueueData();
     assertEq(
-      vault.queuedShares(),
+      queuedShares,
       queuedSharesBefore + exitShares,
       'Queued shares should match exit amount'
     );
@@ -476,10 +482,11 @@ contract VaultStateTest is Test, EthHelpers {
     // Step 2: User enters exit queue with all shares
     uint256 user1Shares = vault.getShares(user1);
 
-    uint256 vaultBalance = vault.totalExitingAssets() +
-      vault.convertToAssets(vault.queuedShares()) +
-      address(vault).balance -
-      vault.withdrawableAssets();
+    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ) = vault
+      .getExitQueueData();
+    uint256 vaultBalance = totalExitingAssets +
+      vault.convertToAssets(queuedShares) +
+      unclaimedAssets;
 
     vm.expectEmit(true, true, true, false);
     emit IVaultEnterExit.ExitQueueEntered(user1, user1, 0, user1Shares);

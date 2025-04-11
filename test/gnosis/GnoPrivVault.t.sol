@@ -8,6 +8,11 @@ import {Errors} from '../../contracts/libraries/Errors.sol';
 import {IGnoVault} from '../../contracts/interfaces/IGnoVault.sol';
 import {GnoPrivVault} from '../../contracts/vaults/gnosis/GnoPrivVault.sol';
 
+interface IVaultStateV2 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
+
 contract GnoPrivVaultTest is Test, GnoHelpers {
   ForkContracts public contracts;
   GnoPrivVault public vault;
@@ -220,6 +225,12 @@ contract GnoPrivVaultTest is Test, GnoHelpers {
     _stopSnapshotGas();
     GnoPrivVault privVault = GnoPrivVault(payable(_vault));
 
+    (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    ) = privVault.getExitQueueData();
     assertEq(privVault.vaultId(), keccak256('GnoPrivVault'));
     assertEq(privVault.version(), 3);
     assertEq(privVault.admin(), admin);
@@ -228,11 +239,13 @@ contract GnoPrivVaultTest is Test, GnoHelpers {
     assertEq(privVault.feePercent(), 1000);
     assertEq(privVault.feeRecipient(), admin);
     assertEq(privVault.validatorsManager(), _depositDataRegistry);
-    assertEq(privVault.queuedShares(), 0);
     assertEq(privVault.totalShares(), _securityDeposit);
     assertEq(privVault.totalAssets(), _securityDeposit);
-    assertEq(privVault.totalExitingAssets(), 0);
     assertEq(privVault.validatorsManagerNonce(), 0);
+    assertEq(queuedShares, 0);
+    assertEq(unclaimedAssets, 0);
+    assertEq(totalExitingAssets, 0);
+    assertEq(totalTickets, 0);
   }
 
   function test_upgradesCorrectly() public {
@@ -263,10 +276,10 @@ contract GnoPrivVaultTest is Test, GnoHelpers {
 
     uint256 totalSharesBefore = privVault.totalShares();
     uint256 totalAssetsBefore = privVault.totalAssets();
-    uint256 totalExitingAssetsBefore = privVault.totalExitingAssets();
-    uint256 queuedSharesBefore = privVault.queuedShares();
     uint256 senderBalanceBefore = privVault.getShares(sender);
     bool senderWhitelistedBefore = privVault.whitelistedAccounts(sender);
+    uint256 totalExitingAssetsBefore = IVaultStateV2(address(privVault)).totalExitingAssets();
+    uint256 queuedSharesBefore = IVaultStateV2(address(privVault)).queuedShares();
 
     assertEq(privVault.vaultId(), keccak256('GnoPrivVault'));
     assertEq(privVault.version(), 2);
@@ -279,6 +292,7 @@ contract GnoPrivVaultTest is Test, GnoHelpers {
     _upgradeVault(VaultType.GnoPrivVault, address(privVault));
     _stopSnapshotGas();
 
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = privVault.getExitQueueData();
     assertEq(privVault.vaultId(), keccak256('GnoPrivVault'));
     assertEq(privVault.version(), 3);
     assertEq(privVault.admin(), admin);
@@ -287,10 +301,8 @@ contract GnoPrivVaultTest is Test, GnoHelpers {
     assertEq(privVault.feePercent(), 1000);
     assertEq(privVault.feeRecipient(), admin);
     assertEq(privVault.validatorsManager(), _depositDataRegistry);
-    assertEq(privVault.queuedShares(), queuedSharesBefore);
     assertEq(privVault.totalShares(), totalSharesBefore);
     assertEq(privVault.totalAssets(), totalAssetsBefore);
-    assertEq(privVault.totalExitingAssets(), totalExitingAssetsBefore);
     assertEq(privVault.validatorsManagerNonce(), 0);
     assertEq(privVault.getShares(sender), senderBalanceBefore);
     assertEq(privVault.whitelistedAccounts(sender), senderWhitelistedBefore);
@@ -298,6 +310,8 @@ contract GnoPrivVaultTest is Test, GnoHelpers {
       contracts.gnoToken.allowance(address(privVault), address(contracts.validatorsRegistry)),
       type(uint256).max
     );
+    assertEq(queuedShares, queuedSharesBefore);
+    assertEq(totalExitingAssets, totalExitingAssetsBefore);
   }
 
   function test_setWhitelister() public {

@@ -421,8 +421,9 @@ contract VaultEthStakingTest is Test, EthHelpers {
     _collateralizeEthVault(address(vault));
 
     // Deposit ETH to the vault
-    uint256 senderDeposit = vault.convertToAssets(vault.queuedShares()) +
-      vault.totalExitingAssets() +
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = vault.getExitQueueData();
+    uint256 senderDeposit = vault.convertToAssets(queuedShares) +
+      totalExitingAssets +
       depositAmount;
     _depositToVault(address(vault), senderDeposit, sender, sender);
 

@@ -47,9 +47,10 @@ contract VaultEnterExitTest is Test, EthHelpers {
     address vaultAddr = _getOrCreateVault(VaultType.EthVault, admin, initParams, false);
     vault = EthVault(payable(vaultAddr));
 
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = vault.getExitQueueData();
     vm.deal(
-      vaultAddr,
-      vault.convertToAssets(vault.queuedShares()) + vault.totalExitingAssets() + vaultAddr.balance
+      address(vault),
+      address(vault).balance + vault.convertToAssets(queuedShares) + totalExitingAssets
     );
   }
 
@@ -263,7 +264,7 @@ contract VaultEnterExitTest is Test, EthHelpers {
 
     // 3. Enter exit queue
     uint256 shares = vault.getShares(sender);
-    uint256 queuedSharesBefore = vault.queuedShares();
+    (uint128 queuedSharesBefore, , , ) = vault.getExitQueueData();
     vm.prank(sender);
     uint256 timestamp = vm.getBlockTimestamp();
 
@@ -272,8 +273,9 @@ contract VaultEnterExitTest is Test, EthHelpers {
     _stopSnapshotGas();
 
     // 4. Verify the position ticket was created and shares moved to the queue
+    (uint128 queuedShares, , , ) = vault.getExitQueueData();
     assertEq(
-      vault.queuedShares(),
+      queuedShares,
       queuedSharesBefore + shares,
       'Queued shares should equal the shares sent to exit queue'
     );
@@ -480,7 +482,8 @@ contract VaultEnterExitTest is Test, EthHelpers {
     // 3. Both users enter exit queue
     uint256 shares1 = vault.getShares(sender);
     uint256 shares2 = vault.getShares(sender2);
-    uint256 queuedSharesBefore = vault.queuedShares();
+
+    (uint128 queuedSharesBefore, , , ) = vault.getExitQueueData();
 
     vm.prank(sender);
     uint256 timestamp1 = vm.getBlockTimestamp();
@@ -495,8 +498,9 @@ contract VaultEnterExitTest is Test, EthHelpers {
     _stopSnapshotGas();
 
     // 4. Verify the queued shares
+    (uint128 queuedShares, , , ) = vault.getExitQueueData();
     assertEq(
-      vault.queuedShares(),
+      queuedShares,
       queuedSharesBefore + shares1 + shares2,
       'Queued shares should equal the sum of all shares in exit queue'
     );
@@ -568,7 +572,7 @@ contract VaultEnterExitTest is Test, EthHelpers {
 
     // 2. Collateralize the vault
     _collateralizeEthVault(address(vault));
-    uint256 queuedSharesBefore = vault.queuedShares();
+    (uint128 queuedSharesBefore, , , ) = vault.getExitQueueData();
 
     // 3. Enter exit queue with half of the shares
     uint256 totalShares = vault.getShares(sender);
@@ -582,8 +586,9 @@ contract VaultEnterExitTest is Test, EthHelpers {
     _stopSnapshotGas();
 
     // 4. Verify the position ticket and remaining shares
+    (uint128 queuedShares, , , ) = vault.getExitQueueData();
     assertEq(
-      vault.queuedShares(),
+      queuedShares,
       queuedSharesBefore + halfShares,
       'Queued shares should equal the half shares sent to exit queue'
     );

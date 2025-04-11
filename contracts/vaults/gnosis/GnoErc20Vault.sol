@@ -180,17 +180,6 @@ contract GnoErc20Vault is
     }
   }
 
-  /// @inheritdoc VaultValidators
-  function _withdrawValidator(
-    bytes calldata validator
-  )
-    internal
-    override(VaultValidators, VaultGnoStaking)
-    returns (bytes calldata publicKey, uint256 withdrawnAmount, uint256 feePaid)
-  {
-    return super._withdrawValidator(validator);
-  }
-
   /**
    * @dev Upgrades the GnoErc20Vault contract
    */

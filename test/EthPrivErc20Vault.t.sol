@@ -10,6 +10,11 @@ import {IEthErc20Vault} from '../contracts/interfaces/IEthErc20Vault.sol';
 import {EthPrivErc20Vault} from '../contracts/vaults/ethereum/EthPrivErc20Vault.sol';
 import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 
+interface IVaultStateV4 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
+
 contract EthPrivErc20VaultTest is Test, EthHelpers {
   ForkContracts public contracts;
   EthPrivErc20Vault public vault;
@@ -364,6 +369,12 @@ contract EthPrivErc20VaultTest is Test, EthHelpers {
     address _vault = _createVault(VaultType.EthPrivErc20Vault, admin, initParams, true);
     _stopSnapshotGas();
     EthPrivErc20Vault privErc20Vault = EthPrivErc20Vault(payable(_vault));
+    (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    ) = privErc20Vault.getExitQueueData();
 
     assertEq(privErc20Vault.vaultId(), keccak256('EthPrivErc20Vault'));
     assertEq(privErc20Vault.version(), 5);
@@ -373,14 +384,16 @@ contract EthPrivErc20VaultTest is Test, EthHelpers {
     assertEq(privErc20Vault.feePercent(), 1000);
     assertEq(privErc20Vault.feeRecipient(), admin);
     assertEq(privErc20Vault.validatorsManager(), _depositDataRegistry);
-    assertEq(privErc20Vault.queuedShares(), 0);
     assertEq(privErc20Vault.totalShares(), _securityDeposit);
     assertEq(privErc20Vault.totalAssets(), _securityDeposit);
-    assertEq(privErc20Vault.totalExitingAssets(), 0);
     assertEq(privErc20Vault.validatorsManagerNonce(), 0);
     assertEq(privErc20Vault.totalSupply(), _securityDeposit);
     assertEq(privErc20Vault.symbol(), 'SW-ETH-1');
     assertEq(privErc20Vault.name(), 'SW ETH Vault');
+    assertEq(queuedShares, 0);
+    assertEq(unclaimedAssets, 0);
+    assertEq(totalExitingAssets, 0);
+    assertEq(totalTickets, 0);
   }
 
   function test_upgradesCorrectly() public {
@@ -409,8 +422,8 @@ contract EthPrivErc20VaultTest is Test, EthHelpers {
 
     uint256 totalSharesBefore = privErc20Vault.totalShares();
     uint256 totalAssetsBefore = privErc20Vault.totalAssets();
-    uint256 totalExitingAssetsBefore = privErc20Vault.totalExitingAssets();
-    uint256 queuedSharesBefore = privErc20Vault.queuedShares();
+    uint256 totalExitingAssetsBefore = IVaultStateV4(address(privErc20Vault)).totalExitingAssets();
+    uint256 queuedSharesBefore = IVaultStateV4(address(privErc20Vault)).queuedShares();
     uint256 senderBalanceBefore = privErc20Vault.getShares(sender);
 
     assertEq(privErc20Vault.vaultId(), keccak256('EthPrivErc20Vault'));
@@ -420,6 +433,7 @@ contract EthPrivErc20VaultTest is Test, EthHelpers {
     _upgradeVault(VaultType.EthPrivErc20Vault, address(privErc20Vault));
     _stopSnapshotGas();
 
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = privErc20Vault.getExitQueueData();
     assertEq(privErc20Vault.vaultId(), keccak256('EthPrivErc20Vault'));
     assertEq(privErc20Vault.version(), 5);
     assertEq(privErc20Vault.admin(), admin);
@@ -428,14 +442,14 @@ contract EthPrivErc20VaultTest is Test, EthHelpers {
     assertEq(privErc20Vault.feePercent(), 1000);
     assertEq(privErc20Vault.feeRecipient(), admin);
     assertEq(privErc20Vault.validatorsManager(), _depositDataRegistry);
-    assertEq(privErc20Vault.queuedShares(), queuedSharesBefore);
     assertEq(privErc20Vault.totalShares(), totalSharesBefore);
     assertEq(privErc20Vault.totalAssets(), totalAssetsBefore);
-    assertEq(privErc20Vault.totalExitingAssets(), totalExitingAssetsBefore);
     assertEq(privErc20Vault.validatorsManagerNonce(), 0);
     assertEq(privErc20Vault.getShares(sender), senderBalanceBefore);
     assertEq(privErc20Vault.totalSupply(), totalSharesBefore);
     assertEq(privErc20Vault.symbol(), 'SW-ETH-1');
     assertEq(privErc20Vault.name(), 'SW ETH Vault');
+    assertEq(queuedShares, queuedSharesBefore);
+    assertEq(totalExitingAssets, totalExitingAssetsBefore);
   }
 }

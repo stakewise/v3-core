@@ -2,15 +2,18 @@
 pragma solidity ^0.8.22;
 
 import {Test} from 'forge-std/Test.sol';
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import {Initializable} from '@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol';
 import {Ownable} from '@openzeppelin/contracts/access/Ownable.sol';
 import {IKeeperRewards} from '../../contracts/interfaces/IKeeperRewards.sol';
 import {IGnoVault} from '../../contracts/interfaces/IGnoVault.sol';
-import {IOsTokenConfig} from '../../contracts/interfaces/IOsTokenConfig.sol';
 import {Errors} from '../../contracts/libraries/Errors.sol';
 import {GnoVault} from '../../contracts/vaults/gnosis/GnoVault.sol';
 import {GnoHelpers} from '../helpers/GnoHelpers.sol';
+
+interface IVaultStateV2 {
+  function totalExitingAssets() external view returns (uint128);
+  function queuedShares() external view returns (uint128);
+}
 
 contract GnoVaultTest is Test, GnoHelpers {
   ForkContracts public contracts;
@@ -77,6 +80,12 @@ contract GnoVaultTest is Test, GnoHelpers {
     GnoVault newVault = GnoVault(payable(vaultAddr));
 
     // Verify the vault was deployed correctly
+    (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    ) = newVault.getExitQueueData();
     assertEq(newVault.vaultId(), keccak256('GnoVault'));
     assertEq(newVault.version(), 3);
     assertEq(newVault.admin(), admin);
@@ -84,11 +93,13 @@ contract GnoVaultTest is Test, GnoHelpers {
     assertEq(newVault.feePercent(), 1000);
     assertEq(newVault.feeRecipient(), admin);
     assertEq(newVault.validatorsManager(), _depositDataRegistry);
-    assertEq(newVault.queuedShares(), 0);
     assertEq(newVault.totalShares(), _securityDeposit);
     assertEq(newVault.totalAssets(), _securityDeposit);
-    assertEq(newVault.totalExitingAssets(), 0);
     assertEq(newVault.validatorsManagerNonce(), 0);
+    assertEq(queuedShares, 0);
+    assertEq(unclaimedAssets, 0);
+    assertEq(totalExitingAssets, 0);
+    assertEq(totalTickets, 0);
   }
 
   function test_upgradesCorrectly() public {
@@ -116,8 +127,8 @@ contract GnoVaultTest is Test, GnoHelpers {
     // Record state before upgrade
     uint256 totalSharesBefore = prevVault.totalShares();
     uint256 totalAssetsBefore = prevVault.totalAssets();
-    uint256 totalExitingAssetsBefore = prevVault.totalExitingAssets();
-    uint256 queuedSharesBefore = prevVault.queuedShares();
+    uint256 totalExitingAssetsBefore = IVaultStateV2(address(prevVault)).totalExitingAssets();
+    uint256 queuedSharesBefore = IVaultStateV2(address(prevVault)).queuedShares();
     uint256 senderBalanceBefore = prevVault.getShares(sender);
 
     // Verify current version
@@ -136,6 +147,7 @@ contract GnoVaultTest is Test, GnoHelpers {
     _stopSnapshotGas();
 
     // Check that the vault was upgraded correctly
+    (uint128 queuedShares, , uint128 totalExitingAssets, ) = prevVault.getExitQueueData();
     assertEq(prevVault.vaultId(), keccak256('GnoVault'));
     assertEq(prevVault.version(), 3);
     assertEq(prevVault.admin(), admin);
@@ -145,12 +157,12 @@ contract GnoVaultTest is Test, GnoHelpers {
     assertEq(prevVault.validatorsManager(), _depositDataRegistry);
 
     // State should be preserved
-    assertEq(prevVault.queuedShares(), queuedSharesBefore);
     assertEq(prevVault.totalShares(), totalSharesBefore);
     assertEq(prevVault.totalAssets(), totalAssetsBefore);
-    assertEq(prevVault.totalExitingAssets(), totalExitingAssetsBefore);
     assertEq(prevVault.validatorsManagerNonce(), 0);
     assertEq(prevVault.getShares(sender), senderBalanceBefore);
+    assertEq(queuedShares, queuedSharesBefore);
+    assertEq(totalExitingAssets, totalExitingAssetsBefore);
 
     // Allowance should be set after upgrade
     assertEq(
@@ -169,7 +181,12 @@ contract GnoVaultTest is Test, GnoHelpers {
 
     // Get initial state
     uint256 senderSharesBefore = vault.getShares(sender);
-    uint256 queuedSharesBefore = vault.queuedShares();
+    (
+      uint128 queuedSharesBefore,
+      uint128 unclaimedAssetsBefore,
+      uint128 totalExitingAssetsBefore,
+      uint256 totalTicketsBefore
+    ) = vault.getExitQueueData();
 
     // Amount to exit with
     uint256 exitAmount = senderSharesBefore / 2;
@@ -181,18 +198,60 @@ contract GnoVaultTest is Test, GnoHelpers {
     uint256 positionTicket = vault.enterExitQueue(exitAmount, receiver);
     _stopSnapshotGas();
 
+    (
+      uint128 queuedSharesAfter,
+      uint128 unclaimedAssetsAfter,
+      uint128 totalExitingAssetsAfter,
+      uint256 totalTicketsAfter
+    ) = vault.getExitQueueData();
+
     // Check state after entering exit queue
     assertEq(vault.getShares(sender), senderSharesBefore - exitAmount, 'Sender shares not reduced');
-    assertEq(vault.queuedShares(), queuedSharesBefore + exitAmount, 'Queued shares not increased');
+    assertEq(queuedSharesAfter, queuedSharesBefore + exitAmount, 'Queued shares not increased');
+    assertEq(unclaimedAssetsAfter, unclaimedAssetsBefore, 'Unclaimed assets should not change');
+    assertEq(
+      totalExitingAssetsAfter,
+      totalExitingAssetsBefore,
+      'Total exiting assets should not change'
+    );
+    assertEq(totalTicketsAfter, totalTicketsBefore, 'Total tickets should not change');
+
+    queuedSharesBefore = queuedSharesAfter;
+    unclaimedAssetsBefore = unclaimedAssetsAfter;
+    totalExitingAssetsBefore = totalExitingAssetsAfter;
+    totalTicketsBefore = totalTicketsAfter;
 
     _mintGnoToken(
       address(vault),
-      vault.totalExitingAssets() + vault.convertToAssets(vault.queuedShares())
+      totalExitingAssetsAfter + vault.convertToAssets(queuedSharesAfter)
     );
 
     // Process exit queue by updating state
     IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 0, 0);
     vault.updateState(harvestParams);
+
+    (queuedSharesAfter, unclaimedAssetsAfter, totalExitingAssetsAfter, totalTicketsAfter) = vault
+      .getExitQueueData();
+    assertLt(
+      queuedSharesAfter,
+      queuedSharesBefore,
+      'Queued shares should be reduced after processing exit queue'
+    );
+    assertGt(
+      unclaimedAssetsAfter,
+      unclaimedAssetsBefore,
+      'Unclaimed assets should increase after processing exit queue'
+    );
+    assertLe(
+      totalExitingAssetsAfter,
+      totalExitingAssetsBefore,
+      'Total exiting assets should not change after processing exit queue'
+    );
+    assertGt(
+      totalTicketsAfter,
+      totalTicketsBefore,
+      'Total tickets should increase after processing exit queue'
+    );
 
     // Check that position can be found in exit queue
     int256 exitQueueIndex = vault.getExitQueueIndex(positionTicket);
