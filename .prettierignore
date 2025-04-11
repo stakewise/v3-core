@@ -1,4 +1,8 @@
-artifacts
-cache
-node_modules
-typechain-types
+.prettierrc
+foundry.toml
+out
+lib/
+cache/
+*.sol
+dist/
+snapshots/
