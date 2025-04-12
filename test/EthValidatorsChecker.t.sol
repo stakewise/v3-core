@@ -7,6 +7,9 @@ import {IValidatorsChecker} from '../contracts/interfaces/IValidatorsChecker.sol
 import {IDepositDataRegistry} from '../contracts/interfaces/IDepositDataRegistry.sol';
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
 import {IVaultValidators} from '../contracts/interfaces/IVaultValidators.sol';
+import {IVaultEnterExit} from '../contracts/interfaces/IVaultEnterExit.sol';
+import {IVaultState} from '../contracts/interfaces/IVaultState.sol';
+import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
 
 interface IVaultValidatorsV1 {
@@ -486,5 +489,151 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
       'Deposit data root verification should succeed'
     );
     assertEq(blockNumber, block.number);
+  }
+
+  function testGetExitQueueState_EmptyQueue() public view {
+    // Test with empty exit queue (new vault with no exit requests)
+
+    // Call getExitQueueState with 0 pending assets
+    (uint256 totalTickets, uint256 exitedTickets, uint256 missingAssets) = validatorsChecker
+      .getExitQueueState(emptyVault, 0);
+
+    // Verify expected values for empty queue
+    assertEq(totalTickets, 0, 'Total tickets should be 0 for empty vault');
+    assertEq(exitedTickets, 0, 'Exited tickets should be 0 for empty vault');
+    assertEq(missingAssets, 0, 'Missing assets should be 0 for empty vault');
+  }
+
+  function testGetExitQueueState_WithPendingAssets() public {
+    // Setup: deposit funds and enter exit queue
+    _depositToVault(vault, 5 ether, user, user);
+
+    // Enter exit queue with some shares
+    uint256 sharesToExit = IVaultState(vault).convertToShares(1 ether);
+    vm.prank(user);
+    IVaultEnterExit(vault).enterExitQueue(sharesToExit, user);
+
+    // Call getExitQueueState with some pending assets
+    uint256 pendingAssets = 2 ether;
+    (uint256 totalTickets, uint256 exitedTickets, uint256 missingAssets) = validatorsChecker
+      .getExitQueueState(vault, pendingAssets);
+
+    // Verify that pendingAssets affects the calculation
+    assertGt(totalTickets, 0, 'Total tickets should be non-zero');
+    assertLt(missingAssets, totalTickets, 'Missing assets should be reduced by pending assets');
+
+    // With pending assets, some tickets should be marked as exited
+    assertGt(exitedTickets, 0, 'Exited tickets should be non-zero with pending assets');
+  }
+
+  function testGetExitQueueState_WithMultipleExits() public {
+    // Setup multiple exit queue entries
+    _depositToVault(vault, 10 ether, user, user);
+
+    // Enter exit queue with different amounts
+    uint256 user1Shares = IVaultState(vault).convertToShares(2 ether);
+    uint256 user2Shares = IVaultState(vault).convertToShares(3 ether);
+
+    vm.startPrank(user);
+    IVaultEnterExit(vault).enterExitQueue(user1Shares, user);
+    IVaultEnterExit(vault).enterExitQueue(user2Shares, user);
+    vm.stopPrank();
+
+    vm.deal(vault, 0); // Set vault balance to zero
+
+    // Get initial exit queue state
+    (uint256 initialTotal, uint256 initialExited, uint256 initialMissing) = validatorsChecker
+      .getExitQueueState(vault, 0);
+
+    // Add pending assets and check state changes
+    uint256 pendingAssets = 4 ether;
+    (uint256 updatedTotal, uint256 updatedExited, uint256 updatedMissing) = validatorsChecker
+      .getExitQueueState(vault, pendingAssets);
+
+    // Verify calculations
+    assertEq(initialTotal, updatedTotal, 'Total tickets should remain the same');
+    assertGt(updatedExited, initialExited, 'More tickets should be exited with pending assets');
+    assertLt(updatedMissing, initialMissing, 'Missing assets should decrease with pending assets');
+  }
+
+  function testGetExitQueueState_WithExcessPendingAssets() public {
+    // Setup: deposit and enter exit queue
+    _depositToVault(vault, 5 ether, user, user);
+
+    uint256 sharesToExit = IVaultState(vault).convertToShares(1 ether);
+    vm.prank(user);
+    IVaultEnterExit(vault).enterExitQueue(sharesToExit, user);
+
+    // Get queue state info for baseline
+    (uint256 totalTickets, , uint256 missingAssetsBefore) = validatorsChecker.getExitQueueState(
+      vault,
+      0
+    );
+
+    // Large amount of pending assets (more than missing)
+    uint256 excessPendingAssets = missingAssetsBefore * 2;
+    (, uint256 exitedTicketsAfter, uint256 missingAssetsAfter) = validatorsChecker
+      .getExitQueueState(vault, excessPendingAssets);
+
+    // All tickets should be exited and no missing assets
+    assertEq(exitedTicketsAfter, totalTickets, 'All tickets should be exited with excess assets');
+    assertEq(missingAssetsAfter, 0, 'No missing assets with excess pending assets');
+  }
+
+  function testGetExitQueueState_ZeroAvailableAssets() public {
+    // Setup: Create exit queue entries but make available assets zero
+    _depositToVault(vault, 5 ether, user, user);
+
+    uint256 sharesToExit = IVaultState(vault).convertToShares(2 ether);
+    vm.prank(user);
+    IVaultEnterExit(vault).enterExitQueue(sharesToExit, user);
+
+    vm.deal(vault, 0); // Set vault balance to zero
+
+    // Mock to simulate that all assets are already claimed/unclaimed
+    // by providing just enough pending assets to equal unclaimed assets
+
+    // First get the unclaimed assets amount
+    (, , , , uint256 totalTickets) = IVaultValidators(vault).getExitQueueData();
+
+    // Call with pending assets exactly equal to vault balance minus unclaimed (makes available = 0)
+    uint256 pendingAssets = 0; // No pending assets
+    (uint256 totalTicketsState, uint256 exitedTickets, uint256 missingAssets) = validatorsChecker
+      .getExitQueueState(vault, pendingAssets);
+
+    // With zero available assets, all missing assets should remain and no additional exited tickets
+    assertGt(totalTicketsState, 0, 'Total tickets should be non-zero');
+    assertGt(missingAssets, 0, 'Missing assets should be non-zero with no available assets');
+
+    // In this case, exited tickets should only include already processed ones
+    assertEq(
+      exitedTickets,
+      totalTickets,
+      'Exited tickets should match exit queue total with no available assets'
+    );
+  }
+
+  function testUpdateVaultState() public {
+    // Setup: Create rewards for the vault
+    int160 totalReward = int160(int256(0.5 ether));
+    uint160 unlockedMevReward = 0.1 ether;
+
+    uint256 totalAssetsBefore = IEthVault(vault).totalAssets();
+
+    // Create harvest params with the setup rewards
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(
+      address(vault),
+      totalReward,
+      unlockedMevReward
+    );
+
+    // Call updateVaultState via the validatorsChecker
+    validatorsChecker.updateVaultState(vault, harvestParams);
+
+    assertEq(
+      IEthVault(vault).totalAssets(),
+      totalAssetsBefore + 0.5 ether,
+      "Balance shouldn't change on second update"
+    );
   }
 }

@@ -182,7 +182,7 @@ contract EthVaultTest is Test, EthHelpers {
     (
       uint128 queuedSharesBefore,
       uint128 unclaimedAssetsBefore,
-      uint128 totalExitingTicketsBefore,
+      ,
       uint128 totalExitingAssetsBefore,
       uint256 totalTicketsBefore
     ) = vault.getExitQueueData();

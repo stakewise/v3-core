@@ -249,6 +249,7 @@ contract EthBlocklistVaultTest is Test, EthHelpers {
     assertEq(blocklistVault.validatorsManagerNonce(), 0);
     assertEq(queuedShares, 0);
     assertEq(totalExitingAssets, 0);
+    assertEq(totalExitingTickets, 0);
     assertEq(unclaimedAssets, 0);
     assertEq(totalTickets, 0);
   }
