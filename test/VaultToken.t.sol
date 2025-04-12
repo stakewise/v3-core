@@ -346,7 +346,7 @@ contract VaultTokenTest is Test, EthHelpers {
     assertEq(ownerFinalBalance, ownerInitialBalance - exitShares, 'Owner balance should decrease');
 
     // Verify queued shares
-    (uint128 queuedShares, , , ) = vault.getExitQueueData();
+    (uint128 queuedShares, , , ,) = vault.getExitQueueData();
     assertEq(queuedShares, exitShares, 'Queued shares should match exit amount');
   }
 

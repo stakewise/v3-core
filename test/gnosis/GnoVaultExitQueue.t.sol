@@ -298,7 +298,7 @@ contract GnoVaultExitQueueTest is Test, GnoHelpers {
     _upgradeVault(VaultType.GnoVault, vaultAddr);
 
     // Calculate what the penalty should be
-    (, , uint128 totalExitingAssets, ) = vault.getExitQueueData();
+    (, , , uint128 totalExitingAssets, ) = vault.getExitQueueData();
     int256 penalty = -1 ether; // 1 GNO worth of penalty
     uint256 expectedPenalty = (uint256(-penalty) * uint256(totalExitingAssets)) /
       (uint256(totalExitingAssets) + uint256(vault.totalAssets()));
@@ -319,7 +319,7 @@ contract GnoVaultExitQueueTest is Test, GnoHelpers {
     _stopSnapshotGas();
 
     // Verify the exiting assets were penalized
-    (, , totalExitingAssets, ) = vault.getExitQueueData();
+    (, , , totalExitingAssets, ) = vault.getExitQueueData();
     assertLt(
       totalExitingAssets,
       totalExitingAssetsBefore + exitAmount,

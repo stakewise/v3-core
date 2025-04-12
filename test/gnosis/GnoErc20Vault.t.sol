@@ -80,6 +80,7 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     (
       uint128 queuedShares,
       uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
       uint128 totalExitingAssets,
       uint256 totalTickets
     ) = erc20Vault.getExitQueueData();
@@ -100,6 +101,7 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     assertEq(queuedShares, 0);
     assertEq(unclaimedAssets, 0);
     assertEq(totalExitingAssets, 0);
+    assertEq(totalExitingTickets, 0);
     assertEq(totalTickets, 0);
   }
 
@@ -140,7 +142,7 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     _upgradeVault(VaultType.GnoErc20Vault, address(erc20Vault));
     _stopSnapshotGas();
 
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = erc20Vault.getExitQueueData();
+    (uint128 queuedShares, , , uint128 totalExitingAssets, ) = erc20Vault.getExitQueueData();
     assertEq(erc20Vault.vaultId(), keccak256('GnoErc20Vault'));
     assertEq(erc20Vault.version(), 3);
     assertEq(erc20Vault.admin(), admin);

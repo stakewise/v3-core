@@ -47,7 +47,7 @@ contract VaultStateTest is Test, EthHelpers {
     address vaultAddr = _getOrCreateVault(VaultType.EthVault, admin, initParams, false);
     vault = EthVault(payable(vaultAddr));
 
-    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ) = vault
+    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ,) = vault
       .getExitQueueData();
     vm.deal(
       address(vault),
@@ -279,7 +279,7 @@ contract VaultStateTest is Test, EthHelpers {
 
     // Record owner's ETH balance before
     uint256 ownerBalanceBefore = owner.balance;
-    (uint128 queuedSharesBefore, , , ) = vault.getExitQueueData();
+    (uint128 queuedSharesBefore, , , ,) = vault.getExitQueueData();
 
     vm.expectEmit(true, true, true, false);
     emit IVaultEnterExit.ExitQueueEntered(owner, owner, 0, exitShares);
@@ -298,7 +298,7 @@ contract VaultStateTest is Test, EthHelpers {
     );
 
     // Verify queued shares increased
-    (uint128 queuedShares, , , ) = vault.getExitQueueData();
+    (uint128 queuedShares, , , ,) = vault.getExitQueueData();
     assertEq(
       queuedShares,
       queuedSharesBefore + exitShares,
@@ -482,7 +482,7 @@ contract VaultStateTest is Test, EthHelpers {
     // Step 2: User enters exit queue with all shares
     uint256 user1Shares = vault.getShares(user1);
 
-    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ) = vault
+    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ,) = vault
       .getExitQueueData();
     uint256 vaultBalance = totalExitingAssets +
       vault.convertToAssets(queuedShares) +

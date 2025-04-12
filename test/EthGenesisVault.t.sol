@@ -97,7 +97,7 @@ contract EthGenesisVaultTest is Test, EthHelpers {
     _upgradeVault(VaultType.EthGenesisVault, address(existingVault));
     _stopSnapshotGas();
 
-    (uint128 queuedSharesAfter, , uint128 totalExitingAssetsAfter, ) = existingVault
+    (uint128 queuedSharesAfter, , , uint128 totalExitingAssetsAfter, ) = existingVault
       .getExitQueueData();
     assertEq(existingVault.vaultId(), keccak256('EthGenesisVault'));
     assertEq(existingVault.version(), 5);
@@ -262,7 +262,7 @@ contract EthGenesisVaultTest is Test, EthHelpers {
     // Add some ETH to the pool escrow
     uint256 escrowAmount = 40 ether;
     vm.deal(poolEscrow, poolEscrow.balance + escrowAmount);
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = vault.getExitQueueData();
+    (uint128 queuedShares, , , uint128 totalExitingAssets, ) = vault.getExitQueueData();
     vm.deal(
       address(vault),
       address(vault).balance + vault.convertToAssets(queuedShares) + totalExitingAssets
@@ -341,7 +341,7 @@ contract EthGenesisVaultTest is Test, EthHelpers {
     address vaultAddr = _getOrCreateVault(VaultType.EthGenesisVault, admin, initParams, false);
     EthGenesisVault vault = EthGenesisVault(payable(vaultAddr));
 
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = vault.getExitQueueData();
+    (uint128 queuedShares, , , uint128 totalExitingAssets, ) = vault.getExitQueueData();
     uint256 vaultAmount = address(vault).balance +
       vault.convertToAssets(queuedShares) +
       totalExitingAssets;

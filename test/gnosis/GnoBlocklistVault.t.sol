@@ -176,6 +176,7 @@ contract GnoBlocklistVaultTest is Test, GnoHelpers {
     (
       uint128 queuedShares,
       uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
       uint128 totalExitingAssets,
       uint256 totalTickets
     ) = blocklistVault.getExitQueueData();
@@ -194,6 +195,7 @@ contract GnoBlocklistVaultTest is Test, GnoHelpers {
     assertEq(queuedShares, 0);
     assertEq(unclaimedAssets, 0);
     assertEq(totalExitingAssets, 0);
+    assertEq(totalExitingTickets, 0);
     assertEq(totalTickets, 0);
   }
 
@@ -232,7 +234,7 @@ contract GnoBlocklistVaultTest is Test, GnoHelpers {
     _upgradeVault(VaultType.GnoBlocklistVault, address(blocklistVault));
     _stopSnapshotGas();
 
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = blocklistVault.getExitQueueData();
+    (uint128 queuedShares, , , uint128 totalExitingAssets, ) = blocklistVault.getExitQueueData();
     assertEq(blocklistVault.vaultId(), keccak256('GnoBlocklistVault'));
     assertEq(blocklistVault.version(), 3);
     assertEq(blocklistVault.admin(), admin);

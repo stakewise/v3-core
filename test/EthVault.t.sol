@@ -58,7 +58,7 @@ contract EthVaultTest is Test, EthHelpers {
     vm.prank(admin);
     vault.setValidatorsManager(validatorsManager);
 
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = IEthVault(vault).getExitQueueData();
+    (uint128 queuedShares, , , uint128 totalExitingAssets, ) = IEthVault(vault).getExitQueueData();
     exitingAssets =
       totalExitingAssets +
       IEthVault(vault).convertToAssets(queuedShares) +
@@ -89,6 +89,7 @@ contract EthVaultTest is Test, EthHelpers {
     (
       uint128 queuedShares,
       uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
       uint128 totalExitingAssets,
       uint256 totalTickets
     ) = newVault.getExitQueueData();
@@ -107,6 +108,7 @@ contract EthVaultTest is Test, EthHelpers {
     assertEq(newVault.totalShares(), _securityDeposit);
     assertEq(newVault.totalAssets(), _securityDeposit);
     assertEq(totalExitingAssets, 0);
+    assertEq(totalExitingTickets, 0);
     assertEq(newVault.validatorsManagerNonce(), 0);
   }
 
@@ -149,7 +151,7 @@ contract EthVaultTest is Test, EthHelpers {
     _stopSnapshotGas();
 
     // Check that the vault was upgraded correctly
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = prevVault.getExitQueueData();
+    (uint128 queuedShares, , uint128 totalExitingAssets, , ) = prevVault.getExitQueueData();
     assertEq(prevVault.vaultId(), keccak256('EthVault'));
     assertEq(prevVault.version(), 5);
     assertEq(prevVault.admin(), admin);
@@ -180,6 +182,7 @@ contract EthVaultTest is Test, EthHelpers {
     (
       uint128 queuedSharesBefore,
       uint128 unclaimedAssetsBefore,
+      uint128 totalExitingTicketsBefore,
       uint128 totalExitingAssetsBefore,
       uint256 totalTicketsBefore
     ) = vault.getExitQueueData();
@@ -197,6 +200,7 @@ contract EthVaultTest is Test, EthHelpers {
     (
       uint128 queuedSharesAfter,
       uint128 unclaimedAssetsAfter,
+      ,
       uint128 totalExitingAssetsAfter,
       uint256 totalTicketsAfter
     ) = vault.getExitQueueData();
@@ -221,7 +225,7 @@ contract EthVaultTest is Test, EthHelpers {
     IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
     vault.updateState(harvestParams);
 
-    (queuedSharesAfter, unclaimedAssetsAfter, totalExitingAssetsAfter, totalTicketsAfter) = vault
+    (queuedSharesAfter, unclaimedAssetsAfter, , totalExitingAssetsAfter, totalTicketsAfter) = vault
       .getExitQueueData();
     assertLt(
       queuedSharesAfter,

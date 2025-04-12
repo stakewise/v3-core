@@ -189,7 +189,7 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
   function test_vaultAssets() public {
     // Initial check
     uint256 initialAssets = vault.totalAssets();
-    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ) = vault
+    (uint128 queuedShares, uint128 unclaimedAssets, , uint128 totalExitingAssets, ) = vault
       .getExitQueueData();
     uint256 senderDeposit = vault.convertToAssets(queuedShares) +
       totalExitingAssets +
@@ -493,7 +493,7 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     _collateralizeGnoVault(address(vault));
 
     // Deposit GNO to the vault
-    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ) = vault
+    (uint128 queuedShares, uint128 unclaimedAssets, , uint128 totalExitingAssets, ) = vault
       .getExitQueueData();
     uint256 senderDeposit = vault.convertToAssets(queuedShares) +
       totalExitingAssets +

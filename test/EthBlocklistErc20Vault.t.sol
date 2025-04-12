@@ -265,6 +265,7 @@ contract EthBlocklistErc20VaultTest is Test, EthHelpers {
     (
       uint128 queuedShares,
       uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
       uint128 totalExitingAssets,
       uint256 totalTickets
     ) = blocklistVault.getExitQueueData();
@@ -281,6 +282,7 @@ contract EthBlocklistErc20VaultTest is Test, EthHelpers {
     assertEq(queuedShares, 0);
     assertEq(totalTickets, 0);
     assertEq(unclaimedAssets, 0);
+    assertEq(totalExitingTickets, 0);
     assertEq(totalExitingAssets, 0);
     assertEq(blocklistVault.validatorsManagerNonce(), 0);
     assertEq(blocklistVault.totalSupply(), _securityDeposit);
@@ -326,7 +328,7 @@ contract EthBlocklistErc20VaultTest is Test, EthHelpers {
     _upgradeVault(VaultType.EthBlocklistErc20Vault, address(blocklistVault));
     _stopSnapshotGas();
 
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = blocklistVault.getExitQueueData();
+    (uint128 queuedShares, , , uint128 totalExitingAssets, ) = blocklistVault.getExitQueueData();
     assertEq(blocklistVault.vaultId(), keccak256('EthBlocklistErc20Vault'));
     assertEq(blocklistVault.version(), 5);
     assertEq(blocklistVault.admin(), admin);

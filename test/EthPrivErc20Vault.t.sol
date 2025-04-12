@@ -372,6 +372,7 @@ contract EthPrivErc20VaultTest is Test, EthHelpers {
     (
       uint128 queuedShares,
       uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
       uint128 totalExitingAssets,
       uint256 totalTickets
     ) = privErc20Vault.getExitQueueData();
@@ -392,6 +393,7 @@ contract EthPrivErc20VaultTest is Test, EthHelpers {
     assertEq(privErc20Vault.name(), 'SW ETH Vault');
     assertEq(queuedShares, 0);
     assertEq(unclaimedAssets, 0);
+    assertEq(totalExitingTickets, 0);
     assertEq(totalExitingAssets, 0);
     assertEq(totalTickets, 0);
   }
@@ -433,7 +435,7 @@ contract EthPrivErc20VaultTest is Test, EthHelpers {
     _upgradeVault(VaultType.EthPrivErc20Vault, address(privErc20Vault));
     _stopSnapshotGas();
 
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = privErc20Vault.getExitQueueData();
+    (uint128 queuedShares, , , uint128 totalExitingAssets, ) = privErc20Vault.getExitQueueData();
     assertEq(privErc20Vault.vaultId(), keccak256('EthPrivErc20Vault'));
     assertEq(privErc20Vault.version(), 5);
     assertEq(privErc20Vault.admin(), admin);
