@@ -57,7 +57,7 @@ contract GnoValidatorsCheckerTest is Test, GnoHelpers {
     _collateralizeGnoVault(address(prevVersionVault));
 
     // Create another vault without sufficient funds
-    emptyVault = _getOrCreateVault(VaultType.GnoVault, admin, initParams, false);
+    emptyVault = _createVault(VaultType.GnoVault, admin, initParams, false);
 
     // Get valid registry root
     validRegistryRoot = contracts.validatorsRegistry.get_deposit_root();

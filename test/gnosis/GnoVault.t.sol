@@ -186,7 +186,7 @@ contract GnoVaultTest is Test, GnoHelpers {
     (
       uint128 queuedSharesBefore,
       uint128 unclaimedAssetsBefore,
-      uint128 totalExitingTicketsBefore,
+      ,
       uint128 totalExitingAssetsBefore,
       uint256 totalTicketsBefore
     ) = vault.getExitQueueData();
