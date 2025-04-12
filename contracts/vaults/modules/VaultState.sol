@@ -54,6 +54,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     returns (
       uint128 queuedShares,
       uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
       uint128 totalExitingAssets,
       uint256 totalTickets
     )
@@ -61,6 +62,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     return (
       _queuedShares,
       _unclaimedAssets,
+      _totalExitingTickets,
       _totalExitingAssets,
       ExitQueue.getLatestTotalTickets(_exitQueue)
     );
@@ -216,7 +218,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
       if (availableAssets < totalExitingAssets) return 0;
 
       // SLOAD to memory
-      uint256 totalExitingTickets = totalExitingAssets;
+      uint256 totalExitingTickets = _totalExitingTickets;
 
       // push checkpoint so that exited assets could be claimed
       _exitQueue.push(totalExitingTickets, totalExitingAssets);

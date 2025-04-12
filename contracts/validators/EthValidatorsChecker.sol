@@ -28,4 +28,9 @@ contract EthValidatorsChecker is ValidatorsChecker {
   function _depositAmount() internal pure override returns (uint256) {
     return 32 ether;
   }
+
+  /// @inheritdoc ValidatorsChecker
+  function _vaultAssets(address vault) internal view override returns (uint256) {
+    return address(vault).balance;
+  }
 }

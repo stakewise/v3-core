@@ -2,17 +2,20 @@
 
 pragma solidity ^0.8.22;
 
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
-import {IKeeper} from '../interfaces/IKeeper.sol';
-import {IValidatorsChecker} from '../interfaces/IValidatorsChecker.sol';
-import {IVaultState} from '../interfaces/IVaultState.sol';
-import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IDepositDataRegistry} from '../interfaces/IDepositDataRegistry.sol';
-import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
+import {IKeeper} from '../interfaces/IKeeper.sol';
+import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
+import {IValidatorsChecker} from '../interfaces/IValidatorsChecker.sol';
+import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
+import {IVaultState} from '../interfaces/IVaultState.sol';
 import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
+import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
+import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {EIP712Utils} from '../libraries/EIP712Utils.sol';
 import {ValidatorUtils} from '../libraries/ValidatorUtils.sol';
+import {Multicall} from '../base/Multicall.sol';
 
 interface IVaultValidatorsV1 {
   function validatorsRoot() external view returns (bytes32);
@@ -26,7 +29,7 @@ interface IVaultValidatorsV1 {
  *  * checking validators manager signature
  *  * checking deposit data root
  */
-abstract contract ValidatorsChecker is IValidatorsChecker {
+abstract contract ValidatorsChecker is Multicall, IValidatorsChecker {
   IValidatorsRegistry private immutable _validatorsRegistry;
   IKeeper private immutable _keeper;
   IVaultsRegistry private immutable _vaultsRegistry;
@@ -49,6 +52,57 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
     _keeper = IKeeper(keeper);
     _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
     _depositDataRegistry = IDepositDataRegistry(depositDataRegistry);
+  }
+
+  /// @inheritdoc IValidatorsChecker
+  function updateVaultState(
+    address vault,
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) external override {
+    IVaultState(vault).updateState(harvestParams);
+  }
+
+  /// @inheritdoc IValidatorsChecker
+  function getExitQueueState(
+    address vault,
+    uint256 pendingAssets
+  )
+    external
+    view
+    override
+    returns (uint256 cumulativeTotalTickets, uint256 cumulativeExitedTickets, uint256 missingAssets)
+  {
+    (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    ) = IVaultValidators(vault).getExitQueueData();
+    cumulativeTotalTickets = totalTickets + queuedShares + totalExitingTickets;
+    missingAssets = totalExitingAssets + IVaultState(vault).convertToAssets(queuedShares);
+    cumulativeExitedTickets = totalTickets;
+
+    uint256 availableAssets = pendingAssets + _vaultAssets(vault) - unclaimedAssets;
+    if (availableAssets == 0) {
+      return (cumulativeTotalTickets, cumulativeExitedTickets, missingAssets);
+    }
+
+    uint256 exitedAssets;
+    if (totalExitingAssets > 0) {
+      exitedAssets = Math.min(totalExitingAssets, availableAssets);
+      cumulativeExitedTickets += Math.mulDiv(exitedAssets, totalExitingTickets, totalExitingAssets);
+      availableAssets -= exitedAssets;
+      missingAssets -= exitedAssets;
+    }
+
+    if (queuedShares > 0) {
+      exitedAssets = Math.min(IVaultState(vault).convertToAssets(queuedShares), availableAssets);
+      cumulativeExitedTickets += IVaultState(vault).convertToShares(exitedAssets);
+      missingAssets -= exitedAssets;
+    }
+
+    return (cumulativeTotalTickets, cumulativeExitedTickets, missingAssets);
   }
 
   /// @inheritdoc IValidatorsChecker
@@ -188,4 +242,11 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
    * @return The amount of assets required for deposit
    */
   function _depositAmount() internal pure virtual returns (uint256);
+
+  /**
+   * @notice Get the amount of assets in the vault
+   * @param vault The address of the vault
+   * @return The amount of assets in the vault
+   */
+  function _vaultAssets(address vault) internal view virtual returns (uint256);
 }

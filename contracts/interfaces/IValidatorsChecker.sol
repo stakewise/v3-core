@@ -2,12 +2,15 @@
 
 pragma solidity ^0.8.22;
 
+import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
+import {IMulticall} from './IMulticall.sol';
+
 /**
  * @title IValidatorsChecker
  * @author StakeWise
  * @notice Defines the interface for ValidatorsChecker
  */
-interface IValidatorsChecker {
+interface IValidatorsChecker is IMulticall {
   enum Status {
     SUCCEEDED,
     INVALID_VALIDATORS_REGISTRY_ROOT,
@@ -37,6 +40,36 @@ interface IValidatorsChecker {
     bool[] proofFlags;
     uint256[] proofIndexes;
   }
+
+  /**
+   * @notice Function for updating vault state
+   * @param vault The address of the vault
+   * @param harvestParams The parameters for harvesting
+   */
+  function updateVaultState(
+    address vault,
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) external;
+
+  /**
+   * @notice Function for getting the exit queue cumulative tickets
+   * @param vault The address of the vault
+   * @param pendingAssets The amount of assets to be exited
+   * @return cumulativeTotalTickets The cumulative total tickets
+   * @return cumulativeExitedTickets The cumulative exited tickets
+   * @return missingAssets The amount of missing assets
+   */
+  function getExitQueueState(
+    address vault,
+    uint256 pendingAssets
+  )
+    external
+    view
+    returns (
+      uint256 cumulativeTotalTickets,
+      uint256 cumulativeExitedTickets,
+      uint256 missingAssets
+    );
 
   /**
    * @notice Function for checking validators manager signature
