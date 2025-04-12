@@ -64,7 +64,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
       _unclaimedAssets,
       _totalExitingTickets,
       _totalExitingAssets,
-      ExitQueue.getLatestTotalTickets(_exitQueue)
+      _exitQueue.getLatestTotalTickets()
     );
   }
 
