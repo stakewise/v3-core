@@ -63,20 +63,25 @@ contract GnoValidatorsCheckerTest is Test, GnoHelpers {
     validRegistryRoot = contracts.validatorsRegistry.get_deposit_root();
   }
 
-  // Test GetExitQueueState with an empty exit queue
-  function testGetExitQueueState_EmptyQueue() public view {
-    // Test with empty exit queue (new vault with no exit requests)
-    (uint256 totalTickets, uint256 exitedTickets, uint256 missingAssets) = validatorsChecker
-      .getExitQueueState(emptyVault, 0);
+  // Test getExitQueueCumulativeTickets and getExitQueueMissingAssets with an empty exit queue
+  function testGetExitQueueFunctions_EmptyQueue() public view {
+    // Get cumulative tickets for empty queue
+    uint256 cumulativeTickets = validatorsChecker.getExitQueueCumulativeTickets(emptyVault);
+
+    // Get missing assets with zero pending assets
+    uint256 missingAssets = validatorsChecker.getExitQueueMissingAssets(
+      emptyVault,
+      0, // withdrawingAssets
+      cumulativeTickets // targetCumulativeTickets (same as current since queue is empty)
+    );
 
     // Verify expected values for empty queue
-    assertEq(totalTickets, 0, 'Total tickets should be 0 for empty vault');
-    assertEq(exitedTickets, 0, 'Exited tickets should be 0 for empty vault');
+    assertEq(cumulativeTickets, 0, 'Cumulative tickets should be 0 for empty vault');
     assertEq(missingAssets, 0, 'Missing assets should be 0 for empty vault');
   }
 
-  // Test GetExitQueueState after updating state
-  function testGetExitQueueState_AfterStateUpdate() public {
+  // Test getExitQueueCumulativeTickets and getExitQueueMissingAssets after updating state
+  function testGetExitQueueFunctions_AfterStateUpdate() public {
     // Enter exit queue
     uint256 sharesToExit = IVaultState(prevVersionVault).convertToShares(2 ether);
     vm.prank(user);
@@ -85,8 +90,14 @@ contract GnoValidatorsCheckerTest is Test, GnoHelpers {
     _upgradeVault(VaultType.GnoVault, address(prevVersionVault));
 
     // Get initial exit queue state
-    (uint256 initialTotal, uint256 initialExited, uint256 initialMissing) = validatorsChecker
-      .getExitQueueState(prevVersionVault, 0);
+    uint256 initialCumulativeTickets = validatorsChecker.getExitQueueCumulativeTickets(
+      prevVersionVault
+    );
+    uint256 initialMissingAssets = validatorsChecker.getExitQueueMissingAssets(
+      prevVersionVault,
+      0, // withdrawingAssets
+      initialCumulativeTickets // targetCumulativeTickets
+    );
 
     // Update vault state
     IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(
@@ -97,21 +108,26 @@ contract GnoValidatorsCheckerTest is Test, GnoHelpers {
     validatorsChecker.updateVaultState(prevVersionVault, harvestParams);
 
     // Get exit queue state after update
-    (uint256 updatedTotal, uint256 updatedExited, uint256 updatedMissing) = validatorsChecker
-      .getExitQueueState(prevVersionVault, 0);
+    uint256 updatedCumulativeTickets = validatorsChecker.getExitQueueCumulativeTickets(
+      prevVersionVault
+    );
+    uint256 updatedMissingAssets = validatorsChecker.getExitQueueMissingAssets(
+      prevVersionVault,
+      0, // withdrawingAssets
+      initialCumulativeTickets // use same target as before for fair comparison
+    );
 
     // After state update, the queue data may change depending on implementation
     // At minimum, verify the function doesn't revert and returns reasonable values
     assertTrue(
-      updatedTotal >= initialTotal,
-      'Total tickets should not decrease after state update'
+      updatedCumulativeTickets >= initialCumulativeTickets,
+      'Cumulative tickets should not decrease after state update'
     );
 
-    // Depending on implementation, exited tickets might increase
-    // Either way, missing assets should not increase
+    // Missing assets should not increase after a state update
     assertTrue(
-      updatedExited >= initialExited || updatedMissing <= initialMissing,
-      'Either exited tickets should increase or missing assets should decrease'
+      updatedMissingAssets <= initialMissingAssets,
+      'Missing assets should not increase after state update'
     );
   }
 }
