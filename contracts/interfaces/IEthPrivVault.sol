@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.22;
 
-import {IVaultWhitelist} from './IVaultWhitelist.sol';
-import {IEthVault} from './IEthVault.sol';
+import {IVaultWhitelist} from "./IVaultWhitelist.sol";
+import {IEthVault} from "./IEthVault.sol";
 
 /**
  * @title IEthPrivVault

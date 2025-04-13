@@ -1,0 +1,5 @@
+{
+  "PriceFeedTest_test_getRate_gas": "18476",
+  "PriceFeedTest_test_latestAnswer_gas": "18525",
+  "PriceFeedTest_test_latestRoundData_gas": "18996"
+}

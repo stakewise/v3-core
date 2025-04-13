@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.22;
 
-import {IVaultBlocklist} from './IVaultBlocklist.sol';
-import {IGnoVault} from './IGnoVault.sol';
+import {IVaultBlocklist} from "./IVaultBlocklist.sol";
+import {IGnoVault} from "./IGnoVault.sol";
 
 /**
  * @title IGnoBlocklistVault

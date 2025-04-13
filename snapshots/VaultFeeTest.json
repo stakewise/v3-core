@@ -1,0 +1,15 @@
+{
+  "VaultFeeTest_test_feeCollection": "115247",
+  "VaultFeeTest_test_feePercent_changeAffectsFutureRewards": "81049",
+  "VaultFeeTest_test_setFeePercent_aboveMaximum": "40380",
+  "VaultFeeTest_test_setFeePercent_initialZeroToOne": "42312",
+  "VaultFeeTest_test_setFeePercent_maxIncrease": "38472",
+  "VaultFeeTest_test_setFeePercent_notAdmin": "34556",
+  "VaultFeeTest_test_setFeePercent_requiresHarvest": "38001",
+  "VaultFeeTest_test_setFeePercent_success": "42575",
+  "VaultFeeTest_test_setFeePercent_tooSoon": "38137",
+  "VaultFeeTest_test_setFeeRecipient_notAdmin": "36854",
+  "VaultFeeTest_test_setFeeRecipient_requiresHarvest": "40296",
+  "VaultFeeTest_test_setFeeRecipient_success": "48796",
+  "VaultFeeTest_test_setFeeRecipient_zeroAddress": "40343"
+}

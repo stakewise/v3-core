@@ -1,0 +1,8 @@
+{
+  "EthFoxVaultTest_test_canDepositAsNonBlockedUser": "85500",
+  "EthFoxVaultTest_test_canDepositUsingReceiveAsNotBlockedUser": "79867",
+  "EthFoxVaultTest_test_ejectUser": "101192",
+  "EthFoxVaultTest_test_ejectUserWithNoShares": "58862",
+  "EthFoxVaultTest_test_withdrawValidator_unknown": "51498",
+  "EthFoxVaultTest_test_withdrawValidator_validatorsManager": "69605"
+}

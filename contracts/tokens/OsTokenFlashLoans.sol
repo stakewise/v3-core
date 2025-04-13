@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.22;
 
-import {IERC20} from '@openzeppelin/contracts/token/ERC20/IERC20.sol';
-import {ReentrancyGuard} from '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
-import {IOsTokenFlashLoans} from '../interfaces/IOsTokenFlashLoans.sol';
-import {IOsTokenFlashLoanRecipient} from '../interfaces/IOsTokenFlashLoanRecipient.sol';
-import {IOsToken} from '../interfaces/IOsToken.sol';
-import {Errors} from '../libraries/Errors.sol';
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IOsTokenFlashLoans} from "../interfaces/IOsTokenFlashLoans.sol";
+import {IOsTokenFlashLoanRecipient} from "../interfaces/IOsTokenFlashLoanRecipient.sol";
+import {IOsToken} from "../interfaces/IOsToken.sol";
+import {Errors} from "../libraries/Errors.sol";
 
 /**
  * @title OsTokenFlashLoans
@@ -15,45 +15,45 @@ import {Errors} from '../libraries/Errors.sol';
  * @notice Mint and burn up to 100 000 osToken shares in single transaction.
  */
 contract OsTokenFlashLoans is ReentrancyGuard, IOsTokenFlashLoans {
-  uint256 private constant _maxFlashLoanAmount = 100_000 ether;
-  address private immutable _osToken;
+    uint256 private constant _maxFlashLoanAmount = 100_000 ether;
+    address private immutable _osToken;
 
-  /**
-   * @dev Constructor
-   * @param osToken The address of the OsToken contract
-   */
-  constructor(address osToken) ReentrancyGuard() {
-    _osToken = osToken;
-  }
-
-  /// @inheritdoc IOsTokenFlashLoans
-  function flashLoan(uint256 osTokenShares, bytes memory userData) external override nonReentrant {
-    // check if not more than max flash loan amount requested
-    if (osTokenShares == 0 || osTokenShares > _maxFlashLoanAmount) {
-      revert Errors.InvalidShares();
+    /**
+     * @dev Constructor
+     * @param osToken The address of the OsToken contract
+     */
+    constructor(address osToken) ReentrancyGuard() {
+        _osToken = osToken;
     }
 
-    // get current balance
-    uint256 preLoanBalance = IERC20(_osToken).balanceOf(address(this));
+    /// @inheritdoc IOsTokenFlashLoans
+    function flashLoan(uint256 osTokenShares, bytes memory userData) external override nonReentrant {
+        // check if not more than max flash loan amount requested
+        if (osTokenShares == 0 || osTokenShares > _maxFlashLoanAmount) {
+            revert Errors.InvalidShares();
+        }
 
-    // mint OsToken shares for the caller
-    IOsToken(_osToken).mint(msg.sender, osTokenShares);
+        // get current balance
+        uint256 preLoanBalance = IERC20(_osToken).balanceOf(address(this));
 
-    // execute callback
-    IOsTokenFlashLoanRecipient(msg.sender).receiveFlashLoan(osTokenShares, userData);
+        // mint OsToken shares for the caller
+        IOsToken(_osToken).mint(msg.sender, osTokenShares);
 
-    // get post loan balance
-    uint256 postLoanBalance = IERC20(_osToken).balanceOf(address(this));
+        // execute callback
+        IOsTokenFlashLoanRecipient(msg.sender).receiveFlashLoan(osTokenShares, userData);
 
-    // check if the amount was repaid
-    if (postLoanBalance < preLoanBalance + osTokenShares) {
-      revert Errors.FlashLoanFailed();
+        // get post loan balance
+        uint256 postLoanBalance = IERC20(_osToken).balanceOf(address(this));
+
+        // check if the amount was repaid
+        if (postLoanBalance < preLoanBalance + osTokenShares) {
+            revert Errors.FlashLoanFailed();
+        }
+
+        // burn OsToken shares
+        IOsToken(address(_osToken)).burn(address(this), osTokenShares);
+
+        // emit event
+        emit OsTokenFlashLoan(msg.sender, osTokenShares);
     }
-
-    // burn OsToken shares
-    IOsToken(address(_osToken)).burn(address(this), osTokenShares);
-
-    // emit event
-    emit OsTokenFlashLoan(msg.sender, osTokenShares);
-  }
 }

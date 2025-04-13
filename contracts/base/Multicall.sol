@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.22;
 
-import '../interfaces/IMulticall.sol';
+import "../interfaces/IMulticall.sol";
 
 /**
  * @title Multicall
@@ -11,23 +11,23 @@ import '../interfaces/IMulticall.sol';
  * @notice Enables calling multiple methods in a single call to the contract
  */
 abstract contract Multicall is IMulticall {
-  /// @inheritdoc IMulticall
-  function multicall(bytes[] calldata data) external override returns (bytes[] memory results) {
-    uint256 dataLength = data.length;
-    results = new bytes[](dataLength);
-    for (uint256 i = 0; i < dataLength; i++) {
-      (bool success, bytes memory result) = address(this).delegatecall(data[i]);
+    /// @inheritdoc IMulticall
+    function multicall(bytes[] calldata data) external override returns (bytes[] memory results) {
+        uint256 dataLength = data.length;
+        results = new bytes[](dataLength);
+        for (uint256 i = 0; i < dataLength; i++) {
+            (bool success, bytes memory result) = address(this).delegatecall(data[i]);
 
-      if (!success) {
-        // Next 5 lines from https://ethereum.stackexchange.com/a/83577
-        if (result.length < 68) revert();
-        assembly {
-          result := add(result, 0x04)
+            if (!success) {
+                // Next 5 lines from https://ethereum.stackexchange.com/a/83577
+                if (result.length < 68) revert();
+                assembly {
+                    result := add(result, 0x04)
+                }
+                revert(abi.decode(result, (string)));
+            }
+
+            results[i] = result;
         }
-        revert(abi.decode(result, (string)));
-      }
-
-      results[i] = result;
     }
-  }
 }

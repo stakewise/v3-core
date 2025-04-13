@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.22;
 
-import {IVaultBlocklist} from './IVaultBlocklist.sol';
-import {IEthVault} from './IEthVault.sol';
+import {IVaultBlocklist} from "./IVaultBlocklist.sol";
+import {IEthVault} from "./IEthVault.sol";
 
 /**
  * @title IEthBlocklistVault

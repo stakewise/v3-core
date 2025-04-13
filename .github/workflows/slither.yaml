@@ -35,7 +35,7 @@ jobs:
           pip3 install slither-analyzer
 
       - name: Build
-        run: forge build
+        run: forge compile --skip test
 
       - name: Run Slither
         run: |

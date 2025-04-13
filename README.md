@@ -1,75 +1,150 @@
 # StakeWise Protocol V3
 
-[//]: # '[![Build pass](https://github.com/stakewise/v3-core/actions/workflows/CI.yaml/badge.svg)](https://github.com/stakewise/v3-core/actions/workflows/CI.yaml)'
-[//]: # '[![codecov](https://codecov.io/gh/stakewise/v3-core/branch/main/graph/badge.svg?token=U50KN38G67)](https://codecov.io/gh/stakewise/v3-core)'
+StakeWise V3 is a decentralized liquid staking protocol that operates on Ethereum and other EVM-compatible chains such as Gnosis Chain. The protocol allows users to stake their assets (ETH, GNO) and receive liquid staking tokens in return, enabling them to maintain liquidity while earning staking rewards.
 
 [![Discord](https://user-images.githubusercontent.com/7288322/34471967-1df7808a-efbb-11e7-9088-ed0b04151291.png)](https://discord.gg/stakewise)
 
-This repository contains the [StakeWise](https://stakewise.io/) V3 smart contracts for decentralized liquid staking on
-Ethereum.
+## Architecture Overview
 
-## Documentation
+The StakeWise V3 protocol consists of several key components:
 
-You can find the documentation for every contract in the `contracts` directory. For integration, check
-the `contracts/interfaces` directory.
+### Vaults
+
+Modular smart contracts that manage staked assets:
+
+- **EthVault**: For Ethereum staking
+- **GnoVault**: For Gnosis Chain staking
+- **Specialized variants**: Blocklist vaults, private vaults, ERC20 vaults
+
+### Token System
+
+- **OsToken**: Over-collateralized staked token
+- **OsTokenVaultController**: Manages the minting and burning of OsToken shares
+- **OsTokenConfig**: Configuration parameters for OsToken operations
+
+### Validator Management
+
+- **ValidatorsRegistry**: Interface with the blockchain's validator system
+- **KeeperValidators**: Approves validator registrations
+- **ValidatorsChecker**: Validates deposit data
+
+### MEV Management
+
+- **OwnMevEscrow**: Accumulates MEV for individual vaults
+- **SharedMevEscrow**: Collects and distributes MEV rewards accross multiple vaults
+
+### Auxiliary Components
+
+- **Keeper**: Updates vault rewards and approves validator registrations
+- **VaultsRegistry**: Tracks all deployed vaults and factories
+- **RewardSplitter**: Distributes fee based on configured shares
+
+## Key Features
+
+- **Modular Architecture**: Components can be developed independently
+- **Multi-Chain Support**: Works on Ethereum and Gnosis Chain
+- **MEV Capture**: Captures and distributes MEV rewards
+- **Validator Management**: Full lifecycle management of validators
+- **Customizable Vaults**: Different vault types for various use cases
+- **Over-Collateralized Tokens**: Liquid staking with osToken system
+- **Governance Controls**: Admin functions for parameter updates
+
+## Installation
+
+This project uses Foundry as the development environment.
+
+1. Install Foundry:
+
+```shell
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
+```
+
+2. Clone the repository and install dependencies:
+
+```shell
+git clone https://github.com/stakewise/v3-core.git
+cd v3-core
+forge install
+```
 
 ## Development
 
-1. Install dependencies:
+### Compilation
 
-   ```shell script
-   npm install
-   ```
+Compile contracts with Foundry:
 
-2. Compile contracts:
+```shell
+forge build --skip test
+```
 
-   ```shell script
-   npm run compile
-   ```
+### Testing
 
-3. Run tests:
+Run tests with Foundry:
 
-   ```shell script
-   npm run quick-test
-   ```
+```shell
+FOUNDRY_PROFILE=test forge test --isolate
+```
 
-## Deploy locally
+### Local Deployment
 
-1. Install dependencies:
+1. Start a local Anvil node (Foundry's local chain):
 
-   ```shell script
-   npm install
-   ```
+```shell
+anvil
+```
 
-2. Compile contracts:
+2. Deploy contracts using Foundry scripts:
 
-   ```shell script
-   npm run compile
-   ```
+```shell
+forge script script/UpgradeEthNetwork.s.sol:UpgradeEthNetwork --rpc-url http://localhost:8545 --broadcast
+```
 
-3. Start local hardhat node in a separate terminal:
+### Gas Analysis
 
-   ```shell script
-   npm run node
-   ```
+Generate a gas report:
 
-4. Deploy contracts:
+```shell
+FOUNDRY_PROFILE=test forge test --isolate --gas-report
+```
 
-   ```shell script
-   npm run full-deploy:local
-   ```
+## Contract Documentation
+
+Detailed documentation for each contract is available in the `contracts` directory. For integration purposes, review the interfaces in the `contracts/interfaces` directory.
+
+Key interfaces include:
+
+- `IEthVault.sol`: Ethereum staking vaults
+- `IGnoVault.sol`: Gnosis Chain staking vaults
+- `IOsToken.sol`: Over-collateralized staked tokens
+- `IKeeper.sol`: Validator and rewards management
+
+## Protocol Architecture
+
+The protocol follows a modular design with several key components:
+
+1. **Vaults**: Hold staked assets and manage validator operations
+2. **Tokens**: Represent staked positions with liquid tokens
+3. **Keepers**: External services that update rewards and approve validators
+4. **MEV Escrows**: Capture and distribute MEV rewards
 
 ## Contributing
 
-Development of the project happens in the open on GitHub, and we are grateful to the community for contributing bug
-fixes and improvements.
+Contributions are welcome! The project follows standard GitHub flow:
 
-## Contact us
+1. Fork the repository
+2. Create a feature branch
+3. Implement changes with tests
+4. Submit a pull request
+
+Development happens in the open on GitHub, and we are grateful to the community for contributing bug fixes and improvements.
+
+## Contact
 
 - [Discord](https://chat.stakewise.io/)
 - [Telegram](https://t.me/stakewise_io)
 - [Twitter](https://twitter.com/stakewise_io)
 
-### License
+## License
 
 The license for StakeWise V3 Core is the Business Source License 1.1 (BUSL-1.1), see [LICENSE](./LICENSE.md).

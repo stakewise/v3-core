@@ -2,8 +2,8 @@
 
 pragma solidity ^0.8.22;
 
-import {IVaultWhitelist} from './IVaultWhitelist.sol';
-import {IGnoVault} from './IGnoVault.sol';
+import {IVaultWhitelist} from "./IVaultWhitelist.sol";
+import {IGnoVault} from "./IGnoVault.sol";
 
 /**
  * @title IGnoPrivVault
