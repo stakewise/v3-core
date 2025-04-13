@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.22;
 
-import {ISharedMevEscrow} from '../../../interfaces/ISharedMevEscrow.sol';
-import {IVaultsRegistry} from '../../../interfaces/IVaultsRegistry.sol';
-import {IVaultEthStaking} from '../../../interfaces/IVaultEthStaking.sol';
-import {Errors} from '../../../libraries/Errors.sol';
+import {ISharedMevEscrow} from "../../../interfaces/ISharedMevEscrow.sol";
+import {IVaultsRegistry} from "../../../interfaces/IVaultsRegistry.sol";
+import {IVaultEthStaking} from "../../../interfaces/IVaultEthStaking.sol";
+import {Errors} from "../../../libraries/Errors.sol";
 
 /**
  * @title SharedMevEscrow
@@ -13,26 +13,26 @@ import {Errors} from '../../../libraries/Errors.sol';
  * @notice Accumulates received MEV. The rewards are shared by multiple Vaults.
  */
 contract SharedMevEscrow is ISharedMevEscrow {
-  IVaultsRegistry private immutable _vaultsRegistry;
+    IVaultsRegistry private immutable _vaultsRegistry;
 
-  /// @dev Constructor
-  constructor(address vaultsRegistry) {
-    _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
-  }
+    /// @dev Constructor
+    constructor(address vaultsRegistry) {
+        _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
+    }
 
-  /// @inheritdoc ISharedMevEscrow
-  function harvest(uint256 assets) external override {
-    if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.HarvestFailed();
+    /// @inheritdoc ISharedMevEscrow
+    function harvest(uint256 assets) external override {
+        if (!_vaultsRegistry.vaults(msg.sender)) revert Errors.HarvestFailed();
 
-    emit Harvested(msg.sender, assets);
-    // slither-disable-next-line arbitrary-send-eth
-    IVaultEthStaking(msg.sender).receiveFromMevEscrow{value: assets}();
-  }
+        emit Harvested(msg.sender, assets);
+        // slither-disable-next-line arbitrary-send-eth
+        IVaultEthStaking(msg.sender).receiveFromMevEscrow{value: assets}();
+    }
 
-  /**
-   * @dev Function for receiving MEV
-   */
-  receive() external payable {
-    emit MevReceived(msg.value);
-  }
+    /**
+     * @dev Function for receiving MEV
+     */
+    receive() external payable {
+        emit MevReceived(msg.value);
+    }
 }
