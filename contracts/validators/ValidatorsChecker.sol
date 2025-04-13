@@ -63,15 +63,23 @@ abstract contract ValidatorsChecker is Multicall, IValidatorsChecker {
   }
 
   /// @inheritdoc IValidatorsChecker
-  function getExitQueueState(
+  function getExitQueueCumulativeTickets(address vault) external view override returns (uint256) {
+    (
+      uint128 queuedShares,
+      ,
+      uint128 totalExitingTickets,
+      ,
+      uint256 totalTickets
+    ) = IVaultValidators(vault).getExitQueueData();
+    return totalTickets + queuedShares + totalExitingTickets;
+  }
+
+  /// @inheritdoc IValidatorsChecker
+  function getExitQueueMissingAssets(
     address vault,
-    uint256 pendingAssets
-  )
-    external
-    view
-    override
-    returns (uint256 cumulativeTotalTickets, uint256 cumulativeExitedTickets, uint256 missingAssets)
-  {
+    uint256 withdrawingAssets,
+    uint256 targetCumulativeTickets
+  ) external view override returns (uint256 missingAssets) {
     (
       uint128 queuedShares,
       uint128 unclaimedAssets,
@@ -79,30 +87,31 @@ abstract contract ValidatorsChecker is Multicall, IValidatorsChecker {
       uint128 totalExitingAssets,
       uint256 totalTickets
     ) = IVaultValidators(vault).getExitQueueData();
-    cumulativeTotalTickets = totalTickets + queuedShares + totalExitingTickets;
-    missingAssets = totalExitingAssets + IVaultState(vault).convertToAssets(queuedShares);
-    cumulativeExitedTickets = totalTickets;
-
-    uint256 availableAssets = pendingAssets + _vaultAssets(vault) - unclaimedAssets;
-    if (availableAssets == 0) {
-      return (cumulativeTotalTickets, cumulativeExitedTickets, missingAssets);
+    // check whether already covered
+    if (totalTickets >= targetCumulativeTickets) {
+      return 0;
     }
 
-    uint256 exitedAssets;
-    if (totalExitingAssets > 0) {
-      exitedAssets = Math.min(totalExitingAssets, availableAssets);
-      cumulativeExitedTickets += Math.mulDiv(exitedAssets, totalExitingTickets, totalExitingAssets);
-      availableAssets -= exitedAssets;
-      missingAssets -= exitedAssets;
+    // calculate the amount of tickets that need to be covered
+    uint256 totalTicketsToCover = targetCumulativeTickets - totalTickets;
+
+    // calculate missing assets from legacy exits
+    uint256 ticketsToCover;
+    if (totalExitingTickets > 0) {
+      ticketsToCover = Math.min(totalTicketsToCover, totalExitingTickets);
+      missingAssets = Math.mulDiv(ticketsToCover, totalExitingAssets, totalExitingTickets);
+      totalTicketsToCover -= ticketsToCover;
     }
 
-    if (queuedShares > 0) {
-      exitedAssets = Math.min(IVaultState(vault).convertToAssets(queuedShares), availableAssets);
-      cumulativeExitedTickets += IVaultState(vault).convertToShares(exitedAssets);
-      missingAssets -= exitedAssets;
+    // calculate missing assets from queued shares
+    if (totalTicketsToCover > 0 && queuedShares > 0) {
+      ticketsToCover = Math.min(totalTicketsToCover, queuedShares);
+      missingAssets += IVaultState(vault).convertToAssets(ticketsToCover);
     }
 
-    return (cumulativeTotalTickets, cumulativeExitedTickets, missingAssets);
+    // check whether there is enough available assets
+    uint256 availableAssets = withdrawingAssets + _vaultAssets(vault) - unclaimedAssets;
+    return availableAssets >= missingAssets ? 0 : missingAssets - availableAssets;
   }
 
   /// @inheritdoc IValidatorsChecker
