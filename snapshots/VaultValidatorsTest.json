@@ -5,7 +5,7 @@
   "VaultValidatorsTest_test_consolidateValidators_invalidValidatorsEmpty": "51237",
   "VaultValidatorsTest_test_consolidateValidators_invalidValidatorsLength": "57492",
   "VaultValidatorsTest_test_consolidateValidators_multipleValidators": "95028",
-  "VaultValidatorsTest_test_consolidateValidators_notManager": "52865",
+  "VaultValidatorsTest_test_consolidateValidators_notManager": "52867",
   "VaultValidatorsTest_test_consolidateValidators_untrackedDestination": "74346",
   "VaultValidatorsTest_test_consolidateValidators_withOracleSignatures": "111415",
   "VaultValidatorsTest_test_consolidateValidators_withSignature": "107333",

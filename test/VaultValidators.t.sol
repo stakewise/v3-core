@@ -1167,7 +1167,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory sourcePublicKey = _registerEthValidator(address(vault), validatorDeposit, false);
 
         // 2. Prepare consolidation data
-        bytes memory destPublicKey = vm.randomBytes(48);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory destPublicKey = _getDeterministicBytes(nonce, 48);
         bytes memory consolidationData = bytes.concat(sourcePublicKey, destPublicKey);
 
         // 3. Set up the consolidation fee
