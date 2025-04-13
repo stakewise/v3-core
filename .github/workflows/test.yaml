@@ -22,7 +22,7 @@ jobs:
           version: stable
 
       - name: Run tests
-        run: forge test --isolate --gas-snapshot-check -vvv
+        run: forge test --isolate --gas-snapshot-check=true -vvv
         env:
           USE_FORK_VAULTS: false
           MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
