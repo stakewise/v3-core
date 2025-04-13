@@ -83,6 +83,7 @@ contract GnoVaultTest is Test, GnoHelpers {
     (
       uint128 queuedShares,
       uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
       uint128 totalExitingAssets,
       uint256 totalTickets
     ) = newVault.getExitQueueData();
@@ -99,6 +100,7 @@ contract GnoVaultTest is Test, GnoHelpers {
     assertEq(queuedShares, 0);
     assertEq(unclaimedAssets, 0);
     assertEq(totalExitingAssets, 0);
+    assertEq(totalExitingTickets, 0);
     assertEq(totalTickets, 0);
   }
 
@@ -147,7 +149,7 @@ contract GnoVaultTest is Test, GnoHelpers {
     _stopSnapshotGas();
 
     // Check that the vault was upgraded correctly
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = prevVault.getExitQueueData();
+    (uint128 queuedShares, , , uint128 totalExitingAssets, ) = prevVault.getExitQueueData();
     assertEq(prevVault.vaultId(), keccak256('GnoVault'));
     assertEq(prevVault.version(), 3);
     assertEq(prevVault.admin(), admin);
@@ -184,6 +186,7 @@ contract GnoVaultTest is Test, GnoHelpers {
     (
       uint128 queuedSharesBefore,
       uint128 unclaimedAssetsBefore,
+      ,
       uint128 totalExitingAssetsBefore,
       uint256 totalTicketsBefore
     ) = vault.getExitQueueData();
@@ -201,6 +204,7 @@ contract GnoVaultTest is Test, GnoHelpers {
     (
       uint128 queuedSharesAfter,
       uint128 unclaimedAssetsAfter,
+      ,
       uint128 totalExitingAssetsAfter,
       uint256 totalTicketsAfter
     ) = vault.getExitQueueData();
@@ -230,7 +234,7 @@ contract GnoVaultTest is Test, GnoHelpers {
     IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 0, 0);
     vault.updateState(harvestParams);
 
-    (queuedSharesAfter, unclaimedAssetsAfter, totalExitingAssetsAfter, totalTicketsAfter) = vault
+    (queuedSharesAfter, unclaimedAssetsAfter, , totalExitingAssetsAfter, totalTicketsAfter) = vault
       .getExitQueueData();
     assertLt(
       queuedSharesAfter,

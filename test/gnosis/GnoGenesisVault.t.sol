@@ -89,7 +89,7 @@ contract GnoGenesisVaultTest is Test, GnoHelpers {
     _upgradeVault(VaultType.GnoGenesisVault, address(existingVault));
     _stopSnapshotGas();
 
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = existingVault.getExitQueueData();
+    (uint128 queuedShares, , , uint128 totalExitingAssets, ) = existingVault.getExitQueueData();
     assertEq(existingVault.vaultId(), keccak256('GnoGenesisVault'));
     assertEq(existingVault.version(), 4);
     assertEq(existingVault.admin(), adminBefore);

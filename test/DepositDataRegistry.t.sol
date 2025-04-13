@@ -51,7 +51,7 @@ contract DepositDataRegistryTest is Test, EthHelpers {
       ),
       false
     );
-    (uint128 queuedShares, uint128 unclaimedAssets, uint128 totalExitingAssets, ) = IEthVault(
+    (uint128 queuedShares, uint128 unclaimedAssets, , uint128 totalExitingAssets, ) = IEthVault(
       validVault
     ).getExitQueueData();
     exitingAssets =

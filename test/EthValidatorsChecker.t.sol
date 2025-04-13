@@ -7,6 +7,9 @@ import {IValidatorsChecker} from '../contracts/interfaces/IValidatorsChecker.sol
 import {IDepositDataRegistry} from '../contracts/interfaces/IDepositDataRegistry.sol';
 import {IEthVault} from '../contracts/interfaces/IEthVault.sol';
 import {IVaultValidators} from '../contracts/interfaces/IVaultValidators.sol';
+import {IVaultEnterExit} from '../contracts/interfaces/IVaultEnterExit.sol';
+import {IVaultState} from '../contracts/interfaces/IVaultState.sol';
+import {IKeeperRewards} from '../contracts/interfaces/IKeeperRewards.sol';
 import {EthHelpers} from './helpers/EthHelpers.sol';
 
 interface IVaultValidatorsV1 {
@@ -396,7 +399,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
 
     // 5. Create the message hash that matches the contract's implementation
     bytes32 validatorsManagerTypeHash = keccak256(
-      'VaultValidators(bytes32 nonce,bytes validators)'
+      'VaultValidators(bytes32 validatorsRegistryRoot,bytes validators)'
     );
     bytes32 messageHash = keccak256(
       abi.encode(validatorsManagerTypeHash, validRegistryRoot, keccak256(validatorData))
@@ -486,5 +489,187 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
       'Deposit data root verification should succeed'
     );
     assertEq(blockNumber, block.number);
+  }
+
+  function testGetExitQueueCumulativeTickets_EmptyQueue() public view {
+    // Test with empty exit queue (new vault with no exit requests)
+    uint256 cumulativeTickets = validatorsChecker.getExitQueueCumulativeTickets(emptyVault);
+
+    // Verify expected values for empty queue
+    assertEq(cumulativeTickets, 0, 'Cumulative tickets should be 0 for empty vault');
+  }
+
+  function testGetExitQueueMissingAssets_EmptyQueue() public view {
+    // Test with empty exit queue and no pending assets
+    uint256 targetCumulativeTickets = 0;
+    uint256 missingAssets = validatorsChecker.getExitQueueMissingAssets(
+      emptyVault,
+      0, // No pending assets
+      targetCumulativeTickets
+    );
+
+    // Verify expected values for empty queue
+    assertEq(missingAssets, 0, 'Missing assets should be 0 for empty queue with 0 target tickets');
+  }
+
+  function testGetExitQueueMissingAssets_WithPendingAssets() public {
+    // Setup: deposit funds and enter exit queue
+    _depositToVault(vault, 5 ether, user, user);
+    vm.deal(vault, 0); // Empty the vault balance
+
+    // Enter exit queue with some shares
+    uint256 sharesToExit = IVaultState(vault).convertToShares(1 ether);
+    vm.prank(user);
+    IVaultEnterExit(vault).enterExitQueue(sharesToExit, user);
+
+    // Get current cumulative tickets
+    uint256 cumulativeTickets = validatorsChecker.getExitQueueCumulativeTickets(vault);
+    assertGt(
+      cumulativeTickets,
+      0,
+      'Cumulative tickets should be non-zero after entering exit queue'
+    );
+
+    // Test with no pending assets
+    uint256 missingAssetsNoPending = validatorsChecker.getExitQueueMissingAssets(
+      vault,
+      0, // No pending assets
+      cumulativeTickets
+    );
+
+    // Test with some pending assets
+    uint256 pendingAssets = 0.5 ether;
+    uint256 missingAssetsWithPending = validatorsChecker.getExitQueueMissingAssets(
+      vault,
+      pendingAssets,
+      cumulativeTickets
+    );
+
+    // Pending assets should reduce missing assets
+    assertGt(
+      missingAssetsNoPending,
+      missingAssetsWithPending,
+      'Pending assets should reduce missing assets'
+    );
+  }
+
+  function testGetExitQueueMissingAssets_WithMultipleExits() public {
+    // Setup multiple exit queue entries
+    _depositToVault(vault, 10 ether, user, user);
+
+    // Enter exit queue with different amounts
+    uint256 user1Shares = IVaultState(vault).convertToShares(2 ether);
+    uint256 user2Shares = IVaultState(vault).convertToShares(3 ether);
+
+    vm.startPrank(user);
+    IVaultEnterExit(vault).enterExitQueue(user1Shares, user);
+    IVaultEnterExit(vault).enterExitQueue(user2Shares, user);
+    vm.stopPrank();
+
+    // Get cumulative tickets
+    uint256 cumulativeTickets = validatorsChecker.getExitQueueCumulativeTickets(vault);
+
+    // Empty the vault balance to force missing assets
+    vm.deal(vault, 0);
+
+    // Get initial missing assets
+    uint256 initialMissingAssets = validatorsChecker.getExitQueueMissingAssets(
+      vault,
+      0, // No pending assets
+      cumulativeTickets
+    );
+
+    // Add pending assets and check changes
+    uint256 pendingAssets = 4 ether;
+    uint256 updatedMissingAssets = validatorsChecker.getExitQueueMissingAssets(
+      vault,
+      pendingAssets,
+      cumulativeTickets
+    );
+
+    // Verify missing assets decrease with pending assets
+    assertLt(
+      updatedMissingAssets,
+      initialMissingAssets,
+      'Missing assets should decrease with pending assets'
+    );
+  }
+
+  function testGetExitQueueMissingAssets_WithExcessPendingAssets() public {
+    // Setup: deposit and enter exit queue
+    _depositToVault(vault, 5 ether, user, user);
+
+    uint256 sharesToExit = IVaultState(vault).convertToShares(1 ether);
+    vm.prank(user);
+    IVaultEnterExit(vault).enterExitQueue(sharesToExit, user);
+
+    // Get cumulative tickets
+    uint256 cumulativeTickets = validatorsChecker.getExitQueueCumulativeTickets(vault);
+
+    // Get missing assets with no pending assets
+    uint256 missingAssetsBefore = validatorsChecker.getExitQueueMissingAssets(
+      vault,
+      0,
+      cumulativeTickets
+    );
+
+    // Test with large amount of pending assets (more than missing)
+    uint256 excessPendingAssets = missingAssetsBefore * 2;
+    uint256 missingAssetsAfter = validatorsChecker.getExitQueueMissingAssets(
+      vault,
+      excessPendingAssets,
+      cumulativeTickets
+    );
+
+    // No missing assets with excess pending assets
+    assertEq(missingAssetsAfter, 0, 'No missing assets with excess pending assets');
+  }
+
+  function testGetExitQueueMissingAssets_ZeroAvailableAssets() public {
+    // Setup: Create exit queue entries but make available assets zero
+    _depositToVault(vault, 5 ether, user, user);
+
+    uint256 sharesToExit = IVaultState(vault).convertToShares(2 ether);
+    vm.prank(user);
+    IVaultEnterExit(vault).enterExitQueue(sharesToExit, user);
+
+    // Get cumulative tickets
+    uint256 cumulativeTickets = validatorsChecker.getExitQueueCumulativeTickets(vault);
+
+    // Set vault balance to zero
+    vm.deal(vault, 0);
+
+    // With zero available assets and no pending assets, missing assets should be non-zero
+    uint256 missingAssets = validatorsChecker.getExitQueueMissingAssets(
+      vault,
+      0, // No pending assets
+      cumulativeTickets
+    );
+
+    assertGt(missingAssets, 0, 'Missing assets should be non-zero with no available assets');
+  }
+
+  function testUpdateVaultState() public {
+    // Setup: Create rewards for the vault
+    int160 totalReward = int160(int256(0.5 ether));
+    uint160 unlockedMevReward = 0.1 ether;
+
+    uint256 totalAssetsBefore = IEthVault(vault).totalAssets();
+
+    // Create harvest params with the setup rewards
+    IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(
+      address(vault),
+      totalReward,
+      unlockedMevReward
+    );
+
+    // Call updateVaultState via the validatorsChecker
+    validatorsChecker.updateVaultState(vault, harvestParams);
+
+    assertEq(
+      IEthVault(vault).totalAssets(),
+      totalAssetsBefore + 0.5 ether,
+      "Balance shouldn't change on second update"
+    );
   }
 }

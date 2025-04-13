@@ -2,17 +2,20 @@
 
 pragma solidity ^0.8.22;
 
+import {Math} from '@openzeppelin/contracts/utils/math/Math.sol';
 import {MerkleProof} from '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
-import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
-import {IKeeper} from '../interfaces/IKeeper.sol';
-import {IValidatorsChecker} from '../interfaces/IValidatorsChecker.sol';
-import {IVaultState} from '../interfaces/IVaultState.sol';
-import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
 import {IDepositDataRegistry} from '../interfaces/IDepositDataRegistry.sol';
-import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
+import {IKeeper} from '../interfaces/IKeeper.sol';
+import {IKeeperRewards} from '../interfaces/IKeeperRewards.sol';
+import {IValidatorsChecker} from '../interfaces/IValidatorsChecker.sol';
+import {IValidatorsRegistry} from '../interfaces/IValidatorsRegistry.sol';
+import {IVaultState} from '../interfaces/IVaultState.sol';
 import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
+import {IVaultVersion} from '../interfaces/IVaultVersion.sol';
+import {IVaultsRegistry} from '../interfaces/IVaultsRegistry.sol';
 import {EIP712Utils} from '../libraries/EIP712Utils.sol';
 import {ValidatorUtils} from '../libraries/ValidatorUtils.sol';
+import {Multicall} from '../base/Multicall.sol';
 
 interface IVaultValidatorsV1 {
   function validatorsRoot() external view returns (bytes32);
@@ -26,7 +29,7 @@ interface IVaultValidatorsV1 {
  *  * checking validators manager signature
  *  * checking deposit data root
  */
-abstract contract ValidatorsChecker is IValidatorsChecker {
+abstract contract ValidatorsChecker is Multicall, IValidatorsChecker {
   IValidatorsRegistry private immutable _validatorsRegistry;
   IKeeper private immutable _keeper;
   IVaultsRegistry private immutable _vaultsRegistry;
@@ -49,6 +52,66 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
     _keeper = IKeeper(keeper);
     _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
     _depositDataRegistry = IDepositDataRegistry(depositDataRegistry);
+  }
+
+  /// @inheritdoc IValidatorsChecker
+  function updateVaultState(
+    address vault,
+    IKeeperRewards.HarvestParams calldata harvestParams
+  ) external override {
+    IVaultState(vault).updateState(harvestParams);
+  }
+
+  /// @inheritdoc IValidatorsChecker
+  function getExitQueueCumulativeTickets(address vault) external view override returns (uint256) {
+    (
+      uint128 queuedShares,
+      ,
+      uint128 totalExitingTickets,
+      ,
+      uint256 totalTickets
+    ) = IVaultValidators(vault).getExitQueueData();
+    return totalTickets + queuedShares + totalExitingTickets;
+  }
+
+  /// @inheritdoc IValidatorsChecker
+  function getExitQueueMissingAssets(
+    address vault,
+    uint256 withdrawingAssets,
+    uint256 targetCumulativeTickets
+  ) external view override returns (uint256 missingAssets) {
+    (
+      uint128 queuedShares,
+      uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
+      uint128 totalExitingAssets,
+      uint256 totalTickets
+    ) = IVaultValidators(vault).getExitQueueData();
+    // check whether already covered
+    if (totalTickets >= targetCumulativeTickets) {
+      return 0;
+    }
+
+    // calculate the amount of tickets that need to be covered
+    uint256 totalTicketsToCover = targetCumulativeTickets - totalTickets;
+
+    // calculate missing assets from legacy exits
+    uint256 ticketsToCover;
+    if (totalExitingTickets > 0) {
+      ticketsToCover = Math.min(totalTicketsToCover, totalExitingTickets);
+      missingAssets = Math.mulDiv(ticketsToCover, totalExitingAssets, totalExitingTickets);
+      totalTicketsToCover -= ticketsToCover;
+    }
+
+    // calculate missing assets from queued shares
+    if (totalTicketsToCover > 0 && queuedShares > 0) {
+      ticketsToCover = Math.min(totalTicketsToCover, queuedShares);
+      missingAssets += IVaultState(vault).convertToAssets(ticketsToCover);
+    }
+
+    // check whether there is enough available assets
+    uint256 availableAssets = withdrawingAssets + _vaultAssets(vault) - unclaimedAssets;
+    return availableAssets >= missingAssets ? 0 : missingAssets - availableAssets;
   }
 
   /// @inheritdoc IValidatorsChecker
@@ -188,4 +251,11 @@ abstract contract ValidatorsChecker is IValidatorsChecker {
    * @return The amount of assets required for deposit
    */
   function _depositAmount() internal pure virtual returns (uint256);
+
+  /**
+   * @notice Get the amount of assets in the vault
+   * @param vault The address of the vault
+   * @return The amount of assets in the vault
+   */
+  function _vaultAssets(address vault) internal view virtual returns (uint256);
 }

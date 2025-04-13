@@ -313,6 +313,7 @@ contract EthPrivVaultTest is Test, EthHelpers {
     (
       uint128 queuedShares,
       uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
       uint128 totalExitingAssets,
       uint256 totalTickets
     ) = privVault.getExitQueueData();
@@ -330,6 +331,7 @@ contract EthPrivVaultTest is Test, EthHelpers {
     assertEq(privVault.validatorsManagerNonce(), 0);
     assertEq(queuedShares, 0);
     assertEq(unclaimedAssets, 0);
+    assertEq(totalExitingTickets, 0);
     assertEq(totalExitingAssets, 0);
     assertEq(totalTickets, 0);
   }
@@ -374,7 +376,7 @@ contract EthPrivVaultTest is Test, EthHelpers {
     _upgradeVault(VaultType.EthPrivVault, address(privVault));
     _stopSnapshotGas();
 
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = privVault.getExitQueueData();
+    (uint128 queuedShares, , , uint128 totalExitingAssets, ) = privVault.getExitQueueData();
     assertEq(privVault.vaultId(), keccak256('EthPrivVault'));
     assertEq(privVault.version(), 5);
     assertEq(privVault.admin(), admin);

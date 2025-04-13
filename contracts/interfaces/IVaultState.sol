@@ -60,6 +60,7 @@ interface IVaultState is IVaultFee {
    * @notice Get exit queue data
    * @return queuedShares The number of shares in the exit queue
    * @return unclaimedAssets The amount of unclaimed assets in the exit queue
+   * @return totalExitingTickets The total number of exiting tickets
    * @return totalExitingAssets The total amount of exiting assets
    * @return totalTickets The total number of tickets in the exit queue
    */
@@ -69,6 +70,7 @@ interface IVaultState is IVaultFee {
     returns (
       uint128 queuedShares,
       uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
       uint128 totalExitingAssets,
       uint256 totalTickets
     );

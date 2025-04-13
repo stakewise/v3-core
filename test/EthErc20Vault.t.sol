@@ -80,6 +80,7 @@ contract EthErc20VaultTest is Test, EthHelpers {
     (
       uint128 queuedShares,
       uint128 unclaimedAssets,
+      uint128 totalExitingTickets,
       uint128 totalExitingAssets,
       uint256 totalTickets
     ) = erc20Vault.getExitQueueData();
@@ -98,6 +99,7 @@ contract EthErc20VaultTest is Test, EthHelpers {
     assertEq(erc20Vault.name(), 'SW ETH Vault');
     assertEq(queuedShares, 0);
     assertEq(unclaimedAssets, 0);
+    assertEq(totalExitingTickets, 0);
     assertEq(totalExitingAssets, 0);
     assertEq(totalTickets, 0);
   }
@@ -140,7 +142,7 @@ contract EthErc20VaultTest is Test, EthHelpers {
     _upgradeVault(VaultType.EthErc20Vault, address(erc20Vault));
     _stopSnapshotGas();
 
-    (uint128 queuedShares, , uint128 totalExitingAssets, ) = erc20Vault.getExitQueueData();
+    (uint128 queuedShares, , , uint128 totalExitingAssets, ) = erc20Vault.getExitQueueData();
 
     assertEq(erc20Vault.vaultId(), keccak256('EthErc20Vault'));
     assertEq(erc20Vault.version(), 5);
@@ -480,7 +482,7 @@ contract EthErc20VaultTest is Test, EthHelpers {
 
     // Verify the exit queue was processed correctly
     // The queue might not be fully processed in one update, so we'll check that progress was made
-    (uint128 queuedShares, , , ) = vault.getExitQueueData();
+    (uint128 queuedShares, , , , ) = vault.getExitQueueData();
     assertLt(queuedShares, exitShares, 'Exit queue should be at least partially processed');
   }
 

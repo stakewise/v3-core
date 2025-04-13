@@ -5,8 +5,8 @@ pragma solidity ^0.8.22;
 import {Address} from '@openzeppelin/contracts/utils/Address.sol';
 import {MessageHashUtils} from '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
 import {SignatureChecker} from '@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol';
-import {Errors} from './Errors.sol';
 import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
+import {Errors} from './Errors.sol';
 
 /**
  * @title ValidatorUtils
@@ -15,7 +15,7 @@ import {IVaultValidators} from '../interfaces/IVaultValidators.sol';
  */
 library ValidatorUtils {
   bytes32 private constant _validatorsManagerTypeHash =
-    keccak256('VaultValidators(bytes32 nonce,bytes validators)');
+    keccak256('VaultValidators(bytes32 validatorsRegistryRoot,bytes validators)');
   uint256 private constant _validatorV1DepositLength = 176;
   uint256 private constant _validatorV2DepositLength = 184;
   uint256 private constant _validatorWithdrawalLength = 56;

@@ -30,3 +30,4 @@ jobs:
           FORGE_SNAPSHOT_CHECK: false
           USE_FORK_VAULTS: true
           MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          FOUNDRY_PROFILE: test
