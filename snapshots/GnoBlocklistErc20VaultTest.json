@@ -1,7 +1,7 @@
 {
-  "GnoBlocklistErc20VaultTest_test_canDepositAsNonBlockedUser": "162458",
-  "GnoBlocklistErc20VaultTest_test_canMintOsTokenAsNonBlockedUser": "161513",
-  "GnoBlocklistErc20VaultTest_test_deploysCorrectly": "779148",
-  "GnoBlocklistErc20VaultTest_test_transfer": "61666",
-  "GnoBlocklistErc20VaultTest_test_upgradesCorrectly": "113273"
+  "GnoBlocklistErc20VaultTest_test_canDepositAsNonBlockedUser": "162425",
+  "GnoBlocklistErc20VaultTest_test_canMintOsTokenAsNonBlockedUser": "161480",
+  "GnoBlocklistErc20VaultTest_test_deploysCorrectly": "779115",
+  "GnoBlocklistErc20VaultTest_test_transfer": "61633",
+  "GnoBlocklistErc20VaultTest_test_upgradesCorrectly": "113240"
 }

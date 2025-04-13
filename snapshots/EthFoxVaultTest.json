@@ -1,8 +1,8 @@
 {
-  "EthFoxVaultTest_test_canDepositAsNonBlockedUser": "85533",
-  "EthFoxVaultTest_test_canDepositUsingReceiveAsNotBlockedUser": "79900",
-  "EthFoxVaultTest_test_ejectUser": "101225",
-  "EthFoxVaultTest_test_ejectUserWithNoShares": "58895",
-  "EthFoxVaultTest_test_withdrawValidator_unknown": "51531",
-  "EthFoxVaultTest_test_withdrawValidator_validatorsManager": "69638"
+  "EthFoxVaultTest_test_canDepositAsNonBlockedUser": "85500",
+  "EthFoxVaultTest_test_canDepositUsingReceiveAsNotBlockedUser": "79867",
+  "EthFoxVaultTest_test_ejectUser": "101192",
+  "EthFoxVaultTest_test_ejectUserWithNoShares": "58862",
+  "EthFoxVaultTest_test_withdrawValidator_unknown": "51498",
+  "EthFoxVaultTest_test_withdrawValidator_validatorsManager": "69605"
 }

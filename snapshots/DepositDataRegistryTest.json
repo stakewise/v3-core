@@ -1,9 +1,9 @@
 {
-  "DepositDataRegistryTest_test_registerValidator_succeedsWith0x01Validator": "272934",
-  "DepositDataRegistryTest_test_registerValidator_succeedsWith0x02Validator": "295860",
-  "DepositDataRegistryTest_test_registerValidators_successWith0x01Validators": "314499",
-  "DepositDataRegistryTest_test_registerValidators_successWith0x02Validators": "338592",
-  "DepositDataRegistryTest_test_setDepositDataManager_succeeds": "64261",
-  "DepositDataRegistryTest_test_setDepositDataRoot_succeeds": "65182",
-  "DepositDataRegistryTest_test_updateVaultState_succeeds": "124151"
+  "DepositDataRegistryTest_test_registerValidator_succeedsWith0x01Validator": "272901",
+  "DepositDataRegistryTest_test_registerValidator_succeedsWith0x02Validator": "295827",
+  "DepositDataRegistryTest_test_registerValidators_successWith0x01Validators": "314466",
+  "DepositDataRegistryTest_test_registerValidators_successWith0x02Validators": "338559",
+  "DepositDataRegistryTest_test_setDepositDataManager_succeeds": "64228",
+  "DepositDataRegistryTest_test_setDepositDataRoot_succeeds": "65149",
+  "DepositDataRegistryTest_test_updateVaultState_succeeds": "124118"
 }
