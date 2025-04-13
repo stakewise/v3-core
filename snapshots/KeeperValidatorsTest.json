@@ -1,0 +1,15 @@
+{
+  "KeeperValidatorsTest_test_approveValidators_accessDenied": "139566",
+  "KeeperValidatorsTest_test_approveValidators_invalidDeadline": "29840",
+  "KeeperValidatorsTest_test_approveValidators_invalidRegistry": "132477",
+  "KeeperValidatorsTest_test_approveValidators_success": "174557",
+  "KeeperValidatorsTest_test_setValidatorsMinOracles_success": "33099",
+  "KeeperValidatorsTest_test_setValidatorsMinOracles_tooHigh": "29460",
+  "KeeperValidatorsTest_test_setValidatorsMinOracles_unauthorized": "25745",
+  "KeeperValidatorsTest_test_setValidatorsMinOracles_zero": "25382",
+  "KeeperValidatorsTest_test_updateExitSignatures_duplicateUpdate": "45635",
+  "KeeperValidatorsTest_test_updateExitSignatures_expiredDeadline": "34338",
+  "KeeperValidatorsTest_test_updateExitSignatures_invalidVault": "31986",
+  "KeeperValidatorsTest_test_updateExitSignatures_notCollateralized": "34313",
+  "KeeperValidatorsTest_test_updateExitSignatures_success": "68010"
+}

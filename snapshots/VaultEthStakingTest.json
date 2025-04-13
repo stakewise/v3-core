@@ -1,0 +1,18 @@
+{
+  "VaultEthStakingTest_test_deposit": "80793",
+  "VaultEthStakingTest_test_depositAndMintOsToken": "199851",
+  "VaultEthStakingTest_test_fundValidators_invalid": "52863",
+  "VaultEthStakingTest_test_fundValidators_valid": "131903",
+  "VaultEthStakingTest_test_harvestAssets": "128704",
+  "VaultEthStakingTest_test_invalidSecurityDeposit": "307104",
+  "VaultEthStakingTest_test_receive": "72986",
+  "VaultEthStakingTest_test_receiveFromMevEscrow_fail": "36625",
+  "VaultEthStakingTest_test_receiveFromMevEscrow_success": "37914",
+  "VaultEthStakingTest_test_registerValidators_01prefix": "239777",
+  "VaultEthStakingTest_test_registerValidators_02prefix": "421882",
+  "VaultEthStakingTest_test_transferVaultAssets": "49738",
+  "VaultEthStakingTest_test_updateStateAndDeposit": "159979",
+  "VaultEthStakingTest_test_updateStateAndDepositAndMintOsToken": "251944",
+  "VaultEthStakingTest_test_validatorMinMaxEffectiveBalance": "195697",
+  "VaultEthStakingTest_test_withdrawValidator_fullFlow": "69814"
+}

@@ -1,0 +1,20 @@
+{
+  "KeeperRewardsTest_test_canHarvest": "4471",
+  "KeeperRewardsTest_test_harvest": "128714",
+  "KeeperRewardsTest_test_harvestWithPenalties": "88527",
+  "KeeperRewardsTest_test_harvest_alreadyHarvested": "45978",
+  "KeeperRewardsTest_test_harvest_invalidProof": "44542",
+  "KeeperRewardsTest_test_harvest_invalidRewardsRoot": "45117",
+  "KeeperRewardsTest_test_harvest_nonVault": "35592",
+  "KeeperRewardsTest_test_isCollateralized": "1656",
+  "KeeperRewardsTest_test_isHarvestRequired": "2153",
+  "KeeperRewardsTest_test_multipleRewardUpdatesAndHarvests_round_1": "128696",
+  "KeeperRewardsTest_test_multipleRewardUpdatesAndHarvests_round_2": "495774",
+  "KeeperRewardsTest_test_multipleRewardUpdatesAndHarvests_round_3": "493808",
+  "KeeperRewardsTest_test_setRewardsMinOracles": "33281",
+  "KeeperRewardsTest_test_setRewardsMinOracles_tooMany": "29608",
+  "KeeperRewardsTest_test_setRewardsMinOracles_zero": "25564",
+  "KeeperRewardsTest_test_updateRewards": "96956",
+  "KeeperRewardsTest_test_updateRewards_invalidAvgRewardPerSecond": "28792",
+  "KeeperRewardsTest_test_updateRewards_tooEarly": "28783"
+}

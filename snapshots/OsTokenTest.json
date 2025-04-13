@@ -1,0 +1,19 @@
+{
+  "OsTokenTest_test_burn": "32775",
+  "OsTokenTest_test_burn_onlyController": "27989",
+  "OsTokenTest_test_controllerIntegration_burn": "36409",
+  "OsTokenTest_test_controllerIntegration_mint": "104027",
+  "OsTokenTest_test_erc20_transfer": "54487",
+  "OsTokenTest_test_erc20_transferFrom": "95724",
+  "OsTokenTest_test_fullDepositFlow": "195311",
+  "OsTokenTest_test_mint": "54433",
+  "OsTokenTest_test_mint_onlyController": "30314",
+  "OsTokenTest_test_permit": "75665",
+  "OsTokenTest_test_permit_expiredDeadline": "32268",
+  "OsTokenTest_test_permit_invalidSignature": "51984",
+  "OsTokenTest_test_permit_zeroAddress": "56066",
+  "OsTokenTest_test_setController_add": "51136",
+  "OsTokenTest_test_setController_onlyOwner": "32869",
+  "OsTokenTest_test_setController_remove": "30703",
+  "OsTokenTest_test_setController_zeroAddress": "25603"
+}

@@ -359,8 +359,9 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         bytes memory publicKey = _registerGnoValidator(address(vault), 1 ether, false);
 
         // Step 2: Try to top up a non-existing validator (should fail)
-        bytes memory nonExistingPublicKey = vm.randomBytes(48);
-        bytes memory signature = vm.randomBytes(96);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory nonExistingPublicKey = _getDeterministicBytes(nonce, 48);
+        bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
         uint256 topUpAmount = (1 ether * 32) / 1 gwei;
         bytes32 depositDataRoot =

@@ -444,8 +444,9 @@ contract VaultEthStakingTest is Test, EthHelpers {
         bytes memory publicKey = _registerEthValidator(address(vault), 32 ether, false);
 
         // 3. Try to top up a non-existing validator (should fail)
-        bytes memory nonExistingPublicKey = vm.randomBytes(48);
-        bytes memory signature = vm.randomBytes(96);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory nonExistingPublicKey = _getDeterministicBytes(nonce, 48);
+        bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
         uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
         bytes32 depositDataRoot =

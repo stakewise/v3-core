@@ -75,13 +75,14 @@ abstract contract ValidatorsHelpers is Test, KeeperHelpers {
         bool isV1Validator
     ) internal view returns (IKeeperValidators.ApprovalParams memory approvalParams) {
         bytes memory validators;
+        bytes32 validatorsRegistryRoot = IValidatorsRegistry(validatorsRegistry).get_deposit_root();
         for (uint256 i = 0; i < deposits.length; i++) {
-            bytes memory validator = _getValidatorDepositData(vault, deposits[i], isV1Validator);
+            bytes memory validator = _getValidatorDepositData(vault, deposits[i], validatorsRegistryRoot, isV1Validator);
             validators = bytes.concat(validators, validator);
         }
 
         approvalParams = IKeeperValidators.ApprovalParams({
-            validatorsRegistryRoot: IValidatorsRegistry(validatorsRegistry).get_deposit_root(),
+            validatorsRegistryRoot: validatorsRegistryRoot,
             deadline: vm.getBlockTimestamp() + 1,
             validators: validators,
             signatures: "",
@@ -106,13 +107,14 @@ abstract contract ValidatorsHelpers is Test, KeeperHelpers {
         approvalParams.signatures = abi.encodePacked(r, s, v);
     }
 
-    function _getValidatorDepositData(address vault, uint256 depositAmount, bool isV1Validator)
-        internal
-        view
-        returns (bytes memory)
-    {
-        bytes memory publicKey = vm.randomBytes(48);
-        bytes memory signature = vm.randomBytes(96);
+    function _getValidatorDepositData(
+        address vault,
+        uint256 depositAmount,
+        bytes32 validatorsRegistryRoot,
+        bool isV1Validator
+    ) internal pure returns (bytes memory) {
+        bytes memory publicKey = _getDeterministicBytes(validatorsRegistryRoot, 48);
+        bytes memory signature = _getDeterministicBytes(validatorsRegistryRoot, 96);
         bytes memory withdrawalCredentials =
             abi.encodePacked(isV1Validator ? bytes1(0x01) : bytes1(0x02), bytes11(0x0), vault);
         bytes32 depositDataRoot = _getDepositDataRoot(publicKey, signature, withdrawalCredentials, depositAmount);
@@ -160,5 +162,13 @@ abstract contract ValidatorsHelpers is Test, KeeperHelpers {
         ret[5] = bytesValue[2];
         ret[6] = bytesValue[1];
         ret[7] = bytesValue[0];
+    }
+
+    function _getDeterministicBytes(bytes32 seed, uint256 length) internal pure returns (bytes memory) {
+        bytes memory result = new bytes(length);
+        for (uint256 i = 0; i < length; i++) {
+            result[i] = bytes1(uint8(uint256(keccak256(abi.encodePacked(seed, i))) % 256));
+        }
+        return result;
     }
 }

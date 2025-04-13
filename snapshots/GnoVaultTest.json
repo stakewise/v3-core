@@ -1,0 +1,8 @@
+{
+  "GnoVaultTest_test_deploysCorrectly": "503845",
+  "GnoVaultTest_test_exitQueue_works": "94676",
+  "GnoVaultTest_test_upgradesCorrectly": "112559",
+  "GnoVaultTest_test_withdrawValidator_osTokenRedeemer": "75030",
+  "GnoVaultTest_test_withdrawValidator_unknown": "56871",
+  "GnoVaultTest_test_withdrawValidator_validatorsManager": "69791"
+}

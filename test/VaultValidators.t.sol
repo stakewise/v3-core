@@ -496,7 +496,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
 
         // Prepare top-up data
-        bytes memory signature = vm.randomBytes(96);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
         uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
         bytes32 depositDataRoot = _getDepositDataRoot(publicKey, signature, withdrawalCredentials, topUpAmount);
@@ -522,7 +523,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
 
         // Prepare top-up data
-        bytes memory signature = vm.randomBytes(96);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
         uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
         bytes32 depositDataRoot = _getDepositDataRoot(publicKey, signature, withdrawalCredentials, topUpAmount);
@@ -562,7 +564,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
         // Create a non-existing validator public key
         bytes memory nonExistingPublicKey = vm.randomBytes(48);
-        bytes memory signature = vm.randomBytes(96);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
         uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
         bytes32 depositDataRoot =
@@ -587,7 +590,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
 
         // Prepare top-up data
-        bytes memory signature = vm.randomBytes(96);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
         uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
         bytes32 depositDataRoot = _getDepositDataRoot(publicKey, signature, withdrawalCredentials, topUpAmount);
@@ -610,7 +614,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
 
         // Prepare top-up data
-        bytes memory signature = vm.randomBytes(96);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
         uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
         bytes32 depositDataRoot = _getDepositDataRoot(publicKey, signature, withdrawalCredentials, topUpAmount);
@@ -657,7 +662,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
 
         // Prepare top-up data with more ETH than available in the vault
-        bytes memory signature = vm.randomBytes(96);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
         uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
         bytes32 depositDataRoot = _getDepositDataRoot(publicKey, signature, withdrawalCredentials, topUpAmount);
@@ -699,7 +705,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         assertTrue(contracts.keeper.isHarvestRequired(address(vault)), "Vault should need harvesting");
 
         // Prepare top-up data
-        bytes memory signature = vm.randomBytes(96);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
         uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
         bytes32 depositDataRoot = _getDepositDataRoot(publicKey, signature, withdrawalCredentials, topUpAmount);
@@ -722,7 +729,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, true); // V1 validator
 
         // Prepare top-up data for V1 validator
-        bytes memory signature = vm.randomBytes(96);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x01), bytes11(0x0), vault); // V1 prefix
         uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
         bytes32 depositDataRoot = _getDepositDataRoot(publicKey, signature, withdrawalCredentials, topUpAmount);
@@ -773,7 +781,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory publicKey2 = _extractBytes(approvalParams.validators, validatorLength, 48);
 
         // Prepare top-up data for both validators
-        bytes memory signature = vm.randomBytes(96);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
         uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
 
@@ -1094,7 +1103,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory sourcePublicKey = _registerEthValidator(address(vault), validatorDeposit, true);
 
         // Prepare consolidation data (to an untracked destination validator)
-        bytes memory destPublicKey = vm.randomBytes(48);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory destPublicKey = _getDeterministicBytes(nonce, 48);
         bytes memory consolidationData = bytes.concat(sourcePublicKey, destPublicKey);
 
         // Create oracle signature using our known oracle private key
@@ -1179,7 +1189,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory sourcePublicKey = _registerEthValidator(address(vault), validatorDeposit, false);
 
         // 2. Prepare consolidation data
-        bytes memory destPublicKey = vm.randomBytes(48);
+        bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory destPublicKey = _getDeterministicBytes(nonce, 48);
         bytes memory consolidationData = bytes.concat(sourcePublicKey, destPublicKey);
 
         // 3. Create invalid signature (wrong signer)

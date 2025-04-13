@@ -1,0 +1,16 @@
+{
+  "EthErc20VaultTest_test_canTransferFromSharesWithHighLtv": "89958",
+  "EthErc20VaultTest_test_cannotTransferFromSharesWithLowLtv": "96489",
+  "EthErc20VaultTest_test_deploysCorrectly": "453511",
+  "EthErc20VaultTest_test_depositAndMintOsToken": "199085",
+  "EthErc20VaultTest_test_depositViaReceiveFallback_emitsTransfer": "75419",
+  "EthErc20VaultTest_test_deposit_emitsTransfer": "78881",
+  "EthErc20VaultTest_test_enterExitQueue_emitsTransfer": "89813",
+  "EthErc20VaultTest_test_redeem_emitsEvent": "58253",
+  "EthErc20VaultTest_test_updateExitQueue_emitsTransfer": "172164",
+  "EthErc20VaultTest_test_updateStateAndDepositAndMintOsToken": "223209",
+  "EthErc20VaultTest_test_upgradesCorrectly": "73539",
+  "EthErc20VaultTest_test_withdrawValidator_osTokenRedeemer": "75020",
+  "EthErc20VaultTest_test_withdrawValidator_unknown": "56861",
+  "EthErc20VaultTest_test_withdrawValidator_validatorsManager": "69792"
+}

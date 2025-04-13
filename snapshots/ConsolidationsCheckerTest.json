@@ -1,0 +1,12 @@
+{
+  "ConsolidationsCheckerTest_test_verifySignatures_differentValidatorData": "14287",
+  "ConsolidationsCheckerTest_test_verifySignatures_differentVault": "14178",
+  "ConsolidationsCheckerTest_test_verifySignatures_emptySignatures": "14926",
+  "ConsolidationsCheckerTest_test_verifySignatures_exactMinimumSignatures": "29006",
+  "ConsolidationsCheckerTest_test_verifySignatures_moreThanMinimumSignatures": "29019",
+  "ConsolidationsCheckerTest_test_verifySignatures_nonOracleSigner": "26426",
+  "ConsolidationsCheckerTest_test_verifySignatures_repeatedSigner": "23008",
+  "ConsolidationsCheckerTest_test_verifySignatures_success": "29008",
+  "ConsolidationsCheckerTest_test_verifySignatures_tooFewSignatures": "10954",
+  "ConsolidationsCheckerTest_test_verifySignatures_unsortedSignatures": "23004"
+}

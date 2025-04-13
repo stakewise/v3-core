@@ -1,0 +1,12 @@
+{
+  "KeeperOraclesTest_test_addOracle_alreadyAdded": "28055",
+  "KeeperOraclesTest_test_addOracle_maxOraclesExceeded": "31544",
+  "KeeperOraclesTest_test_addOracle_onlyOwner": "32813",
+  "KeeperOraclesTest_test_addOracle_success": "54005",
+  "KeeperOraclesTest_test_removeOracle_alreadyRemoved": "28174",
+  "KeeperOraclesTest_test_removeOracle_onlyOwner": "26429",
+  "KeeperOraclesTest_test_removeOracle_success": "32187",
+  "KeeperOraclesTest_test_updateConfig_onlyOwner": "31759",
+  "KeeperOraclesTest_test_updateConfig_success": "32820",
+  "KeeperOraclesTest_test_verifySignatures_throughKeeperRewards": "208237"
+}
