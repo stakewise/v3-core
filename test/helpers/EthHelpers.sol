@@ -212,12 +212,12 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     }
 
     function _startSnapshotGas(string memory label) internal {
-        if (vm.envBool("USE_FORK_VAULTS")) return;
+        if (vm.envBool("SKIP_SNAPSHOTS")) return;
         return vm.startSnapshotGas(label);
     }
 
     function _stopSnapshotGas() internal {
-        if (vm.envBool("USE_FORK_VAULTS")) return;
+        if (vm.envBool("SKIP_SNAPSHOTS")) return;
         vm.stopSnapshotGas();
     }
 
