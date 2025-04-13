@@ -14,7 +14,7 @@
   "VaultValidatorsTest_test_fundValidators_invalidSignature": "59249",
   "VaultValidatorsTest_test_fundValidators_invalidValidators": "41331",
   "VaultValidatorsTest_test_fundValidators_multipleValidators": "143741",
-  "VaultValidatorsTest_test_fundValidators_nonExistingValidator": "52840",
+  "VaultValidatorsTest_test_fundValidators_nonExistingValidator": "52854",
   "VaultValidatorsTest_test_fundValidators_notHarvested": "39858",
   "VaultValidatorsTest_test_fundValidators_notManager": "44366",
   "VaultValidatorsTest_test_fundValidators_v1Validators": "48296",

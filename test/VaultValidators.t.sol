@@ -563,8 +563,8 @@ contract VaultValidatorsTest is Test, EthHelpers {
         _depositToVault(address(vault), validatorDeposit, user, user);
 
         // Create a non-existing validator public key
-        bytes memory nonExistingPublicKey = vm.randomBytes(48);
         bytes32 nonce = contracts.validatorsRegistry.get_deposit_root();
+        bytes memory nonExistingPublicKey = _getDeterministicBytes(nonce, 48);
         bytes memory signature = _getDeterministicBytes(nonce, 96);
         bytes memory withdrawalCredentials = abi.encodePacked(bytes1(0x02), bytes11(0x0), vault);
         uint256 topUpAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
