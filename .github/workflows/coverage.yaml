@@ -24,9 +24,6 @@ jobs:
         with:
           version: stable
 
-      - name: Build
-        run: forge build
-
       - name: Run forge coverage
         id: coverage
         run: |
@@ -44,6 +41,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
         env:
           MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          GNOSIS_RPC_URL: ${{ secrets.GNOSIS_RPC_URL }}
 
       - name: Check coverage is updated
         uses: actions/github-script@v5

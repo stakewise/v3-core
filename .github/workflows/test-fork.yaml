@@ -21,11 +21,6 @@ jobs:
         with:
           version: stable
 
-      - name: Build
-        run: forge build
-        env:
-          FOUNDRY_PROFILE: test
-
       - name: Run tests
         run: forge test --isolate -vvv
         env:
