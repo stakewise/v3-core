@@ -25,8 +25,8 @@ jobs:
         run: forge test --isolate -vvv
         env:
           FORGE_SNAPSHOT_CHECK: false
-          USE_FORK_VAULTS: true
-          SKIP_SNAPSHOTS: true
+          TEST_USE_FORK_VAULTS: true
+          TEST_SKIP_SNAPSHOTS: true
           MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
           GNOSIS_RPC_URL: ${{ secrets.GNOSIS_RPC_URL }}
           FOUNDRY_PROFILE: test
