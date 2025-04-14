@@ -21,7 +21,7 @@ contract VaultFeeTest is Test, EthHelpers {
     uint16 public initialFeePercent;
     uint256 public depositAmount = 10 ether;
     uint256 public rewardAmount = 1 ether;
-    uint256 public feeChangeDelay = 7 days;
+    uint256 public feeChangeDelay = 3 days;
 
     function setUp() public {
         // Activate Ethereum fork and get the contracts
