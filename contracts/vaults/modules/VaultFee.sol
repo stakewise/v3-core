@@ -15,7 +15,7 @@ import {VaultImmutables} from "./VaultImmutables.sol";
  */
 abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVaultFee {
     uint256 internal constant _maxFeePercent = 10_000; // @dev 100.00 %
-    uint256 private constant _feeUpdateDelay = 7 days;
+    uint256 private constant _feeUpdateDelay = 3 days;
 
     /// @inheritdoc IVaultFee
     address public override feeRecipient;
