@@ -9,6 +9,9 @@ via_ir = true
 ffi = true
 bytecode_hash = 'none'
 
+[profile.test]
+via_ir = false
+
 [rpc_endpoints]
 mainnet = "${MAINNET_RPC_URL}"
 hoodi = "${HOODI_RPC_URL}"
