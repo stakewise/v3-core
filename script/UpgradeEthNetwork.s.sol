@@ -1,9 +1,8 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: BUSL-1.1
+
 pragma solidity ^0.8.22;
 
-import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
 import {IEthErc20Vault} from "../contracts/interfaces/IEthErc20Vault.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
@@ -17,42 +16,64 @@ import {EthPrivErc20Vault} from "../contracts/vaults/ethereum/EthPrivErc20Vault.
 import {EthPrivVault} from "../contracts/vaults/ethereum/EthPrivVault.sol";
 import {EthVault} from "../contracts/vaults/ethereum/EthVault.sol";
 import {EthVaultFactory} from "../contracts/vaults/ethereum/EthVaultFactory.sol";
+import {EthValidatorsChecker} from "../contracts/validators/EthValidatorsChecker.sol";
+import {EthRewardSplitter} from "../contracts/misc/EthRewardSplitter.sol";
+import {RewardSplitterFactory} from "../contracts/misc/RewardSplitterFactory.sol";
 import {Network} from "./Network.sol";
 
-contract UpgradeEthNetwork is Script {
-    Network.Constants public constants;
+contract UpgradeEthNetwork is Network {
     address public consolidationsChecker;
+    address public validatorsChecker;
+    address public rewardSplitterFactory;
+
     address[] public vaultImpls;
-    address[] public vaultFactories;
+    Factory[] public vaultFactories;
 
     function run() external {
-        vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
-        console.log("Deploying from: ", msg.sender);
+        uint256 privateKey = vm.envUint("PRIVATE_KEY");
+        address sender = vm.addr(privateKey);
+        console.log("Deploying from: ", sender);
 
-        constants = Network.getNetworkConstants(block.chainid);
+        vm.startBroadcast(privateKey);
+        Deployment memory deployment = getDeploymentData();
 
-        // Deploy consolidations checker
-        consolidationsChecker = address(new ConsolidationsChecker(constants.keeper));
+        // Deploy common contracts
+        consolidationsChecker = address(new ConsolidationsChecker(deployment.keeper));
+        validatorsChecker = address(
+            new EthValidatorsChecker(
+                deployment.validatorsRegistry,
+                deployment.keeper,
+                deployment.vaultsRegistry,
+                deployment.depositDataRegistry
+            )
+        );
+        address rewardsSplitterImpl = address(new EthRewardSplitter());
+        rewardSplitterFactory = address(new RewardSplitterFactory(rewardsSplitterImpl));
 
         _deployImplementations();
         _deployFactories();
-
         vm.stopBroadcast();
+
+        generateGovernorTxJson(vaultImpls, vaultFactories);
+        generateUpgradesJson(vaultImpls);
+        generateAddressesJson(vaultFactories, validatorsChecker, consolidationsChecker, rewardSplitterFactory);
     }
 
     function _deployImplementations() internal {
         // constructors for implementations
         IEthVault.EthVaultConstructorArgs memory vaultArgs = _getEthVaultConstructorArgs();
         IEthErc20Vault.EthErc20VaultConstructorArgs memory erc20VaultArgs = _getEthErc20VaultConstructorArgs();
+        Deployment memory deployment = getDeploymentData();
+
+        // update exited assets claim delay for public vaults
+        vaultArgs.exitingAssetsClaimDelay = PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY;
+        erc20VaultArgs.exitingAssetsClaimDelay = PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY;
 
         // deploy genesis vault
-        vaultArgs.exitingAssetsClaimDelay = Network.PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY;
-        erc20VaultArgs.exitingAssetsClaimDelay = Network.PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY;
-
         EthGenesisVault ethGenesisVault =
-            new EthGenesisVault(vaultArgs, constants.legacyPoolEscrow, constants.legacyRewardToken);
+            new EthGenesisVault(vaultArgs, deployment.legacyPoolEscrow, deployment.legacyRewardToken);
 
-        // deploy normal vaults
+        // deploy public vaults
         EthVault ethVault = new EthVault(vaultArgs);
         EthErc20Vault ethErc20Vault = new EthErc20Vault(erc20VaultArgs);
 
@@ -60,10 +81,11 @@ contract UpgradeEthNetwork is Script {
         EthBlocklistVault ethBlocklistVault = new EthBlocklistVault(vaultArgs);
         EthBlocklistErc20Vault ethBlocklistErc20Vault = new EthBlocklistErc20Vault(erc20VaultArgs);
 
-        // deploy private vaults
         // update exited assets claim delay for private vaults
-        vaultArgs.exitingAssetsClaimDelay = Network.PRIVATE_VAULT_EXITED_ASSETS_CLAIM_DELAY;
-        erc20VaultArgs.exitingAssetsClaimDelay = Network.PRIVATE_VAULT_EXITED_ASSETS_CLAIM_DELAY;
+        vaultArgs.exitingAssetsClaimDelay = PRIVATE_VAULT_EXITED_ASSETS_CLAIM_DELAY;
+        erc20VaultArgs.exitingAssetsClaimDelay = PRIVATE_VAULT_EXITED_ASSETS_CLAIM_DELAY;
+
+        // deploy private vaults
         EthPrivVault ethPrivVault = new EthPrivVault(vaultArgs);
         EthPrivErc20Vault ethPrivErc20Vault = new EthPrivErc20Vault(erc20VaultArgs);
 
@@ -77,81 +99,66 @@ contract UpgradeEthNetwork is Script {
     }
 
     function _deployFactories() internal {
+        Deployment memory deployment = getDeploymentData();
         for (uint256 i = 0; i < vaultImpls.length; i++) {
             address vaultImpl = vaultImpls[i];
-            if (IVaultVersion(vaultImpl).vaultId() == keccak256("EthGenesisVault")) {
+            bytes32 vaultId = IVaultVersion(vaultImpl).vaultId();
+
+            // skip factory creation for EthGenesisVault or EthFoxVault
+            if (vaultId == keccak256("EthGenesisVault") || vaultId == keccak256("EthFoxVault")) {
                 continue;
             }
-            EthVaultFactory factory = new EthVaultFactory(vaultImpl, IVaultsRegistry(constants.vaultsRegistry));
-            vaultFactories.push(address(factory));
+
+            EthVaultFactory factory = new EthVaultFactory(vaultImpl, IVaultsRegistry(deployment.vaultsRegistry));
+            if (vaultId == keccak256("EthVault")) {
+                vaultFactories.push(Factory({name: "VaultFactory", factory: address(factory)}));
+            } else if (vaultId == keccak256("EthErc20Vault")) {
+                vaultFactories.push(Factory({name: "Erc20VaultFactory", factory: address(factory)}));
+            } else if (vaultId == keccak256("EthBlocklistVault")) {
+                vaultFactories.push(Factory({name: "BlocklistVaultFactory", factory: address(factory)}));
+            } else if (vaultId == keccak256("EthPrivVault")) {
+                vaultFactories.push(Factory({name: "PrivVaultFactory", factory: address(factory)}));
+            } else if (vaultId == keccak256("EthBlocklistErc20Vault")) {
+                vaultFactories.push(Factory({name: "BlocklistErc20VaultFactory", factory: address(factory)}));
+            } else if (vaultId == keccak256("EthPrivErc20Vault")) {
+                vaultFactories.push(Factory({name: "PrivErc20VaultFactory", factory: address(factory)}));
+            }
         }
     }
 
-    function _getEthVaultConstructorArgs() internal view returns (IEthVault.EthVaultConstructorArgs memory) {
+    function _getEthVaultConstructorArgs() internal returns (IEthVault.EthVaultConstructorArgs memory) {
+        Deployment memory deployment = getDeploymentData();
         return IEthVault.EthVaultConstructorArgs({
-            keeper: constants.keeper,
-            vaultsRegistry: constants.vaultsRegistry,
-            validatorsRegistry: constants.validatorsRegistry,
-            validatorsWithdrawals: constants.validatorsWithdrawals,
-            validatorsConsolidations: constants.validatorsConsolidations,
+            keeper: deployment.keeper,
+            vaultsRegistry: deployment.vaultsRegistry,
+            validatorsRegistry: deployment.validatorsRegistry,
+            validatorsWithdrawals: VALIDATORS_WITHDRAWALS,
+            validatorsConsolidations: VALIDATORS_CONSOLIDATIONS,
             consolidationsChecker: consolidationsChecker,
-            osTokenVaultController: constants.osTokenVaultController,
-            osTokenConfig: constants.osTokenConfig,
-            osTokenVaultEscrow: constants.osTokenVaultEscrow,
-            sharedMevEscrow: constants.sharedMevEscrow,
-            depositDataRegistry: constants.depositDataRegistry,
-            exitingAssetsClaimDelay: constants.exitedAssetsClaimDelay
+            osTokenVaultController: deployment.osTokenVaultController,
+            osTokenConfig: deployment.osTokenConfig,
+            osTokenVaultEscrow: deployment.osTokenVaultEscrow,
+            sharedMevEscrow: deployment.sharedMevEscrow,
+            depositDataRegistry: deployment.depositDataRegistry,
+            exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
         });
     }
 
-    function _getEthErc20VaultConstructorArgs()
-        internal
-        view
-        returns (IEthErc20Vault.EthErc20VaultConstructorArgs memory)
-    {
+    function _getEthErc20VaultConstructorArgs() internal returns (IEthErc20Vault.EthErc20VaultConstructorArgs memory) {
+        Deployment memory deployment = getDeploymentData();
         return IEthErc20Vault.EthErc20VaultConstructorArgs({
-            keeper: constants.keeper,
-            vaultsRegistry: constants.vaultsRegistry,
-            validatorsRegistry: constants.validatorsRegistry,
-            validatorsWithdrawals: constants.validatorsWithdrawals,
-            validatorsConsolidations: constants.validatorsConsolidations,
+            keeper: deployment.keeper,
+            vaultsRegistry: deployment.vaultsRegistry,
+            validatorsRegistry: deployment.validatorsRegistry,
+            validatorsWithdrawals: VALIDATORS_WITHDRAWALS,
+            validatorsConsolidations: VALIDATORS_CONSOLIDATIONS,
             consolidationsChecker: consolidationsChecker,
-            osTokenVaultController: constants.osTokenVaultController,
-            osTokenConfig: constants.osTokenConfig,
-            osTokenVaultEscrow: constants.osTokenVaultEscrow,
-            sharedMevEscrow: constants.sharedMevEscrow,
-            depositDataRegistry: constants.depositDataRegistry,
-            exitingAssetsClaimDelay: constants.exitedAssetsClaimDelay
+            osTokenVaultController: deployment.osTokenVaultController,
+            osTokenConfig: deployment.osTokenConfig,
+            osTokenVaultEscrow: deployment.osTokenVaultEscrow,
+            sharedMevEscrow: deployment.sharedMevEscrow,
+            depositDataRegistry: deployment.depositDataRegistry,
+            exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
         });
-    }
-
-    function _generateGovernorTxJson() internal {
-        string[] memory objects = new string[](vaultImpls.length + vaultFactories.length);
-        for (uint256 i = 0; i < vaultImpls.length; i++) {
-            string memory object = Strings.toString(i);
-            vm.serializeAddress(object, "to", constants.vaultsRegistry);
-            vm.serializeString(object, "operation", "0");
-            vm.serializeBytes(
-                object,
-                "data",
-                abi.encodeWithSelector(IVaultsRegistry(constants.vaultsRegistry).addVaultImpl.selector, vaultImpls[i])
-            );
-            objects[i] = vm.serializeString(object, "value", "0.0");
-        }
-
-        for (uint256 i = 0; i < vaultFactories.length; i++) {
-            string memory object = Strings.toString(vaultImpls.length + i);
-            vm.serializeAddress(object, "to", constants.vaultsRegistry);
-            vm.serializeString(object, "operation", "0");
-            vm.serializeBytes(
-                object,
-                "data",
-                abi.encodeWithSelector(IVaultsRegistry(constants.vaultsRegistry).addFactory.selector, vaultFactories[i])
-            );
-            objects[vaultImpls.length + i] = vm.serializeString(object, "value", "0.0");
-        }
-        string memory json = "json";
-        string memory output = vm.serializeString(json, "transactions", objects);
-        vm.writeJson(output, "./output/example.json");
     }
 }
