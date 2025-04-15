@@ -49,6 +49,10 @@ abstract contract Network is Script {
         address validatorsRegistry;
         address legacyPoolEscrow;
         address legacyRewardToken;
+        address merkleDistributor;
+        address gnoToken;
+        address sDaiToken;
+        address savingsXDaiAdapter;
     }
 
     struct Factory {
@@ -72,6 +76,10 @@ abstract contract Network is Script {
         } else {
             revert("Unsupported chain ID");
         }
+    }
+
+    function isGnosisNetwork() internal view returns (bool) {
+        return block.chainid == GNOSIS || block.chainid == CHIADO;
     }
 
     function getDeploymentFilePath() internal view returns (string memory) {
@@ -115,9 +123,18 @@ abstract contract Network is Script {
         deployment.validatorsRegistry = deploymentData.readAddress(".ValidatorsRegistry");
         deployment.legacyPoolEscrow = deploymentData.readAddress(".LegacyPoolEscrow");
         deployment.legacyRewardToken = deploymentData.readAddress(".LegacyRewardToken");
+        deployment.merkleDistributor = deploymentData.readAddress(".MerkleDistributor");
 
-        uint256 chainId = block.chainid;
-        if (chainId == MAINNET || chainId == HOODI) {
+        bool isGnosis = isGnosisNetwork();
+        if (isGnosis) {
+            deployment.gnoToken = deploymentData.readAddress(".GnoToken");
+            deployment.sDaiToken = deploymentData.readAddress(".SDaiToken");
+            deployment.savingsXDaiAdapter = deploymentData.readAddress(".SavingsXDaiAdapter");
+            deployment.foxVault = address(0);
+        } else {
+            deployment.gnoToken = address(0);
+            deployment.sDaiToken = address(0);
+            deployment.savingsXDaiAdapter = address(0);
             deployment.foxVault = deploymentData.readAddress(".FoxVault");
         }
         _deployment = deployment;
@@ -173,7 +190,8 @@ abstract contract Network is Script {
         Factory[] memory newFactories,
         address validatorsChecker,
         address consolidationsChecker,
-        address rewardSplitterFactory
+        address rewardSplitterFactory,
+        address gnoDaiDistributor
     ) internal {
         Deployment memory deployment = getDeploymentData();
 
@@ -192,14 +210,20 @@ abstract contract Network is Script {
         vm.serializeAddress(json, "ValidatorsRegistry", deployment.validatorsRegistry);
         vm.serializeAddress(json, "LegacyPoolEscrow", deployment.legacyPoolEscrow);
         vm.serializeAddress(json, "LegacyRewardToken", deployment.legacyRewardToken);
+        vm.serializeAddress(json, "MerkleDistributor", deployment.merkleDistributor);
 
         for (uint256 i = 0; i < newFactories.length; i++) {
             Factory memory factory = newFactories[i];
             vm.serializeAddress(json, factory.name, factory.factory);
         }
 
-        uint256 chainId = block.chainid;
-        if (chainId == MAINNET || chainId == HOODI) {
+        bool isGnosis = isGnosisNetwork();
+        if (isGnosis) {
+            vm.serializeAddress(json, "GnoToken", deployment.gnoToken);
+            vm.serializeAddress(json, "SDaiToken", deployment.sDaiToken);
+            vm.serializeAddress(json, "SavingsXDaiAdapter", deployment.savingsXDaiAdapter);
+            vm.serializeAddress(json, "GnoDaiDistributor", gnoDaiDistributor);
+        } else {
             vm.serializeAddress(json, "FoxVault", deployment.foxVault);
         }
 

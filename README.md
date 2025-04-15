@@ -103,7 +103,10 @@ anvil --fork-url https://eth.merkle.io
 2. Deploy contracts using Foundry scripts:
 
 ```shell
+# Ethereum
 forge script script/UpgradeEthNetwork.s.sol:UpgradeEthNetwork --rpc-url http://localhost:8545 --broadcast
+# Gnosis Chain
+forge script script/UpgradeGnoNetwork.s.sol:UpgradeGnoNetwork --rpc-url http://localhost:8545 --broadcast 
 ```
 
 ### Gas Analysis
