@@ -68,6 +68,12 @@ cd v3-core
 forge install
 ```
 
+3. Create and update .env file
+
+```shell
+cp .env.example .env
+```
+
 ## Development
 
 ### Compilation
@@ -91,13 +97,16 @@ FOUNDRY_PROFILE=test forge test --isolate
 1. Start a local Anvil node (Foundry's local chain):
 
 ```shell
-anvil
+anvil --fork-url https://eth.merkle.io
 ```
 
 2. Deploy contracts using Foundry scripts:
 
 ```shell
+# Ethereum
 forge script script/UpgradeEthNetwork.s.sol:UpgradeEthNetwork --rpc-url http://localhost:8545 --broadcast
+# Gnosis Chain
+forge script script/UpgradeGnoNetwork.s.sol:UpgradeGnoNetwork --rpc-url http://localhost:8545 --broadcast 
 ```
 
 ### Gas Analysis

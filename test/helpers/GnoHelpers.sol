@@ -247,12 +247,12 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     }
 
     function _startSnapshotGas(string memory label) internal {
-        if (vm.envBool("SKIP_SNAPSHOTS")) return;
+        if (vm.envBool("TEST_SKIP_SNAPSHOTS")) return;
         return vm.startSnapshotGas(label);
     }
 
     function _stopSnapshotGas() internal {
-        if (vm.envBool("SKIP_SNAPSHOTS")) return;
+        if (vm.envBool("TEST_SKIP_SNAPSHOTS")) return;
         vm.stopSnapshotGas();
     }
 
@@ -261,7 +261,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
             return 0x4b4406Ed8659D03423490D8b62a1639206dA0A7a;
         }
 
-        if (!vm.envBool("USE_FORK_VAULTS")) return address(0);
+        if (!vm.envBool("TEST_USE_FORK_VAULTS")) return address(0);
 
         if (vaultType == VaultType.GnoVault) {
             return 0x00025C729A3364FaEf02c7D1F577068d87E90ba6;
@@ -287,7 +287,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
             newUnlockedMevReward += 12291679027502580216003;
         }
 
-        if (!vm.envBool("USE_FORK_VAULTS")) {
+        if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
             return (newTotalReward, newUnlockedMevReward);
         }
 

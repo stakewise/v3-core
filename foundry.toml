@@ -1,5 +1,6 @@
 [profile.default]
 src = 'contracts'
+fs_permissions = [{ access = "read-write", path = "./deployments"}]
 solc = "0.8.26"
 evm_version = "cancun"
 optimizer = true
@@ -10,3 +11,15 @@ bytecode_hash = 'none'
 
 [profile.test]
 via_ir = false
+
+[rpc_endpoints]
+mainnet = "${MAINNET_RPC_URL}"
+hoodi = "${HOODI_RPC_URL}"
+chiado = "${CHIADO_RPC_URL}"
+gnosis = "${GNOSIS_RPC_URL}"
+
+[etherscan]
+mainnet = { key = "${ETHERSCAN_API_KEY}" }
+hoodi = { key = "${ETHERSCAN_API_KEY}", chain = 560048, url = "https://api-hoodi.etherscan.io/api" }
+chiado = { key = "${GNOSISSCAN_API_KEY}" }
+gnosis = { key = "${GNOSISSCAN_API_KEY}" }
