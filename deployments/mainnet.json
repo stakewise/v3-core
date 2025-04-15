@@ -21,5 +21,6 @@
   "RewardSplitterFactory": "0x256aF27ce81282A0491A5361172c1Db08f6cC5F8",
   "ValidatorsRegistry": "0x00000000219ab540356cBB839Cbe05303d7705Fa",
   "LegacyPoolEscrow": "0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079",
-  "LegacyRewardToken": "0x20BC832ca081b91433ff6c17f85701B6e92486c5"
+  "LegacyRewardToken": "0x20BC832ca081b91433ff6c17f85701B6e92486c5",
+  "MerkleDistributor": "0xa9dc250dF4EE9273D09CFa455da41FB1cAC78d34"
 }
