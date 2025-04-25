@@ -88,7 +88,7 @@ abstract contract VaultSubVaults is
     }
 
     /// @inheritdoc IVaultSubVaults
-    function addSubVault(address vault) external override {
+    function addSubVault(address vault) public virtual override {
         _checkAdmin();
         // check whether the vault is registered in the registry
         if (
@@ -110,7 +110,7 @@ abstract contract VaultSubVaults is
             revert Errors.EjectingVault();
         }
         // check whether vault is with the same version
-        if (IVaultVersion(vault).version() != IVaultVersion(address(this)).version()) {
+        if (IVaultVersion(vault).version() < IVaultVersion(address(this)).version()) {
             revert Errors.InvalidVault();
         }
 
@@ -126,7 +126,7 @@ abstract contract VaultSubVaults is
     }
 
     /// @inheritdoc IVaultSubVaults
-    function ejectSubVault(address vault) external override {
+    function ejectSubVault(address vault) public virtual override {
         _checkAdmin();
 
         if (_ejectingVault != address(0)) {
