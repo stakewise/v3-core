@@ -105,7 +105,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     }
 
     /// @inheritdoc IVaultState
-    function isStateUpdateRequired() external view override returns (bool) {
+    function isStateUpdateRequired() external view virtual override returns (bool) {
         return IKeeperRewards(_keeper).isHarvestRequired(address(this));
     }
 
