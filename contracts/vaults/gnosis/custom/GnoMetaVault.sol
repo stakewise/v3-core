@@ -6,18 +6,18 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IVaultGnoStaking} from "../../interfaces/IVaultGnoStaking.sol";
-import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
-import {IGnoMetaVault} from "../../interfaces/IGnoMetaVault.sol";
-import {VaultImmutables} from "../modules/VaultImmutables.sol";
-import {VaultAdmin} from "../modules/VaultAdmin.sol";
-import {VaultVersion, IVaultVersion} from "../modules/VaultVersion.sol";
-import {VaultFee} from "../modules/VaultFee.sol";
-import {VaultState, IVaultState} from "../modules/VaultState.sol";
-import {VaultEnterExit, IVaultEnterExit} from "../modules/VaultEnterExit.sol";
-import {VaultOsToken} from "../modules/VaultOsToken.sol";
-import {IVaultSubVaults, VaultSubVaults} from "../modules/VaultSubVaults.sol";
-import {Multicall} from "../../base/Multicall.sol";
+import {IVaultGnoStaking} from "../../../interfaces/IVaultGnoStaking.sol";
+import {IKeeperRewards} from "../../../interfaces/IKeeperRewards.sol";
+import {IGnoMetaVault} from "../../../interfaces/IGnoMetaVault.sol";
+import {VaultImmutables} from "../../modules/VaultImmutables.sol";
+import {VaultAdmin} from "../../modules/VaultAdmin.sol";
+import {VaultVersion, IVaultVersion} from "../../modules/VaultVersion.sol";
+import {VaultFee} from "../../modules/VaultFee.sol";
+import {VaultState, IVaultState} from "../../modules/VaultState.sol";
+import {VaultEnterExit, IVaultEnterExit} from "../../modules/VaultEnterExit.sol";
+import {VaultOsToken} from "../../modules/VaultOsToken.sol";
+import {IVaultSubVaults, VaultSubVaults} from "../../modules/VaultSubVaults.sol";
+import {Multicall} from "../../../base/Multicall.sol";
 
 /**
  * @title GnoMetaVault
@@ -141,11 +141,6 @@ contract GnoMetaVault is
         return IVaultGnoStaking(vault).deposit(assets, address(this), address(0));
     }
 
-    /// @inheritdoc VaultSubVaults
-    function _minCollateralizeAssets() internal pure override returns (uint256) {
-        return 1 ether;
-    }
-
     /// @inheritdoc VaultState
     function _vaultAssets() internal view virtual override returns (uint256) {
         return _gnoToken.balanceOf(address(this));
@@ -165,7 +160,7 @@ contract GnoMetaVault is
         // fee recipient is initially set to admin address
         __VaultFee_init(params.admin, params.feePercent);
         __VaultState_init(params.capacity);
-        __VaultSubVaults_init();
+        __VaultSubVaults_init(params.subVaultsCurator);
 
         _deposit(address(this), _securityDeposit, address(0));
         // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706

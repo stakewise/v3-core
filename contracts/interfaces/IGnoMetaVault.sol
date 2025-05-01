@@ -51,12 +51,14 @@ interface IGnoMetaVault is
     /**
      * @dev Struct for initializing the GnoMetaVault contract
      * @param admin The address of the admin
+     * @param subVaultsCurator The address of the initial sub-vaults curator
      * @param capacity The Vault stops accepting deposits after exceeding the capacity
      * @param feePercent The fee percent that is charged by the Vault
      * @param metadataIpfsHash The IPFS hash of the Vault's metadata file
      */
     struct GnoMetaVaultInitParams {
         address admin;
+        address subVaultsCurator;
         uint256 capacity;
         uint16 feePercent;
         string metadataIpfsHash;

@@ -50,8 +50,6 @@ abstract contract VaultSubVaults is
     mapping(address vault => DoubleEndedQueue.Bytes32Deque) private _subVaultsExits;
     mapping(address vault => SubVaultState state) private _subVaultsStates;
 
-    bool private _isSubVaultsCollateralized;
-
     uint256 private _totalProcessedExitQueueTickets;
     uint128 private _subVaultsRewardsNonce;
     uint128 private _subVaultsTotalAssets;
@@ -78,13 +76,7 @@ abstract contract VaultSubVaults is
     /// @inheritdoc IVaultSubVaults
     function setSubVaultsCurator(address curator) external override {
         _checkAdmin();
-        if (curator == address(0)) revert Errors.ZeroAddress();
-        if (curator == subVaultsCurator) revert Errors.ValueNotChanged();
-        if (!ICuratorsRegistry(_curatorsRegistry).curators(curator)) {
-            revert Errors.InvalidCurator();
-        }
-        subVaultsCurator = curator;
-        emit SubVaultsCuratorUpdated(msg.sender, curator);
+        _setSubVaultsCurator(curator);
     }
 
     /// @inheritdoc IVaultSubVaults
@@ -112,6 +104,10 @@ abstract contract VaultSubVaults is
         // check whether vault is with the same version
         if (IVaultVersion(vault).version() < IVaultVersion(address(this)).version()) {
             revert Errors.InvalidVault();
+        }
+        // check whether vault is collateralized
+        if (!IKeeperRewards(_keeper).isCollateralized(vault)) {
+            revert Errors.NotCollateralized();
         }
 
         // check whether legacy exit queue is processed
@@ -144,25 +140,18 @@ abstract contract VaultSubVaults is
         if (state.stakedShares > 0) {
             // enter exit queue for all the vault staked shares
             uint256 positionTicket = IVaultEnterExit(vault).enterExitQueue(state.stakedShares, address(this));
-            if (positionTicket == type(uint256).max) {
-                // exit request was redeemed in full, update last sync sub vaults assets
-                _subVaultsTotalAssets -= SafeCast.toUint128(IVaultState(vault).convertToAssets(state.stakedShares));
-            } else {
-                // add ejecting shares to the vault's exit positions
-                _pushSubVaultExit(
-                    vault, SafeCast.toUint160(positionTicket), SafeCast.toUint96(state.stakedShares), false
-                );
-                _ejectingVaultShares = state.stakedShares;
-            }
+            // add ejecting shares to the vault's exit positions
+            _pushSubVaultExit(vault, SafeCast.toUint160(positionTicket), SafeCast.toUint96(state.stakedShares), false);
+            state.queuedShares += state.stakedShares;
         }
 
         // update state
-        state.queuedShares += state.stakedShares;
         state.stakedShares = 0;
         _subVaultsStates[vault] = state;
 
         if (state.queuedShares > 0) {
             _ejectingVault = vault;
+            _ejectingVaultShares = state.stakedShares;
         } else {
             // no shares left
             _subVaultsExits[vault].clear();
@@ -179,10 +168,9 @@ abstract contract VaultSubVaults is
     function isStateUpdateRequired() public view virtual override returns (bool) {
         // SLOAD to memory
         uint256 currentNonce = IKeeperRewards(_keeper).rewardsNonce();
-        uint256 lastRewardsNonce = _subVaultsRewardsNonce;
         unchecked {
             // cannot overflow as nonce is uint64
-            return lastRewardsNonce != 0 && lastRewardsNonce + 1 < currentNonce;
+            return _subVaultsRewardsNonce + 1 < currentNonce;
         }
     }
 
@@ -196,6 +184,9 @@ abstract contract VaultSubVaults is
 
         // deposit accumulated assets to sub vaults
         uint256 availableAssets = withdrawableAssets();
+        if (availableAssets == 0) {
+            return;
+        }
         ISubVaultsCurator.Deposit[] memory deposits =
             ISubVaultsCurator(subVaultsCurator).getDeposits(availableAssets, vaults);
 
@@ -300,10 +291,6 @@ abstract contract VaultSubVaults is
 
         // sync rewards nonce
         bool isHarvested = _syncRewardsNonce(vaults);
-
-        // check and update collateralization status
-        _syncSubVaultsCollateralized(vaults);
-
         if (!isHarvested) {
             return;
         }
@@ -381,11 +368,11 @@ abstract contract VaultSubVaults is
         uint256 processedAssets;
         uint256 vaultShares;
         uint256 positionTicket;
+        SubVaultState memory vaultState;
         ISubVaultsCurator.ExitRequest memory exitRequest;
 
         // SLOAD to memory
         uint256 exitsLength = exits.length;
-        uint256 subVaultsTotalAssets = _subVaultsTotalAssets;
         for (uint256 i = 0; i < exitsLength;) {
             // submit exit request to the vault
             exitRequest = exits[i];
@@ -397,17 +384,19 @@ abstract contract VaultSubVaults is
                 }
                 continue;
             }
+            vaultState = _subVaultsStates[exitRequest.vault];
             vaultShares = IVaultState(exitRequest.vault).convertToShares(exitRequest.assets);
             positionTicket = IVaultEnterExit(exitRequest.vault).enterExitQueue(vaultShares, address(this));
-            if (positionTicket == type(uint256).max) {
-                // exit request was redeemed in full, update last sync sub vaults assets
-                subVaultsTotalAssets -= SafeCast.toUint128(exitRequest.assets);
-            } else {
-                _pushSubVaultExit(
-                    exitRequest.vault, SafeCast.toUint160(positionTicket), SafeCast.toUint96(vaultShares), false
-                );
-                _subVaultsStates[exitRequest.vault].queuedShares += SafeCast.toUint128(vaultShares);
-            }
+
+            // save exit request
+            _pushSubVaultExit(
+                exitRequest.vault, SafeCast.toUint160(positionTicket), SafeCast.toUint96(vaultShares), false
+            );
+
+            // update state
+            vaultState.queuedShares += SafeCast.toUint128(vaultShares);
+            vaultState.stakedShares -= SafeCast.toUint128(vaultShares);
+            _subVaultsStates[exitRequest.vault] = vaultState;
             processedAssets += exitRequest.assets;
 
             unchecked {
@@ -465,14 +454,14 @@ abstract contract VaultSubVaults is
 
         // check whether the first vault is harvested
         uint256 currentNonce = IKeeperRewards(_keeper).rewardsNonce();
-        if (vaultNonce != 0 && vaultNonce + 1 < currentNonce) {
+        if (vaultNonce + 1 < currentNonce) {
             revert Errors.NotHarvested();
         }
 
         // fetch current nonce
         currentNonce = vaultNonce;
         uint256 lastRewardsNonce = _subVaultsRewardsNonce;
-        if (lastRewardsNonce < currentNonce) {
+        if (lastRewardsNonce > currentNonce) {
             revert Errors.NotHarvested();
         } else if (lastRewardsNonce == currentNonce) {
             return false;
@@ -489,7 +478,7 @@ abstract contract VaultSubVaults is
             (, vaultNonce) = IKeeperRewards(_keeper).rewards(vault);
 
             // check whether the vault is harvested
-            if (vaultNonce != 0 && vaultNonce != currentNonce) {
+            if (vaultNonce != currentNonce) {
                 revert Errors.NotHarvested();
             }
 
@@ -522,29 +511,6 @@ abstract contract VaultSubVaults is
 
         // update state
         _ejectingVaultShares = ejectingVaultShares - IVaultState(ejectingVault).convertToShares(processedAssets);
-    }
-
-    /**
-     * @dev Internal function to update sub-vaults collateralization status
-     * @param vaults The addresses of the sub-vaults
-     */
-    function _syncSubVaultsCollateralized(address[] memory vaults) private {
-        if (_isSubVaultsCollateralized || _totalAssets < _minCollateralizeAssets()) {
-            return;
-        }
-
-        uint256 vaultsLength = vaults.length;
-        for (uint256 i = 0; i < vaultsLength;) {
-            if (IKeeperRewards(_keeper).isCollateralized(vaults[i])) {
-                _isSubVaultsCollateralized = true;
-                emit SubVaultsCollateralized();
-                break;
-            }
-            unchecked {
-                // cannot realistically overflow
-                ++i;
-            }
-        }
     }
 
     /**
@@ -600,7 +566,21 @@ abstract contract VaultSubVaults is
 
     /// @inheritdoc VaultImmutables
     function _isCollateralized() internal view virtual override returns (bool) {
-        return _isSubVaultsCollateralized;
+        return _subVaults.length() > 0;
+    }
+
+    /**
+     * @dev Internal function to set the sub-vaults curator
+     * @param curator The address of the sub-vaults curator
+     */
+    function _setSubVaultsCurator(address curator) private {
+        if (curator == address(0)) revert Errors.ZeroAddress();
+        if (curator == subVaultsCurator) revert Errors.ValueNotChanged();
+        if (!ICuratorsRegistry(_curatorsRegistry).curators(curator)) {
+            revert Errors.InvalidCurator();
+        }
+        subVaultsCurator = curator;
+        emit SubVaultsCuratorUpdated(msg.sender, curator);
     }
 
     /**
@@ -612,16 +592,13 @@ abstract contract VaultSubVaults is
     function _depositToVault(address vault, uint256 assets) internal virtual returns (uint256);
 
     /**
-     * @dev Internal function to get the amount of assets required to collateralize the vault
-     * @return The amount of assets required to collateralize the vault
-     */
-    function _minCollateralizeAssets() internal pure virtual returns (uint256);
-
-    /**
      * @dev Initializes the VaultSubVaults contract
+     * @param curator The address of initial sub-vaults curator
      */
-    function __VaultSubVaults_init() internal onlyInitializing {
+    function __VaultSubVaults_init(address curator) internal onlyInitializing {
         __ReentrancyGuard_init();
+        _setSubVaultsCurator(curator);
+        _subVaultsRewardsNonce = IKeeperRewards(_keeper).rewardsNonce();
     }
 
     /**

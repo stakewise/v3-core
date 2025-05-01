@@ -14,7 +14,7 @@ contract BalancedCurator is ISubVaultsCurator {
     /// @inheritdoc ISubVaultsCurator
     function getDeposits(uint256 assetsToDeposit, address[] calldata subVaults)
         external
-        view
+        pure
         override
         returns (Deposit[] memory deposits)
     {
@@ -38,7 +38,7 @@ contract BalancedCurator is ISubVaultsCurator {
     /// @inheritdoc ISubVaultsCurator
     function getExitRequests(uint256 assetsToExit, address[] calldata subVaults, uint256[] calldata balances)
         external
-        view
+        pure
         override
         returns (ExitRequest[] memory exitRequests)
     {

@@ -31,11 +31,6 @@ interface IVaultSubVaults {
     }
 
     /**
-     * @notice Emitted when the sub vaults are collateralized
-     */
-    event SubVaultsCollateralized();
-
-    /**
      * @notice Emitted when the rewards nonce is updated
      * @param rewardsNonce The new rewards nonce
      */

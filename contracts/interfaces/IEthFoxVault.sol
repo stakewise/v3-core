@@ -32,6 +32,30 @@ interface IEthFoxVault is
     IMulticall
 {
     /**
+     * @dev Struct for deploying the EthFoxVault contract
+     * @param keeper The address of the Keeper contract
+     * @param vaultsRegistry The address of the VaultsRegistry contract
+     * @param validatorsRegistry The contract address used for registering validators in beacon chain
+     * @param validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
+     * @param validatorsConsolidations The contract address used for consolidating validators in beacon chain
+     * @param consolidationsChecker The contract address used for checking consolidations
+     * @param sharedMevEscrow The address of the shared MEV escrow
+     * @param depositDataRegistry The address of the DepositDataRegistry contract
+     * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
+     */
+    struct EthFoxVaultConstructorArgs {
+        address keeper;
+        address vaultsRegistry;
+        address validatorsRegistry;
+        address validatorsWithdrawals;
+        address validatorsConsolidations;
+        address consolidationsChecker;
+        address sharedMevEscrow;
+        address depositDataRegistry;
+        uint64 exitingAssetsClaimDelay;
+    }
+
+    /**
      * @notice Event emitted when a user is ejected from the Vault
      * @param user The address of the user
      * @param shares The amount of shares ejected

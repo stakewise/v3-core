@@ -43,38 +43,20 @@ contract EthFoxVault is
      * @dev Constructor
      * @dev Since the immutable variable value is stored in the bytecode,
      *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-     * @param keeper The address of the Keeper contract
-     * @param vaultsRegistry The address of the VaultsRegistry contract
-     * @param validatorsRegistry The contract address used for registering validators in beacon chain
-     * @param validatorsWithdrawals The contract address used for withdrawing validators in beacon chain
-     * @param validatorsConsolidations The contract address used for consolidating validators in beacon chain
-     * @param consolidationsChecker The contract address used for checking consolidations
-     * @param sharedMevEscrow The address of the shared MEV escrow
-     * @param depositDataRegistry The address of the DepositDataRegistry contract
-     * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
+     * @param args The arguments for initializing the EthFoxVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        address keeper,
-        address vaultsRegistry,
-        address validatorsRegistry,
-        address validatorsWithdrawals,
-        address validatorsConsolidations,
-        address consolidationsChecker,
-        address sharedMevEscrow,
-        address depositDataRegistry,
-        uint256 exitingAssetsClaimDelay
-    )
-        VaultImmutables(keeper, vaultsRegistry)
+    constructor(EthFoxVaultConstructorArgs memory args)
+        VaultImmutables(args.keeper, args.vaultsRegistry)
         VaultValidators(
-            depositDataRegistry,
-            validatorsRegistry,
-            validatorsWithdrawals,
-            validatorsConsolidations,
-            consolidationsChecker
+            args.depositDataRegistry,
+            args.validatorsRegistry,
+            args.validatorsWithdrawals,
+            args.validatorsConsolidations,
+            args.consolidationsChecker
         )
-        VaultEnterExit(exitingAssetsClaimDelay)
-        VaultMev(sharedMevEscrow)
+        VaultEnterExit(args.exitingAssetsClaimDelay)
+        VaultMev(args.sharedMevEscrow)
     {
         _disableInitializers();
     }

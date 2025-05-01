@@ -34,7 +34,7 @@ interface IEthMetaVault is
      * @param osTokenVaultController The address of the OsTokenVaultController contract
      * @param osTokenConfig The address of the OsTokenConfig contract
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
-     * @param subVaultsRegistry The address of the SubVaultsRegistry contract
+     * @param curatorsRegistry The address of the CuratorsRegistry contract
      * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
      */
     struct EthMetaVaultConstructorArgs {
@@ -43,19 +43,21 @@ interface IEthMetaVault is
         address osTokenVaultController;
         address osTokenConfig;
         address osTokenVaultEscrow;
-        address subVaultsRegistry;
+        address curatorsRegistry;
         uint64 exitingAssetsClaimDelay;
     }
 
     /**
      * @dev Struct for initializing the EthMetaVault contract
      * @param admin The address of the admin
+     * @param subVaultsCurator The address of the initial sub-vaults curator
      * @param capacity The Vault stops accepting deposits after exceeding the capacity
      * @param feePercent The fee percent that is charged by the Vault
      * @param metadataIpfsHash The IPFS hash of the Vault's metadata file
      */
     struct EthMetaVaultInitParams {
         address admin;
+        address subVaultsCurator;
         uint256 capacity;
         uint16 feePercent;
         string metadataIpfsHash;

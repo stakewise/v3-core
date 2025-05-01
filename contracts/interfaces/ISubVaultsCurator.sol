@@ -35,7 +35,7 @@ interface ISubVaultsCurator {
      */
     function getDeposits(uint256 assetsToDeposit, address[] calldata subVaults)
         external
-        view
+        pure
         returns (Deposit[] memory deposits);
 
     /**
@@ -46,6 +46,6 @@ interface ISubVaultsCurator {
      */
     function getExitRequests(uint256 assetsToExit, address[] calldata subVaults, uint256[] calldata balances)
         external
-        view
+        pure
         returns (ExitRequest[] memory exitRequests);
 }
