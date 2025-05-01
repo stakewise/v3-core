@@ -94,7 +94,8 @@ abstract contract VaultSubVaults is
             revert Errors.AlreadyAdded();
         }
         // check whether the vault is not exceeding the limit
-        if (_subVaults.length() >= _maxSubVaults) {
+        uint256 subVaultsCount = _subVaults.length();
+        if (subVaultsCount >= _maxSubVaults) {
             revert Errors.CapacityExceeded();
         }
         // check whether the vault is not ejecting
@@ -114,6 +115,16 @@ abstract contract VaultSubVaults is
         (,, uint128 totalExitingTickets, uint128 totalExitingAssets,) = IVaultState(vault).getExitQueueData();
         if (totalExitingTickets != 0 || totalExitingAssets != 0) {
             revert Errors.ExitRequestNotProcessed();
+        }
+
+        // check harvested
+        (, uint256 vaultNonce) = IKeeperRewards(_keeper).rewards(vault);
+        uint256 lastSubVaultsRewardsNonce = _subVaultsRewardsNonce;
+        if (subVaultsCount == 0) {
+            _subVaultsRewardsNonce = SafeCast.toUint128(vaultNonce);
+            emit RewardsNonceUpdated(vaultNonce);
+        } else if (vaultNonce != lastSubVaultsRewardsNonce) {
+            revert Errors.NotHarvested();
         }
 
         // add the vault to the list of sub vaults
@@ -168,9 +179,10 @@ abstract contract VaultSubVaults is
     function isStateUpdateRequired() public view virtual override returns (bool) {
         // SLOAD to memory
         uint256 currentNonce = IKeeperRewards(_keeper).rewardsNonce();
+        uint256 subVaultsRewardsNonce = _subVaultsRewardsNonce;
         unchecked {
             // cannot overflow as nonce is uint64
-            return _subVaultsRewardsNonce + 1 < currentNonce;
+            return subVaultsRewardsNonce != 0 && subVaultsRewardsNonce + 1 < currentNonce;
         }
     }
 
