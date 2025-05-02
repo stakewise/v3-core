@@ -69,6 +69,11 @@ abstract contract VaultSubVaults is
     }
 
     /// @inheritdoc IVaultSubVaults
+    function subVaultsStates(address vault) external view override returns (SubVaultState memory) {
+        return _subVaultsStates[vault];
+    }
+
+    /// @inheritdoc IVaultSubVaults
     function getSubVaults() public view override returns (address[] memory) {
         return _subVaults.values();
     }

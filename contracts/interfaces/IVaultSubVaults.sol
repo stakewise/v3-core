@@ -76,6 +76,13 @@ interface IVaultSubVaults {
     function getSubVaults() external view returns (address[] memory);
 
     /**
+     * @notice Function to get the state of a sub-vault
+     * @param vault The address of the sub-vault
+     * @return The state of the sub-vault
+     */
+    function subVaultsStates(address vault) external view returns (SubVaultState memory);
+
+    /**
      * @notice Function to update the the sub-vaults curator. Can only be called by the admin.
      * @param curator The address of the new sub-vaults curator
      */

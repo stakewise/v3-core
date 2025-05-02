@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, stdStorage, StdStorage} from "forge-std/Test.sol";
 import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
 import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IVaultSubVaults} from "../contracts/interfaces/IVaultSubVaults.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
+import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthMetaVault} from "../contracts/vaults/ethereum/custom/EthMetaVault.sol";
 import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
@@ -15,6 +16,8 @@ import {CuratorsRegistry} from "../contracts/curators/CuratorsRegistry.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 
 contract VaultSubVaultsTest is Test, EthHelpers {
+    using stdStorage for StdStorage;
+
     ForkContracts public contracts;
     EthMetaVault public metaVault;
     address public admin;
@@ -346,7 +349,8 @@ contract VaultSubVaultsTest is Test, EthHelpers {
                 metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
             })
         );
-        metaVault = EthMetaVault(payable(_getOrCreateVault(VaultType.EthMetaVault, admin, initParams, false)));
+        EthMetaVault newMetaVault =
+            EthMetaVault(payable(_getOrCreateVault(VaultType.EthMetaVault, admin, initParams, false)));
 
         // create new sub vault
         address subVault = _createSubVault(admin);
@@ -365,13 +369,13 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Action: Add the new sub vault
         vm.prank(admin);
-        metaVault.addSubVault(subVault);
+        newMetaVault.addSubVault(subVault);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
         // Assert: Verify the sub vault was added
-        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        address[] memory subVaultsAfter = newMetaVault.getSubVaults();
         assertEq(subVaultsAfter.length, 1, "Sub vaults length should be 1");
         assertEq(subVaultsAfter[0], subVault, "Sub vault address mismatch");
     }
@@ -407,12 +411,180 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         assertTrue(found, "Sub vault was not added correctly");
     }
 
-    function test_ejectSubVault_notAdmin() internal {}
-    function test_ejectSubVault_alreadyEjecting() internal {}
-    function test_ejectSubVault_singleSubVaultLeft() internal {}
-    function test_ejectSubVault_notCollateralizedSubVaults() internal {}
-    function test_ejectSubVault_collateralizedSubVaults() internal {}
-    function test_ejectSubVault_subVaultsWithQueuedShares() internal {}
+    function test_ejectSubVault_notAdmin() public {
+        // Setup: Get a sub vault to eject
+        address subVaultToEject = subVaults[0];
+
+        // Setup: Create a non-admin user
+        address nonAdmin = makeAddr("nonAdmin");
+
+        // Action & Assert: Non-admin cannot eject a sub vault
+        vm.prank(nonAdmin);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        metaVault.ejectSubVault(subVaultToEject);
+    }
+
+    function test_ejectSubVault_alreadyEjecting() public {
+        // Setup: Get sub vaults to eject
+        address firstSubVault = subVaults[0];
+        address secondSubVault = subVaults[1];
+
+        // Deposit to sub vaults first to ensure they have staked shares
+        vm.prank(admin);
+        metaVault.depositToSubVaults();
+
+        // Eject the first sub vault
+        vm.prank(admin);
+        metaVault.ejectSubVault(firstSubVault);
+
+        // Action & Assert: Cannot eject another sub vault while one is already being ejected
+        vm.prank(admin);
+        vm.expectRevert(Errors.EjectingVault.selector);
+        metaVault.ejectSubVault(secondSubVault);
+    }
+
+    function test_ejectSubVault_singleSubVaultLeft() public {
+        // eject all the vaults until the last one
+        for (uint256 i = 0; i < 2; i++) {
+            vm.prank(admin);
+            metaVault.ejectSubVault(subVaults[i]);
+        }
+        subVaults = metaVault.getSubVaults();
+        assertEq(subVaults.length, 1, "Should have 1 sub vault left");
+
+        // Action & Assert: Cannot eject the last sub vault
+        vm.prank(admin);
+        vm.expectRevert(Errors.EmptySubVaults.selector);
+        metaVault.ejectSubVault(subVaults[0]);
+    }
+
+    function test_ejectSubVault_notInSubVaults() public {
+        // Setup: Create a vault that's not a sub vault
+        address nonSubVault = _createSubVault(admin);
+        _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), nonSubVault);
+
+        // Action & Assert: Cannot eject a vault that's not in sub vaults
+        vm.prank(admin);
+        vm.expectRevert(Errors.AlreadyRemoved.selector);
+        metaVault.ejectSubVault(nonSubVault);
+    }
+
+    function test_ejectSubVault_emptySubVault() public {
+        // Setup: Get a sub vaults to eject
+        address subVault1ToEject = subVaults[0];
+        address subVault2ToEject = subVaults[1];
+
+        // Get sub vault count before ejection
+        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+
+        // Start gas measurement
+        _startSnapshotGas("test_ejectSubVault_emptySubVault");
+
+        // Expect SubVaultRemoved event
+        vm.expectEmit(true, true, false, false);
+        emit IVaultSubVaults.SubVaultRemoved(admin, subVault1ToEject);
+
+        // Action: Eject the sub vault
+        vm.prank(admin);
+        metaVault.ejectSubVault(subVault1ToEject);
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Assert: Verify the sub vault was removed from the list
+        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        assertEq(subVaultsAfter.length, subVaultsCountBefore - 1, "Sub vault should be removed");
+
+        // Expect SubVaultRemoved event
+        vm.expectEmit(true, true, false, false);
+        emit IVaultSubVaults.SubVaultRemoved(admin, subVault2ToEject);
+
+        // Can remove another sub vault
+        vm.prank(admin);
+        metaVault.ejectSubVault(subVault2ToEject);
+
+        // Assert: Verify the sub vault was removed from the list
+        subVaultsAfter = metaVault.getSubVaults();
+        assertEq(subVaultsAfter.length, subVaultsCountBefore - 2, "Sub vault should be removed");
+    }
+
+    function test_ejectSubVault_subVaultWithShares() public {
+        // Setup: Get a sub vault to eject
+        address subVaultToEject = subVaults[0];
+
+        // Deposit to sub vaults to get collateralized state
+        vm.prank(admin);
+        metaVault.depositToSubVaults();
+
+        // Get sub vault count before ejection
+        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+
+        // Start gas measurement
+        _startSnapshotGas("test_ejectSubVault_subVaultWithShares");
+
+        // Expect the ExitQueueEntered event
+        vm.expectEmit(true, true, false, false, subVaultToEject);
+        emit IVaultEnterExit.ExitQueueEntered(address(metaVault), address(metaVault), 0, 0);
+
+        // Action: Eject the sub vault
+        vm.prank(admin);
+        metaVault.ejectSubVault(subVaultToEject);
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Assert: Verify the sub vault was removed from the list
+        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        assertEq(subVaultsAfter.length, subVaultsCountBefore - 1, "Sub vault should be removed");
+
+        // And verify it's not in the list anymore
+        bool found = false;
+        for (uint256 i = 0; i < subVaultsAfter.length; i++) {
+            if (subVaultsAfter[i] == subVaultToEject) {
+                found = true;
+                break;
+            }
+        }
+        assertFalse(found, "Ejected sub vault should not be in the list");
+    }
+
+    function test_ejectSubVault_subVaultsWithQueuedShares() public {
+        // Setup: Get a sub vault to eject
+        address subVaultToEject = subVaults[0];
+
+        // Deposit to sub vaults to get collateralized state
+        metaVault.depositToSubVaults();
+
+        // user enters exit queue
+        metaVault.enterExitQueue(metaVault.getShares(address(this)), address(this));
+
+        // Update state for the sub vaults
+        _setEthVaultReward(address(subVaultToEject), 0, 0);
+        uint64 currentNonce = contracts.keeper.rewardsNonce();
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            _setVaultRewardsNonce(subVaults[i], currentNonce);
+        }
+
+        // Expect the ExitQueueEntered event
+        vm.expectEmit(true, true, false, false, subVaultToEject);
+        emit IVaultEnterExit.ExitQueueEntered(address(metaVault), address(metaVault), 0, 0);
+
+        metaVault.updateState(_getEmptyHarvestParams());
+
+        // Action: Eject the sub vault
+        vm.prank(admin);
+        metaVault.ejectSubVault(subVaultToEject);
+
+        // Assert: Verify the sub vault was removed from the list
+        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        assertEq(subVaultsAfter.length, subVaults.length - 1, "Sub vault should be removed");
+    }
+
+    function test_depositToSubVaults_notHarvested() internal {}
+    function test_depositToSubVaults_emptySubVaults() internal {}
+    function test_depositToSubVaults_noAvailableAssets() internal {}
+    function test_depositToSubVaults_singleSubVault() internal {}
+    function test_depositToSubVaults_multipleSubVaults() internal {}
 
     function _createSubVault(address _admin) internal returns (address) {
         bytes memory initParams = abi.encode(
@@ -424,5 +596,17 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         );
 
         return _createVault(VaultType.EthVault, _admin, initParams, false);
+    }
+
+    function _setVaultRewardsNonce(address vault, uint64 rewardsNonce) internal {
+        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewards(address)").with_key(vault).depth(
+            1
+        ).checked_write(rewardsNonce);
+    }
+
+    function _getEmptyHarvestParams() internal pure returns (IKeeperRewards.HarvestParams memory) {
+        bytes32[] memory emptyProof;
+        return
+            IKeeperRewards.HarvestParams({rewardsRoot: bytes32(0), proof: emptyProof, reward: 0, unlockedMevReward: 0});
     }
 }

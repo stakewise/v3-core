@@ -54,6 +54,7 @@ contract BalancedCurator is ISubVaultsCurator {
         ExitRequest memory exitRequest;
         while (assetsToExit > 0) {
             for (uint256 i = 0; i < subVaultsCount;) {
+                amountPerVault = Math.min(amountPerVault, assetsToExit);
                 exitRequest = exitRequests[i];
                 exitRequest.vault = subVaults[i];
                 exitAmount = Math.min(balances[i], amountPerVault);
@@ -64,8 +65,8 @@ contract BalancedCurator is ISubVaultsCurator {
                     // cannot realistically overflow
                     ++i;
                 }
+                assetsToExit -= exitAmount;
             }
-            assetsToExit -= exitAmount;
         }
     }
 }

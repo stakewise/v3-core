@@ -286,7 +286,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     {
         if (vaultType == VaultType.EthFoxVault || vaultType == VaultType.EthMetaVault) {
             address vaultImpl = _getOrCreateVaultImpl(vaultType);
-            address vault = address(new ERC1967Proxy(address(vaultImpl), ""));
+            address vault = address(new ERC1967Proxy(vaultImpl, ""));
             IEthVault(vault).initialize{value: _securityDeposit}(initParams);
             vm.prank(VaultsRegistry(_vaultsRegistry).owner());
             VaultsRegistry(_vaultsRegistry).addVault(vault);
