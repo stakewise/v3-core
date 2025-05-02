@@ -168,19 +168,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         metaVault.addSubVault(fakeVault);
     }
 
-    function test_addSubVault_notRegisteredVaultImpl() public {
-        // Deploy vault with not registered implementation
-        address vault2 = _createSubVault(admin);
-        address vaultImpl = IEthVault(vault2).implementation();
-        vm.prank(contracts.vaultsRegistry.owner());
-        contracts.vaultsRegistry.removeVaultImpl(vaultImpl);
-
-        // Action & Assert: Cannot add non-registered vault
-        vm.prank(admin);
-        vm.expectRevert(Errors.InvalidVault.selector);
-        metaVault.addSubVault(vault2);
-    }
-
     function test_addSubVault_alreadyAddedSubVault() public {
         // Setup: Get an existing sub vault
         address existingSubVault = subVaults[0];

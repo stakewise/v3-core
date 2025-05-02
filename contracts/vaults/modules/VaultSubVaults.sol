@@ -83,10 +83,7 @@ abstract contract VaultSubVaults is
     function addSubVault(address vault) public virtual override {
         _checkAdmin();
         // check whether the vault is registered in the registry
-        if (
-            vault == address(0) || vault == address(this) || !IVaultsRegistry(_vaultsRegistry).vaults(vault)
-                || !IVaultsRegistry(_vaultsRegistry).vaultImpls(IVaultVersion(vault).implementation())
-        ) {
+        if (vault == address(0) || vault == address(this) || !IVaultsRegistry(_vaultsRegistry).vaults(vault)) {
             revert Errors.InvalidVault();
         }
         // check whether the vault is not already added
