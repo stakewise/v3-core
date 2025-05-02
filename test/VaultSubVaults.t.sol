@@ -580,11 +580,208 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         assertEq(subVaultsAfter.length, subVaults.length - 1, "Sub vault should be removed");
     }
 
-    function test_depositToSubVaults_notHarvested() internal {}
-    function test_depositToSubVaults_emptySubVaults() internal {}
-    function test_depositToSubVaults_noAvailableAssets() internal {}
-    function test_depositToSubVaults_singleSubVault() internal {}
-    function test_depositToSubVaults_multipleSubVaults() internal {}
+    function test_depositToSubVaults_notHarvested() public {
+        // Setup: Make the meta vault appear not harvested
+        _setEthVaultReward(subVaults[0], 0, 0);
+        _setEthVaultReward(subVaults[0], 0, 0);
+
+        // Action & Assert: Expect revert when trying to deposit when not harvested
+        vm.expectRevert(Errors.NotHarvested.selector);
+        metaVault.depositToSubVaults();
+    }
+
+    function test_depositToSubVaults_emptySubVaults() public {
+        // Setup: Create a new meta vault
+        bytes memory initParams = abi.encode(
+            IEthMetaVault.EthMetaVaultInitParams({
+                admin: admin,
+                subVaultsCurator: curator,
+                capacity: 1000 ether,
+                feePercent: 1000, // 10%
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        EthMetaVault newMetaVault =
+            EthMetaVault(payable(_getOrCreateVault(VaultType.EthMetaVault, admin, initParams, false)));
+
+        // Action & Assert: Expect revert when trying to deposit to empty sub vaults
+        vm.prank(admin);
+        vm.expectRevert(Errors.EmptySubVaults.selector);
+        newMetaVault.depositToSubVaults();
+    }
+
+    function test_depositToSubVaults_noAvailableAssets() public {
+        vm.deal(address(metaVault), 0);
+        vm.expectRevert(Errors.InvalidAssets.selector);
+        metaVault.depositToSubVaults();
+    }
+
+    function test_depositToSubVaults_singleSubVault() public {
+        // Setup: Remove all but one sub vault
+        for (uint256 i = 1; i < subVaults.length; i++) {
+            vm.prank(admin);
+            metaVault.ejectSubVault(subVaults[i]);
+        }
+
+        // Verify there's only one sub vault left
+        address[] memory remainingSubVaults = metaVault.getSubVaults();
+        assertEq(remainingSubVaults.length, 1, "Should have only one sub vault");
+
+        // Get initial state of the remaining sub vault
+        address depositSubVault = remainingSubVaults[0];
+        IVaultSubVaults.SubVaultState memory initialState = metaVault.subVaultsStates(depositSubVault);
+
+        uint256 availableAssets = metaVault.withdrawableAssets();
+        uint256 newShares = IEthVault(depositSubVault).convertToShares(availableAssets);
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_depositToSubVaults_singleSubVault");
+
+        // Expect the Deposited event
+        vm.expectEmit(true, true, true, true, depositSubVault);
+        emit IVaultEnterExit.Deposited(address(metaVault), address(metaVault), availableAssets, newShares, address(0));
+
+        // Action: Deposit to sub vaults
+        metaVault.depositToSubVaults();
+
+        // check withdrawable assets empty
+        assertApproxEqAbs(metaVault.withdrawableAssets(), 0, 2, "Withdrawable assets should be 0");
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Assert: Verify the sub vault received staked shares
+        IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(remainingSubVaults[0]);
+        assertEq(
+            finalState.stakedShares,
+            initialState.stakedShares + newShares,
+            "Sub vault should have received staked shares"
+        );
+    }
+
+    function test_depositToSubVaults_multipleSubVaults() public {
+        // Setup: Get initial state of all sub vaults
+        uint256 subVaultCount = subVaults.length;
+        IVaultSubVaults.SubVaultState[] memory initialStates = new IVaultSubVaults.SubVaultState[](subVaultCount);
+        for (uint256 i = 0; i < subVaultCount; i++) {
+            initialStates[i] = metaVault.subVaultsStates(subVaults[i]);
+        }
+
+        // Calculate available assets and expected distribution
+        uint256 availableAssets = metaVault.withdrawableAssets();
+        uint256 assetsPerVault = availableAssets / subVaultCount;
+
+        // Calculate expected new shares for each vault
+        uint256[] memory expectedNewShares = new uint256[](subVaultCount);
+        for (uint256 i = 0; i < subVaultCount; i++) {
+            expectedNewShares[i] = IEthVault(subVaults[i]).convertToShares(assetsPerVault);
+        }
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_depositToSubVaults_multipleSubVaults");
+
+        // Expect Deposited events for each sub vault
+        for (uint256 i = 0; i < subVaultCount; i++) {
+            vm.expectEmit(true, true, true, true, subVaults[i]);
+            emit IVaultEnterExit.Deposited(
+                address(metaVault), address(metaVault), assetsPerVault, expectedNewShares[i], address(0)
+            );
+        }
+
+        // Action: Deposit to sub vaults
+        metaVault.depositToSubVaults();
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // check withdrawable assets empty
+        assertApproxEqAbs(metaVault.withdrawableAssets(), 0, 2, "Withdrawable assets should be 0");
+
+        // Assert: Verify all sub vaults received the expected staked shares
+        for (uint256 i = 0; i < subVaultCount; i++) {
+            IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(subVaults[i]);
+            assertEq(
+                finalState.stakedShares,
+                initialStates[i].stakedShares + expectedNewShares[i],
+                "Sub vault should have received expected staked shares"
+            );
+        }
+    }
+
+    function test_depositToSubVaults_maxVaults() public {
+        // Create and add the maximum number of sub vaults (50)
+        address[] memory maxSubVaults = new address[](50);
+        maxSubVaults[0] = subVaults[0];
+        maxSubVaults[1] = subVaults[1];
+        maxSubVaults[2] = subVaults[2];
+        for (uint256 i = 3; i < 50; i++) {
+            address newSubVault = _createSubVault(admin);
+            _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), newSubVault);
+
+            vm.prank(admin);
+            metaVault.addSubVault(newSubVault);
+            maxSubVaults[i] = newSubVault;
+        }
+
+        // Verify we have exactly 50 sub vaults
+        address[] memory currentSubVaults = metaVault.getSubVaults();
+        assertEq(currentSubVaults.length, 50, "Should have exactly 50 sub vaults");
+
+        // Get initial state of all sub vaults
+        IVaultSubVaults.SubVaultState[] memory initialStates = new IVaultSubVaults.SubVaultState[](50);
+        for (uint256 i = 0; i < 50; i++) {
+            initialStates[i] = metaVault.subVaultsStates(maxSubVaults[i]);
+        }
+
+        // Calculate available assets and expected distribution
+        uint256 availableAssets = metaVault.withdrawableAssets();
+        uint256 assetsPerVault = availableAssets / 50;
+
+        // Calculate expected new shares for each vault
+        uint256[] memory expectedNewShares = new uint256[](50);
+        for (uint256 i = 0; i < 50; i++) {
+            expectedNewShares[i] = IEthVault(maxSubVaults[i]).convertToShares(assetsPerVault);
+        }
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_depositToSubVaults_maxVaults");
+
+        // Action: Deposit to all 50 sub vaults
+        metaVault.depositToSubVaults();
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Assert: Verify each sub vault received its portion of assets
+        uint256 totalStakedShares = 0;
+        for (uint256 i = 0; i < 50; i++) {
+            IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(maxSubVaults[i]);
+            uint256 newShares = finalState.stakedShares - initialStates[i].stakedShares;
+
+            // We want to be a bit flexible with the exact share calculation due to rounding
+            assertApproxEqRel(
+                newShares,
+                expectedNewShares[i],
+                1e16, // 1% tolerance
+                string.concat("Sub vault ", vm.toString(i), " did not receive expected shares")
+            );
+
+            totalStakedShares += newShares;
+        }
+
+        // Make sure total shares is approximately what we expect
+        uint256 totalExpectedShares = 0;
+        for (uint256 i = 0; i < 50; i++) {
+            totalExpectedShares += expectedNewShares[i];
+        }
+
+        assertApproxEqRel(
+            totalStakedShares,
+            totalExpectedShares,
+            1e16, // 1% tolerance
+            "Total staked shares does not match expected total"
+        );
+    }
 
     function _createSubVault(address _admin) internal returns (address) {
         bytes memory initParams = abi.encode(

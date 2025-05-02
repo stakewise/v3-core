@@ -199,7 +199,7 @@ abstract contract VaultSubVaults is
         // deposit accumulated assets to sub vaults
         uint256 availableAssets = withdrawableAssets();
         if (availableAssets == 0) {
-            return;
+            revert Errors.InvalidAssets();
         }
         ISubVaultsCurator.Deposit[] memory deposits =
             ISubVaultsCurator(subVaultsCurator).getDeposits(availableAssets, vaults);
