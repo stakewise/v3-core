@@ -329,6 +329,12 @@ abstract contract VaultSubVaults is
             }
         }
 
+        // SLOAD to memory
+        address ejectingVault = _ejectingVault;
+        if (ejectingVault != address(0)) {
+            newSubVaultsTotalAssets += IVaultState(ejectingVault).convertToAssets(_ejectingVaultShares);
+        }
+
         // store new sub vaults total assets delta
         int256 totalAssetsDelta = SafeCast.toInt256(newSubVaultsTotalAssets) - SafeCast.toInt256(_subVaultsTotalAssets);
         _subVaultsTotalAssets = SafeCast.toUint128(newSubVaultsTotalAssets);
@@ -476,7 +482,7 @@ abstract contract VaultSubVaults is
         currentNonce = vaultNonce;
         uint256 lastRewardsNonce = _subVaultsRewardsNonce;
         if (lastRewardsNonce > currentNonce) {
-            revert Errors.NotHarvested();
+            revert Errors.RewardsNonceIsHigher();
         } else if (lastRewardsNonce == currentNonce) {
             return false;
         } else {

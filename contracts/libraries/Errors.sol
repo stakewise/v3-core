@@ -56,4 +56,5 @@ library Errors {
     error UnclaimedAssets();
     error EjectingVault();
     error InvalidCurator();
+    error RewardsNonceIsHigher();
 }

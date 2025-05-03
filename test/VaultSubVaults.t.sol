@@ -783,6 +783,23 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         );
     }
 
+    function test_updateState_noSubVaults() public {}
+    function test_updateState_notHarvestedFirstSubVault() public {}
+    function test_updateState_metaVaultHigherNonce() public {}
+    function test_updateState_sameNonce() public {}
+    function test_updateState_notHarvestedSomeOfSubVaults() public {}
+    function test_updateState_unprocessedSubVaultExit() public {
+        // must have totalExitedTickets > 0 and totalExitedTickets <= positionTicket
+    }
+    function test_updateState_processedSubVaultExit() public {
+        // must have totalExitedTickets > 0 and totalExitedTickets > positionTicket
+    }
+    function test_updateState_newTotalAssetsWithoutEjectingVault() public {}
+    function test_updateState_newTotalAssetsWithEjectingVault() public {}
+    function test_updateState_enterExitQueueConsumesEjectingShares() public {}
+    function test_updateState_enterExitQueueSubmitsExits() public {}
+
+
     function _createSubVault(address _admin) internal returns (address) {
         bytes memory initParams = abi.encode(
             IEthVault.EthVaultInitParams({
