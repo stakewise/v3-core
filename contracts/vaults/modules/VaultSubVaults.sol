@@ -46,6 +46,9 @@ abstract contract VaultSubVaults is
     /// @inheritdoc IVaultSubVaults
     address public override subVaultsCurator;
 
+    /// @inheritdoc IVaultSubVaults
+    address public override ejectingSubVault;
+
     EnumerableSet.AddressSet internal _subVaults;
     mapping(address vault => DoubleEndedQueue.Bytes32Deque) private _subVaultsExits;
     mapping(address vault => SubVaultState state) private _subVaultsStates;
@@ -54,8 +57,7 @@ abstract contract VaultSubVaults is
     uint128 private _subVaultsRewardsNonce;
     uint128 private _subVaultsTotalAssets;
 
-    address internal _ejectingVault;
-    uint256 private _ejectingVaultShares;
+    uint256 private _ejectingSubVaultShares;
 
     /**
      * @dev Constructor
@@ -100,10 +102,6 @@ abstract contract VaultSubVaults is
         if (subVaultsCount >= _maxSubVaults) {
             revert Errors.CapacityExceeded();
         }
-        // check whether the vault is not ejecting
-        if (vault == _ejectingVault) {
-            revert Errors.EjectingVault();
-        }
         // check whether vault is with the same version
         if (IVaultVersion(vault).version() < IVaultVersion(address(this)).version()) {
             revert Errors.InvalidVault();
@@ -138,7 +136,7 @@ abstract contract VaultSubVaults is
     function ejectSubVault(address vault) public virtual override {
         _checkAdmin();
 
-        if (_ejectingVault != address(0)) {
+        if (ejectingSubVault != address(0)) {
             revert Errors.EjectingVault();
         }
         if (!_subVaults.contains(vault)) {
@@ -163,18 +161,16 @@ abstract contract VaultSubVaults is
         _subVaultsStates[vault] = state;
 
         if (state.queuedShares > 0) {
-            _ejectingVault = vault;
-            _ejectingVaultShares = state.stakedShares;
+            ejectingSubVault = vault;
+            _ejectingSubVaultShares = state.stakedShares;
+            emit SubVaultEjecting(msg.sender, vault);
         } else {
             // no shares left
             _subVaultsExits[vault].clear();
+            // remove the vault from the list of sub vaults
+            _subVaults.remove(vault);
+            emit SubVaultEjected(msg.sender, vault);
         }
-
-        // remove the vault from the list of sub vaults
-        _subVaults.remove(vault);
-
-        // emit event
-        emit SubVaultRemoved(msg.sender, vault);
     }
 
     /// @inheritdoc IVaultState
@@ -202,7 +198,7 @@ abstract contract VaultSubVaults is
             revert Errors.InvalidAssets();
         }
         ISubVaultsCurator.Deposit[] memory deposits =
-            ISubVaultsCurator(subVaultsCurator).getDeposits(availableAssets, vaults);
+            ISubVaultsCurator(subVaultsCurator).getDeposits(availableAssets, vaults, ejectingSubVault);
 
         // process deposits
         uint128 vaultShares;
@@ -251,7 +247,7 @@ abstract contract VaultSubVaults is
         // SLOAD to memory
         uint256 exitRequestsLength = exitRequests.length;
         uint256 subVaultsTotalAssets = _subVaultsTotalAssets;
-        address ejectingVault = _ejectingVault;
+        address _ejectingSubVault = ejectingSubVault;
         for (uint256 i = 0; i < exitRequestsLength;) {
             exitRequest = exitRequests[i];
             subVaultState = _subVaultsStates[exitRequest.vault];
@@ -280,11 +276,13 @@ abstract contract VaultSubVaults is
             IVaultEnterExit(exitRequest.vault).claimExitedAssets(
                 positionTicket, exitRequest.timestamp, exitRequest.exitQueueIndex
             );
-            if (ejectingVault == exitRequest.vault && subVaultState.queuedShares == 0) {
+            if (_ejectingSubVault == exitRequest.vault && subVaultState.queuedShares == 0) {
                 // clean up ejecting vault
-                delete _ejectingVault;
-                delete _ejectingVaultShares;
+                delete ejectingSubVault;
+                delete _ejectingSubVaultShares;
                 _subVaultsExits[exitRequest.vault].clear();
+                _subVaults.remove(exitRequest.vault);
+                emit SubVaultEjected(msg.sender, exitRequest.vault);
             }
 
             unchecked {
@@ -315,24 +313,26 @@ abstract contract VaultSubVaults is
         // calculate new total assets and save balances in each sub vault
         address vault;
         uint256 newSubVaultsTotalAssets;
+        uint256 vaultTotalShares;
         SubVaultState memory vaultState;
         uint256[] memory balances = new uint256[](vaultsLength);
         for (uint256 i = 0; i < vaultsLength;) {
             vault = vaults[i];
             vaultState = _subVaultsStates[vault];
-            newSubVaultsTotalAssets +=
-                IVaultState(vault).convertToAssets(vaultState.stakedShares + vaultState.queuedShares);
-            balances[i] = IVaultState(vault).convertToAssets(vaultState.stakedShares);
+            vaultTotalShares = vaultState.stakedShares + vaultState.queuedShares;
+            if (vaultTotalShares > 0) {
+                newSubVaultsTotalAssets += IVaultState(vault).convertToAssets(vaultTotalShares);
+            }
+
+            if (vaultState.stakedShares > 0) {
+                balances[i] = IVaultState(vault).convertToAssets(vaultState.stakedShares);
+            } else {
+                balances[i] = 0;
+            }
             unchecked {
                 // cannot realistically overflow
                 ++i;
             }
-        }
-
-        // SLOAD to memory
-        address ejectingVault = _ejectingVault;
-        if (ejectingVault != address(0)) {
-            newSubVaultsTotalAssets += IVaultState(ejectingVault).convertToAssets(_ejectingVaultShares);
         }
 
         // store new sub vaults total assets delta
@@ -375,7 +375,7 @@ abstract contract VaultSubVaults is
 
         // check whether ejecting vault has exiting assets
         uint256 unprocessedAssets = convertToAssets(unprocessedTickets);
-        unprocessedAssets -= _consumeEjectingVaultAssets(unprocessedAssets);
+        unprocessedAssets -= _consumeEjectingSubVaultAssets(unprocessedAssets);
         if (unprocessedAssets == 0) {
             return;
         }
@@ -511,26 +511,27 @@ abstract contract VaultSubVaults is
     }
 
     /**
-     * @dev Internal function to consume ejecting vault assets
+     * @dev Internal function to consume ejecting sub-vault assets
      * @param unprocessedAssets The amount of unprocessed assets
      * @return processedAssets The amount of processed assets
      */
-    function _consumeEjectingVaultAssets(uint256 unprocessedAssets) private returns (uint256 processedAssets) {
+    function _consumeEjectingSubVaultAssets(uint256 unprocessedAssets) private returns (uint256 processedAssets) {
         // SLOAD to memory
-        address ejectingVault = _ejectingVault;
-        if (ejectingVault == address(0)) {
+        address _ejectingSubVault = ejectingSubVault;
+        if (_ejectingSubVault == address(0)) {
             return 0;
         }
-        uint256 ejectingVaultShares = _ejectingVaultShares;
-        if (ejectingVaultShares == 0) {
+        uint256 ejectingSubVaultShares = _ejectingSubVaultShares;
+        if (ejectingSubVaultShares == 0) {
             return 0;
         }
 
-        uint256 ejectingVaultAssets = IVaultState(ejectingVault).convertToAssets(ejectingVaultShares);
+        uint256 ejectingVaultAssets = IVaultState(_ejectingSubVault).convertToAssets(ejectingSubVaultShares);
         processedAssets = Math.min(unprocessedAssets, ejectingVaultAssets);
 
         // update state
-        _ejectingVaultShares = ejectingVaultShares - IVaultState(ejectingVault).convertToShares(processedAssets);
+        _ejectingSubVaultShares =
+            ejectingSubVaultShares - IVaultState(_ejectingSubVault).convertToShares(processedAssets);
     }
 
     /**

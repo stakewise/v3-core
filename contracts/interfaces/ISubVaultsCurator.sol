@@ -32,8 +32,9 @@ interface ISubVaultsCurator {
      * @notice Function to get the deposits to the sub-vaults
      * @param assetsToDeposit The amount of assets to deposit
      * @param subVaults The addresses of the sub-vaults
+     * @param ejectingVault The address of the sub-vault that is currently ejecting. Should be zero if none.
      */
-    function getDeposits(uint256 assetsToDeposit, address[] calldata subVaults)
+    function getDeposits(uint256 assetsToDeposit, address[] calldata subVaults, address ejectingVault)
         external
         pure
         returns (Deposit[] memory deposits);

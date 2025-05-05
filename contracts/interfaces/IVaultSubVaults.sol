@@ -50,11 +50,18 @@ interface IVaultSubVaults {
     event SubVaultAdded(address indexed caller, address indexed vault);
 
     /**
-     * @notice Emitted when the sub-vault is removed
+     * @notice Emitted when the sub-vault is ejecting
      * @param caller The address of the caller
      * @param vault The address of the sub-vault
      */
-    event SubVaultRemoved(address indexed caller, address indexed vault);
+    event SubVaultEjecting(address indexed caller, address indexed vault);
+
+    /**
+     * @notice Emitted when the sub-vault is ejected
+     * @param caller The address of the caller
+     * @param vault The address of the sub-vault
+     */
+    event SubVaultEjected(address indexed caller, address indexed vault);
 
     /**
      * @notice Emitted when the sub-vaults curator is updated
@@ -68,6 +75,12 @@ interface IVaultSubVaults {
      * @return The address of the Sub-vaults curator contract
      */
     function subVaultsCurator() external view returns (address);
+
+    /**
+     * @notice Ejecting sub-vault
+     * @return The address of the ejecting sub-vault
+     */
+    function ejectingSubVault() external view returns (address);
 
     /**
      * @notice Function to get the list sub-vaults

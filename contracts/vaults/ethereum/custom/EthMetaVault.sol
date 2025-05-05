@@ -78,7 +78,7 @@ contract EthMetaVault is
      */
     receive() external payable virtual {
         // claim exited assets from the sub vaults should not be processed as deposits
-        if (_subVaults.contains(msg.sender) || msg.sender == _ejectingVault) {
+        if (_subVaults.contains(msg.sender)) {
             return;
         }
         _deposit(msg.sender, msg.value, address(0));

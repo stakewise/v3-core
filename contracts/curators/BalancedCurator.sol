@@ -4,6 +4,7 @@ pragma solidity ^0.8.22;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ISubVaultsCurator} from "../interfaces/ISubVaultsCurator.sol";
+import {Errors} from "../libraries/Errors.sol";
 
 /**
  * @title BalancedCurator
@@ -12,26 +13,39 @@ import {ISubVaultsCurator} from "../interfaces/ISubVaultsCurator.sol";
  */
 contract BalancedCurator is ISubVaultsCurator {
     /// @inheritdoc ISubVaultsCurator
-    function getDeposits(uint256 assetsToDeposit, address[] calldata subVaults)
+    function getDeposits(uint256 assetsToDeposit, address[] calldata subVaults, address ejectingVault)
         external
         pure
         override
         returns (Deposit[] memory deposits)
     {
         uint256 subVaultsCount = subVaults.length;
-        deposits = new Deposit[](subVaultsCount);
-        if (subVaultsCount == 0) {
-            return deposits;
+
+        uint256 depositSubVaultsCount = ejectingVault != address(0) ? subVaultsCount - 1 : subVaultsCount;
+        if (depositSubVaultsCount == 0) {
+            revert Errors.EmptySubVaults();
         }
 
+        deposits = new Deposit[](depositSubVaultsCount);
+        uint256 amountPerVault = assetsToDeposit / depositSubVaultsCount;
+
         // distribute assets evenly across sub-vaults
-        uint256 amountPerVault = assetsToDeposit / subVaultsCount;
+        address subVault;
+        bool ejectingSubVaultFound = false;
         for (uint256 i = 0; i < subVaultsCount;) {
-            deposits[i] = Deposit({vault: subVaults[i], assets: amountPerVault});
+            subVault = subVaults[i];
+            if (subVault == ejectingVault) {
+                ejectingSubVaultFound = true;
+            } else {
+                deposits[i] = Deposit({vault: subVault, assets: amountPerVault});
+            }
             unchecked {
                 // cannot realistically overflow
                 ++i;
             }
+        }
+        if (ejectingVault != address(0) && !ejectingSubVaultFound) {
+            revert Errors.InvalidEjectingSubVault();
         }
     }
 
