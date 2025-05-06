@@ -44,9 +44,12 @@ interface ISubVaultsCurator {
      * @param assetsToExit The amount of assets to exit
      * @param subVaults The addresses of the sub-vaults
      * @param balances The balances of the sub-vaults
+     * @param ejectingVault The address of the sub-vault that is currently ejecting. Should be zero if none.
      */
-    function getExitRequests(uint256 assetsToExit, address[] calldata subVaults, uint256[] calldata balances)
-        external
-        pure
-        returns (ExitRequest[] memory exitRequests);
+    function getExitRequests(
+        uint256 assetsToExit,
+        address[] calldata subVaults,
+        uint256[] memory balances,
+        address ejectingVault
+    ) external pure returns (ExitRequest[] memory exitRequests);
 }

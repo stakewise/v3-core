@@ -157,12 +157,11 @@ abstract contract VaultSubVaults is
         }
 
         // update state
-        state.stakedShares = 0;
-        _subVaultsStates[vault] = state;
-
         if (state.queuedShares > 0) {
             ejectingSubVault = vault;
             _ejectingSubVaultShares = state.stakedShares;
+            state.stakedShares = 0;
+            _subVaultsStates[vault] = state;
             emit SubVaultEjecting(msg.sender, vault);
         } else {
             // no shares left
@@ -382,7 +381,7 @@ abstract contract VaultSubVaults is
 
         // fetch exit requests from the curator
         ISubVaultsCurator.ExitRequest[] memory exits =
-            ISubVaultsCurator(subVaultsCurator).getExitRequests(unprocessedAssets, vaults, balances);
+            ISubVaultsCurator(subVaultsCurator).getExitRequests(unprocessedAssets, vaults, balances, ejectingSubVault);
 
         // process exits
         uint256 processedAssets;

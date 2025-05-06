@@ -25,17 +25,15 @@ contract BalancedCurator is ISubVaultsCurator {
         if (depositSubVaultsCount == 0) {
             revert Errors.EmptySubVaults();
         }
-
-        deposits = new Deposit[](depositSubVaultsCount);
         uint256 amountPerVault = assetsToDeposit / depositSubVaultsCount;
 
         // distribute assets evenly across sub-vaults
         address subVault;
-        bool ejectingSubVaultFound = false;
+        deposits = new Deposit[](subVaultsCount);
         for (uint256 i = 0; i < subVaultsCount;) {
             subVault = subVaults[i];
             if (subVault == ejectingVault) {
-                ejectingSubVaultFound = true;
+                deposits[i] = Deposit({vault: subVault, assets: 0});
             } else {
                 deposits[i] = Deposit({vault: subVault, assets: amountPerVault});
             }
@@ -44,42 +42,45 @@ contract BalancedCurator is ISubVaultsCurator {
                 ++i;
             }
         }
-        if (ejectingVault != address(0) && !ejectingSubVaultFound) {
-            revert Errors.InvalidEjectingSubVault();
-        }
     }
 
     /// @inheritdoc ISubVaultsCurator
-    function getExitRequests(uint256 assetsToExit, address[] calldata subVaults, uint256[] calldata balances)
-        external
-        pure
-        override
-        returns (ExitRequest[] memory exitRequests)
-    {
+    function getExitRequests(
+        uint256 assetsToExit,
+        address[] calldata subVaults,
+        uint256[] memory balances,
+        address ejectingVault
+    ) external pure override returns (ExitRequest[] memory exitRequests) {
         uint256 subVaultsCount = subVaults.length;
-        exitRequests = new ExitRequest[](subVaultsCount);
-        if (subVaultsCount == 0) {
-            return exitRequests;
+        uint256 exitSubVaultsCount = ejectingVault != address(0) ? subVaultsCount - 1 : subVaultsCount;
+        if (exitSubVaultsCount == 0) {
+            revert Errors.EmptySubVaults();
         }
 
-        // exit evenly (if possible) across sub-vaults
-        uint256 amountPerVault = assetsToExit / subVaultsCount;
+        exitRequests = new ExitRequest[](subVaultsCount);
+        uint256 amountPerVault = assetsToExit / exitSubVaultsCount;
+
         uint256 exitAmount;
         ExitRequest memory exitRequest;
         while (assetsToExit > 0) {
             for (uint256 i = 0; i < subVaultsCount;) {
-                amountPerVault = Math.min(amountPerVault, assetsToExit);
+                exitAmount = Math.min(Math.min(balances[i], amountPerVault), assetsToExit);
+
                 exitRequest = exitRequests[i];
                 exitRequest.vault = subVaults[i];
-                exitAmount = Math.min(balances[i], amountPerVault);
                 exitRequest.assets += exitAmount;
                 exitRequests[i] = exitRequest;
 
+                assetsToExit -= exitAmount;
+                if (assetsToExit == 0) {
+                    break;
+                }
+
+                balances[i] -= exitAmount;
                 unchecked {
                     // cannot realistically overflow
                     ++i;
                 }
-                assetsToExit -= exitAmount;
             }
         }
     }

@@ -1009,7 +1009,8 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // update nonce for meta vault and trigger enter exit queue
         vm.recordLogs();
         metaVault.updateState(_getEmptyHarvestParams());
-        ExitRequest[] memory exitRequests1 = _extractExitPositions(vm.getRecordedLogs(), uint64(vm.getBlockTimestamp()));
+        ExitRequest[] memory exitRequests1 =
+            _extractExitPositions(subVaults, vm.getRecordedLogs(), uint64(vm.getBlockTimestamp()));
         assertApproxEqAbs(metaVault.totalAssets(), totalAssetsBefore, 2, "Total assets should be equal before rewards");
 
         // all vaults earn 1 eth rewards
@@ -1057,7 +1058,8 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // update nonce for meta vault and trigger enter exit queue
         vm.recordLogs();
         metaVault.updateState(_getEmptyHarvestParams());
-        ExitRequest[] memory exitRequests2 = _extractExitPositions(vm.getRecordedLogs(), uint64(vm.getBlockTimestamp()));
+        ExitRequest[] memory exitRequests2 =
+            _extractExitPositions(subVaults, vm.getRecordedLogs(), uint64(vm.getBlockTimestamp()));
         assertApproxEqAbs(
             metaVault.totalAssets(), expectedTotalAssets, 2, "Total assets should be equal before rewards"
         );
@@ -1140,14 +1142,256 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         assertApproxEqAbs(metaVault.totalShares(), reservedShares, 1, "Total shares should be equal to reserved shares");
     }
 
-    function test_updateState_enterExitQueueConsumesEjectingShares() public {}
-    function test_updateState_enterExitQueueMaxVaults() public {}
+    function test_updateState_enterExitQueueMaxVaults() public {
+        // Create and add the maximum number of sub vaults (50)
+        address[] memory maxSubVaults = new address[](50);
+        maxSubVaults[0] = subVaults[0];
+        maxSubVaults[1] = subVaults[1];
+        maxSubVaults[2] = subVaults[2];
+        for (uint256 i = 3; i < 50; i++) {
+            address newSubVault = _createSubVault(admin);
+            _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), newSubVault);
 
-    function test_claimSubVaultsExitedAssets_partiallyClaimsExitedAssets() public {}
-    function test_claimSubVaultsExitedAssets_fullyClaimsExitedAssets() public {}
-    function test_claimSubVaultsExitedAssets_removesEjectingSubVault() public {}
-    function test_claimSubVaultsExitedAssets_singleExitRequest() public {}
-    function test_claimSubVaultsExitedAssets_multipleExitRequests() public {}
+            vm.prank(admin);
+            metaVault.addSubVault(newSubVault);
+            maxSubVaults[i] = newSubVault;
+        }
+
+        // Verify we have exactly 50 sub vaults
+        address[] memory currentSubVaults = metaVault.getSubVaults();
+        assertEq(currentSubVaults.length, 50, "Should have exactly 50 sub vaults");
+
+        // Deposit assets to all sub vaults
+        metaVault.depositToSubVaults();
+
+        // Get initial state of all sub vaults
+        IVaultSubVaults.SubVaultState[] memory initialStates = new IVaultSubVaults.SubVaultState[](50);
+        for (uint256 i = 0; i < 50; i++) {
+            initialStates[i] = metaVault.subVaultsStates(maxSubVaults[i]);
+            assertGt(initialStates[i].stakedShares, 0, "Sub vault should have staked shares after deposit");
+        }
+
+        // Have users enter the exit queue with all their shares
+        uint256 userShares = metaVault.getShares(address(this));
+        metaVault.enterExitQueue(userShares, address(this));
+
+        // Update nonces for all sub vaults to the same value to allow updateState to work
+        uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
+        _setKeeperRewardsNonce(newNonce);
+        for (uint256 i = 0; i < 50; i++) {
+            _setVaultRewardsNonce(maxSubVaults[i], newNonce);
+        }
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_updateState_enterExitQueueMaxVaults");
+
+        // Run updateState to process the exit queue with 50 sub vaults
+        vm.recordLogs(); // Record logs to extract exit events
+        metaVault.updateState(_getEmptyHarvestParams());
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Extract exit positions from logs
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        ExitRequest[] memory exitRequests = _extractExitPositions(maxSubVaults, logs, uint64(vm.getBlockTimestamp()));
+
+        // Verify the correct number of exit requests were created
+        assertGt(exitRequests.length, 0, "Should have created exit requests");
+
+        // Check that exit requests are well-distributed
+        uint256 totalQueuedShares = 0;
+        uint256 totalStakedSharesChange = 0;
+        uint256 vaultsWithExits = 0;
+
+        for (uint256 i = 0; i < 50; i++) {
+            IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(maxSubVaults[i]);
+            uint256 queuedSharesDelta = finalState.queuedShares - initialStates[i].queuedShares;
+            uint256 stakedSharesDelta = initialStates[i].stakedShares - finalState.stakedShares;
+
+            // These should be equal for each sub vault (shares moved from staked to queued)
+            assertEq(queuedSharesDelta, stakedSharesDelta, "Queued shares delta should equal staked shares delta");
+
+            totalQueuedShares += queuedSharesDelta;
+            totalStakedSharesChange += stakedSharesDelta;
+
+            if (queuedSharesDelta > 0) {
+                vaultsWithExits++;
+            }
+        }
+
+        // Verify that all sub vaults participate equally (or close to equally)
+        // The number of vaults with exits should be substantial
+        assertGt(vaultsWithExits, 10, "At least 10 sub vaults should participate in the exit");
+
+        // Total shares that moved from staked to queued should be significant
+        assertGt(totalQueuedShares, 0, "Total queued shares should be greater than zero");
+        assertEq(
+            totalQueuedShares,
+            totalStakedSharesChange,
+            "Total queued shares delta should equal total staked shares change"
+        );
+
+        // Compare with user shares that were exited
+        uint256 assetsExited = metaVault.convertToAssets(userShares);
+        uint256 assetsMoved = 0;
+
+        for (uint256 i = 0; i < 50; i++) {
+            IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(maxSubVaults[i]);
+            uint256 queuedSharesDelta = finalState.queuedShares - initialStates[i].queuedShares;
+            if (queuedSharesDelta > 0) {
+                assetsMoved += IVaultState(maxSubVaults[i]).convertToAssets(queuedSharesDelta);
+            }
+        }
+
+        // Assets moved should be approximately equal to assets exited
+        assertApproxEqRel(assetsMoved, assetsExited, 1e16, "Assets moved should approximately equal assets exited");
+    }
+
+    function test_claimSubVaultsExitedAssets_partiallyClaimsExitedAssets() public {
+        // Deposit to sub vaults first
+        metaVault.depositToSubVaults();
+
+        // Get a reference to a single sub vault we'll use for the test
+        address testSubVault = subVaults[0];
+
+        // User enters exit queue with all their shares
+        metaVault.enterExitQueue(metaVault.getShares(address(this)), address(this));
+
+        // Update nonces for sub vaults to trigger exit queue processing
+        uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
+        _setKeeperRewardsNonce(newNonce);
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            _setVaultRewardsNonce(subVaults[i], newNonce);
+        }
+
+        // Update state to process the exit queue
+        metaVault.updateState(_getEmptyHarvestParams());
+        uint64 timestamp = uint64(vm.getBlockTimestamp());
+
+        IVaultSubVaults.SubVaultState memory stateBefore = metaVault.subVaultsStates(testSubVault);
+
+        // Process the exit request but only provide small amount of funds
+        uint256 processedAssets = 0.1 ether;
+        vm.deal(testSubVault, processedAssets);
+
+        // Now update the sub vault to process the exit
+        IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(testSubVault, 0, 0);
+        IVaultState(testSubVault).updateState(harvestParams);
+
+        // Fast-forward time to allow claiming
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
+
+        // Create a single exit request to claim
+        IVaultSubVaults.SubVaultExitRequest[] memory singleExitRequest = new IVaultSubVaults.SubVaultExitRequest[](1);
+
+        singleExitRequest[0] = IVaultSubVaults.SubVaultExitRequest({
+            vault: testSubVault,
+            exitQueueIndex: uint256(metaVault.getExitQueueIndex(0)),
+            timestamp: timestamp
+        });
+
+        uint256 metaVaultBalanceBefore = address(metaVault).balance;
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_claimSubVaultsExitedAssets_partiallyClaimsExitedAssets");
+
+        // Claim the exited assets
+        metaVault.claimSubVaultsExitedAssets(singleExitRequest);
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Verify balance after claiming
+        uint256 metaVaultBalanceAfter = address(metaVault).balance;
+
+        // The meta vault should have received the assets
+        assertGt(metaVaultBalanceAfter, metaVaultBalanceBefore, "Meta vault balance should increase");
+
+        // Check how much we actually received
+        uint256 claimedAssets = metaVaultBalanceAfter - metaVaultBalanceBefore;
+
+        // Should be approximately half of the total needed assets
+        assertEq(claimedAssets, processedAssets, "Claimed assets should be equal to processed assets");
+
+        // The sub vault's queued shares should decrease but not to zero
+        IVaultSubVaults.SubVaultState memory stateAfter = metaVault.subVaultsStates(testSubVault);
+        assertLt(stateAfter.queuedShares, stateBefore.queuedShares, "Queued shares should decrease");
+        assertGt(stateAfter.queuedShares, 0, "Queued shares should not be zero - only half was processed");
+    }
+
+    function test_claimSubVaultsExitedAssets_ejectingSubVault() public {
+        // Deposit to sub vaults first
+        metaVault.depositToSubVaults();
+
+        // Choose a sub vault to eject
+        address ejectingSubVault = subVaults[0];
+
+        // Eject the sub vault
+        vm.prank(admin);
+        metaVault.ejectSubVault(ejectingSubVault);
+
+        // Verify the ejecting sub vault is set correctly
+        assertEq(metaVault.ejectingSubVault(), ejectingSubVault, "Ejecting sub vault should be set");
+
+        // Verify the vault has moved from staked to queued shares
+        IVaultSubVaults.SubVaultState memory state = metaVault.subVaultsStates(ejectingSubVault);
+        assertEq(state.stakedShares, 0, "Staked shares should be zero after ejection");
+        assertGt(state.queuedShares, 0, "Queued shares should be positive after ejection");
+
+        // Now have a user enter the exit queue with all of their shares
+        metaVault.enterExitQueue(metaVault.getShares(address(this)), address(this));
+
+        // Update nonces to process exit queue
+        uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
+        _setKeeperRewardsNonce(newNonce);
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            _setVaultRewardsNonce(subVaults[i], newNonce);
+        }
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_claimSubVaultsExitedAssets_ejectionConsumesShares");
+
+        // Update state which should process the user's exit and consume ejecting vault's shares
+        metaVault.updateState(_getEmptyHarvestParams());
+        uint64 timestamp = uint64(vm.getBlockTimestamp());
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Process the exit for sub vaults
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(subVaults[i], 0, 0);
+            IVaultState(subVaults[i]).updateState(harvestParams);
+        }
+
+        // Fast-forward time to allow claiming
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
+
+        // Create exit requests for claiming
+        IVaultSubVaults.SubVaultExitRequest[] memory claimRequests = new IVaultSubVaults.SubVaultExitRequest[](1);
+        claimRequests[0] = IVaultSubVaults.SubVaultExitRequest({
+            vault: ejectingSubVault,
+            exitQueueIndex: uint256(IVaultEnterExit(ejectingSubVault).getExitQueueIndex(0)),
+            timestamp: timestamp
+        });
+
+        // Claim exited assets
+        metaVault.claimSubVaultsExitedAssets(claimRequests);
+
+        // Verify the ejecting sub vault is removed from the state
+        assertEq(metaVault.ejectingSubVault(), address(0), "Ejecting sub vault should be removed");
+        assertEq(
+            metaVault.subVaultsStates(ejectingSubVault).stakedShares,
+            0,
+            "Ejecting sub vault should have zero staked shares after claim"
+        );
+        assertEq(
+            metaVault.subVaultsStates(ejectingSubVault).queuedShares,
+            0,
+            "Ejecting sub vault should have zero queued shares after claim"
+        );
+    }
 
     function _createSubVault(address _admin) internal returns (address) {
         bytes memory initParams = abi.encode(
@@ -1179,12 +1423,14 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             IKeeperRewards.HarvestParams({rewardsRoot: bytes32(0), proof: emptyProof, reward: 0, unlockedMevReward: 0});
     }
 
-    function _extractExitPositions(Vm.Log[] memory logs, uint64 timestamp)
+    function _extractExitPositions(address[] memory _subVaults, Vm.Log[] memory logs, uint64 timestamp)
         internal
         view
         returns (ExitRequest[] memory exitRequests)
     {
-        exitRequests = new ExitRequest[](subVaults.length);
+        uint256 subVaultsCount = _subVaults.length;
+        uint256 exitSubVaultsCount = metaVault.ejectingSubVault() != address(0) ? subVaultsCount - 1 : subVaultsCount;
+        exitRequests = new ExitRequest[](exitSubVaultsCount);
         uint256 subVaultIndex = 0;
         for (uint256 i = 0; i < logs.length; i++) {
             if (logs[i].topics[0] != exitQueueEnteredTopic) {
