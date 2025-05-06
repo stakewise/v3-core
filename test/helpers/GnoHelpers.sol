@@ -4,6 +4,7 @@ pragma solidity ^0.8.22;
 
 import {Test} from "forge-std/Test.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IKeeperValidators} from "../../contracts/interfaces/IKeeperValidators.sol";
 import {IOsTokenConfig} from "../../contracts/interfaces/IOsTokenConfig.sol";
 import {IOsTokenVaultController} from "../../contracts/interfaces/IOsTokenVaultController.sol";
@@ -23,12 +24,14 @@ import {GnoGenesisVault} from "../../contracts/vaults/gnosis/GnoGenesisVault.sol
 import {GnoPrivErc20Vault} from "../../contracts/vaults/gnosis/GnoPrivErc20Vault.sol";
 import {GnoPrivVault} from "../../contracts/vaults/gnosis/GnoPrivVault.sol";
 import {GnoVault, IGnoVault} from "../../contracts/vaults/gnosis/GnoVault.sol";
+import {IGnoMetaVault, GnoMetaVault} from "../../contracts/vaults/gnosis/custom/GnoMetaVault.sol";
 import {GnoVaultFactory} from "../../contracts/vaults/gnosis/GnoVaultFactory.sol";
 import {Keeper} from "../../contracts/keeper/Keeper.sol";
 import {ValidatorsConsolidationsMock} from "../../contracts/mocks/ValidatorsConsolidationsMock.sol";
-import {ValidatorsHelpers} from "./ValidatorsHelpers.sol";
 import {ValidatorsWithdrawalsMock} from "../../contracts/mocks/ValidatorsWithdrawalsMock.sol";
 import {VaultsRegistry, IVaultsRegistry} from "../../contracts/vaults/VaultsRegistry.sol";
+import {CuratorsRegistry} from "../../contracts/curators/CuratorsRegistry.sol";
+import {ValidatorsHelpers} from "./ValidatorsHelpers.sol";
 
 interface IGnoToken {
     function mint(address _to, uint256 _amount) external returns (bool);
@@ -61,7 +64,8 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         GnoGenesisVault,
         GnoErc20Vault,
         GnoBlocklistErc20Vault,
-        GnoPrivErc20Vault
+        GnoPrivErc20Vault,
+        GnoMetaVault
     }
 
     struct ForkContracts {
@@ -86,6 +90,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     address private _consolidationsChecker;
     address private _validatorsWithdrawals;
     address private _validatorsConsolidations;
+    address internal _curatorsRegistry;
 
     function _activateGnosisFork() internal returns (ForkContracts memory) {
         vm.createSelectFork(vm.envString("GNOSIS_RPC_URL"), forkBlockNumber);
@@ -95,6 +100,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         _validatorsWithdrawals = address(new ValidatorsWithdrawalsMock());
         _validatorsConsolidations = address(new ValidatorsConsolidationsMock());
         _consolidationsChecker = address(new ConsolidationsChecker(address(_keeper)));
+        _curatorsRegistry = address(new CuratorsRegistry());
 
         vm.prank(IMerkleDistributor(_merkleDistributor).owner());
         IMerkleDistributor(_merkleDistributor).setDistributor(_gnoDaiDistributor, true);
@@ -312,6 +318,17 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         internal
         returns (address)
     {
+        if (vaultType == VaultType.GnoMetaVault) {
+            address vaultImpl = _getOrCreateVaultImpl(vaultType);
+            address vault = address(new ERC1967Proxy(vaultImpl, ""));
+            _mintGnoToken(address(this), 1 ether);
+            IERC20(_gnoToken).approve(vault, 1 ether);
+            IGnoVault(vault).initialize(initParams);
+            vm.prank(VaultsRegistry(_vaultsRegistry).owner());
+            VaultsRegistry(_vaultsRegistry).addVault(vault);
+            return vault;
+        }
+
         GnoVaultFactory factory = _getOrCreateFactory(vaultType);
 
         vm.startPrank(admin);
@@ -405,6 +422,19 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
             impl = address(new GnoBlocklistErc20Vault(gnoErc20Args));
         } else if (_vaultType == VaultType.GnoPrivErc20Vault) {
             impl = address(new GnoPrivErc20Vault(gnoErc20Args));
+        } else if (_vaultType == VaultType.GnoMetaVault) {
+            IGnoMetaVault.GnoMetaVaultConstructorArgs memory gnoMetaVaultArgs = IGnoMetaVault
+                .GnoMetaVaultConstructorArgs(
+                _keeper,
+                _vaultsRegistry,
+                _osTokenVaultController,
+                _osTokenConfig,
+                _osTokenVaultEscrow,
+                _curatorsRegistry,
+                _gnoToken,
+                uint64(_exitingAssetsClaimDelay)
+            );
+            impl = address(new GnoMetaVault(gnoMetaVaultArgs));
         }
         _vaultImplementations[_vaultType] = impl;
 

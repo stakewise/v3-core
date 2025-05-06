@@ -357,7 +357,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Claim exited assets from sub vaults to meta vault
         metaVault.claimSubVaultsExitedAssets(exitRequests);
 
-                // Update nonces for sub vaults to process exit queue
+        // Update nonces for sub vaults to process exit queue
         newNonce = contracts.keeper.rewardsNonce() + 1;
         _setKeeperRewardsNonce(newNonce);
         for (uint256 i = 0; i < subVaults.length; i++) {
