@@ -30,7 +30,7 @@ contract CuratorsRegistry is Ownable2Step, ICuratorsRegistry {
 
     /// @inheritdoc ICuratorsRegistry
     function removeCurator(address curator) external override onlyOwner {
-        curators[curator] = true;
+        curators[curator] = false;
         emit CuratorRemoved(msg.sender, curator);
     }
 

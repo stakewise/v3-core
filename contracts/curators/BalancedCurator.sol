@@ -19,8 +19,11 @@ contract BalancedCurator is ISubVaultsCurator {
         override
         returns (Deposit[] memory deposits)
     {
-        uint256 subVaultsCount = subVaults.length;
+        if (assetsToDeposit == 0) {
+            return deposits;
+        }
 
+        uint256 subVaultsCount = subVaults.length;
         uint256 depositSubVaultsCount = ejectingVault != address(0) ? subVaultsCount - 1 : subVaultsCount;
         if (depositSubVaultsCount == 0) {
             revert Errors.EmptySubVaults();
@@ -51,6 +54,10 @@ contract BalancedCurator is ISubVaultsCurator {
         uint256[] memory balances,
         address ejectingVault
     ) external pure override returns (ExitRequest[] memory exitRequests) {
+        if (assetsToExit == 0) {
+            return exitRequests;
+        }
+
         uint256 subVaultsCount = subVaults.length;
         uint256 exitSubVaultsCount = ejectingVault != address(0) ? subVaultsCount - 1 : subVaultsCount;
         if (exitSubVaultsCount == 0) {
@@ -64,8 +71,11 @@ contract BalancedCurator is ISubVaultsCurator {
         ExitRequest memory exitRequest;
         while (assetsToExit > 0) {
             for (uint256 i = 0; i < subVaultsCount;) {
-                exitAmount = Math.min(Math.min(balances[i], amountPerVault), assetsToExit);
-
+                if (subVaults[i] == ejectingVault) {
+                    exitAmount = 0;
+                } else {
+                    exitAmount = Math.min(Math.min(balances[i], amountPerVault), assetsToExit);
+                }
                 exitRequest = exitRequests[i];
                 exitRequest.vault = subVaults[i];
                 exitRequest.assets += exitAmount;

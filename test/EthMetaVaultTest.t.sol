@@ -389,7 +389,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         assertEq(amountReceived, depositAmount, "User received significantly less than expected");
 
         // Verify exit queue data updated
-        (uint128 queuedShares, uint128 unclaimedAssets,,, uint256 totalTickets) = metaVault.getExitQueueData();
+        (, uint128 unclaimedAssets,,, ) = metaVault.getExitQueueData();
         assertLt(unclaimedAssets, depositAmount, "Unclaimed assets not reduced after claim");
 
         // Verify user can't claim again (should revert)
