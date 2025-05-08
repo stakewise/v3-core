@@ -1,0 +1,16 @@
+{
+  "VaultSubVaultsTest_test_addSubVault_prevVersionSubVault": "50369",
+  "VaultSubVaultsTest_test_addSubVault_success": "120260",
+  "VaultSubVaultsTest_test_claimSubVaultsExitedAssets_ejectionConsumesShares": "448378",
+  "VaultSubVaultsTest_test_claimSubVaultsExitedAssets_partiallyClaimsExitedAssets": "116801",
+  "VaultSubVaultsTest_test_depositToSubVaults_maxVaults": "3862954",
+  "VaultSubVaultsTest_test_depositToSubVaults_multipleSubVaults": "300244",
+  "VaultSubVaultsTest_test_depositToSubVaults_singleSubVault": "143582",
+  "VaultSubVaultsTest_test_setSubVaultsCurator_success": "51083",
+  "VaultSubVaultsTest_test_updateState_enterExitQueueMaxVaults": "6739198",
+  "test_depositToSubVaults_ejectingSubVault": "148873",
+  "test_ejectSubVault_emptySubVault": "59819",
+  "test_ejectSubVault_subVaultWithShares": "202098",
+  "test_updateState_newTotalAssets": "186929",
+  "test_updateState_unprocessedSubVaultExit": "162412"
+}

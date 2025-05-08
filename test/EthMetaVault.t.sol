@@ -276,9 +276,6 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         assertTrue(required, "Should require state update when nonce is 2 higher");
 
-        // Test after state update - no longer requires update
-        _startSnapshotGas("EthMetaVaultTest_test_isStateUpdateRequired_after_update");
-
         // Update nonces for sub vaults to match keeper
         for (uint256 i = 0; i < subVaults.length; i++) {
             _setVaultRewardsNonce(subVaults[i], initialNonce + 2);
@@ -289,7 +286,6 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Verify no update required after state update
         assertFalse(metaVault.isStateUpdateRequired(), "Should not require state update after updating");
-        _stopSnapshotGas();
 
         // Test with empty sub vaults
         // Create a new meta vault without sub vaults

@@ -1,7 +1,7 @@
 {
   "EthErc20VaultTest_test_canTransferFromSharesWithHighLtv": "89925",
   "EthErc20VaultTest_test_cannotTransferFromSharesWithLowLtv": "96456",
-  "EthErc20VaultTest_test_deploysCorrectly": "453478",
+  "EthErc20VaultTest_test_deploysCorrectly": "453578",
   "EthErc20VaultTest_test_depositAndMintOsToken": "199052",
   "EthErc20VaultTest_test_depositViaReceiveFallback_emitsTransfer": "75386",
   "EthErc20VaultTest_test_deposit_emitsTransfer": "78848",
