@@ -35,6 +35,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     uint128 internal _totalExitingAssets; // deprecated
     uint128 internal _totalExitingTickets; // deprecated
     uint256 internal _totalExitedTickets; // deprecated
+    uint256 internal _donatedAssets;
 
     /// @inheritdoc IVaultState
     function totalShares() external view override returns (uint256) {
@@ -343,5 +344,5 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
      * variables without shifting down storage in the inheritance chain.
      * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-    uint256[48] private __gap;
+    uint256[47] private __gap;
 }

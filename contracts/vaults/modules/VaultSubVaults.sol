@@ -336,6 +336,14 @@ abstract contract VaultSubVaults is
 
         // store new sub vaults total assets delta
         int256 totalAssetsDelta = SafeCast.toInt256(newSubVaultsTotalAssets) - SafeCast.toInt256(_subVaultsTotalAssets);
+
+        // SLOAD to memory
+        uint256 donatedAssets = _donatedAssets;
+        if (donatedAssets > 0) {
+            totalAssetsDelta += int256(donatedAssets);
+            _donatedAssets = 0;
+        }
+
         _subVaultsTotalAssets = SafeCast.toUint128(newSubVaultsTotalAssets);
         emit SubVaultsHarvested(totalAssetsDelta);
 

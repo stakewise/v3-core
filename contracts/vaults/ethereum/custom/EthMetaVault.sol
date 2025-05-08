@@ -135,6 +135,15 @@ contract EthMetaVault is
         return depositAndMintOsToken(receiver, osTokenShares, referrer);
     }
 
+    /// @inheritdoc IEthMetaVault
+    function donateAssets() external payable override {
+        if (msg.value == 0) {
+            revert Errors.InvalidAssets();
+        }
+        _donatedAssets += msg.value;
+        emit AssetsDonated(msg.sender, msg.value);
+    }
+
     /// @inheritdoc VaultVersion
     function vaultId() public pure virtual override(IVaultVersion, VaultVersion) returns (bytes32) {
         return keccak256("EthMetaVault");

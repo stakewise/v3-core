@@ -10,6 +10,7 @@ import {IGnoMetaVaultFactory} from "../../../interfaces/IGnoMetaVaultFactory.sol
 import {IVaultGnoStaking} from "../../../interfaces/IVaultGnoStaking.sol";
 import {IKeeperRewards} from "../../../interfaces/IKeeperRewards.sol";
 import {IGnoMetaVault} from "../../../interfaces/IGnoMetaVault.sol";
+import {Errors} from "../../../libraries/Errors.sol";
 import {VaultImmutables} from "../../modules/VaultImmutables.sol";
 import {VaultAdmin} from "../../modules/VaultAdmin.sol";
 import {VaultVersion, IVaultVersion} from "../../modules/VaultVersion.sol";
@@ -115,6 +116,17 @@ contract GnoMetaVault is
         returns (uint256 positionTicket)
     {
         return super.enterExitQueue(shares, receiver);
+    }
+
+    /// @inheritdoc IGnoMetaVault
+    function donateAssets(uint256 amount) external override nonReentrant {
+        if (amount == 0) {
+            revert Errors.InvalidAssets();
+        }
+        SafeERC20.safeTransferFrom(_gnoToken, msg.sender, address(this), amount);
+
+        _donatedAssets += amount;
+        emit AssetsDonated(msg.sender, amount);
     }
 
     /// @inheritdoc VaultVersion

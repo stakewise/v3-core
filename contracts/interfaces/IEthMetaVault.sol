@@ -116,4 +116,9 @@ interface IEthMetaVault is
         address referrer,
         IKeeperRewards.HarvestParams calldata harvestParams
     ) external payable returns (uint256);
+
+    /**
+     * @notice Donate assets to the Vault. Must transfer ETH together with the call.
+     */
+    function donateAssets() external payable;
 }

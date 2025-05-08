@@ -76,4 +76,10 @@ interface IGnoMetaVault is
      * @return shares The number of shares minted
      */
     function deposit(uint256 assets, address receiver, address referrer) external returns (uint256 shares);
+
+    /**
+     * @notice Donate assets to the Vault. Must approve GNO transfer before the call.
+     * @param amount The amount of GNO to donate
+     */
+    function donateAssets(uint256 amount) external;
 }
