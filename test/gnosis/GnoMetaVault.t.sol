@@ -60,7 +60,6 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         // Deploy meta vault
         bytes memory initParams = abi.encode(
             IGnoMetaVault.GnoMetaVaultInitParams({
-                admin: admin,
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%

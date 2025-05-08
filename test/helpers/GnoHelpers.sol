@@ -25,6 +25,7 @@ import {GnoPrivErc20Vault} from "../../contracts/vaults/gnosis/GnoPrivErc20Vault
 import {GnoPrivVault} from "../../contracts/vaults/gnosis/GnoPrivVault.sol";
 import {GnoVault, IGnoVault} from "../../contracts/vaults/gnosis/GnoVault.sol";
 import {IGnoMetaVault, GnoMetaVault} from "../../contracts/vaults/gnosis/custom/GnoMetaVault.sol";
+import {GnoMetaVaultFactory} from "../../contracts/vaults/gnosis/custom/GnoMetaVaultFactory.sol";
 import {GnoVaultFactory} from "../../contracts/vaults/gnosis/GnoVaultFactory.sol";
 import {Keeper} from "../../contracts/keeper/Keeper.sol";
 import {ValidatorsConsolidationsMock} from "../../contracts/mocks/ValidatorsConsolidationsMock.sol";
@@ -208,6 +209,23 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         return factory;
     }
 
+    function _getOrCreateMetaFactory(VaultType _vaultType) internal returns (GnoMetaVaultFactory) {
+        if (_vaultFactories[_vaultType] != address(0)) {
+            return GnoMetaVaultFactory(_vaultFactories[_vaultType]);
+        }
+
+        address impl = _getOrCreateVaultImpl(_vaultType);
+        GnoMetaVaultFactory factory =
+            new GnoMetaVaultFactory(address(this), impl, IVaultsRegistry(_vaultsRegistry), _gnoToken);
+
+        _vaultFactories[_vaultType] = address(factory);
+
+        vm.prank(VaultsRegistry(_vaultsRegistry).owner());
+        VaultsRegistry(_vaultsRegistry).addFactory(address(factory));
+
+        return factory;
+    }
+
     function _getPrevVersionVaultFactory(VaultType _vaultType) internal pure returns (GnoVaultFactory) {
         if (_vaultType == VaultType.GnoVault) {
             return GnoVaultFactory(0xC2ecc7620416bd65bfab7010B0db955a0e49579a);
@@ -318,23 +336,18 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         internal
         returns (address)
     {
+        address vaultAddress;
         if (vaultType == VaultType.GnoMetaVault) {
-            address vaultImpl = _getOrCreateVaultImpl(vaultType);
-            address vault = address(new ERC1967Proxy(vaultImpl, ""));
-            _mintGnoToken(address(this), 1 ether);
-            IERC20(_gnoToken).approve(vault, 1 ether);
-            IGnoVault(vault).initialize(initParams);
-            vm.prank(VaultsRegistry(_vaultsRegistry).owner());
-            VaultsRegistry(_vaultsRegistry).addVault(vault);
-            return vault;
+            GnoMetaVaultFactory factory = _getOrCreateMetaFactory(vaultType);
+            IERC20(_gnoToken).approve(address(factory), _securityDeposit);
+            vaultAddress = factory.createVault(admin, initParams);
+        } else {
+            GnoVaultFactory factory = _getOrCreateFactory(vaultType);
+            vm.startPrank(admin);
+            IERC20(_gnoToken).approve(address(factory), _securityDeposit);
+            vaultAddress = factory.createVault(initParams, isOwnMevEscrow);
+            vm.stopPrank();
         }
-
-        GnoVaultFactory factory = _getOrCreateFactory(vaultType);
-
-        vm.startPrank(admin);
-        IERC20(_gnoToken).approve(address(factory), _securityDeposit);
-        address vaultAddress = factory.createVault(initParams, isOwnMevEscrow);
-        vm.stopPrank();
 
         return vaultAddress;
     }

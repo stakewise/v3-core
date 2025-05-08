@@ -6,6 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {IGnoMetaVaultFactory} from "../../../interfaces/IGnoMetaVaultFactory.sol";
 import {IVaultGnoStaking} from "../../../interfaces/IVaultGnoStaking.sol";
 import {IKeeperRewards} from "../../../interfaces/IKeeperRewards.sol";
 import {IGnoMetaVault} from "../../../interfaces/IGnoMetaVault.sol";
@@ -55,7 +56,7 @@ contract GnoMetaVault is
         VaultImmutables(args.keeper, args.vaultsRegistry)
         VaultEnterExit(args.exitingAssetsClaimDelay)
         VaultOsToken(args.osTokenVaultController, args.osTokenConfig, args.osTokenVaultEscrow)
-        VaultSubVaults(args.subVaultsRegistry)
+        VaultSubVaults(args.curatorsRegistry)
     {
         _gnoToken = IERC20(args.gnoToken);
         _disableInitializers();
@@ -63,7 +64,7 @@ contract GnoMetaVault is
 
     /// @inheritdoc IGnoMetaVault
     function initialize(bytes calldata params) external payable virtual override reinitializer(_version) {
-        __GnoMetaVault_init(abi.decode(params, (GnoMetaVaultInitParams)));
+        __GnoMetaVault_init(IGnoMetaVaultFactory(msg.sender).vaultAdmin(), abi.decode(params, (GnoMetaVaultInitParams)));
     }
 
     /// @inheritdoc IGnoMetaVault
@@ -153,12 +154,13 @@ contract GnoMetaVault is
 
     /**
      * @dev Initializes the GnoMetaVault contract
+     * @param admin The address of the admin of the Vault
      * @param params The parameters for initializing the GnoMetaVault contract
      */
-    function __GnoMetaVault_init(GnoMetaVaultInitParams memory params) internal onlyInitializing {
-        __VaultAdmin_init(params.admin, params.metadataIpfsHash);
+    function __GnoMetaVault_init(address admin, GnoMetaVaultInitParams memory params) internal onlyInitializing {
+        __VaultAdmin_init(admin, params.metadataIpfsHash);
         // fee recipient is initially set to admin address
-        __VaultFee_init(params.admin, params.feePercent);
+        __VaultFee_init(admin, params.feePercent);
         __VaultState_init(params.capacity);
         __VaultSubVaults_init(params.subVaultsCurator);
 

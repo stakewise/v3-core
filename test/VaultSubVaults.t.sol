@@ -52,7 +52,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Deploy meta vault
         bytes memory initParams = abi.encode(
             IEthMetaVault.EthMetaVaultInitParams({
-                admin: admin,
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%
@@ -333,7 +332,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // create new meta vault
         bytes memory initParams = abi.encode(
             IEthMetaVault.EthMetaVaultInitParams({
-                admin: admin,
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%
@@ -588,7 +586,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Setup: Create a new meta vault
         bytes memory initParams = abi.encode(
             IEthMetaVault.EthMetaVaultInitParams({
-                admin: admin,
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%
@@ -845,7 +842,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Create a new meta vault without any sub vaults
         bytes memory initParams = abi.encode(
             IEthMetaVault.EthMetaVaultInitParams({
-                admin: admin,
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%

@@ -24,6 +24,7 @@ import {EthVault, IEthVault} from "../../contracts/vaults/ethereum/EthVault.sol"
 import {EthVaultFactory} from "../../contracts/vaults/ethereum/EthVaultFactory.sol";
 import {IEthFoxVault, EthFoxVault} from "../../contracts/vaults/ethereum/custom/EthFoxVault.sol";
 import {IEthMetaVault, EthMetaVault} from "../../contracts/vaults/ethereum/custom/EthMetaVault.sol";
+import {EthMetaVaultFactory} from "../../contracts/vaults/ethereum/custom/EthMetaVaultFactory.sol";
 import {Keeper} from "../../contracts/keeper/Keeper.sol";
 import {ValidatorsConsolidationsMock} from "../../contracts/mocks/ValidatorsConsolidationsMock.sol";
 import {ValidatorsHelpers} from "./ValidatorsHelpers.sol";
@@ -129,6 +130,22 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
 
         address impl = _getOrCreateVaultImpl(_vaultType);
         EthVaultFactory factory = new EthVaultFactory(impl, IVaultsRegistry(_vaultsRegistry));
+
+        _vaultFactories[_vaultType] = address(factory);
+
+        vm.prank(VaultsRegistry(_vaultsRegistry).owner());
+        VaultsRegistry(_vaultsRegistry).addFactory(address(factory));
+
+        return factory;
+    }
+
+    function _getOrCreateMetaFactory(VaultType _vaultType) internal returns (EthMetaVaultFactory) {
+        if (_vaultFactories[_vaultType] != address(0)) {
+            return EthMetaVaultFactory(_vaultFactories[_vaultType]);
+        }
+
+        address impl = _getOrCreateVaultImpl(_vaultType);
+        EthMetaVaultFactory factory = new EthMetaVaultFactory(address(this), impl, IVaultsRegistry(_vaultsRegistry));
 
         _vaultFactories[_vaultType] = address(factory);
 
@@ -284,7 +301,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         internal
         returns (address)
     {
-        if (vaultType == VaultType.EthFoxVault || vaultType == VaultType.EthMetaVault) {
+        if (vaultType == VaultType.EthFoxVault) {
             address vaultImpl = _getOrCreateVaultImpl(vaultType);
             address vault = address(new ERC1967Proxy(vaultImpl, ""));
             vm.deal(address(this), 1 ether);
@@ -294,11 +311,17 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             return vault;
         }
 
-        EthVaultFactory factory = _getOrCreateFactory(vaultType);
-
-        vm.deal(admin, admin.balance + _securityDeposit);
-        vm.prank(admin);
-        address vaultAddress = factory.createVault{value: _securityDeposit}(initParams, isOwnMevEscrow);
+        address vaultAddress;
+        if (vaultType == VaultType.EthMetaVault) {
+            EthMetaVaultFactory factory = _getOrCreateMetaFactory(vaultType);
+            vm.deal(address(this), address(this).balance + _securityDeposit);
+            vaultAddress = factory.createVault{value: _securityDeposit}(admin, initParams);
+        } else {
+            EthVaultFactory factory = _getOrCreateFactory(vaultType);
+            vm.deal(admin, admin.balance + _securityDeposit);
+            vm.prank(admin);
+            vaultAddress = factory.createVault{value: _securityDeposit}(initParams, isOwnMevEscrow);
+        }
 
         return vaultAddress;
     }

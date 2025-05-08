@@ -54,7 +54,6 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Deploy meta vault
         bytes memory initParams = abi.encode(
             IEthMetaVault.EthMetaVaultInitParams({
-                admin: admin,
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%
@@ -278,7 +277,6 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Create a new meta vault without sub vaults
         bytes memory initParams = abi.encode(
             IEthMetaVault.EthMetaVaultInitParams({
-                admin: admin,
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000,
@@ -389,7 +387,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         assertEq(amountReceived, depositAmount, "User received significantly less than expected");
 
         // Verify exit queue data updated
-        (, uint128 unclaimedAssets,,, ) = metaVault.getExitQueueData();
+        (, uint128 unclaimedAssets,,,) = metaVault.getExitQueueData();
         assertLt(unclaimedAssets, depositAmount, "Unclaimed assets not reduced after claim");
 
         // Verify user can't claim again (should revert)

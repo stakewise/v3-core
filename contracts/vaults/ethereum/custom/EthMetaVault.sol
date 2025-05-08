@@ -6,6 +6,7 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IVaultEthStaking} from "../../../interfaces/IVaultEthStaking.sol";
+import {IEthMetaVaultFactory} from "../../../interfaces/IEthMetaVaultFactory.sol";
 import {IKeeperRewards} from "../../../interfaces/IKeeperRewards.sol";
 import {IEthMetaVault} from "../../../interfaces/IEthMetaVault.sol";
 import {Errors} from "../../../libraries/Errors.sol";
@@ -60,7 +61,7 @@ contract EthMetaVault is
 
     /// @inheritdoc IEthMetaVault
     function initialize(bytes calldata params) external payable virtual override reinitializer(_version) {
-        __EthMetaVault_init(abi.decode(params, (EthMetaVaultInitParams)));
+        __EthMetaVault_init(IEthMetaVaultFactory(msg.sender).vaultAdmin(), abi.decode(params, (EthMetaVaultInitParams)));
     }
 
     /// @inheritdoc IVaultState
@@ -171,12 +172,13 @@ contract EthMetaVault is
 
     /**
      * @dev Initializes the EthMetaVault contract
+     * @param admin The address of the admin of the Vault
      * @param params The parameters for initializing the EthMetaVault contract
      */
-    function __EthMetaVault_init(EthMetaVaultInitParams memory params) internal onlyInitializing {
-        __VaultAdmin_init(params.admin, params.metadataIpfsHash);
+    function __EthMetaVault_init(address admin, EthMetaVaultInitParams memory params) internal onlyInitializing {
+        __VaultAdmin_init(admin, params.metadataIpfsHash);
         // fee recipient is initially set to admin address
-        __VaultFee_init(params.admin, params.feePercent);
+        __VaultFee_init(admin, params.feePercent);
         __VaultState_init(params.capacity);
         __VaultSubVaults_init(params.subVaultsCurator);
 

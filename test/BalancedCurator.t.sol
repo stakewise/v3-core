@@ -27,7 +27,7 @@ contract BalancedCuratorTest is Test {
         ejectingVault = address(uint160(0x2000));
     }
 
-    function test_getDeposits_normalDistribution() public view  {
+    function test_getDeposits_normalDistribution() public view {
         // 100 ETH to distribute across 5 vaults
         uint256 assetsToDeposit = 100 ether;
         address[] memory vaults = subVaults;
@@ -71,7 +71,7 @@ contract BalancedCuratorTest is Test {
         }
     }
 
-    function test_getDeposits_smallAmount() public view  {
+    function test_getDeposits_smallAmount() public view {
         // 5 ETH to distribute across 5 vaults
         uint256 assetsToDeposit = 5 ether;
         address[] memory vaults = subVaults;
@@ -90,7 +90,7 @@ contract BalancedCuratorTest is Test {
         }
     }
 
-    function test_getDeposits_unevenDivision() public  view {
+    function test_getDeposits_unevenDivision() public view {
         // 103 ETH to distribute across 5 vaults
         uint256 assetsToDeposit = 103 ether;
         address[] memory vaults = subVaults;
@@ -114,7 +114,7 @@ contract BalancedCuratorTest is Test {
         assertEq(totalDistributed, 103 ether, "Total distributed amount incorrect");
     }
 
-    function test_getDeposits_emptyVaults() public  {
+    function test_getDeposits_emptyVaults() public {
         // 100 ETH to distribute, but no vaults
         uint256 assetsToDeposit = 100 ether;
         address[] memory vaults = new address[](0);
@@ -135,7 +135,7 @@ contract BalancedCuratorTest is Test {
         curator.getDeposits(assetsToDeposit, vaults, vaults[0]);
     }
 
-    function test_getDeposits_zeroAssetsToDeposit() public view  {
+    function test_getDeposits_zeroAssetsToDeposit() public view {
         // 0 ETH to exit from 5 vaults
         uint256 assetsToDeposit = 0;
         address[] memory vaults = subVaults;
@@ -146,7 +146,7 @@ contract BalancedCuratorTest is Test {
         assertEq(deposits.length, 0, "Should return 0 deposit structs");
     }
 
-    function test_getExitRequests_normalDistribution() public view  {
+    function test_getExitRequests_normalDistribution() public view {
         // 100 ETH to exit from 5 vaults
         uint256 assetsToExit = 100 ether;
         address[] memory vaults = subVaults;
@@ -176,7 +176,7 @@ contract BalancedCuratorTest is Test {
         assertEq(totalExited, assetsToExit, "Total exited amount incorrect");
     }
 
-    function test_getExitRequests_withEjectingVault() public view  {
+    function test_getExitRequests_withEjectingVault() public view {
         // 100 ETH to exit from 5 vaults, but one is ejecting
         uint256 assetsToExit = 100 ether;
         address[] memory vaults = subVaults;
@@ -256,7 +256,7 @@ contract BalancedCuratorTest is Test {
         assertEq(totalExited, assetsToExit, "Total exited amount incorrect");
     }
 
-    function test_getExitRequests_insufficientTotalBalance() public view  {
+    function test_getExitRequests_insufficientTotalBalance() public view {
         // 50 ETH to exit, with varying balances
         uint256 assetsToExit = 50 ether;
         address[] memory vaults = subVaults;
