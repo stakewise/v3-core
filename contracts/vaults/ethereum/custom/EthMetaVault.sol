@@ -177,10 +177,10 @@ contract EthMetaVault is
      */
     function __EthMetaVault_init(address admin, EthMetaVaultInitParams memory params) internal onlyInitializing {
         __VaultAdmin_init(admin, params.metadataIpfsHash);
+        __VaultSubVaults_init(params.subVaultsCurator);
         // fee recipient is initially set to admin address
         __VaultFee_init(admin, params.feePercent);
         __VaultState_init(params.capacity);
-        __VaultSubVaults_init(params.subVaultsCurator);
 
         // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
         if (msg.value < _securityDeposit) revert Errors.InvalidSecurityDeposit();

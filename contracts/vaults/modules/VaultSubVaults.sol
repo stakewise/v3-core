@@ -179,7 +179,7 @@ abstract contract VaultSubVaults is
         uint256 subVaultsRewardsNonce = _subVaultsRewardsNonce;
         unchecked {
             // cannot overflow as nonce is uint64
-            return subVaultsRewardsNonce != 0 && subVaultsRewardsNonce + 1 < currentNonce;
+            return subVaultsRewardsNonce + 1 < currentNonce;
         }
     }
 
