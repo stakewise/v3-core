@@ -159,10 +159,10 @@ contract GnoMetaVault is
      */
     function __GnoMetaVault_init(address admin, GnoMetaVaultInitParams memory params) internal onlyInitializing {
         __VaultAdmin_init(admin, params.metadataIpfsHash);
+        __VaultSubVaults_init(params.subVaultsCurator);
         // fee recipient is initially set to admin address
         __VaultFee_init(admin, params.feePercent);
         __VaultState_init(params.capacity);
-        __VaultSubVaults_init(params.subVaultsCurator);
 
         _deposit(address(this), _securityDeposit, address(0));
         // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
