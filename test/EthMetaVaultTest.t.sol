@@ -10,6 +10,7 @@ import {IVaultSubVaults} from "../contracts/interfaces/IVaultSubVaults.sol";
 import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthMetaVault} from "../contracts/vaults/ethereum/custom/EthMetaVault.sol";
+import {EthMetaVaultFactory} from "../contracts/vaults/ethereum/custom/EthMetaVaultFactory.sol";
 import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
 import {CuratorsRegistry} from "../contracts/curators/CuratorsRegistry.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
@@ -83,6 +84,23 @@ contract EthMetaVaultTest is Test, EthHelpers {
         );
 
         return _createVault(VaultType.EthVault, _admin, initParams, false);
+    }
+
+    function test_deployWithZeroAdmin() public {
+        // Attempt to deploy a meta vault with zero admin
+        bytes memory initParams = abi.encode(
+            IEthMetaVault.EthMetaVaultInitParams({
+                subVaultsCurator: curator,
+                capacity: 1000 ether,
+                feePercent: 1000,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+
+        EthMetaVaultFactory factory = _getOrCreateMetaFactory(VaultType.EthMetaVault);
+        vm.deal(address(this), address(this).balance + _securityDeposit);
+        vm.expectRevert(Errors.ZeroAddress.selector);
+        factory.createVault{value: _securityDeposit}(address(0), initParams);
     }
 
     function test_deployment() public view {
