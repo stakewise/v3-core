@@ -33,6 +33,7 @@ interface ISubVaultsCurator {
      * @param assetsToDeposit The amount of assets to deposit
      * @param subVaults The addresses of the sub-vaults
      * @param ejectingVault The address of the sub-vault that is currently ejecting. Should be zero if none.
+     * @return deposits An array of Deposit structs containing the vault addresses and the amounts to deposit
      */
     function getDeposits(uint256 assetsToDeposit, address[] calldata subVaults, address ejectingVault)
         external
@@ -45,6 +46,7 @@ interface ISubVaultsCurator {
      * @param subVaults The addresses of the sub-vaults
      * @param balances The balances of the sub-vaults
      * @param ejectingVault The address of the sub-vault that is currently ejecting. Should be zero if none.
+     * @return exitRequests An array of ExitRequest structs containing the vault addresses and the amounts to exit
      */
     function getExitRequests(
         uint256 assetsToExit,

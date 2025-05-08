@@ -11,10 +11,10 @@
   "VaultsRegistryTest_test_initialize": "53876",
   "VaultsRegistryTest_test_initialize_alreadyInitialized": "27356",
   "VaultsRegistryTest_test_initialize_zeroAddress": "24983",
-  "VaultsRegistryTest_test_removeFactory": "28212",
+  "VaultsRegistryTest_test_removeFactory": "32212",
   "VaultsRegistryTest_test_removeFactory_alreadyRemoved": "34077",
   "VaultsRegistryTest_test_removeFactory_notOwner": "25794",
-  "VaultsRegistryTest_test_removeVaultImpl": "28163",
+  "VaultsRegistryTest_test_removeVaultImpl": "32163",
   "VaultsRegistryTest_test_removeVaultImpl_alreadyRemoved": "34044",
   "VaultsRegistryTest_test_removeVaultImpl_notOwner": "25750"
 }

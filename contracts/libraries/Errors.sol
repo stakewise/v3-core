@@ -57,5 +57,4 @@ library Errors {
     error EjectingVault();
     error InvalidCurator();
     error RewardsNonceIsHigher();
-    error InvalidEjectingSubVault();
 }

@@ -4,5 +4,5 @@
   "EthBlocklistErc20VaultTest_test_canMintOsTokenAsNonBlockedUser": "161438",
   "EthBlocklistErc20VaultTest_test_deploysCorrectly": "623831",
   "EthBlocklistErc20VaultTest_test_transfer": "61693",
-  "EthBlocklistErc20VaultTest_test_upgradesCorrectly": "73654"
+  "EthBlocklistErc20VaultTest_test_upgradesCorrectly": "89654"
 }
