@@ -1,8 +1,8 @@
 {
-  "EthGenesisVaultTest_test_claimsPoolEscrowAssets": "77684",
+  "EthGenesisVaultTest_test_claimsPoolEscrowAssets": "77662",
   "EthGenesisVaultTest_test_fallback_acceptsEtherFromPoolEscrow": "33277",
   "EthGenesisVaultTest_test_fallback_acceptsEtherFromUser": "77475",
-  "EthGenesisVaultTest_test_migrate_works": "201287",
-  "EthGenesisVaultTest_test_upgradesCorrectly": "68520",
-  "GnoGenesisVaultTest_test_pullWithdrawals_claimEscrowAssets": "803761"
+  "EthGenesisVaultTest_test_migrate_works": "201309",
+  "EthGenesisVaultTest_test_upgradesCorrectly": "68608",
+  "GnoGenesisVaultTest_test_pullWithdrawals_claimEscrowAssets": "803739"
 }

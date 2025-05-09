@@ -10,13 +10,13 @@
   "VaultTokenTest_test_permitInvalidSigner": "61070",
   "VaultTokenTest_test_permitZeroAddressSpender": "32351",
   "VaultTokenTest_test_transfer": "63941",
-  "VaultTokenTest_test_transferFrom": "65179",
-  "VaultTokenTest_test_transferFromMoreThanAllowance": "32458",
-  "VaultTokenTest_test_transferFromMoreThanBalance": "37906",
-  "VaultTokenTest_test_transferFromZeroAddress": "38513",
+  "VaultTokenTest_test_transferFrom": "65201",
+  "VaultTokenTest_test_transferFromMoreThanAllowance": "32480",
+  "VaultTokenTest_test_transferFromMoreThanBalance": "37928",
+  "VaultTokenTest_test_transferFromZeroAddress": "38535",
   "VaultTokenTest_test_transferMoreThanBalance": "35862",
   "VaultTokenTest_test_transferToZeroAddress": "31234",
   "VaultTokenTest_test_transferWithOsTokenPosition": "93954",
-  "VaultTokenTest_test_unlimitedAllowance": "66839",
-  "VaultTokenTest_test_updateExitQueueBurnsShares": "144663"
+  "VaultTokenTest_test_unlimitedAllowance": "66861",
+  "VaultTokenTest_test_updateExitQueueBurnsShares": "146829"
 }

@@ -1,6 +1,6 @@
 {
   "VaultEnterExitTest_test_calculateExitedAssets_invalidPosition": "18577",
-  "VaultEnterExitTest_test_claimExitedAssets": "728000",
+  "VaultEnterExitTest_test_claimExitedAssets": "730056",
   "VaultEnterExitTest_test_claimExitedAssets_insufficientDelay": "41366",
   "VaultEnterExitTest_test_claimExitedAssets_invalidCheckpoint": "36506",
   "VaultEnterExitTest_test_deposit_exceedingCapacity": "47943",

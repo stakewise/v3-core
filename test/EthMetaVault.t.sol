@@ -410,6 +410,48 @@ contract EthMetaVaultTest is Test, EthHelpers {
         metaVault.claimExitedAssets(positionTicket, exitTimestamp, uint256(exitQueueIndex));
     }
 
+    function test_donateAssets_basic() public {
+        uint256 donationAmount = 1 ether;
+
+        // Get vault state before donation
+        uint256 vaultBalanceBefore = address(metaVault).balance;
+        uint256 totalAssetsBefore = metaVault.totalAssets();
+
+        // Approve GNO token for donation
+        vm.startPrank(sender);
+
+        // Check event emission
+        vm.expectEmit(true, true, false, true);
+        emit IVaultState.AssetsDonated(sender, donationAmount);
+
+        // Make donation
+        metaVault.donateAssets{value: donationAmount}();
+        vm.stopPrank();
+
+        // Verify donation was received
+        assertEq(address(metaVault).balance, vaultBalanceBefore + donationAmount, "Meta vault ETH balance increased");
+        assertEq(metaVault.totalAssets(), totalAssetsBefore, "Meta vault total assets didn't increase");
+
+        // Process donation by updating state
+        uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
+        _setKeeperRewardsNonce(newNonce);
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            _setVaultRewardsNonce(subVaults[i], newNonce);
+        }
+
+        metaVault.updateState(_getEmptyHarvestParams());
+
+        assertEq(address(metaVault).balance, vaultBalanceBefore + donationAmount, "Meta vault ETH balance increased");
+        assertEq(metaVault.totalAssets(), totalAssetsBefore + donationAmount, "Meta vault total assets increased");
+    }
+
+    function test_donateAssets_zeroValue() public {
+        // Trying to donate 0 ETH should revert
+        vm.prank(sender);
+        vm.expectRevert(Errors.InvalidAssets.selector);
+        metaVault.donateAssets{value: 0}();
+    }
+
     function _getEmptyHarvestParams() internal pure returns (IKeeperRewards.HarvestParams memory) {
         bytes32[] memory emptyProof;
         return
