@@ -1,5 +1,5 @@
 {
-  "PriceFeedTest_test_getRate_gas": "18476",
-  "PriceFeedTest_test_latestAnswer_gas": "18525",
-  "PriceFeedTest_test_latestRoundData_gas": "18996"
+  "PriceFeedTest_test_getRate_gas": "20976",
+  "PriceFeedTest_test_latestAnswer_gas": "21025",
+  "PriceFeedTest_test_latestRoundData_gas": "21496"
 }

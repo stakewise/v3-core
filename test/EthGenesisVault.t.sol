@@ -92,8 +92,12 @@ contract EthGenesisVaultTest is Test, EthHelpers {
         assertEq(existingVault.vaultId(), keccak256("EthGenesisVault"));
         assertEq(existingVault.version(), 4);
 
+        address newImpl = _getOrCreateVaultImpl(VaultType.EthGenesisVault);
+        vm.deal(adminBefore, admin.balance + 1 ether);
+
         _startSnapshotGas("EthGenesisVaultTest_test_upgradesCorrectly");
-        _upgradeVault(VaultType.EthGenesisVault, address(existingVault));
+        vm.prank(adminBefore);
+        existingVault.upgradeToAndCall(newImpl, "0x");
         _stopSnapshotGas();
 
         (uint128 queuedSharesAfter,,, uint128 totalExitingAssetsAfter,) = existingVault.getExitQueueData();

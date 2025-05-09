@@ -56,6 +56,15 @@ abstract contract VaultEthStaking is
         if (msg.sender != mevEscrow()) revert Errors.AccessDenied();
     }
 
+    /// @inheritdoc IVaultEthStaking
+    function donateAssets() external payable override {
+        if (msg.value == 0) {
+            revert Errors.InvalidAssets();
+        }
+        _donatedAssets += msg.value;
+        emit AssetsDonated(msg.sender, msg.value);
+    }
+
     /// @inheritdoc VaultValidators
     function _registerValidators(ValidatorUtils.ValidatorDeposit[] memory deposits) internal virtual override {
         uint256 totalDeposits = deposits.length;

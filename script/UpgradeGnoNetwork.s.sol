@@ -3,6 +3,7 @@
 pragma solidity ^0.8.22;
 
 import {console} from "forge-std/console.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IGnoVault} from "../contracts/interfaces/IGnoVault.sol";
 import {IGnoErc20Vault} from "../contracts/interfaces/IGnoErc20Vault.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
@@ -19,25 +20,35 @@ import {GnoBlocklistVault} from "../contracts/vaults/gnosis/GnoBlocklistVault.so
 import {GnoBlocklistErc20Vault} from "../contracts/vaults/gnosis/GnoBlocklistErc20Vault.sol";
 import {GnoPrivVault} from "../contracts/vaults/gnosis/GnoPrivVault.sol";
 import {GnoPrivErc20Vault} from "../contracts/vaults/gnosis/GnoPrivErc20Vault.sol";
+import {IGnoMetaVault, GnoMetaVault} from "../contracts/vaults/gnosis/custom/GnoMetaVault.sol";
 import {GnoVaultFactory} from "../contracts/vaults/gnosis/GnoVaultFactory.sol";
+import {GnoMetaVaultFactory} from "../contracts/vaults/gnosis/custom/GnoMetaVaultFactory.sol";
+import {CuratorsRegistry, ICuratorsRegistry} from "../contracts/curators/CuratorsRegistry.sol";
+import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
 import {Network} from "./Network.sol";
 
 contract UpgradeGnoNetwork is Network {
+    address public metaVaultFactoryOwner;
+
     address public consolidationsChecker;
     address public validatorsChecker;
     address public rewardSplitterFactory;
     address public gnoDaiDistributor;
+    address public curatorsRegistry;
+    address public balancedCurator;
 
     address[] public vaultImpls;
     Factory[] public vaultFactories;
 
     function run() external {
+        metaVaultFactoryOwner = vm.envAddress("META_VAULT_FACTORY_OWNER");
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
         address sender = vm.addr(privateKey);
         console.log("Deploying from: ", sender);
 
-        vm.startBroadcast(privateKey);
         Deployment memory deployment = getDeploymentData();
+
+        vm.startBroadcast(privateKey);
 
         // Deploy common contracts
         consolidationsChecker = address(new ConsolidationsChecker(deployment.keeper));
@@ -61,6 +72,12 @@ contract UpgradeGnoNetwork is Network {
             )
         );
 
+        // deploy curators
+        curatorsRegistry = address(new CuratorsRegistry());
+        balancedCurator = address(new BalancedCurator());
+        ICuratorsRegistry(curatorsRegistry).addCurator(balancedCurator);
+        ICuratorsRegistry(curatorsRegistry).initialize(Ownable(deployment.vaultsRegistry).owner());
+
         _deployImplementations();
         _deployFactories();
         vm.stopBroadcast();
@@ -68,7 +85,13 @@ contract UpgradeGnoNetwork is Network {
         generateGovernorTxJson(vaultImpls, vaultFactories);
         generateUpgradesJson(vaultImpls);
         generateAddressesJson(
-            vaultFactories, validatorsChecker, consolidationsChecker, rewardSplitterFactory, gnoDaiDistributor
+            vaultFactories,
+            validatorsChecker,
+            consolidationsChecker,
+            rewardSplitterFactory,
+            curatorsRegistry,
+            balancedCurator,
+            gnoDaiDistributor
         );
     }
 
@@ -76,6 +99,7 @@ contract UpgradeGnoNetwork is Network {
         // constructors for implementations
         IGnoVault.GnoVaultConstructorArgs memory vaultArgs = _getGnoVaultConstructorArgs();
         IGnoErc20Vault.GnoErc20VaultConstructorArgs memory erc20VaultArgs = _getGnoErc20VaultConstructorArgs();
+        IGnoMetaVault.GnoMetaVaultConstructorArgs memory metaVaultArgs = _getGnoMetaVaultConstructorArgs();
         Deployment memory deployment = getDeploymentData();
 
         // update exited assets claim delay for public vaults
@@ -102,6 +126,9 @@ contract UpgradeGnoNetwork is Network {
         GnoPrivVault gnoPrivVault = new GnoPrivVault(vaultArgs);
         GnoPrivErc20Vault gnoPrivErc20Vault = new GnoPrivErc20Vault(erc20VaultArgs);
 
+        // deploy MetaVault
+        GnoMetaVault gnoMetaVault = new GnoMetaVault(metaVaultArgs);
+
         vaultImpls.push(address(gnoGenesisVault));
         vaultImpls.push(address(gnoVault));
         vaultImpls.push(address(gnoErc20Vault));
@@ -109,6 +136,7 @@ contract UpgradeGnoNetwork is Network {
         vaultImpls.push(address(gnoBlocklistErc20Vault));
         vaultImpls.push(address(gnoPrivVault));
         vaultImpls.push(address(gnoPrivErc20Vault));
+        vaultImpls.push(address(gnoMetaVault));
     }
 
     function _deployFactories() internal {
@@ -122,8 +150,22 @@ contract UpgradeGnoNetwork is Network {
                 continue;
             }
 
-            GnoVaultFactory factory =
-                new GnoVaultFactory(vaultImpl, IVaultsRegistry(deployment.vaultsRegistry), deployment.gnoToken);
+            address factory;
+            if (vaultId == keccak256("GnoMetaVault")) {
+                factory = address(
+                    new GnoMetaVaultFactory(
+                        metaVaultFactoryOwner,
+                        vaultImpl,
+                        IVaultsRegistry(deployment.vaultsRegistry),
+                        deployment.gnoToken
+                    )
+                );
+                vaultFactories.push(Factory({name: "MetaVaultFactory", factory: factory}));
+                continue;
+            }
+
+            factory =
+                address(new GnoVaultFactory(vaultImpl, IVaultsRegistry(deployment.vaultsRegistry), deployment.gnoToken));
             if (vaultId == keccak256("GnoVault")) {
                 vaultFactories.push(Factory({name: "VaultFactory", factory: address(factory)}));
             } else if (vaultId == keccak256("GnoErc20Vault")) {
@@ -176,6 +218,20 @@ contract UpgradeGnoNetwork is Network {
             depositDataRegistry: deployment.depositDataRegistry,
             gnoToken: deployment.gnoToken,
             gnoDaiDistributor: gnoDaiDistributor,
+            exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
+        });
+    }
+
+    function _getGnoMetaVaultConstructorArgs() internal returns (IGnoMetaVault.GnoMetaVaultConstructorArgs memory) {
+        Deployment memory deployment = getDeploymentData();
+        return IGnoMetaVault.GnoMetaVaultConstructorArgs({
+            keeper: deployment.keeper,
+            vaultsRegistry: deployment.vaultsRegistry,
+            osTokenVaultController: deployment.osTokenVaultController,
+            osTokenConfig: deployment.osTokenConfig,
+            osTokenVaultEscrow: deployment.osTokenVaultEscrow,
+            curatorsRegistry: curatorsRegistry,
+            gnoToken: deployment.gnoToken,
             exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
         });
     }

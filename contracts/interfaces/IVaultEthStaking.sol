@@ -28,6 +28,11 @@ interface IVaultEthStaking is IVaultState, IVaultValidators, IVaultEnterExit, IV
     function receiveFromMevEscrow() external payable;
 
     /**
+     * @notice Donate assets to the Vault. Must transfer ETH together with the call.
+     */
+    function donateAssets() external payable;
+
+    /**
      * @notice Updates Vault state and deposits ETH to the Vault
      * @param receiver The address that will receive Vault's shares
      * @param referrer The address of the referrer. Set to zero address if not used.

@@ -4,6 +4,7 @@ pragma solidity ^0.8.22;
 import {Test} from "forge-std/Test.sol";
 import {IKeeperValidators} from "../../contracts/interfaces/IKeeperValidators.sol";
 import {IVaultValidators} from "../../contracts/interfaces/IVaultValidators.sol";
+import {IVaultState} from "../../contracts/interfaces/IVaultValidators.sol";
 import {IGnoVault} from "../../contracts/interfaces/IGnoVault.sol";
 import {GnoHelpers} from "../helpers/GnoHelpers.sol";
 import {Errors} from "../../contracts/libraries/Errors.sol";
@@ -484,6 +485,54 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         // Check initial GNO balance matches security deposit
         uint256 securityDeposit = 1e9; // Same as defined in VaultGnoStaking
         assertEq(contracts.gnoToken.balanceOf(address(newVault)), securityDeposit, "Incorrect security deposit");
+    }
+
+    function test_donateAssets_basic() public {
+        uint256 donationAmount = 1 ether;
+
+        // Get vault state before donation
+        uint256 vaultAssetsBefore = vault.totalAssets();
+        uint256 vaultGnoBalanceBefore = contracts.gnoToken.balanceOf(address(vault));
+
+        // Approve GNO token for donation
+        vm.startPrank(sender);
+        contracts.gnoToken.approve(address(vault), donationAmount);
+
+        // Check event emission
+        vm.expectEmit(true, true, false, true);
+        emit IVaultState.AssetsDonated(sender, donationAmount);
+
+        // Make donation
+        vault.donateAssets(donationAmount);
+        vm.stopPrank();
+
+        // Verify donation was received
+        assertEq(
+            contracts.gnoToken.balanceOf(address(vault)),
+            vaultGnoBalanceBefore + donationAmount,
+            "Vault GNO balance didn't increase"
+        );
+
+        // Donate assets aren't immediately reflected in totalAssets until state update
+        assertEq(vault.totalAssets(), vaultAssetsBefore, "Total assets shouldn't change before state update");
+
+        // Update state to process donation
+        IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 0, 0);
+        vault.updateState(harvestParams);
+
+        // Now the vault's total assets should increase
+        assertEq(
+            vault.totalAssets(),
+            vaultAssetsBefore + donationAmount,
+            "Total assets should include donation after state update"
+        );
+    }
+
+    function test_gnoVault_donateAssets_zeroValue() public {
+        // Trying to donate 0 GNO should revert
+        vm.prank(sender);
+        vm.expectRevert(Errors.InvalidAssets.selector);
+        vault.donateAssets(0);
     }
 
     // Helper functions

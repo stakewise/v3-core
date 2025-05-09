@@ -33,7 +33,7 @@ abstract contract VaultImmutables {
     /**
      * @dev Internal method for checking whether the vault is harvested
      */
-    function _checkHarvested() internal view {
+    function _checkHarvested() internal view virtual {
         if (IKeeperRewards(_keeper).isHarvestRequired(address(this))) revert Errors.NotHarvested();
     }
 
@@ -48,7 +48,7 @@ abstract contract VaultImmutables {
      * @dev Returns whether the vault is collateralized
      * @return true if the vault is collateralized
      */
-    function _isCollateralized() internal view returns (bool) {
+    function _isCollateralized() internal view virtual returns (bool) {
         return IKeeperRewards(_keeper).isCollateralized(address(this));
     }
 }

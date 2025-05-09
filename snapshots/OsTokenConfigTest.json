@@ -1,7 +1,7 @@
 {
-  "OsTokenConfigForkTest_test_setRedeemer": "30972",
-  "OsTokenConfigForkTest_test_setRedeemer_notOwner": "27710",
-  "OsTokenConfigForkTest_test_setRedeemer_sameValue": "27381",
+  "OsTokenConfigForkTest_test_setRedeemer": "32972",
+  "OsTokenConfigForkTest_test_setRedeemer_notOwner": "29710",
+  "OsTokenConfigForkTest_test_setRedeemer_sameValue": "29381",
   "OsTokenConfigForkTest_test_updateConfig_disabledLiquidations": "56787",
   "OsTokenConfigForkTest_test_updateConfig_forVault": "55186",
   "OsTokenConfigForkTest_test_updateConfig_invalidDisabledLiquidations": "33162",
@@ -11,7 +11,7 @@
   "OsTokenConfigForkTest_test_updateConfig_invalidLiqThresholdPercent_tooHigh": "28640",
   "OsTokenConfigForkTest_test_updateConfig_invalidLiqThresholdPercent_zero": "33104",
   "OsTokenConfigForkTest_test_updateConfig_invalidLtvPercent_tooHigh": "28671",
-  "OsTokenConfigForkTest_test_updateConfig_invalidLtvPercent_zero": "28479",
+  "OsTokenConfigForkTest_test_updateConfig_invalidLtvPercent_zero": "30479",
   "OsTokenConfigForkTest_test_updateConfig_notOwner": "33393",
   "OsTokenConfigTest_test_updateDefaultConfig_success": "37692"
 }

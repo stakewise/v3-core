@@ -4,6 +4,7 @@ pragma solidity ^0.8.22;
 import {Test} from "forge-std/Test.sol";
 import {IKeeperValidators} from "../contracts/interfaces/IKeeperValidators.sol";
 import {IVaultValidators} from "../contracts/interfaces/IVaultValidators.sol";
+import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
@@ -479,5 +480,45 @@ contract VaultEthStakingTest is Test, EthHelpers {
 
         // Clean up
         _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    function test_donateAssets_basic() public {
+        uint256 donationAmount = 1 ether;
+
+        // Get vault state before donation
+        uint256 totalAssetsBefore = vault.totalAssets();
+        uint256 vaultBalanceBefore = address(vault).balance;
+
+        // Check event emission
+        vm.expectEmit(true, true, false, true);
+        emit IVaultState.AssetsDonated(sender, donationAmount);
+
+        // Make donation
+        vm.prank(sender);
+        vault.donateAssets{value: donationAmount}();
+
+        // Verify donation was received
+        assertEq(address(vault).balance, vaultBalanceBefore + donationAmount, "Vault balance didn't increase");
+
+        // Donate assets aren't immediately reflected in totalAssets until state update
+        assertEq(vault.totalAssets(), totalAssetsBefore, "Total assets shouldn't change before state update");
+
+        // Update state to process donation
+        IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+        vault.updateState(harvestParams);
+
+        // Now the vault's total assets should increase
+        assertEq(
+            vault.totalAssets(),
+            totalAssetsBefore + donationAmount,
+            "Total assets should include donation after state update"
+        );
+    }
+
+    function test_donateAssets_zeroValue() public {
+        // Trying to donate 0 ETH should revert
+        vm.prank(sender);
+        vm.expectRevert(Errors.InvalidAssets.selector);
+        vault.donateAssets{value: 0}();
     }
 }

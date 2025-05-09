@@ -52,4 +52,9 @@ library Errors {
     error FlashLoanFailed();
     error CannotTopUpV1Validators();
     error InvalidSignatures();
+    error EmptySubVaults();
+    error UnclaimedAssets();
+    error EjectingVault();
+    error InvalidCurator();
+    error RewardsNonceIsHigher();
 }

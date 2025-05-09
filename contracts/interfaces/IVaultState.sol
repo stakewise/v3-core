@@ -33,6 +33,13 @@ interface IVaultState is IVaultFee {
     event ExitingAssetsPenalized(uint256 penalty);
 
     /**
+     * @notice Event emitted when the assets are donated to the Vault
+     * @param sender The address of the sender
+     * @param assets The amount of donated assets
+     */
+    event AssetsDonated(address sender, uint256 assets);
+
+    /**
      * @notice Total assets in the Vault
      * @return The total amount of the underlying asset that is "managed" by Vault
      */

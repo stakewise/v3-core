@@ -57,7 +57,7 @@ abstract contract ValidatorsChecker is Multicall, IValidatorsChecker {
     /// @inheritdoc IValidatorsChecker
     function getExitQueueCumulativeTickets(address vault) external view override returns (uint256) {
         (uint128 queuedShares,, uint128 totalExitingTickets,, uint256 totalTickets) =
-            IVaultValidators(vault).getExitQueueData();
+            IVaultState(vault).getExitQueueData();
         return totalTickets + queuedShares + totalExitingTickets;
     }
 
@@ -74,7 +74,7 @@ abstract contract ValidatorsChecker is Multicall, IValidatorsChecker {
             uint128 totalExitingTickets,
             uint128 totalExitingAssets,
             uint256 totalTickets
-        ) = IVaultValidators(vault).getExitQueueData();
+        ) = IVaultState(vault).getExitQueueData();
         // check whether already covered
         if (totalTickets >= targetCumulativeTickets) {
             return 0;

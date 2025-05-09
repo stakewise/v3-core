@@ -9,6 +9,7 @@ import {IGnoValidatorsRegistry} from "../../interfaces/IGnoValidatorsRegistry.so
 import {IVaultGnoStaking} from "../../interfaces/IVaultGnoStaking.sol";
 import {IGnoDaiDistributor} from "../../interfaces/IGnoDaiDistributor.sol";
 import {ValidatorUtils} from "../../libraries/ValidatorUtils.sol";
+import {Errors} from "../../libraries/Errors.sol";
 import {VaultAdmin} from "./VaultAdmin.sol";
 import {VaultState} from "./VaultState.sol";
 import {VaultValidators} from "./VaultValidators.sol";
@@ -56,6 +57,17 @@ abstract contract VaultGnoStaking is
         // withdraw GNO tokens from the user
         SafeERC20.safeTransferFrom(_gnoToken, msg.sender, address(this), assets);
         shares = _deposit(receiver, assets, referrer);
+    }
+
+    /// @inheritdoc IVaultGnoStaking
+    function donateAssets(uint256 amount) external override nonReentrant {
+        if (amount == 0) {
+            revert Errors.InvalidAssets();
+        }
+        SafeERC20.safeTransferFrom(_gnoToken, msg.sender, address(this), amount);
+
+        _donatedAssets += amount;
+        emit AssetsDonated(msg.sender, amount);
     }
 
     /// @inheritdoc VaultState
