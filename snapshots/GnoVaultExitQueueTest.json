@@ -1,7 +1,7 @@
 {
-  "GnoVaultExitQueueTest_test_ExitingAssetsPenalized_event": "200106",
-  "GnoVaultExitQueueTest_test_claim_position1_after_upgrade": "6363416",
+  "GnoVaultExitQueueTest_test_ExitingAssetsPenalized_event": "200171",
+  "GnoVaultExitQueueTest_test_claim_position1_after_upgrade": "6370270",
   "GnoVaultExitQueueTest_test_claim_position2_before_upgrade": "123260",
-  "GnoVaultExitQueueTest_test_claim_position3_after_upgrade": "160104",
-  "GnoVaultExitQueueTest_test_claim_position4_after_upgrade": "155291"
+  "GnoVaultExitQueueTest_test_claim_position3_after_upgrade": "160234",
+  "GnoVaultExitQueueTest_test_claim_position4_after_upgrade": "155421"
 }

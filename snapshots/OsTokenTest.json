@@ -5,7 +5,7 @@
   "OsTokenTest_test_controllerIntegration_mint": "105994",
   "OsTokenTest_test_erc20_transfer": "54454",
   "OsTokenTest_test_erc20_transferFrom": "112658",
-  "OsTokenTest_test_fullDepositFlow": "197800",
+  "OsTokenTest_test_fullDepositFlow": "197995",
   "OsTokenTest_test_mint": "58400",
   "OsTokenTest_test_mint_onlyController": "30281",
   "OsTokenTest_test_permit": "77632",

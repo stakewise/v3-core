@@ -1,10 +1,10 @@
 {
   "VaultTokenTest_test_approve": "56346",
   "VaultTokenTest_test_approveZeroAddress": "33703",
-  "VaultTokenTest_test_depositEmitsTransferEvent": "80928",
+  "VaultTokenTest_test_depositEmitsTransferEvent": "80993",
   "VaultTokenTest_test_enterExitQueueEmitsTransferEvent": "94566",
-  "VaultTokenTest_test_invalidTokenMetaNameTooLong": "476767",
-  "VaultTokenTest_test_invalidTokenMetaSymbolTooLong": "309835",
+  "VaultTokenTest_test_invalidTokenMetaNameTooLong": "477587",
+  "VaultTokenTest_test_invalidTokenMetaSymbolTooLong": "310655",
   "VaultTokenTest_test_permit": "84690",
   "VaultTokenTest_test_permitExpiredDeadline": "32817",
   "VaultTokenTest_test_permitInvalidSigner": "61070",
@@ -16,7 +16,7 @@
   "VaultTokenTest_test_transferFromZeroAddress": "38535",
   "VaultTokenTest_test_transferMoreThanBalance": "35862",
   "VaultTokenTest_test_transferToZeroAddress": "31234",
-  "VaultTokenTest_test_transferWithOsTokenPosition": "93954",
+  "VaultTokenTest_test_transferWithOsTokenPosition": "94084",
   "VaultTokenTest_test_unlimitedAllowance": "66861",
-  "VaultTokenTest_test_updateExitQueueBurnsShares": "146829"
+  "VaultTokenTest_test_updateExitQueueBurnsShares": "146959"
 }

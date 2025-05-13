@@ -1,16 +1,16 @@
 {
   "VaultSubVaultsTest_test_addSubVault_prevVersionSubVault": "56760",
   "VaultSubVaultsTest_test_addSubVault_success": "122151",
-  "VaultSubVaultsTest_test_claimSubVaultsExitedAssets_ejectionConsumesShares": "455050",
-  "VaultSubVaultsTest_test_claimSubVaultsExitedAssets_partiallyClaimsExitedAssets": "116823",
-  "VaultSubVaultsTest_test_depositToSubVaults_maxVaults": "3867449",
-  "VaultSubVaultsTest_test_depositToSubVaults_multipleSubVaults": "312739",
-  "VaultSubVaultsTest_test_depositToSubVaults_singleSubVault": "160967",
+  "VaultSubVaultsTest_test_claimSubVaultsExitedAssets_ejectionConsumesShares": "455830",
+  "VaultSubVaultsTest_test_claimSubVaultsExitedAssets_partiallyClaimsExitedAssets": "116953",
+  "VaultSubVaultsTest_test_depositToSubVaults_maxVaults": "3870764",
+  "VaultSubVaultsTest_test_depositToSubVaults_multipleSubVaults": "312999",
+  "VaultSubVaultsTest_test_depositToSubVaults_singleSubVault": "161162",
   "VaultSubVaultsTest_test_setSubVaultsCurator_success": "51061",
-  "VaultSubVaultsTest_test_updateState_enterExitQueueMaxVaults": "6745848",
-  "test_depositToSubVaults_ejectingSubVault": "151368",
+  "VaultSubVaultsTest_test_updateState_enterExitQueueMaxVaults": "6755663",
+  "test_depositToSubVaults_ejectingSubVault": "151563",
   "test_ejectSubVault_emptySubVault": "61797",
   "test_ejectSubVault_subVaultWithShares": "202076",
-  "test_updateState_newTotalAssets": "193645",
-  "test_updateState_unprocessedSubVaultExit": "166562"
+  "test_updateState_newTotalAssets": "194165",
+  "test_updateState_unprocessedSubVaultExit": "167082"
 }

@@ -1,12 +1,12 @@
 {
-  "VaultVersionTest_test_reinitializeFails": "30868",
-  "VaultVersionTest_test_upgradeMultipleSteps": "58478",
+  "VaultVersionTest_test_reinitializeFails": "30923",
+  "VaultVersionTest_test_upgradeMultipleSteps": "58533",
   "VaultVersionTest_test_upgradeNonAdminFails": "38860",
   "VaultVersionTest_test_upgradeToDifferentVaultIdFails": "42364",
-  "VaultVersionTest_test_upgradeToNextVersion": "83614",
+  "VaultVersionTest_test_upgradeToNextVersion": "83669",
   "VaultVersionTest_test_upgradeToSameVersionFails": "34605",
   "VaultVersionTest_test_upgradeToSkipVersionFails": "43074",
   "VaultVersionTest_test_upgradeToUnapprovedImplementationFails": "46371",
   "VaultVersionTest_test_upgradeToZeroAddressFails": "36640",
-  "VaultVersionTest_test_upgradeWithInvalidCallDataFails": "60663"
+  "VaultVersionTest_test_upgradeWithInvalidCallDataFails": "60718"
 }
