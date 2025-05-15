@@ -227,50 +227,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         metaVault.addSubVault(newSubVault);
     }
 
-    function test_addSubVault_prevVersionSubVault() public {
-        // Create a previous version vault (v4 instead of v5)
-        bytes memory initParams = abi.encode(
-            IEthVault.EthVaultInitParams({
-                capacity: 1000 ether,
-                feePercent: 1000, // 10%
-                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
-            })
-        );
-
-        // Use the helper to create a previous version vault
-        address prevVersionVault = _createPrevVersionVault(VaultType.EthVault, admin, initParams, false);
-
-        // Collateralize the vault so it passes that check
-        _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), prevVersionVault);
-
-        // Verify it has a previous version
-        uint8 metaVaultVersion = IVaultVersion(address(metaVault)).version();
-        uint8 subVaultVersion = IVaultVersion(prevVersionVault).version();
-        assertLt(subVaultVersion, metaVaultVersion, "Sub vault should have a previous version");
-
-        // Start gas measurement
-        _startSnapshotGas("VaultSubVaultsTest_test_addSubVault_prevVersionSubVault");
-
-        // Try to add the previous version vault - this should fail
-        vm.prank(admin);
-        vm.expectRevert(Errors.InvalidVault.selector);
-        metaVault.addSubVault(prevVersionVault);
-
-        // Stop gas measurement
-        _stopSnapshotGas();
-
-        // Verify the sub vault was not added
-        address[] memory subVaultsAfter = metaVault.getSubVaults();
-        bool found = false;
-        for (uint256 i = 0; i < subVaultsAfter.length; i++) {
-            if (subVaultsAfter[i] == prevVersionVault) {
-                found = true;
-                break;
-            }
-        }
-        assertFalse(found, "Previous version sub vault should not be added");
-    }
-
     function test_addSubVault_unprocessedLegacyExitQueueTickets() public {
         // 1. Create a new sub vault
         address newSubVault = _createSubVault(admin);

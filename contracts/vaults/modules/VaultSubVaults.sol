@@ -12,7 +12,6 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IVaultsRegistry} from "../../interfaces/IVaultsRegistry.sol";
 import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
 import {IVaultEnterExit} from "../../interfaces/IVaultEnterExit.sol";
-import {IVaultVersion} from "../../interfaces/IVaultVersion.sol";
 import {ISubVaultsCurator} from "../../interfaces/ISubVaultsCurator.sol";
 import {IVaultSubVaults} from "../../interfaces/IVaultSubVaults.sol";
 import {ICuratorsRegistry} from "../../interfaces/ICuratorsRegistry.sol";
@@ -102,16 +101,12 @@ abstract contract VaultSubVaults is
         if (subVaultsCount >= _maxSubVaults) {
             revert Errors.CapacityExceeded();
         }
-        // check whether vault is with the same version
-        if (IVaultVersion(vault).version() < IVaultVersion(address(this)).version()) {
-            revert Errors.InvalidVault();
-        }
         // check whether vault is collateralized
         if (!IKeeperRewards(_keeper).isCollateralized(vault)) {
             revert Errors.NotCollateralized();
         }
 
-        // check whether legacy exit queue is processed
+        // check whether legacy exit queue is processed, will revert if vault doesn't have `getExitQueueData` function
         (,, uint128 totalExitingTickets, uint128 totalExitingAssets,) = IVaultState(vault).getExitQueueData();
         if (totalExitingTickets != 0 || totalExitingAssets != 0) {
             revert Errors.ExitRequestNotProcessed();
@@ -203,8 +198,8 @@ abstract contract VaultSubVaults is
         uint128 vaultShares;
         ISubVaultsCurator.Deposit memory depositData;
 
-        // SLOAD to memory
         uint256 depositsLength = deposits.length;
+        // SLOAD to memory
         uint256 subVaultsTotalAssets = _subVaultsTotalAssets;
         for (uint256 i = 0; i < depositsLength;) {
             depositData = deposits[i];
@@ -243,8 +238,8 @@ abstract contract VaultSubVaults is
         SubVaultState memory subVaultState;
         SubVaultExitRequest calldata exitRequest;
 
-        // SLOAD to memory
         uint256 exitRequestsLength = exitRequests.length;
+        // SLOAD to memory
         uint256 subVaultsTotalAssets = _subVaultsTotalAssets;
         address _ejectingSubVault = ejectingSubVault;
         for (uint256 i = 0; i < exitRequestsLength;) {
@@ -366,7 +361,7 @@ abstract contract VaultSubVaults is
      * @param balances The balances of the sub vaults
      */
     function _enterSubVaultsExitQueue(address[] memory vaults, uint256[] memory balances) private nonReentrant {
-        // SLOAD to memory cumulative tickets
+        // SLOAD to memory
         uint256 totalExitedTickets = ExitQueue.getLatestTotalTickets(_exitQueue);
         uint256 totalProcessedTickets = Math.max(_totalProcessedExitQueueTickets, totalExitedTickets);
 
@@ -398,7 +393,7 @@ abstract contract VaultSubVaults is
         SubVaultState memory vaultState;
         ISubVaultsCurator.ExitRequest memory exitRequest;
 
-        // SLOAD to memory
+        uint128 vaultShares128;
         uint256 exitsLength = exits.length;
         for (uint256 i = 0; i < exitsLength;) {
             // submit exit request to the vault
@@ -421,8 +416,10 @@ abstract contract VaultSubVaults is
             );
 
             // update state
-            vaultState.queuedShares += SafeCast.toUint128(vaultShares);
-            vaultState.stakedShares -= SafeCast.toUint128(vaultShares);
+            vaultShares128 = SafeCast.toUint128(vaultShares);
+            vaultState.queuedShares += vaultShares128;
+            vaultState.stakedShares -= vaultShares128;
+
             _subVaultsStates[exitRequest.vault] = vaultState;
             processedAssets += exitRequest.assets;
 
