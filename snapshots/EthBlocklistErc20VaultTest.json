@@ -1,8 +1,8 @@
 {
-  "EthBlocklistErc20VaultTest_test_canDepositAsNonBlockedUser": "89859",
-  "EthBlocklistErc20VaultTest_test_canDepositUsingReceiveAsNotBlockedUser": "84237",
-  "EthBlocklistErc20VaultTest_test_canMintOsTokenAsNonBlockedUser": "161438",
-  "EthBlocklistErc20VaultTest_test_deploysCorrectly": "623706",
-  "EthBlocklistErc20VaultTest_test_transfer": "61633",
-  "EthBlocklistErc20VaultTest_test_upgradesCorrectly": "73633"
+  "EthBlocklistErc20VaultTest_test_canDepositAsNonBlockedUser": "89924",
+  "EthBlocklistErc20VaultTest_test_canDepositUsingReceiveAsNotBlockedUser": "84302",
+  "EthBlocklistErc20VaultTest_test_canMintOsTokenAsNonBlockedUser": "161501",
+  "EthBlocklistErc20VaultTest_test_deploysCorrectly": "624840",
+  "EthBlocklistErc20VaultTest_test_transfer": "61693",
+  "EthBlocklistErc20VaultTest_test_upgradesCorrectly": "89964"
 }

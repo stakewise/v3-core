@@ -1,7 +1,7 @@
 {
-  "GnoPrivErc20VaultTest_test_canDepositAsWhitelistedUser": "158354",
-  "GnoPrivErc20VaultTest_test_canMintOsTokenAsWhitelistedUser": "161413",
-  "GnoPrivErc20VaultTest_test_deploysCorrectly": "779049",
-  "GnoPrivErc20VaultTest_test_transfer": "59649",
-  "GnoPrivErc20VaultTest_test_upgradesCorrectly": "113200"
+  "GnoPrivErc20VaultTest_test_canDepositAsWhitelistedUser": "158461",
+  "GnoPrivErc20VaultTest_test_canMintOsTokenAsWhitelistedUser": "161543",
+  "GnoPrivErc20VaultTest_test_deploysCorrectly": "780267",
+  "GnoPrivErc20VaultTest_test_transfer": "59709",
+  "GnoPrivErc20VaultTest_test_upgradesCorrectly": "132334"
 }

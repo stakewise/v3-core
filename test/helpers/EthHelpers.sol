@@ -3,6 +3,7 @@
 pragma solidity ^0.8.22;
 
 import {Test} from "forge-std/Test.sol";
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IKeeperValidators} from "../../contracts/interfaces/IKeeperValidators.sol";
 import {IOsTokenConfig} from "../../contracts/interfaces/IOsTokenConfig.sol";
 import {IOsTokenVaultController} from "../../contracts/interfaces/IOsTokenVaultController.sol";
@@ -21,12 +22,15 @@ import {EthPrivErc20Vault} from "../../contracts/vaults/ethereum/EthPrivErc20Vau
 import {EthPrivVault} from "../../contracts/vaults/ethereum/EthPrivVault.sol";
 import {EthVault, IEthVault} from "../../contracts/vaults/ethereum/EthVault.sol";
 import {EthVaultFactory} from "../../contracts/vaults/ethereum/EthVaultFactory.sol";
-import {EthFoxVault} from "../../contracts/vaults/ethereum/custom/EthFoxVault.sol";
+import {IEthFoxVault, EthFoxVault} from "../../contracts/vaults/ethereum/custom/EthFoxVault.sol";
+import {IEthMetaVault, EthMetaVault} from "../../contracts/vaults/ethereum/custom/EthMetaVault.sol";
+import {EthMetaVaultFactory} from "../../contracts/vaults/ethereum/custom/EthMetaVaultFactory.sol";
 import {Keeper} from "../../contracts/keeper/Keeper.sol";
 import {ValidatorsConsolidationsMock} from "../../contracts/mocks/ValidatorsConsolidationsMock.sol";
 import {ValidatorsHelpers} from "./ValidatorsHelpers.sol";
 import {ValidatorsWithdrawalsMock} from "../../contracts/mocks/ValidatorsWithdrawalsMock.sol";
 import {VaultsRegistry, IVaultsRegistry} from "../../contracts/vaults/VaultsRegistry.sol";
+import {CuratorsRegistry} from "../../contracts/curators/CuratorsRegistry.sol";
 
 abstract contract EthHelpers is Test, ValidatorsHelpers {
     uint256 internal constant forkBlockNumber = 22100000;
@@ -53,7 +57,8 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         EthErc20Vault,
         EthBlocklistErc20Vault,
         EthPrivErc20Vault,
-        EthFoxVault
+        EthFoxVault,
+        EthMetaVault
     }
 
     struct ForkContracts {
@@ -74,6 +79,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     address internal _consolidationsChecker;
     address internal _validatorsWithdrawals;
     address internal _validatorsConsolidations;
+    address internal _curatorsRegistry;
 
     function _activateEthereumFork() internal returns (ForkContracts memory) {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), forkBlockNumber);
@@ -81,6 +87,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         _validatorsWithdrawals = address(new ValidatorsWithdrawalsMock());
         _validatorsConsolidations = address(new ValidatorsConsolidationsMock());
         _consolidationsChecker = address(new ConsolidationsChecker(address(_keeper)));
+        _curatorsRegistry = address(new CuratorsRegistry());
 
         return ForkContracts({
             keeper: Keeper(_keeper),
@@ -123,6 +130,22 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
 
         address impl = _getOrCreateVaultImpl(_vaultType);
         EthVaultFactory factory = new EthVaultFactory(impl, IVaultsRegistry(_vaultsRegistry));
+
+        _vaultFactories[_vaultType] = address(factory);
+
+        vm.prank(VaultsRegistry(_vaultsRegistry).owner());
+        VaultsRegistry(_vaultsRegistry).addFactory(address(factory));
+
+        return factory;
+    }
+
+    function _getOrCreateMetaFactory(VaultType _vaultType) internal returns (EthMetaVaultFactory) {
+        if (_vaultFactories[_vaultType] != address(0)) {
+            return EthMetaVaultFactory(_vaultFactories[_vaultType]);
+        }
+
+        address impl = _getOrCreateVaultImpl(_vaultType);
+        EthMetaVaultFactory factory = new EthMetaVaultFactory(address(this), impl, IVaultsRegistry(_vaultsRegistry));
 
         _vaultFactories[_vaultType] = address(factory);
 
@@ -278,11 +301,27 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         internal
         returns (address)
     {
-        EthVaultFactory factory = _getOrCreateFactory(vaultType);
+        if (vaultType == VaultType.EthFoxVault) {
+            address vaultImpl = _getOrCreateVaultImpl(vaultType);
+            address vault = address(new ERC1967Proxy(vaultImpl, ""));
+            vm.deal(address(this), 1 ether);
+            IEthVault(vault).initialize{value: _securityDeposit}(initParams);
+            vm.prank(VaultsRegistry(_vaultsRegistry).owner());
+            VaultsRegistry(_vaultsRegistry).addVault(vault);
+            return vault;
+        }
 
-        vm.deal(admin, admin.balance + _securityDeposit);
-        vm.prank(admin);
-        address vaultAddress = factory.createVault{value: _securityDeposit}(initParams, isOwnMevEscrow);
+        address vaultAddress;
+        if (vaultType == VaultType.EthMetaVault) {
+            EthMetaVaultFactory factory = _getOrCreateMetaFactory(vaultType);
+            vm.deal(address(this), address(this).balance + _securityDeposit);
+            vaultAddress = factory.createVault{value: _securityDeposit}(admin, initParams);
+        } else {
+            EthVaultFactory factory = _getOrCreateFactory(vaultType);
+            vm.deal(admin, admin.balance + _securityDeposit);
+            vm.prank(admin);
+            vaultAddress = factory.createVault{value: _securityDeposit}(initParams, isOwnMevEscrow);
+        }
 
         return vaultAddress;
     }
@@ -386,19 +425,30 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         } else if (_vaultType == VaultType.EthPrivErc20Vault) {
             impl = address(new EthPrivErc20Vault(ethErc20Args));
         } else if (_vaultType == VaultType.EthFoxVault) {
-            impl = address(
-                new EthFoxVault(
-                    _keeper,
-                    _vaultsRegistry,
-                    _validatorsRegistry,
-                    _validatorsWithdrawals,
-                    _validatorsConsolidations,
-                    _consolidationsChecker,
-                    _sharedMevEscrow,
-                    _depositDataRegistry,
-                    _exitingAssetsClaimDelay
-                )
+            IEthFoxVault.EthFoxVaultConstructorArgs memory ethFoxVaultArgs = IEthFoxVault.EthFoxVaultConstructorArgs(
+                _keeper,
+                _vaultsRegistry,
+                _validatorsRegistry,
+                _validatorsWithdrawals,
+                _validatorsConsolidations,
+                _consolidationsChecker,
+                _sharedMevEscrow,
+                _depositDataRegistry,
+                uint64(_exitingAssetsClaimDelay)
             );
+            impl = address(new EthFoxVault(ethFoxVaultArgs));
+        } else if (_vaultType == VaultType.EthMetaVault) {
+            IEthMetaVault.EthMetaVaultConstructorArgs memory ethMetaVaultArgs = IEthMetaVault
+                .EthMetaVaultConstructorArgs(
+                _keeper,
+                _vaultsRegistry,
+                _osTokenVaultController,
+                _osTokenConfig,
+                _osTokenVaultEscrow,
+                _curatorsRegistry,
+                uint64(_exitingAssetsClaimDelay)
+            );
+            impl = address(new EthMetaVault(ethMetaVaultArgs));
         }
 
         _vaultImplementations[_vaultType] = impl;

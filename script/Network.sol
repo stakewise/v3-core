@@ -191,6 +191,8 @@ abstract contract Network is Script {
         address validatorsChecker,
         address consolidationsChecker,
         address rewardSplitterFactory,
+        address curatorsRegistry,
+        address balancedCurator,
         address gnoDaiDistributor
     ) internal {
         Deployment memory deployment = getDeploymentData();
@@ -211,6 +213,8 @@ abstract contract Network is Script {
         vm.serializeAddress(json, "LegacyPoolEscrow", deployment.legacyPoolEscrow);
         vm.serializeAddress(json, "LegacyRewardToken", deployment.legacyRewardToken);
         vm.serializeAddress(json, "MerkleDistributor", deployment.merkleDistributor);
+        vm.serializeAddress(json, "CuratorsRegistry", curatorsRegistry);
+        vm.serializeAddress(json, "BalancedCurator", balancedCurator);
 
         for (uint256 i = 0; i < newFactories.length; i++) {
             Factory memory factory = newFactories[i];

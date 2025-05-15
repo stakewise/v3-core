@@ -1,0 +1,9 @@
+{
+  "GnoMetaVaultTest_test_addSubVault": "148145",
+  "GnoMetaVaultTest_test_claimExitedAssets": "70091",
+  "GnoMetaVaultTest_test_deposit": "103282",
+  "GnoMetaVaultTest_test_depositToSubVaults": "338652",
+  "GnoMetaVaultTest_test_ejectSubVault": "211780",
+  "GnoMetaVaultTest_test_enterExitQueue": "86712",
+  "GnoMetaVaultTest_test_updateState": "135992"
+}
