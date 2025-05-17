@@ -95,6 +95,9 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     }
 
     function test_withdrawableAssets() public {
+        (,,, uint256 totalExitingAssets,) = vault.getExitQueueData();
+        _mintGnoToken(address(vault), totalExitingAssets);
+
         uint256 withdrawableBefore = vault.withdrawableAssets();
 
         // Deposit some GNO
@@ -142,6 +145,7 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
 
         // Small xDAI amount (below 0.1 ETH threshold)
         vm.deal(vault.mevEscrow(), 0.09 ether);
+        vm.deal(address(vault), 0);
 
         // Process rewards
         _collateralizeGnoVault(address(vault));
@@ -182,46 +186,60 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     }
 
     function test_pullWithdrawals() public {
+        bytes memory initParams = abi.encode(
+            IGnoVault.GnoVaultInitParams({
+                capacity: 1000 ether,
+                feePercent: 1000, // 10%
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address vaultAddr = _createVault(VaultType.GnoVault, admin, initParams, false);
+        GnoVault newVault = GnoVault(payable(vaultAddr));
+
+        // set validators manager
+        vm.prank(admin);
+        newVault.setValidatorsManager(validatorsManager);
+
         // 1. Deposit GNO
-        _depositGno(depositAmount, sender, sender);
+        _depositToVault(address(newVault), depositAmount, sender, sender);
 
         // 2. Register a validator
-        _registerGnoValidator(address(vault), 1 ether, true);
+        _registerGnoValidator(address(newVault), 1 ether, true);
 
         // 3. Set up withdrawable GNO in the registry (simulate validator withdrawal)
         uint256 withdrawalAmount = 2 ether;
-        _setGnoWithdrawals(address(vault), withdrawalAmount);
+        _setGnoWithdrawals(address(newVault), withdrawalAmount);
 
         // Verify the registry shows the correct withdrawable amount
         assertEq(
-            contracts.validatorsRegistry.withdrawableAmount(address(vault)),
+            contracts.validatorsRegistry.withdrawableAmount(address(newVault)),
             withdrawalAmount,
             "Withdrawal amount not set correctly"
         );
 
         // Record initial balances
         uint256 senderInitialBalance = contracts.gnoToken.balanceOf(sender);
-        uint256 vaultInitialBalance = contracts.gnoToken.balanceOf(address(vault));
+        uint256 vaultInitialBalance = contracts.gnoToken.balanceOf(address(newVault));
 
         // 4. Enter the exit queue with shares
-        uint256 shares = vault.getShares(sender);
+        uint256 shares = newVault.getShares(sender);
         uint256 timestamp = vm.getBlockTimestamp();
         vm.prank(sender);
-        uint256 positionTicket = vault.enterExitQueue(shares, sender);
+        uint256 positionTicket = newVault.enterExitQueue(shares, sender);
 
         // 5. Process the exit queue
         // Update vault state to process the exit queue
-        IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 0, 0);
-        vault.updateState(harvestParams);
+        IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(newVault), 0, 0);
+        newVault.updateState(harvestParams);
 
         // 6. Claim exited assets
         vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
-        int256 exitQueueIndex = vault.getExitQueueIndex(positionTicket);
+        int256 exitQueueIndex = newVault.getExitQueueIndex(positionTicket);
         assertGt(exitQueueIndex, -1, "Exit queue index not found");
 
         _startSnapshotGas("VaultGnoStakingTest_test_pullWithdrawals");
         vm.prank(sender);
-        vault.claimExitedAssets(positionTicket, timestamp, uint256(exitQueueIndex));
+        newVault.claimExitedAssets(positionTicket, timestamp, uint256(exitQueueIndex));
         _stopSnapshotGas();
 
         // 7. Verify results
@@ -230,36 +248,50 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         assertGt(senderFinalBalance, senderInitialBalance, "Sender did not receive exited assets");
 
         // Registry should have 0 withdrawable amount
-        uint256 registryFinalWithdrawable = contracts.validatorsRegistry.withdrawableAmount(address(vault));
+        uint256 registryFinalWithdrawable = contracts.validatorsRegistry.withdrawableAmount(address(newVault));
         assertEq(registryFinalWithdrawable, 0, "Registry withdrawable amount should be completely claimed");
 
         // Vault's GNO balance should have changed due to _pullWithdrawals
-        uint256 vaultFinalBalance = contracts.gnoToken.balanceOf(address(vault));
+        uint256 vaultFinalBalance = contracts.gnoToken.balanceOf(address(newVault));
         // The vault should have transferred out GNO (either directly or via _pullWithdrawals)
         assertLt(vaultFinalBalance, vaultInitialBalance + withdrawalAmount, "Vault balance should reflect withdrawals");
     }
 
     function test_registerValidators_pullsWithdrawals() public {
+        bytes memory initParams = abi.encode(
+            IGnoVault.GnoVaultInitParams({
+                capacity: 1000 ether,
+                feePercent: 1000, // 10%
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address vaultAddr = _createVault(VaultType.GnoVault, admin, initParams, false);
+        GnoVault newVault = GnoVault(payable(vaultAddr));
+
+        // set validators manager
+        vm.prank(admin);
+        newVault.setValidatorsManager(validatorsManager);
+
         // Setup: Set GNO withdrawals in the validators registry
         uint256 withdrawalAmount = 2 ether;
-        _setGnoWithdrawals(address(vault), withdrawalAmount);
-        uint256 withdrawableBefore = contracts.validatorsRegistry.withdrawableAmount(address(vault));
+        _setGnoWithdrawals(address(newVault), withdrawalAmount);
+        uint256 withdrawableBefore = contracts.validatorsRegistry.withdrawableAmount(address(newVault));
 
         // Get vault's GNO balance before registration
-        uint256 vaultGnoBalanceBefore = contracts.gnoToken.balanceOf(address(vault));
+        uint256 vaultGnoBalanceBefore = contracts.gnoToken.balanceOf(address(newVault));
 
         // setup oracle
         _startOracleImpersonate(address(contracts.keeper));
 
         // Register a validator - this should trigger a withdrawal claim
         IKeeperValidators.ApprovalParams memory approvalParams =
-            _getGnoValidatorApproval(address(vault), 1 ether, "ipfsHash", false);
+            _getGnoValidatorApproval(address(newVault), 1 ether, "ipfsHash", false);
 
         vm.prank(validatorsManager);
-        vault.registerValidators(approvalParams, "");
+        newVault.registerValidators(approvalParams, "");
 
         // Verify that withdrawals were pulled by checking the vault's GNO balance increased
-        uint256 vaultGnoBalanceAfter = contracts.gnoToken.balanceOf(address(vault));
+        uint256 vaultGnoBalanceAfter = contracts.gnoToken.balanceOf(address(newVault));
         assertGe(
             vaultGnoBalanceAfter,
             vaultGnoBalanceBefore + withdrawableBefore - 1 ether,
@@ -267,7 +299,7 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         );
 
         // Verify the withdrawable amount is now 0
-        uint256 withdrawableAfter = contracts.validatorsRegistry.withdrawableAmount(address(vault));
+        uint256 withdrawableAfter = contracts.validatorsRegistry.withdrawableAmount(address(newVault));
         assertEq(withdrawableAfter, 0, "Withdrawable amount should be cleared after claiming");
 
         // revert previous state
@@ -275,6 +307,9 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     }
 
     function test_registerValidators_succeeds() public {
+        (,,, uint256 totalExitingAssets,) = vault.getExitQueueData();
+        _mintGnoToken(address(vault), totalExitingAssets);
+
         // Setup oracle
         _startOracleImpersonate(address(contracts.keeper));
 
