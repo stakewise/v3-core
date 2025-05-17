@@ -1,6 +1,6 @@
 {
-  "VaultFeeTest_test_feeCollection": "121911",
-  "VaultFeeTest_test_feePercent_changeAffectsFutureRewards": "87713",
+  "VaultFeeTest_test_feeCollection": "121931",
+  "VaultFeeTest_test_feePercent_changeAffectsFutureRewards": "87733",
   "VaultFeeTest_test_setFeePercent_aboveMaximum": "40380",
   "VaultFeeTest_test_setFeePercent_initialZeroToOne": "42312",
   "VaultFeeTest_test_setFeePercent_maxIncrease": "38472",

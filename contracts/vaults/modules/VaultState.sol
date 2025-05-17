@@ -115,6 +115,15 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
         // process total assets delta  since last update
         (int256 totalAssetsDelta, bool harvested) = _harvestAssets(harvestParams);
 
+        if (harvested) {
+            // SLOAD to memory
+            uint256 donatedAssets = _donatedAssets;
+            if (donatedAssets > 0) {
+                _donatedAssets = 0;
+                totalAssetsDelta += int256(donatedAssets);
+            }
+        }
+
         // process total assets delta if it has changed
         _processTotalAssetsDelta(totalAssetsDelta);
 
@@ -295,13 +304,13 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
 
     /**
      * @dev Internal function for harvesting Vaults' new assets
-     * @return The total assets delta after harvest
-     * @return `true` when the rewards were harvested, `false` otherwise
+     * @return totalAssetsDelta The total assets delta after harvest
+     * @return harvested `true` when the rewards were harvested, `false` otherwise
      */
     function _harvestAssets(IKeeperRewards.HarvestParams calldata harvestParams)
         internal
         virtual
-        returns (int256, bool);
+        returns (int256 totalAssetsDelta, bool harvested);
 
     /**
      * @dev Internal function for retrieving the total assets stored in the Vault.

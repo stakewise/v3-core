@@ -11,7 +11,6 @@ import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {ConsolidationsChecker} from "../contracts/validators/ConsolidationsChecker.sol";
 import {GnoValidatorsChecker} from "../contracts/validators/GnoValidatorsChecker.sol";
 import {GnoRewardSplitter} from "../contracts/misc/GnoRewardSplitter.sol";
-import {GnoDaiDistributor} from "../contracts/misc/GnoDaiDistributor.sol";
 import {RewardSplitterFactory} from "../contracts/misc/RewardSplitterFactory.sol";
 import {GnoGenesisVault} from "../contracts/vaults/gnosis/GnoGenesisVault.sol";
 import {GnoVault} from "../contracts/vaults/gnosis/GnoVault.sol";
@@ -33,7 +32,7 @@ contract UpgradeGnoNetwork is Network {
     address public consolidationsChecker;
     address public validatorsChecker;
     address public rewardSplitterFactory;
-    address public gnoDaiDistributor;
+    address public tokensConverterFactory;
     address public curatorsRegistry;
     address public balancedCurator;
 
@@ -42,6 +41,7 @@ contract UpgradeGnoNetwork is Network {
 
     function run() external {
         metaVaultFactoryOwner = vm.envAddress("META_VAULT_FACTORY_OWNER");
+        tokensConverterFactory = vm.envAddress("TOKENS_CONVERTER_FACTORY");
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
         address sender = vm.addr(privateKey);
         console.log("Deploying from: ", sender);
@@ -63,14 +63,6 @@ contract UpgradeGnoNetwork is Network {
         );
         address rewardsSplitterImpl = address(new GnoRewardSplitter(deployment.gnoToken));
         rewardSplitterFactory = address(new RewardSplitterFactory(rewardsSplitterImpl));
-        gnoDaiDistributor = address(
-            new GnoDaiDistributor(
-                deployment.sDaiToken,
-                deployment.vaultsRegistry,
-                deployment.savingsXDaiAdapter,
-                deployment.merkleDistributor
-            )
-        );
 
         // deploy curators
         curatorsRegistry = address(new CuratorsRegistry());
@@ -90,8 +82,7 @@ contract UpgradeGnoNetwork is Network {
             consolidationsChecker,
             rewardSplitterFactory,
             curatorsRegistry,
-            balancedCurator,
-            gnoDaiDistributor
+            balancedCurator
         );
     }
 
@@ -197,7 +188,7 @@ contract UpgradeGnoNetwork is Network {
             sharedMevEscrow: deployment.sharedMevEscrow,
             depositDataRegistry: deployment.depositDataRegistry,
             gnoToken: deployment.gnoToken,
-            gnoDaiDistributor: gnoDaiDistributor,
+            tokensConverterFactory: tokensConverterFactory,
             exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
         });
     }
@@ -217,7 +208,7 @@ contract UpgradeGnoNetwork is Network {
             sharedMevEscrow: deployment.sharedMevEscrow,
             depositDataRegistry: deployment.depositDataRegistry,
             gnoToken: deployment.gnoToken,
-            gnoDaiDistributor: gnoDaiDistributor,
+            tokensConverterFactory: tokensConverterFactory,
             exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
         });
     }
