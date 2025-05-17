@@ -10,6 +10,7 @@ import {GnoHelpers} from "../helpers/GnoHelpers.sol";
 import {Errors} from "../../contracts/libraries/Errors.sol";
 import {GnoVault} from "../../contracts/vaults/gnosis/GnoVault.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
+import {ITokensConverterFactory} from "../../contracts/interfaces/ITokensConverterFactory.sol";
 
 contract VaultGnoStakingTest is Test, GnoHelpers {
     ForkContracts public contracts;
@@ -110,34 +111,32 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         // Deposit GNO
         _depositGno(depositAmount, sender, receiver);
 
-        // Now simulate some xDAI balance that would trigger distribution
+        // Now simulate some xDAI balance that would trigger swap
         vm.deal(vault.mevEscrow(), 1 ether);
 
         // use the same conversion function as for GnoVault
-        uint256 vaultBalanceBefore = address(vault).balance;
-        uint256 expectedAddedSDai =
-            IGnoVault(address(contracts.sdaiToken)).convertToShares(vaultBalanceBefore + 1 ether);
-
         _collateralizeGnoVault(address(vault));
         IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 0, 1 ether);
 
-        uint256 distributorBalanceBefore = contracts.sdaiToken.balanceOf(address(contracts.merkleDistributor));
+        address converter = ITokensConverterFactory(_tokensConverterFactory).getTokensConverter(address(vault));
+        uint256 balanceBefore = contracts.sdaiToken.balanceOf(converter);
 
         // Update state which will trigger _processTotalAssetsDelta
         _startSnapshotGas("VaultGnoStakingTest_test_processTotalAssetsDelta");
         vault.updateState(harvestParams);
         _stopSnapshotGas();
 
+        uint256 balanceAfter = contracts.sdaiToken.balanceOf(converter);
+
         // Verify sDAI was sent to the distributor
         assertEq(address(vault).balance, 0, "Vault should have no xDAI left");
-        assertEq(
-            contracts.sdaiToken.balanceOf(address(contracts.merkleDistributor)),
-            distributorBalanceBefore + expectedAddedSDai,
-            "Distributor should get sDAI"
-        );
+        assertEq(address(vault.mevEscrow()).balance, 0, "Vault should have no xDAI left in the escrow");
+        assertGt(balanceAfter, balanceBefore + 1 ether / 2, "sDAI balance should increase after processing xDAI");
     }
 
     function test_processTotalAssetsDelta_smallXdaiBalance() public {
+        address converter = ITokensConverterFactory(_tokensConverterFactory).getTokensConverter(address(vault));
+
         // Deposit GNO
         _depositGno(depositAmount, sender, sender);
 
@@ -146,17 +145,19 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
 
         // Process rewards
         _collateralizeGnoVault(address(vault));
-        IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 1 ether, 0);
+        IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 1 ether, 0.09 ether);
 
-        uint256 mevBalanceBefore = address(vault.mevEscrow()).balance;
+        uint256 sdaiBefore = contracts.sdaiToken.balanceOf(converter);
 
         // Update state
         _startSnapshotGas("VaultGnoStakingCoverageTest_test_processTotalAssetsDelta_smallXdaiBalance");
         vault.updateState(harvestParams);
         _stopSnapshotGas();
 
-        // Verify small xDAI balance wasn't processed (below 0.1 ETH threshold)
-        assertEq(address(vault.mevEscrow()).balance, mevBalanceBefore, "xDAI balance should remain unchanged");
+        assertEq(address(vault.mevEscrow()).balance, 0, "xDAI should be transferred to the converter");
+        assertEq(address(vault).balance, 0, "Vault should have no xDAI left");
+        assertEq(sdaiBefore, contracts.sdaiToken.balanceOf(converter), "sDAI balance should not change");
+        assertEq(address(converter).balance, 0.09 ether, "Converter should have received the xDAI from the escrow");
     }
 
     function test_vaultAssets() public {
@@ -305,15 +306,18 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         uint256 sendAmount = 0.5 ether;
         vm.deal(sender, sendAmount);
 
-        uint256 balanceBefore = address(vault).balance;
+        address converter = ITokensConverterFactory(_tokensConverterFactory).getTokensConverter(address(vault));
+        uint256 balanceBefore = contracts.sdaiToken.balanceOf(converter);
 
         vm.prank(sender);
         _startSnapshotGas("VaultGnoStakingTest_test_receive_xDai");
         (bool success,) = address(vault).call{value: sendAmount}("");
         _stopSnapshotGas();
 
+        uint256 balanceAfter = contracts.sdaiToken.balanceOf(converter);
+
         assertTrue(success, "Failed to send xDAI to vault");
-        assertEq(address(vault).balance, balanceBefore + sendAmount, "Vault balance didn't increase correctly");
+        assertGt(balanceAfter, balanceBefore + sendAmount / 2, "Vault balance didn't increase correctly");
     }
 
     function test_validatorRegistration_minMaxEffectiveBalance() public {

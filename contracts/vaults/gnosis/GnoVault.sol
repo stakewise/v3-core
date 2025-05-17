@@ -5,6 +5,7 @@ pragma solidity ^0.8.22;
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IGnoVault} from "../../interfaces/IGnoVault.sol";
 import {IGnoVaultFactory} from "../../interfaces/IGnoVaultFactory.sol";
+import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
 import {Errors} from "../../libraries/Errors.sol";
 import {Multicall} from "../../base/Multicall.sol";
 import {VaultValidators} from "../modules/VaultValidators.sol";
@@ -59,7 +60,7 @@ contract GnoVault is
         VaultEnterExit(args.exitingAssetsClaimDelay)
         VaultOsToken(args.osTokenVaultController, args.osTokenConfig, args.osTokenVaultEscrow)
         VaultMev(args.sharedMevEscrow)
-        VaultGnoStaking(args.gnoToken, args.gnoDaiDistributor)
+        VaultGnoStaking(args.gnoToken, args.tokensConverterFactory)
     {
         _disableInitializers();
     }
@@ -101,8 +102,14 @@ contract GnoVault is
     }
 
     /// @inheritdoc VaultState
-    function _processTotalAssetsDelta(int256 assetsDelta) internal virtual override(VaultState, VaultGnoStaking) {
-        super._processTotalAssetsDelta(assetsDelta);
+    function _harvestAssets(IKeeperRewards.HarvestParams calldata harvestParams)
+        internal
+        override(VaultState, VaultMev)
+        returns (int256 totalAssetsDelta, bool harvested)
+    {
+        (totalAssetsDelta, harvested) = super._harvestAssets(harvestParams);
+        // withdraw assets from the tokens converter
+        _tokensConverter.transferAssets();
     }
 
     /// @inheritdoc VaultValidators

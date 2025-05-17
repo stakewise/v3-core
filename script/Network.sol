@@ -52,7 +52,6 @@ abstract contract Network is Script {
         address merkleDistributor;
         address gnoToken;
         address sDaiToken;
-        address savingsXDaiAdapter;
     }
 
     struct Factory {
@@ -129,12 +128,10 @@ abstract contract Network is Script {
         if (isGnosis) {
             deployment.gnoToken = deploymentData.readAddress(".GnoToken");
             deployment.sDaiToken = deploymentData.readAddress(".SDaiToken");
-            deployment.savingsXDaiAdapter = deploymentData.readAddress(".SavingsXDaiAdapter");
             deployment.foxVault = address(0);
         } else {
             deployment.gnoToken = address(0);
             deployment.sDaiToken = address(0);
-            deployment.savingsXDaiAdapter = address(0);
             deployment.foxVault = deploymentData.readAddress(".FoxVault");
         }
         _deployment = deployment;
@@ -192,8 +189,7 @@ abstract contract Network is Script {
         address consolidationsChecker,
         address rewardSplitterFactory,
         address curatorsRegistry,
-        address balancedCurator,
-        address gnoDaiDistributor
+        address balancedCurator
     ) internal {
         Deployment memory deployment = getDeploymentData();
 
@@ -225,8 +221,6 @@ abstract contract Network is Script {
         if (isGnosis) {
             vm.serializeAddress(json, "GnoToken", deployment.gnoToken);
             vm.serializeAddress(json, "SDaiToken", deployment.sDaiToken);
-            vm.serializeAddress(json, "SavingsXDaiAdapter", deployment.savingsXDaiAdapter);
-            vm.serializeAddress(json, "GnoDaiDistributor", gnoDaiDistributor);
         } else {
             vm.serializeAddress(json, "FoxVault", deployment.foxVault);
         }

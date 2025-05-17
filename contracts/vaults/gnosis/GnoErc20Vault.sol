@@ -6,6 +6,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IGnoErc20Vault} from "../../interfaces/IGnoErc20Vault.sol";
 import {IGnoVaultFactory} from "../../interfaces/IGnoVaultFactory.sol";
+import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
 import {Errors} from "../../libraries/Errors.sol";
 import {Multicall} from "../../base/Multicall.sol";
 import {ERC20Upgradeable} from "../../base/ERC20Upgradeable.sol";
@@ -63,7 +64,7 @@ contract GnoErc20Vault is
         VaultEnterExit(args.exitingAssetsClaimDelay)
         VaultOsToken(args.osTokenVaultController, args.osTokenConfig, args.osTokenVaultEscrow)
         VaultMev(args.sharedMevEscrow)
-        VaultGnoStaking(args.gnoToken, args.gnoDaiDistributor)
+        VaultGnoStaking(args.gnoToken, args.tokensConverterFactory)
     {
         _disableInitializers();
     }
@@ -125,8 +126,14 @@ contract GnoErc20Vault is
     }
 
     /// @inheritdoc VaultState
-    function _processTotalAssetsDelta(int256 assetsDelta) internal virtual override(VaultState, VaultGnoStaking) {
-        super._processTotalAssetsDelta(assetsDelta);
+    function _harvestAssets(IKeeperRewards.HarvestParams calldata harvestParams)
+        internal
+        override(VaultState, VaultMev)
+        returns (int256 totalAssetsDelta, bool harvested)
+    {
+        (totalAssetsDelta, harvested) = super._harvestAssets(harvestParams);
+        // withdraw assets from the tokens converter
+        _tokensConverter.transferAssets();
     }
 
     /// @inheritdoc VaultState
@@ -174,7 +181,6 @@ contract GnoErc20Vault is
      */
     function __GnoErc20Vault_init(address admin, address ownMevEscrow, GnoErc20VaultInitParams memory params)
         internal
-        onlyInitializing
     {
         __VaultAdmin_init(admin, params.metadataIpfsHash);
         // fee recipient is initially set to admin address

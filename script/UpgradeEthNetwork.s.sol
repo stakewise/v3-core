@@ -79,8 +79,7 @@ contract UpgradeEthNetwork is Network {
             consolidationsChecker,
             rewardSplitterFactory,
             curatorsRegistry,
-            balancedCurator,
-            address(0)
+            balancedCurator
         );
     }
 
