@@ -10,7 +10,7 @@ pragma solidity ^0.8.22;
 interface IGnoTokensConverter {
     /**
      * @notice Function for creating swap orders with xDAI
-     * @dev This function is used to convert xDAI to sDAI before creating swap order
+     * @dev This function is used to convert xDAI to sDAI and create a swap order
      */
     function createXDaiSwapOrder() external payable;
 

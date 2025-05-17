@@ -3,6 +3,6 @@
   "EthGenesisVaultTest_test_fallback_acceptsEtherFromPoolEscrow": "33277",
   "EthGenesisVaultTest_test_fallback_acceptsEtherFromUser": "77540",
   "EthGenesisVaultTest_test_migrate_works": "201699",
-  "EthGenesisVaultTest_test_upgradesCorrectly": "68918",
+  "EthGenesisVaultTest_test_upgradesCorrectly": "68942",
   "GnoGenesisVaultTest_test_pullWithdrawals_claimEscrowAssets": "803804"
 }

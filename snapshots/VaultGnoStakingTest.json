@@ -1,14 +1,14 @@
 {
-  "VaultGnoStakingCoverageTest_test_processTotalAssetsDelta_smallXdaiBalance": "140831",
+  "VaultGnoStakingCoverageTest_test_processTotalAssetsDelta_smallXdaiBalance": "175401",
   "VaultGnoStakingCoverageTest_test_registerValidator_topUp_invalid": "57291",
-  "VaultGnoStakingCoverageTest_test_registerValidator_topUp_valid": "179488",
-  "VaultGnoStakingTest_test_deposit": "101081",
-  "VaultGnoStakingTest_test_processTotalAssetsDelta": "225851",
+  "VaultGnoStakingCoverageTest_test_registerValidator_topUp_valid": "182609",
+  "VaultGnoStakingTest_test_deposit": "98637",
+  "VaultGnoStakingTest_test_processTotalAssetsDelta": "303158",
   "VaultGnoStakingTest_test_pullWithdrawals": "92512",
-  "VaultGnoStakingTest_test_receive_xDai": "33415",
+  "VaultGnoStakingTest_test_receive_xDai": "213139",
   "VaultGnoStakingTest_test_transferVaultAssets": "87437",
-  "VaultGnoStakingTest_test_vaultGnoStaking_init": "504708",
-  "VaultGnoStakingTest_test_withdrawValidator_fullFlow": "74246",
-  "test_registerValidators_succeeds_0x01": "288174",
-  "test_registerValidators_succeeds_0x02": "632039"
+  "VaultGnoStakingTest_test_vaultGnoStaking_init": "677858",
+  "VaultGnoStakingTest_test_withdrawValidator_fullFlow": "74258",
+  "test_registerValidators_succeeds_0x01": "286975",
+  "test_registerValidators_succeeds_0x02": "630562"
 }
