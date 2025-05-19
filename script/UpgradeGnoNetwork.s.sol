@@ -28,6 +28,8 @@ import {Network} from "./Network.sol";
 
 contract UpgradeGnoNetwork is Network {
     address public metaVaultFactoryOwner;
+    address public validatorsRegistry;
+    address public gnoToken;
 
     address public consolidationsChecker;
     address public validatorsChecker;
@@ -42,6 +44,8 @@ contract UpgradeGnoNetwork is Network {
     function run() external {
         metaVaultFactoryOwner = vm.envAddress("META_VAULT_FACTORY_OWNER");
         tokensConverterFactory = vm.envAddress("TOKENS_CONVERTER_FACTORY");
+        validatorsRegistry = vm.envAddress("VALIDATORS_REGISTRY");
+        gnoToken = vm.envAddress("GNO_TOKEN");
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
         address sender = vm.addr(privateKey);
         console.log("Deploying from: ", sender);
@@ -54,14 +58,14 @@ contract UpgradeGnoNetwork is Network {
         consolidationsChecker = address(new ConsolidationsChecker(deployment.keeper));
         validatorsChecker = address(
             new GnoValidatorsChecker(
-                deployment.validatorsRegistry,
+                validatorsRegistry,
                 deployment.keeper,
                 deployment.vaultsRegistry,
                 deployment.depositDataRegistry,
-                deployment.gnoToken
+                gnoToken
             )
         );
-        address rewardsSplitterImpl = address(new GnoRewardSplitter(deployment.gnoToken));
+        address rewardsSplitterImpl = address(new GnoRewardSplitter(gnoToken));
         rewardSplitterFactory = address(new RewardSplitterFactory(rewardsSplitterImpl));
 
         // deploy curators
@@ -74,7 +78,7 @@ contract UpgradeGnoNetwork is Network {
         _deployFactories();
         vm.stopBroadcast();
 
-        generateGovernorTxJson(vaultImpls, vaultFactories);
+        generateGovernorTxJson(vaultImpls, vaultFactories, curatorsRegistry, balancedCurator);
         generateUpgradesJson(vaultImpls);
         generateAddressesJson(
             vaultFactories,
@@ -145,18 +149,14 @@ contract UpgradeGnoNetwork is Network {
             if (vaultId == keccak256("GnoMetaVault")) {
                 factory = address(
                     new GnoMetaVaultFactory(
-                        metaVaultFactoryOwner,
-                        vaultImpl,
-                        IVaultsRegistry(deployment.vaultsRegistry),
-                        deployment.gnoToken
+                        metaVaultFactoryOwner, vaultImpl, IVaultsRegistry(deployment.vaultsRegistry), gnoToken
                     )
                 );
                 vaultFactories.push(Factory({name: "MetaVaultFactory", factory: factory}));
                 continue;
             }
 
-            factory =
-                address(new GnoVaultFactory(vaultImpl, IVaultsRegistry(deployment.vaultsRegistry), deployment.gnoToken));
+            factory = address(new GnoVaultFactory(vaultImpl, IVaultsRegistry(deployment.vaultsRegistry), gnoToken));
             if (vaultId == keccak256("GnoVault")) {
                 vaultFactories.push(Factory({name: "VaultFactory", factory: address(factory)}));
             } else if (vaultId == keccak256("GnoErc20Vault")) {
@@ -178,7 +178,7 @@ contract UpgradeGnoNetwork is Network {
         return IGnoVault.GnoVaultConstructorArgs({
             keeper: deployment.keeper,
             vaultsRegistry: deployment.vaultsRegistry,
-            validatorsRegistry: deployment.validatorsRegistry,
+            validatorsRegistry: validatorsRegistry,
             validatorsWithdrawals: VALIDATORS_WITHDRAWALS,
             validatorsConsolidations: VALIDATORS_CONSOLIDATIONS,
             consolidationsChecker: consolidationsChecker,
@@ -187,7 +187,7 @@ contract UpgradeGnoNetwork is Network {
             osTokenVaultEscrow: deployment.osTokenVaultEscrow,
             sharedMevEscrow: deployment.sharedMevEscrow,
             depositDataRegistry: deployment.depositDataRegistry,
-            gnoToken: deployment.gnoToken,
+            gnoToken: gnoToken,
             tokensConverterFactory: tokensConverterFactory,
             exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
         });
@@ -198,7 +198,7 @@ contract UpgradeGnoNetwork is Network {
         return IGnoErc20Vault.GnoErc20VaultConstructorArgs({
             keeper: deployment.keeper,
             vaultsRegistry: deployment.vaultsRegistry,
-            validatorsRegistry: deployment.validatorsRegistry,
+            validatorsRegistry: validatorsRegistry,
             validatorsWithdrawals: VALIDATORS_WITHDRAWALS,
             validatorsConsolidations: VALIDATORS_CONSOLIDATIONS,
             consolidationsChecker: consolidationsChecker,
@@ -207,7 +207,7 @@ contract UpgradeGnoNetwork is Network {
             osTokenVaultEscrow: deployment.osTokenVaultEscrow,
             sharedMevEscrow: deployment.sharedMevEscrow,
             depositDataRegistry: deployment.depositDataRegistry,
-            gnoToken: deployment.gnoToken,
+            gnoToken: gnoToken,
             tokensConverterFactory: tokensConverterFactory,
             exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
         });
@@ -222,7 +222,7 @@ contract UpgradeGnoNetwork is Network {
             osTokenConfig: deployment.osTokenConfig,
             osTokenVaultEscrow: deployment.osTokenVaultEscrow,
             curatorsRegistry: curatorsRegistry,
-            gnoToken: deployment.gnoToken,
+            gnoToken: gnoToken,
             exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
         });
     }

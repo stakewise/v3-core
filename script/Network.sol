@@ -7,6 +7,7 @@ import {stdJson} from "forge-std/StdJson.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
+import {ICuratorsRegistry} from "../contracts/interfaces/ICuratorsRegistry.sol";
 
 /**
  * @title Network
@@ -46,12 +47,9 @@ abstract contract Network is Script {
         address osTokenVaultEscrow;
         address osTokenFlashLoans;
         address priceFeed;
-        address validatorsRegistry;
         address legacyPoolEscrow;
         address legacyRewardToken;
         address merkleDistributor;
-        address gnoToken;
-        address sDaiToken;
     }
 
     struct Factory {
@@ -119,26 +117,21 @@ abstract contract Network is Script {
         deployment.osTokenVaultEscrow = deploymentData.readAddress(".OsTokenVaultEscrow");
         deployment.osTokenFlashLoans = deploymentData.readAddress(".OsTokenFlashLoans");
         deployment.priceFeed = deploymentData.readAddress(".PriceFeed");
-        deployment.validatorsRegistry = deploymentData.readAddress(".ValidatorsRegistry");
         deployment.legacyPoolEscrow = deploymentData.readAddress(".LegacyPoolEscrow");
         deployment.legacyRewardToken = deploymentData.readAddress(".LegacyRewardToken");
         deployment.merkleDistributor = deploymentData.readAddress(".MerkleDistributor");
+        deployment.foxVault = isGnosisNetwork() ? address(0) : deploymentData.readAddress(".FoxVault");
 
-        bool isGnosis = isGnosisNetwork();
-        if (isGnosis) {
-            deployment.gnoToken = deploymentData.readAddress(".GnoToken");
-            deployment.sDaiToken = deploymentData.readAddress(".SDaiToken");
-            deployment.foxVault = address(0);
-        } else {
-            deployment.gnoToken = address(0);
-            deployment.sDaiToken = address(0);
-            deployment.foxVault = deploymentData.readAddress(".FoxVault");
-        }
         _deployment = deployment;
         return deployment;
     }
 
-    function generateGovernorTxJson(address[] memory vaultImpls, Factory[] memory vaultFactories) internal {
+    function generateGovernorTxJson(
+        address[] memory vaultImpls,
+        Factory[] memory vaultFactories,
+        address curatorsRegistry,
+        address balancedCurator
+    ) internal {
         if (_governorCalls.length > 0) {
             return;
         }
@@ -162,6 +155,8 @@ abstract contract Network is Script {
             _governorCalls.push(_serializeRemoveFactory(deployment.privErc20VaultFactory));
             _governorCalls.push(_serializeRemoveFactory(deployment.blocklistErc20VaultFactory));
         }
+
+        _governorCalls.push(_serializeAddCurator(curatorsRegistry, balancedCurator));
 
         string memory output = vm.serializeString("governorCalls", "transactions", _governorCalls);
         string memory filePath = getGovernorTxsFilePath();
@@ -205,7 +200,6 @@ abstract contract Network is Script {
         vm.serializeAddress(json, "OsTokenVaultEscrow", deployment.osTokenVaultEscrow);
         vm.serializeAddress(json, "OsTokenFlashLoans", deployment.osTokenFlashLoans);
         vm.serializeAddress(json, "PriceFeed", deployment.priceFeed);
-        vm.serializeAddress(json, "ValidatorsRegistry", deployment.validatorsRegistry);
         vm.serializeAddress(json, "LegacyPoolEscrow", deployment.legacyPoolEscrow);
         vm.serializeAddress(json, "LegacyRewardToken", deployment.legacyRewardToken);
         vm.serializeAddress(json, "MerkleDistributor", deployment.merkleDistributor);
@@ -217,11 +211,7 @@ abstract contract Network is Script {
             vm.serializeAddress(json, factory.name, factory.factory);
         }
 
-        bool isGnosis = isGnosisNetwork();
-        if (isGnosis) {
-            vm.serializeAddress(json, "GnoToken", deployment.gnoToken);
-            vm.serializeAddress(json, "SDaiToken", deployment.sDaiToken);
-        } else {
+        if (!isGnosisNetwork()) {
             vm.serializeAddress(json, "FoxVault", deployment.foxVault);
         }
 
@@ -284,6 +274,21 @@ abstract contract Network is Script {
 
         address[] memory params = new address[](1);
         params[0] = factory;
+        return vm.serializeAddress(object, "params", params);
+    }
+
+    function _serializeAddCurator(address curatorsRegistry, address curator) private returns (string memory) {
+        string memory object = "addCurator";
+        vm.serializeAddress(object, "to", curatorsRegistry);
+        vm.serializeString(object, "operation", "0");
+        vm.serializeString(object, "method", "addCurator(address)");
+        vm.serializeString(object, "value", "0.0");
+        vm.serializeBytes(
+            object, "data", abi.encodeWithSelector(ICuratorsRegistry(curatorsRegistry).addCurator.selector, curator)
+        );
+
+        address[] memory params = new address[](1);
+        params[0] = curator;
         return vm.serializeAddress(object, "params", params);
     }
 }
