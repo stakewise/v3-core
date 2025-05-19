@@ -10,6 +10,7 @@ import {GnoHelpers} from "../helpers/GnoHelpers.sol";
 import {Errors} from "../../contracts/libraries/Errors.sol";
 import {GnoVault} from "../../contracts/vaults/gnosis/GnoVault.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
+import {ITokensConverterFactory} from "../../contracts/interfaces/ITokensConverterFactory.sol";
 
 contract VaultGnoStakingTest is Test, GnoHelpers {
     ForkContracts public contracts;
@@ -94,6 +95,9 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     }
 
     function test_withdrawableAssets() public {
+        (,,, uint256 totalExitingAssets,) = vault.getExitQueueData();
+        _mintGnoToken(address(vault), totalExitingAssets);
+
         uint256 withdrawableBefore = vault.withdrawableAssets();
 
         // Deposit some GNO
@@ -110,53 +114,54 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         // Deposit GNO
         _depositGno(depositAmount, sender, receiver);
 
-        // Now simulate some xDAI balance that would trigger distribution
+        // Now simulate some xDAI balance that would trigger swap
         vm.deal(vault.mevEscrow(), 1 ether);
 
         // use the same conversion function as for GnoVault
-        uint256 vaultBalanceBefore = address(vault).balance;
-        uint256 expectedAddedSDai =
-            IGnoVault(address(contracts.sdaiToken)).convertToShares(vaultBalanceBefore + 1 ether);
-
         _collateralizeGnoVault(address(vault));
         IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 0, 1 ether);
 
-        uint256 distributorBalanceBefore = contracts.sdaiToken.balanceOf(address(contracts.merkleDistributor));
+        address converter = ITokensConverterFactory(_tokensConverterFactory).getTokensConverter(address(vault));
+        uint256 balanceBefore = contracts.sdaiToken.balanceOf(converter);
 
         // Update state which will trigger _processTotalAssetsDelta
         _startSnapshotGas("VaultGnoStakingTest_test_processTotalAssetsDelta");
         vault.updateState(harvestParams);
         _stopSnapshotGas();
 
+        uint256 balanceAfter = contracts.sdaiToken.balanceOf(converter);
+
         // Verify sDAI was sent to the distributor
         assertEq(address(vault).balance, 0, "Vault should have no xDAI left");
-        assertEq(
-            contracts.sdaiToken.balanceOf(address(contracts.merkleDistributor)),
-            distributorBalanceBefore + expectedAddedSDai,
-            "Distributor should get sDAI"
-        );
+        assertEq(address(vault.mevEscrow()).balance, 0, "Vault should have no xDAI left in the escrow");
+        assertGt(balanceAfter, balanceBefore + 1 ether / 2, "sDAI balance should increase after processing xDAI");
     }
 
     function test_processTotalAssetsDelta_smallXdaiBalance() public {
+        address converter = ITokensConverterFactory(_tokensConverterFactory).getTokensConverter(address(vault));
+
         // Deposit GNO
         _depositGno(depositAmount, sender, sender);
 
         // Small xDAI amount (below 0.1 ETH threshold)
         vm.deal(vault.mevEscrow(), 0.09 ether);
+        vm.deal(address(vault), 0);
 
         // Process rewards
         _collateralizeGnoVault(address(vault));
-        IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 1 ether, 0);
+        IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 1 ether, 0.09 ether);
 
-        uint256 mevBalanceBefore = address(vault.mevEscrow()).balance;
+        uint256 sdaiBefore = contracts.sdaiToken.balanceOf(converter);
 
         // Update state
         _startSnapshotGas("VaultGnoStakingCoverageTest_test_processTotalAssetsDelta_smallXdaiBalance");
         vault.updateState(harvestParams);
         _stopSnapshotGas();
 
-        // Verify small xDAI balance wasn't processed (below 0.1 ETH threshold)
-        assertEq(address(vault.mevEscrow()).balance, mevBalanceBefore, "xDAI balance should remain unchanged");
+        assertEq(address(vault.mevEscrow()).balance, 0, "xDAI should be transferred to the converter");
+        assertEq(address(vault).balance, 0, "Vault should have no xDAI left");
+        assertEq(sdaiBefore, contracts.sdaiToken.balanceOf(converter), "sDAI balance should not change");
+        assertEq(address(converter).balance, 0.09 ether, "Converter should have received the xDAI from the escrow");
     }
 
     function test_vaultAssets() public {
@@ -181,46 +186,60 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     }
 
     function test_pullWithdrawals() public {
+        bytes memory initParams = abi.encode(
+            IGnoVault.GnoVaultInitParams({
+                capacity: 1000 ether,
+                feePercent: 1000, // 10%
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address vaultAddr = _createVault(VaultType.GnoVault, admin, initParams, false);
+        GnoVault newVault = GnoVault(payable(vaultAddr));
+
+        // set validators manager
+        vm.prank(admin);
+        newVault.setValidatorsManager(validatorsManager);
+
         // 1. Deposit GNO
-        _depositGno(depositAmount, sender, sender);
+        _depositToVault(address(newVault), depositAmount, sender, sender);
 
         // 2. Register a validator
-        _registerGnoValidator(address(vault), 1 ether, true);
+        _registerGnoValidator(address(newVault), 1 ether, true);
 
         // 3. Set up withdrawable GNO in the registry (simulate validator withdrawal)
         uint256 withdrawalAmount = 2 ether;
-        _setGnoWithdrawals(address(vault), withdrawalAmount);
+        _setGnoWithdrawals(address(newVault), withdrawalAmount);
 
         // Verify the registry shows the correct withdrawable amount
         assertEq(
-            contracts.validatorsRegistry.withdrawableAmount(address(vault)),
+            contracts.validatorsRegistry.withdrawableAmount(address(newVault)),
             withdrawalAmount,
             "Withdrawal amount not set correctly"
         );
 
         // Record initial balances
         uint256 senderInitialBalance = contracts.gnoToken.balanceOf(sender);
-        uint256 vaultInitialBalance = contracts.gnoToken.balanceOf(address(vault));
+        uint256 vaultInitialBalance = contracts.gnoToken.balanceOf(address(newVault));
 
         // 4. Enter the exit queue with shares
-        uint256 shares = vault.getShares(sender);
+        uint256 shares = newVault.getShares(sender);
         uint256 timestamp = vm.getBlockTimestamp();
         vm.prank(sender);
-        uint256 positionTicket = vault.enterExitQueue(shares, sender);
+        uint256 positionTicket = newVault.enterExitQueue(shares, sender);
 
         // 5. Process the exit queue
         // Update vault state to process the exit queue
-        IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 0, 0);
-        vault.updateState(harvestParams);
+        IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(newVault), 0, 0);
+        newVault.updateState(harvestParams);
 
         // 6. Claim exited assets
         vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
-        int256 exitQueueIndex = vault.getExitQueueIndex(positionTicket);
+        int256 exitQueueIndex = newVault.getExitQueueIndex(positionTicket);
         assertGt(exitQueueIndex, -1, "Exit queue index not found");
 
         _startSnapshotGas("VaultGnoStakingTest_test_pullWithdrawals");
         vm.prank(sender);
-        vault.claimExitedAssets(positionTicket, timestamp, uint256(exitQueueIndex));
+        newVault.claimExitedAssets(positionTicket, timestamp, uint256(exitQueueIndex));
         _stopSnapshotGas();
 
         // 7. Verify results
@@ -229,36 +248,50 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         assertGt(senderFinalBalance, senderInitialBalance, "Sender did not receive exited assets");
 
         // Registry should have 0 withdrawable amount
-        uint256 registryFinalWithdrawable = contracts.validatorsRegistry.withdrawableAmount(address(vault));
+        uint256 registryFinalWithdrawable = contracts.validatorsRegistry.withdrawableAmount(address(newVault));
         assertEq(registryFinalWithdrawable, 0, "Registry withdrawable amount should be completely claimed");
 
         // Vault's GNO balance should have changed due to _pullWithdrawals
-        uint256 vaultFinalBalance = contracts.gnoToken.balanceOf(address(vault));
+        uint256 vaultFinalBalance = contracts.gnoToken.balanceOf(address(newVault));
         // The vault should have transferred out GNO (either directly or via _pullWithdrawals)
         assertLt(vaultFinalBalance, vaultInitialBalance + withdrawalAmount, "Vault balance should reflect withdrawals");
     }
 
     function test_registerValidators_pullsWithdrawals() public {
+        bytes memory initParams = abi.encode(
+            IGnoVault.GnoVaultInitParams({
+                capacity: 1000 ether,
+                feePercent: 1000, // 10%
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address vaultAddr = _createVault(VaultType.GnoVault, admin, initParams, false);
+        GnoVault newVault = GnoVault(payable(vaultAddr));
+
+        // set validators manager
+        vm.prank(admin);
+        newVault.setValidatorsManager(validatorsManager);
+
         // Setup: Set GNO withdrawals in the validators registry
         uint256 withdrawalAmount = 2 ether;
-        _setGnoWithdrawals(address(vault), withdrawalAmount);
-        uint256 withdrawableBefore = contracts.validatorsRegistry.withdrawableAmount(address(vault));
+        _setGnoWithdrawals(address(newVault), withdrawalAmount);
+        uint256 withdrawableBefore = contracts.validatorsRegistry.withdrawableAmount(address(newVault));
 
         // Get vault's GNO balance before registration
-        uint256 vaultGnoBalanceBefore = contracts.gnoToken.balanceOf(address(vault));
+        uint256 vaultGnoBalanceBefore = contracts.gnoToken.balanceOf(address(newVault));
 
         // setup oracle
         _startOracleImpersonate(address(contracts.keeper));
 
         // Register a validator - this should trigger a withdrawal claim
         IKeeperValidators.ApprovalParams memory approvalParams =
-            _getGnoValidatorApproval(address(vault), 1 ether, "ipfsHash", false);
+            _getGnoValidatorApproval(address(newVault), 1 ether, "ipfsHash", false);
 
         vm.prank(validatorsManager);
-        vault.registerValidators(approvalParams, "");
+        newVault.registerValidators(approvalParams, "");
 
         // Verify that withdrawals were pulled by checking the vault's GNO balance increased
-        uint256 vaultGnoBalanceAfter = contracts.gnoToken.balanceOf(address(vault));
+        uint256 vaultGnoBalanceAfter = contracts.gnoToken.balanceOf(address(newVault));
         assertGe(
             vaultGnoBalanceAfter,
             vaultGnoBalanceBefore + withdrawableBefore - 1 ether,
@@ -266,7 +299,7 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         );
 
         // Verify the withdrawable amount is now 0
-        uint256 withdrawableAfter = contracts.validatorsRegistry.withdrawableAmount(address(vault));
+        uint256 withdrawableAfter = contracts.validatorsRegistry.withdrawableAmount(address(newVault));
         assertEq(withdrawableAfter, 0, "Withdrawable amount should be cleared after claiming");
 
         // revert previous state
@@ -274,6 +307,9 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     }
 
     function test_registerValidators_succeeds() public {
+        (,,, uint256 totalExitingAssets,) = vault.getExitQueueData();
+        _mintGnoToken(address(vault), totalExitingAssets);
+
         // Setup oracle
         _startOracleImpersonate(address(contracts.keeper));
 
@@ -305,15 +341,18 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         uint256 sendAmount = 0.5 ether;
         vm.deal(sender, sendAmount);
 
-        uint256 balanceBefore = address(vault).balance;
+        address converter = ITokensConverterFactory(_tokensConverterFactory).getTokensConverter(address(vault));
+        uint256 balanceBefore = contracts.sdaiToken.balanceOf(converter);
 
         vm.prank(sender);
         _startSnapshotGas("VaultGnoStakingTest_test_receive_xDai");
         (bool success,) = address(vault).call{value: sendAmount}("");
         _stopSnapshotGas();
 
+        uint256 balanceAfter = contracts.sdaiToken.balanceOf(converter);
+
         assertTrue(success, "Failed to send xDAI to vault");
-        assertEq(address(vault).balance, balanceBefore + sendAmount, "Vault balance didn't increase correctly");
+        assertGt(balanceAfter, balanceBefore + sendAmount / 2, "Vault balance didn't increase correctly");
     }
 
     function test_validatorRegistration_minMaxEffectiveBalance() public {

@@ -28,9 +28,7 @@ contract GnoBlocklistErc20Vault is Initializable, GnoErc20Vault, VaultBlocklist,
      * @param args The arguments for initializing the GnoErc20Vault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(GnoErc20VaultConstructorArgs memory args) GnoErc20Vault(args) {
-        _disableInitializers();
-    }
+    constructor(GnoErc20VaultConstructorArgs memory args) GnoErc20Vault(args) {}
 
     /// @inheritdoc IGnoErc20Vault
     function initialize(bytes calldata params)

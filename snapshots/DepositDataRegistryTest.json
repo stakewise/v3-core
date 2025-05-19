@@ -5,5 +5,5 @@
   "DepositDataRegistryTest_test_registerValidators_successWith0x02Validators": "338614",
   "DepositDataRegistryTest_test_setDepositDataManager_succeeds": "66206",
   "DepositDataRegistryTest_test_setDepositDataRoot_succeeds": "65127",
-  "DepositDataRegistryTest_test_updateVaultState_succeeds": "128282"
+  "DepositDataRegistryTest_test_updateVaultState_succeeds": "128302"
 }

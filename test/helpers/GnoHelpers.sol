@@ -11,11 +11,9 @@ import {IOsTokenVaultController} from "../../contracts/interfaces/IOsTokenVaultC
 import {IOsTokenVaultEscrow} from "../../contracts/interfaces/IOsTokenVaultEscrow.sol";
 import {ISharedMevEscrow} from "../../contracts/interfaces/ISharedMevEscrow.sol";
 import {IGnoValidatorsRegistry} from "../../contracts/interfaces/IGnoValidatorsRegistry.sol";
-import {IMerkleDistributor} from "../../contracts/interfaces/IMerkleDistributor.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
 import {IConsolidationsChecker} from "../../contracts/interfaces/IConsolidationsChecker.sol";
-import {GnoDaiDistributor, IGnoDaiDistributor} from "../../contracts/misc/GnoDaiDistributor.sol";
 import {ConsolidationsChecker} from "../../contracts/validators/ConsolidationsChecker.sol";
 import {GnoBlocklistErc20Vault} from "../../contracts/vaults/gnosis/GnoBlocklistErc20Vault.sol";
 import {GnoBlocklistVault} from "../../contracts/vaults/gnosis/GnoBlocklistVault.sol";
@@ -40,7 +38,7 @@ interface IGnoToken {
 }
 
 abstract contract GnoHelpers is Test, ValidatorsHelpers {
-    uint256 internal constant forkBlockNumber = 39014183;
+    uint256 internal constant forkBlockNumber = 40107000;
     uint256 internal constant _securityDeposit = 1e9;
     address private constant _keeper = 0xcAC0e3E35d3BA271cd2aaBE688ac9DB1898C26aa;
     address private constant _validatorsRegistry = 0x0B98057eA310F4d31F2a452B414647007d1645d9;
@@ -53,9 +51,8 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     address private constant _gnoToken = 0x9C58BAcC331c9aa871AFD802DB6379a98e80CEdb;
     address internal constant _poolEscrow = 0xfc9B67b6034F6B306EA9Bd8Ec1baf3eFA2490394;
     address internal constant _rewardGnoToken = 0x6aC78efae880282396a335CA2F79863A1e6831D4;
-    address private constant _merkleDistributor = 0xFBceefdBB0ca25a4043b35EF49C2810425243710;
-    address private constant _savingsXDaiAdapter = 0xD499b51fcFc66bd31248ef4b28d656d67E591A94;
     address private constant _sDaiToken = 0xaf204776c7245bF4147c2612BF6e5972Ee483701;
+    address internal constant _tokensConverterFactory = 0x686d93989EC722560D00dC0dA31Ba69C00BfdfbF;
     uint256 internal constant _exitingAssetsClaimDelay = 1 days;
 
     enum VaultType {
@@ -80,14 +77,11 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         IERC20 gnoToken;
         IERC20 sdaiToken;
         IConsolidationsChecker consolidationsChecker;
-        IGnoDaiDistributor gnoDaiDistributor;
-        IMerkleDistributor merkleDistributor;
     }
 
     mapping(VaultType vaultType => address vaultImpl) private _vaultImplementations;
     mapping(VaultType vaultType => address vaultFactory) private _vaultFactories;
 
-    address private _gnoDaiDistributor;
     address private _consolidationsChecker;
     address private _validatorsWithdrawals;
     address private _validatorsConsolidations;
@@ -96,15 +90,11 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     function _activateGnosisFork() internal returns (ForkContracts memory) {
         vm.createSelectFork(vm.envString("GNOSIS_RPC_URL"), forkBlockNumber);
 
-        _gnoDaiDistributor =
-            address(new GnoDaiDistributor(_sDaiToken, _vaultsRegistry, _savingsXDaiAdapter, _merkleDistributor));
         _validatorsWithdrawals = address(new ValidatorsWithdrawalsMock());
         _validatorsConsolidations = address(new ValidatorsConsolidationsMock());
         _consolidationsChecker = address(new ConsolidationsChecker(address(_keeper)));
         _curatorsRegistry = address(new CuratorsRegistry());
 
-        vm.prank(IMerkleDistributor(_merkleDistributor).owner());
-        IMerkleDistributor(_merkleDistributor).setDistributor(_gnoDaiDistributor, true);
         return ForkContracts({
             keeper: Keeper(_keeper),
             validatorsRegistry: IGnoValidatorsRegistry(_validatorsRegistry),
@@ -115,9 +105,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
             sharedMevEscrow: ISharedMevEscrow(_sharedMevEscrow),
             gnoToken: IERC20(_gnoToken),
             sdaiToken: IERC20(_sDaiToken),
-            consolidationsChecker: IConsolidationsChecker(_consolidationsChecker),
-            gnoDaiDistributor: IGnoDaiDistributor(_gnoDaiDistributor),
-            merkleDistributor: IMerkleDistributor(_merkleDistributor)
+            consolidationsChecker: IConsolidationsChecker(_consolidationsChecker)
         });
     }
 
@@ -307,8 +295,8 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         returns (int160, uint160)
     {
         if (vault == 0x4b4406Ed8659D03423490D8b62a1639206dA0A7a) {
-            newTotalReward += 14465786742141121046698;
-            newUnlockedMevReward += 12291679027502580216003;
+            newTotalReward += 16036446295848871046698;
+            newUnlockedMevReward += 16104786197270190915179;
         }
 
         if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
@@ -316,18 +304,18 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         }
 
         if (vault == 0x00025C729A3364FaEf02c7D1F577068d87E90ba6) {
-            newTotalReward += 393962803328781250000;
-            newUnlockedMevReward += 1680633820544574435947;
+            newTotalReward += 597138686177531250000;
+            newUnlockedMevReward += 2173687084505551299451;
         } else if (vault == 0x79Dbec2d18A758C62D410F9763956D52fbd4A3CC) {
-            newTotalReward += 1050592958531250000;
-            newUnlockedMevReward += 3442955231281615690;
+            newTotalReward += 2986604545031250000;
+            newUnlockedMevReward += 8209964011439485540;
         } else if (vault == 0x52Bd0fbF4839824680001d3653f2d503C6081085) {
-            newTotalReward += 32023359208750000000;
+            newTotalReward += 55585164426875000000;
         } else if (vault == 0x33C346928eD9249Cf1d5fc16aE32a8CFFa1671AD) {
-            newTotalReward += 93551557523312500000;
-            newUnlockedMevReward += 199880304782632057829;
+            newTotalReward += 118624342091343750000;
+            newUnlockedMevReward += 263665552420563946481;
         } else if (vault == 0xdfdA4238359703180DAEc01e48F4625C1569c4dE) {
-            newTotalReward += 5690635875000000;
+            newTotalReward += 45747108062500000;
         }
         return (newTotalReward, newUnlockedMevReward);
     }
@@ -401,7 +389,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
             _sharedMevEscrow,
             _depositDataRegistry,
             _gnoToken,
-            _gnoDaiDistributor,
+            _tokensConverterFactory,
             _exitingAssetsClaimDelay
         );
         IGnoErc20Vault.GnoErc20VaultConstructorArgs memory gnoErc20Args = IGnoErc20Vault.GnoErc20VaultConstructorArgs(
@@ -417,7 +405,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
             _sharedMevEscrow,
             _depositDataRegistry,
             _gnoToken,
-            _gnoDaiDistributor,
+            _tokensConverterFactory,
             _exitingAssetsClaimDelay
         );
 

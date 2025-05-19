@@ -46,7 +46,7 @@ interface IGnoErc20Vault is
      * @param sharedMevEscrow The address of the shared MEV escrow
      * @param depositDataRegistry The address of the DepositDataRegistry contract
      * @param gnoToken The address of the GNO token
-     * @param gnoDaiDistributor The address of the GnoDaiDistributor contract
+     * @param tokensConverterFactory The address of the TokensConverterFactory contract
      * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
      */
     struct GnoErc20VaultConstructorArgs {
@@ -62,7 +62,7 @@ interface IGnoErc20Vault is
         address sharedMevEscrow;
         address depositDataRegistry;
         address gnoToken;
-        address gnoDaiDistributor;
+        address tokensConverterFactory;
         uint256 exitingAssetsClaimDelay;
     }
 

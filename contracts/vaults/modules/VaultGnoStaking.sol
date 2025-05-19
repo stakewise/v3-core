@@ -7,7 +7,8 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IGnoValidatorsRegistry} from "../../interfaces/IGnoValidatorsRegistry.sol";
 import {IVaultGnoStaking} from "../../interfaces/IVaultGnoStaking.sol";
-import {IGnoDaiDistributor} from "../../interfaces/IGnoDaiDistributor.sol";
+import {ITokensConverterFactory} from "../../interfaces/ITokensConverterFactory.sol";
+import {IGnoTokensConverter} from "../../interfaces/IGnoTokensConverter.sol";
 import {ValidatorUtils} from "../../libraries/ValidatorUtils.sol";
 import {Errors} from "../../libraries/Errors.sol";
 import {VaultAdmin} from "./VaultAdmin.sol";
@@ -31,19 +32,21 @@ abstract contract VaultGnoStaking is
     uint256 private constant _securityDeposit = 1e9;
 
     IERC20 internal immutable _gnoToken;
-    IGnoDaiDistributor private immutable _gnoDaiDistributor;
+    ITokensConverterFactory private immutable _tokensConverterFactory;
+
+    IGnoTokensConverter internal _tokensConverter;
 
     /**
      * @dev Constructor
      * @dev Since the immutable variable value is stored in the bytecode,
      *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
      * @param gnoToken The address of the GNO token
-     * @param gnoDaiDistributor The address of the xDAI distributor contract
+     * @param tokensConverterFactory The address of the tokens converter factory
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address gnoToken, address gnoDaiDistributor) {
+    constructor(address gnoToken, address tokensConverterFactory) {
         _gnoToken = IERC20(gnoToken);
-        _gnoDaiDistributor = IGnoDaiDistributor(gnoDaiDistributor);
+        _tokensConverterFactory = ITokensConverterFactory(tokensConverterFactory);
     }
 
     /// @inheritdoc IVaultGnoStaking
@@ -51,7 +54,6 @@ abstract contract VaultGnoStaking is
         public
         virtual
         override
-        nonReentrant
         returns (uint256 shares)
     {
         // withdraw GNO tokens from the user
@@ -60,7 +62,7 @@ abstract contract VaultGnoStaking is
     }
 
     /// @inheritdoc IVaultGnoStaking
-    function donateAssets(uint256 amount) external override nonReentrant {
+    function donateAssets(uint256 amount) external override {
         if (amount == 0) {
             revert Errors.InvalidAssets();
         }
@@ -70,20 +72,12 @@ abstract contract VaultGnoStaking is
         emit AssetsDonated(msg.sender, amount);
     }
 
-    /// @inheritdoc VaultState
-    function _processTotalAssetsDelta(int256 assetsDelta) internal virtual override {
-        super._processTotalAssetsDelta(assetsDelta);
-
-        uint256 balance = address(this).balance;
-        if (balance < 0.1 ether) return;
-
-        _gnoDaiDistributor.distributeSDai{value: balance}();
-    }
-
     /**
-     * @dev Function for receiving xDAI
+     * @dev Function for receiving xDAI and forwarding it to the tokens converter
      */
-    receive() external payable {}
+    receive() external payable {
+        _tokensConverter.createXDaiSwapOrder{value: address(this).balance}();
+    }
 
     /// @inheritdoc VaultValidators
     function _registerValidators(ValidatorUtils.ValidatorDeposit[] memory deposits) internal virtual override {
@@ -143,16 +137,14 @@ abstract contract VaultGnoStaking is
      * @dev Upgrades the VaultGnoStaking contract
      */
     function __VaultGnoStaking_upgrade() internal onlyInitializing {
-        // approve transferring GNO for validators registration
-        _gnoToken.approve(_validatorsRegistry, type(uint256).max);
+        __VaultGnoStaking_init_common();
     }
 
     /**
      * @dev Initializes the VaultGnoStaking contract
      */
     function __VaultGnoStaking_init() internal onlyInitializing {
-        // approve transferring GNO for validators registration
-        _gnoToken.approve(_validatorsRegistry, type(uint256).max);
+        __VaultGnoStaking_init_common();
 
         _deposit(address(this), _securityDeposit, address(0));
         // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
@@ -160,9 +152,19 @@ abstract contract VaultGnoStaking is
     }
 
     /**
+     * @dev Common initialization for gas optimization
+     */
+    function __VaultGnoStaking_init_common() private {
+        // approve transferring GNO for validators registration
+        _gnoToken.approve(_validatorsRegistry, type(uint256).max);
+        // create tokens converter
+        _tokensConverter = IGnoTokensConverter(_tokensConverterFactory.createConverter(address(this)));
+    }
+
+    /**
      * @dev This empty reserved space is put in place to allow future versions to add new
      * variables without shifting down storage in the inheritance chain.
      * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 }

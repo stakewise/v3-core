@@ -40,6 +40,7 @@ abstract contract VaultMev is Initializable, VaultState, IVaultMev {
     /// @inheritdoc VaultState
     function _harvestAssets(IKeeperRewards.HarvestParams calldata harvestParams)
         internal
+        virtual
         override
         returns (int256 totalAssetsDelta, bool harvested)
     {
@@ -59,13 +60,6 @@ abstract contract VaultMev is Initializable, VaultState, IVaultMev {
         } else {
             // execution rewards are always equal to what was accumulated in own MEV escrow
             totalAssetsDelta += int256(IOwnMevEscrow(_mevEscrow).harvest());
-        }
-
-        // SLOAD to memory
-        uint256 donatedAssets = _donatedAssets;
-        if (donatedAssets > 0) {
-            totalAssetsDelta += int256(donatedAssets);
-            _donatedAssets = 0;
         }
     }
 

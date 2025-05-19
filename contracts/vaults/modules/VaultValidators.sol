@@ -255,12 +255,7 @@ abstract contract VaultValidators is
      * @dev Upgrades the VaultValidators contract
      */
     function __VaultValidators_upgrade() internal onlyInitializing {
-        __ReentrancyGuard_init();
-        // initialize domain separator
-        bytes32 newInitialDomainSeparator = _computeVaultValidatorsDomain();
-        if (newInitialDomainSeparator != _initialDomainSeparator) {
-            _initialDomainSeparator = newInitialDomainSeparator;
-        }
+        __VaultValidators_init_common();
 
         // migrate deposit data variables to DepositDataRegistry contract
         if (__deprecated__validatorsRoot != bytes32(0)) {
@@ -277,8 +272,19 @@ abstract contract VaultValidators is
      * @dev Initializes the VaultValidators contract
      */
     function __VaultValidators_init() internal onlyInitializing {
+        __VaultValidators_init_common();
+    }
+
+    /**
+     * @dev Common initialization for gas optimization
+     */
+    function __VaultValidators_init_common() private {
         __ReentrancyGuard_init();
-        _initialDomainSeparator = _computeVaultValidatorsDomain();
+        // initialize domain separator
+        bytes32 newInitialDomainSeparator = _computeVaultValidatorsDomain();
+        if (newInitialDomainSeparator != _initialDomainSeparator) {
+            _initialDomainSeparator = newInitialDomainSeparator;
+        }
     }
 
     /**
