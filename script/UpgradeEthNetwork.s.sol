@@ -28,6 +28,7 @@ import {Network} from "./Network.sol";
 
 contract UpgradeEthNetwork is Network {
     address public metaVaultFactoryOwner;
+    address public validatorsRegistry;
 
     address public consolidationsChecker;
     address public validatorsChecker;
@@ -40,6 +41,7 @@ contract UpgradeEthNetwork is Network {
 
     function run() external {
         metaVaultFactoryOwner = vm.envAddress("META_VAULT_FACTORY_OWNER");
+        validatorsRegistry = vm.envAddress("VALIDATORS_REGISTRY");
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
         address sender = vm.addr(privateKey);
         console.log("Deploying from: ", sender);
@@ -52,10 +54,7 @@ contract UpgradeEthNetwork is Network {
         consolidationsChecker = address(new ConsolidationsChecker(deployment.keeper));
         validatorsChecker = address(
             new EthValidatorsChecker(
-                deployment.validatorsRegistry,
-                deployment.keeper,
-                deployment.vaultsRegistry,
-                deployment.depositDataRegistry
+                validatorsRegistry, deployment.keeper, deployment.vaultsRegistry, deployment.depositDataRegistry
             )
         );
         address rewardsSplitterImpl = address(new EthRewardSplitter());
@@ -71,7 +70,7 @@ contract UpgradeEthNetwork is Network {
         _deployFactories();
         vm.stopBroadcast();
 
-        generateGovernorTxJson(vaultImpls, vaultFactories);
+        generateGovernorTxJson(vaultImpls, vaultFactories, curatorsRegistry, balancedCurator);
         generateUpgradesJson(vaultImpls);
         generateAddressesJson(
             vaultFactories,
@@ -171,7 +170,7 @@ contract UpgradeEthNetwork is Network {
         return IEthVault.EthVaultConstructorArgs({
             keeper: deployment.keeper,
             vaultsRegistry: deployment.vaultsRegistry,
-            validatorsRegistry: deployment.validatorsRegistry,
+            validatorsRegistry: validatorsRegistry,
             validatorsWithdrawals: VALIDATORS_WITHDRAWALS,
             validatorsConsolidations: VALIDATORS_CONSOLIDATIONS,
             consolidationsChecker: consolidationsChecker,
@@ -189,7 +188,7 @@ contract UpgradeEthNetwork is Network {
         return IEthErc20Vault.EthErc20VaultConstructorArgs({
             keeper: deployment.keeper,
             vaultsRegistry: deployment.vaultsRegistry,
-            validatorsRegistry: deployment.validatorsRegistry,
+            validatorsRegistry: validatorsRegistry,
             validatorsWithdrawals: VALIDATORS_WITHDRAWALS,
             validatorsConsolidations: VALIDATORS_CONSOLIDATIONS,
             consolidationsChecker: consolidationsChecker,
