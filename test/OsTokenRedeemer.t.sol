@@ -2,6 +2,7 @@
 pragma solidity ^0.8.22;
 
 import {Test} from "forge-std/Test.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {OsTokenRedeemer} from "../contracts/tokens/OsTokenRedeemer.sol";
 import {IOsTokenRedeemer} from "../contracts/interfaces/IOsTokenRedeemer.sol";
@@ -341,11 +342,256 @@ contract OsTokenRedeemerTest is Test, EthHelpers {
         assertEq(osTokenRedeemer.redeemer(), newRedeemer);
     }
 
-    function test_redeemOsTokenPositions_notRedeemer() public {}
-    function test_redeemOsTokenPositions_invalidPositionOwner() public {}
-    function test_redeemOsTokenPositions_invalidPositionVault() public {}
-    function test_redeemOsTokenPositions_invalidShares() public {}
-    function test_redeemOsTokenPositions_invalidProof() public {}
-    function test_redeemOsTokenPositions_success() public {}
+    function test_redeemOsTokenPositions_notRedeemer() public {
+        // Setup: Create a position and set positions root
+        uint256 user1OsTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, user1OsTokenShares, address(0));
 
+        // Create merkle root with the position
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(address(vault), 1 ether, user1))));
+        bytes32 root = leaf; // Single leaf tree
+
+        // Set positions root
+        vm.prank(owner);
+        osTokenRedeemer.initiatePositionsRootUpdate(root);
+        vm.warp(vm.getBlockTimestamp() + POSITIONS_ROOT_UPDATE_DELAY + 1);
+        vm.prank(owner);
+        osTokenRedeemer.applyPositionsRootUpdate();
+
+        // Create position data
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            osTokenShares: 1 ether,
+            owner: user1,
+            osTokenSharesToRedeem: 0.5 ether
+        });
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
+        // Try to redeem as non-redeemer
+        address nonRedeemer = makeAddr("nonRedeemer");
+        vm.prank(nonRedeemer);
+        _startSnapshotGas("OsTokenRedeemerTest_test_redeemOsTokenPositions_notRedeemer");
+        vm.expectRevert(Errors.AccessDenied.selector);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+        _stopSnapshotGas();
+    }
+
+    function test_redeemOsTokenPositions_invalidPositionOwner() public {
+        // Set positions root
+        bytes32 root = keccak256("root");
+        vm.prank(owner);
+        osTokenRedeemer.initiatePositionsRootUpdate(root);
+        vm.warp(vm.getBlockTimestamp() + POSITIONS_ROOT_UPDATE_DELAY + 1);
+        vm.prank(owner);
+        osTokenRedeemer.applyPositionsRootUpdate();
+
+        // Create position with zero owner
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            osTokenShares: 1 ether,
+            owner: address(0), // Invalid zero address
+            osTokenSharesToRedeem: 0.5 ether
+        });
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
+        vm.prank(redeemer);
+        _startSnapshotGas("OsTokenRedeemerTest_test_redeemOsTokenPositions_invalidPositionOwner");
+        vm.expectRevert(Errors.ZeroAddress.selector);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+        _stopSnapshotGas();
+    }
+
+    function test_redeemOsTokenPositions_invalidPositionVault() public {
+        // Set positions root
+        bytes32 root = keccak256("root");
+        vm.prank(owner);
+        osTokenRedeemer.initiatePositionsRootUpdate(root);
+        vm.warp(vm.getBlockTimestamp() + POSITIONS_ROOT_UPDATE_DELAY + 1);
+        vm.prank(owner);
+        osTokenRedeemer.applyPositionsRootUpdate();
+
+        // Test with zero address vault
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(0), // Invalid zero address
+            osTokenShares: 1 ether,
+            owner: user1,
+            osTokenSharesToRedeem: 0.5 ether
+        });
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
+        vm.prank(redeemer);
+        _startSnapshotGas("OsTokenRedeemerTest_test_redeemOsTokenPositions_invalidPositionVault_zero");
+        vm.expectRevert(Errors.InvalidVault.selector);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+        _stopSnapshotGas();
+
+        // Test with non-registered vault
+        address fakeVault = makeAddr("fakeVault");
+        positions[0].vault = fakeVault;
+
+        vm.prank(redeemer);
+        _startSnapshotGas("OsTokenRedeemerTest_test_redeemOsTokenPositions_invalidPositionVault_notRegistered");
+        vm.expectRevert(Errors.InvalidVault.selector);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+        _stopSnapshotGas();
+    }
+
+    function test_redeemOsTokenPositions_invalidShares() public {
+        // Setup: Create a position
+        uint256 user1OsTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, user1OsTokenShares, address(0));
+
+        // Create merkle root with the position
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(address(vault), user1OsTokenShares, user1))));
+        bytes32 root = leaf; // Single leaf tree
+
+        // Set positions root
+        vm.prank(owner);
+        osTokenRedeemer.initiatePositionsRootUpdate(root);
+        vm.warp(vm.getBlockTimestamp() + POSITIONS_ROOT_UPDATE_DELAY + 1);
+        vm.prank(owner);
+        osTokenRedeemer.applyPositionsRootUpdate();
+
+        // Create position with zero shares to redeem
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            osTokenShares: 1 ether,
+            owner: user1,
+            osTokenSharesToRedeem: 0 // Invalid zero shares
+        });
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
+        vm.prank(redeemer);
+        _startSnapshotGas("OsTokenRedeemerTest_test_redeemOsTokenPositions_invalidShares");
+        vm.expectRevert(Errors.InvalidShares.selector);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+        _stopSnapshotGas();
+    }
+
+    function test_redeemOsTokenPositions_invalidProof() public {
+        // Setup: Create a position
+        uint256 user1OsTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, user1OsTokenShares, address(0));
+
+        // Create merkle root with the position
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(address(vault), user1OsTokenShares, user1))));
+        bytes32 root = leaf;
+
+        // Set positions root
+        vm.prank(owner);
+        osTokenRedeemer.initiatePositionsRootUpdate(root);
+        vm.warp(vm.getBlockTimestamp() + POSITIONS_ROOT_UPDATE_DELAY + 1);
+        vm.prank(owner);
+        osTokenRedeemer.applyPositionsRootUpdate();
+
+        // Create position that doesn't match the root
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            osTokenShares: 2 ether,
+            owner: user1,
+            osTokenSharesToRedeem: 0.5 ether
+        });
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
+        vm.prank(redeemer);
+        _startSnapshotGas("OsTokenRedeemerTest_test_redeemOsTokenPositions_invalidProof");
+        vm.expectRevert(Errors.InvalidProof.selector);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+        _stopSnapshotGas();
+    }
+
+    function test_redeemOsTokenPositions_success() public {
+        // Setup: Create positions for two users
+        uint256 user1OsTokenShares = contracts.osTokenVaultController.convertToShares(2 ether);
+        uint256 user2OsTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+
+        vm.prank(user1);
+        vault.mintOsToken(user1, user1OsTokenShares, address(0));
+
+        vm.prank(user2);
+        vault.mintOsToken(user2, user2OsTokenShares, address(0));
+
+        // Create merkle tree with positions
+        bytes32 leaf1 = keccak256(bytes.concat(keccak256(abi.encode(address(vault), user1OsTokenShares, user1))));
+        bytes32 leaf2 = keccak256(bytes.concat(keccak256(abi.encode(address(vault), user2OsTokenShares, user2))));
+
+        // Create a simple 2-leaf merkle tree
+        bytes32 root = keccak256(abi.encodePacked(leaf1 < leaf2 ? leaf1 : leaf2, leaf1 < leaf2 ? leaf2 : leaf1));
+
+        // Set positions root
+        vm.prank(owner);
+        osTokenRedeemer.initiatePositionsRootUpdate(root);
+        vm.warp(vm.getBlockTimestamp() + POSITIONS_ROOT_UPDATE_DELAY + 1);
+        vm.prank(owner);
+        osTokenRedeemer.applyPositionsRootUpdate();
+
+        // Create positions to redeem
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](2);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            osTokenShares: user1OsTokenShares,
+            owner: user1,
+            osTokenSharesToRedeem: user1OsTokenShares / 2 // Redeem half
+        });
+        positions[1] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            osTokenShares: user2OsTokenShares,
+            owner: user2,
+            osTokenSharesToRedeem: user2OsTokenShares // Redeem all
+        });
+
+        // Create merkle proof
+        bytes32[] memory proof = new bytes32[](0); // For multi-proof with 2 leaves
+        bool[] memory proofFlags = new bool[](1);
+        proofFlags[0] = true;
+
+        // Mint osToken to redeemer to pay for redemption
+        uint256 totalSharesToRedeem = positions[0].osTokenSharesToRedeem + positions[1].osTokenSharesToRedeem;
+        _mintOsToken(redeemer, totalSharesToRedeem);
+
+        // Approve osToken spending
+        vm.prank(redeemer);
+        IERC20(_osToken).approve(address(osTokenRedeemer), totalSharesToRedeem);
+
+        // Record balances before
+        uint256 user1PositionBefore = vault.osTokenPositions(user1);
+        uint256 user2PositionBefore = vault.osTokenPositions(user2);
+        uint256 redeemerBalanceBefore = redeemer.balance;
+
+        // Perform redemption
+        vm.prank(redeemer);
+        _startSnapshotGas("OsTokenRedeemerTest_test_redeemOsTokenPositions_success");
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+        _stopSnapshotGas();
+
+        // Verify positions were reduced
+        assertEq(vault.osTokenPositions(user1), user1PositionBefore - positions[0].osTokenSharesToRedeem);
+        assertEq(vault.osTokenPositions(user2), user2PositionBefore - positions[1].osTokenSharesToRedeem);
+
+        // Verify assets were distributed (redeemer should have received the assets)
+        assertGt(redeemer.balance, redeemerBalanceBefore, "Redeemer should have received assets");
+
+        // try to redeem again
+        vm.prank(redeemer);
+        vm.expectRevert(Errors.InvalidShares.selector);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+    }
 }
