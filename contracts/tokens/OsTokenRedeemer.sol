@@ -80,7 +80,7 @@ contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
             revert Errors.TooEarlyUpdate();
         }
         positionsRoot = _pendingPositionsRoot;
-        _nonce++;
+        _nonce += 1;
 
         delete pendingPositionsRoot;
         delete _pendingPositionsRootTimestamp;
