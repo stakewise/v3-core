@@ -340,4 +340,12 @@ contract OsTokenRedeemerTest is Test, EthHelpers {
         // Verify redeemer is updated
         assertEq(osTokenRedeemer.redeemer(), newRedeemer);
     }
+
+    function test_redeemOsTokenPositions_notRedeemer() public {}
+    function test_redeemOsTokenPositions_invalidPositionOwner() public {}
+    function test_redeemOsTokenPositions_invalidPositionVault() public {}
+    function test_redeemOsTokenPositions_invalidShares() public {}
+    function test_redeemOsTokenPositions_invalidProof() public {}
+    function test_redeemOsTokenPositions_success() public {}
+
 }
