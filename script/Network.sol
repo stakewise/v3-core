@@ -8,6 +8,7 @@ import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
 import {ICuratorsRegistry} from "../contracts/interfaces/ICuratorsRegistry.sol";
+import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
 
 /**
  * @title Network
@@ -130,7 +131,8 @@ abstract contract Network is Script {
         address[] memory vaultImpls,
         Factory[] memory vaultFactories,
         address curatorsRegistry,
-        address balancedCurator
+        address balancedCurator,
+        address osTokenRedeemer
     ) internal {
         if (_governorCalls.length > 0) {
             return;
@@ -146,8 +148,8 @@ abstract contract Network is Script {
             _governorCalls.push(_serializeAddFactory(vaultFactories[i].factory));
         }
 
+        Deployment memory deployment = getDeploymentData();
         if (removePrevVaultFactories) {
-            Deployment memory deployment = getDeploymentData();
             _governorCalls.push(_serializeRemoveFactory(deployment.vaultFactory));
             _governorCalls.push(_serializeRemoveFactory(deployment.privVaultFactory));
             _governorCalls.push(_serializeRemoveFactory(deployment.blocklistVaultFactory));
@@ -157,6 +159,7 @@ abstract contract Network is Script {
         }
 
         _governorCalls.push(_serializeAddCurator(curatorsRegistry, balancedCurator));
+        _governorCalls.push(_serializeSetOsTokenRedeemer(deployment.osTokenConfig, osTokenRedeemer));
 
         string memory output = vm.serializeString("governorCalls", "transactions", _governorCalls);
         string memory filePath = getGovernorTxsFilePath();
@@ -184,7 +187,8 @@ abstract contract Network is Script {
         address consolidationsChecker,
         address rewardSplitterFactory,
         address curatorsRegistry,
-        address balancedCurator
+        address balancedCurator,
+        address osTokenRedeemer
     ) internal {
         Deployment memory deployment = getDeploymentData();
 
@@ -205,6 +209,7 @@ abstract contract Network is Script {
         vm.serializeAddress(json, "MerkleDistributor", deployment.merkleDistributor);
         vm.serializeAddress(json, "CuratorsRegistry", curatorsRegistry);
         vm.serializeAddress(json, "BalancedCurator", balancedCurator);
+        vm.serializeAddress(json, "OsTokenRedeemer", osTokenRedeemer);
 
         for (uint256 i = 0; i < newFactories.length; i++) {
             Factory memory factory = newFactories[i];
@@ -289,6 +294,21 @@ abstract contract Network is Script {
 
         address[] memory params = new address[](1);
         params[0] = curator;
+        return vm.serializeAddress(object, "params", params);
+    }
+
+    function _serializeSetOsTokenRedeemer(address osTokenConfig, address redeemer) private returns (string memory) {
+        string memory object = "setRedeemer";
+        vm.serializeAddress(object, "to", osTokenConfig);
+        vm.serializeString(object, "operation", "0");
+        vm.serializeString(object, "method", "setRedeemer(address)");
+        vm.serializeString(object, "value", "0.0");
+        vm.serializeBytes(
+            object, "data", abi.encodeWithSelector(IOsTokenConfig(osTokenConfig).setRedeemer.selector, redeemer)
+        );
+
+        address[] memory params = new address[](1);
+        params[0] = redeemer;
         return vm.serializeAddress(object, "params", params);
     }
 }
