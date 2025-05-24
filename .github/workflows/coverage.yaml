@@ -28,7 +28,7 @@ jobs:
           echo 'COVERAGE<<EOF'
           echo "| File | % Lines | % Statements | % Branches | % Funcs |"
           echo "|------|---------|--------------|------------|---------|"
-          forge coverage --skip script --no-match-coverage "(keeper|mocks|test|script|tokens|VaultsRegistry|DepositDataRegistry)" 2>/dev/null | 
+          forge coverage --skip script --no-match-coverage "(keeper|mocks|test|script|VaultsRegistry|DepositDataRegistry)" 2>/dev/null | 
             grep '^|' | 
             grep -v 'test/' | 
             grep -v '^|--' | 

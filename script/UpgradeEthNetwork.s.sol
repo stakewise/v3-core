@@ -24,22 +24,30 @@ import {CuratorsRegistry, ICuratorsRegistry} from "../contracts/curators/Curator
 import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
 import {EthRewardSplitter} from "../contracts/misc/EthRewardSplitter.sol";
 import {RewardSplitterFactory} from "../contracts/misc/RewardSplitterFactory.sol";
+import {OsTokenRedeemer} from "../contracts/tokens/OsTokenRedeemer.sol";
 import {Network} from "./Network.sol";
 
 contract UpgradeEthNetwork is Network {
     address public metaVaultFactoryOwner;
+    address public osTokenRedeemerOwner;
+    address public validatorsRegistry;
+    uint256 public osTokenRedeemerRootUpdateDelay;
 
     address public consolidationsChecker;
     address public validatorsChecker;
     address public rewardSplitterFactory;
     address public curatorsRegistry;
     address public balancedCurator;
+    address public osTokenRedeemer;
 
     address[] public vaultImpls;
     Factory[] public vaultFactories;
 
     function run() external {
         metaVaultFactoryOwner = vm.envAddress("META_VAULT_FACTORY_OWNER");
+        osTokenRedeemerOwner = vm.envAddress("OS_TOKEN_REDEEMER_OWNER");
+        osTokenRedeemerRootUpdateDelay = vm.envUint("OS_TOKEN_REDEEMER_ROOT_UPDATE_DELAY");
+        validatorsRegistry = vm.envAddress("VALIDATORS_REGISTRY");
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
         address sender = vm.addr(privateKey);
         console.log("Deploying from: ", sender);
@@ -52,10 +60,7 @@ contract UpgradeEthNetwork is Network {
         consolidationsChecker = address(new ConsolidationsChecker(deployment.keeper));
         validatorsChecker = address(
             new EthValidatorsChecker(
-                deployment.validatorsRegistry,
-                deployment.keeper,
-                deployment.vaultsRegistry,
-                deployment.depositDataRegistry
+                validatorsRegistry, deployment.keeper, deployment.vaultsRegistry, deployment.depositDataRegistry
             )
         );
         address rewardsSplitterImpl = address(new EthRewardSplitter());
@@ -67,11 +72,18 @@ contract UpgradeEthNetwork is Network {
         ICuratorsRegistry(curatorsRegistry).addCurator(balancedCurator);
         ICuratorsRegistry(curatorsRegistry).initialize(Ownable(deployment.vaultsRegistry).owner());
 
+        // deploy OsToken redeemer
+        osTokenRedeemer = address(
+            new OsTokenRedeemer(
+                deployment.vaultsRegistry, deployment.osToken, osTokenRedeemerOwner, osTokenRedeemerRootUpdateDelay
+            )
+        );
+
         _deployImplementations();
         _deployFactories();
         vm.stopBroadcast();
 
-        generateGovernorTxJson(vaultImpls, vaultFactories);
+        generateGovernorTxJson(vaultImpls, vaultFactories, curatorsRegistry, balancedCurator, osTokenRedeemer);
         generateUpgradesJson(vaultImpls);
         generateAddressesJson(
             vaultFactories,
@@ -79,7 +91,8 @@ contract UpgradeEthNetwork is Network {
             consolidationsChecker,
             rewardSplitterFactory,
             curatorsRegistry,
-            balancedCurator
+            balancedCurator,
+            osTokenRedeemer
         );
     }
 
@@ -171,7 +184,7 @@ contract UpgradeEthNetwork is Network {
         return IEthVault.EthVaultConstructorArgs({
             keeper: deployment.keeper,
             vaultsRegistry: deployment.vaultsRegistry,
-            validatorsRegistry: deployment.validatorsRegistry,
+            validatorsRegistry: validatorsRegistry,
             validatorsWithdrawals: VALIDATORS_WITHDRAWALS,
             validatorsConsolidations: VALIDATORS_CONSOLIDATIONS,
             consolidationsChecker: consolidationsChecker,
@@ -189,7 +202,7 @@ contract UpgradeEthNetwork is Network {
         return IEthErc20Vault.EthErc20VaultConstructorArgs({
             keeper: deployment.keeper,
             vaultsRegistry: deployment.vaultsRegistry,
-            validatorsRegistry: deployment.validatorsRegistry,
+            validatorsRegistry: validatorsRegistry,
             validatorsWithdrawals: VALIDATORS_WITHDRAWALS,
             validatorsConsolidations: VALIDATORS_CONSOLIDATIONS,
             consolidationsChecker: consolidationsChecker,
