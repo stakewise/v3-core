@@ -7,7 +7,6 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IGnoErc20Vault} from "../../interfaces/IGnoErc20Vault.sol";
 import {IGnoVaultFactory} from "../../interfaces/IGnoVaultFactory.sol";
 import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
-import {Errors} from "../../libraries/Errors.sol";
 import {Multicall} from "../../base/Multicall.sol";
 import {ERC20Upgradeable} from "../../base/ERC20Upgradeable.sol";
 import {VaultValidators} from "../modules/VaultValidators.sol";
@@ -149,19 +148,6 @@ contract GnoErc20Vault is
     /// @inheritdoc VaultState
     function _burnShares(address owner, uint256 shares) internal virtual override(VaultState, VaultToken) {
         super._burnShares(owner, shares);
-    }
-
-    /// @inheritdoc VaultValidators
-    function _checkCanWithdrawValidators(bytes calldata validators, bytes calldata validatorsManagerSignature)
-        internal
-        override
-    {
-        if (
-            !_isValidatorsManager(validators, bytes32(validatorsManagerNonce), validatorsManagerSignature)
-                && msg.sender != _osTokenConfig.redeemer()
-        ) {
-            revert Errors.AccessDenied();
-        }
     }
 
     /**

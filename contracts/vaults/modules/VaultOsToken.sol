@@ -26,7 +26,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     IOsTokenVaultController private immutable _osTokenVaultController;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IOsTokenConfig internal immutable _osTokenConfig;
+    IOsTokenConfig private immutable _osTokenConfig;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IOsTokenVaultEscrow private immutable _osTokenVaultEscrow;
