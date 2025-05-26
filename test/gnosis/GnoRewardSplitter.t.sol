@@ -25,6 +25,7 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     address public shareholder1;
     address public shareholder2;
     address public depositor;
+    address public claimer;
 
     uint128 public constant SHARE1 = 7000; // 70%
     uint128 public constant SHARE2 = 3000; // 30%
@@ -39,10 +40,12 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
         shareholder1 = makeAddr("shareholder1");
         shareholder2 = makeAddr("shareholder2");
         depositor = makeAddr("depositor");
+        claimer = makeAddr("claimer");
 
         // Fund accounts
         vm.deal(admin, 100 ether);
         vm.deal(depositor, 100 ether);
+        vm.deal(claimer, 100 ether);
 
         // Fund accounts with GNO for testing
         _mintGnoToken(admin, 100 ether);
@@ -216,9 +219,9 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
     }
 
     function test_exitRequestNotProcessedInClaimOnBehalf() public {
-        // Enable claim on behalf
+        // Set claimer
         vm.prank(admin);
-        rewardSplitter.setClaimOnBehalf(true);
+        rewardSplitter.setClaimer(claimer);
 
         // Generate rewards
         vm.startPrank(depositor);
@@ -234,7 +237,7 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
         // Enter exit queue on behalf of shareholder1
         uint256 rewards = rewardSplitter.rewardsOf(shareholder1);
         uint256 timestamp = vm.getBlockTimestamp();
-        vm.prank(admin);
+        vm.prank(claimer);
         uint256 positionTicket = rewardSplitter.enterExitQueueOnBehalf(rewards, shareholder1);
 
         // Try to claim without waiting for the delay period
@@ -267,13 +270,12 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
         rewardSplitter.enterExitQueueOnBehalf(rewards, shareholder1);
     }
 
-    function test_claimOnBehalf() public {
-        // Enable claim on behalf
+    function test_setClaimer() public {
         vm.prank(admin);
         vm.expectEmit(true, false, false, true);
-        emit IRewardSplitter.ClaimOnBehalfUpdated(admin, true);
-        _startSnapshotGas("GnoRewardSplitter_setClaimOnBehalf");
-        rewardSplitter.setClaimOnBehalf(true);
+        emit IRewardSplitter.ClaimerUpdated(admin, claimer);
+        _startSnapshotGas("GnoRewardSplitter_setClaimer");
+        rewardSplitter.setClaimer(claimer);
         _stopSnapshotGas();
 
         // Generate rewards
@@ -294,7 +296,7 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
         assertGt(rewards, 0, "Shareholder should have rewards");
 
         // Someone else enters exit queue on behalf of shareholder1
-        vm.prank(admin);
+        vm.prank(claimer);
         uint256 timestamp = vm.getBlockTimestamp();
         vm.expectEmit(true, false, false, false);
         emit IRewardSplitter.ExitQueueEnteredOnBehalf(shareholder1, 0, rewards); // Position ticket is unknown at this point

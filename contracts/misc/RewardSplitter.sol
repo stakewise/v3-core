@@ -30,7 +30,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     uint256 public override totalShares;
 
     /// @inheritdoc IRewardSplitter
-    bool public override isClaimOnBehalfEnabled;
+    address public override claimer;
 
     mapping(address => ShareHolder) private _shareHolders;
     mapping(address => uint256) private _unclaimedRewards;
@@ -54,9 +54,12 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
     }
 
     /// @inheritdoc IRewardSplitter
-    function setClaimOnBehalf(bool enabled) external onlyVaultAdmin {
-        isClaimOnBehalfEnabled = enabled;
-        emit ClaimOnBehalfUpdated(msg.sender, enabled);
+    function setClaimer(address _claimer) external onlyVaultAdmin {
+        if (_claimer == claimer) {
+            revert Errors.ValueNotChanged();
+        }
+        claimer = _claimer;
+        emit ClaimerUpdated(msg.sender, _claimer);
     }
 
     /// @inheritdoc IRewardSplitter
@@ -147,7 +150,9 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
         override
         returns (uint256 positionTicket)
     {
-        if (!isClaimOnBehalfEnabled) revert Errors.AccessDenied();
+        if (msg.sender != claimer) {
+            revert Errors.AccessDenied();
+        }
 
         rewards = _withdrawRewards(onBehalf, rewards);
 

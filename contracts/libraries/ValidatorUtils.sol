@@ -160,11 +160,11 @@ library ValidatorUtils {
             }
 
             // mark v2 validator public key as tracked
-            if (!isV1Validators) {
+            if (isV1Validators) {
+                emit IVaultValidators.ValidatorRegistered(valDeposit.publicKey);
+            } else {
                 v2Validators[keccak256(valDeposit.publicKey)] = true;
                 emit IVaultValidators.V2ValidatorRegistered(valDeposit.publicKey, valDeposit.depositAmount);
-            } else {
-                emit IVaultValidators.ValidatorRegistered(valDeposit.publicKey);
             }
 
             // add registration data to the array
