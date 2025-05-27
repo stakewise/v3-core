@@ -264,6 +264,11 @@ contract EthRewardSplitterTest is Test, EthHelpers {
         rewardSplitter.setClaimer(claimer);
         _stopSnapshotGas();
 
+        // fails for the same value
+        vm.prank(admin);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        rewardSplitter.setClaimer(claimer);
+
         // Generate rewards
         vm.prank(depositor);
         vault.deposit{value: DEPOSIT_AMOUNT}(depositor, address(0));

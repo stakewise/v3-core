@@ -100,9 +100,9 @@ interface IOsTokenRedeemer {
 
     /**
      * @notice Update the address of the redeemer. Can only be called by the owner.
-     * @param newRedeemer The address of the new redeemer
+     * @param redeemer_ The address of the new redeemer
      */
-    function setRedeemer(address newRedeemer) external;
+    function setRedeemer(address redeemer_) external;
 
     /**
      * @notice Update the address of the positions manager. Can only be called by the owner.
