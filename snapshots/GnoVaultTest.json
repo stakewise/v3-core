@@ -2,7 +2,6 @@
   "GnoVaultTest_test_deploysCorrectly": "677859",
   "GnoVaultTest_test_exitQueue_works": "96643",
   "GnoVaultTest_test_upgradesCorrectly": "304556",
-  "GnoVaultTest_test_withdrawValidator_osTokenRedeemer": "79497",
-  "GnoVaultTest_test_withdrawValidator_unknown": "61338",
-  "GnoVaultTest_test_withdrawValidator_validatorsManager": "74258"
+  "GnoVaultTest_test_withdrawValidator_unknown": "56046",
+  "GnoVaultTest_test_withdrawValidator_validatorsManager": "74187"
 }

@@ -368,27 +368,6 @@ contract EthErc20VaultTest is Test, EthHelpers {
         _stopSnapshotGas();
     }
 
-    function test_withdrawValidator_osTokenRedeemer() public {
-        // 1. Set osToken redeemer
-        address osTokenRedeemer = makeAddr("osTokenRedeemer");
-        vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
-        contracts.osTokenConfig.setRedeemer(osTokenRedeemer);
-
-        uint256 withdrawFee = 0.1 ether;
-        vm.deal(osTokenRedeemer, withdrawFee);
-
-        // 2. First deposit enough ETH to register a validator (32 ETH minimum)
-        _depositEth(35 ether, sender, sender);
-        bytes memory publicKey = _registerEthValidator(address(vault), 32 ether, false);
-
-        // 3. Execute withdrawal
-        bytes memory withdrawalData = abi.encodePacked(publicKey, bytes8(uint64(32 ether / 1 gwei)));
-        vm.prank(osTokenRedeemer);
-        _startSnapshotGas("EthErc20VaultTest_test_withdrawValidator_osTokenRedeemer");
-        vault.withdrawValidators{value: withdrawFee}(withdrawalData, "");
-        _stopSnapshotGas();
-    }
-
     function test_withdrawValidator_unknown() public {
         // 1. Set unknown address
         address unknown = makeAddr("unknown");

@@ -31,13 +31,12 @@
   "VaultValidatorsTest_test_registerValidators_v1Validators": "241817",
   "VaultValidatorsTest_test_registerValidators_v2Validators": "264716",
   "VaultValidatorsTest_test_registerValidators_withSignature": "299680",
-  "VaultValidatorsTest_test_withdrawValidators_byManager": "74269",
-  "VaultValidatorsTest_test_withdrawValidators_byRedeemer": "79508",
-  "VaultValidatorsTest_test_withdrawValidators_feeHandling": "81270",
-  "VaultValidatorsTest_test_withdrawValidators_invalidSignature": "73746",
-  "VaultValidatorsTest_test_withdrawValidators_invalidValidatorsEmpty": "60470",
-  "VaultValidatorsTest_test_withdrawValidators_invalidValidatorsLength": "56660",
-  "VaultValidatorsTest_test_withdrawValidators_multipleValidators": "89963",
-  "VaultValidatorsTest_test_withdrawValidators_notAuthorized": "61412",
-  "VaultValidatorsTest_test_withdrawValidators_withSignature": "104206"
+  "VaultValidatorsTest_test_withdrawValidators_byManager": "74198",
+  "VaultValidatorsTest_test_withdrawValidators_feeHandling": "81199",
+  "VaultValidatorsTest_test_withdrawValidators_invalidSignature": "68457",
+  "VaultValidatorsTest_test_withdrawValidators_invalidValidatorsEmpty": "55178",
+  "VaultValidatorsTest_test_withdrawValidators_invalidValidatorsLength": "56589",
+  "VaultValidatorsTest_test_withdrawValidators_multipleValidators": "89892",
+  "VaultValidatorsTest_test_withdrawValidators_notAuthorized": "56120",
+  "VaultValidatorsTest_test_withdrawValidators_withSignature": "104135"
 }

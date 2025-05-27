@@ -14,5 +14,5 @@
   "VaultEthStakingTest_test_updateStateAndDeposit": "164173",
   "VaultEthStakingTest_test_updateStateAndDepositAndMintOsToken": "254268",
   "VaultEthStakingTest_test_validatorMinMaxEffectiveBalance": "200164",
-  "VaultEthStakingTest_test_withdrawValidator_fullFlow": "74281"
+  "VaultEthStakingTest_test_withdrawValidator_fullFlow": "74210"
 }
