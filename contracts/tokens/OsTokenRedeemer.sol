@@ -21,19 +21,19 @@ import {Multicall} from "../base/Multicall.sol";
 contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     IVaultsRegistry private immutable _vaultsRegistry;
     IERC20 private immutable _osToken;
-    uint256 private immutable _positionsRootUpdateDelay;
-
-    /// @inheritdoc IOsTokenRedeemer
-    bytes32 public override positionsRoot;
-
-    /// @inheritdoc IOsTokenRedeemer
-    bytes32 public override pendingPositionsRoot;
+    uint256 private immutable _positionsUpdateDelay;
 
     /// @inheritdoc IOsTokenRedeemer
     address public override redeemer;
 
+    /// @inheritdoc IOsTokenRedeemer
+    address public override positionsManager;
+
+    RedeemablePositions private _redeemablePositions;
+    RedeemablePositions private _pendingRedeemablePositions;
+
+    uint256 private _pendingPositionsTimestamp;
     uint256 private _nonce;
-    uint256 private _pendingPositionsRootTimestamp;
 
     mapping(uint256 nonce => mapping(bytes32 leaf => uint256 osTokenShares)) private _redeemedOsTokenShares;
 
@@ -42,74 +42,38 @@ contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
      * @param vaultsRegistry_ The address of the VaultsRegistry contract
      * @param osToken_ The address of the OsToken contract
      * @param owner_ The address of the owner
-     * @param positionsRootUpdateDelay_ The delay in seconds for updating the positions root
+     * @param positionsUpdateDelay_ The delay in seconds for positions updates
      */
-    constructor(address vaultsRegistry_, address osToken_, address owner_, uint256 positionsRootUpdateDelay_)
+    constructor(address vaultsRegistry_, address osToken_, address owner_, uint256 positionsUpdateDelay_)
         Ownable(owner_)
     {
         _vaultsRegistry = IVaultsRegistry(vaultsRegistry_);
         _osToken = IERC20(osToken_);
-        _positionsRootUpdateDelay = positionsRootUpdateDelay_;
+        _positionsUpdateDelay = positionsUpdateDelay_;
     }
 
     /// @inheritdoc IOsTokenRedeemer
-    function initiatePositionsRootUpdate(bytes32 newPositionsRoot) external override onlyOwner {
-        if (
-            newPositionsRoot == bytes32(0) || newPositionsRoot == pendingPositionsRoot
-                || newPositionsRoot == positionsRoot
-        ) {
-            revert Errors.InvalidRoot();
-        }
-
-        pendingPositionsRoot = newPositionsRoot;
-        _pendingPositionsRootTimestamp = block.timestamp;
-
-        // emit event
-        emit PositionsRootUpdateInitiated(newPositionsRoot);
+    function redeemablePositions() external view override returns (bytes32 merkleRoot, string memory ipfsHash) {
+        merkleRoot = _redeemablePositions.merkleRoot;
+        ipfsHash = _redeemablePositions.ipfsHash;
     }
 
     /// @inheritdoc IOsTokenRedeemer
-    function applyPositionsRootUpdate() external override onlyOwner {
-        // SLOAD to memory
-        bytes32 _pendingPositionsRoot = pendingPositionsRoot;
-
-        if (_pendingPositionsRoot == bytes32(0)) {
-            revert Errors.InvalidRoot();
-        }
-        if (block.timestamp < _pendingPositionsRootTimestamp + _positionsRootUpdateDelay) {
-            revert Errors.TooEarlyUpdate();
-        }
-        positionsRoot = _pendingPositionsRoot;
-        _nonce += 1;
-
-        delete pendingPositionsRoot;
-        delete _pendingPositionsRootTimestamp;
-        emit PositionsRootUpdated(_pendingPositionsRoot);
+    function pendingRedeemablePositions() external view override returns (bytes32 merkleRoot, string memory ipfsHash) {
+        merkleRoot = _pendingRedeemablePositions.merkleRoot;
+        ipfsHash = _pendingRedeemablePositions.ipfsHash;
     }
 
     /// @inheritdoc IOsTokenRedeemer
-    function cancelPositionsRootUpdate() external override onlyOwner {
-        // SLOAD to memory
-        bytes32 _pendingPositionsRoot = pendingPositionsRoot;
-        if (_pendingPositionsRoot == bytes32(0)) {
-            return;
+    function setPositionsManager(address positionsManager_) external override onlyOwner {
+        if (positionsManager_ == address(0)) {
+            revert Errors.ZeroAddress();
         }
-        delete pendingPositionsRoot;
-        delete _pendingPositionsRootTimestamp;
-
-        // emit event
-        emit PositionsRootUpdateCancelled(_pendingPositionsRoot);
-    }
-
-    /// @inheritdoc IOsTokenRedeemer
-    function removePositionsRoot() external override onlyOwner {
-        // SLOAD to memory
-        bytes32 _positionsRoot = positionsRoot;
-        if (_positionsRoot == bytes32(0)) {
-            return;
+        if (positionsManager_ == positionsManager) {
+            revert Errors.ValueNotChanged();
         }
-        delete positionsRoot;
-        emit PositionsRootRemoved(_positionsRoot);
+        positionsManager = positionsManager_;
+        emit PositionsManagerUpdated(positionsManager_);
     }
 
     /// @inheritdoc IOsTokenRedeemer
@@ -125,6 +89,76 @@ contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     }
 
     /// @inheritdoc IOsTokenRedeemer
+    function proposeRedeemablePositions(RedeemablePositions calldata newPositions) external override {
+        if (msg.sender != positionsManager) {
+            revert Errors.AccessDenied();
+        }
+        if (newPositions.merkleRoot == bytes32(0) || bytes(newPositions.ipfsHash).length == 0) {
+            revert Errors.InvalidRedeemablePositions();
+        }
+        if (_pendingRedeemablePositions.merkleRoot != bytes32(0)) {
+            revert Errors.RedeemablePositionsProposed();
+        }
+        if (newPositions.merkleRoot == _redeemablePositions.merkleRoot) {
+            revert Errors.ValueNotChanged();
+        }
+
+        // update state
+        _pendingRedeemablePositions = newPositions;
+        _pendingPositionsTimestamp = block.timestamp;
+
+        // emit event
+        emit RedeemablePositionsProposed(newPositions.merkleRoot, newPositions.ipfsHash);
+    }
+
+    /// @inheritdoc IOsTokenRedeemer
+    function acceptRedeemablePositions() external override onlyOwner {
+        // SLOAD to memory
+        RedeemablePositions memory newPositions = _pendingRedeemablePositions;
+        if (newPositions.merkleRoot == bytes32(0) || bytes(newPositions.ipfsHash).length == 0) {
+            revert Errors.InvalidRedeemablePositions();
+        }
+        if (block.timestamp < _pendingPositionsTimestamp + _positionsUpdateDelay) {
+            revert Errors.TooEarlyUpdate();
+        }
+
+        // update state
+        _nonce += 1;
+        _redeemablePositions = newPositions;
+        delete _pendingRedeemablePositions;
+        delete _pendingPositionsTimestamp;
+
+        // emit event
+        emit RedeemablePositionsAccepted(newPositions.merkleRoot, newPositions.ipfsHash);
+    }
+
+    /// @inheritdoc IOsTokenRedeemer
+    function denyRedeemablePositions() external override onlyOwner {
+        // SLOAD to memory
+        RedeemablePositions memory newPositions = _pendingRedeemablePositions;
+        if (newPositions.merkleRoot == bytes32(0)) {
+            return;
+        }
+        delete _pendingRedeemablePositions;
+        delete _pendingPositionsTimestamp;
+
+        // emit event
+        emit RedeemablePositionsDenied(newPositions.merkleRoot, newPositions.ipfsHash);
+    }
+
+    /// @inheritdoc IOsTokenRedeemer
+    function removeRedeemablePositions() external override onlyOwner {
+        // SLOAD to memory
+        RedeemablePositions memory positions = _redeemablePositions;
+        if (positions.merkleRoot == bytes32(0)) {
+            return;
+        }
+
+        delete _redeemablePositions;
+        emit RedeemablePositionsRemoved(positions.merkleRoot, positions.ipfsHash);
+    }
+
+    /// @inheritdoc IOsTokenRedeemer
     function redeemOsTokenPositions(
         OsTokenPosition[] memory positions,
         bytes32[] calldata proof,
@@ -135,7 +169,10 @@ contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         }
 
         // SLOAD to memory
-        bytes32 _positionsRoot = positionsRoot;
+        bytes32 _positionsRoot = _redeemablePositions.merkleRoot;
+        if (_positionsRoot == bytes32(0)) {
+            revert Errors.InvalidRedeemablePositions();
+        }
 
         // calculate leaves and total osTokenShares to redeem
         bytes32 leaf;

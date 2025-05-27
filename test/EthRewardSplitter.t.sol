@@ -20,6 +20,7 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     RewardSplitterFactory public splitterFactory;
 
     address public admin;
+    address public claimer;
     address public shareholder1;
     address public shareholder2;
     address public depositor;
@@ -37,10 +38,12 @@ contract EthRewardSplitterTest is Test, EthHelpers {
         shareholder1 = makeAddr("shareholder1");
         shareholder2 = makeAddr("shareholder2");
         depositor = makeAddr("depositor");
+        claimer = makeAddr("claimer");
 
         // Fund accounts
         vm.deal(admin, 100 ether);
         vm.deal(depositor, 100 ether);
+        vm.deal(claimer, 100 ether);
 
         // Create vault
         bytes memory initParams = abi.encode(
@@ -207,7 +210,7 @@ contract EthRewardSplitterTest is Test, EthHelpers {
     function test_exitRequestNotProcessedInClaimOnBehalf() public {
         // Enable claim on behalf
         vm.prank(admin);
-        rewardSplitter.setClaimOnBehalf(true);
+        rewardSplitter.setClaimer(claimer);
 
         // Generate rewards
         vm.prank(depositor);
@@ -222,14 +225,13 @@ contract EthRewardSplitterTest is Test, EthHelpers {
         // Enter exit queue on behalf of shareholder1
         uint256 rewards = rewardSplitter.rewardsOf(shareholder1);
         uint256 timestamp = vm.getBlockTimestamp();
-        vm.prank(admin);
+        vm.prank(claimer);
         uint256 positionTicket = rewardSplitter.enterExitQueueOnBehalf(rewards, shareholder1);
 
         // Try to claim without waiting for the delay period
         // (Exit request is not yet processed)
         int256 exitQueueIndex = vault.getExitQueueIndex(positionTicket);
 
-        vm.prank(admin);
         vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
         rewardSplitter.claimExitedAssetsOnBehalf(positionTicket, timestamp, uint256(exitQueueIndex));
     }
@@ -248,20 +250,24 @@ contract EthRewardSplitterTest is Test, EthHelpers {
         // Claim on behalf is disabled by default
         uint256 rewards = rewardSplitter.rewardsOf(shareholder1);
 
-        // Should fail with AccessDenied since claim-on-behalf is disabled
+        // Should fail with AccessDenied since claimer is not set
         vm.prank(admin);
         vm.expectRevert(Errors.AccessDenied.selector);
         rewardSplitter.enterExitQueueOnBehalf(rewards, shareholder1);
     }
 
-    function test_claimOnBehalf() public {
-        // Enable claim on behalf
+    function test_setClaimer() public {
         vm.prank(admin);
         vm.expectEmit(true, false, false, true);
-        emit IRewardSplitter.ClaimOnBehalfUpdated(admin, true);
-        _startSnapshotGas("EthRewardSplitter_setClaimOnBehalf");
-        rewardSplitter.setClaimOnBehalf(true);
+        emit IRewardSplitter.ClaimerUpdated(admin, claimer);
+        _startSnapshotGas("EthRewardSplitter_test_setClaimer");
+        rewardSplitter.setClaimer(claimer);
         _stopSnapshotGas();
+
+        // fails for the same value
+        vm.prank(admin);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        rewardSplitter.setClaimer(claimer);
 
         // Generate rewards
         vm.prank(depositor);
@@ -280,7 +286,7 @@ contract EthRewardSplitterTest is Test, EthHelpers {
         assertGt(rewards, 0, "Shareholder should have rewards");
 
         // Someone else enters exit queue on behalf of shareholder1
-        vm.prank(admin);
+        vm.prank(claimer);
         uint256 timestamp = vm.getBlockTimestamp();
         vm.expectEmit(true, false, false, true);
         emit IRewardSplitter.ExitQueueEnteredOnBehalf(shareholder1, 0, rewards); // Position ticket is unknown at this point
@@ -432,10 +438,10 @@ contract EthRewardSplitterTest is Test, EthHelpers {
         vm.expectRevert(Errors.AccessDenied.selector);
         rewardSplitter.decreaseShares(shareholder1, 1000);
 
-        // Non-admin tries to set claim on behalf
+        // Non-admin tries to set claimer
         vm.prank(shareholder1);
         vm.expectRevert(Errors.AccessDenied.selector);
-        rewardSplitter.setClaimOnBehalf(true);
+        rewardSplitter.setClaimer(claimer);
     }
 
     function test_invalidAccountInDecreaseShares() public {

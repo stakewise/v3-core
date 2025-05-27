@@ -6,7 +6,6 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IEthVault} from "../../interfaces/IEthVault.sol";
 import {IEthVaultFactory} from "../../interfaces/IEthVaultFactory.sol";
 import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
-import {Errors} from "../../libraries/Errors.sol";
 import {Multicall} from "../../base/Multicall.sol";
 import {VaultValidators} from "../modules/VaultValidators.sol";
 import {VaultAdmin} from "../modules/VaultAdmin.sol";
@@ -120,19 +119,6 @@ contract EthVault is
     /// @inheritdoc IVaultVersion
     function version() public pure virtual override(IVaultVersion, VaultVersion) returns (uint8) {
         return _version;
-    }
-
-    /// @inheritdoc VaultValidators
-    function _checkCanWithdrawValidators(bytes calldata validators, bytes calldata validatorsManagerSignature)
-        internal
-        override
-    {
-        if (
-            !_isValidatorsManager(validators, bytes32(validatorsManagerNonce), validatorsManagerSignature)
-                && msg.sender != _osTokenConfig.redeemer()
-        ) {
-            revert Errors.AccessDenied();
-        }
     }
 
     /**

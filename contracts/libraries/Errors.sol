@@ -57,5 +57,6 @@ library Errors {
     error EjectingVault();
     error InvalidCurator();
     error RewardsNonceIsHigher();
-    error InvalidRoot();
+    error InvalidRedeemablePositions();
+    error RedeemablePositionsProposed();
 }

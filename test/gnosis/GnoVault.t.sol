@@ -292,31 +292,6 @@ contract GnoVaultTest is Test, GnoHelpers {
         // Verify no error - test passes if the transaction completes successfully
     }
 
-    function test_withdrawValidator_osTokenRedeemer() public {
-        // Set osToken redeemer
-        address osTokenRedeemer = makeAddr("osTokenRedeemer");
-        vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
-        contracts.osTokenConfig.setRedeemer(osTokenRedeemer);
-
-        // Fund the redeemer account
-        uint256 withdrawFee = 0.1 ether;
-        vm.deal(osTokenRedeemer, withdrawFee);
-
-        // First deposit and register a validator
-        _depositToVault(address(vault), 10 ether, sender, sender);
-        bytes memory publicKey = _registerGnoValidator(address(vault), 1 ether, false);
-
-        // Execute withdrawal as osTokenRedeemer
-        bytes memory withdrawalData = abi.encodePacked(publicKey, bytes8(uint64(32 ether / 1 gwei)));
-
-        vm.prank(osTokenRedeemer);
-        _startSnapshotGas("GnoVaultTest_test_withdrawValidator_osTokenRedeemer");
-        vault.withdrawValidators{value: withdrawFee}(withdrawalData, "");
-        _stopSnapshotGas();
-
-        // Verify no error - test passes if the transaction completes successfully
-    }
-
     function test_withdrawValidator_unknown() public {
         // Create an unknown address
         address unknown = makeAddr("unknown");

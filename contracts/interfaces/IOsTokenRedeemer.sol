@@ -9,6 +9,16 @@ pragma solidity ^0.8.22;
  */
 interface IOsTokenRedeemer {
     /**
+     * @notice Struct to store the redeemable positions Merkle root and IPFS hash
+     * @param merkleRoot The Merkle root of the redeemable positions
+     * @param ipfsHash The IPFS hash of the redeemable positions
+     */
+    struct RedeemablePositions {
+        bytes32 merkleRoot;
+        string ipfsHash;
+    }
+
+    /**
      * @notice Struct to store the redeemed OsToken position details
      * @param vault The address of the Vault
      * @param owner The address of the position owner
@@ -23,81 +33,106 @@ interface IOsTokenRedeemer {
     }
 
     /**
-     * @notice Event emitted when the positions root update is initiated
-     * @param newPositionsRoot The new positions root
-     */
-    event PositionsRootUpdateInitiated(bytes32 newPositionsRoot);
-
-    /**
-     * @notice Event emitted when the positions root is updated
-     * @param newPositionsRoot The new positions root
-     */
-    event PositionsRootUpdated(bytes32 newPositionsRoot);
-
-    /**
-     * @notice Event emitted when the positions root update is cancelled
-     * @param positionsRoot The positions root that was cancelled
-     */
-    event PositionsRootUpdateCancelled(bytes32 positionsRoot);
-
-    /**
-     * @notice Event emitted when the positions root is removed
-     * @param positionsRoot The positions root that was removed
-     */
-    event PositionsRootRemoved(bytes32 positionsRoot);
-
-    /**
      * @notice Event emitted when the redeemer is updated
      * @param newRedeemer The address of the new redeemer
      */
     event RedeemerUpdated(address newRedeemer);
 
     /**
+     * @notice Event emitted when the positions manager is updated
+     * @param positionsManager The address of the new positions manager
+     */
+    event PositionsManagerUpdated(address positionsManager);
+
+    /**
+     * @notice Event emitted when new redeemable positions are proposed
+     * @param merkleRoot The Merkle root of the redeemable positions
+     * @param ipfsHash The IPFS hash of the redeemable positions
+     */
+    event RedeemablePositionsProposed(bytes32 merkleRoot, string ipfsHash);
+
+    /**
+     * @notice Event emitted when the pending redeemable positions are accepted
+     * @param merkleRoot The Merkle root of the accepted redeemable positions
+     * @param ipfsHash The IPFS hash of the accepted redeemable positions
+     */
+    event RedeemablePositionsAccepted(bytes32 merkleRoot, string ipfsHash);
+
+    /**
+     * @notice Event emitted when the new redeemable positions are denied
+     * @param merkleRoot The Merkle root of the denied redeemable positions
+     * @param ipfsHash The IPFS hash of the denied redeemable positions
+     */
+    event RedeemablePositionsDenied(bytes32 merkleRoot, string ipfsHash);
+
+    /**
+     * @notice Event emitted when the redeemable positions are removed
+     * @param merkleRoot The Merkle root of the removed redeemable positions
+     * @param ipfsHash The IPFS hash of the removed redeemable positions
+     */
+    event RedeemablePositionsRemoved(bytes32 merkleRoot, string ipfsHash);
+
+    /**
      * @notice The address that can redeem OsToken positions
+     * @return The address of the redeemer
      */
     function redeemer() external view returns (address);
 
     /**
-     * @notice The positions Merkle root used for verifying redemptions
-     * @return The positions root
+     * @notice The address that manages redeemable OsToken positions
+     * @return The address of the positions manager
      */
-    function positionsRoot() external view returns (bytes32);
+    function positionsManager() external view returns (address);
 
     /**
-     * @notice The pending positions Merkle root that is waiting for the delay to pass
-     * @return The pending positions root
+     * @notice The current redeemable positions Merkle root and IPFS hash
+     * @return merkleRoot The Merkle root of the redeemable positions
+     * @return ipfsHash The IPFS hash of the redeemable positions
      */
-    function pendingPositionsRoot() external view returns (bytes32);
+    function redeemablePositions() external view returns (bytes32 merkleRoot, string memory ipfsHash);
 
     /**
-     * @notice Initiates the update of the positions root
-     * @param newPositionsRoot The new positions root
+     * @notice The pending redeemable positions Merkle root and IPFS hash that is waiting to be accepted
+     * @return merkleRoot The Merkle root of the pending redeemable positions
+     * @return ipfsHash The IPFS hash of the pending redeemable positions
      */
-    function initiatePositionsRootUpdate(bytes32 newPositionsRoot) external;
+    function pendingRedeemablePositions() external view returns (bytes32 merkleRoot, string memory ipfsHash);
 
     /**
-     * @notice Applies the update of the positions root
+     * @notice Update the address of the redeemer. Can only be called by the owner.
+     * @param redeemer_ The address of the new redeemer
      */
-    function applyPositionsRootUpdate() external;
+    function setRedeemer(address redeemer_) external;
 
     /**
-     * @notice Cancels the update of the positions root
+     * @notice Update the address of the positions manager. Can only be called by the owner.
+     * @param positionsManager_ The address of the new positions manager
      */
-    function cancelPositionsRootUpdate() external;
+    function setPositionsManager(address positionsManager_) external;
 
     /**
-     * @notice Removes the current positions root
+     * @notice Proposes new redeemable positions. Can only be called by the positions manager.
+     * @param newPositions The new redeemable positions to propose
      */
-    function removePositionsRoot() external;
+    function proposeRedeemablePositions(RedeemablePositions calldata newPositions) external;
 
     /**
-     * @notice Update the address of the redeemer
-     * @param newRedeemer The address of the new redeemer
+     * @notice Accepts the pending redeemable positions. Can only be called by the owner.
      */
-    function setRedeemer(address newRedeemer) external;
+    function acceptRedeemablePositions() external;
 
     /**
-     * @notice Redeems OsToken positions
+     * @notice Denies the pending redeemable positions. Can only be called by the owner.
+     */
+    function denyRedeemablePositions() external;
+
+    /**
+     * @notice Removes the redeemable positions. Can only be called by the owner.
+     */
+    function removeRedeemablePositions() external;
+
+    /**
+     * @notice Redeems OsToken positions. Can only be called by the redeemer.
      * @param positions The array of OsToken positions to redeem
      * @param proof The Merkle proof for the positions root
      * @param proofFlags The flags for the Merkle proof

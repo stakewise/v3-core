@@ -7,7 +7,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IEthErc20Vault} from "../../interfaces/IEthErc20Vault.sol";
 import {IEthVaultFactory} from "../../interfaces/IEthVaultFactory.sol";
 import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
-import {Errors} from "../../libraries/Errors.sol";
 import {Multicall} from "../../base/Multicall.sol";
 import {ERC20Upgradeable} from "../../base/ERC20Upgradeable.sol";
 import {VaultValidators} from "../modules/VaultValidators.sol";
@@ -159,19 +158,6 @@ contract EthErc20Vault is
     /// @inheritdoc VaultState
     function _burnShares(address owner, uint256 shares) internal virtual override(VaultState, VaultToken) {
         super._burnShares(owner, shares);
-    }
-
-    /// @inheritdoc VaultValidators
-    function _checkCanWithdrawValidators(bytes calldata validators, bytes calldata validatorsManagerSignature)
-        internal
-        override
-    {
-        if (
-            !_isValidatorsManager(validators, bytes32(validatorsManagerNonce), validatorsManagerSignature)
-                && msg.sender != _osTokenConfig.redeemer()
-        ) {
-            revert Errors.AccessDenied();
-        }
     }
 
     /**

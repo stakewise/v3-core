@@ -10,7 +10,6 @@
   "EthErc20VaultTest_test_updateExitQueue_emitsTransfer": "177077",
   "EthErc20VaultTest_test_updateStateAndDepositAndMintOsToken": "227535",
   "EthErc20VaultTest_test_upgradesCorrectly": "89862",
-  "EthErc20VaultTest_test_withdrawValidator_osTokenRedeemer": "79487",
-  "EthErc20VaultTest_test_withdrawValidator_unknown": "61328",
-  "EthErc20VaultTest_test_withdrawValidator_validatorsManager": "74259"
+  "EthErc20VaultTest_test_withdrawValidator_unknown": "56036",
+  "EthErc20VaultTest_test_withdrawValidator_validatorsManager": "74188"
 }

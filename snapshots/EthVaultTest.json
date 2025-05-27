@@ -5,7 +5,6 @@
   "EthVaultTest_test_fallbackDeposit": "75127",
   "EthVaultTest_test_updateStateAndDepositAndMintOsToken": "228158",
   "EthVaultTest_test_upgradesCorrectly": "89278",
-  "EthVaultTest_test_withdrawValidator_osTokenRedeemer": "79520",
-  "EthVaultTest_test_withdrawValidator_unknown": "61361",
-  "EthVaultTest_test_withdrawValidator_validatorsManager": "74281"
+  "EthVaultTest_test_withdrawValidator_unknown": "56069",
+  "EthVaultTest_test_withdrawValidator_validatorsManager": "74210"
 }

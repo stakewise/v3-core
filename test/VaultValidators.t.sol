@@ -877,31 +877,6 @@ contract VaultValidatorsTest is Test, EthHelpers {
         assertEq(vault.validatorsManagerNonce(), currentNonce + 1, "Validators manager nonce should be incremented");
     }
 
-    // Test withdrawal by osToken redeemer
-    function test_withdrawValidators_byRedeemer() public {
-        // 1. Register a validator
-        _depositToVault(address(vault), validatorDeposit, user, user);
-        bytes memory publicKey = _registerEthValidator(address(vault), validatorDeposit, false);
-
-        // 2. Prepare withdrawal data
-        uint256 withdrawalAmount = 1 ether / 1 gwei; // 1 ETH in Gwei
-        bytes memory withdrawalData = abi.encodePacked(publicKey, bytes8(uint64(withdrawalAmount)));
-
-        // 3. Get the redeemer from osTokenConfig
-        address redeemer = contracts.osTokenConfig.redeemer();
-        vm.deal(redeemer, 0.1 ether);
-
-        // 4. Expect ValidatorWithdrawalSubmitted event
-        vm.expectEmit(true, true, true, true);
-        emit IVaultValidators.ValidatorWithdrawalSubmitted(publicKey, 1 ether, 0.1 ether);
-
-        // 5. Call withdrawValidators from redeemer
-        vm.prank(redeemer);
-        _startSnapshotGas("VaultValidatorsTest_test_withdrawValidators_byRedeemer");
-        vault.withdrawValidators{value: 0.1 ether}(withdrawalData, "");
-        _stopSnapshotGas();
-    }
-
     // Test failed withdrawal by unauthorized user
     function test_withdrawValidators_notAuthorized() public {
         // 1. Register a validator

@@ -150,7 +150,9 @@ abstract contract VaultValidators is
         nonReentrant
     {
         _checkCollateralized();
-        _checkCanWithdrawValidators(validators, validatorsManagerSignature);
+        if (!_isValidatorsManager(validators, bytes32(validatorsManagerNonce), validatorsManagerSignature)) {
+            revert Errors.AccessDenied();
+        }
         ValidatorUtils.withdrawValidators(validators, _validatorsWithdrawals);
     }
 
@@ -191,15 +193,6 @@ abstract contract VaultValidators is
      * @param deposits The validators registration data
      */
     function _registerValidators(ValidatorUtils.ValidatorDeposit[] memory deposits) internal virtual;
-
-    /**
-     * @dev Internal function for checking whether the caller can withdraw validators
-     * @param validators The concatenated validators data
-     * @param validatorsManagerSignature The optional signature from the validators manager
-     */
-    function _checkCanWithdrawValidators(bytes calldata validators, bytes calldata validatorsManagerSignature)
-        internal
-        virtual;
 
     /**
      * @dev Internal function for checking whether the caller is the validators manager.

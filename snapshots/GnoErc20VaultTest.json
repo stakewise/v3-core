@@ -6,7 +6,6 @@
   "GnoErc20VaultTest_test_enterExitQueue_emitsTransfer": "89780",
   "GnoErc20VaultTest_test_redeem_emitsEvent": "77069",
   "GnoErc20VaultTest_test_upgradesCorrectly": "305196",
-  "VaultGnoErc20VaultTest_test_withdrawValidator_osTokenRedeemer": "79509",
-  "VaultGnoErc20VaultTest_test_withdrawValidator_unknown": "61350",
-  "VaultGnoErc20VaultTest_test_withdrawValidator_validatorsManager": "74281"
+  "VaultGnoErc20VaultTest_test_withdrawValidator_unknown": "56058",
+  "VaultGnoErc20VaultTest_test_withdrawValidator_validatorsManager": "74210"
 }

@@ -65,7 +65,7 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
             }
 
             // check that the fee percent can be increase only by 20% at a time
-            // if the current fee is 0, then it can cannot exceed 1% initially
+            // if the current fee is 0, then it cannot exceed 1% initially
             uint256 currentFeePercent = feePercent;
             uint256 maxFeePercent = currentFeePercent > 0 ? (currentFeePercent * 120) / 100 : 100;
             if (maxFeePercent < _feePercent) {
