@@ -71,6 +71,17 @@ contract BalancedCuratorTest is Test {
         }
     }
 
+    function test_getDeposits_invalidEjectingVault() public {
+        // 100 ETH to distribute across 5 vaults, but one is ejecting
+        uint256 assetsToDeposit = 100 ether;
+        address[] memory vaults = subVaults;
+        address ejecting = makeAddr('unknown');
+
+        // Should revert with EjectingVaultNotFound error
+        vm.expectRevert(Errors.EjectingVaultNotFound.selector);
+        curator.getDeposits(assetsToDeposit, vaults, ejecting);
+    }
+
     function test_getDeposits_smallAmount() public view {
         // 5 ETH to distribute across 5 vaults
         uint256 assetsToDeposit = 5 ether;

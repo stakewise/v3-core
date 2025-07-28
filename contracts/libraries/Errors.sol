@@ -53,6 +53,7 @@ library Errors {
     error CannotTopUpV1Validators();
     error InvalidSignatures();
     error EmptySubVaults();
+    error EjectingVaultNotFound();
     error UnclaimedAssets();
     error EjectingVault();
     error InvalidCurator();

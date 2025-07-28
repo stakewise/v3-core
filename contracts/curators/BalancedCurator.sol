@@ -24,6 +24,7 @@ contract BalancedCurator is ISubVaultsCurator {
         }
 
         uint256 subVaultsCount = subVaults.length;
+        // the deposits should not be made to the vault that is being ejected
         uint256 depositSubVaultsCount = ejectingVault != address(0) ? subVaultsCount - 1 : subVaultsCount;
         if (depositSubVaultsCount == 0) {
             revert Errors.EmptySubVaults();
@@ -33,10 +34,12 @@ contract BalancedCurator is ISubVaultsCurator {
         // distribute assets evenly across sub-vaults
         address subVault;
         deposits = new Deposit[](subVaultsCount);
+        bool ejectingVaultFound = false;
         for (uint256 i = 0; i < subVaultsCount;) {
             subVault = subVaults[i];
             if (subVault == ejectingVault) {
                 deposits[i] = Deposit({vault: subVault, assets: 0});
+                ejectingVaultFound = true;
             } else {
                 deposits[i] = Deposit({vault: subVault, assets: amountPerVault});
             }
@@ -44,6 +47,9 @@ contract BalancedCurator is ISubVaultsCurator {
                 // cannot realistically overflow
                 ++i;
             }
+        }
+        if (ejectingVault != address(0) && !ejectingVaultFound) {
+            revert Errors.EjectingVaultNotFound();
         }
     }
 
