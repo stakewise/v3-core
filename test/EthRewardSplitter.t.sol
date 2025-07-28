@@ -256,6 +256,16 @@ contract EthRewardSplitterTest is Test, EthHelpers {
         rewardSplitter.enterExitQueueOnBehalf(rewards, shareholder1);
     }
 
+    function test_zeroAddressInEnterExitQueueOnBehalf() public {
+        // Should fail with ZeroAddress
+        vm.prank(admin);
+        rewardSplitter.setClaimer(claimer);
+
+        vm.prank(claimer);
+        vm.expectRevert(Errors.ZeroAddress.selector);
+        rewardSplitter.enterExitQueueOnBehalf(1 ether, address(0));
+    }
+
     function test_setClaimer() public {
         vm.prank(admin);
         vm.expectEmit(true, false, false, true);

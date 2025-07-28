@@ -153,6 +153,7 @@ abstract contract RewardSplitter is IRewardSplitter, Initializable, Multicall {
         if (msg.sender != claimer) {
             revert Errors.AccessDenied();
         }
+        if (onBehalf == address(0)) revert Errors.ZeroAddress();
 
         rewards = _withdrawRewards(onBehalf, rewards);
 
