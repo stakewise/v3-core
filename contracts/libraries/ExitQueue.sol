@@ -106,6 +106,9 @@ library ExitQueue {
             // only single checkpoint created during V2 -> V3 migration can pass this if
             checkpoint = _unsafeAccess(self.checkpoints, checkpointIdx + 1);
             uint256 totalShares = checkpoint.totalTickets - currTotalTickets;
+            if (positionShares > totalShares) {
+                revert Errors.InvalidShares();
+            }
             return (positionShares, Math.mulDiv(positionShares, checkpoint.exitedAssets, totalShares));
         }
 
