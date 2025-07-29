@@ -62,6 +62,11 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
         // calculate exited tickets and assets
         (exitedTickets, exitedAssets) = _exitQueue.calculateExitedAssets(exitQueueIndex, positionTicket, exitingTickets);
         leftTickets = exitingTickets - exitedTickets;
+        if (leftTickets == 1) {
+            // if only one ticket is left round it to zero
+            leftTickets = 0;
+            exitedTickets += 1; // round up exited tickets
+        }
     }
 
     /// @inheritdoc IVaultEnterExit
