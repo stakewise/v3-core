@@ -37,7 +37,9 @@ contract BalancedCurator is ISubVaultsCurator {
         bool ejectingVaultFound = false;
         for (uint256 i = 0; i < subVaultsCount;) {
             subVault = subVaults[i];
-            if (subVault == ejectingVault) {
+            if (subVault == address(0)) {
+                revert Errors.ZeroAddress();
+            } else if (subVault == ejectingVault) {
                 deposits[i] = Deposit({vault: subVault, assets: 0});
                 ejectingVaultFound = true;
             } else {
