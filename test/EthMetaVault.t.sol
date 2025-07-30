@@ -398,7 +398,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Verify sender received their ETH (approximately the original deposit minus fees)
         // The exact amount might be slightly less due to fees and rounding
         uint256 amountReceived = senderBalanceAfter - senderBalanceBefore;
-        assertApproxEqAbs(amountReceived, depositAmount, 2, "User received significantly less than expected");
+        assertEq(amountReceived, depositAmount, "User received significantly less than expected");
 
         // Verify exit queue data updated
         (, uint128 unclaimedAssets,,,) = metaVault.getExitQueueData();

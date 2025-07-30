@@ -75,7 +75,7 @@ contract BalancedCuratorTest is Test {
         // 100 ETH to distribute across 5 vaults, but one is ejecting
         uint256 assetsToDeposit = 100 ether;
         address[] memory vaults = subVaults;
-        address ejecting = makeAddr('unknown');
+        address ejecting = makeAddr("unknown");
 
         // Should revert with EjectingVaultNotFound error
         vm.expectRevert(Errors.EjectingVaultNotFound.selector);
@@ -264,7 +264,7 @@ contract BalancedCuratorTest is Test {
             totalExited += exitRequests[i].assets;
         }
 
-        assertApproxEqAbs(totalExited, assetsToExit, 1, "Total exited amount incorrect");
+        assertEq(totalExited, assetsToExit, "Total exited amount incorrect");
     }
 
     function test_getExitRequests_insufficientTotalBalance() public view {
