@@ -8,6 +8,10 @@ pragma solidity ^0.8.22;
  * @notice Includes functionality for calculating EIP712 hashes
  */
 library EIP712Utils {
+    bytes32 private constant _domainTypeHash =
+        keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)");
+    bytes32 private constant _versionHash = keccak256("1");
+
     /**
      * @notice Computes the hash of the EIP712 typed data
      * @dev This function is used to compute the hash of the EIP712 typed data
@@ -17,13 +21,7 @@ library EIP712Utils {
      */
     function computeDomainSeparator(string memory name, address verifyingContract) external view returns (bytes32) {
         return keccak256(
-            abi.encode(
-                keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-                keccak256(bytes(name)),
-                keccak256("1"),
-                block.chainid,
-                verifyingContract
-            )
+            abi.encode(_domainTypeHash, keccak256(bytes(name)), _versionHash, block.chainid, verifyingContract)
         );
     }
 }
