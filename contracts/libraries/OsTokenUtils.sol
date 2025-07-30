@@ -67,17 +67,16 @@ library OsTokenUtils {
                 revert Errors.InvalidReceivedAssets();
             }
 
-            if (!data.isLiquidation) {
-                return receivedAssets;
-            }
-
             // check health factor violation in case of liquidation
             if (
-                Math.mulDiv(data.depositedAssets * _wad, config.liqThresholdPercent, data.mintedAssets * _maxPercent)
-                    >= _hfLiqThreshold
+                data.isLiquidation
+                    && Math.mulDiv(data.depositedAssets * _wad, config.liqThresholdPercent, data.mintedAssets * _maxPercent)
+                        >= _hfLiqThreshold
             ) {
                 revert Errors.InvalidHealthFactor();
             }
+
+            return receivedAssets;
         }
     }
 }
