@@ -10,7 +10,7 @@
   "VaultEthStakingTest_test_receiveFromMevEscrow_success": "37826",
   "VaultEthStakingTest_test_registerValidators_01prefix": "244322",
   "VaultEthStakingTest_test_registerValidators_02prefix": "501475",
-  "VaultEthStakingTest_test_transferVaultAssets": "51757",
+  "VaultEthStakingTest_test_transferVaultAssets": "51775",
   "VaultEthStakingTest_test_updateStateAndDeposit": "164173",
   "VaultEthStakingTest_test_updateStateAndDepositAndMintOsToken": "254268",
   "VaultEthStakingTest_test_validatorMinMaxEffectiveBalance": "200164",

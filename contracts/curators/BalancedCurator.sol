@@ -73,28 +73,62 @@ contract BalancedCurator is ISubVaultsCurator {
         }
 
         exitRequests = new ExitRequest[](subVaultsCount);
-        uint256 amountPerVault = assetsToExit / exitSubVaultsCount;
 
+        address subVault;
+        uint256 amountPerVault;
+        uint256 subVaultBalance;
         uint256 exitAmount;
         ExitRequest memory exitRequest;
         while (assetsToExit > 0) {
+            if (exitSubVaultsCount == 0) {
+                // no sub-vaults left to exit
+                return exitRequests;
+            }
+            amountPerVault = assetsToExit / exitSubVaultsCount;
+
+            exitSubVaultsCount = 0;
             for (uint256 i = 0; i < subVaultsCount;) {
-                if (subVaults[i] == ejectingVault) {
+                subVault = subVaults[i];
+                subVaultBalance = balances[i];
+
+                exitRequest = exitRequests[i];
+                exitRequest.vault = subVault;
+
+                if (subVault == ejectingVault) {
                     exitAmount = 0;
                 } else {
-                    exitAmount = Math.min(Math.min(balances[i], amountPerVault), assetsToExit);
+                    exitAmount = Math.min(Math.min(subVaultBalance, amountPerVault), assetsToExit);
                 }
-                exitRequest = exitRequests[i];
-                exitRequest.vault = subVaults[i];
+
+                if (exitAmount == 0) {
+                    // no exit request for this sub-vault
+                    exitRequests[i] = exitRequest;
+                    unchecked {
+                        // cannot realistically overflow
+                        ++i;
+                    }
+                    continue;
+                }
+
+                // update exit request
                 exitRequest.assets += exitAmount;
                 exitRequests[i] = exitRequest;
 
+                // update remaining assets to exit
                 assetsToExit -= exitAmount;
                 if (assetsToExit == 0) {
-                    break;
+                    return exitRequests;
                 }
 
-                balances[i] -= exitAmount;
+                // update sub-vault balance
+                subVaultBalance -= exitAmount;
+                balances[i] = subVaultBalance;
+
+                // count sub-vaults that have balance left for exit
+                if (subVaultBalance > 0) {
+                    exitSubVaultsCount += 1;
+                }
+
                 unchecked {
                     // cannot realistically overflow
                     ++i;

@@ -1,8 +1,8 @@
 {
   "VaultEnterExitTest_test_calculateExitedAssets_invalidPosition": "18577",
-  "VaultEnterExitTest_test_claimExitedAssets": "730323",
-  "VaultEnterExitTest_test_claimExitedAssets_insufficientDelay": "41431",
-  "VaultEnterExitTest_test_claimExitedAssets_invalidCheckpoint": "36506",
+  "VaultEnterExitTest_test_claimExitedAssets": "730364",
+  "VaultEnterExitTest_test_claimExitedAssets_insufficientDelay": "41454",
+  "VaultEnterExitTest_test_claimExitedAssets_invalidCheckpoint": "36529",
   "VaultEnterExitTest_test_deposit_exceedingCapacity": "47943",
   "VaultEnterExitTest_test_deposit_success_basic": "80660",
   "VaultEnterExitTest_test_deposit_success_differentReceiver": "80563",

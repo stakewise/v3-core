@@ -5,5 +5,5 @@
   "EthMetaVaultTest_test_isStateUpdateRequired_true": "138006",
   "EthMetaVaultTest_test_updateStateAndDeposit": "172844",
   "EthMetaVaultTest_test_updateStateAndDepositAndMintOsToken": "192890",
-  "EthMetaVaultTest_test_userClaimExitedAssets": "54314"
+  "EthMetaVaultTest_test_userClaimExitedAssets": "81660"
 }

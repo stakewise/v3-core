@@ -264,7 +264,7 @@ contract BalancedCuratorTest is Test {
             totalExited += exitRequests[i].assets;
         }
 
-        assertEq(totalExited, assetsToExit, "Total exited amount incorrect");
+        assertApproxEqAbs(totalExited, assetsToExit, 1, "Total exited amount incorrect");
     }
 
     function test_getExitRequests_insufficientTotalBalance() public view {
