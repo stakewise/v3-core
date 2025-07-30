@@ -68,10 +68,6 @@ contract BalancedCurator is ISubVaultsCurator {
 
         uint256 subVaultsCount = subVaults.length;
         uint256 exitSubVaultsCount = ejectingVault != address(0) ? subVaultsCount - 1 : subVaultsCount;
-        if (exitSubVaultsCount == 0) {
-            revert Errors.EmptySubVaults();
-        }
-
         exitRequests = new ExitRequest[](subVaultsCount);
 
         address subVault;
@@ -81,10 +77,9 @@ contract BalancedCurator is ISubVaultsCurator {
         ExitRequest memory exitRequest;
         while (assetsToExit > 0) {
             if (exitSubVaultsCount == 0) {
-                // no sub-vaults left to exit
-                return exitRequests;
+                revert Errors.EmptySubVaults();
             }
-            amountPerVault = assetsToExit / exitSubVaultsCount;
+            amountPerVault = assetsToExit > exitSubVaultsCount ? assetsToExit / exitSubVaultsCount : assetsToExit;
 
             exitSubVaultsCount = 0;
             for (uint256 i = 0; i < subVaultsCount;) {

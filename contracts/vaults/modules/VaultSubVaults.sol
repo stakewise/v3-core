@@ -367,7 +367,7 @@ abstract contract VaultSubVaults is
 
         // calculate unprocessed exit queue tickets
         uint256 unprocessedTickets = _queuedShares - (totalProcessedTickets - totalExitedTickets);
-        if (unprocessedTickets <= 1) {
+        if (unprocessedTickets == 0) {
             // nothing to process
             return;
         }
@@ -377,6 +377,11 @@ abstract contract VaultSubVaults is
 
         // check whether ejecting vault has exiting assets
         uint256 unprocessedAssets = convertToAssets(unprocessedTickets);
+        if (unprocessedAssets == 0) {
+            // nothing to process
+            return;
+        }
+
         unprocessedAssets -= _consumeEjectingSubVaultAssets(unprocessedAssets);
         if (unprocessedAssets == 0) {
             return;
@@ -408,6 +413,14 @@ abstract contract VaultSubVaults is
             }
             vaultState = _subVaultsStates[exitRequest.vault];
             vaultShares = IVaultState(exitRequest.vault).convertToShares(exitRequest.assets);
+            if (vaultShares == 0) {
+                // skip exit requests with zero shares
+                unchecked {
+                    // cannot realistically overflow
+                    ++i;
+                }
+                continue;
+            }
             positionTicket = IVaultEnterExit(exitRequest.vault).enterExitQueue(vaultShares, address(this));
 
             // save exit request
