@@ -4,5 +4,5 @@
   "EthGenesisVaultTest_test_fallback_acceptsEtherFromUser": "77540",
   "EthGenesisVaultTest_test_migrate_works": "201699",
   "EthGenesisVaultTest_test_upgradesCorrectly": "68942",
-  "GnoGenesisVaultTest_test_pullWithdrawals_claimEscrowAssets": "803797"
+  "GnoGenesisVaultTest_test_pullWithdrawals_claimEscrowAssets": "803695"
 }
