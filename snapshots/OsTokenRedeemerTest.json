@@ -1,11 +1,11 @@
 {
-  "OsTokenRedeemerTest_test_acceptRedeemablePositions_success": "95111",
-  "OsTokenRedeemerTest_test_denyRedeemablePositions_success": "34197",
-  "OsTokenRedeemerTest_test_proposeRedeemablePositions_success": "101810",
+  "OsTokenRedeemerTest_test_acceptRedeemablePositions_success": "95208",
+  "OsTokenRedeemerTest_test_denyRedeemablePositions_success": "34275",
+  "OsTokenRedeemerTest_test_proposeRedeemablePositions_success": "101906",
   "OsTokenRedeemerTest_test_redeemOsTokenPositions_differentVaults": "266790",
   "OsTokenRedeemerTest_test_redeemOsTokenPositions_multiple": "245493",
   "OsTokenRedeemerTest_test_redeemOsTokenPositions_single": "173750",
-  "OsTokenRedeemerTest_test_removeRedeemablePositions_success": "30176",
-  "OsTokenRedeemerTest_test_setPositionsManager_success": "35671",
-  "OsTokenRedeemerTest_test_setRedeemer_success": "35748"
+  "OsTokenRedeemerTest_test_removeRedeemablePositions_success": "30253",
+  "OsTokenRedeemerTest_test_setPositionsManager_success": "35755",
+  "OsTokenRedeemerTest_test_setRedeemer_success": "35821"
 }

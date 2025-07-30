@@ -36,41 +36,41 @@ interface IOsTokenRedeemer {
      * @notice Event emitted when the redeemer is updated
      * @param newRedeemer The address of the new redeemer
      */
-    event RedeemerUpdated(address newRedeemer);
+    event RedeemerUpdated(address indexed newRedeemer);
 
     /**
      * @notice Event emitted when the positions manager is updated
      * @param positionsManager The address of the new positions manager
      */
-    event PositionsManagerUpdated(address positionsManager);
+    event PositionsManagerUpdated(address indexed positionsManager);
 
     /**
      * @notice Event emitted when new redeemable positions are proposed
      * @param merkleRoot The Merkle root of the redeemable positions
      * @param ipfsHash The IPFS hash of the redeemable positions
      */
-    event RedeemablePositionsProposed(bytes32 merkleRoot, string ipfsHash);
+    event RedeemablePositionsProposed(bytes32 indexed merkleRoot, string ipfsHash);
 
     /**
      * @notice Event emitted when the pending redeemable positions are accepted
      * @param merkleRoot The Merkle root of the accepted redeemable positions
      * @param ipfsHash The IPFS hash of the accepted redeemable positions
      */
-    event RedeemablePositionsAccepted(bytes32 merkleRoot, string ipfsHash);
+    event RedeemablePositionsAccepted(bytes32 indexed merkleRoot, string ipfsHash);
 
     /**
      * @notice Event emitted when the new redeemable positions are denied
      * @param merkleRoot The Merkle root of the denied redeemable positions
      * @param ipfsHash The IPFS hash of the denied redeemable positions
      */
-    event RedeemablePositionsDenied(bytes32 merkleRoot, string ipfsHash);
+    event RedeemablePositionsDenied(bytes32 indexed merkleRoot, string ipfsHash);
 
     /**
      * @notice Event emitted when the redeemable positions are removed
      * @param merkleRoot The Merkle root of the removed redeemable positions
      * @param ipfsHash The IPFS hash of the removed redeemable positions
      */
-    event RedeemablePositionsRemoved(bytes32 merkleRoot, string ipfsHash);
+    event RedeemablePositionsRemoved(bytes32 indexed merkleRoot, string ipfsHash);
 
     /**
      * @notice The address that can redeem OsToken positions
