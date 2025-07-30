@@ -7,7 +7,7 @@
   "VaultValidatorsTest_test_consolidateValidators_multipleValidators": "99507",
   "VaultValidatorsTest_test_consolidateValidators_notManager": "57346",
   "VaultValidatorsTest_test_consolidateValidators_untrackedDestination": "76315",
-  "VaultValidatorsTest_test_consolidateValidators_withOracleSignatures": "113394",
+  "VaultValidatorsTest_test_consolidateValidators_withOracleSignatures": "113591",
   "VaultValidatorsTest_test_consolidateValidators_withSignature": "109300",
   "VaultValidatorsTest_test_fundValidators_byManager": "105591",
   "VaultValidatorsTest_test_fundValidators_insufficientAssets": "103418",
