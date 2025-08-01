@@ -617,11 +617,18 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Calculate available assets and expected distribution
         uint256 availableAssets = metaVault.withdrawableAssets();
         uint256 assetsPerVault = availableAssets / subVaultCount;
+        uint256 dust = availableAssets % subVaultCount;
 
         // Calculate expected new shares for each vault
         uint256[] memory expectedNewShares = new uint256[](subVaultCount);
         for (uint256 i = 0; i < subVaultCount; i++) {
-            expectedNewShares[i] = IEthVault(subVaults[i]).convertToShares(assetsPerVault);
+            if (i == 0) {
+                // The first vault gets the dust if available
+                expectedNewShares[i] = IEthVault(subVaults[i]).convertToShares(assetsPerVault + dust);
+            } else {
+                // Other vaults get equal shares
+                expectedNewShares[i] = IEthVault(subVaults[i]).convertToShares(assetsPerVault);
+            }
         }
 
         // Start gas measurement
@@ -630,9 +637,17 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Expect Deposited events for each sub vault
         for (uint256 i = 0; i < subVaultCount; i++) {
             vm.expectEmit(true, true, true, true, subVaults[i]);
-            emit IVaultEnterExit.Deposited(
-                address(metaVault), address(metaVault), assetsPerVault, expectedNewShares[i], address(0)
-            );
+            if (i == 0) {
+                // The first vault gets the dust if available
+                emit IVaultEnterExit.Deposited(
+                    address(metaVault), address(metaVault), assetsPerVault + dust, expectedNewShares[i], address(0)
+                );
+            } else {
+                // Other vaults get equal shares
+                emit IVaultEnterExit.Deposited(
+                    address(metaVault), address(metaVault), assetsPerVault, expectedNewShares[i], address(0)
+                );
+            }
         }
 
         // Action: Deposit to sub vaults
@@ -1236,10 +1251,11 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Create a single exit request to claim
         IVaultSubVaults.SubVaultExitRequest[] memory singleExitRequest = new IVaultSubVaults.SubVaultExitRequest[](1);
+        int256 exitQueueIndex = IVaultEnterExit(testSubVault).getExitQueueIndex(0);
 
         singleExitRequest[0] = IVaultSubVaults.SubVaultExitRequest({
             vault: testSubVault,
-            exitQueueIndex: uint256(metaVault.getExitQueueIndex(0)),
+            exitQueueIndex: uint256(exitQueueIndex),
             timestamp: timestamp
         });
 

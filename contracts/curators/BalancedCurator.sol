@@ -30,6 +30,7 @@ contract BalancedCurator is ISubVaultsCurator {
             revert Errors.EmptySubVaults();
         }
         uint256 amountPerVault = assetsToDeposit / depositSubVaultsCount;
+        uint256 dust = assetsToDeposit % depositSubVaultsCount;
 
         // distribute assets evenly across sub-vaults
         address subVault;
@@ -42,6 +43,9 @@ contract BalancedCurator is ISubVaultsCurator {
             } else if (subVault == ejectingVault) {
                 deposits[i] = Deposit({vault: subVault, assets: 0});
                 ejectingVaultFound = true;
+            } else if (dust > 0) {
+                deposits[i] = Deposit({vault: subVault, assets: amountPerVault + dust});
+                dust = 0; // only one vault can receive dust
             } else {
                 deposits[i] = Deposit({vault: subVault, assets: amountPerVault});
             }
