@@ -40,6 +40,7 @@ abstract contract VaultAdmin is Initializable, IVaultAdmin {
      */
     function _setAdmin(address newAdmin) private {
         if (newAdmin == address(0)) revert Errors.ZeroAddress();
+        if (newAdmin == admin) revert Errors.ValueNotChanged();
         admin = newAdmin;
         emit AdminUpdated(msg.sender, newAdmin);
     }
