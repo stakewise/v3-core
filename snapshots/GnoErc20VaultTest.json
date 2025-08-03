@@ -1,7 +1,7 @@
 {
   "GnoErc20VaultTest_test_canTransferFromSharesWithHighLtv": "90100",
   "GnoErc20VaultTest_test_cannotTransferFromSharesWithLowLtv": "96637",
-  "GnoErc20VaultTest_test_deploysCorrectly": "752844",
+  "GnoErc20VaultTest_test_deploysCorrectly": "753150",
   "GnoErc20VaultTest_test_deposit_emitsTransfer": "98232",
   "GnoErc20VaultTest_test_enterExitQueue_emitsTransfer": "89780",
   "GnoErc20VaultTest_test_redeem_emitsEvent": "77069",

@@ -1,10 +1,11 @@
 {
-  "VaultAdminTest_test_checkAdmin_withOtherFunctions_admin": "43348",
-  "VaultAdminTest_test_checkAdmin_withOtherFunctions_nonAdmin": "34790",
-  "VaultAdminTest_test_initialization": "378289",
-  "VaultAdminTest_test_setAdmin_byAdmin": "39009",
-  "VaultAdminTest_test_setAdmin_byNonAdmin": "36858",
-  "VaultAdminTest_test_setAdmin_toZeroAddress": "34573",
+  "VaultAdminTest_test_checkAdmin_withOtherFunctions_admin": "47608",
+  "VaultAdminTest_test_checkAdmin_withOtherFunctions_nonAdmin": "34853",
+  "VaultAdminTest_test_initialization": "378594",
+  "VaultAdminTest_test_setAdmin_byAdmin": "39161",
+  "VaultAdminTest_test_setAdmin_byNonAdmin": "36921",
+  "VaultAdminTest_test_setAdmin_toSameValue": "35135",
+  "VaultAdminTest_test_setAdmin_toZeroAddress": "34636",
   "VaultAdminTest_test_setMetadata_byAdmin": "37018",
-  "VaultAdminTest_test_setMetadata_byNonAdmin": "35267"
+  "VaultAdminTest_test_setMetadata_byNonAdmin": "35330"
 }

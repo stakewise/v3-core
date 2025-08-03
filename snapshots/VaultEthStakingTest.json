@@ -4,7 +4,7 @@
   "VaultEthStakingTest_test_fundValidators_invalid": "57366",
   "VaultEthStakingTest_test_fundValidators_valid": "140836",
   "VaultEthStakingTest_test_harvestAssets": "130845",
-  "VaultEthStakingTest_test_invalidSecurityDeposit": "307966",
+  "VaultEthStakingTest_test_invalidSecurityDeposit": "308271",
   "VaultEthStakingTest_test_receive": "75018",
   "VaultEthStakingTest_test_receiveFromMevEscrow_fail": "36570",
   "VaultEthStakingTest_test_receiveFromMevEscrow_success": "37826",
