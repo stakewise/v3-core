@@ -86,9 +86,8 @@ abstract contract VaultGnoStaking is
 
         uint256 depositsCount = deposits.length;
         uint256 availableAssets = withdrawableAssets();
-        ValidatorUtils.ValidatorDeposit memory depositData;
         for (uint256 i = 0; i < depositsCount;) {
-            depositData = deposits[i];
+            ValidatorUtils.ValidatorDeposit memory depositData = deposits[i];
 
             // divide by 32 to convert mGNO to GNO
             depositData.depositAmount /= 32;

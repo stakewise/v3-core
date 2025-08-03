@@ -33,11 +33,10 @@ contract BalancedCurator is ISubVaultsCurator {
         uint256 dust = assetsToDeposit % depositSubVaultsCount;
 
         // distribute assets evenly across sub-vaults
-        address subVault;
         deposits = new Deposit[](subVaultsCount);
         bool ejectingVaultFound = false;
         for (uint256 i = 0; i < subVaultsCount;) {
-            subVault = subVaults[i];
+            address subVault = subVaults[i];
             if (subVault == address(0)) {
                 revert Errors.ZeroAddress();
             } else if (subVault == ejectingVault) {
@@ -74,33 +73,23 @@ contract BalancedCurator is ISubVaultsCurator {
         uint256 exitSubVaultsCount = ejectingVault != address(0) ? subVaultsCount - 1 : subVaultsCount;
         exitRequests = new ExitRequest[](subVaultsCount);
 
-        address subVault;
-        uint256 amountPerVault;
-        uint256 subVaultBalance;
-        uint256 exitAmount;
-        ExitRequest memory exitRequest;
         while (assetsToExit > 0) {
             if (exitSubVaultsCount == 0) {
                 revert Errors.EmptySubVaults();
             }
-            amountPerVault = assetsToExit > exitSubVaultsCount ? assetsToExit / exitSubVaultsCount : assetsToExit;
+            uint256 amountPerVault =
+                assetsToExit > exitSubVaultsCount ? assetsToExit / exitSubVaultsCount : assetsToExit;
 
             exitSubVaultsCount = 0;
             for (uint256 i = 0; i < subVaultsCount;) {
-                subVault = subVaults[i];
-                subVaultBalance = balances[i];
+                address subVault = subVaults[i];
+                uint256 subVaultBalance = balances[i];
 
-                exitRequest = exitRequests[i];
+                ExitRequest memory exitRequest = exitRequests[i];
                 exitRequest.vault = subVault;
 
                 if (subVault == ejectingVault) {
-                    exitAmount = 0;
-                } else {
-                    exitAmount = Math.min(Math.min(subVaultBalance, amountPerVault), assetsToExit);
-                }
-
-                if (exitAmount == 0) {
-                    // no exit request for this sub-vault
+                    // no exit request for ejecting sub-vault
                     exitRequests[i] = exitRequest;
                     unchecked {
                         // cannot realistically overflow
@@ -108,6 +97,8 @@ contract BalancedCurator is ISubVaultsCurator {
                     }
                     continue;
                 }
+
+                uint256 exitAmount = Math.min(Math.min(subVaultBalance, amountPerVault), assetsToExit);
 
                 // update exit request
                 exitRequest.assets += exitAmount;

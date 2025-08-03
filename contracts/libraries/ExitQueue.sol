@@ -120,14 +120,12 @@ library ExitQueue {
         }
 
         // accumulate assets until the number of required shares is collected
-        uint256 checkpointShares;
-        uint256 sharesDelta;
         while (true) {
             unchecked {
                 // cannot underflow as prevTotalTickets <= positionTicket
-                checkpointShares = currTotalTickets - prevTotalTickets;
+                uint256 checkpointShares = currTotalTickets - prevTotalTickets;
                 // cannot underflow as positionShares > burnedShares while in the loop
-                sharesDelta = Math.min(availableShares, positionShares - burnedShares);
+                uint256 sharesDelta = Math.min(availableShares, positionShares - burnedShares);
 
                 // cannot overflow as it is capped with underlying asset total supply
                 burnedShares += sharesDelta;

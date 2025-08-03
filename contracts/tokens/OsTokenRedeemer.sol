@@ -175,14 +175,11 @@ contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         }
 
         // calculate leaves and total osTokenShares to redeem
-        bytes32 leaf;
-        uint256 redeemableOsTokenShares;
         uint256 totalOsTokenSharesToRedeem;
-        OsTokenPosition memory position;
         uint256 positionsCount = positions.length;
         bytes32[] memory leaves = new bytes32[](positionsCount);
         for (uint256 i = 0; i < positionsCount;) {
-            position = positions[i];
+            OsTokenPosition memory position = positions[i];
 
             // validate owner
             if (position.owner == address(0)) {
@@ -195,12 +192,12 @@ contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
             }
 
             // calculate leaf
-            leaf =
+            bytes32 leaf =
                 keccak256(bytes.concat(keccak256(abi.encode(position.vault, position.osTokenShares, position.owner))));
 
             // calculate osToken shares to redeem
             uint256 nonce = _nonce;
-            redeemableOsTokenShares = position.osTokenShares - _redeemedOsTokenShares[nonce][leaf];
+            uint256 redeemableOsTokenShares = position.osTokenShares - _redeemedOsTokenShares[nonce][leaf];
             position.osTokenSharesToRedeem = Math.min(
                 Math.min(redeemableOsTokenShares, position.osTokenSharesToRedeem),
                 IVaultOsToken(position.vault).osTokenPositions(position.owner)
@@ -230,7 +227,7 @@ contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
 
         // redeem positions
         for (uint256 i = 0; i < positionsCount;) {
-            position = positions[i];
+            OsTokenPosition memory position = positions[i];
             // redeem osToken shares
             IVaultOsToken(position.vault).redeemOsToken(position.osTokenSharesToRedeem, position.owner, msg.sender);
 

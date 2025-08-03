@@ -9,7 +9,7 @@
   "EthOsTokenVaultEscrowTest_test_processExitedAssets_exitRequestNotProcessed": "49751",
   "EthOsTokenVaultEscrowTest_test_processExitedAssets_invalidPosition": "33255",
   "EthOsTokenVaultEscrowTest_test_processExitedAssets_partialClaim": "93137",
-  "EthOsTokenVaultEscrowTest_test_processExitedAssets_success": "71293",
+  "EthOsTokenVaultEscrowTest_test_processExitedAssets_success": "71277",
   "EthOsTokenVaultEscrowTest_test_register_accessDenied": "31199",
   "EthOsTokenVaultEscrowTest_test_register_directCall": "81100",
   "EthOsTokenVaultEscrowTest_test_register_fullFlow": "163659",

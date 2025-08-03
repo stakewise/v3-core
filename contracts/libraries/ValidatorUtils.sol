@@ -129,10 +129,9 @@ library ValidatorUtils {
         uint256 validatorsCount = validatorsLength / _validatorDepositLength;
 
         uint256 startIndex;
-        ValidatorDeposit memory valDeposit;
         validatorDeposits = new ValidatorDeposit[](validatorsCount);
         for (uint256 i = 0; i < validatorsCount;) {
-            valDeposit =
+            ValidatorDeposit memory valDeposit =
                 getValidatorDeposit(validators[startIndex:startIndex + _validatorDepositLength], isV1Validators);
 
             if (isTopUp) {
@@ -192,19 +191,15 @@ library ValidatorUtils {
             }
         }
 
-        uint256 feePaid;
-        uint256 withdrawnAmount;
-        uint256 totalFeeAssets = msg.value;
-        bytes calldata publicKey;
-        bytes calldata validator;
         uint256 startIndex;
+        uint256 totalFeeAssets = msg.value;
         for (uint256 i = 0; i < validatorsCount;) {
-            validator = validators[startIndex:startIndex + _validatorWithdrawalLength];
-            publicKey = validator[:48];
+            bytes calldata validator = validators[startIndex:startIndex + _validatorWithdrawalLength];
+            bytes calldata publicKey = validator[:48];
 
             // convert gwei to wei by multiplying by 1 gwei
-            withdrawnAmount = (uint256(uint64(bytes8(validator[48:56]))) * 1 gwei);
-            feePaid = uint256(bytes32(Address.functionStaticCall(validatorsWithdrawals, "")));
+            uint256 withdrawnAmount = (uint256(uint64(bytes8(validator[48:56]))) * 1 gwei);
+            uint256 feePaid = uint256(bytes32(Address.functionStaticCall(validatorsWithdrawals, "")));
 
             // submit validator withdrawal
             Address.functionCallWithValue(validatorsWithdrawals, validator, feePaid);
@@ -267,19 +262,15 @@ library ValidatorUtils {
         uint256 totalFeeAssets = msg.value;
 
         // Process each validator
-        bytes32 destPubKeyHash;
-        bytes calldata sourcePublicKey;
-        bytes calldata destPublicKey;
-        uint256 feePaid;
         uint256 startIndex;
         for (uint256 i = 0; i < validatorsCount;) {
             // consolidate validators
-            (sourcePublicKey, destPublicKey, feePaid) = consolidateValidator(
+            (bytes calldata sourcePublicKey, bytes calldata destPublicKey, uint256 feePaid) = consolidateValidator(
                 validators[startIndex:startIndex + _validatorConsolidationLength], validatorsConsolidations
             );
 
             // check whether the destination public key is tracked or approved
-            destPubKeyHash = keccak256(destPublicKey);
+            bytes32 destPubKeyHash = keccak256(destPublicKey);
             if (consolidationsApproved) {
                 v2Validators[destPubKeyHash] = true;
             } else if (!v2Validators[destPubKeyHash]) {

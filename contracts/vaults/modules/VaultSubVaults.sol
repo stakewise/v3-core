@@ -195,14 +195,11 @@ abstract contract VaultSubVaults is
             ISubVaultsCurator(subVaultsCurator).getDeposits(availableAssets, vaults, ejectingSubVault);
 
         // process deposits
-        uint128 vaultShares;
-        ISubVaultsCurator.Deposit memory depositData;
-
         uint256 depositsLength = deposits.length;
         // SLOAD to memory
         uint256 subVaultsTotalAssets = _subVaultsTotalAssets;
         for (uint256 i = 0; i < depositsLength;) {
-            depositData = deposits[i];
+            ISubVaultsCurator.Deposit memory depositData = deposits[i];
             if (depositData.assets == 0) {
                 // skip empty deposits
                 unchecked {
@@ -216,7 +213,7 @@ abstract contract VaultSubVaults is
             availableAssets -= depositData.assets;
 
             // update state
-            vaultShares = SafeCast.toUint128(_depositToVault(depositData.vault, depositData.assets));
+            uint128 vaultShares = SafeCast.toUint128(_depositToVault(depositData.vault, depositData.assets));
             _subVaultsStates[depositData.vault].stakedShares += vaultShares;
             subVaultsTotalAssets += depositData.assets;
             unchecked {
@@ -230,25 +227,16 @@ abstract contract VaultSubVaults is
 
     /// @inheritdoc IVaultSubVaults
     function claimSubVaultsExitedAssets(SubVaultExitRequest[] calldata exitRequests) external override {
-        uint256 leftShares;
-        uint256 exitedAssets;
-        uint256 exitedShares;
-        uint256 positionTicket;
-        uint256 positionShares;
-        SubVaultState memory subVaultState;
-        SubVaultExitRequest calldata exitRequest;
-
         uint256 exitRequestsLength = exitRequests.length;
         // SLOAD to memory
         uint256 subVaultsTotalAssets = _subVaultsTotalAssets;
         address _ejectingSubVault = ejectingSubVault;
         for (uint256 i = 0; i < exitRequestsLength;) {
-            exitRequest = exitRequests[i];
-            subVaultState = _subVaultsStates[exitRequest.vault];
-            (positionTicket, positionShares) = _popSubVaultExit(exitRequest.vault);
-            (leftShares, exitedShares, exitedAssets) = IVaultEnterExit(exitRequest.vault).calculateExitedAssets(
-                address(this), positionTicket, exitRequest.timestamp, exitRequest.exitQueueIndex
-            );
+            SubVaultExitRequest calldata exitRequest = exitRequests[i];
+            SubVaultState memory subVaultState = _subVaultsStates[exitRequest.vault];
+            (uint256 positionTicket, uint256 positionShares) = _popSubVaultExit(exitRequest.vault);
+            (uint256 leftShares, uint256 exitedShares, uint256 exitedAssets) = IVaultEnterExit(exitRequest.vault)
+                .calculateExitedAssets(address(this), positionTicket, exitRequest.timestamp, exitRequest.exitQueueIndex);
 
             subVaultState.queuedShares -= SafeCast.toUint128(positionShares);
             if (leftShares > 1) {
@@ -305,15 +293,12 @@ abstract contract VaultSubVaults is
         _checkSubVaultsExitClaims(vaults);
 
         // calculate new total assets and save balances in each sub vault
-        address vault;
         uint256 newSubVaultsTotalAssets;
-        uint256 vaultTotalShares;
-        SubVaultState memory vaultState;
         uint256[] memory balances = new uint256[](vaultsLength);
         for (uint256 i = 0; i < vaultsLength;) {
-            vault = vaults[i];
-            vaultState = _subVaultsStates[vault];
-            vaultTotalShares = vaultState.stakedShares + vaultState.queuedShares;
+            address vault = vaults[i];
+            SubVaultState memory vaultState = _subVaultsStates[vault];
+            uint256 vaultTotalShares = vaultState.stakedShares + vaultState.queuedShares;
             if (vaultTotalShares > 0) {
                 newSubVaultsTotalAssets += IVaultState(vault).convertToAssets(vaultTotalShares);
             }
@@ -393,16 +378,10 @@ abstract contract VaultSubVaults is
 
         // process exits
         uint256 processedAssets;
-        uint256 vaultShares;
-        uint256 positionTicket;
-        SubVaultState memory vaultState;
-        ISubVaultsCurator.ExitRequest memory exitRequest;
-
-        uint128 vaultShares128;
         uint256 exitsLength = exits.length;
         for (uint256 i = 0; i < exitsLength;) {
             // submit exit request to the vault
-            exitRequest = exits[i];
+            ISubVaultsCurator.ExitRequest memory exitRequest = exits[i];
             if (exitRequest.assets == 0) {
                 // skip empty exit requests
                 unchecked {
@@ -411,8 +390,8 @@ abstract contract VaultSubVaults is
                 }
                 continue;
             }
-            vaultState = _subVaultsStates[exitRequest.vault];
-            vaultShares = IVaultState(exitRequest.vault).convertToShares(exitRequest.assets);
+            SubVaultState memory vaultState = _subVaultsStates[exitRequest.vault];
+            uint256 vaultShares = IVaultState(exitRequest.vault).convertToShares(exitRequest.assets);
             if (vaultShares == 0) {
                 // skip exit requests with zero shares
                 unchecked {
@@ -421,7 +400,7 @@ abstract contract VaultSubVaults is
                 }
                 continue;
             }
-            positionTicket = IVaultEnterExit(exitRequest.vault).enterExitQueue(vaultShares, address(this));
+            uint256 positionTicket = IVaultEnterExit(exitRequest.vault).enterExitQueue(vaultShares, address(this));
 
             // save exit request
             _pushSubVaultExit(
@@ -429,7 +408,7 @@ abstract contract VaultSubVaults is
             );
 
             // update state
-            vaultShares128 = SafeCast.toUint128(vaultShares);
+            uint128 vaultShares128 = SafeCast.toUint128(vaultShares);
             vaultState.queuedShares += vaultShares128;
             vaultState.stakedShares -= vaultShares128;
 
@@ -451,14 +430,10 @@ abstract contract VaultSubVaults is
      * @param vaults The addresses of the sub vaults
      */
     function _checkSubVaultsExitClaims(address[] memory vaults) private view {
-        address vault;
-        uint256 totalExitedTickets;
-        uint256 positionTicket;
-        uint256 exitShares;
         uint256 vaultsLength = vaults.length;
         for (uint256 i = 0; i < vaultsLength;) {
-            vault = vaults[i];
-            (positionTicket, exitShares) = _peekSubVaultExit(vault);
+            address vault = vaults[i];
+            (uint256 positionTicket, uint256 exitShares) = _peekSubVaultExit(vault);
             if (positionTicket == 0 && exitShares == 0) {
                 // no queue positions
                 unchecked {
@@ -467,7 +442,7 @@ abstract contract VaultSubVaults is
                 }
                 continue;
             }
-            (,,,, totalExitedTickets) = IVaultState(vault).getExitQueueData();
+            (,,,, uint256 totalExitedTickets) = IVaultState(vault).getExitQueueData();
             if (totalExitedTickets > positionTicket) {
                 revert Errors.UnclaimedAssets();
             }
