@@ -142,6 +142,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
         // SLOAD to memory
         uint256 newTotalAssets = _totalAssets;
         if (totalAssetsDelta < 0) {
+            // the delta is negative, meaning that the vault lost assets
             uint256 penalty = uint256(-totalAssetsDelta);
 
             // SLOAD to memory
