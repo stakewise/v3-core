@@ -82,7 +82,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     /// @inheritdoc IVaultState
     function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
         uint256 totalShares_ = _totalShares;
-        return (totalShares_ == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares_);
+        return totalShares_ == 0 ? shares : Math.mulDiv(shares, _totalAssets, totalShares_);
     }
 
     /// @inheritdoc IVaultState
