@@ -84,10 +84,10 @@ abstract contract VaultGnoStaking is
         // pull withdrawals from the deposit contract
         _pullWithdrawals();
 
-        uint256 totalDeposits = deposits.length;
+        uint256 depositsCount = deposits.length;
         uint256 availableAssets = withdrawableAssets();
         ValidatorUtils.ValidatorDeposit memory depositData;
-        for (uint256 i = 0; i < totalDeposits;) {
+        for (uint256 i = 0; i < depositsCount;) {
             depositData = deposits[i];
 
             // divide by 32 to convert mGNO to GNO

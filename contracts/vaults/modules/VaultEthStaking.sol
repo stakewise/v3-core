@@ -67,10 +67,10 @@ abstract contract VaultEthStaking is
 
     /// @inheritdoc VaultValidators
     function _registerValidators(ValidatorUtils.ValidatorDeposit[] memory deposits) internal virtual override {
-        uint256 totalDeposits = deposits.length;
+        uint256 depositsCount = deposits.length;
         uint256 availableAssets = withdrawableAssets();
         ValidatorUtils.ValidatorDeposit memory depositData;
-        for (uint256 i = 0; i < totalDeposits;) {
+        for (uint256 i = 0; i < depositsCount;) {
             depositData = deposits[i];
             // deposit to the validators registry
             IEthValidatorsRegistry(_validatorsRegistry).deposit{value: depositData.depositAmount}(
