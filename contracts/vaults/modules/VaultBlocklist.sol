@@ -47,6 +47,9 @@ abstract contract VaultBlocklist is Initializable, VaultAdmin, IVaultBlocklist {
      * @param _blocklistManager The address of the new blocklist manager
      */
     function _setBlocklistManager(address _blocklistManager) private {
+        if (blocklistManager == _blocklistManager) {
+            revert Errors.ValueNotChanged();
+        }
         // update blocklist manager address
         blocklistManager = _blocklistManager;
         emit BlocklistManagerUpdated(msg.sender, _blocklistManager);
