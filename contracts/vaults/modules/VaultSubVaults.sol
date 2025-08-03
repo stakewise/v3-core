@@ -239,7 +239,7 @@ abstract contract VaultSubVaults is
                 .calculateExitedAssets(address(this), positionTicket, exitRequest.timestamp, exitRequest.exitQueueIndex);
 
             subVaultState.queuedShares -= SafeCast.toUint128(positionShares);
-            if (leftShares > 1) {
+            if (leftShares > 0) {
                 // exit request was not processed in full
                 _pushSubVaultExit(
                     exitRequest.vault,
