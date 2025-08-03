@@ -335,7 +335,12 @@ abstract contract VaultSubVaults is
     }
 
     /// @inheritdoc VaultState
-    function _harvestAssets(IKeeperRewards.HarvestParams calldata) internal pure override returns (int256, bool) {
+    function _harvestAssets(IKeeperRewards.HarvestParams calldata)
+        internal
+        pure
+        override
+        returns (int256 totalAssetsDelta, bool harvested)
+    {
         // not used
         return (0, false);
     }
