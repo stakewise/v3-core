@@ -44,6 +44,7 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
     function _setFeeRecipient(address _feeRecipient) private {
         _checkHarvested();
         if (_feeRecipient == address(0)) revert Errors.InvalidFeeRecipient();
+        if (_feeRecipient == feeRecipient) revert Errors.ValueNotChanged();
 
         // update fee recipient address
         feeRecipient = _feeRecipient;
