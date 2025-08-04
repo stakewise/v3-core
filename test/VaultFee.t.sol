@@ -48,6 +48,11 @@ contract VaultFeeTest is Test, EthHelpers {
         address vaultAddr = _getOrCreateVault(VaultType.EthVault, admin, initParams, false);
         vault = EthVault(payable(vaultAddr));
 
+        if (vault.feeRecipient() != admin) {
+            vm.prank(admin);
+            vault.setFeeRecipient(admin);
+        }
+
         initialFeePercent = vault.feePercent();
         vm.warp(vm.getBlockTimestamp() + feeChangeDelay + 1);
     }
