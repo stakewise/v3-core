@@ -90,7 +90,6 @@ contract BalancedCurator is ISubVaultsCurator {
 
                 if (subVault == ejectingVault) {
                     // no exit request for ejecting sub-vault
-                    exitRequests[i] = exitRequest;
                     unchecked {
                         // cannot realistically overflow
                         ++i;
@@ -102,7 +101,6 @@ contract BalancedCurator is ISubVaultsCurator {
 
                 // update exit request
                 exitRequest.assets += exitAmount;
-                exitRequests[i] = exitRequest;
 
                 // update remaining assets to exit
                 assetsToExit -= exitAmount;
