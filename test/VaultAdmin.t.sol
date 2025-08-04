@@ -144,7 +144,6 @@ contract VaultAdminTest is Test, EthHelpers {
         _stopSnapshotGas();
 
         // Now try as admin
-        address newAdmin = makeAddr("newAdmin");
         vm.prank(admin);
         _startSnapshotGas("VaultAdminTest_test_checkAdmin_withOtherFunctions_admin");
         IEthVault(vault).setFeeRecipient(newAdmin);
