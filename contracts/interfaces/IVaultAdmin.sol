@@ -20,7 +20,7 @@ interface IVaultAdmin {
      * @param caller The address of the function caller
      * @param newAdmin The new admin address
      */
-    event AdminUpdated(address indexed caller, address newAdmin);
+    event AdminUpdated(address indexed caller, address indexed newAdmin);
 
     /**
      * @notice The Vault admin
