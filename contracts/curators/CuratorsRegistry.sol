@@ -24,12 +24,18 @@ contract CuratorsRegistry is Ownable2Step, ICuratorsRegistry {
 
     /// @inheritdoc ICuratorsRegistry
     function addCurator(address curator) external override onlyOwner {
+        if (isCurator[curator]) {
+            revert Errors.ValueNotChanged();
+        }
         isCurator[curator] = true;
         emit CuratorAdded(msg.sender, curator);
     }
 
     /// @inheritdoc ICuratorsRegistry
     function removeCurator(address curator) external override onlyOwner {
+        if (!isCurator[curator]) {
+            revert Errors.ValueNotChanged();
+        }
         isCurator[curator] = false;
         emit CuratorRemoved(msg.sender, curator);
     }
