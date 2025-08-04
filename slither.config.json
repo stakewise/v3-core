@@ -3,7 +3,7 @@
   "exclude_informational": true,
   "exclude_low": true,
   "exclude_medium": true,
-  "exclude-detectors": [
+  "exclude": [
     "uninitialized-state-variables",
     "state-variables-that-could-be-declared-constant"
   ]
