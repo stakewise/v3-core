@@ -7,7 +7,7 @@
   "GnoRewardSplitter_enterExitQueueMaxWithdrawal": "128900",
   "GnoRewardSplitter_enterExitQueueOnBehalf": "1011528",
   "GnoRewardSplitter_increaseShares": "70672",
-  "GnoRewardSplitter_setClaimer": "66102",
+  "GnoRewardSplitter_setClaimer": "66291",
   "GnoRewardSplitter_syncRewards": "77704",
   "GnoRewardSplitter_syncRewardsDetailed": "75204",
   "GnoRewardSplitter_updateVaultState": "165440"

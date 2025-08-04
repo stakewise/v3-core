@@ -31,7 +31,7 @@ interface IRewardSplitter is IMulticall {
      * @param caller The address of the account that called the function
      * @param claimer The address of the claimer that can claim rewards on behalf of shareholders
      */
-    event ClaimerUpdated(address caller, address claimer);
+    event ClaimerUpdated(address indexed caller, address indexed claimer);
 
     /**
      * @notice Event emitted when the number of shares is increased for an account

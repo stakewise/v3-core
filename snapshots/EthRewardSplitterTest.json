@@ -9,6 +9,6 @@
   "EthRewardSplitter_receiveEth": "31194",
   "EthRewardSplitter_syncRewards": "77704",
   "EthRewardSplitter_syncRewardsDetailed": "75204",
-  "EthRewardSplitter_test_setClaimer": "66080",
+  "EthRewardSplitter_test_setClaimer": "66269",
   "EthRewardSplitter_updateVaultState": "132625"
 }
