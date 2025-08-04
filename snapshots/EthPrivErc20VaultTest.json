@@ -3,7 +3,7 @@
   "EthPrivErc20VaultTest_test_canDepositAsWhitelistedUser": "81407",
   "EthPrivErc20VaultTest_test_canDepositUsingReceiveAsWhitelistedUser": "77693",
   "EthPrivErc20VaultTest_test_canMintOsTokenAsWhitelistedUser": "161601",
-  "EthPrivErc20VaultTest_test_deploysCorrectly": "625221",
+  "EthPrivErc20VaultTest_test_deploysCorrectly": "625371",
   "EthPrivErc20VaultTest_test_transfer": "59709",
   "EthPrivErc20VaultTest_test_upgradesCorrectly": "90008"
 }

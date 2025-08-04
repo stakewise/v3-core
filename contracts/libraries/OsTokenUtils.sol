@@ -48,12 +48,20 @@ library OsTokenUtils {
     ) external view returns (uint256 receivedAssets) {
         // SLOAD to memory
         IOsTokenConfig.Config memory config = osTokenConfig.getConfig(address(this));
-        if (data.isLiquidation && config.liqThresholdPercent == _disabledLiqThreshold) {
-            revert Errors.LiquidationDisabled();
-        }
 
         // calculate received assets
         if (data.isLiquidation) {
+            // liquidations are only allowed if the liquidation threshold is not disabled
+            if (config.liqThresholdPercent == _disabledLiqThreshold) {
+                revert Errors.LiquidationDisabled();
+            }
+            // check health factor violation in case of liquidation
+            if (
+                Math.mulDiv(data.depositedAssets * _wad, config.liqThresholdPercent, data.mintedAssets * _maxPercent)
+                    >= _hfLiqThreshold
+            ) {
+                revert Errors.InvalidHealthFactor();
+            }
             receivedAssets = Math.mulDiv(
                 osTokenVaultController.convertToAssets(data.redeemedOsTokenShares), config.liqBonusPercent, _maxPercent
             );
@@ -61,22 +69,11 @@ library OsTokenUtils {
             receivedAssets = osTokenVaultController.convertToAssets(data.redeemedOsTokenShares);
         }
 
-        {
-            // check whether received assets are valid
-            if (receivedAssets > data.depositedAssets || receivedAssets > data.availableAssets) {
-                revert Errors.InvalidReceivedAssets();
-            }
-
-            // check health factor violation in case of liquidation
-            if (
-                data.isLiquidation
-                    && Math.mulDiv(data.depositedAssets * _wad, config.liqThresholdPercent, data.mintedAssets * _maxPercent)
-                        >= _hfLiqThreshold
-            ) {
-                revert Errors.InvalidHealthFactor();
-            }
-
-            return receivedAssets;
+        // check whether received assets are valid
+        if (receivedAssets > data.depositedAssets || receivedAssets > data.availableAssets) {
+            revert Errors.InvalidReceivedAssets();
         }
+
+        return receivedAssets;
     }
 }
