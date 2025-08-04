@@ -594,7 +594,7 @@ abstract contract VaultSubVaults is
     function _setSubVaultsCurator(address curator) private {
         if (curator == address(0)) revert Errors.ZeroAddress();
         if (curator == subVaultsCurator) revert Errors.ValueNotChanged();
-        if (!ICuratorsRegistry(_curatorsRegistry).curators(curator)) {
+        if (!ICuratorsRegistry(_curatorsRegistry).isCurator(curator)) {
             revert Errors.InvalidCurator();
         }
         subVaultsCurator = curator;

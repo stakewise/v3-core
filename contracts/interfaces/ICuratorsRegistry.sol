@@ -27,7 +27,7 @@ interface ICuratorsRegistry {
      * @param curator The address of the curator
      * @return True if the address is a curator, false otherwise
      */
-    function curators(address curator) external view returns (bool);
+    function isCurator(address curator) external view returns (bool);
 
     /**
      * @notice Initializes the CuratorsRegistry

@@ -76,7 +76,7 @@ contract CuratorsRegistryTest is Test {
         vm.stopPrank();
 
         // Check curator was added
-        assertTrue(registry.curators(curator), "Curator should be added");
+        assertTrue(registry.isCurator(curator), "Curator should be added");
     }
 
     function test_addCurator_notOwner() public {
@@ -87,14 +87,14 @@ contract CuratorsRegistryTest is Test {
         registry.addCurator(curator);
 
         // Verify curator was not added
-        assertFalse(registry.curators(curator), "Curator should not be added");
+        assertFalse(registry.isCurator(curator), "Curator should not be added");
     }
 
     function test_removeCurator() public {
         // First add a curator
         vm.prank(owner);
         registry.addCurator(curator);
-        assertTrue(registry.curators(curator), "Curator should be added");
+        assertTrue(registry.isCurator(curator), "Curator should be added");
 
         vm.startPrank(owner);
 
@@ -106,7 +106,7 @@ contract CuratorsRegistryTest is Test {
         registry.removeCurator(curator);
         vm.stopPrank();
 
-        assertFalse(registry.curators(curator), "Curator should be removed");
+        assertFalse(registry.isCurator(curator), "Curator should be removed");
     }
 
     function test_removeCurator_notOwner() public {
@@ -121,6 +121,6 @@ contract CuratorsRegistryTest is Test {
         registry.removeCurator(curator);
 
         // Verify curator was not removed
-        assertTrue(registry.curators(curator), "Curator should still be added");
+        assertTrue(registry.isCurator(curator), "Curator should still be added");
     }
 }
