@@ -40,6 +40,10 @@ contract BalancedCurator is ISubVaultsCurator {
             if (subVault == address(0)) {
                 revert Errors.ZeroAddress();
             } else if (subVault == ejectingVault) {
+                if (ejectingVaultFound) {
+                    // only one vault can be ejected at a time
+                    revert Errors.RepeatedEjectingVault();
+                }
                 deposits[i] = Deposit({vault: subVault, assets: 0});
                 ejectingVaultFound = true;
             } else if (dust > 0) {

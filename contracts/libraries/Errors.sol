@@ -56,6 +56,7 @@ library Errors {
     error EjectingVaultNotFound();
     error UnclaimedAssets();
     error EjectingVault();
+    error RepeatedEjectingVault();
     error InvalidCurator();
     error RewardsNonceIsHigher();
     error InvalidRedeemablePositions();
