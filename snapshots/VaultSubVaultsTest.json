@@ -7,7 +7,7 @@
   "VaultSubVaultsTest_test_depositToSubVaults_singleSubVault": "161339",
   "VaultSubVaultsTest_test_setSubVaultsCurator_success": "51083",
   "VaultSubVaultsTest_test_updateState_enterExitQueueMaxVaults": "6747250",
-  "test_depositToSubVaults_ejectingSubVault": "151841",
+  "test_depositToSubVaults_ejectingSubVault": "151861",
   "test_ejectSubVault_emptySubVault": "61797",
   "test_ejectSubVault_subVaultWithShares": "202076",
   "test_updateState_newTotalAssets": "191968",
