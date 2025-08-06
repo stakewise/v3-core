@@ -31,6 +31,7 @@
   "VaultValidatorsTest_test_registerValidators_v1Validators": "241454",
   "VaultValidatorsTest_test_registerValidators_v2Validators": "264353",
   "VaultValidatorsTest_test_registerValidators_withSignature": "299317",
+  "VaultValidatorsTest_test_setValidatorsManager_valueNotChanged": "34406",
   "VaultValidatorsTest_test_withdrawValidators_byManager": "74198",
   "VaultValidatorsTest_test_withdrawValidators_feeHandling": "81199",
   "VaultValidatorsTest_test_withdrawValidators_invalidSignature": "68457",

@@ -123,4 +123,26 @@ contract CuratorsRegistryTest is Test {
         // Verify curator was not removed
         assertTrue(registry.isCurator(curator), "Curator should still be added");
     }
+
+    function test_addCurator_alreadyExists() public {
+        // First add a curator
+        vm.prank(owner);
+        registry.addCurator(curator);
+        assertTrue(registry.isCurator(curator), "Curator should be added");
+
+        // Try to add the same curator again
+        vm.prank(owner);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        registry.addCurator(curator);
+    }
+
+    function test_removeCurator_notExists() public {
+        // Verify curator is not in registry
+        assertFalse(registry.isCurator(curator), "Curator should not be in registry initially");
+
+        // Try to remove a curator that was never added
+        vm.prank(owner);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        registry.removeCurator(curator);
+    }
 }
