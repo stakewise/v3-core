@@ -399,6 +399,7 @@ abstract contract VaultSubVaults is
             uint256 vaultShares = IVaultState(exitRequest.vault).convertToShares(exitRequest.assets);
             if (vaultShares == 0) {
                 // skip exit requests with zero shares
+                processedAssets += exitRequest.assets;
                 unchecked {
                     // cannot realistically overflow
                     ++i;
