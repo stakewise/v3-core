@@ -83,7 +83,7 @@ contract UpgradeEthNetwork is Network {
         _deployFactories();
         vm.stopBroadcast();
 
-        generateGovernorTxJson(vaultImpls, vaultFactories, curatorsRegistry, balancedCurator, osTokenRedeemer);
+        generateGovernorTxJson(vaultImpls, vaultFactories, osTokenRedeemer);
         generateUpgradesJson(vaultImpls);
         generateAddressesJson(
             vaultFactories,
