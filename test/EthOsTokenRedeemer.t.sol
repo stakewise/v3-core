@@ -2,6 +2,7 @@
 pragma solidity ^0.8.22;
 
 import {Test} from "forge-std/Test.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
@@ -160,7 +161,31 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         vault2.mintOsToken(user3, user3OsTokenShares, address(0));
     }
 
-    function test_deployRedeemer_invalidDelays() public {}
+    function test_deployRedeemer_invalidDelays() public {
+        // Test deploying with position update delay that exceeds uint64 max
+        uint256 invalidPositionDelay = uint256(type(uint64).max) + 1;
+        uint256 validExitQueueDelay = EXIT_QUEUE_UPDATE_DELAY;
+
+        vm.expectRevert(Errors.InvalidDelay.selector);
+        new EthOsTokenRedeemer(
+            _osToken, address(contracts.osTokenVaultController), owner, invalidPositionDelay, validExitQueueDelay
+        );
+
+        // Test deploying with exit queue delay that exceeds uint64 max
+        uint256 validPositionDelay = POSITIONS_UPDATE_DELAY;
+        uint256 invalidExitQueueDelay = uint256(type(uint64).max) + 1;
+
+        vm.expectRevert(Errors.InvalidDelay.selector);
+        new EthOsTokenRedeemer(
+            _osToken, address(contracts.osTokenVaultController), owner, validPositionDelay, invalidExitQueueDelay
+        );
+
+        // Test deploying with both delays exceeding uint64 max
+        vm.expectRevert(Errors.InvalidDelay.selector);
+        new EthOsTokenRedeemer(
+            _osToken, address(contracts.osTokenVaultController), owner, invalidPositionDelay, invalidExitQueueDelay
+        );
+    }
 
     function test_setPositionsManager_notOwner() public {
         address newManager = makeAddr("newManager");
@@ -397,10 +422,301 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         assertEq(currentIpfsHash, "");
     }
 
-    function test_permitOsToken() public {}
+    function test_permitOsToken_success() public {
+        // Setup: Mint osTokens to user1
+        _collateralizeEthVault(address(vault));
+        _depositToVault(address(vault), DEPOSIT_AMOUNT, user1, user1);
 
-    function test_enterExitQueue_zeroShares() public {}
-    function test_enterExitQueue_zeroReceiver() public {}
-    function test_enterExitQueue_noOsTokenShares() public {}
-    function test_enterExitQueue_success() public {}
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, osTokenShares, address(0));
+
+        // Generate a valid permit signature
+        uint256 deadline = block.timestamp + 1 hours;
+
+        // Use a known private key for testing
+        uint256 privateKey = 0x12345;
+        address signer = vm.addr(privateKey);
+
+        // Transfer osTokens to the signer address
+        vm.prank(user1);
+        IERC20(_osToken).transfer(signer, osTokenShares);
+
+        // Get the nonce for the signer
+        uint256 nonce = IERC20Permit(_osToken).nonces(signer);
+
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                IERC20Permit(_osToken).DOMAIN_SEPARATOR(),
+                keccak256(
+                    abi.encode(
+                        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"),
+                        signer,
+                        address(osTokenRedeemer),
+                        osTokenShares,
+                        nonce,
+                        deadline
+                    )
+                )
+            )
+        );
+
+        // Sign the permit
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+
+        // Verify initial allowance is zero
+        uint256 allowanceBefore = IERC20(_osToken).allowance(signer, address(osTokenRedeemer));
+        assertEq(allowanceBefore, 0, "Initial allowance should be zero");
+
+        vm.prank(signer);
+        _startSnapshotGas("EthOsTokenRedeemerTest_test_permitOsToken_success");
+        osTokenRedeemer.permitOsToken(osTokenShares, deadline, v, r, s);
+        _stopSnapshotGas();
+
+        // Verify allowance was set correctly
+        uint256 allowanceAfter = IERC20(_osToken).allowance(signer, address(osTokenRedeemer));
+        assertEq(allowanceAfter, osTokenShares, "Allowance should be set to osTokenShares");
+
+        // Verify the redeemer can now transfer tokens on behalf of the signer
+        vm.prank(address(osTokenRedeemer));
+        IERC20(_osToken).transferFrom(signer, address(osTokenRedeemer), osTokenShares);
+        assertEq(IERC20(_osToken).balanceOf(address(osTokenRedeemer)), osTokenShares, "Redeemer should receive tokens");
+    }
+
+    function test_permitOsToken_invalidSignature() public {
+        // Setup: Create a valid permit structure but with invalid signature
+        uint256 deadline = block.timestamp + 1 hours;
+        uint256 privateKey = 0x12345;
+        address signer = vm.addr(privateKey);
+        uint256 osTokenShares = 1 ether;
+
+        // Get the nonce for the signer
+        uint256 nonce = IERC20Permit(_osToken).nonces(signer);
+
+        // Create the permit digest
+        bytes32 PERMIT_TYPEHASH =
+            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+        bytes32 structHash =
+            keccak256(abi.encode(PERMIT_TYPEHASH, signer, address(osTokenRedeemer), osTokenShares, nonce, deadline));
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", IERC20Permit(_osToken).DOMAIN_SEPARATOR(), structHash));
+
+        // Sign the permit
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+
+        // Verify initial allowance is zero
+        uint256 allowanceBefore = IERC20(_osToken).allowance(signer, address(osTokenRedeemer));
+        assertEq(allowanceBefore, 0, "Initial allowance should be zero");
+
+        // Call with invalid signature (modified v value) - should not revert due to try-catch
+        vm.prank(signer);
+        osTokenRedeemer.permitOsToken(osTokenShares, deadline, v + 1, r, s);
+
+        // Verify allowance is still zero (permit failed silently)
+        uint256 allowanceAfter = IERC20(_osToken).allowance(signer, address(osTokenRedeemer));
+        assertEq(allowanceAfter, 0, "Allowance should still be zero after invalid permit");
+    }
+
+    function test_permitOsToken_expiredDeadline() public {
+        // Setup: Create a valid permit but use it after deadline
+        uint256 deadline = block.timestamp + 1 hours;
+        uint256 privateKey = 0x12345;
+        address signer = vm.addr(privateKey);
+        uint256 osTokenShares = 1 ether;
+
+        // Get the nonce for the signer
+        uint256 nonce = IERC20Permit(_osToken).nonces(signer);
+
+        // Create the permit digest
+        bytes32 PERMIT_TYPEHASH =
+            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+        bytes32 structHash =
+            keccak256(abi.encode(PERMIT_TYPEHASH, signer, address(osTokenRedeemer), osTokenShares, nonce, deadline));
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", IERC20Permit(_osToken).DOMAIN_SEPARATOR(), structHash));
+
+        // Sign the permit
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+
+        // Warp time past the deadline
+        vm.warp(deadline + 1);
+
+        // Verify initial allowance is zero
+        uint256 allowanceBefore = IERC20(_osToken).allowance(signer, address(osTokenRedeemer));
+        assertEq(allowanceBefore, 0, "Initial allowance should be zero");
+
+        // Call with expired deadline - should not revert due to try-catch
+        vm.prank(signer);
+        osTokenRedeemer.permitOsToken(osTokenShares, deadline, v, r, s);
+
+        // Verify allowance is still zero (permit failed silently)
+        uint256 allowanceAfter = IERC20(_osToken).allowance(signer, address(osTokenRedeemer));
+        assertEq(allowanceAfter, 0, "Allowance should still be zero after expired permit");
+    }
+
+    function test_permitOsToken_replayAttack() public {
+        // Setup: Mint osTokens and prepare for permit
+        _collateralizeEthVault(address(vault));
+        _depositToVault(address(vault), DEPOSIT_AMOUNT, user1, user1);
+
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, osTokenShares, address(0));
+
+        // Generate a valid permit signature
+        uint256 deadline = block.timestamp + 1 hours;
+        uint256 privateKey = 0x12345;
+        address signer = vm.addr(privateKey);
+
+        // Transfer osTokens to the signer address
+        vm.prank(user1);
+        IERC20(_osToken).transfer(signer, osTokenShares);
+
+        // Get the nonce for the signer
+        uint256 nonce = IERC20Permit(_osToken).nonces(signer);
+
+        // Create the permit digest
+        bytes32 PERMIT_TYPEHASH =
+            keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+        bytes32 structHash =
+            keccak256(abi.encode(PERMIT_TYPEHASH, signer, address(osTokenRedeemer), osTokenShares, nonce, deadline));
+
+        bytes32 digest = keccak256(abi.encodePacked("\x19\x01", IERC20Permit(_osToken).DOMAIN_SEPARATOR(), structHash));
+
+        // Sign the permit
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+
+        // First call should succeed
+        vm.prank(signer);
+        osTokenRedeemer.permitOsToken(osTokenShares, deadline, v, r, s);
+        uint256 allowanceAfterFirst = IERC20(_osToken).allowance(signer, address(osTokenRedeemer));
+        assertEq(allowanceAfterFirst, osTokenShares, "First permit should set allowance");
+
+        // Reset allowance to test replay
+        vm.prank(signer);
+        IERC20(_osToken).approve(address(osTokenRedeemer), 0);
+
+        // Try to replay the same permit (nonce has been consumed) - should not revert due to try-catch
+        vm.prank(signer);
+        osTokenRedeemer.permitOsToken(osTokenShares, deadline, v, r, s);
+
+        // Verify allowance is still zero (replay failed silently)
+        uint256 allowanceAfterReplay = IERC20(_osToken).allowance(signer, address(osTokenRedeemer));
+        assertEq(allowanceAfterReplay, 0, "Allowance should still be zero after replay attempt");
+    }
+
+    function test_enterExitQueue_zeroShares() public {
+        // Try to enter exit queue with zero shares
+        vm.prank(user1);
+        vm.expectRevert(Errors.InvalidShares.selector);
+        osTokenRedeemer.enterExitQueue(0, user1);
+    }
+
+    function test_enterExitQueue_zeroReceiver() public {
+        // Setup: Mint osTokens to user1
+        _collateralizeEthVault(address(vault));
+        _depositToVault(address(vault), DEPOSIT_AMOUNT, user1, user1);
+
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, osTokenShares, address(0));
+
+        // Try to enter exit queue with zero receiver address
+        vm.prank(user1);
+        vm.expectRevert(Errors.ZeroAddress.selector);
+        osTokenRedeemer.enterExitQueue(osTokenShares, address(0));
+    }
+
+    function test_enterExitQueue_noOsTokenShares() public {
+        // User2 has no osToken shares
+        uint256 sharesToQueue = 1000;
+
+        // Approve the redeemer to spend tokens (even though user doesn't have any)
+        vm.prank(user2);
+        IERC20(_osToken).approve(address(osTokenRedeemer), sharesToQueue);
+
+        // Try to enter exit queue without having osToken shares
+        // Should revert with ERC20 insufficient balance error
+        vm.prank(user2);
+        vm.expectRevert(); // Will revert due to SafeERC20.safeTransferFrom failing
+        osTokenRedeemer.enterExitQueue(sharesToQueue, user2);
+    }
+
+    function test_enterExitQueue_success() public {
+        // Setup: Mint osTokens to user1
+        _collateralizeEthVault(address(vault));
+        _depositToVault(address(vault), DEPOSIT_AMOUNT, user1, user1);
+
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, osTokenShares, address(0));
+
+        // Approve the redeemer to spend osTokens
+        vm.prank(user1);
+        IERC20(_osToken).approve(address(osTokenRedeemer), osTokenShares);
+
+        // Get initial state
+        uint256 initialQueuedShares = osTokenRedeemer.queuedShares();
+        uint256 initialOsTokenBalance = IERC20(_osToken).balanceOf(user1);
+        uint256 initialRedeemerBalance = IERC20(_osToken).balanceOf(address(osTokenRedeemer));
+
+        // Calculate expected position ticket
+        (,, uint256 totalTickets) = osTokenRedeemer.getExitQueueData();
+        uint256 expectedPositionTicket = totalTickets;
+
+        // Expect ExitQueueEntered event
+        vm.expectEmit(true, true, true, true);
+        emit IOsTokenRedeemer.ExitQueueEntered(user1, user1, expectedPositionTicket, osTokenShares);
+
+        // Enter exit queue
+        vm.prank(user1);
+        _startSnapshotGas("EthOsTokenRedeemerTest_test_enterExitQueue_success");
+        uint256 positionTicket = osTokenRedeemer.enterExitQueue(osTokenShares, user1);
+        _stopSnapshotGas();
+
+        // Verify position ticket
+        assertEq(positionTicket, expectedPositionTicket, "Position ticket mismatch");
+
+        // Verify queued shares increased
+        assertEq(
+            osTokenRedeemer.queuedShares(), initialQueuedShares + osTokenShares, "Queued shares not updated correctly"
+        );
+
+        // Verify osToken was transferred from user to redeemer
+        assertEq(
+            IERC20(_osToken).balanceOf(user1),
+            initialOsTokenBalance - osTokenShares,
+            "User osToken balance not decreased"
+        );
+        assertEq(
+            IERC20(_osToken).balanceOf(address(osTokenRedeemer)),
+            initialRedeemerBalance + osTokenShares,
+            "Redeemer osToken balance not increased"
+        );
+
+        // Verify exit request was recorded
+        bytes32 requestKey = keccak256(abi.encode(user1, positionTicket));
+        uint256 exitRequestShares = osTokenRedeemer.exitRequests(requestKey);
+        assertEq(exitRequestShares, osTokenShares, "Exit request not recorded correctly");
+
+        // Test entering queue with different receiver
+        address receiver = makeAddr("receiver");
+
+        // Mint more osTokens
+        vm.prank(user1);
+        vault.mintOsToken(user1, osTokenShares, address(0));
+
+        vm.prank(user1);
+        IERC20(_osToken).approve(address(osTokenRedeemer), osTokenShares);
+
+        // Enter exit queue with different receiver
+        vm.prank(user1);
+        uint256 positionTicket2 = osTokenRedeemer.enterExitQueue(osTokenShares, receiver);
+
+        // Verify the request is stored with receiver as key
+        bytes32 requestKey2 = keccak256(abi.encode(receiver, positionTicket2));
+        uint256 exitRequestShares2 = osTokenRedeemer.exitRequests(requestKey2);
+        assertEq(exitRequestShares2, osTokenShares, "Exit request with different receiver not recorded correctly");
+    }
 }
