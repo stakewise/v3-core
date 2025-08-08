@@ -719,4 +719,12 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         uint256 exitRequestShares2 = osTokenRedeemer.exitRequests(requestKey2);
         assertEq(exitRequestShares2, osTokenShares, "Exit request with different receiver not recorded correctly");
     }
+
+    function test_redeemOsTokenPositions_noQueuedShares() public {}
+    function test_redeemOsTokenPositions_noPositions() public {}
+    function test_redeemOsTokenPositions_zeroSharesToRedeem() public {}
+    function test_redeemOsTokenPositions_invalidMerkleRoot() public {}
+    function test_redeemOsTokenPositions_invalidProof() public {}
+    function test_redeemOsTokenPositions_success_singlePosition() public {}
+    function test_redeemOsTokenPositions_success_multiplePositions() public {}
 }
