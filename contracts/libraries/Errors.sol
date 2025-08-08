@@ -54,11 +54,12 @@ library Errors {
     error InvalidSignatures();
     error EmptySubVaults();
     error EjectingVaultNotFound();
-    error UnclaimedAssets();
     error EjectingVault();
     error RepeatedEjectingVault();
+    error UnclaimedAssets();
     error InvalidCurator();
     error RewardsNonceIsHigher();
     error InvalidRedeemablePositions();
     error RedeemablePositionsProposed();
+    error InvalidDelay();
 }

@@ -24,7 +24,7 @@ import {GnoVaultFactory} from "../contracts/vaults/gnosis/GnoVaultFactory.sol";
 import {GnoMetaVaultFactory} from "../contracts/vaults/gnosis/custom/GnoMetaVaultFactory.sol";
 import {CuratorsRegistry, ICuratorsRegistry} from "../contracts/curators/CuratorsRegistry.sol";
 import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
-import {OsTokenRedeemer} from "../contracts/tokens/OsTokenRedeemer.sol";
+import {GnoOsTokenRedeemer} from "../contracts/tokens/GnoOsTokenRedeemer.sol";
 import {Network} from "./Network.sol";
 
 contract UpgradeGnoNetwork is Network {
@@ -33,6 +33,7 @@ contract UpgradeGnoNetwork is Network {
     address public validatorsRegistry;
     address public gnoToken;
     uint256 public osTokenRedeemerRootUpdateDelay;
+    uint256 public osTokenRedeemerExitQueueUpdateDelay;
 
     address public consolidationsChecker;
     address public validatorsChecker;
@@ -49,6 +50,7 @@ contract UpgradeGnoNetwork is Network {
         metaVaultFactoryOwner = vm.envAddress("META_VAULT_FACTORY_OWNER");
         osTokenRedeemerOwner = vm.envAddress("OS_TOKEN_REDEEMER_OWNER");
         osTokenRedeemerRootUpdateDelay = vm.envUint("OS_TOKEN_REDEEMER_ROOT_UPDATE_DELAY");
+        osTokenRedeemerExitQueueUpdateDelay = vm.envUint("OS_TOKEN_REDEEMER_EXIT_QUEUE_UPDATE_DELAY");
         tokensConverterFactory = vm.envAddress("TOKENS_CONVERTER_FACTORY");
         validatorsRegistry = vm.envAddress("VALIDATORS_REGISTRY");
         gnoToken = vm.envAddress("GNO_TOKEN");
@@ -82,8 +84,13 @@ contract UpgradeGnoNetwork is Network {
 
         // deploy OsToken redeemer
         osTokenRedeemer = address(
-            new OsTokenRedeemer(
-                deployment.vaultsRegistry, deployment.osToken, osTokenRedeemerOwner, osTokenRedeemerRootUpdateDelay
+            new GnoOsTokenRedeemer(
+                gnoToken,
+                deployment.osToken,
+                deployment.osTokenVaultController,
+                osTokenRedeemerOwner,
+                osTokenRedeemerRootUpdateDelay,
+                osTokenRedeemerExitQueueUpdateDelay
             )
         );
 
