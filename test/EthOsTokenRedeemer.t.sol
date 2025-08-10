@@ -161,6 +161,10 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         vault2.mintOsToken(user3, user3OsTokenShares, address(0));
     }
 
+    function _hashPair(bytes32 leaf1, bytes32 leaf2) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(leaf1 < leaf2 ? leaf1 : leaf2, leaf1 < leaf2 ? leaf2 : leaf1));
+    }
+
     function test_deployRedeemer_invalidDelays() public {
         // Test deploying with position update delay that exceeds uint64 max
         uint256 invalidPositionDelay = uint256(type(uint64).max) + 1;
@@ -720,11 +724,310 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         assertEq(exitRequestShares2, osTokenShares, "Exit request with different receiver not recorded correctly");
     }
 
-    function test_redeemOsTokenPositions_noQueuedShares() public {}
-    function test_redeemOsTokenPositions_noPositions() public {}
-    function test_redeemOsTokenPositions_zeroSharesToRedeem() public {}
-    function test_redeemOsTokenPositions_invalidMerkleRoot() public {}
-    function test_redeemOsTokenPositions_invalidProof() public {}
-    function test_redeemOsTokenPositions_success_singlePosition() public {}
-    function test_redeemOsTokenPositions_success_multiplePositions() public {}
+    function test_redeemOsTokenPositions_noQueuedShares() public {
+        // Prepare merkle tree data
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            owner: user1,
+            leafShares: 1 ether,
+            sharesToRedeem: 1 ether
+        });
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
+        // Set up redeemable positions
+        bytes32 leaf =
+            keccak256(bytes.concat(keccak256(abi.encode(osTokenRedeemer.nonce(), address(vault), 1 ether, user1))));
+        IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
+            IOsTokenRedeemer.RedeemablePositions({merkleRoot: leaf, ipfsHash: TEST_IPFS_HASH});
+        _proposeAndAcceptPositions(redeemablePositions);
+
+        // Call redeemOsTokenPositions with no queued shares - should return early
+        vm.prank(user1);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+
+        // Verify no shares were redeemed
+        assertEq(osTokenRedeemer.redeemedShares(), 0, "No shares should be redeemed");
+    }
+
+    function test_redeemOsTokenPositions_noPositions() public {
+        // Setup: Create some queued shares
+        _collateralizeEthVault(address(vault));
+        _depositToVault(address(vault), DEPOSIT_AMOUNT, user1, user1);
+
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, osTokenShares, address(0));
+
+        vm.prank(user1);
+        IERC20(_osToken).approve(address(osTokenRedeemer), osTokenShares);
+
+        vm.prank(user1);
+        osTokenRedeemer.enterExitQueue(osTokenShares, user1);
+
+        // Call with empty positions array
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](0);
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
+        uint256 queuedSharesBefore = osTokenRedeemer.queuedShares();
+
+        vm.prank(user1);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+
+        // Verify nothing was redeemed
+        assertEq(osTokenRedeemer.queuedShares(), queuedSharesBefore, "Queued shares should not change");
+        assertEq(osTokenRedeemer.redeemedShares(), 0, "No shares should be redeemed");
+    }
+
+    function test_redeemOsTokenPositions_zeroSharesToRedeem() public {
+        // Setup: Create queued shares and positions
+        _collateralizeEthVault(address(vault));
+        _depositToVault(address(vault), DEPOSIT_AMOUNT, user1, user1);
+
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, osTokenShares, address(0));
+
+        vm.prank(user1);
+        IERC20(_osToken).approve(address(osTokenRedeemer), osTokenShares);
+
+        vm.prank(user1);
+        osTokenRedeemer.enterExitQueue(osTokenShares, user1);
+
+        // Create position with zero shares to redeem
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            owner: user1,
+            leafShares: 1 ether,
+            sharesToRedeem: 0 // Zero shares to redeem
+        });
+
+        // Set up merkle root
+        bytes32 leaf =
+            keccak256(bytes.concat(keccak256(abi.encode(osTokenRedeemer.nonce(), address(vault), 1 ether, user1))));
+        IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
+            IOsTokenRedeemer.RedeemablePositions({merkleRoot: leaf, ipfsHash: TEST_IPFS_HASH});
+        _proposeAndAcceptPositions(redeemablePositions);
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
+        uint256 queuedSharesBefore = osTokenRedeemer.queuedShares();
+
+        vm.prank(user1);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+
+        // Verify nothing was redeemed
+        assertEq(osTokenRedeemer.queuedShares(), queuedSharesBefore, "Queued shares should not change");
+        assertEq(osTokenRedeemer.redeemedShares(), 0, "No shares should be redeemed");
+    }
+
+    function test_redeemOsTokenPositions_invalidProof() public {
+        // Setup: Create queued shares
+        _collateralizeEthVault(address(vault));
+        _depositToVault(address(vault), DEPOSIT_AMOUNT, user1, user1);
+
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, osTokenShares, address(0));
+
+        vm.prank(user1);
+        IERC20(_osToken).approve(address(osTokenRedeemer), osTokenShares);
+
+        vm.prank(user1);
+        osTokenRedeemer.enterExitQueue(osTokenShares, user1);
+
+        // Create position
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            owner: user1,
+            leafShares: 1 ether,
+            sharesToRedeem: 1 ether
+        });
+
+        // Set up merkle root with different values (invalid proof)
+        bytes32 leaf = keccak256(
+            bytes.concat(keccak256(abi.encode(osTokenRedeemer.nonce(), address(vault), 2 ether, user1))) // Different amount
+        );
+        IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
+            IOsTokenRedeemer.RedeemablePositions({merkleRoot: leaf, ipfsHash: TEST_IPFS_HASH});
+        _proposeAndAcceptPositions(redeemablePositions);
+
+        // Provide wrong proof
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = keccak256("wrong_proof");
+        bool[] memory proofFlags = new bool[](1);
+        proofFlags[0] = true;
+
+        // Should revert with invalid proof
+        vm.prank(user1);
+        vm.expectRevert(); // Invalid merkle proof
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+    }
+
+    function test_redeemOsTokenPositions_success_singlePosition() public {
+        // Setup: Create vault position and mint osTokens
+        _collateralizeEthVault(address(vault));
+        _depositToVault(address(vault), DEPOSIT_AMOUNT, user1, user1);
+
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(2 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, osTokenShares, address(0));
+
+        // Enter exit queue with some shares
+        vm.prank(user1);
+        IERC20(_osToken).approve(address(osTokenRedeemer), osTokenShares);
+
+        vm.prank(user1);
+        osTokenRedeemer.enterExitQueue(osTokenShares, user1);
+
+        // Create position to redeem
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            owner: user1,
+            leafShares: osTokenShares,
+            sharesToRedeem: osTokenShares / 2 // Redeem half
+        });
+
+        // Set up merkle root (single leaf = root)
+        bytes32 leaf = keccak256(
+            bytes.concat(keccak256(abi.encode(osTokenRedeemer.nonce(), address(vault), osTokenShares, user1)))
+        );
+        IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
+            IOsTokenRedeemer.RedeemablePositions({merkleRoot: leaf, ipfsHash: TEST_IPFS_HASH});
+        _proposeAndAcceptPositions(redeemablePositions);
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
+        uint256 queuedSharesBefore = osTokenRedeemer.queuedShares();
+        uint256 redeemedSharesBefore = osTokenRedeemer.redeemedShares();
+
+        uint256 expectedRedeemedShares = osTokenShares / 2;
+        uint256 expectedRedeemedAssets = contracts.osTokenVaultController.convertToAssets(expectedRedeemedShares);
+        vm.expectEmit(true, true, true, true);
+        emit IOsTokenRedeemer.OsTokenPositionsRedeemed(expectedRedeemedShares, expectedRedeemedAssets);
+
+        // Redeem position
+        vm.prank(user1);
+        _startSnapshotGas("EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_singlePosition");
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+        _stopSnapshotGas();
+
+        // Verify shares were redeemed
+        assertEq(
+            osTokenRedeemer.queuedShares(), queuedSharesBefore - expectedRedeemedShares, "Queued shares should decrease"
+        );
+        assertEq(
+            osTokenRedeemer.redeemedShares(),
+            redeemedSharesBefore + expectedRedeemedShares,
+            "Redeemed shares should increase"
+        );
+    }
+
+    function test_redeemOsTokenPositions_success_multiplePositions() public {
+        // Setup: Create positions for multiple users/vaults
+        _collateralizeEthVault(address(vault));
+        _collateralizeEthVault(address(vault2));
+
+        _depositToVault(address(vault), DEPOSIT_AMOUNT, user1, user1);
+        _depositToVault(address(vault2), DEPOSIT_AMOUNT, user2, user2);
+
+        // Mint osTokens for each user
+        uint256 user1Shares = contracts.osTokenVaultController.convertToShares(2 ether);
+        uint256 user2Shares = contracts.osTokenVaultController.convertToShares(1 ether);
+
+        vm.prank(user1);
+        vault.mintOsToken(user1, user1Shares, address(0));
+
+        vm.prank(user2);
+        vault2.mintOsToken(user2, user2Shares, address(0));
+
+        // All users enter exit queue
+        vm.prank(user1);
+        IERC20(_osToken).approve(address(osTokenRedeemer), user1Shares);
+        vm.prank(user1);
+        osTokenRedeemer.enterExitQueue(user1Shares, user1);
+
+        vm.prank(user2);
+        IERC20(_osToken).approve(address(osTokenRedeemer), user2Shares);
+        vm.prank(user2);
+        osTokenRedeemer.enterExitQueue(user2Shares, user2);
+
+        // Create multiple positions
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](2);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            owner: user1,
+            leafShares: user1Shares,
+            sharesToRedeem: user1Shares / 2
+        });
+        positions[1] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault2),
+            owner: user2,
+            leafShares: user2Shares,
+            sharesToRedeem: user2Shares
+        });
+
+        // Create merkle tree
+        uint256 nonce = osTokenRedeemer.nonce();
+        bytes32 leaf1 = keccak256(bytes.concat(keccak256(abi.encode(nonce, address(vault), user1Shares, user1))));
+        bytes32 leaf2 = keccak256(bytes.concat(keccak256(abi.encode(nonce, address(vault2), user2Shares, user2))));
+
+        // Build merkle tree
+        bytes32 merkleRoot = _hashPair(leaf1, leaf2);
+
+        IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
+            IOsTokenRedeemer.RedeemablePositions({merkleRoot: merkleRoot, ipfsHash: TEST_IPFS_HASH});
+        _proposeAndAcceptPositions(redeemablePositions);
+
+        // Create merkle proof
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](1);
+        proofFlags[0] = true;
+
+        // push to stack
+        uint256 _user1Shares = user1Shares;
+        uint256 _user2Shares = user2Shares;
+        IOsTokenRedeemer.OsTokenPosition[] memory _positions = positions;
+
+        uint256 queuedSharesBefore = osTokenRedeemer.queuedShares();
+        uint256 redeemedSharesBefore = osTokenRedeemer.redeemedShares();
+
+        // Redeem positions
+        vm.prank(user1);
+        _startSnapshotGas("EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_multiplePositions");
+        osTokenRedeemer.redeemOsTokenPositions(_positions, proof, proofFlags);
+        _stopSnapshotGas();
+
+        // Calculate expected redeemed amount
+        uint256 expectedRedeemed = (_user1Shares / 2) + _user2Shares;
+
+        // Verify shares were redeemed
+        assertEq(
+            osTokenRedeemer.queuedShares(),
+            queuedSharesBefore - expectedRedeemed,
+            "Queued shares should decrease by total redeemed"
+        );
+        assertEq(
+            osTokenRedeemer.redeemedShares(),
+            redeemedSharesBefore + expectedRedeemed,
+            "Redeemed shares should increase by total redeemed"
+        );
+    }
+
+    function test_swapAssetsToOsTokenShares_zeroAssets() public {}
+    function test_swapAssetsToOsTokenShares_zeroReceiver() public {}
+    function test_swapAssetsToOsTokenShares_zeroOsTokenShares() public {}
+    function test_swapAssetsToOsTokenShares_success() public {}
+
+    function test_processExitQueue_tooEarlyUpdate() public {}
+    function test_processExitQueue_nothingToProcess() public {}
+    function test_processExitQueue_success() public {}
 }

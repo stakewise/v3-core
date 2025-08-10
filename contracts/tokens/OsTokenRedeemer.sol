@@ -314,7 +314,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         bytes32[] memory leaves = new bytes32[](positionsCount);
 
         // SLOAD to memory
-        uint256 _nonce = nonce;
+        uint256 _nonce = nonce - 1; // use nonce - 1 to match the leaf calculation
         for (uint256 i = 0; i < positionsCount;) {
             OsTokenPosition memory position = positions[i];
 
