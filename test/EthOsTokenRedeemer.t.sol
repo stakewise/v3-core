@@ -118,25 +118,6 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         _depositToVault(address(vault2), DEPOSIT_AMOUNT, user3, user3);
     }
 
-    function _createMerkleRoot(IOsTokenRedeemer.OsTokenPosition[] memory positions) internal pure returns (bytes32) {
-        if (positions.length == 0) return EMPTY_ROOT;
-        if (positions.length == 1) {
-            return keccak256(
-                bytes.concat(keccak256(abi.encode(positions[0].vault, positions[0].leafShares, positions[0].owner)))
-            );
-        }
-
-        // Simple 2-leaf tree for testing
-        bytes32 leaf1 = keccak256(
-            bytes.concat(keccak256(abi.encode(positions[0].vault, positions[0].leafShares, positions[0].owner)))
-        );
-        bytes32 leaf2 = keccak256(
-            bytes.concat(keccak256(abi.encode(positions[1].vault, positions[1].leafShares, positions[1].owner)))
-        );
-
-        return keccak256(abi.encodePacked(leaf1 < leaf2 ? leaf1 : leaf2, leaf1 < leaf2 ? leaf2 : leaf1));
-    }
-
     function _proposeAndAcceptPositions(IOsTokenRedeemer.RedeemablePositions memory positions) internal {
         vm.prank(positionsManager);
         osTokenRedeemer.proposeRedeemablePositions(positions);
@@ -147,23 +128,72 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         osTokenRedeemer.acceptRedeemablePositions();
     }
 
-    function _mintOsTokensToUsers() internal {
-        uint256 user1OsTokenShares = contracts.osTokenVaultController.convertToShares(2 ether);
-        uint256 user2OsTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
-        uint256 user3OsTokenShares = contracts.osTokenVaultController.convertToShares(1.5 ether);
-
-        vm.prank(user1);
-        vault.mintOsToken(user1, user1OsTokenShares, address(0));
-
-        vm.prank(user2);
-        vault.mintOsToken(user2, user2OsTokenShares, address(0));
-
-        vm.prank(user3);
-        vault2.mintOsToken(user3, user3OsTokenShares, address(0));
-    }
-
     function _hashPair(bytes32 leaf1, bytes32 leaf2) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(leaf1 < leaf2 ? leaf1 : leaf2, leaf1 < leaf2 ? leaf2 : leaf1));
+    }
+
+    function _enterExitQueue(address user, uint256 shares) internal returns (uint256 positionTicket) {
+        vm.deal(user, shares * 3);
+
+        vm.startPrank(user);
+        vault.deposit{value: shares * 2}(user, address(0));
+        vault.mintOsToken(user, shares, address(0));
+
+        // User enters exit queue with all their shares
+        IERC20(_osToken).approve(address(osTokenRedeemer), shares);
+        positionTicket = osTokenRedeemer.enterExitQueue(shares, user);
+        vm.stopPrank();
+    }
+
+    function _redeemQueuedShares(uint256 shares) internal {
+        // Mint osTokens to users in vaults
+        vm.startPrank(user1);
+        vm.deal(user1, shares * 3);
+        vault.deposit{value: shares * 2}(user1, address(0));
+        vault.mintOsToken(user1, shares, address(0));
+        vm.stopPrank();
+
+        // Create merkle tree for positions
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault),
+            owner: user1,
+            leafShares: shares,
+            sharesToRedeem: shares
+        });
+
+        // Create merkle root
+        uint256 nonce = osTokenRedeemer.nonce();
+        bytes32 merkleRoot = keccak256(bytes.concat(keccak256(abi.encode(nonce, address(vault), shares, user1))));
+
+        IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
+            IOsTokenRedeemer.RedeemablePositions({merkleRoot: merkleRoot, ipfsHash: TEST_IPFS_HASH});
+        _proposeAndAcceptPositions(redeemablePositions);
+
+        uint256 redeemedSharesBefore = osTokenRedeemer.redeemedShares();
+        uint256 redeemedAssetsBefore = osTokenRedeemer.redeemedAssets();
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+
+        uint256 assets = contracts.osTokenVaultController.convertToAssets(shares);
+
+        // Verify shares were redeemed
+        assertEq(osTokenRedeemer.redeemedShares(), redeemedSharesBefore + shares, "Shares should be redeemed");
+        assertEq(osTokenRedeemer.redeemedAssets(), redeemedAssetsBefore + assets, "Assets should be redeemed");
+    }
+
+    function _swapQueuedShares(uint256 shares) public {
+        uint256 swappedSharesBefore = osTokenRedeemer.swappedShares();
+        uint256 swappedAssetsBefore = osTokenRedeemer.swappedAssets();
+
+        uint256 assets = contracts.osTokenVaultController.convertToAssets(shares);
+        osTokenRedeemer.swapAssetsToOsTokenShares{value: assets}(address(this));
+
+        // Verify shares were swapped
+        assertApproxEqAbs(osTokenRedeemer.swappedShares(), swappedSharesBefore + shares, 1, "Shares should be swapped");
+        assertApproxEqAbs(osTokenRedeemer.swappedAssets(), swappedAssetsBefore + assets, 1, "Assets should be swapped");
     }
 
     function test_deployRedeemer_invalidDelays() public {
@@ -1024,31 +1054,18 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     }
 
     function test_swapAssetsToOsTokenShares_zeroAssets() public {
-        // Setup: Create some pending positions first
-        _setupRedeemablePositions();
-
         // Attempt to swap with zero assets
         vm.expectRevert(Errors.InvalidAssets.selector);
         osTokenRedeemer.swapAssetsToOsTokenShares{value: 0}(user1);
     }
 
     function test_swapAssetsToOsTokenShares_zeroReceiver() public {
-        // Setup: Create some pending positions first
-        _setupRedeemablePositions();
-
-        // Send ETH to the redeemer to ensure it has assets
-        uint256 swapAmount = 1 ether;
-        vm.deal(address(this), swapAmount);
-
         // Attempt to swap with zero receiver address
         vm.expectRevert(Errors.ZeroAddress.selector);
-        osTokenRedeemer.swapAssetsToOsTokenShares{value: swapAmount}(address(0));
+        osTokenRedeemer.swapAssetsToOsTokenShares{value: 1 ether}(address(0));
     }
 
     function test_swapAssetsToOsTokenShares_zeroOsTokenShares() public {
-        // Setup: Create some pending positions first but with minimal queued shares
-        _setupRedeemablePositions();
-
         // Try swapping a very small amount that would result in 0 shares
         uint256 tinyAmount = 1 wei;
         vm.deal(address(this), tinyAmount);
@@ -1069,8 +1086,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     }
 
     function test_swapAssetsToOsTokenShares_success() public {
-        // Setup: Create redeemable positions and ensure there are queued shares
-        _setupRedeemablePositions();
+        _enterExitQueue(user1, 100 ether);
 
         uint256 swapAmount = 2 ether;
         vm.deal(user2, swapAmount);
@@ -1123,10 +1139,6 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     // ============ test_processExitQueue Tests ============
 
     function test_processExitQueue_tooEarlyUpdate() public {
-        // Setup: Create some swapped/redeemed shares and assets
-        _setupRedeemablePositions();
-        _performSwapAndRedemption();
-
         // Store the exit queue timestamp
         uint256 exitQueueTimestamp = osTokenRedeemer.exitQueueTimestamp();
 
@@ -1138,9 +1150,6 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     }
 
     function test_processExitQueue_nothingToProcess() public {
-        // Setup: Create positions but don't swap or redeem anything
-        _setupRedeemablePositions();
-
         // Ensure enough time has passed
         vm.warp(block.timestamp + EXIT_QUEUE_UPDATE_DELAY + 1);
 
@@ -1163,17 +1172,12 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     }
 
     function test_processExitQueue_success() public {
-        // Setup: Create positions and perform swaps and redemptions
-        _setupRedeemablePositions();
+        uint256 queuedShares = 100 ether;
+        address user = makeAddr("user");
+        _enterExitQueue(user, queuedShares);
 
-        // Perform a swap
-        uint256 swapAmount = 1 ether;
-        vm.deal(user2, swapAmount);
-        vm.prank(user2);
-        uint256 swappedOsTokenShares = osTokenRedeemer.swapAssetsToOsTokenShares{value: swapAmount}(user2);
-
-        // Perform redemptions
-        _performRedemption();
+        _swapQueuedShares(queuedShares / 2);
+        _redeemQueuedShares(queuedShares / 2);
 
         // Store states before processing
         uint256 swappedSharesBefore = osTokenRedeemer.swappedShares();
@@ -1183,8 +1187,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         uint256 unclaimedAssetsBefore = osTokenRedeemer.unclaimedAssets();
 
         // Get exit queue data before processing
-        (uint256 queuedSharesDataBefore, uint256 unclaimedAssetsDataBefore, uint256 totalTicketsBefore) =
-            osTokenRedeemer.getExitQueueData();
+        (, uint256 unclaimedAssetsDataBefore, uint256 totalTicketsBefore) = osTokenRedeemer.getExitQueueData();
 
         uint256 expectedProcessedShares = swappedSharesBefore + redeemedSharesBefore;
         uint256 expectedProcessedAssets = swappedAssetsBefore + redeemedAssetsBefore;
@@ -1218,8 +1221,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         );
 
         // Get exit queue data after processing
-        (uint256 queuedSharesDataAfter, uint256 unclaimedAssetsDataAfter, uint256 totalTicketsAfter) =
-            osTokenRedeemer.getExitQueueData();
+        (, uint256 unclaimedAssetsDataAfter, uint256 totalTicketsAfter) = osTokenRedeemer.getExitQueueData();
 
         // Verify exit queue data was updated correctly
         assertEq(totalTicketsAfter, totalTicketsBefore, "Total tickets should remain the same after processing");
@@ -1236,115 +1238,143 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         assertFalse(osTokenRedeemer.canProcessExitQueue(), "Should not be able to process immediately again");
     }
 
-    function test_claimExitedAssets_noPosition() public {}
-    function test_claimExitedAssets_partialWithdrawal() public {}
-    function test_claimExitedAssets_fullWithdrawal() public {}
+    function test_claimExitedAssets_noPosition() public {
+        // Setup: Create a non-existent position ticket
+        uint256 nonExistentTicket = 99999;
+        uint256 nonExistentExitQueueIndex = 0;
+        address nonExistentUser = makeAddr("nonExistentUser");
 
-    // ============ Helper Functions ============
+        // Act & Assert: Try to claim from a non-existent position
+        vm.prank(nonExistentUser);
+        _startSnapshotGas("test_claimExitedAssets_noPosition");
 
-    function _setupRedeemablePositions() internal {
-        // Calculate osToken shares based on a conservative amount (50% of deposits)
-        uint256 user1OsTokenAssets = 5 ether; // Conservative amount based on LTV
-        uint256 user2OsTokenAssets = 4 ether;
+        // Should revert because position doesn't exist (exitRequests mapping will return 0)
+        vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
+        osTokenRedeemer.claimExitedAssets(nonExistentTicket, nonExistentExitQueueIndex);
 
-        uint256 user1Shares = contracts.osTokenVaultController.convertToShares(user1OsTokenAssets);
-        uint256 user2Shares = contracts.osTokenVaultController.convertToShares(user2OsTokenAssets);
+        _stopSnapshotGas();
 
-        // Mint osTokens to users in vaults
-        vm.prank(user1);
-        vault.mintOsToken(user1, user1Shares, address(0));
+        // Additional verification: calculateExitedAssets should return zeros
+        (uint256 leftTickets, uint256 exitedTickets, uint256 exitedAssets) =
+            osTokenRedeemer.calculateExitedAssets(nonExistentUser, nonExistentTicket, nonExistentExitQueueIndex);
 
-        vm.prank(user2);
-        vault2.mintOsToken(user2, user2Shares, address(0));
-
-        // Users need to enter the exit queue first
-        vm.prank(user1);
-        IERC20(_osToken).approve(address(osTokenRedeemer), user1Shares);
-        vm.prank(user1);
-        osTokenRedeemer.enterExitQueue(user1Shares, user1);
-
-        vm.prank(user2);
-        IERC20(_osToken).approve(address(osTokenRedeemer), user2Shares);
-        vm.prank(user2);
-        osTokenRedeemer.enterExitQueue(user2Shares, user2);
-
-        // Create merkle tree for positions
-        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](2);
-        positions[0] = IOsTokenRedeemer.OsTokenPosition({
-            vault: address(vault),
-            owner: user1,
-            leafShares: user1Shares,
-            sharesToRedeem: user1Shares
-        });
-        positions[1] = IOsTokenRedeemer.OsTokenPosition({
-            vault: address(vault2),
-            owner: user2,
-            leafShares: user2Shares,
-            sharesToRedeem: user2Shares
-        });
-
-        // Create merkle root
-        uint256 nonce = osTokenRedeemer.nonce();
-        bytes32 leaf1 = keccak256(bytes.concat(keccak256(abi.encode(nonce, address(vault), user1Shares, user1))));
-        bytes32 leaf2 = keccak256(bytes.concat(keccak256(abi.encode(nonce, address(vault2), user2Shares, user2))));
-        bytes32 merkleRoot = _hashPair(leaf1, leaf2);
-
-        IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
-            IOsTokenRedeemer.RedeemablePositions({merkleRoot: merkleRoot, ipfsHash: TEST_IPFS_HASH});
-
-        _proposeAndAcceptPositions(redeemablePositions);
+        assertEq(leftTickets, 0, "Left tickets should be 0 for non-existent position");
+        assertEq(exitedTickets, 0, "Exited tickets should be 0 for non-existent position");
+        assertEq(exitedAssets, 0, "Exited assets should be 0 for non-existent position");
     }
 
-    function _performSwapAndRedemption() internal {
-        // Perform a swap
-        uint256 swapAmount = 0.5 ether;
-        vm.deal(user3, swapAmount);
-        vm.prank(user3);
-        osTokenRedeemer.swapAssetsToOsTokenShares{value: swapAmount}(user3);
+    function test_claimExitedAssets_partialWithdrawal() public {
+        // Setup: Create a user with a large position
+        uint256 sharesToQueue = 100 ether;
+        address user = makeAddr("user");
+        uint256 positionTicket = _enterExitQueue(user, sharesToQueue);
 
-        // Perform a redemption
-        _performRedemption();
+        // Simulate partial processing by having limited assets available
+        _swapQueuedShares(10 ether);
+        _redeemQueuedShares(5 ether);
+        uint256 exitedShares = 15 ether;
+
+        // Process exit queue - this will only partially process user's position
+        vm.warp(vm.getBlockTimestamp() + EXIT_QUEUE_UPDATE_DELAY + 1);
+        osTokenRedeemer.processExitQueue();
+        assertGt(osTokenRedeemer.unclaimedAssets(), 0, "Unclaimed assets should be greater than 0");
+
+        // Get the exit queue index
+        int256 exitQueueIndexSigned = osTokenRedeemer.getExitQueueIndex(positionTicket);
+        assertGt(exitQueueIndexSigned, -1, "Exit queue index should exist");
+        uint256 exitQueueIndex = uint256(exitQueueIndexSigned);
+
+        // Calculate what's been processed
+        (uint256 leftTickets, uint256 exitedTickets, uint256 exitedAssets) =
+            osTokenRedeemer.calculateExitedAssets(user, positionTicket, exitQueueIndex);
+
+        // push down the stack
+        uint256 _sharesToQueue = sharesToQueue;
+        uint256 _positionTicket = positionTicket;
+        address _user = user;
+
+        // Verify partial processing
+        assertGt(leftTickets, 0, "Should have tickets still left in queue");
+        assertGt(exitedTickets, 0, "Should have some tickets processed");
+        assertLt(exitedTickets, exitedShares, "Should not have all tickets processed");
+        assertGt(exitedAssets, 0, "Should have some assets available to claim");
+        assertLt(
+            exitedAssets,
+            contracts.osTokenVaultController.convertToAssets(exitedShares),
+            "Should not have all assets available"
+        );
+
+        // Record user balance before claiming
+        uint256 userBalanceBefore = _user.balance;
+
+        // Act: User claims the partially processed assets
+        vm.prank(_user);
+        _startSnapshotGas("test_claimExitedAssets_partialWithdrawal");
+        osTokenRedeemer.claimExitedAssets(_positionTicket, exitQueueIndex);
+        _stopSnapshotGas();
+
+        // Assert: Verify partial withdrawal
+        uint256 userBalanceAfter = _user.balance;
+        assertEq(
+            userBalanceAfter - userBalanceBefore, exitedAssets, "User should receive the partially processed assets"
+        );
+
+        // After claiming the processed portion, check if there's still an unprocessed portion
+        // The claimed portion is removed, but user may need to wait for more processing
+        (uint256 leftTicketsAfterClaim, uint256 exitedTicketsAfterClaim, uint256 exitedAssetsAfterClaim) =
+            osTokenRedeemer.calculateExitedAssets(_user, _positionTicket, exitQueueIndex);
+
+        assertEq(leftTicketsAfterClaim, 0, "Should have no tickets left after claim");
+        assertEq(exitedTicketsAfterClaim, 0, "Should have no exited tickets after claim");
+        assertEq(exitedAssetsAfterClaim, 0, "Should have no exited assets after claim");
+
+        // Verify the unclaimed assets were properly reduced
+        assertEq(osTokenRedeemer.unclaimedAssets(), 0, "Unclaimed assets should be greater than 0");
+        assertGt(osTokenRedeemer.queuedShares(), _sharesToQueue - exitedShares, "Queued shares should be reduced");
     }
 
-    function _performRedemption() internal {
-        // Get actual osToken positions from vaults
-        uint256 user1Shares = vault.osTokenPositions(user1);
-        uint256 user2Shares = vault2.osTokenPositions(user2);
+    function test_claimExitedAssets_fullWithdrawal() public {
+        // Setup: Create a user with a large position
+        uint256 sharesToQueue = 100 ether;
+        address user = makeAddr("user");
+        uint256 positionTicket = _enterExitQueue(user, sharesToQueue);
 
-        // Only redeem half of each user's shares
-        uint256 user1SharesToRedeem = user1Shares / 2;
-        uint256 user2SharesToRedeem = user2Shares / 2;
+        // Simulate partial processing by having limited assets available
+        _swapQueuedShares(sharesToQueue / 2);
+        _redeemQueuedShares(sharesToQueue / 2);
 
-        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](2);
-        positions[0] = IOsTokenRedeemer.OsTokenPosition({
-            vault: address(vault),
-            owner: user1,
-            leafShares: user1Shares,
-            sharesToRedeem: user1SharesToRedeem
-        });
-        positions[1] = IOsTokenRedeemer.OsTokenPosition({
-            vault: address(vault2),
-            owner: user2,
-            leafShares: user2Shares,
-            sharesToRedeem: user2SharesToRedeem
-        });
+        // Process exit queue - this will only partially process user's position
+        vm.warp(vm.getBlockTimestamp() + EXIT_QUEUE_UPDATE_DELAY + 1);
+        osTokenRedeemer.processExitQueue();
+        assertGt(osTokenRedeemer.unclaimedAssets(), 0, "Unclaimed assets should be greater than 0");
 
-        // Create merkle proof (for 2 leaves, we need proper proof setup)
-        uint256 nonce = osTokenRedeemer.nonce() - 1; // Use the nonce from accepted positions
-        bytes32 leaf1 = keccak256(bytes.concat(keccak256(abi.encode(nonce, address(vault), user1Shares, user1))));
-        bytes32 leaf2 = keccak256(bytes.concat(keccak256(abi.encode(nonce, address(vault2), user2Shares, user2))));
+        // Get the exit queue index
+        int256 exitQueueIndexSigned = osTokenRedeemer.getExitQueueIndex(positionTicket);
+        assertGt(exitQueueIndexSigned, -1, "Exit queue index should exist");
+        uint256 exitQueueIndex = uint256(exitQueueIndexSigned);
 
-        bytes32[] memory proof = new bytes32[](0);
-        bool[] memory proofFlags = new bool[](1);
-        proofFlags[0] = true; // Both leaves are provided, so we compute the root
+        // Calculate what's been processed
+        (uint256 leftTickets, uint256 exitedTickets, uint256 exitedAssets) =
+            osTokenRedeemer.calculateExitedAssets(user, positionTicket, exitQueueIndex);
 
-        // Mint osTokens to the osTokenRedeemer for the redemption
-        // The redeemer needs to have the osTokens to redeem them
-        uint256 totalSharesToRedeem = user1SharesToRedeem + user2SharesToRedeem;
-        _mintOsToken(address(osTokenRedeemer), totalSharesToRedeem);
+        // Verify fully processed
+        assertEq(leftTickets, 0, "Should have no tickets left");
+        assertEq(exitedTickets, sharesToQueue, "Should have all tickets processed");
+        assertGt(exitedAssets, 0, "Should have all assets available");
 
-        // The osTokenRedeemer contract calls the redemption directly (not pranked)
-        // This should be called by the contract itself or through a designated redeemer
-        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+        // Record user balance before claiming
+        uint256 userBalanceBefore = user.balance;
+
+        // Act: User claims the partially processed assets
+        vm.prank(user);
+        _startSnapshotGas("test_claimExitedAssets_fullWithdrawal");
+        osTokenRedeemer.claimExitedAssets(positionTicket, exitQueueIndex);
+        _stopSnapshotGas();
+
+        // Assert: Verify full withdrawal
+        uint256 userBalanceAfter = user.balance;
+        assertEq(
+            userBalanceAfter - userBalanceBefore, exitedAssets, "User should receive the partially processed assets"
+        );
     }
 }
