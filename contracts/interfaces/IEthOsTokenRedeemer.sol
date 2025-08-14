@@ -11,7 +11,7 @@ import {IOsTokenRedeemer} from "./IOsTokenRedeemer.sol";
  */
 interface IEthOsTokenRedeemer is IOsTokenRedeemer {
     /**
-     * @notice Swap assets to OsToken shares
+     * @notice Swap assets to OsToken shares. Must send ETH together with the call.
      * @param receiver The address to receive the OsToken shares
      * @return osTokenShares The amount of OsToken shares received
      */

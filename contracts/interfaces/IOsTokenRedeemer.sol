@@ -2,12 +2,14 @@
 
 pragma solidity ^0.8.22;
 
+import {IMulticall} from "./IMulticall.sol";
+
 /**
  * @title IOsTokenRedeemer
  * @author StakeWise
  * @notice Interface for OsTokenRedeemer contract
  */
-interface IOsTokenRedeemer {
+interface IOsTokenRedeemer is IMulticall {
     /**
      * @notice Struct to store the redeemable positions Merkle root and IPFS hash
      * @param merkleRoot The Merkle root of the redeemable positions
@@ -183,7 +185,7 @@ interface IOsTokenRedeemer {
     function exitQueueTimestamp() external view returns (uint256);
 
     /**
-     * @notice The address that manages redeemable OsToken positions
+     * @notice The address that can propose redeemable OsToken positions
      * @return The address of the positions manager
      */
     function positionsManager() external view returns (address);
