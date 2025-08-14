@@ -51,6 +51,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     address private constant _gnoToken = 0x9C58BAcC331c9aa871AFD802DB6379a98e80CEdb;
     address internal constant _poolEscrow = 0xfc9B67b6034F6B306EA9Bd8Ec1baf3eFA2490394;
     address internal constant _rewardGnoToken = 0x6aC78efae880282396a335CA2F79863A1e6831D4;
+    address internal constant _osToken = 0xF490c80aAE5f2616d3e3BDa2483E30C4CB21d1A0;
     address private constant _sDaiToken = 0xaf204776c7245bF4147c2612BF6e5972Ee483701;
     address internal constant _tokensConverterFactory = 0x686d93989EC722560D00dC0dA31Ba69C00BfdfbF;
     uint256 internal constant _exitingAssetsClaimDelay = 1 days;

@@ -1,0 +1,6 @@
+{
+  "GnoOsTokenRedeemerTest_test_claimExitedAssets_fullWithdrawal": "80518",
+  "GnoOsTokenRedeemerTest_test_permitGnoToken_success": "91926",
+  "GnoOsTokenRedeemerTest_test_redeemOsTokenPositions_success_singlePosition": "271492",
+  "GnoOsTokenRedeemerTest_test_swapAssetsToOsTokenShares_success": "138041"
+}
