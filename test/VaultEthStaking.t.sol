@@ -483,6 +483,9 @@ contract VaultEthStakingTest is Test, EthHelpers {
     }
 
     function test_donateAssets_basic() public {
+        // Collateralize vault
+        _collateralizeEthVault(address(vault));
+
         uint256 donationAmount = 1 ether;
 
         // Get vault state before donation
@@ -516,9 +519,18 @@ contract VaultEthStakingTest is Test, EthHelpers {
     }
 
     function test_donateAssets_zeroValue() public {
+        // Collateralize vault
+        _collateralizeEthVault(address(vault));
+
         // Trying to donate 0 ETH should revert
         vm.prank(sender);
         vm.expectRevert(Errors.InvalidAssets.selector);
         vault.donateAssets{value: 0}();
+    }
+
+    function test_donateAssets_notCollateralized() public {
+        vm.prank(sender);
+        vm.expectRevert(Errors.NotCollateralized.selector);
+        vault.donateAssets{value: 1 ether}();
     }
 }

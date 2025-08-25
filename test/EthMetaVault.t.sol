@@ -411,6 +411,12 @@ contract EthMetaVaultTest is Test, EthHelpers {
     }
 
     function test_donateAssets_basic() public {
+        // First collateralize the meta vault
+        uint256 depositAmount = 10 ether;
+        vm.prank(sender);
+        metaVault.deposit{value: depositAmount}(sender, referrer);
+        metaVault.depositToSubVaults();
+
         uint256 donationAmount = 1 ether;
 
         // Get vault state before donation
@@ -446,6 +452,12 @@ contract EthMetaVaultTest is Test, EthHelpers {
     }
 
     function test_donateAssets_zeroValue() public {
+        // First collateralize the meta vault
+        uint256 depositAmount = 10 ether;
+        vm.prank(sender);
+        metaVault.deposit{value: depositAmount}(sender, referrer);
+        metaVault.depositToSubVaults();
+
         // Trying to donate 0 ETH should revert
         vm.prank(sender);
         vm.expectRevert(Errors.InvalidAssets.selector);

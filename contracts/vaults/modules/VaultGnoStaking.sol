@@ -63,6 +63,7 @@ abstract contract VaultGnoStaking is
 
     /// @inheritdoc IVaultGnoStaking
     function donateAssets(uint256 amount) external override {
+        _checkCollateralized();
         if (amount == 0) {
             revert Errors.InvalidAssets();
         }

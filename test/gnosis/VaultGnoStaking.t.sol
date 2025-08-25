@@ -527,6 +527,9 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     }
 
     function test_donateAssets_basic() public {
+        // Collateralize vault
+        _collateralizeGnoVault(address(vault));
+
         uint256 donationAmount = 1 ether;
 
         // Get vault state before donation
@@ -568,10 +571,19 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     }
 
     function test_gnoVault_donateAssets_zeroValue() public {
+        // Collateralize vault
+        _collateralizeGnoVault(address(vault));
+
         // Trying to donate 0 GNO should revert
         vm.prank(sender);
         vm.expectRevert(Errors.InvalidAssets.selector);
         vault.donateAssets(0);
+    }
+
+    function test_gnoVault_donateAssets_notCollateralized() public {
+        vm.prank(sender);
+        vm.expectRevert(Errors.NotCollateralized.selector);
+        vault.donateAssets(1 ether);
     }
 
     // Helper functions
