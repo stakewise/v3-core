@@ -100,4 +100,10 @@ interface IVaultEnterExit is IVaultState {
      *        It can be looked up by calling `getExitQueueIndex`.
      */
     function claimExitedAssets(uint256 positionTicket, uint256 timestamp, uint256 exitQueueIndex) external;
+
+    /**
+     * @notice Rescue any assets that are not backing shares when the vault is not collateralized.
+     * @dev Can be called only by the admin when the vault is not collateralized.
+     */
+    function rescueAssets() external;
 }

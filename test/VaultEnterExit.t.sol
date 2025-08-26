@@ -268,6 +268,66 @@ contract VaultEnterExitTest is Test, EthHelpers {
         );
     }
 
+    function test_rescueAssets_notAdmin() public {
+        // 1. Deposit ETH
+        _depositToVault(address(vault), depositAmount, sender, sender);
+
+        // 2. Try to rescue assets as non-admin
+        vm.prank(sender);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        vault.rescueAssets();
+    }
+
+    function test_rescueAssets_collateralized() public {
+        // 1. Deposit ETH
+        _depositToVault(address(vault), depositAmount, sender, sender);
+
+        // 2. Collateralize the vault
+        _collateralizeEthVault(address(vault));
+
+        // 3. Try to rescue assets
+        vm.prank(admin);
+        vm.expectRevert(Errors.Collateralized.selector);
+        vault.rescueAssets();
+    }
+
+    function test_rescueAssets_nothingToRescue() public {
+        // 1. Deposit ETH
+        _depositToVault(address(vault), depositAmount, sender, sender);
+
+        // 2. rescue assets
+        uint256 totalAssets = vault.totalAssets();
+        uint256 adminBalanceBefore = admin.balance;
+        vm.prank(admin);
+        vault.rescueAssets();
+
+        uint256 adminBalanceAfter = admin.balance;
+        assertEq(
+            adminBalanceAfter - adminBalanceBefore, 0, "Admin balance should not change as there is nothing to rescue"
+        );
+        assertEq(address(vault).balance, totalAssets, "Vault balance should equal to the total assets before rescue");
+    }
+
+    function test_rescueAssets() public {
+        // 1. Deposit ETH
+        _depositToVault(address(vault), depositAmount, sender, sender);
+
+        // Withdraw some ETH directly to simulate excess assets
+        uint256 totalAssets = vault.totalAssets();
+        vm.deal(address(vault), totalAssets + 1 ether);
+
+        // 2. rescue assets
+        uint256 adminBalanceBefore = admin.balance;
+        vm.prank(admin);
+        _startSnapshotGas("VaultEnterExitTest_test_rescueAssets");
+        vault.rescueAssets();
+        _stopSnapshotGas();
+
+        uint256 adminBalanceAfter = admin.balance;
+        assertEq(adminBalanceAfter - adminBalanceBefore, 1 ether, "Admin should receive the rescued assets");
+        assertEq(address(vault).balance, totalAssets, "Vault balance should equal to the total assets before rescue");
+    }
+
     function test_enterExitQueue_directRedemption() public {
         address _newVault = _createVault(
             VaultType.EthVault,

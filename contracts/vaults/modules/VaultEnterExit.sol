@@ -97,6 +97,22 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
         emit ExitedAssetsClaimed(msg.sender, positionTicket, newPositionTicket, exitedAssets);
     }
 
+    /// @inheritdoc IVaultEnterExit
+    function rescueAssets() external override {
+        _checkAdmin();
+
+        // rescue works only when the vault is not collateralized, i.e. does not have validators
+        if (_isCollateralized()) {
+            revert Errors.Collateralized();
+        }
+
+        // calculate amount of assets to rescue, exclude all the assets backing shares
+        uint256 rescuedAssets = _vaultAssets() - _totalAssets;
+
+        // transfer to admin
+        _transferVaultAssets(msg.sender, rescuedAssets);
+    }
+
     /**
      * @dev Internal function that must be used to process user deposits
      * @param to The address to mint shares to
