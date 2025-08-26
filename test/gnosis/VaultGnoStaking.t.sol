@@ -581,9 +581,20 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     }
 
     function test_gnoVault_donateAssets_notCollateralized() public {
+        // Create vault
+        bytes memory initParams = abi.encode(
+            IGnoVault.GnoVaultInitParams({
+                capacity: 1000 ether,
+                feePercent: 1000, // 10%
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address vaultAddr = _createVault(VaultType.GnoVault, admin, initParams, false);
+        GnoVault _vault = GnoVault(payable(vaultAddr));
+
         vm.prank(sender);
         vm.expectRevert(Errors.NotCollateralized.selector);
-        vault.donateAssets(1 ether);
+        _vault.donateAssets(1 ether);
     }
 
     // Helper functions

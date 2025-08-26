@@ -529,8 +529,19 @@ contract VaultEthStakingTest is Test, EthHelpers {
     }
 
     function test_donateAssets_notCollateralized() public {
+        // Create vault
+        bytes memory initParams = abi.encode(
+            IEthVault.EthVaultInitParams({
+                capacity: 1000 ether,
+                feePercent: 1000, // 10%
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address vaultAddr = _createVault(VaultType.EthVault, admin, initParams, false);
+        EthVault _vault = EthVault(payable(vaultAddr));
+
         vm.prank(sender);
         vm.expectRevert(Errors.NotCollateralized.selector);
-        vault.donateAssets{value: 1 ether}();
+        _vault.donateAssets{value: 1 ether}();
     }
 }
