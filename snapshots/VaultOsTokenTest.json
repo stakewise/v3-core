@@ -43,6 +43,6 @@
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_noPosition": "43502",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_notHarvested": "41330",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_partialTransfer": "173208",
-  "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_process": "721171",
+  "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_process": "721172",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_zeroShares": "47545"
 }

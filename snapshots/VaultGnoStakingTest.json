@@ -1,6 +1,6 @@
 {
   "VaultGnoStakingCoverageTest_test_processTotalAssetsDelta_smallXdaiBalance": "175401",
-  "VaultGnoStakingCoverageTest_test_registerValidator_topUp_invalid": "57161",
+  "VaultGnoStakingCoverageTest_test_registerValidator_topUp_invalid": "57224",
   "VaultGnoStakingCoverageTest_test_registerValidator_topUp_valid": "182246",
   "VaultGnoStakingTest_test_deposit": "98637",
   "VaultGnoStakingTest_test_processTotalAssetsDelta": "303158",
