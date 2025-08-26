@@ -89,11 +89,29 @@ interface IVaultSubVaults {
     function getSubVaults() external view returns (address[] memory);
 
     /**
+     * @notice Function to get the rewards nonce of the sub-vaults
+     * @return The rewards nonce
+     */
+    function subVaultsRewardsNonce() external view returns (uint128);
+
+    /**
      * @notice Function to get the state of a sub-vault
      * @param vault The address of the sub-vault
      * @return The state of the sub-vault
      */
     function subVaultsStates(address vault) external view returns (SubVaultState memory);
+
+    /**
+     * @notice Checks whether the meta vault can be updated
+     * @return `true` if the meta vault can be updated, `false` otherwise
+     */
+    function canUpdateState() external view returns (bool);
+
+    /**
+     * @notice Checks whether the vault is collateralized
+     * @return `true` if the vault is collateralized, `false` otherwise
+     */
+    function isCollateralized() external view returns (bool);
 
     /**
      * @notice Function to update the the sub-vaults curator. Can only be called by the admin.

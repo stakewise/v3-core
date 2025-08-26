@@ -15,6 +15,7 @@ import {IVaultEnterExit} from "../../interfaces/IVaultEnterExit.sol";
 import {ISubVaultsCurator} from "../../interfaces/ISubVaultsCurator.sol";
 import {IVaultSubVaults} from "../../interfaces/IVaultSubVaults.sol";
 import {ICuratorsRegistry} from "../../interfaces/ICuratorsRegistry.sol";
+import {IVaultVersion} from "../../interfaces/IVaultVersion.sol";
 import {ExitQueue} from "../../libraries/ExitQueue.sol";
 import {Errors} from "../../libraries/Errors.sol";
 import {VaultAdmin} from "./VaultAdmin.sol";
@@ -52,10 +53,11 @@ abstract contract VaultSubVaults is
     mapping(address vault => DoubleEndedQueue.Bytes32Deque) private _subVaultsExits;
     mapping(address vault => SubVaultState state) private _subVaultsStates;
 
-    uint256 private _totalProcessedExitQueueTickets;
-    uint128 private _subVaultsRewardsNonce;
+    /// @inheritdoc IVaultSubVaults
+    uint128 public override subVaultsRewardsNonce;
     uint128 private _subVaultsTotalAssets;
 
+    uint256 private _totalProcessedExitQueueTickets;
     uint256 private _ejectingSubVaultShares;
 
     /**
@@ -102,7 +104,7 @@ abstract contract VaultSubVaults is
             revert Errors.CapacityExceeded();
         }
         // check whether vault is collateralized
-        if (!IKeeperRewards(_keeper).isCollateralized(vault)) {
+        if (!_isSubVaultCollateralized(vault)) {
             revert Errors.NotCollateralized();
         }
 
@@ -113,10 +115,10 @@ abstract contract VaultSubVaults is
         }
 
         // check harvested
-        (, uint256 vaultNonce) = IKeeperRewards(_keeper).rewards(vault);
-        uint256 lastSubVaultsRewardsNonce = _subVaultsRewardsNonce;
+        uint256 vaultNonce = _getSubVaultRewardsNonce(vault);
+        uint256 lastSubVaultsRewardsNonce = subVaultsRewardsNonce;
         if (subVaultsCount == 0) {
-            _subVaultsRewardsNonce = SafeCast.toUint128(vaultNonce);
+            subVaultsRewardsNonce = SafeCast.toUint128(vaultNonce);
             emit RewardsNonceUpdated(vaultNonce);
         } else if (vaultNonce != lastSubVaultsRewardsNonce) {
             revert Errors.NotHarvested();
@@ -170,12 +172,22 @@ abstract contract VaultSubVaults is
     /// @inheritdoc IVaultState
     function isStateUpdateRequired() public view virtual override returns (bool) {
         // SLOAD to memory
-        uint256 currentNonce = IKeeperRewards(_keeper).rewardsNonce();
-        uint256 subVaultsRewardsNonce = _subVaultsRewardsNonce;
+        uint256 currentNonce = _getCurrentRewardsNonce();
         unchecked {
-            // cannot overflow as nonce is uint64
+            // cannot realistically overflow
             return subVaultsRewardsNonce + 1 < currentNonce;
         }
+    }
+
+    /// @inheritdoc IVaultSubVaults
+    function canUpdateState() external view override returns (bool) {
+        uint256 nonce = subVaultsRewardsNonce;
+        return nonce != 0 && nonce < _getCurrentRewardsNonce();
+    }
+
+    /// @inheritdoc IVaultSubVaults
+    function isCollateralized() external view override returns (bool) {
+        return _subVaults.length() > 0;
     }
 
     /// @inheritdoc IVaultSubVaults
@@ -468,24 +480,24 @@ abstract contract VaultSubVaults is
     function _syncRewardsNonce(address[] memory vaults) private returns (bool) {
         // process first vault in the array
         address vault = vaults[0];
-        (, uint256 vaultNonce) = IKeeperRewards(_keeper).rewards(vault);
+        uint256 vaultNonce = _getSubVaultRewardsNonce(vault);
 
         // check whether the first vault is harvested
-        uint256 currentNonce = IKeeperRewards(_keeper).rewardsNonce();
+        uint256 currentNonce = _getCurrentRewardsNonce();
         if (vaultNonce + 1 < currentNonce) {
             revert Errors.NotHarvested();
         }
 
         // fetch current nonce
         currentNonce = vaultNonce;
-        uint256 lastRewardsNonce = _subVaultsRewardsNonce;
+        uint256 lastRewardsNonce = subVaultsRewardsNonce;
         if (lastRewardsNonce > currentNonce) {
             revert Errors.RewardsNonceIsHigher();
         } else if (lastRewardsNonce == currentNonce) {
             return false;
         } else {
             // update last sync rewards nonce
-            _subVaultsRewardsNonce = SafeCast.toUint128(currentNonce);
+            subVaultsRewardsNonce = SafeCast.toUint128(currentNonce);
             emit RewardsNonceUpdated(currentNonce);
         }
 
@@ -493,7 +505,7 @@ abstract contract VaultSubVaults is
         uint256 vaultsLength = vaults.length;
         for (uint256 i = 1; i < vaultsLength;) {
             vault = vaults[i];
-            (, vaultNonce) = IKeeperRewards(_keeper).rewards(vault);
+            vaultNonce = _getSubVaultRewardsNonce(vault);
 
             // check whether the vault is harvested
             if (vaultNonce != currentNonce) {
@@ -589,6 +601,41 @@ abstract contract VaultSubVaults is
     }
 
     /**
+     * @dev Internal function to check whether a sub-vault is collateralized
+     * @param subVault The address of the sub-vault
+     * @return true if the sub-vault is collateralized
+     */
+    function _isSubVaultCollateralized(address subVault) private view returns (bool) {
+        try IVaultSubVaults(subVault).isCollateralized() returns (bool collateralized) {
+            return collateralized;
+        } catch {}
+
+        return IKeeperRewards(_keeper).isCollateralized(subVault);
+    }
+
+    /**
+     * @dev Internal function to get the rewards nonce of a sub-vault
+     * @param subVault The address of the sub-vault
+     * @return The rewards nonce of the sub-vault
+     */
+    function _getSubVaultRewardsNonce(address subVault) private view returns (uint256) {
+        try IVaultSubVaults(subVault).subVaultsRewardsNonce() returns (uint128 nonce) {
+            return nonce;
+        } catch {}
+
+        (, uint256 vaultNonce) = IKeeperRewards(_keeper).rewards(subVault);
+        return vaultNonce;
+    }
+
+    /**
+     * @dev Internal function to get the current rewards nonce from the Keeper contract
+     * @return The current rewards nonce
+     */
+    function _getCurrentRewardsNonce() private view returns (uint256) {
+        return IKeeperRewards(_keeper).rewardsNonce();
+    }
+
+    /**
      * @dev Internal function to set the sub-vaults curator
      * @param curator The address of the sub-vaults curator
      */
@@ -617,7 +664,7 @@ abstract contract VaultSubVaults is
     function __VaultSubVaults_init(address curator) internal onlyInitializing {
         __ReentrancyGuard_init();
         _setSubVaultsCurator(curator);
-        _subVaultsRewardsNonce = IKeeperRewards(_keeper).rewardsNonce();
+        subVaultsRewardsNonce = SafeCast.toUint128(_getCurrentRewardsNonce());
     }
 
     /**
