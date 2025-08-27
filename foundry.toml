@@ -9,6 +9,9 @@ via_ir = true
 ffi = true
 bytecode_hash = 'none'
 
+[lint]
+lint_on_build = false
+
 [profile.test]
 via_ir = false
 
