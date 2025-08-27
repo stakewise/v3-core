@@ -26,9 +26,6 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     IOsTokenVaultController private immutable _osTokenVaultController;
 
     /// @inheritdoc IOsTokenRedeemer
-    uint256 public immutable override positionsUpdateDelay;
-
-    /// @inheritdoc IOsTokenRedeemer
     uint256 public immutable override exitQueueUpdateDelay;
 
     /// @inheritdoc IOsTokenRedeemer
@@ -62,9 +59,6 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     mapping(bytes32 exitRequestHash => uint256 shares) public override exitRequests;
 
     /// @inheritdoc IOsTokenRedeemer
-    uint256 public override pendingPositionsTimestamp;
-
-    /// @inheritdoc IOsTokenRedeemer
     uint256 public override exitQueueTimestamp;
 
     RedeemablePositions private _redeemablePositions;
@@ -76,22 +70,16 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
      * @param osToken_ The address of the OsToken contract
      * @param osTokenVaultController_ The address of the OsTokenVaultController contract
      * @param owner_ The address of the owner
-     * @param positionsUpdateDelay_ The delay in seconds for positions updates
      * @param exitQueueUpdateDelay_ The delay in seconds for exit queue updates
      */
-    constructor(
-        address osToken_,
-        address osTokenVaultController_,
-        address owner_,
-        uint256 positionsUpdateDelay_,
-        uint256 exitQueueUpdateDelay_
-    ) Ownable(owner_) {
-        if (positionsUpdateDelay_ > type(uint64).max || exitQueueUpdateDelay_ > type(uint64).max) {
+    constructor(address osToken_, address osTokenVaultController_, address owner_, uint256 exitQueueUpdateDelay_)
+        Ownable(owner_)
+    {
+        if (exitQueueUpdateDelay_ > type(uint64).max) {
             revert Errors.InvalidDelay();
         }
         _osToken = IERC20(osToken_);
         _osTokenVaultController = IOsTokenVaultController(osTokenVaultController_);
-        positionsUpdateDelay = positionsUpdateDelay_;
         exitQueueUpdateDelay = exitQueueUpdateDelay_;
     }
 
@@ -186,7 +174,6 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
 
         // update state
         _pendingRedeemablePositions = newPositions;
-        pendingPositionsTimestamp = block.timestamp;
 
         // emit event
         emit RedeemablePositionsProposed(newPositions.merkleRoot, newPositions.ipfsHash);
@@ -199,15 +186,11 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         if (newPositions.merkleRoot == bytes32(0) || bytes(newPositions.ipfsHash).length == 0) {
             revert Errors.InvalidRedeemablePositions();
         }
-        if (block.timestamp < pendingPositionsTimestamp + positionsUpdateDelay) {
-            revert Errors.TooEarlyUpdate();
-        }
 
         // update state
         nonce += 1;
         _redeemablePositions = newPositions;
         delete _pendingRedeemablePositions;
-        delete pendingPositionsTimestamp;
 
         // emit event
         emit RedeemablePositionsAccepted(newPositions.merkleRoot, newPositions.ipfsHash);
@@ -221,7 +204,6 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
             return;
         }
         delete _pendingRedeemablePositions;
-        delete pendingPositionsTimestamp;
 
         // emit event
         emit RedeemablePositionsDenied(newPositions.merkleRoot, newPositions.ipfsHash);

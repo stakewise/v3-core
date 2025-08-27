@@ -28,7 +28,6 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     address public admin;
 
     // Test constants
-    uint256 public constant POSITIONS_UPDATE_DELAY = 7 days;
     uint256 public constant EXIT_QUEUE_UPDATE_DELAY = 12 hours;
     uint256 public constant DEPOSIT_AMOUNT = 10 ether;
     uint256 public constant LARGE_DEPOSIT = 100 ether;
@@ -56,9 +55,8 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         _fundAccounts();
 
         // Deploy OsTokenRedeemer
-        osTokenRedeemer = new EthOsTokenRedeemer(
-            _osToken, address(contracts.osTokenVaultController), owner, POSITIONS_UPDATE_DELAY, EXIT_QUEUE_UPDATE_DELAY
-        );
+        osTokenRedeemer =
+            new EthOsTokenRedeemer(_osToken, address(contracts.osTokenVaultController), owner, EXIT_QUEUE_UPDATE_DELAY);
 
         // Set up manager
         vm.prank(owner);
@@ -121,8 +119,6 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     function _proposeAndAcceptPositions(IOsTokenRedeemer.RedeemablePositions memory positions) internal {
         vm.prank(positionsManager);
         osTokenRedeemer.proposeRedeemablePositions(positions);
-
-        vm.warp(vm.getBlockTimestamp() + POSITIONS_UPDATE_DELAY + 1);
 
         vm.prank(owner);
         osTokenRedeemer.acceptRedeemablePositions();
@@ -196,30 +192,12 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         assertApproxEqAbs(osTokenRedeemer.swappedAssets(), swappedAssetsBefore + assets, 1, "Assets should be swapped");
     }
 
-    function test_deployRedeemer_invalidDelays() public {
-        // Test deploying with position update delay that exceeds uint64 max
-        uint256 invalidPositionDelay = uint256(type(uint64).max) + 1;
-        uint256 validExitQueueDelay = EXIT_QUEUE_UPDATE_DELAY;
-
-        vm.expectRevert(Errors.InvalidDelay.selector);
-        new EthOsTokenRedeemer(
-            _osToken, address(contracts.osTokenVaultController), owner, invalidPositionDelay, validExitQueueDelay
-        );
-
+    function test_deployRedeemer_invalidDelay() public {
         // Test deploying with exit queue delay that exceeds uint64 max
-        uint256 validPositionDelay = POSITIONS_UPDATE_DELAY;
         uint256 invalidExitQueueDelay = uint256(type(uint64).max) + 1;
 
         vm.expectRevert(Errors.InvalidDelay.selector);
-        new EthOsTokenRedeemer(
-            _osToken, address(contracts.osTokenVaultController), owner, validPositionDelay, invalidExitQueueDelay
-        );
-
-        // Test deploying with both delays exceeding uint64 max
-        vm.expectRevert(Errors.InvalidDelay.selector);
-        new EthOsTokenRedeemer(
-            _osToken, address(contracts.osTokenVaultController), owner, invalidPositionDelay, invalidExitQueueDelay
-        );
+        new EthOsTokenRedeemer(_osToken, address(contracts.osTokenVaultController), owner, invalidExitQueueDelay);
     }
 
     function test_setPositionsManager_notOwner() public {
@@ -332,8 +310,6 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         vm.prank(positionsManager);
         osTokenRedeemer.proposeRedeemablePositions(positions);
 
-        vm.warp(vm.getBlockTimestamp() + POSITIONS_UPDATE_DELAY + 1);
-
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
         osTokenRedeemer.acceptRedeemablePositions();
@@ -345,34 +321,12 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         osTokenRedeemer.acceptRedeemablePositions();
     }
 
-    function test_acceptRedeemablePositions_delayNotPassed() public {
-        IOsTokenRedeemer.RedeemablePositions memory positions =
-            IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: TEST_IPFS_HASH});
-
-        vm.prank(positionsManager);
-        osTokenRedeemer.proposeRedeemablePositions(positions);
-
-        // Try immediately
-        vm.prank(owner);
-        vm.expectRevert(Errors.TooEarlyUpdate.selector);
-        osTokenRedeemer.acceptRedeemablePositions();
-
-        // Try at exact delay time
-        vm.warp(vm.getBlockTimestamp() + POSITIONS_UPDATE_DELAY - 1);
-        vm.prank(owner);
-        vm.expectRevert(Errors.TooEarlyUpdate.selector);
-        osTokenRedeemer.acceptRedeemablePositions();
-    }
-
     function test_acceptRedeemablePositions_success() public {
         IOsTokenRedeemer.RedeemablePositions memory positions =
             IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: TEST_IPFS_HASH});
 
         vm.prank(positionsManager);
         osTokenRedeemer.proposeRedeemablePositions(positions);
-
-        // Fast forward time
-        vm.warp(vm.getBlockTimestamp() + POSITIONS_UPDATE_DELAY + 1);
 
         vm.expectEmit(true, true, false, true);
         emit IOsTokenRedeemer.RedeemablePositionsAccepted(positions.merkleRoot, positions.ipfsHash);

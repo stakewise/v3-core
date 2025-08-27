@@ -31,7 +31,6 @@ contract UpgradeEthNetwork is Network {
     address public metaVaultFactoryOwner;
     address public osTokenRedeemerOwner;
     address public validatorsRegistry;
-    uint256 public osTokenRedeemerRootUpdateDelay;
     uint256 public osTokenRedeemerExitQueueUpdateDelay;
 
     address public consolidationsChecker;
@@ -47,7 +46,6 @@ contract UpgradeEthNetwork is Network {
     function run() external {
         metaVaultFactoryOwner = vm.envAddress("META_VAULT_FACTORY_OWNER");
         osTokenRedeemerOwner = vm.envAddress("OS_TOKEN_REDEEMER_OWNER");
-        osTokenRedeemerRootUpdateDelay = vm.envUint("OS_TOKEN_REDEEMER_ROOT_UPDATE_DELAY");
         osTokenRedeemerExitQueueUpdateDelay = vm.envUint("OS_TOKEN_REDEEMER_EXIT_QUEUE_UPDATE_DELAY");
         validatorsRegistry = vm.envAddress("VALIDATORS_REGISTRY");
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
@@ -80,7 +78,6 @@ contract UpgradeEthNetwork is Network {
                 deployment.osToken,
                 deployment.osTokenVaultController,
                 osTokenRedeemerOwner,
-                osTokenRedeemerRootUpdateDelay,
                 osTokenRedeemerExitQueueUpdateDelay
             )
         );

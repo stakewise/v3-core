@@ -26,7 +26,6 @@ contract GnoOsTokenRedeemerTest is Test, GnoHelpers {
     uint256 public userOsTokenShares;
 
     // Test constants
-    uint256 public constant POSITIONS_UPDATE_DELAY = 7 days;
     uint256 public constant EXIT_QUEUE_UPDATE_DELAY = 12 hours;
 
     function setUp() public {
@@ -52,7 +51,6 @@ contract GnoOsTokenRedeemerTest is Test, GnoHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             owner,
-            POSITIONS_UPDATE_DELAY,
             EXIT_QUEUE_UPDATE_DELAY
         );
 
@@ -207,8 +205,6 @@ contract GnoOsTokenRedeemerTest is Test, GnoHelpers {
 
         vm.prank(positionsManager);
         osTokenRedeemer.proposeRedeemablePositions(redeemablePositions);
-
-        vm.warp(vm.getBlockTimestamp() + POSITIONS_UPDATE_DELAY + 1);
 
         vm.prank(owner);
         osTokenRedeemer.acceptRedeemablePositions();

@@ -112,12 +112,6 @@ interface IOsTokenRedeemer is IMulticall {
     event OsTokenPositionsRedeemed(uint256 shares, uint256 assets);
 
     /**
-     * @notice The delay in seconds for the moment redeemable positions are proposed to the moment they can be accepted
-     * @return The delay in seconds
-     */
-    function positionsUpdateDelay() external view returns (uint256);
-
-    /**
      * @notice The delay in seconds for the exit queue updates
      * @return The delay in seconds
      */
@@ -173,11 +167,6 @@ interface IOsTokenRedeemer is IMulticall {
      */
     function exitRequests(bytes32 exitRequestHash) external view returns (uint256 shares);
 
-    /**
-     * @notice The timestamp when the pending positions were proposed
-     * @return The timestamp of the pending positions proposal
-     */
-    function pendingPositionsTimestamp() external view returns (uint256);
     /**
      * @notice The timestamp when the exit queue was last updated
      * @return The timestamp of the last exit queue update

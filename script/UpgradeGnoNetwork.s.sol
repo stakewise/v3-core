@@ -32,7 +32,6 @@ contract UpgradeGnoNetwork is Network {
     address public osTokenRedeemerOwner;
     address public validatorsRegistry;
     address public gnoToken;
-    uint256 public osTokenRedeemerRootUpdateDelay;
     uint256 public osTokenRedeemerExitQueueUpdateDelay;
 
     address public consolidationsChecker;
@@ -49,7 +48,6 @@ contract UpgradeGnoNetwork is Network {
     function run() external {
         metaVaultFactoryOwner = vm.envAddress("META_VAULT_FACTORY_OWNER");
         osTokenRedeemerOwner = vm.envAddress("OS_TOKEN_REDEEMER_OWNER");
-        osTokenRedeemerRootUpdateDelay = vm.envUint("OS_TOKEN_REDEEMER_ROOT_UPDATE_DELAY");
         osTokenRedeemerExitQueueUpdateDelay = vm.envUint("OS_TOKEN_REDEEMER_EXIT_QUEUE_UPDATE_DELAY");
         tokensConverterFactory = vm.envAddress("TOKENS_CONVERTER_FACTORY");
         validatorsRegistry = vm.envAddress("VALIDATORS_REGISTRY");
@@ -89,7 +87,6 @@ contract UpgradeGnoNetwork is Network {
                 deployment.osToken,
                 deployment.osTokenVaultController,
                 osTokenRedeemerOwner,
-                osTokenRedeemerRootUpdateDelay,
                 osTokenRedeemerExitQueueUpdateDelay
             )
         );
