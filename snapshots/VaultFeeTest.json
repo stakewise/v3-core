@@ -10,6 +10,7 @@
   "VaultFeeTest_test_setFeePercent_tooSoon": "38137",
   "VaultFeeTest_test_setFeeRecipient_notAdmin": "36854",
   "VaultFeeTest_test_setFeeRecipient_requiresHarvest": "44796",
-  "VaultFeeTest_test_setFeeRecipient_success": "48796",
+  "VaultFeeTest_test_setFeeRecipient_sameValue": "42843",
+  "VaultFeeTest_test_setFeeRecipient_success": "48949",
   "VaultFeeTest_test_setFeeRecipient_zeroAddress": "40343"
 }

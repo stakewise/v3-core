@@ -298,4 +298,13 @@ contract EthBlocklistVaultTest is Test, EthHelpers {
         assertEq(blocklistVault.validatorsManagerNonce(), 0);
         assertEq(blocklistVault.getShares(sender), senderSharesBefore);
     }
+
+    // Test reverting when setting the same blocklist manager
+    function test_setBlocklistManager_valueNotChanged() public {
+        address currentManager = vault.blocklistManager();
+
+        vm.prank(admin);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        vault.setBlocklistManager(currentManager);
+    }
 }

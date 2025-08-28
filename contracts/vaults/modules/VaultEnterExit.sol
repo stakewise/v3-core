@@ -62,6 +62,11 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
         // calculate exited tickets and assets
         (exitedTickets, exitedAssets) = _exitQueue.calculateExitedAssets(exitQueueIndex, positionTicket, exitingTickets);
         leftTickets = exitingTickets - exitedTickets;
+        if (leftTickets == 1) {
+            // if only one ticket is left round it to zero
+            leftTickets = 0;
+            exitedTickets += 1; // round up exited tickets
+        }
     }
 
     /// @inheritdoc IVaultEnterExit
@@ -90,6 +95,22 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
         // transfer assets to the receiver
         _transferVaultAssets(msg.sender, exitedAssets);
         emit ExitedAssetsClaimed(msg.sender, positionTicket, newPositionTicket, exitedAssets);
+    }
+
+    /// @inheritdoc IVaultEnterExit
+    function rescueAssets() external override {
+        _checkAdmin();
+
+        // rescue works only when the vault is not collateralized, i.e. does not have validators
+        if (_isCollateralized()) {
+            revert Errors.Collateralized();
+        }
+
+        // calculate amount of assets to rescue, exclude all the assets backing shares
+        uint256 rescuedAssets = _vaultAssets() - _totalAssets;
+
+        // transfer to admin
+        _transferVaultAssets(msg.sender, rescuedAssets);
     }
 
     /**

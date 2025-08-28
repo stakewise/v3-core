@@ -65,16 +65,14 @@ contract ConsolidationsChecker is EIP712, IConsolidationsChecker {
         view
         returns (bool)
     {
-        if (requiredSignatures == 0) {
-            return false;
-        }
+        uint256 signaturesLength = signatures.length;
 
         // check whether enough signatures
-        unchecked {
-            // cannot realistically overflow
-            if (signatures.length < requiredSignatures * _signatureLength) {
-                return false;
-            }
+        if (
+            requiredSignatures == 0 || signaturesLength == 0 || signaturesLength % _signatureLength != 0
+                || signaturesLength < requiredSignatures * _signatureLength
+        ) {
+            return false;
         }
 
         bytes32 data = _hashTypedDataV4(message);

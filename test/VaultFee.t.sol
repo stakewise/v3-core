@@ -48,11 +48,13 @@ contract VaultFeeTest is Test, EthHelpers {
         address vaultAddr = _getOrCreateVault(VaultType.EthVault, admin, initParams, false);
         vault = EthVault(payable(vaultAddr));
 
+        if (vault.feeRecipient() != admin) {
+            vm.prank(admin);
+            vault.setFeeRecipient(admin);
+        }
+
         initialFeePercent = vault.feePercent();
         vm.warp(vm.getBlockTimestamp() + feeChangeDelay + 1);
-
-        vm.prank(admin);
-        vault.setFeeRecipient(admin);
     }
 
     function test_initialFeeRecipient() public view {
@@ -90,6 +92,18 @@ contract VaultFeeTest is Test, EthHelpers {
         _startSnapshotGas("VaultFeeTest_test_setFeeRecipient_zeroAddress");
         vm.expectRevert(Errors.InvalidFeeRecipient.selector);
         vault.setFeeRecipient(address(0));
+        _stopSnapshotGas();
+
+        // Fee recipient should remain unchanged
+        assertEq(vault.feeRecipient(), admin, "Fee recipient should not change");
+    }
+
+    function test_setFeeRecipient_sameValue() public {
+        // Test setting fee recipient to the same value
+        vm.prank(admin);
+        _startSnapshotGas("VaultFeeTest_test_setFeeRecipient_sameValue");
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        vault.setFeeRecipient(admin);
         _stopSnapshotGas();
 
         // Fee recipient should remain unchanged

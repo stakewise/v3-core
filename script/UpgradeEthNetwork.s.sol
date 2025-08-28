@@ -24,14 +24,14 @@ import {CuratorsRegistry, ICuratorsRegistry} from "../contracts/curators/Curator
 import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
 import {EthRewardSplitter} from "../contracts/misc/EthRewardSplitter.sol";
 import {RewardSplitterFactory} from "../contracts/misc/RewardSplitterFactory.sol";
-import {OsTokenRedeemer} from "../contracts/tokens/OsTokenRedeemer.sol";
+import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
 import {Network} from "./Network.sol";
 
 contract UpgradeEthNetwork is Network {
     address public metaVaultFactoryOwner;
     address public osTokenRedeemerOwner;
     address public validatorsRegistry;
-    uint256 public osTokenRedeemerRootUpdateDelay;
+    uint256 public osTokenRedeemerExitQueueUpdateDelay;
 
     address public consolidationsChecker;
     address public validatorsChecker;
@@ -46,7 +46,7 @@ contract UpgradeEthNetwork is Network {
     function run() external {
         metaVaultFactoryOwner = vm.envAddress("META_VAULT_FACTORY_OWNER");
         osTokenRedeemerOwner = vm.envAddress("OS_TOKEN_REDEEMER_OWNER");
-        osTokenRedeemerRootUpdateDelay = vm.envUint("OS_TOKEN_REDEEMER_ROOT_UPDATE_DELAY");
+        osTokenRedeemerExitQueueUpdateDelay = vm.envUint("OS_TOKEN_REDEEMER_EXIT_QUEUE_UPDATE_DELAY");
         validatorsRegistry = vm.envAddress("VALIDATORS_REGISTRY");
         uint256 privateKey = vm.envUint("PRIVATE_KEY");
         address sender = vm.addr(privateKey);
@@ -74,8 +74,11 @@ contract UpgradeEthNetwork is Network {
 
         // deploy OsToken redeemer
         osTokenRedeemer = address(
-            new OsTokenRedeemer(
-                deployment.vaultsRegistry, deployment.osToken, osTokenRedeemerOwner, osTokenRedeemerRootUpdateDelay
+            new EthOsTokenRedeemer(
+                deployment.osToken,
+                deployment.osTokenVaultController,
+                osTokenRedeemerOwner,
+                osTokenRedeemerExitQueueUpdateDelay
             )
         );
 
@@ -83,7 +86,7 @@ contract UpgradeEthNetwork is Network {
         _deployFactories();
         vm.stopBroadcast();
 
-        generateGovernorTxJson(vaultImpls, vaultFactories, curatorsRegistry, balancedCurator, osTokenRedeemer);
+        generateGovernorTxJson(vaultImpls, vaultFactories, osTokenRedeemer);
         generateUpgradesJson(vaultImpls);
         generateAddressesJson(
             vaultFactories,

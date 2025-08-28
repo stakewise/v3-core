@@ -19,6 +19,7 @@ library Errors {
     error InvalidFeePercent();
     error NotHarvested();
     error NotCollateralized();
+    error Collateralized();
     error InvalidProof();
     error LowLtv();
     error InvalidPosition();
@@ -53,10 +54,13 @@ library Errors {
     error CannotTopUpV1Validators();
     error InvalidSignatures();
     error EmptySubVaults();
-    error UnclaimedAssets();
+    error EjectingVaultNotFound();
     error EjectingVault();
+    error RepeatedEjectingVault();
+    error UnclaimedAssets();
     error InvalidCurator();
     error RewardsNonceIsHigher();
     error InvalidRedeemablePositions();
     error RedeemablePositionsProposed();
+    error InvalidDelay();
 }

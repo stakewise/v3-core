@@ -99,6 +99,15 @@ contract VaultAdminTest is Test, EthHelpers {
         assertEq(IVaultAdmin(vault).admin(), admin, "Admin should not be changed to zero address");
     }
 
+    function test_setAdmin_toSameValue() public {
+        // Call setAdmin with same address
+        vm.prank(admin);
+        _startSnapshotGas("VaultAdminTest_test_setAdmin_toSameValue");
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        IVaultAdmin(vault).setAdmin(admin);
+        _stopSnapshotGas();
+    }
+
     function test_setMetadata_byAdmin() public {
         string memory newMetadata = "newIpfsHash";
 
@@ -137,10 +146,10 @@ contract VaultAdminTest is Test, EthHelpers {
         // Now try as admin
         vm.prank(admin);
         _startSnapshotGas("VaultAdminTest_test_checkAdmin_withOtherFunctions_admin");
-        IEthVault(vault).setFeeRecipient(admin);
+        IEthVault(vault).setFeeRecipient(newAdmin);
         _stopSnapshotGas();
 
         // Verify fee recipient was updated
-        assertEq(IEthVault(vault).feeRecipient(), admin, "Fee recipient should be updated by admin");
+        assertEq(IEthVault(vault).feeRecipient(), newAdmin, "Fee recipient should be updated by admin");
     }
 }

@@ -8,7 +8,7 @@ import {Errors} from "../../libraries/Errors.sol";
 /**
  * @title VaultImmutables
  * @author StakeWise
- * @notice Defines the Vault common immutable variables
+ * @notice Defines the Vault common immutable variables and check functions.
  */
 abstract contract VaultImmutables {
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable

@@ -16,6 +16,8 @@ import {VaultImmutables} from "./VaultImmutables.sol";
 abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVaultFee {
     uint256 internal constant _maxFeePercent = 10_000; // @dev 100.00 %
     uint256 private constant _feeUpdateDelay = 3 days;
+    uint256 private constant _feeUpdateMultiplier = 120;
+    uint256 private constant _feeUpdateBase = 100;
 
     /// @inheritdoc IVaultFee
     address public override feeRecipient;
@@ -44,6 +46,7 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
     function _setFeeRecipient(address _feeRecipient) private {
         _checkHarvested();
         if (_feeRecipient == address(0)) revert Errors.InvalidFeeRecipient();
+        if (_feeRecipient == feeRecipient) revert Errors.ValueNotChanged();
 
         // update fee recipient address
         feeRecipient = _feeRecipient;
@@ -67,7 +70,8 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
             // check that the fee percent can be increase only by 20% at a time
             // if the current fee is 0, then it cannot exceed 1% initially
             uint256 currentFeePercent = feePercent;
-            uint256 maxFeePercent = currentFeePercent > 0 ? (currentFeePercent * 120) / 100 : 100;
+            uint256 maxFeePercent =
+                currentFeePercent > 0 ? (currentFeePercent * _feeUpdateMultiplier) / _feeUpdateBase : _feeUpdateBase;
             if (maxFeePercent < _feePercent) {
                 revert Errors.InvalidFeePercent();
             }

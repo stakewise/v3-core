@@ -48,29 +48,13 @@ library OsTokenUtils {
     ) external view returns (uint256 receivedAssets) {
         // SLOAD to memory
         IOsTokenConfig.Config memory config = osTokenConfig.getConfig(address(this));
-        if (data.isLiquidation && config.liqThresholdPercent == _disabledLiqThreshold) {
-            revert Errors.LiquidationDisabled();
-        }
 
         // calculate received assets
         if (data.isLiquidation) {
-            receivedAssets = Math.mulDiv(
-                osTokenVaultController.convertToAssets(data.redeemedOsTokenShares), config.liqBonusPercent, _maxPercent
-            );
-        } else {
-            receivedAssets = osTokenVaultController.convertToAssets(data.redeemedOsTokenShares);
-        }
-
-        {
-            // check whether received assets are valid
-            if (receivedAssets > data.depositedAssets || receivedAssets > data.availableAssets) {
-                revert Errors.InvalidReceivedAssets();
+            // liquidations are only allowed if the liquidation threshold is not disabled
+            if (config.liqThresholdPercent == _disabledLiqThreshold) {
+                revert Errors.LiquidationDisabled();
             }
-
-            if (!data.isLiquidation) {
-                return receivedAssets;
-            }
-
             // check health factor violation in case of liquidation
             if (
                 Math.mulDiv(data.depositedAssets * _wad, config.liqThresholdPercent, data.mintedAssets * _maxPercent)
@@ -78,6 +62,18 @@ library OsTokenUtils {
             ) {
                 revert Errors.InvalidHealthFactor();
             }
+            receivedAssets = Math.mulDiv(
+                osTokenVaultController.convertToAssets(data.redeemedOsTokenShares), config.liqBonusPercent, _maxPercent
+            );
+        } else {
+            receivedAssets = osTokenVaultController.convertToAssets(data.redeemedOsTokenShares);
         }
+
+        // check whether received assets are valid
+        if (receivedAssets > data.depositedAssets || receivedAssets > data.availableAssets) {
+            revert Errors.InvalidReceivedAssets();
+        }
+
+        return receivedAssets;
     }
 }

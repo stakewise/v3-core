@@ -13,7 +13,7 @@ import {Errors} from "../libraries/Errors.sol";
  */
 contract CuratorsRegistry is Ownable2Step, ICuratorsRegistry {
     /// @inheritdoc ICuratorsRegistry
-    mapping(address curator => bool isCurator) public override curators;
+    mapping(address curator => bool isCurator) public override isCurator;
 
     bool private _initialized;
 
@@ -24,13 +24,19 @@ contract CuratorsRegistry is Ownable2Step, ICuratorsRegistry {
 
     /// @inheritdoc ICuratorsRegistry
     function addCurator(address curator) external override onlyOwner {
-        curators[curator] = true;
+        if (isCurator[curator]) {
+            revert Errors.ValueNotChanged();
+        }
+        isCurator[curator] = true;
         emit CuratorAdded(msg.sender, curator);
     }
 
     /// @inheritdoc ICuratorsRegistry
     function removeCurator(address curator) external override onlyOwner {
-        curators[curator] = false;
+        if (!isCurator[curator]) {
+            revert Errors.ValueNotChanged();
+        }
+        isCurator[curator] = false;
         emit CuratorRemoved(msg.sender, curator);
     }
 

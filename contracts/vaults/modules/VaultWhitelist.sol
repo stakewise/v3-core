@@ -46,6 +46,9 @@ abstract contract VaultWhitelist is Initializable, VaultAdmin, IVaultWhitelist {
      * @param _whitelister The address of the new whitelister
      */
     function _setWhitelister(address _whitelister) private {
+        if (whitelister == _whitelister) {
+            revert Errors.ValueNotChanged();
+        }
         // update whitelister address
         whitelister = _whitelister;
         emit WhitelisterUpdated(msg.sender, _whitelister);

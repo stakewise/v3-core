@@ -82,7 +82,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     /// @inheritdoc IVaultState
     function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
         uint256 totalShares_ = _totalShares;
-        return (totalShares_ == 0) ? shares : Math.mulDiv(shares, _totalAssets, totalShares_);
+        return totalShares_ == 0 ? shares : Math.mulDiv(shares, _totalAssets, totalShares_);
     }
 
     /// @inheritdoc IVaultState
@@ -142,6 +142,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
         // SLOAD to memory
         uint256 newTotalAssets = _totalAssets;
         if (totalAssetsDelta < 0) {
+            // the delta is negative, meaning that the vault lost assets
             uint256 penalty = uint256(-totalAssetsDelta);
 
             // SLOAD to memory
@@ -155,9 +156,8 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
                 unchecked {
                     // cannot underflow as exitingAssetsPenalty <= penalty
                     penalty -= exitingAssetsPenalty;
-                    // cannot underflow as exitingAssetsPenalty <= totalExitingAssets
-                    _totalExitingAssets = SafeCast.toUint128(totalExitingAssets - exitingAssetsPenalty);
                 }
+                _totalExitingAssets = SafeCast.toUint128(totalExitingAssets - exitingAssetsPenalty);
                 emit ExitingAssetsPenalized(exitingAssetsPenalty);
             }
 

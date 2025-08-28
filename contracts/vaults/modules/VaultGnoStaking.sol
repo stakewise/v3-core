@@ -63,6 +63,7 @@ abstract contract VaultGnoStaking is
 
     /// @inheritdoc IVaultGnoStaking
     function donateAssets(uint256 amount) external override {
+        _checkCollateralized();
         if (amount == 0) {
             revert Errors.InvalidAssets();
         }
@@ -84,11 +85,10 @@ abstract contract VaultGnoStaking is
         // pull withdrawals from the deposit contract
         _pullWithdrawals();
 
-        uint256 totalDeposits = deposits.length;
+        uint256 depositsCount = deposits.length;
         uint256 availableAssets = withdrawableAssets();
-        ValidatorUtils.ValidatorDeposit memory depositData;
-        for (uint256 i = 0; i < totalDeposits;) {
-            depositData = deposits[i];
+        for (uint256 i = 0; i < depositsCount;) {
+            ValidatorUtils.ValidatorDeposit memory depositData = deposits[i];
 
             // divide by 32 to convert mGNO to GNO
             depositData.depositAmount /= 32;

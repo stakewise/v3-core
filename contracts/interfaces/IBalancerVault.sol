@@ -33,21 +33,12 @@ interface IBalancerVault {
     }
 
     /**
-     * @dev All tokens in a swap are either sent from the `sender` account to the Vault, or from the Vault to the
-     * `recipient` account.
+     * @dev Data for the `funds` parameter of `swap`.
      *
-     * If the caller is not `sender`, it must be an authorized relayer for them.
-     *
-     * If `fromInternalBalance` is true, the `sender`'s Internal Balance will be preferred, performing an ERC20
-     * transfer for the difference between the requested amount and the User's Internal Balance (if any). The `sender`
-     * must have allowed the Vault to use their tokens via `IERC20.approve()`. This matches the behavior of
-     * `joinPool`.
-     *
-     * If `toInternalBalance` is true, tokens will be deposited to `recipient`'s internal balance instead of
-     * transferred. This matches the behavior of `exitPool`.
-     *
-     * Note that ETH cannot be deposited to or withdrawn from Internal Balance: attempting to do so will trigger a
-     * revert.
+     * The `sender` is the address that will send the tokens to the Pool, or receive them from it.
+     * If `fromInternalBalance` is true, the Vault will use Internal Balance to fund the swap.
+     * The `recipient` is the address that will receive the output tokens from the swap.
+     * If `toInternalBalance` is true, the Vault will credit the output tokens to Internal Balance.
      */
     struct FundManagement {
         address sender;

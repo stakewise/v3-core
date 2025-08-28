@@ -248,9 +248,7 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
         burnedShares = convertToShares(receivedAssets);
 
         // update total assets
-        unchecked {
-            _totalAssets -= SafeCast.toUint128(receivedAssets);
-        }
+        _totalAssets -= SafeCast.toUint128(receivedAssets);
 
         // burn owner shares
         _burnShares(owner, burnedShares);

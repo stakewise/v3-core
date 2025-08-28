@@ -27,7 +27,7 @@ contract ExecuteGovernorTxs is Network {
         address sender = vm.addr(privateKey);
         console.log("Executing transactions from address: %s", sender);
 
-        vm.startBroadcast();
+        vm.startBroadcast(privateKey);
         for (uint256 i = 0; i < count; i++) {
             // Construct JSON paths for 'to' and 'data'
             string memory idx = i.toString();

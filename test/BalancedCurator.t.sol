@@ -71,6 +71,17 @@ contract BalancedCuratorTest is Test {
         }
     }
 
+    function test_getDeposits_invalidEjectingVault() public {
+        // 100 ETH to distribute across 5 vaults, but one is ejecting
+        uint256 assetsToDeposit = 100 ether;
+        address[] memory vaults = subVaults;
+        address ejecting = makeAddr("unknown");
+
+        // Should revert with EjectingVaultNotFound error
+        vm.expectRevert(Errors.EjectingVaultNotFound.selector);
+        curator.getDeposits(assetsToDeposit, vaults, ejecting);
+    }
+
     function test_getDeposits_smallAmount() public view {
         // 5 ETH to distribute across 5 vaults
         uint256 assetsToDeposit = 5 ether;
@@ -328,5 +339,40 @@ contract BalancedCuratorTest is Test {
 
         // Verify exit requests
         assertEq(exitRequests.length, 0, "Should return 0 exit structs");
+    }
+
+    function test_getDeposits_zeroAddressVault() public {
+        // 100 ETH to distribute, but one vault is address(0)
+        uint256 assetsToDeposit = 100 ether;
+        address[] memory vaults = new address[](5);
+
+        // Set up vaults with one zero address
+        vaults[0] = address(uint160(0x1000));
+        vaults[1] = address(uint160(0x1001));
+        vaults[2] = address(0); // Zero address
+        vaults[3] = address(uint160(0x1003));
+        vaults[4] = address(uint160(0x1004));
+
+        // Should revert with ZeroAddress error
+        vm.expectRevert(Errors.ZeroAddress.selector);
+        curator.getDeposits(assetsToDeposit, vaults, address(0));
+    }
+
+    function test_getDeposits_repeatedEjectingVault() public {
+        // 100 ETH to distribute, with duplicate vaults where one is ejecting
+        uint256 assetsToDeposit = 100 ether;
+        address[] memory vaults = new address[](5);
+
+        // Set up vaults with duplicate addresses
+        address duplicateVault = address(uint160(0x1000));
+        vaults[0] = duplicateVault;
+        vaults[1] = address(uint160(0x1001));
+        vaults[2] = duplicateVault; // Duplicate vault
+        vaults[3] = address(uint160(0x1003));
+        vaults[4] = address(uint160(0x1004));
+
+        // Try to eject the duplicate vault - should revert
+        vm.expectRevert(Errors.RepeatedEjectingVault.selector);
+        curator.getDeposits(assetsToDeposit, vaults, duplicateVault);
     }
 }

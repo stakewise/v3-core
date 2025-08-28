@@ -1,0 +1,17 @@
+{
+  "EthOsTokenRedeemerTest_test_acceptRedeemablePositions_success": "94939",
+  "EthOsTokenRedeemerTest_test_denyRedeemablePositions_success": "30268",
+  "EthOsTokenRedeemerTest_test_enterExitQueue_success": "107164",
+  "EthOsTokenRedeemerTest_test_permitOsToken_success": "82596",
+  "EthOsTokenRedeemerTest_test_processExitQueue_nothingToProcess": "31498",
+  "EthOsTokenRedeemerTest_test_processExitQueue_success": "99215",
+  "EthOsTokenRedeemerTest_test_proposeRedeemablePositions_success": "83218",
+  "EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_multiplePositions": "292793",
+  "EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_singlePosition": "199173",
+  "EthOsTokenRedeemerTest_test_removeRedeemablePositions_success": "30304",
+  "EthOsTokenRedeemerTest_test_setPositionsManager": "35796",
+  "EthOsTokenRedeemerTest_test_swapAssetsToOsTokenShares_success": "101315",
+  "test_claimExitedAssets_fullWithdrawal": "50998",
+  "test_claimExitedAssets_noPosition": "30156",
+  "test_claimExitedAssets_partialWithdrawal": "75835"
+}

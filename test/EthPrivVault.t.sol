@@ -479,4 +479,13 @@ contract EthPrivVaultTest is Test, EthHelpers {
         vm.expectRevert(Errors.AccessDenied.selector);
         vault.depositAndMintOsToken{value: amount}(receiver, type(uint256).max, referrer);
     }
+
+    // Test reverting when setting the same whitelister value
+    function test_setWhitelister_valueNotChanged() public {
+        address currentManager = vault.whitelister();
+
+        vm.prank(admin);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        vault.setWhitelister(currentManager);
+    }
 }

@@ -7,7 +7,6 @@ import {stdJson} from "forge-std/StdJson.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
-import {ICuratorsRegistry} from "../contracts/interfaces/ICuratorsRegistry.sol";
 import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
 
 /**
@@ -130,8 +129,6 @@ abstract contract Network is Script {
     function generateGovernorTxJson(
         address[] memory vaultImpls,
         Factory[] memory vaultFactories,
-        address curatorsRegistry,
-        address balancedCurator,
         address osTokenRedeemer
     ) internal {
         if (_governorCalls.length > 0) {
@@ -158,7 +155,6 @@ abstract contract Network is Script {
             _governorCalls.push(_serializeRemoveFactory(deployment.blocklistErc20VaultFactory));
         }
 
-        _governorCalls.push(_serializeAddCurator(curatorsRegistry, balancedCurator));
         _governorCalls.push(_serializeSetOsTokenRedeemer(deployment.osTokenConfig, osTokenRedeemer));
 
         string memory output = vm.serializeString("governorCalls", "transactions", _governorCalls);
@@ -279,21 +275,6 @@ abstract contract Network is Script {
 
         address[] memory params = new address[](1);
         params[0] = factory;
-        return vm.serializeAddress(object, "params", params);
-    }
-
-    function _serializeAddCurator(address curatorsRegistry, address curator) private returns (string memory) {
-        string memory object = "addCurator";
-        vm.serializeAddress(object, "to", curatorsRegistry);
-        vm.serializeString(object, "operation", "0");
-        vm.serializeString(object, "method", "addCurator(address)");
-        vm.serializeString(object, "value", "0.0");
-        vm.serializeBytes(
-            object, "data", abi.encodeWithSelector(ICuratorsRegistry(curatorsRegistry).addCurator.selector, curator)
-        );
-
-        address[] memory params = new address[](1);
-        params[0] = curator;
         return vm.serializeAddress(object, "params", params);
     }
 

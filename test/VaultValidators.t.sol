@@ -1310,4 +1310,17 @@ contract VaultValidatorsTest is Test, EthHelpers {
         // remove oracle
         _stopOracleImpersonate(address(contracts.keeper));
     }
+
+    // Test reverting when setting the same validators manager
+    function test_setValidatorsManager_valueNotChanged() public {
+        // Get current validators manager
+        address currentValidatorsManager = vault.validatorsManager();
+
+        // Try to set the same validators manager
+        vm.prank(admin);
+        _startSnapshotGas("VaultValidatorsTest_test_setValidatorsManager_valueNotChanged");
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        vault.setValidatorsManager(currentValidatorsManager);
+        _stopSnapshotGas();
+    }
 }

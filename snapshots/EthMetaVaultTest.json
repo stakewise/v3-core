@@ -1,9 +1,9 @@
 {
-  "EthMetaVaultTest_test_deposit": "82922",
-  "EthMetaVaultTest_test_depositAndMintOsToken": "179830",
-  "EthMetaVaultTest_test_depositViaFallback": "79603",
-  "EthMetaVaultTest_test_isStateUpdateRequired_true": "138006",
-  "EthMetaVaultTest_test_updateStateAndDeposit": "172844",
-  "EthMetaVaultTest_test_updateStateAndDepositAndMintOsToken": "192890",
-  "EthMetaVaultTest_test_userClaimExitedAssets": "54314"
+  "EthMetaVaultTest_test_deposit": "83013",
+  "EthMetaVaultTest_test_depositAndMintOsToken": "179864",
+  "EthMetaVaultTest_test_depositViaFallback": "79631",
+  "EthMetaVaultTest_test_isStateUpdateRequired_true": "138057",
+  "EthMetaVaultTest_test_updateStateAndDeposit": "188941",
+  "EthMetaVaultTest_test_updateStateAndDepositAndMintOsToken": "200835",
+  "EthMetaVaultTest_test_userClaimExitedAssets": "51730"
 }

@@ -617,11 +617,18 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Calculate available assets and expected distribution
         uint256 availableAssets = metaVault.withdrawableAssets();
         uint256 assetsPerVault = availableAssets / subVaultCount;
+        uint256 dust = availableAssets % subVaultCount;
 
         // Calculate expected new shares for each vault
         uint256[] memory expectedNewShares = new uint256[](subVaultCount);
         for (uint256 i = 0; i < subVaultCount; i++) {
-            expectedNewShares[i] = IEthVault(subVaults[i]).convertToShares(assetsPerVault);
+            if (i == 0) {
+                // The first vault gets the dust if available
+                expectedNewShares[i] = IEthVault(subVaults[i]).convertToShares(assetsPerVault + dust);
+            } else {
+                // Other vaults get equal shares
+                expectedNewShares[i] = IEthVault(subVaults[i]).convertToShares(assetsPerVault);
+            }
         }
 
         // Start gas measurement
@@ -630,9 +637,17 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Expect Deposited events for each sub vault
         for (uint256 i = 0; i < subVaultCount; i++) {
             vm.expectEmit(true, true, true, true, subVaults[i]);
-            emit IVaultEnterExit.Deposited(
-                address(metaVault), address(metaVault), assetsPerVault, expectedNewShares[i], address(0)
-            );
+            if (i == 0) {
+                // The first vault gets the dust if available
+                emit IVaultEnterExit.Deposited(
+                    address(metaVault), address(metaVault), assetsPerVault + dust, expectedNewShares[i], address(0)
+                );
+            } else {
+                // Other vaults get equal shares
+                emit IVaultEnterExit.Deposited(
+                    address(metaVault), address(metaVault), assetsPerVault, expectedNewShares[i], address(0)
+                );
+            }
         }
 
         // Action: Deposit to sub vaults
@@ -958,6 +973,8 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             _setVaultRewardsNonce(subVaults[i], newNonce);
         }
 
+        assertTrue(metaVault.canUpdateState(), "Meta vault should be able to update state");
+
         // update nonce for meta vault and trigger enter exit queue
         vm.recordLogs();
         metaVault.updateState(_getEmptyHarvestParams());
@@ -1236,10 +1253,11 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Create a single exit request to claim
         IVaultSubVaults.SubVaultExitRequest[] memory singleExitRequest = new IVaultSubVaults.SubVaultExitRequest[](1);
+        int256 exitQueueIndex = IVaultEnterExit(testSubVault).getExitQueueIndex(0);
 
         singleExitRequest[0] = IVaultSubVaults.SubVaultExitRequest({
             vault: testSubVault,
-            exitQueueIndex: uint256(metaVault.getExitQueueIndex(0)),
+            exitQueueIndex: uint256(exitQueueIndex),
             timestamp: timestamp
         });
 
@@ -1345,6 +1363,299 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         );
     }
 
+    function test_addSubVault_metaVaultAsSubVault_success() public {
+        // Setup: Create meta vault as sub vault
+        address metaSubVault = _setupMetaSubVault(admin);
+
+        // Get sub vault count before adding
+        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_addSubVault_metaVaultAsSubVault_success");
+
+        // Expect the SubVaultAdded event
+        vm.expectEmit(true, true, false, true);
+        emit IVaultSubVaults.SubVaultAdded(admin, metaSubVault);
+
+        // Action: Add the meta vault as sub vault
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Assert: Verify the meta vault was added as sub vault
+        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        assertEq(subVaultsAfter.length, subVaultsCountBefore + 1, "Sub vault count should increase by 1");
+
+        bool found = false;
+        for (uint256 i = 0; i < subVaultsAfter.length; i++) {
+            if (subVaultsAfter[i] == metaSubVault) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found, "Meta vault should be found in sub vaults list");
+    }
+
+    function test_addSubVault_metaVaultAsSubVault_notCollateralized() public {
+        // Setup: Create meta vault but don't collateralize it
+        bytes memory initParams = abi.encode(
+            IEthMetaVault.EthMetaVaultInitParams({
+                subVaultsCurator: curator,
+                capacity: type(uint256).max,
+                feePercent: 0,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address unCollateralizedMetaVault = _getOrCreateVault(VaultType.EthMetaVault, admin, initParams, false);
+
+        // Action & Assert: Cannot add non-collateralized meta vault
+        vm.prank(admin);
+        vm.expectRevert(Errors.NotCollateralized.selector);
+        metaVault.addSubVault(unCollateralizedMetaVault);
+    }
+
+    function test_addSubVault_metaVaultAsSubVault_notHarvested() public {
+        // Setup: Create and collateralize meta vault as sub vault
+        address metaSubVault = _setupMetaSubVault(admin);
+
+        // Setup: Set different rewards nonce for the meta sub vault
+        uint64 currentNonce = contracts.keeper.rewardsNonce();
+        uint64 differentNonce = currentNonce + 1;
+        _setMetaVaultRewardsNonce(metaSubVault, uint128(differentNonce));
+
+        // Action & Assert: Cannot add meta vault with different rewards nonce
+        vm.prank(admin);
+        vm.expectRevert(Errors.NotHarvested.selector);
+        metaVault.addSubVault(metaSubVault);
+    }
+
+    function test_ejectSubVault_metaVaultAsSubVault_emptySubVault() public {
+        // Setup: Add meta vault as sub vault
+        address metaSubVault = _setupMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Get sub vault count before ejection
+        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_ejectSubVault_metaVaultAsSubVault_emptySubVault");
+
+        // Expect SubVaultEjected event
+        vm.expectEmit(true, true, false, false);
+        emit IVaultSubVaults.SubVaultEjected(admin, metaSubVault);
+
+        // Action: Eject the meta vault sub vault
+        vm.prank(admin);
+        metaVault.ejectSubVault(metaSubVault);
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Assert: Verify the meta vault was removed from the list
+        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        assertEq(subVaultsAfter.length, subVaultsCountBefore - 1, "Meta vault sub vault should be removed");
+
+        bool found = false;
+        for (uint256 i = 0; i < subVaultsAfter.length; i++) {
+            if (subVaultsAfter[i] == metaSubVault) {
+                found = true;
+                break;
+            }
+        }
+        assertFalse(found, "Meta vault should not be found in sub vaults list after ejection");
+    }
+
+    function test_ejectSubVault_metaVaultAsSubVault_withShares() public {
+        // Setup: Add meta vault as sub vault
+        address metaSubVault = _setupMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Deposit to main meta vault
+        vm.deal(address(this), 5 ether);
+        metaVault.deposit{value: 5 ether}(address(this), address(0));
+
+        // Deposit to sub vaults to get collateralized state
+        metaVault.depositToSubVaults();
+
+        // Verify the meta sub vault has staked shares
+        IVaultSubVaults.SubVaultState memory stateBefore = metaVault.subVaultsStates(metaSubVault);
+        assertGt(stateBefore.stakedShares, 0, "Meta sub vault should have staked shares");
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_ejectSubVault_metaVaultAsSubVault_withShares");
+
+        // Expect the ExitQueueEntered event from the meta sub vault
+        vm.expectEmit(true, true, false, false, metaSubVault);
+        emit IVaultEnterExit.ExitQueueEntered(address(metaVault), address(metaVault), 0, 0);
+
+        // Action: Eject the meta vault sub vault with shares
+        vm.prank(admin);
+        metaVault.ejectSubVault(metaSubVault);
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Assert: Verify ejecting sub vault is set
+        assertEq(metaVault.ejectingSubVault(), metaSubVault, "Ejecting sub vault should be the meta sub vault");
+
+        // Verify state changes - shares moved from staked to queued
+        IVaultSubVaults.SubVaultState memory stateAfter = metaVault.subVaultsStates(metaSubVault);
+        assertEq(stateAfter.stakedShares, 0, "Staked shares should be zero after ejection");
+        assertEq(stateAfter.queuedShares, stateBefore.stakedShares, "Queued shares should equal previous staked shares");
+
+        // Verify the meta vault is still in the list (ejecting)
+        bool found = false;
+        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        for (uint256 i = 0; i < subVaultsAfter.length; i++) {
+            if (subVaultsAfter[i] == metaSubVault) {
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found, "Ejecting meta vault sub vault should still be in the list");
+    }
+
+    function test_depositToSubVaults_withMetaVaultSubVault() public {
+        // Setup: Add meta vault as sub vault
+        address metaSubVault = _setupMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Deposit to main meta vault
+        vm.deal(address(this), 10 ether);
+        metaVault.deposit{value: 10 ether}(address(this), address(0));
+
+        // Get total assets before deposit to sub vaults
+        uint256 totalAssetsBefore = metaVault.totalAssets();
+        assertGt(totalAssetsBefore, 0, "Meta vault should have assets before deposit to sub vaults");
+
+        // Get meta sub vault balance before
+        uint256 metaSubVaultBalanceBefore = metaSubVault.balance;
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_depositToSubVaults_withMetaVaultSubVault");
+
+        // Action: Deposit to sub vaults (including meta sub vault)
+        metaVault.depositToSubVaults();
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Assert: Verify assets were distributed to sub vaults including meta sub vault
+        uint256 metaSubVaultBalanceAfter = metaSubVault.balance;
+        assertGt(metaSubVaultBalanceAfter, metaSubVaultBalanceBefore, "Meta sub vault should receive funds");
+
+        // Verify sub vault states are updated
+        address[] memory allSubVaults = metaVault.getSubVaults();
+        for (uint256 i = 0; i < allSubVaults.length; i++) {
+            IVaultSubVaults.SubVaultState memory state = metaVault.subVaultsStates(allSubVaults[i]);
+            if (allSubVaults[i] == metaSubVault) {
+                assertGt(state.stakedShares, 0, "Meta sub vault should have staked shares");
+            }
+        }
+    }
+
+    function test_depositToSubVaults_nestedMetaVaultDepositsToItsSubVaults() public {
+        // Setup: Add meta vault as sub vault
+        address metaSubVault = _setupMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Deposit to main meta vault
+        vm.deal(address(this), 20 ether);
+        metaVault.deposit{value: 20 ether}(address(this), address(0));
+
+        // Deposit to sub vaults (including meta sub vault)
+        metaVault.depositToSubVaults();
+
+        // Verify meta sub vault received funds
+        assertGt(metaSubVault.balance, 0, "Meta sub vault should have received funds");
+
+        // Now deposit from meta sub vault to its own sub vault
+        EthMetaVault(payable(metaSubVault)).depositToSubVaults();
+
+        // Assert: Verify nested meta vault deposited to its sub vault
+        address[] memory nestedSubVaults = EthMetaVault(payable(metaSubVault)).getSubVaults();
+        assertEq(nestedSubVaults.length, 1, "Meta sub vault should have exactly 1 sub vault");
+
+        address nestedSubVault = nestedSubVaults[0];
+        IVaultSubVaults.SubVaultState memory state = EthMetaVault(payable(metaSubVault)).subVaultsStates(nestedSubVault);
+        assertGt(state.stakedShares, 0, "Nested sub vault should have staked shares");
+        assertGt(nestedSubVault.balance, 0, "Nested sub vault should have received funds");
+    }
+
+    function test_updateState_withMetaVaultSubVault_success() public {
+        // Setup: Add meta vault as sub vault and deposit
+        address metaSubVault = _setupMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        vm.deal(address(this), 5 ether);
+        metaVault.deposit{value: 5 ether}(address(this), address(0));
+        metaVault.depositToSubVaults();
+
+        // Set up current nonce for all vaults
+        uint64 currentNonce = contracts.keeper.rewardsNonce() + 1;
+
+        // Set nonce for meta sub vault using direct function
+        _setMetaVaultRewardsNonce(metaSubVault, uint128(currentNonce));
+
+        // Update nonce for regular sub vaults
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            if (subVaults[i] == metaSubVault) {
+                continue; // Skip the meta sub vault
+            }
+            _setVaultRewardsNonce(subVaults[i], currentNonce);
+        }
+
+        uint256 nonceBefore = metaVault.subVaultsRewardsNonce();
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_updateState_withMetaVaultSubVault_success");
+
+        // Action: Update state
+        metaVault.updateState(_getEmptyHarvestParams());
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Assert: Verify state was updated successfully
+        // Check that nonce was updated
+        uint256 metaVaultNonce = metaVault.subVaultsRewardsNonce();
+        assertEq(metaVaultNonce, currentNonce, "Meta vault nonce should be updated");
+        assertGt(metaVaultNonce, nonceBefore, "Meta vault nonce should have increased");
+    }
+
+    function test_updateState_withMetaVaultSubVault_notHarvested() public {
+        // Setup: Add meta vault as sub vault
+        address metaSubVault = _setupMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Setup: Make the meta sub vault appear not harvested by setting outdated nonce
+        uint64 currentNonce = contracts.keeper.rewardsNonce();
+        uint64 outdatedNonce = currentNonce - 1;
+
+        // Set all regular sub vaults to current nonce
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            if (subVaults[i] == metaSubVault) {
+                continue; // Skip the meta sub vault
+            }
+            _setVaultRewardsNonce(subVaults[i], currentNonce + 1);
+        }
+
+        // Set meta sub vault to outdated nonce using direct function
+        _setMetaVaultRewardsNonce(metaSubVault, uint128(outdatedNonce));
+
+        // Action & Assert: Expect revert when meta sub vault is not harvested
+        vm.expectRevert(Errors.NotHarvested.selector);
+        metaVault.updateState(_getEmptyHarvestParams());
+    }
+
     function _createSubVault(address _admin) internal returns (address) {
         bytes memory initParams = abi.encode(
             IEthVault.EthVaultInitParams({
@@ -1357,10 +1668,49 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         return _createVault(VaultType.EthVault, _admin, initParams, false);
     }
 
+    function _setupMetaSubVault(address _admin) internal returns (address metaSubVault) {
+        // Deploy meta vault that will be used as sub vault
+        bytes memory initParams = abi.encode(
+            IEthMetaVault.EthMetaVaultInitParams({
+                subVaultsCurator: curator,
+                capacity: type(uint256).max,
+                feePercent: 0, // 0%
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        metaSubVault = _getOrCreateVault(VaultType.EthMetaVault, _admin, initParams, false);
+
+        // Create regular vault as sub vaults of the meta sub vault
+        address subVault = _createSubVault(_admin);
+        _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), subVault);
+
+        vm.prank(_admin);
+        EthMetaVault(payable(metaSubVault)).addSubVault(subVault);
+    }
+
+    function _harvestMetaSubVault(address metaSubVault, int160 totalReward, uint160 unlockedMevReward) internal {
+        // Get the sub vault of the meta sub vault
+        address[] memory metaSubSubVaults = EthMetaVault(payable(metaSubVault)).getSubVaults();
+        require(metaSubSubVaults.length > 0, "Meta sub vault should have sub vaults");
+
+        // First harvest the sub vault of the meta sub vault
+        address metaSubSubVault = metaSubSubVaults[0];
+        IKeeperRewards.HarvestParams memory harvestParams =
+            _setEthVaultReward(metaSubSubVault, totalReward, unlockedMevReward);
+        IVaultState(metaSubSubVault).updateState(harvestParams);
+
+        // Then update the meta sub vault with empty harvest params
+        EthMetaVault(payable(metaSubVault)).updateState(_getEmptyHarvestParams());
+    }
+
     function _setVaultRewardsNonce(address vault, uint64 rewardsNonce) internal {
         stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewards(address)").with_key(vault).depth(
             1
         ).checked_write(rewardsNonce);
+    }
+
+    function _setMetaVaultRewardsNonce(address vault, uint128 rewardsNonce) internal {
+        stdstore.target(vault).sig("subVaultsRewardsNonce()").checked_write(rewardsNonce);
     }
 
     function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {

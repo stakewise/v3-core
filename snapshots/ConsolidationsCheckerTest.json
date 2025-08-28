@@ -1,12 +1,12 @@
 {
-  "ConsolidationsCheckerTest_test_verifySignatures_differentValidatorData": "23287",
-  "ConsolidationsCheckerTest_test_verifySignatures_differentVault": "21178",
-  "ConsolidationsCheckerTest_test_verifySignatures_emptySignatures": "17426",
-  "ConsolidationsCheckerTest_test_verifySignatures_exactMinimumSignatures": "38006",
-  "ConsolidationsCheckerTest_test_verifySignatures_moreThanMinimumSignatures": "38019",
-  "ConsolidationsCheckerTest_test_verifySignatures_nonOracleSigner": "28926",
-  "ConsolidationsCheckerTest_test_verifySignatures_repeatedSigner": "25508",
-  "ConsolidationsCheckerTest_test_verifySignatures_success": "38008",
-  "ConsolidationsCheckerTest_test_verifySignatures_tooFewSignatures": "13454",
-  "ConsolidationsCheckerTest_test_verifySignatures_unsortedSignatures": "25504"
+  "ConsolidationsCheckerTest_test_verifySignatures_differentValidatorData": "23484",
+  "ConsolidationsCheckerTest_test_verifySignatures_differentVault": "21375",
+  "ConsolidationsCheckerTest_test_verifySignatures_emptySignatures": "17460",
+  "ConsolidationsCheckerTest_test_verifySignatures_exactMinimumSignatures": "38203",
+  "ConsolidationsCheckerTest_test_verifySignatures_moreThanMinimumSignatures": "38216",
+  "ConsolidationsCheckerTest_test_verifySignatures_nonOracleSigner": "29123",
+  "ConsolidationsCheckerTest_test_verifySignatures_repeatedSigner": "25705",
+  "ConsolidationsCheckerTest_test_verifySignatures_success": "38205",
+  "ConsolidationsCheckerTest_test_verifySignatures_tooFewSignatures": "13654",
+  "ConsolidationsCheckerTest_test_verifySignatures_unsortedSignatures": "25701"
 }

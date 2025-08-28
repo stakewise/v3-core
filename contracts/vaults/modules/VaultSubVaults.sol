@@ -15,6 +15,7 @@ import {IVaultEnterExit} from "../../interfaces/IVaultEnterExit.sol";
 import {ISubVaultsCurator} from "../../interfaces/ISubVaultsCurator.sol";
 import {IVaultSubVaults} from "../../interfaces/IVaultSubVaults.sol";
 import {ICuratorsRegistry} from "../../interfaces/ICuratorsRegistry.sol";
+import {IVaultVersion} from "../../interfaces/IVaultVersion.sol";
 import {ExitQueue} from "../../libraries/ExitQueue.sol";
 import {Errors} from "../../libraries/Errors.sol";
 import {VaultAdmin} from "./VaultAdmin.sol";
@@ -52,10 +53,11 @@ abstract contract VaultSubVaults is
     mapping(address vault => DoubleEndedQueue.Bytes32Deque) private _subVaultsExits;
     mapping(address vault => SubVaultState state) private _subVaultsStates;
 
-    uint256 private _totalProcessedExitQueueTickets;
-    uint128 private _subVaultsRewardsNonce;
+    /// @inheritdoc IVaultSubVaults
+    uint128 public override subVaultsRewardsNonce;
     uint128 private _subVaultsTotalAssets;
 
+    uint256 private _totalProcessedExitQueueTickets;
     uint256 private _ejectingSubVaultShares;
 
     /**
@@ -102,7 +104,7 @@ abstract contract VaultSubVaults is
             revert Errors.CapacityExceeded();
         }
         // check whether vault is collateralized
-        if (!IKeeperRewards(_keeper).isCollateralized(vault)) {
+        if (!_isSubVaultCollateralized(vault)) {
             revert Errors.NotCollateralized();
         }
 
@@ -113,10 +115,10 @@ abstract contract VaultSubVaults is
         }
 
         // check harvested
-        (, uint256 vaultNonce) = IKeeperRewards(_keeper).rewards(vault);
-        uint256 lastSubVaultsRewardsNonce = _subVaultsRewardsNonce;
+        uint256 vaultNonce = _getSubVaultRewardsNonce(vault);
+        uint256 lastSubVaultsRewardsNonce = subVaultsRewardsNonce;
         if (subVaultsCount == 0) {
-            _subVaultsRewardsNonce = SafeCast.toUint128(vaultNonce);
+            subVaultsRewardsNonce = SafeCast.toUint128(vaultNonce);
             emit RewardsNonceUpdated(vaultNonce);
         } else if (vaultNonce != lastSubVaultsRewardsNonce) {
             revert Errors.NotHarvested();
@@ -170,12 +172,22 @@ abstract contract VaultSubVaults is
     /// @inheritdoc IVaultState
     function isStateUpdateRequired() public view virtual override returns (bool) {
         // SLOAD to memory
-        uint256 currentNonce = IKeeperRewards(_keeper).rewardsNonce();
-        uint256 subVaultsRewardsNonce = _subVaultsRewardsNonce;
+        uint256 currentNonce = _getCurrentRewardsNonce();
         unchecked {
-            // cannot overflow as nonce is uint64
+            // cannot realistically overflow
             return subVaultsRewardsNonce + 1 < currentNonce;
         }
+    }
+
+    /// @inheritdoc IVaultSubVaults
+    function canUpdateState() external view override returns (bool) {
+        uint256 nonce = subVaultsRewardsNonce;
+        return nonce != 0 && nonce < _getCurrentRewardsNonce();
+    }
+
+    /// @inheritdoc IVaultSubVaults
+    function isCollateralized() external view override returns (bool) {
+        return _subVaults.length() > 0;
     }
 
     /// @inheritdoc IVaultSubVaults
@@ -195,14 +207,11 @@ abstract contract VaultSubVaults is
             ISubVaultsCurator(subVaultsCurator).getDeposits(availableAssets, vaults, ejectingSubVault);
 
         // process deposits
-        uint128 vaultShares;
-        ISubVaultsCurator.Deposit memory depositData;
-
         uint256 depositsLength = deposits.length;
         // SLOAD to memory
         uint256 subVaultsTotalAssets = _subVaultsTotalAssets;
         for (uint256 i = 0; i < depositsLength;) {
-            depositData = deposits[i];
+            ISubVaultsCurator.Deposit memory depositData = deposits[i];
             if (depositData.assets == 0) {
                 // skip empty deposits
                 unchecked {
@@ -216,7 +225,7 @@ abstract contract VaultSubVaults is
             availableAssets -= depositData.assets;
 
             // update state
-            vaultShares = SafeCast.toUint128(_depositToVault(depositData.vault, depositData.assets));
+            uint128 vaultShares = SafeCast.toUint128(_depositToVault(depositData.vault, depositData.assets));
             _subVaultsStates[depositData.vault].stakedShares += vaultShares;
             subVaultsTotalAssets += depositData.assets;
             unchecked {
@@ -230,28 +239,19 @@ abstract contract VaultSubVaults is
 
     /// @inheritdoc IVaultSubVaults
     function claimSubVaultsExitedAssets(SubVaultExitRequest[] calldata exitRequests) external override {
-        uint256 leftShares;
-        uint256 exitedAssets;
-        uint256 exitedShares;
-        uint256 positionTicket;
-        uint256 positionShares;
-        SubVaultState memory subVaultState;
-        SubVaultExitRequest calldata exitRequest;
-
         uint256 exitRequestsLength = exitRequests.length;
         // SLOAD to memory
         uint256 subVaultsTotalAssets = _subVaultsTotalAssets;
         address _ejectingSubVault = ejectingSubVault;
         for (uint256 i = 0; i < exitRequestsLength;) {
-            exitRequest = exitRequests[i];
-            subVaultState = _subVaultsStates[exitRequest.vault];
-            (positionTicket, positionShares) = _popSubVaultExit(exitRequest.vault);
-            (leftShares, exitedShares, exitedAssets) = IVaultEnterExit(exitRequest.vault).calculateExitedAssets(
-                address(this), positionTicket, exitRequest.timestamp, exitRequest.exitQueueIndex
-            );
+            SubVaultExitRequest calldata exitRequest = exitRequests[i];
+            SubVaultState memory subVaultState = _subVaultsStates[exitRequest.vault];
+            (uint256 positionTicket, uint256 positionShares) = _popSubVaultExit(exitRequest.vault);
+            (uint256 leftShares, uint256 exitedShares, uint256 exitedAssets) = IVaultEnterExit(exitRequest.vault)
+                .calculateExitedAssets(address(this), positionTicket, exitRequest.timestamp, exitRequest.exitQueueIndex);
 
             subVaultState.queuedShares -= SafeCast.toUint128(positionShares);
-            if (leftShares > 1) {
+            if (leftShares > 0) {
                 // exit request was not processed in full
                 _pushSubVaultExit(
                     exitRequest.vault,
@@ -305,15 +305,12 @@ abstract contract VaultSubVaults is
         _checkSubVaultsExitClaims(vaults);
 
         // calculate new total assets and save balances in each sub vault
-        address vault;
         uint256 newSubVaultsTotalAssets;
-        uint256 vaultTotalShares;
-        SubVaultState memory vaultState;
         uint256[] memory balances = new uint256[](vaultsLength);
         for (uint256 i = 0; i < vaultsLength;) {
-            vault = vaults[i];
-            vaultState = _subVaultsStates[vault];
-            vaultTotalShares = vaultState.stakedShares + vaultState.queuedShares;
+            address vault = vaults[i];
+            SubVaultState memory vaultState = _subVaultsStates[vault];
+            uint256 vaultTotalShares = vaultState.stakedShares + vaultState.queuedShares;
             if (vaultTotalShares > 0) {
                 newSubVaultsTotalAssets += IVaultState(vault).convertToAssets(vaultTotalShares);
             }
@@ -350,7 +347,12 @@ abstract contract VaultSubVaults is
     }
 
     /// @inheritdoc VaultState
-    function _harvestAssets(IKeeperRewards.HarvestParams calldata) internal pure override returns (int256, bool) {
+    function _harvestAssets(IKeeperRewards.HarvestParams calldata)
+        internal
+        pure
+        override
+        returns (int256 totalAssetsDelta, bool harvested)
+    {
         // not used
         return (0, false);
     }
@@ -367,7 +369,7 @@ abstract contract VaultSubVaults is
 
         // calculate unprocessed exit queue tickets
         uint256 unprocessedTickets = _queuedShares - (totalProcessedTickets - totalExitedTickets);
-        if (unprocessedTickets <= 1) {
+        if (unprocessedTickets == 0) {
             // nothing to process
             return;
         }
@@ -377,6 +379,11 @@ abstract contract VaultSubVaults is
 
         // check whether ejecting vault has exiting assets
         uint256 unprocessedAssets = convertToAssets(unprocessedTickets);
+        if (unprocessedAssets == 0) {
+            // nothing to process
+            return;
+        }
+
         unprocessedAssets -= _consumeEjectingSubVaultAssets(unprocessedAssets);
         if (unprocessedAssets == 0) {
             return;
@@ -388,16 +395,10 @@ abstract contract VaultSubVaults is
 
         // process exits
         uint256 processedAssets;
-        uint256 vaultShares;
-        uint256 positionTicket;
-        SubVaultState memory vaultState;
-        ISubVaultsCurator.ExitRequest memory exitRequest;
-
-        uint128 vaultShares128;
         uint256 exitsLength = exits.length;
         for (uint256 i = 0; i < exitsLength;) {
             // submit exit request to the vault
-            exitRequest = exits[i];
+            ISubVaultsCurator.ExitRequest memory exitRequest = exits[i];
             if (exitRequest.assets == 0) {
                 // skip empty exit requests
                 unchecked {
@@ -406,9 +407,18 @@ abstract contract VaultSubVaults is
                 }
                 continue;
             }
-            vaultState = _subVaultsStates[exitRequest.vault];
-            vaultShares = IVaultState(exitRequest.vault).convertToShares(exitRequest.assets);
-            positionTicket = IVaultEnterExit(exitRequest.vault).enterExitQueue(vaultShares, address(this));
+            SubVaultState memory vaultState = _subVaultsStates[exitRequest.vault];
+            uint256 vaultShares = IVaultState(exitRequest.vault).convertToShares(exitRequest.assets);
+            if (vaultShares == 0) {
+                // skip exit requests with zero shares
+                processedAssets += exitRequest.assets;
+                unchecked {
+                    // cannot realistically overflow
+                    ++i;
+                }
+                continue;
+            }
+            uint256 positionTicket = IVaultEnterExit(exitRequest.vault).enterExitQueue(vaultShares, address(this));
 
             // save exit request
             _pushSubVaultExit(
@@ -416,7 +426,7 @@ abstract contract VaultSubVaults is
             );
 
             // update state
-            vaultShares128 = SafeCast.toUint128(vaultShares);
+            uint128 vaultShares128 = SafeCast.toUint128(vaultShares);
             vaultState.queuedShares += vaultShares128;
             vaultState.stakedShares -= vaultShares128;
 
@@ -438,14 +448,10 @@ abstract contract VaultSubVaults is
      * @param vaults The addresses of the sub vaults
      */
     function _checkSubVaultsExitClaims(address[] memory vaults) private view {
-        address vault;
-        uint256 totalExitedTickets;
-        uint256 positionTicket;
-        uint256 exitShares;
         uint256 vaultsLength = vaults.length;
         for (uint256 i = 0; i < vaultsLength;) {
-            vault = vaults[i];
-            (positionTicket, exitShares) = _peekSubVaultExit(vault);
+            address vault = vaults[i];
+            (uint256 positionTicket, uint256 exitShares) = _peekSubVaultExit(vault);
             if (positionTicket == 0 && exitShares == 0) {
                 // no queue positions
                 unchecked {
@@ -454,7 +460,7 @@ abstract contract VaultSubVaults is
                 }
                 continue;
             }
-            (,,,, totalExitedTickets) = IVaultState(vault).getExitQueueData();
+            (,,,, uint256 totalExitedTickets) = IVaultState(vault).getExitQueueData();
             if (totalExitedTickets > positionTicket) {
                 revert Errors.UnclaimedAssets();
             }
@@ -474,24 +480,24 @@ abstract contract VaultSubVaults is
     function _syncRewardsNonce(address[] memory vaults) private returns (bool) {
         // process first vault in the array
         address vault = vaults[0];
-        (, uint256 vaultNonce) = IKeeperRewards(_keeper).rewards(vault);
+        uint256 vaultNonce = _getSubVaultRewardsNonce(vault);
 
         // check whether the first vault is harvested
-        uint256 currentNonce = IKeeperRewards(_keeper).rewardsNonce();
+        uint256 currentNonce = _getCurrentRewardsNonce();
         if (vaultNonce + 1 < currentNonce) {
             revert Errors.NotHarvested();
         }
 
         // fetch current nonce
         currentNonce = vaultNonce;
-        uint256 lastRewardsNonce = _subVaultsRewardsNonce;
+        uint256 lastRewardsNonce = subVaultsRewardsNonce;
         if (lastRewardsNonce > currentNonce) {
             revert Errors.RewardsNonceIsHigher();
         } else if (lastRewardsNonce == currentNonce) {
             return false;
         } else {
             // update last sync rewards nonce
-            _subVaultsRewardsNonce = SafeCast.toUint128(currentNonce);
+            subVaultsRewardsNonce = SafeCast.toUint128(currentNonce);
             emit RewardsNonceUpdated(currentNonce);
         }
 
@@ -499,7 +505,7 @@ abstract contract VaultSubVaults is
         uint256 vaultsLength = vaults.length;
         for (uint256 i = 1; i < vaultsLength;) {
             vault = vaults[i];
-            (, vaultNonce) = IKeeperRewards(_keeper).rewards(vault);
+            vaultNonce = _getSubVaultRewardsNonce(vault);
 
             // check whether the vault is harvested
             if (vaultNonce != currentNonce) {
@@ -595,13 +601,48 @@ abstract contract VaultSubVaults is
     }
 
     /**
+     * @dev Internal function to check whether a sub-vault is collateralized
+     * @param subVault The address of the sub-vault
+     * @return true if the sub-vault is collateralized
+     */
+    function _isSubVaultCollateralized(address subVault) private view returns (bool) {
+        try IVaultSubVaults(subVault).isCollateralized() returns (bool collateralized) {
+            return collateralized;
+        } catch {}
+
+        return IKeeperRewards(_keeper).isCollateralized(subVault);
+    }
+
+    /**
+     * @dev Internal function to get the rewards nonce of a sub-vault
+     * @param subVault The address of the sub-vault
+     * @return The rewards nonce of the sub-vault
+     */
+    function _getSubVaultRewardsNonce(address subVault) private view returns (uint256) {
+        try IVaultSubVaults(subVault).subVaultsRewardsNonce() returns (uint128 nonce) {
+            return nonce;
+        } catch {}
+
+        (, uint256 vaultNonce) = IKeeperRewards(_keeper).rewards(subVault);
+        return vaultNonce;
+    }
+
+    /**
+     * @dev Internal function to get the current rewards nonce from the Keeper contract
+     * @return The current rewards nonce
+     */
+    function _getCurrentRewardsNonce() private view returns (uint256) {
+        return IKeeperRewards(_keeper).rewardsNonce();
+    }
+
+    /**
      * @dev Internal function to set the sub-vaults curator
      * @param curator The address of the sub-vaults curator
      */
     function _setSubVaultsCurator(address curator) private {
         if (curator == address(0)) revert Errors.ZeroAddress();
         if (curator == subVaultsCurator) revert Errors.ValueNotChanged();
-        if (!ICuratorsRegistry(_curatorsRegistry).curators(curator)) {
+        if (!ICuratorsRegistry(_curatorsRegistry).isCurator(curator)) {
             revert Errors.InvalidCurator();
         }
         subVaultsCurator = curator;
@@ -623,7 +664,7 @@ abstract contract VaultSubVaults is
     function __VaultSubVaults_init(address curator) internal onlyInitializing {
         __ReentrancyGuard_init();
         _setSubVaultsCurator(curator);
-        _subVaultsRewardsNonce = IKeeperRewards(_keeper).rewardsNonce();
+        subVaultsRewardsNonce = SafeCast.toUint128(_getCurrentRewardsNonce());
     }
 
     /**
