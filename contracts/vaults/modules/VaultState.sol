@@ -201,7 +201,7 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
 
     /**
      * @dev Internal function that must be used to process exit queue
-     * @dev Make sure that sufficient time passed between exit queue updates (at least 1 day).
+     * @dev Make sure that sufficient time passed between exit queue updates (at least 12 hours).
      *      Currently it's restricted by the keeper's harvest interval
      * @return burnedShares The total amount of burned shares
      */

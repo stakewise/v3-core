@@ -207,7 +207,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
             _setEthVaultReward(address(vault), int160(int256(0.1 ether)), 0);
 
         vm.roll(block.number + 1000);
-        vm.warp(vm.getBlockTimestamp() + 1 days);
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay);
 
         // Update controller state to change cumulativeFeePerShare
         vault.updateState(harvestParams);
@@ -227,7 +227,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
         _stopSnapshotGas();
 
         // Position should increase by more than the mint amount due to fee sync
-        vm.warp(vm.getBlockTimestamp() + 1 days);
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay);
         uint256 positionAfter = vault.osTokenPositions(owner);
         assertGt(
             positionAfter,
@@ -289,7 +289,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
             _setEthVaultReward(address(vault), int160(int256(0.5 ether)), 0);
 
         // Force vault to need harvesting
-        vm.warp(vm.getBlockTimestamp() + 1 days);
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay);
 
         // Try to mint OsToken when vault needs harvesting
         uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
@@ -498,7 +498,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
             _setEthVaultReward(address(vault), int160(int256(0.1 ether)), 0);
 
         vm.roll(block.number + 1000);
-        vm.warp(vm.getBlockTimestamp() + 1 days);
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay);
 
         // Update states to trigger fee sync
         vault.updateState(harvestParams);
@@ -713,7 +713,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
             _setEthVaultReward(address(vault), int160(int256(0.1 ether)), 0);
 
         vm.roll(block.number + 1000);
-        vm.warp(vm.getBlockTimestamp() + 1 days);
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay);
 
         // Update states to trigger fee sync
         vault.updateState(harvestParams);
@@ -836,7 +836,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
         IKeeperRewards.HarvestParams memory harvestParams =
             _setEthVaultReward(address(vault), int160(int256(0.1 ether)), 0);
 
-        vm.warp(vm.getBlockTimestamp() + 1 days);
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay);
 
         // Vault needs harvesting at this point
         assertTrue(contracts.keeper.isHarvestRequired(address(vault)), "Vault should need harvesting");
@@ -1294,7 +1294,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
         _setEthVaultReward(address(vault), int160(int256(0.5 ether)), 0);
         _setEthVaultReward(address(vault), int160(int256(0.5 ether)), 0);
 
-        vm.warp(vm.getBlockTimestamp() + 1 days);
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay);
 
         // Try to transfer when vault needs harvesting
         vm.prank(owner);

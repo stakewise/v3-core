@@ -47,7 +47,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     address internal constant _depositDataRegistry = 0x75AB6DdCe07556639333d3Df1eaa684F5735223e;
     address internal constant _poolEscrow = 0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079;
     address internal constant _rewardEthToken = 0x20BC832ca081b91433ff6c17f85701B6e92486c5;
-    uint256 internal constant _exitingAssetsClaimDelay = 1 days;
+    uint256 internal constant _exitingAssetsClaimDelay = 15 hours;
 
     enum VaultType {
         EthVault,

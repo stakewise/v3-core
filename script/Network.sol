@@ -22,7 +22,7 @@ abstract contract Network is Script {
     uint256 internal constant CHIADO = 10200;
     uint256 internal constant GNOSIS = 100;
 
-    uint64 internal constant PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY = 1 days;
+    uint64 internal constant PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY = 15 hours;
     // disable delay for private vaults as stakers are KYC'd
     uint64 internal constant PRIVATE_VAULT_EXITED_ASSETS_CLAIM_DELAY = 0;
     address internal constant VALIDATORS_WITHDRAWALS = 0x00000961Ef480Eb55e80D19ad83579A64c007002;
