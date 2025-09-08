@@ -213,7 +213,7 @@ contract VaultStateTest is Test, EthHelpers {
         vault.updateState(harvestParams);
 
         // Fast forward time
-        vm.warp(vm.getBlockTimestamp() + 1 days + 1);
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
 
         // Record owner's balance before claiming
         uint256 ownerBalanceBefore = owner.balance;
@@ -348,7 +348,7 @@ contract VaultStateTest is Test, EthHelpers {
         vault.updateState(harvestParams);
 
         // Fast forward time
-        vm.warp(vm.getBlockTimestamp() + 1 days + 1);
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
 
         // Both users claim exited assets
         uint256 exitQueueIndex = uint256(vault.getExitQueueIndex(positionTicket1));
