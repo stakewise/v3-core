@@ -3,5 +3,5 @@
   "GnoBlocklistErc20VaultTest_test_canMintOsTokenAsNonBlockedUser": "161610",
   "GnoBlocklistErc20VaultTest_test_deploysCorrectly": "953673",
   "GnoBlocklistErc20VaultTest_test_transfer": "61693",
-  "GnoBlocklistErc20VaultTest_test_upgradesCorrectly": "305228"
+  "GnoBlocklistErc20VaultTest_test_upgradesCorrectly": "312821"
 }

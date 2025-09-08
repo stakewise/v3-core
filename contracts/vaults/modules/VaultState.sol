@@ -346,6 +346,27 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
             emit CheckpointCreated(exitedTickets, 0);
         }
         _totalExitedTickets = 0;
+
+        // SLOAD to memory
+        // create checkpoint for exiting assets for uncollateralized vaults
+        uint256 totalExitingAssets = _totalExitingAssets;
+        if (!_isCollateralized() && totalExitingAssets > 0) {
+            uint256 availableAssets = _vaultAssets() - _unclaimedAssets;
+            if (availableAssets < totalExitingAssets) {
+                revert Errors.InvalidAssets();
+            }
+            // SLOAD to memory
+            uint256 totalExitingTickets = _totalExitingTickets;
+
+            // push checkpoint so that exited assets could be claimed
+            _exitQueue.push(totalExitingTickets, totalExitingAssets);
+            emit CheckpointCreated(totalExitingTickets, totalExitingAssets);
+
+            // update state
+            _unclaimedAssets += SafeCast.toUint128(totalExitingAssets);
+            _totalExitingTickets = 0;
+            _totalExitingAssets = 0;
+        }
     }
 
     /**

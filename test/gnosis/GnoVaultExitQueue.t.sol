@@ -256,6 +256,9 @@ contract GnoVaultExitQueueTest is Test, GnoHelpers {
     function test_exitingAssetsPenalized() public {
         _depositToVault(vaultAddr, depositAmount, user1, user1);
 
+        // Collateralize the vault
+        _collateralizeGnoVault(vaultAddr);
+
         // Enter half of the deposit into the exit queue
         vm.prank(user1);
         vault.enterExitQueue(exitAmount, user1);

@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
+import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
 import {IGnoVault} from "../../contracts/interfaces/IGnoVault.sol";
 import {Errors} from "../../contracts/libraries/Errors.sol";
 import {GnoVault} from "../../contracts/vaults/gnosis/GnoVault.sol";
@@ -162,6 +163,81 @@ contract GnoVaultTest is Test, GnoHelpers {
         assertEq(prevVault.getShares(sender), senderBalanceBefore);
         assertEq(queuedShares, queuedSharesBefore);
         assertEq(totalExitingAssets, totalExitingAssetsBefore);
+
+        // Allowance should be set after upgrade
+        assertEq(
+            contracts.gnoToken.allowance(address(prevVault), address(contracts.validatorsRegistry)), type(uint256).max
+        );
+    }
+
+    function test_upgrade_notCollateralizedVault() public {
+        // Create a v2 vault (previous version)
+        bytes memory initParams = abi.encode(
+            IGnoVault.GnoVaultInitParams({
+                capacity: 1000 ether,
+                feePercent: 1000, // 10%
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address vaultAddr = _createPrevVersionVault(VaultType.GnoVault, admin, initParams, false);
+        GnoVault prevVault = GnoVault(payable(vaultAddr));
+
+        // Deposit some GNO
+        uint256 depositAssets = 15 ether;
+        _depositToVault(address(prevVault), depositAssets, sender, sender);
+
+        // Enter exit queue with some shares
+        vm.prank(sender);
+        prevVault.enterExitQueue(depositAssets, sender);
+
+        // Check state before upgrade
+        assertEq(prevVault.totalShares(), _securityDeposit);
+        assertEq(prevVault.totalAssets(), _securityDeposit);
+        assertEq(prevVault.getShares(sender), 0);
+        assertEq(IVaultStateV2(address(prevVault)).queuedShares(), 0);
+        assertEq(IVaultStateV2(address(prevVault)).totalExitingAssets(), depositAssets);
+
+        // Verify current version
+        assertEq(prevVault.vaultId(), keccak256("GnoVault"));
+        assertEq(prevVault.version(), 2);
+
+        // Check validator registry allowance
+        assertEq(contracts.gnoToken.allowance(address(prevVault), address(contracts.validatorsRegistry)), 0);
+
+        // Upgrade the vault
+        vm.expectEmit(true, false, false, true);
+        emit IVaultState.CheckpointCreated(depositAssets, depositAssets);
+
+        _startSnapshotGas("GnoVaultTest_test_upgradesCorrectly");
+        _upgradeVault(VaultType.GnoVault, address(prevVault));
+        _stopSnapshotGas();
+
+        // Check that the vault was upgraded correctly
+        (
+            uint128 queuedShares,
+            uint128 unclaimedAssets,
+            uint128 totalExitingTickets,
+            uint128 totalExitingAssets,
+            uint256 totalTickets
+        ) = prevVault.getExitQueueData();
+        assertEq(prevVault.vaultId(), keccak256("GnoVault"));
+        assertEq(prevVault.version(), 3);
+        assertEq(prevVault.admin(), admin);
+        assertEq(prevVault.capacity(), 1000 ether);
+        assertEq(prevVault.feePercent(), 1000);
+        assertEq(prevVault.feeRecipient(), admin);
+        assertEq(prevVault.validatorsManager(), _depositDataRegistry);
+
+        // State should be updated
+        assertEq(prevVault.totalShares(), _securityDeposit);
+        assertEq(prevVault.totalAssets(), _securityDeposit);
+        assertEq(prevVault.validatorsManagerNonce(), 0);
+        assertEq(prevVault.getShares(sender), 0);
+        assertEq(queuedShares, 0);
+        assertEq(totalExitingAssets, 0);
+        assertEq(totalExitingTickets, 0);
+        assertEq(unclaimedAssets, depositAssets);
+        assertEq(totalTickets, depositAssets);
 
         // Allowance should be set after upgrade
         assertEq(
