@@ -58,6 +58,12 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         _depositToVault(vault, 33 ether, user, vault); // Deposit enough for 1 validator
         _collateralizeEthVault(address(vault));
 
+        if (IEthVault(vault).validatorsManager() == address(0)) {
+            // Set the deposit data registry as the validators manager if not set
+            vm.prank(admin);
+            IVaultValidators(vault).setValidatorsManager(_depositDataRegistry);
+        }
+
         // Create another vault without sufficient funds
         emptyVault = _createVault(VaultType.EthVault, admin, initParams, false);
 
@@ -402,17 +408,13 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
     }
 
     function test_checkDepositDataRoot_Success() public {
-        // 1. Set up the vault with the deposit data registry as the validators manager
-        vm.prank(admin);
-        IVaultValidators(vault).setValidatorsManager(_depositDataRegistry);
-
-        // 2. Create valid validator data (48 bytes pubkey + 96 bytes signature + 32 bytes root + 8 bytes amount)
+        // 1. Create valid validator data (48 bytes pubkey + 96 bytes signature + 32 bytes root + 8 bytes amount)
         bytes memory validator = new bytes(184);
         for (uint256 i = 0; i < validator.length; i++) {
             validator[i] = bytes1(uint8(i % 256)); // Fill with incremental data
         }
 
-        // 3. Set up the deposit data root
+        // 2. Set up the deposit data root
         // For a proper test, we need to create a real Merkle root from the validator data
         // We'll create a mock Merkle tree with just one validator
 
@@ -425,25 +427,25 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         // For a single validator, the Merkle root is the leaf node itself
         bytes32 depositDataRoot = leafNode;
 
-        // 4. Set the deposit data root in the registry
+        // 3. Set the deposit data root in the registry
         vm.prank(IDepositDataRegistry(_depositDataRegistry).getDepositDataManager(vault));
         IDepositDataRegistry(_depositDataRegistry).setDepositDataRoot(vault, depositDataRoot);
 
-        // 5. Mock the deposit data index
+        // 4. Mock the deposit data index
         vm.mockCall(
             _depositDataRegistry,
             abi.encodeWithSelector(bytes4(keccak256("depositDataIndexes(address)"))),
             abi.encode(validatorIndex)
         );
 
-        // 6. For a single validator Merkle tree, the proof is empty
+        // 5. For a single validator Merkle tree, the proof is empty
         // But we need to set up the arrays correctly for the function parameters
         bytes32[] memory proof = new bytes32[](0);
         bool[] memory proofFlags = new bool[](0);
         uint256[] memory proofIndexes = new uint256[](1);
         proofIndexes[0] = 0; // First (and only) validator
 
-        // 7. Create the parameters for checkDepositDataRoot
+        // 6. Create the parameters for checkDepositDataRoot
         IValidatorsChecker.DepositDataRootCheckParams memory params = IValidatorsChecker.DepositDataRootCheckParams({
             vault: vault,
             validatorsRegistryRoot: validRegistryRoot,
@@ -453,10 +455,10 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
             proofIndexes: proofIndexes
         });
 
-        // 8. Call checkDepositDataRoot
+        // 7. Call checkDepositDataRoot
         (uint256 blockNumber, IValidatorsChecker.Status status) = validatorsChecker.checkDepositDataRoot(params);
 
-        // 9. Verify success result
+        // 8. Verify success result
         assertEq(
             uint256(status),
             uint256(IValidatorsChecker.Status.SUCCEEDED),

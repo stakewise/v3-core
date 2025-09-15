@@ -384,7 +384,7 @@ contract EthPrivErc20VaultTest is Test, EthHelpers {
         assertEq(privErc20Vault.capacity(), 1000 ether);
         assertEq(privErc20Vault.feePercent(), 1000);
         assertEq(privErc20Vault.feeRecipient(), admin);
-        assertEq(privErc20Vault.validatorsManager(), _depositDataRegistry);
+        assertEq(privErc20Vault.validatorsManager(), address(0));
         assertEq(privErc20Vault.totalShares(), _securityDeposit);
         assertEq(privErc20Vault.totalAssets(), _securityDeposit);
         assertEq(privErc20Vault.validatorsManagerNonce(), 0);

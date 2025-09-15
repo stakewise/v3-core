@@ -2,5 +2,5 @@
   "GnoBlocklistVaultTest_test_canDepositAsNonBlockedUser": "158104",
   "GnoBlocklistVaultTest_test_canMintOsTokenAsNonBlockedUser": "161570",
   "GnoBlocklistVaultTest_test_deploysCorrectly": "702298",
-  "GnoBlocklistVaultTest_test_upgradesCorrectly": "312117"
+  "GnoBlocklistVaultTest_test_upgradesCorrectly": "334405"
 }

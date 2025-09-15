@@ -51,6 +51,10 @@ contract DepositDataRegistryTest is Test, EthHelpers {
             ),
             false
         );
+        if (IEthVault(validVault).validatorsManager() != _depositDataRegistry) {
+            vm.prank(admin);
+            IEthVault(validVault).setValidatorsManager(_depositDataRegistry);
+        }
         (uint128 queuedShares, uint128 unclaimedAssets,, uint128 totalExitingAssets,) =
             IEthVault(validVault).getExitQueueData();
         exitingAssets = totalExitingAssets + IEthVault(validVault).convertToAssets(queuedShares) + unclaimedAssets;

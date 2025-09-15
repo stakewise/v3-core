@@ -90,7 +90,7 @@ contract EthErc20VaultTest is Test, EthHelpers {
         assertEq(erc20Vault.capacity(), 1000 ether);
         assertEq(erc20Vault.feePercent(), 1000);
         assertEq(erc20Vault.feeRecipient(), admin);
-        assertEq(erc20Vault.validatorsManager(), _depositDataRegistry);
+        assertEq(erc20Vault.validatorsManager(), address(0));
         assertEq(erc20Vault.totalShares(), _securityDeposit);
         assertEq(erc20Vault.totalAssets(), _securityDeposit);
         assertEq(erc20Vault.validatorsManagerNonce(), 0);
@@ -369,6 +369,10 @@ contract EthErc20VaultTest is Test, EthHelpers {
     }
 
     function test_withdrawValidator_unknown() public {
+        address validatorsManager = makeAddr("validatorsManager");
+        vm.prank(admin);
+        vault.setValidatorsManager(validatorsManager);
+
         // 1. Set unknown address
         address unknown = makeAddr("unknown");
 
