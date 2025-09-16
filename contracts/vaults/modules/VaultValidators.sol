@@ -52,7 +52,8 @@ abstract contract VaultValidators is
     /// deprecated. Deposit data management is moved to DepositDataRegistry contract
     uint256 private __deprecated__validatorIndex;
 
-    address private _validatorsManager;
+    /// @inheritdoc IVaultValidators
+    address public override validatorsManager;
 
     bytes32 private _initialDomainSeparator;
 
@@ -86,14 +87,6 @@ abstract contract VaultValidators is
         _validatorsWithdrawals = validatorsWithdrawals;
         _validatorsConsolidations = validatorsConsolidations;
         _consolidationsChecker = consolidationsChecker;
-    }
-
-    /// @inheritdoc IVaultValidators
-    function validatorsManager() public view override returns (address) {
-        // SLOAD to memory
-        address validatorsManager_ = _validatorsManager;
-        // if validatorsManager is not set, use DepositDataRegistry contract address
-        return validatorsManager_ == address(0) ? _depositDataRegistry : validatorsManager_;
     }
 
     /// @inheritdoc IVaultValidators
@@ -181,13 +174,15 @@ abstract contract VaultValidators is
     }
 
     /// @inheritdoc IVaultValidators
-    function setValidatorsManager(address validatorsManager_) external override {
+    function setValidatorsManager(address _validatorsManager) external override {
         _checkAdmin();
-        if (validatorsManager_ == _validatorsManager) revert Errors.ValueNotChanged();
+        if (_validatorsManager == validatorsManager) {
+            revert Errors.ValueNotChanged();
+        }
 
         // update validatorsManager address
-        _validatorsManager = validatorsManager_;
-        emit ValidatorsManagerUpdated(msg.sender, validatorsManager_);
+        validatorsManager = _validatorsManager;
+        emit ValidatorsManagerUpdated(msg.sender, _validatorsManager);
     }
 
     /**
@@ -209,21 +204,21 @@ abstract contract VaultValidators is
         returns (bool)
     {
         // SLOAD to memory
-        address validatorsManager_ = validatorsManager();
-        if (validatorsManager_ == address(0) || validators.length == 0) {
+        address _validatorsManager = validatorsManager;
+        if (_validatorsManager == address(0) || validators.length == 0) {
             return false;
         }
 
         if (validatorsManagerSignature.length == 0) {
             // if no signature is provided, check if the caller is the validators manager
-            return msg.sender == validatorsManager_;
+            return msg.sender == _validatorsManager;
         }
 
         // check signature
         bytes32 domainSeparator =
             block.chainid == _initialChainId ? _initialDomainSeparator : _computeVaultValidatorsDomain();
         bool isValidSignature = ValidatorUtils.isValidManagerSignature(
-            nonce, domainSeparator, validatorsManager_, validators, validatorsManagerSignature
+            nonce, domainSeparator, _validatorsManager, validators, validatorsManagerSignature
         );
 
         // update signature nonce
@@ -255,11 +250,14 @@ abstract contract VaultValidators is
         // migrate deposit data variables to DepositDataRegistry contract
         if (__deprecated__validatorsRoot != bytes32(0)) {
             IDepositDataRegistry(_depositDataRegistry).migrate(
-                __deprecated__validatorsRoot, __deprecated__validatorIndex, _validatorsManager
+                __deprecated__validatorsRoot, __deprecated__validatorIndex, validatorsManager
             );
             delete __deprecated__validatorIndex;
             delete __deprecated__validatorsRoot;
-            delete _validatorsManager;
+            delete validatorsManager;
+        }
+        if (validatorsManager == address(0)) {
+            validatorsManager = _depositDataRegistry;
         }
     }
 

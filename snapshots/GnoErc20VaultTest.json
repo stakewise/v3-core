@@ -5,7 +5,7 @@
   "GnoErc20VaultTest_test_deposit_emitsTransfer": "98232",
   "GnoErc20VaultTest_test_enterExitQueue_emitsTransfer": "89780",
   "GnoErc20VaultTest_test_redeem_emitsEvent": "77069",
-  "GnoErc20VaultTest_test_upgradesCorrectly": "312795",
-  "VaultGnoErc20VaultTest_test_withdrawValidator_unknown": "56058",
-  "VaultGnoErc20VaultTest_test_withdrawValidator_validatorsManager": "74210"
+  "GnoErc20VaultTest_test_upgradesCorrectly": "335083",
+  "VaultGnoErc20VaultTest_test_withdrawValidator_unknown": "55973",
+  "VaultGnoErc20VaultTest_test_withdrawValidator_validatorsManager": "74114"
 }

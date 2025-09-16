@@ -98,7 +98,7 @@ contract EthVaultTest is Test, EthHelpers {
         assertEq(newVault.capacity(), 1000 ether);
         assertEq(newVault.feePercent(), 1000);
         assertEq(newVault.feeRecipient(), admin);
-        assertEq(newVault.validatorsManager(), _depositDataRegistry);
+        assertEq(newVault.validatorsManager(), address(0));
         assertEq(queuedShares, 0);
         assertEq(totalTickets, 0);
         assertEq(unclaimedAssets, 0);

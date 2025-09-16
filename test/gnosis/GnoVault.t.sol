@@ -94,7 +94,7 @@ contract GnoVaultTest is Test, GnoHelpers {
         assertEq(newVault.capacity(), 1000 ether);
         assertEq(newVault.feePercent(), 1000);
         assertEq(newVault.feeRecipient(), admin);
-        assertEq(newVault.validatorsManager(), _depositDataRegistry);
+        assertEq(newVault.validatorsManager(), address(0));
         assertEq(newVault.totalShares(), _securityDeposit);
         assertEq(newVault.totalAssets(), _securityDeposit);
         assertEq(newVault.validatorsManagerNonce(), 0);

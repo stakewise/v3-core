@@ -3,6 +3,6 @@
   "EthFoxVaultTest_test_canDepositUsingReceiveAsNotBlockedUser": "81932",
   "EthFoxVaultTest_test_ejectUser": "107257",
   "EthFoxVaultTest_test_ejectUserWithNoShares": "62862",
-  "EthFoxVaultTest_test_withdrawValidator_unknown": "55971",
-  "EthFoxVaultTest_test_withdrawValidator_validatorsManager": "74060"
+  "EthFoxVaultTest_test_withdrawValidator_unknown": "55886",
+  "EthFoxVaultTest_test_withdrawValidator_validatorsManager": "73964"
 }

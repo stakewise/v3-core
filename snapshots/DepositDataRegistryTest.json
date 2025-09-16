@@ -1,8 +1,8 @@
 {
-  "DepositDataRegistryTest_test_registerValidator_succeedsWith0x01Validator": "272572",
-  "DepositDataRegistryTest_test_registerValidator_succeedsWith0x02Validator": "295478",
-  "DepositDataRegistryTest_test_registerValidators_successWith0x01Validators": "314050",
-  "DepositDataRegistryTest_test_registerValidators_successWith0x02Validators": "338119",
+  "DepositDataRegistryTest_test_registerValidator_succeedsWith0x01Validator": "272487",
+  "DepositDataRegistryTest_test_registerValidator_succeedsWith0x02Validator": "295393",
+  "DepositDataRegistryTest_test_registerValidators_successWith0x01Validators": "313965",
+  "DepositDataRegistryTest_test_registerValidators_successWith0x02Validators": "338034",
   "DepositDataRegistryTest_test_setDepositDataManager_succeeds": "66206",
   "DepositDataRegistryTest_test_setDepositDataRoot_succeeds": "65127",
   "DepositDataRegistryTest_test_updateVaultState_succeeds": "128302"

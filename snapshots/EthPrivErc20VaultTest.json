@@ -5,5 +5,5 @@
   "EthPrivErc20VaultTest_test_canMintOsTokenAsWhitelistedUser": "161601",
   "EthPrivErc20VaultTest_test_deploysCorrectly": "625462",
   "EthPrivErc20VaultTest_test_transfer": "59709",
-  "EthPrivErc20VaultTest_test_upgradesCorrectly": "90008"
+  "EthPrivErc20VaultTest_test_upgradesCorrectly": "112296"
 }

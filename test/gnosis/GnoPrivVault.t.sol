@@ -235,7 +235,7 @@ contract GnoPrivVaultTest is Test, GnoHelpers {
         assertEq(privVault.capacity(), 1000 ether);
         assertEq(privVault.feePercent(), 1000);
         assertEq(privVault.feeRecipient(), admin);
-        assertEq(privVault.validatorsManager(), _depositDataRegistry);
+        assertEq(privVault.validatorsManager(), address(0));
         assertEq(privVault.totalShares(), _securityDeposit);
         assertEq(privVault.totalAssets(), _securityDeposit);
         assertEq(privVault.validatorsManagerNonce(), 0);

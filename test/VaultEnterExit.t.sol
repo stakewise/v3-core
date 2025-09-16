@@ -641,6 +641,10 @@ contract VaultEnterExitTest is Test, EthHelpers {
     }
 
     function test_enterExitQueue_afterValidatorExit() public {
+        address validatorsManager = makeAddr("validatorsManager");
+        vm.prank(admin);
+        vault.setValidatorsManager(validatorsManager);
+
         // 1. Deposit ETH
         _depositToVault(address(vault), 40 ether, sender, sender);
 

@@ -276,7 +276,7 @@ contract EthBlocklistErc20VaultTest is Test, EthHelpers {
         assertEq(blocklistVault.capacity(), 1000 ether);
         assertEq(blocklistVault.feePercent(), 1000);
         assertEq(blocklistVault.feeRecipient(), admin);
-        assertEq(blocklistVault.validatorsManager(), _depositDataRegistry);
+        assertEq(blocklistVault.validatorsManager(), address(0));
         assertEq(blocklistVault.totalShares(), _securityDeposit);
         assertEq(blocklistVault.totalAssets(), _securityDeposit);
         assertEq(queuedShares, 0);

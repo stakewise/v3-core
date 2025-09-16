@@ -7,5 +7,5 @@
   "EthPrivVaultTest_test_depositAndMintOsTokenAsWhitelistedUser": "200570",
   "EthPrivVaultTest_test_setWhitelister": "36608",
   "EthPrivVaultTest_test_updateWhitelist": "54543",
-  "EthPrivVaultTest_test_upgradesCorrectly": "89434"
+  "EthPrivVaultTest_test_upgradesCorrectly": "111722"
 }
