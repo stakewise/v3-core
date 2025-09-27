@@ -30,10 +30,12 @@ interface IVaultValidatorsV1 {
  *  * checking deposit data root
  */
 abstract contract ValidatorsChecker is Multicall, IValidatorsChecker {
-    IValidatorsRegistry private immutable _validatorsRegistry;
+    IValidatorsRegistry internal immutable _validatorsRegistry;
     IKeeper private immutable _keeper;
     IVaultsRegistry private immutable _vaultsRegistry;
     IDepositDataRegistry private immutable _depositDataRegistry;
+
+    address internal immutable _genesisVaultPoolEscrow;
 
     /**
      * @dev Constructor
@@ -41,12 +43,20 @@ abstract contract ValidatorsChecker is Multicall, IValidatorsChecker {
      * @param keeper The address of the Keeper contract
      * @param vaultsRegistry The address of the VaultsRegistry contract
      * @param depositDataRegistry The address of the DepositDataRegistry contract
+     * @param genesisVaultPoolEscrow The address of the genesis vault pool escrow contract
      */
-    constructor(address validatorsRegistry, address keeper, address vaultsRegistry, address depositDataRegistry) {
+    constructor(
+        address validatorsRegistry,
+        address keeper,
+        address vaultsRegistry,
+        address depositDataRegistry,
+        address genesisVaultPoolEscrow
+    ) {
         _validatorsRegistry = IValidatorsRegistry(validatorsRegistry);
         _keeper = IKeeper(keeper);
         _vaultsRegistry = IVaultsRegistry(vaultsRegistry);
         _depositDataRegistry = IDepositDataRegistry(depositDataRegistry);
+        _genesisVaultPoolEscrow = genesisVaultPoolEscrow;
     }
 
     /// @inheritdoc IValidatorsChecker

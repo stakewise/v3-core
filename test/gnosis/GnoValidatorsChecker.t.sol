@@ -30,6 +30,7 @@ contract GnoValidatorsCheckerTest is Test, GnoHelpers {
             address(contracts.keeper),
             address(contracts.vaultsRegistry),
             address(_depositDataRegistry),
+            _poolEscrow,
             address(contracts.gnoToken)
         );
 

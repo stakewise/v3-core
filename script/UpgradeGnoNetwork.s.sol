@@ -68,6 +68,7 @@ contract UpgradeGnoNetwork is Network {
                 deployment.keeper,
                 deployment.vaultsRegistry,
                 deployment.depositDataRegistry,
+                deployment.legacyPoolEscrow,
                 gnoToken
             )
         );

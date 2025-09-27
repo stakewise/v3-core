@@ -60,7 +60,11 @@ contract UpgradeEthNetwork is Network {
         consolidationsChecker = address(new ConsolidationsChecker(deployment.keeper));
         validatorsChecker = address(
             new EthValidatorsChecker(
-                validatorsRegistry, deployment.keeper, deployment.vaultsRegistry, deployment.depositDataRegistry
+                validatorsRegistry,
+                deployment.keeper,
+                deployment.vaultsRegistry,
+                deployment.depositDataRegistry,
+                deployment.legacyPoolEscrow
             )
         );
         address rewardsSplitterImpl = address(new EthRewardSplitter());
