@@ -38,7 +38,8 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
             address(contracts.validatorsRegistry),
             address(contracts.keeper),
             address(contracts.vaultsRegistry),
-            address(_depositDataRegistry)
+            address(_depositDataRegistry),
+            _poolEscrow
         );
 
         // Setup accounts
