@@ -72,12 +72,16 @@ abstract contract ValidatorsChecker is Multicall, IValidatorsChecker {
     }
 
     /// @inheritdoc IValidatorsChecker
-    function getExitQueueMissingAssets(address vault, uint256 withdrawingAssets, uint256 targetCumulativeTickets)
-        external
-        view
-        override
-        returns (uint256 missingAssets)
-    {
+    function getExitQueueMissingAssets(
+        address vault,
+        uint256 withdrawingAssets,
+        uint256 redemptionAssets,
+        uint256 targetCumulativeTickets
+    ) external view override returns (uint256 missingAssets) {
+        // start with redemption assets as missing assets
+        missingAssets = redemptionAssets;
+
+        // fetch vault exit queue state
         (
             uint128 queuedShares,
             uint128 unclaimedAssets,
@@ -85,26 +89,23 @@ abstract contract ValidatorsChecker is Multicall, IValidatorsChecker {
             uint128 totalExitingAssets,
             uint256 totalTickets
         ) = IVaultState(vault).getExitQueueData();
-        // check whether already covered
-        if (totalTickets >= targetCumulativeTickets) {
-            return 0;
-        }
 
         // calculate the amount of tickets that need to be covered
-        uint256 totalTicketsToCover = targetCumulativeTickets - totalTickets;
+        uint256 totalTicketsToCover;
+        if (totalTickets < targetCumulativeTickets) {
+            totalTicketsToCover = targetCumulativeTickets - totalTickets;
+        }
 
         // calculate missing assets from legacy exits
-        uint256 ticketsToCover;
         if (totalExitingTickets > 0) {
-            ticketsToCover = Math.min(totalTicketsToCover, totalExitingTickets);
-            missingAssets = Math.mulDiv(ticketsToCover, totalExitingAssets, totalExitingTickets);
-            totalTicketsToCover -= ticketsToCover;
+            uint256 legacyTicketsToCover = Math.min(totalTicketsToCover, totalExitingTickets);
+            missingAssets += Math.mulDiv(legacyTicketsToCover, totalExitingAssets, totalExitingTickets);
+            totalTicketsToCover -= legacyTicketsToCover;
         }
 
         // calculate missing assets from queued shares
         if (totalTicketsToCover > 0 && queuedShares > 0) {
-            ticketsToCover = Math.min(totalTicketsToCover, queuedShares);
-            missingAssets += IVaultState(vault).convertToAssets(ticketsToCover);
+            missingAssets += IVaultState(vault).convertToAssets(Math.min(totalTicketsToCover, queuedShares));
         }
 
         // check whether there is enough available assets
@@ -207,8 +208,9 @@ abstract contract ValidatorsChecker is Multicall, IValidatorsChecker {
             uint256 endIndex;
             for (uint256 i = 0; i < validatorsCount;) {
                 endIndex += validatorLength;
-                leaves[params.proofIndexes[i]] =
-                    keccak256(bytes.concat(keccak256(abi.encode(params.validators[startIndex:endIndex], currentIndex))));
+                leaves[params.proofIndexes[i]] = keccak256(
+                    bytes.concat(keccak256(abi.encode(params.validators[startIndex:endIndex], currentIndex)))
+                );
 
                 startIndex = endIndex;
                 unchecked {

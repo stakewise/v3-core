@@ -73,6 +73,7 @@ contract GnoValidatorsCheckerTest is Test, GnoHelpers {
         uint256 missingAssets = validatorsChecker.getExitQueueMissingAssets(
             emptyVault,
             0, // withdrawingAssets
+            0, // No redemption assets
             cumulativeTickets // targetCumulativeTickets (same as current since queue is empty)
         );
 
@@ -95,6 +96,7 @@ contract GnoValidatorsCheckerTest is Test, GnoHelpers {
         uint256 initialMissingAssets = validatorsChecker.getExitQueueMissingAssets(
             prevVersionVault,
             0, // withdrawingAssets
+            0, // No redemption assets
             initialCumulativeTickets // targetCumulativeTickets
         );
 
@@ -108,6 +110,7 @@ contract GnoValidatorsCheckerTest is Test, GnoHelpers {
         uint256 updatedMissingAssets = validatorsChecker.getExitQueueMissingAssets(
             prevVersionVault,
             0, // withdrawingAssets
+            0, // No redemption assets
             initialCumulativeTickets // use same target as before for fair comparison
         );
 

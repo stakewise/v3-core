@@ -482,6 +482,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         uint256 missingAssets = validatorsChecker.getExitQueueMissingAssets(
             emptyVault,
             0, // No pending assets
+            0, // No redemption assets
             targetCumulativeTickets
         );
 
@@ -507,13 +508,14 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         uint256 missingAssetsNoPending = validatorsChecker.getExitQueueMissingAssets(
             vault,
             0, // No pending assets
+            0, // No redemption assets
             cumulativeTickets
         );
 
         // Test with some pending assets
         uint256 pendingAssets = 0.5 ether;
         uint256 missingAssetsWithPending =
-            validatorsChecker.getExitQueueMissingAssets(vault, pendingAssets, cumulativeTickets);
+            validatorsChecker.getExitQueueMissingAssets(vault, pendingAssets, 0, cumulativeTickets);
 
         // Pending assets should reduce missing assets
         assertGt(missingAssetsNoPending, missingAssetsWithPending, "Pending assets should reduce missing assets");
@@ -542,13 +544,14 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         uint256 initialMissingAssets = validatorsChecker.getExitQueueMissingAssets(
             vault,
             0, // No pending assets
+            0,
             cumulativeTickets
         );
 
         // Add pending assets and check changes
         uint256 pendingAssets = 4 ether;
         uint256 updatedMissingAssets =
-            validatorsChecker.getExitQueueMissingAssets(vault, pendingAssets, cumulativeTickets);
+            validatorsChecker.getExitQueueMissingAssets(vault, pendingAssets, 0, cumulativeTickets);
 
         // Verify missing assets decrease with pending assets
         assertLt(updatedMissingAssets, initialMissingAssets, "Missing assets should decrease with pending assets");
@@ -566,12 +569,12 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         uint256 cumulativeTickets = validatorsChecker.getExitQueueCumulativeTickets(vault);
 
         // Get missing assets with no pending assets
-        uint256 missingAssetsBefore = validatorsChecker.getExitQueueMissingAssets(vault, 0, cumulativeTickets);
+        uint256 missingAssetsBefore = validatorsChecker.getExitQueueMissingAssets(vault, 0, 0, cumulativeTickets);
 
         // Test with large amount of pending assets (more than missing)
         uint256 excessPendingAssets = missingAssetsBefore * 2;
         uint256 missingAssetsAfter =
-            validatorsChecker.getExitQueueMissingAssets(vault, excessPendingAssets, cumulativeTickets);
+            validatorsChecker.getExitQueueMissingAssets(vault, excessPendingAssets, 0, cumulativeTickets);
 
         // No missing assets with excess pending assets
         assertEq(missingAssetsAfter, 0, "No missing assets with excess pending assets");
@@ -595,6 +598,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         uint256 missingAssets = validatorsChecker.getExitQueueMissingAssets(
             vault,
             0, // No pending assets
+            0,
             cumulativeTickets
         );
 

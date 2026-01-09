@@ -59,13 +59,16 @@ interface IValidatorsChecker is IMulticall {
      * @notice Function for getting the exit queue missing assets
      * @param vault The address of the vault
      * @param withdrawingAssets The amount of assets currently being withdrawn from validators
+     * @param redemptionAssets The amount of assets to be redeemed
      * @param targetCumulativeTickets The target cumulative tickets
      * @return missingAssets The exit queue missing assets
      */
-    function getExitQueueMissingAssets(address vault, uint256 withdrawingAssets, uint256 targetCumulativeTickets)
-        external
-        view
-        returns (uint256 missingAssets);
+    function getExitQueueMissingAssets(
+        address vault,
+        uint256 withdrawingAssets,
+        uint256 redemptionAssets,
+        uint256 targetCumulativeTickets
+    ) external view returns (uint256 missingAssets);
 
     /**
      * @notice Function for checking validators manager signature
