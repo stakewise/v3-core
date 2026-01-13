@@ -50,6 +50,13 @@ interface IVaultSubVaults {
     event SubVaultAdded(address indexed caller, address indexed vault);
 
     /**
+     * @notice Emitted when the new meta sub-vault is proposed
+     * @param caller The address of the caller
+     * @param vault The address of the meta sub-vault
+     */
+    event MetaSubVaultProposed(address indexed caller, address indexed vault);
+
+    /**
      * @notice Emitted when the sub-vault is ejecting
      * @param caller The address of the caller
      * @param vault The address of the sub-vault
@@ -124,6 +131,12 @@ interface IVaultSubVaults {
      * @param vault The address of the sub-vault to add
      */
     function addSubVault(address vault) external;
+
+    /**
+     * @notice Function to accept a meta sub-vault. Can only be called by the VaultsRegistry owner.
+     * @param metaSubVault The address of the meta sub-vault to accept
+     */
+    function acceptMetaSubVault(address metaSubVault) external;
 
     /**
      * @notice Function to remove a sub-vault. Can only be called by the admin.

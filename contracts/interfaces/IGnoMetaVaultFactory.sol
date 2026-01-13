@@ -10,12 +10,11 @@ pragma solidity ^0.8.22;
 interface IGnoMetaVaultFactory {
     /**
      * @notice Event emitted on a MetaVault creation
-     * @param caller The address of the factory caller
      * @param admin The address of the Vault admin
      * @param vault The address of the created Vault
      * @param params The encoded parameters for initializing the Vault contract
      */
-    event MetaVaultCreated(address indexed caller, address indexed admin, address indexed vault, bytes params);
+    event MetaVaultCreated(address indexed admin, address indexed vault, bytes params);
 
     /**
      * @notice The address of the Vault implementation contract used for proxy creation
@@ -31,8 +30,7 @@ interface IGnoMetaVaultFactory {
 
     /**
      * @notice Create Vault. Must transfer security deposit together with a call.
-     * @param admin The address of the Vault admin
      * @param params The encoded parameters for initializing the Vault contract
      */
-    function createVault(address admin, bytes calldata params) external returns (address vault);
+    function createVault(bytes calldata params) external returns (address vault);
 }

@@ -23,10 +23,10 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     uint256 private constant _maxPercent = 1e18;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IOsTokenVaultController private immutable _osTokenVaultController;
+    IOsTokenVaultController internal immutable _osTokenVaultController;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IOsTokenConfig private immutable _osTokenConfig;
+    IOsTokenConfig internal immutable _osTokenConfig;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IOsTokenVaultEscrow private immutable _osTokenVaultEscrow;
