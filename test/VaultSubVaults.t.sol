@@ -10,8 +10,9 @@ import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
+import {IMetaVault} from "../contracts/interfaces/IMetaVault.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
-import {EthMetaVault} from "../contracts/vaults/ethereum/custom/EthMetaVault.sol";
+import {EthMetaVault} from "../contracts/vaults/ethereum/EthMetaVault.sol";
 import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
 import {CuratorsRegistry} from "../contracts/curators/CuratorsRegistry.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
@@ -51,7 +52,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Deploy meta vault
         bytes memory initParams = abi.encode(
-            IEthMetaVault.EthMetaVaultInitParams({
+            IMetaVault.MetaVaultInitParams({
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%
@@ -287,7 +288,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_addSubVault_firstSubVault() internal {
         // create new meta vault
         bytes memory initParams = abi.encode(
-            IEthMetaVault.EthMetaVaultInitParams({
+            IMetaVault.MetaVaultInitParams({
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%
@@ -541,7 +542,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_depositToSubVaults_emptySubVaults() public {
         // Setup: Create a new meta vault
         bytes memory initParams = abi.encode(
-            IEthMetaVault.EthMetaVaultInitParams({
+            IMetaVault.MetaVaultInitParams({
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%
@@ -812,7 +813,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_updateState_noSubVaults() public {
         // Create a new meta vault without any sub vaults
         bytes memory initParams = abi.encode(
-            IEthMetaVault.EthMetaVaultInitParams({
+            IMetaVault.MetaVaultInitParams({
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%
@@ -1401,7 +1402,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_addSubVault_metaVaultAsSubVault_notCollateralized() public {
         // Setup: Create meta vault but don't collateralize it
         bytes memory initParams = abi.encode(
-            IEthMetaVault.EthMetaVaultInitParams({
+            IMetaVault.MetaVaultInitParams({
                 subVaultsCurator: curator,
                 capacity: type(uint256).max,
                 feePercent: 0,
@@ -1671,7 +1672,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function _setupMetaSubVault(address _admin) internal returns (address metaSubVault) {
         // Deploy meta vault that will be used as sub vault
         bytes memory initParams = abi.encode(
-            IEthMetaVault.EthMetaVaultInitParams({
+            IMetaVault.MetaVaultInitParams({
                 subVaultsCurator: curator,
                 capacity: type(uint256).max,
                 feePercent: 0, // 0%

@@ -56,7 +56,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
 
         // Deploy OsTokenRedeemer
         osTokenRedeemer =
-            new EthOsTokenRedeemer(_osToken, address(contracts.osTokenVaultController), owner, EXIT_QUEUE_UPDATE_DELAY);
+            new EthOsTokenRedeemer(address(contracts.vaultsRegistry), _osToken, address(contracts.osTokenVaultController), owner, EXIT_QUEUE_UPDATE_DELAY);
 
         // Set up manager
         vm.prank(owner);
@@ -116,12 +116,9 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         _depositToVault(address(vault2), DEPOSIT_AMOUNT, user3, user3);
     }
 
-    function _proposeAndAcceptPositions(IOsTokenRedeemer.RedeemablePositions memory positions) internal {
-        vm.prank(positionsManager);
-        osTokenRedeemer.proposeRedeemablePositions(positions);
-
+    function _setRedeemablePositions(IOsTokenRedeemer.RedeemablePositions memory positions) internal {
         vm.prank(owner);
-        osTokenRedeemer.acceptRedeemablePositions();
+        osTokenRedeemer.setRedeemablePositions(positions);
     }
 
     function _hashPair(bytes32 leaf1, bytes32 leaf2) internal pure returns (bytes32) {
@@ -164,13 +161,14 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
 
         IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
             IOsTokenRedeemer.RedeemablePositions({merkleRoot: merkleRoot, ipfsHash: TEST_IPFS_HASH});
-        _proposeAndAcceptPositions(redeemablePositions);
+        _setRedeemablePositions(redeemablePositions);
 
         uint256 redeemedSharesBefore = osTokenRedeemer.redeemedShares();
         uint256 redeemedAssetsBefore = osTokenRedeemer.redeemedAssets();
 
         bytes32[] memory proof = new bytes32[](0);
         bool[] memory proofFlags = new bool[](0);
+        vm.prank(positionsManager);
         osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
 
         uint256 assets = contracts.osTokenVaultController.convertToAssets(shares);
@@ -197,7 +195,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         uint256 invalidExitQueueDelay = uint256(type(uint64).max) + 1;
 
         vm.expectRevert(Errors.InvalidDelay.selector);
-        new EthOsTokenRedeemer(_osToken, address(contracts.osTokenVaultController), owner, invalidExitQueueDelay);
+        new EthOsTokenRedeemer(address(contracts.vaultsRegistry),_osToken, address(contracts.osTokenVaultController), owner, invalidExitQueueDelay);
     }
 
     function test_setPositionsManager_notOwner() public {
@@ -234,181 +232,35 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         assertEq(osTokenRedeemer.positionsManager(), newManager);
     }
 
-    function test_proposeRedeemablePositions_notPositionsManager() public {
-        IOsTokenRedeemer.RedeemablePositions memory positions =
-            IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: TEST_IPFS_HASH});
-
-        vm.prank(user1);
-        vm.expectRevert(Errors.AccessDenied.selector);
-        osTokenRedeemer.proposeRedeemablePositions(positions);
-    }
-
-    function test_proposeRedeemablePositions_invalidPositions() public {
-        // Test with empty merkle root
-        IOsTokenRedeemer.RedeemablePositions memory positions =
-            IOsTokenRedeemer.RedeemablePositions({merkleRoot: EMPTY_ROOT, ipfsHash: TEST_IPFS_HASH});
-
-        vm.prank(positionsManager);
-        vm.expectRevert(Errors.InvalidRedeemablePositions.selector);
-        osTokenRedeemer.proposeRedeemablePositions(positions);
-
-        // Test with empty IPFS hash
-        positions = IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: ""});
-
-        vm.prank(positionsManager);
-        vm.expectRevert(Errors.InvalidRedeemablePositions.selector);
-        osTokenRedeemer.proposeRedeemablePositions(positions);
-    }
-
-    function test_proposeRedeemablePositions_hasPendingProposal() public {
+    function test_setRedeemablePositions_notOwner() public {
         IOsTokenRedeemer.RedeemablePositions memory positions =
             IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: TEST_IPFS_HASH});
 
         vm.prank(positionsManager);
-        osTokenRedeemer.proposeRedeemablePositions(positions);
-
-        // Try to propose again
-        vm.prank(positionsManager);
-        vm.expectRevert(Errors.RedeemablePositionsProposed.selector);
-        osTokenRedeemer.proposeRedeemablePositions(positions);
-    }
-
-    function test_proposeRedeemablePositions_sameValue() public {
-        IOsTokenRedeemer.RedeemablePositions memory positions =
-            IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: TEST_IPFS_HASH});
-
-        // First set a root
-        _proposeAndAcceptPositions(positions);
-
-        // Try to propose the same root again
-        vm.prank(positionsManager);
-        vm.expectRevert(Errors.ValueNotChanged.selector);
-        osTokenRedeemer.proposeRedeemablePositions(positions);
-    }
-
-    function test_proposeRedeemablePositions_success() public {
-        IOsTokenRedeemer.RedeemablePositions memory positions =
-            IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: TEST_IPFS_HASH});
-
-        vm.expectEmit(true, true, false, true);
-        emit IOsTokenRedeemer.RedeemablePositionsProposed(positions.merkleRoot, positions.ipfsHash);
-
-        vm.prank(positionsManager);
-        _startSnapshotGas("EthOsTokenRedeemerTest_test_proposeRedeemablePositions_success");
-        osTokenRedeemer.proposeRedeemablePositions(positions);
-        _stopSnapshotGas();
-
-        (bytes32 pendingRoot, string memory pendingIpfs) = osTokenRedeemer.pendingRedeemablePositions();
-        assertEq(pendingRoot, positions.merkleRoot);
-        assertEq(pendingIpfs, positions.ipfsHash);
-    }
-
-    function test_acceptRedeemablePositions_notOwner() public {
-        IOsTokenRedeemer.RedeemablePositions memory positions =
-            IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: TEST_IPFS_HASH});
-
-        vm.prank(positionsManager);
-        osTokenRedeemer.proposeRedeemablePositions(positions);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, positionsManager));
+        osTokenRedeemer.setRedeemablePositions(positions);
 
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
-        osTokenRedeemer.acceptRedeemablePositions();
+        osTokenRedeemer.setRedeemablePositions(positions);
     }
 
-    function test_acceptRedeemablePositions_noPendingProposal() public {
-        vm.prank(owner);
-        vm.expectRevert(Errors.InvalidRedeemablePositions.selector);
-        osTokenRedeemer.acceptRedeemablePositions();
-    }
-
-    function test_acceptRedeemablePositions_success() public {
+    function test_setRedeemablePositions_success() public {
         IOsTokenRedeemer.RedeemablePositions memory positions =
             IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: TEST_IPFS_HASH});
 
-        vm.prank(positionsManager);
-        osTokenRedeemer.proposeRedeemablePositions(positions);
-
         vm.expectEmit(true, true, false, true);
-        emit IOsTokenRedeemer.RedeemablePositionsAccepted(positions.merkleRoot, positions.ipfsHash);
+        emit IOsTokenRedeemer.RedeemablePositionsUpdated(positions.merkleRoot, positions.ipfsHash);
 
         vm.prank(owner);
-        _startSnapshotGas("EthOsTokenRedeemerTest_test_acceptRedeemablePositions_success");
-        osTokenRedeemer.acceptRedeemablePositions();
+        _startSnapshotGas("EthOsTokenRedeemerTest_test_setRedeemablePositions_success");
+        osTokenRedeemer.setRedeemablePositions(positions);
         _stopSnapshotGas();
 
         // Verify positions were accepted
         (bytes32 currentRoot, string memory currentIpfs) = osTokenRedeemer.redeemablePositions();
         assertEq(currentRoot, positions.merkleRoot);
         assertEq(currentIpfs, positions.ipfsHash);
-
-        // Verify pending positions were cleared
-        (bytes32 pendingRoot, string memory pendingIpfs) = osTokenRedeemer.pendingRedeemablePositions();
-        assertEq(pendingRoot, EMPTY_ROOT);
-        assertEq(pendingIpfs, "");
-    }
-
-    function test_denyRedeemablePositions_notOwner() public {
-        vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
-        osTokenRedeemer.denyRedeemablePositions();
-    }
-
-    function test_denyRedeemablePositions_noPendingProposal() public {
-        // Should not revert even if no pending positions
-        vm.prank(owner);
-        osTokenRedeemer.denyRedeemablePositions();
-    }
-
-    function test_denyRedeemablePositions_success() public {
-        IOsTokenRedeemer.RedeemablePositions memory positions =
-            IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: TEST_IPFS_HASH});
-
-        vm.prank(positionsManager);
-        osTokenRedeemer.proposeRedeemablePositions(positions);
-
-        vm.expectEmit(true, true, false, true);
-        emit IOsTokenRedeemer.RedeemablePositionsDenied(positions.merkleRoot, positions.ipfsHash);
-
-        vm.prank(owner);
-        _startSnapshotGas("EthOsTokenRedeemerTest_test_denyRedeemablePositions_success");
-        osTokenRedeemer.denyRedeemablePositions();
-        _stopSnapshotGas();
-
-        // Verify pending positions were cleared
-        (bytes32 pendingRoot, string memory pendingIpfs) = osTokenRedeemer.pendingRedeemablePositions();
-        assertEq(pendingRoot, EMPTY_ROOT);
-        assertEq(pendingIpfs, "");
-    }
-
-    function test_removeRedeemablePositions_notOwner() public {
-        vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
-        osTokenRedeemer.removeRedeemablePositions();
-    }
-
-    function test_removeRedeemablePositions_noPendingProposal() public {
-        vm.prank(owner);
-        osTokenRedeemer.removeRedeemablePositions();
-    }
-
-    function test_removeRedeemablePositions_success() public {
-        IOsTokenRedeemer.RedeemablePositions memory positions =
-            IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: TEST_IPFS_HASH});
-
-        _proposeAndAcceptPositions(positions);
-
-        vm.expectEmit(true, true, false, true);
-        emit IOsTokenRedeemer.RedeemablePositionsRemoved(positions.merkleRoot, positions.ipfsHash);
-
-        vm.prank(owner);
-        _startSnapshotGas("EthOsTokenRedeemerTest_test_removeRedeemablePositions_success");
-        osTokenRedeemer.removeRedeemablePositions();
-        _stopSnapshotGas();
-
-        // Verify positions were removed
-        (bytes32 currentRoot, string memory currentIpfsHash) = osTokenRedeemer.redeemablePositions();
-        assertEq(currentRoot, EMPTY_ROOT);
-        assertEq(currentIpfsHash, "");
     }
 
     function test_permitOsToken_success() public {
@@ -727,10 +579,10 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
             keccak256(bytes.concat(keccak256(abi.encode(osTokenRedeemer.nonce(), address(vault), 1 ether, user1))));
         IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
             IOsTokenRedeemer.RedeemablePositions({merkleRoot: leaf, ipfsHash: TEST_IPFS_HASH});
-        _proposeAndAcceptPositions(redeemablePositions);
+        _setRedeemablePositions(redeemablePositions);
 
         // Call redeemOsTokenPositions with no queued shares - should return early
-        vm.prank(user1);
+        vm.prank(positionsManager);
         osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
 
         // Verify no shares were redeemed
@@ -759,7 +611,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
 
         uint256 queuedSharesBefore = osTokenRedeemer.queuedShares();
 
-        vm.prank(user1);
+        vm.prank(positionsManager);
         osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
 
         // Verify nothing was redeemed
@@ -796,14 +648,14 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
             keccak256(bytes.concat(keccak256(abi.encode(osTokenRedeemer.nonce(), address(vault), 1 ether, user1))));
         IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
             IOsTokenRedeemer.RedeemablePositions({merkleRoot: leaf, ipfsHash: TEST_IPFS_HASH});
-        _proposeAndAcceptPositions(redeemablePositions);
+        _setRedeemablePositions(redeemablePositions);
 
         bytes32[] memory proof = new bytes32[](0);
         bool[] memory proofFlags = new bool[](0);
 
         uint256 queuedSharesBefore = osTokenRedeemer.queuedShares();
 
-        vm.prank(user1);
+        vm.prank(positionsManager);
         osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
 
         // Verify nothing was redeemed
@@ -841,7 +693,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         );
         IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
             IOsTokenRedeemer.RedeemablePositions({merkleRoot: leaf, ipfsHash: TEST_IPFS_HASH});
-        _proposeAndAcceptPositions(redeemablePositions);
+        _setRedeemablePositions(redeemablePositions);
 
         // Provide wrong proof
         bytes32[] memory proof = new bytes32[](1);
@@ -886,7 +738,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         );
         IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
             IOsTokenRedeemer.RedeemablePositions({merkleRoot: leaf, ipfsHash: TEST_IPFS_HASH});
-        _proposeAndAcceptPositions(redeemablePositions);
+        _setRedeemablePositions(redeemablePositions);
 
         bytes32[] memory proof = new bytes32[](0);
         bool[] memory proofFlags = new bool[](0);
@@ -900,7 +752,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         emit IOsTokenRedeemer.OsTokenPositionsRedeemed(expectedRedeemedShares, expectedRedeemedAssets);
 
         // Redeem position
-        vm.prank(user1);
+        vm.prank(positionsManager);
         _startSnapshotGas("EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_singlePosition");
         osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
         _stopSnapshotGas();
@@ -970,7 +822,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
 
         IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
             IOsTokenRedeemer.RedeemablePositions({merkleRoot: merkleRoot, ipfsHash: TEST_IPFS_HASH});
-        _proposeAndAcceptPositions(redeemablePositions);
+        _setRedeemablePositions(redeemablePositions);
 
         // Create merkle proof
         bytes32[] memory proof = new bytes32[](0);
@@ -986,7 +838,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         uint256 redeemedSharesBefore = osTokenRedeemer.redeemedShares();
 
         // Redeem positions
-        vm.prank(user1);
+        vm.prank(positionsManager);
         _startSnapshotGas("EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_multiplePositions");
         osTokenRedeemer.redeemOsTokenPositions(_positions, proof, proofFlags);
         _stopSnapshotGas();

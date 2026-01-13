@@ -12,6 +12,7 @@ import {ISharedMevEscrow} from "../../contracts/interfaces/ISharedMevEscrow.sol"
 import {IEthValidatorsRegistry} from "../../contracts/interfaces/IEthValidatorsRegistry.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
+import {IMetaVault} from "../../contracts/interfaces/IMetaVault.sol";
 import {IConsolidationsChecker} from "../../contracts/interfaces/IConsolidationsChecker.sol";
 import {ConsolidationsChecker} from "../../contracts/validators/ConsolidationsChecker.sol";
 import {EthBlocklistErc20Vault} from "../../contracts/vaults/ethereum/EthBlocklistErc20Vault.sol";
@@ -23,8 +24,8 @@ import {EthPrivVault} from "../../contracts/vaults/ethereum/EthPrivVault.sol";
 import {EthVault, IEthVault} from "../../contracts/vaults/ethereum/EthVault.sol";
 import {EthVaultFactory} from "../../contracts/vaults/ethereum/EthVaultFactory.sol";
 import {IEthFoxVault, EthFoxVault} from "../../contracts/vaults/ethereum/custom/EthFoxVault.sol";
-import {IEthMetaVault, EthMetaVault} from "../../contracts/vaults/ethereum/custom/EthMetaVault.sol";
-import {EthMetaVaultFactory} from "../../contracts/vaults/ethereum/custom/EthMetaVaultFactory.sol";
+import {EthMetaVault} from "../../contracts/vaults/ethereum/EthMetaVault.sol";
+import {EthMetaVaultFactory} from "../../contracts/vaults/ethereum/EthMetaVaultFactory.sol";
 import {Keeper} from "../../contracts/keeper/Keeper.sol";
 import {ValidatorsConsolidationsMock} from "../../contracts/mocks/ValidatorsConsolidationsMock.sol";
 import {ValidatorsHelpers} from "./ValidatorsHelpers.sol";
@@ -145,7 +146,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         }
 
         address impl = _getOrCreateVaultImpl(_vaultType);
-        EthMetaVaultFactory factory = new EthMetaVaultFactory(address(this), impl, IVaultsRegistry(_vaultsRegistry));
+        EthMetaVaultFactory factory = new EthMetaVaultFactory(impl, IVaultsRegistry(_vaultsRegistry));
 
         _vaultFactories[_vaultType] = address(factory);
 
@@ -314,8 +315,9 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         address vaultAddress;
         if (vaultType == VaultType.EthMetaVault) {
             EthMetaVaultFactory factory = _getOrCreateMetaFactory(vaultType);
-            vm.deal(address(this), address(this).balance + _securityDeposit);
-            vaultAddress = factory.createVault{value: _securityDeposit}(admin, initParams);
+            vm.deal(admin, admin.balance + _securityDeposit);
+            vm.prank(admin);
+            vaultAddress = factory.createVault{value: _securityDeposit}(initParams);
         } else {
             EthVaultFactory factory = _getOrCreateFactory(vaultType);
             vm.deal(admin, admin.balance + _securityDeposit);
@@ -438,8 +440,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             );
             impl = address(new EthFoxVault(ethFoxVaultArgs));
         } else if (_vaultType == VaultType.EthMetaVault) {
-            IEthMetaVault.EthMetaVaultConstructorArgs memory ethMetaVaultArgs = IEthMetaVault
-                .EthMetaVaultConstructorArgs(
+            IMetaVault.MetaVaultConstructorArgs memory ethMetaVaultArgs = IMetaVault.MetaVaultConstructorArgs(
                 _keeper,
                 _vaultsRegistry,
                 _osTokenVaultController,

@@ -10,9 +10,10 @@ import {IGnoVault} from "../../contracts/interfaces/IGnoVault.sol";
 import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
 import {IVaultSubVaults} from "../../contracts/interfaces/IVaultSubVaults.sol";
 import {IVaultEnterExit} from "../../contracts/interfaces/IVaultEnterExit.sol";
+import {IMetaVault} from "../../contracts/interfaces/IMetaVault.sol";
 import {Errors} from "../../contracts/libraries/Errors.sol";
-import {GnoMetaVault} from "../../contracts/vaults/gnosis/custom/GnoMetaVault.sol";
-import {GnoMetaVaultFactory} from "../../contracts/vaults/gnosis/custom/GnoMetaVaultFactory.sol";
+import {GnoMetaVault} from "../../contracts/vaults/gnosis/GnoMetaVault.sol";
+import {GnoMetaVaultFactory} from "../../contracts/vaults/gnosis/GnoMetaVaultFactory.sol";
 import {BalancedCurator} from "../../contracts/curators/BalancedCurator.sol";
 import {CuratorsRegistry} from "../../contracts/curators/CuratorsRegistry.sol";
 import {GnoHelpers} from "../helpers/GnoHelpers.sol";
@@ -60,7 +61,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
 
         // Deploy meta vault
         bytes memory initParams = abi.encode(
-            IGnoMetaVault.GnoMetaVaultInitParams({
+            IMetaVault.MetaVaultInitParams({
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%
@@ -92,22 +93,6 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         return _createVault(VaultType.GnoVault, _admin, initParams, false);
     }
 
-    function test_deployWithZeroAdmin() public {
-        // Attempt to deploy with zero admin
-        bytes memory initParams = abi.encode(
-            IGnoMetaVault.GnoMetaVaultInitParams({
-                subVaultsCurator: curator,
-                capacity: 1000 ether,
-                feePercent: 1000, // 10%
-                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
-            })
-        );
-
-        GnoMetaVaultFactory factory = _getOrCreateMetaFactory(VaultType.GnoMetaVault);
-        contracts.gnoToken.approve(address(factory), _securityDeposit);
-        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector));
-        factory.createVault(address(0), initParams);
-    }
 
     function test_deployment() public view {
         // Verify the vault was deployed correctly

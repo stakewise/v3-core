@@ -14,6 +14,7 @@ import {IGnoValidatorsRegistry} from "../../contracts/interfaces/IGnoValidatorsR
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
 import {IConsolidationsChecker} from "../../contracts/interfaces/IConsolidationsChecker.sol";
+import {IMetaVault} from "../../contracts/interfaces/IMetaVault.sol";
 import {ConsolidationsChecker} from "../../contracts/validators/ConsolidationsChecker.sol";
 import {GnoBlocklistErc20Vault} from "../../contracts/vaults/gnosis/GnoBlocklistErc20Vault.sol";
 import {GnoBlocklistVault} from "../../contracts/vaults/gnosis/GnoBlocklistVault.sol";
@@ -22,8 +23,8 @@ import {GnoGenesisVault} from "../../contracts/vaults/gnosis/GnoGenesisVault.sol
 import {GnoPrivErc20Vault} from "../../contracts/vaults/gnosis/GnoPrivErc20Vault.sol";
 import {GnoPrivVault} from "../../contracts/vaults/gnosis/GnoPrivVault.sol";
 import {GnoVault, IGnoVault} from "../../contracts/vaults/gnosis/GnoVault.sol";
-import {IGnoMetaVault, GnoMetaVault} from "../../contracts/vaults/gnosis/custom/GnoMetaVault.sol";
-import {GnoMetaVaultFactory} from "../../contracts/vaults/gnosis/custom/GnoMetaVaultFactory.sol";
+import {GnoMetaVault} from "../../contracts/vaults/gnosis/GnoMetaVault.sol";
+import {GnoMetaVaultFactory} from "../../contracts/vaults/gnosis/GnoMetaVaultFactory.sol";
 import {GnoVaultFactory} from "../../contracts/vaults/gnosis/GnoVaultFactory.sol";
 import {Keeper} from "../../contracts/keeper/Keeper.sol";
 import {ValidatorsConsolidationsMock} from "../../contracts/mocks/ValidatorsConsolidationsMock.sol";
@@ -205,7 +206,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
 
         address impl = _getOrCreateVaultImpl(_vaultType);
         GnoMetaVaultFactory factory =
-            new GnoMetaVaultFactory(address(this), impl, IVaultsRegistry(_vaultsRegistry), _gnoToken);
+            new GnoMetaVaultFactory(impl, IVaultsRegistry(_vaultsRegistry), _gnoToken);
 
         _vaultFactories[_vaultType] = address(factory);
 
@@ -328,8 +329,10 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         address vaultAddress;
         if (vaultType == VaultType.GnoMetaVault) {
             GnoMetaVaultFactory factory = _getOrCreateMetaFactory(vaultType);
+            vm.startPrank(admin);
             IERC20(_gnoToken).approve(address(factory), _securityDeposit);
-            vaultAddress = factory.createVault(admin, initParams);
+            vaultAddress = factory.createVault(initParams);
+            vm.stopPrank();
         } else {
             GnoVaultFactory factory = _getOrCreateFactory(vaultType);
             vm.startPrank(admin);
@@ -425,18 +428,17 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         } else if (_vaultType == VaultType.GnoPrivErc20Vault) {
             impl = address(new GnoPrivErc20Vault(gnoErc20Args));
         } else if (_vaultType == VaultType.GnoMetaVault) {
-            IGnoMetaVault.GnoMetaVaultConstructorArgs memory gnoMetaVaultArgs = IGnoMetaVault
-                .GnoMetaVaultConstructorArgs(
+            IMetaVault.MetaVaultConstructorArgs memory gnoMetaVaultArgs = IMetaVault
+                .MetaVaultConstructorArgs(
                 _keeper,
                 _vaultsRegistry,
                 _osTokenVaultController,
                 _osTokenConfig,
                 _osTokenVaultEscrow,
                 _curatorsRegistry,
-                _gnoToken,
                 uint64(_exitingAssetsClaimDelay)
             );
-            impl = address(new GnoMetaVault(gnoMetaVaultArgs));
+            impl = address(new GnoMetaVault(_gnoToken, gnoMetaVaultArgs));
         }
         _vaultImplementations[_vaultType] = impl;
 
