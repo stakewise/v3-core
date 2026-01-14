@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.22;
 
-import {Script} from "forge-std/Script.sol";
-import {stdJson} from "forge-std/StdJson.sol";
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
-import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
+import {Script} from "forge-std/Script.sol";
+import {stdJson} from "forge-std/StdJson.sol";
 
 /**
  * @title Network
@@ -40,6 +40,7 @@ abstract contract Network is Script {
         address erc20VaultFactory;
         address privErc20VaultFactory;
         address blocklistErc20VaultFactory;
+        address metaVaultFactory;
         address sharedMevEscrow;
         address osToken;
         address osTokenConfig;
@@ -50,6 +51,10 @@ abstract contract Network is Script {
         address legacyPoolEscrow;
         address legacyRewardToken;
         address merkleDistributor;
+        address curatorsRegistry;
+        address balancedCurator;
+        address consolidationsChecker;
+        address rewardSplitterFactory;
     }
 
     struct Factory {
@@ -110,6 +115,7 @@ abstract contract Network is Script {
         deployment.erc20VaultFactory = deploymentData.readAddress(".Erc20VaultFactory");
         deployment.privErc20VaultFactory = deploymentData.readAddress(".PrivErc20VaultFactory");
         deployment.blocklistErc20VaultFactory = deploymentData.readAddress(".BlocklistErc20VaultFactory");
+        deployment.metaVaultFactory = deploymentData.readAddress(".MetaVaultFactory");
         deployment.sharedMevEscrow = deploymentData.readAddress(".SharedMevEscrow");
         deployment.osToken = deploymentData.readAddress(".OsToken");
         deployment.osTokenConfig = deploymentData.readAddress(".OsTokenConfig");
@@ -121,6 +127,10 @@ abstract contract Network is Script {
         deployment.legacyRewardToken = deploymentData.readAddress(".LegacyRewardToken");
         deployment.merkleDistributor = deploymentData.readAddress(".MerkleDistributor");
         deployment.foxVault = isGnosisNetwork() ? address(0) : deploymentData.readAddress(".FoxVault");
+        deployment.curatorsRegistry = deploymentData.readAddress(".CuratorsRegistry");
+        deployment.balancedCurator = deploymentData.readAddress(".BalancedCurator");
+        deployment.consolidationsChecker = deploymentData.readAddress(".ConsolidationsChecker");
+        deployment.rewardSplitterFactory = deploymentData.readAddress(".RewardSplitterFactory");
 
         _deployment = deployment;
         return deployment;
@@ -147,12 +157,7 @@ abstract contract Network is Script {
 
         Deployment memory deployment = getDeploymentData();
         if (removePrevVaultFactories) {
-            _governorCalls.push(_serializeRemoveFactory(deployment.vaultFactory));
-            _governorCalls.push(_serializeRemoveFactory(deployment.privVaultFactory));
-            _governorCalls.push(_serializeRemoveFactory(deployment.blocklistVaultFactory));
-            _governorCalls.push(_serializeRemoveFactory(deployment.erc20VaultFactory));
-            _governorCalls.push(_serializeRemoveFactory(deployment.privErc20VaultFactory));
-            _governorCalls.push(_serializeRemoveFactory(deployment.blocklistErc20VaultFactory));
+            _governorCalls.push(_serializeRemoveFactory(deployment.metaVaultFactory));
         }
 
         _governorCalls.push(_serializeSetOsTokenRedeemer(deployment.osTokenConfig, osTokenRedeemer));
@@ -162,7 +167,9 @@ abstract contract Network is Script {
         vm.writeJson(output, filePath);
     }
 
-    function generateUpgradesJson(address[] memory vaultImpls) internal {
+    function generateUpgradesJson(
+        address[] memory vaultImpls
+    ) internal {
         string memory upgrades = "upgrades";
 
         string memory output;
@@ -180,10 +187,6 @@ abstract contract Network is Script {
     function generateAddressesJson(
         Factory[] memory newFactories,
         address validatorsChecker,
-        address consolidationsChecker,
-        address rewardSplitterFactory,
-        address curatorsRegistry,
-        address balancedCurator,
         address osTokenRedeemer
     ) internal {
         Deployment memory deployment = getDeploymentData();
@@ -203,9 +206,17 @@ abstract contract Network is Script {
         vm.serializeAddress(json, "LegacyPoolEscrow", deployment.legacyPoolEscrow);
         vm.serializeAddress(json, "LegacyRewardToken", deployment.legacyRewardToken);
         vm.serializeAddress(json, "MerkleDistributor", deployment.merkleDistributor);
-        vm.serializeAddress(json, "CuratorsRegistry", curatorsRegistry);
-        vm.serializeAddress(json, "BalancedCurator", balancedCurator);
-        vm.serializeAddress(json, "OsTokenRedeemer", osTokenRedeemer);
+        vm.serializeAddress(json, "CuratorsRegistry", deployment.curatorsRegistry);
+        vm.serializeAddress(json, "BalancedCurator", deployment.balancedCurator);
+        vm.serializeAddress(json, "ConsolidationsChecker", deployment.consolidationsChecker);
+
+        vm.serializeAddress(json, "RewardSplitterFactory", deployment.rewardSplitterFactory);
+        vm.serializeAddress(json, "VaultFactory", deployment.vaultFactory);
+        vm.serializeAddress(json, "PrivVaultFactory", deployment.privVaultFactory);
+        vm.serializeAddress(json, "BlocklistVaultFactory", deployment.blocklistVaultFactory);
+        vm.serializeAddress(json, "Erc20VaultFactory", deployment.erc20VaultFactory);
+        vm.serializeAddress(json, "PrivErc20VaultFactory", deployment.privErc20VaultFactory);
+        vm.serializeAddress(json, "BlocklistErc20VaultFactory", deployment.blocklistErc20VaultFactory);
 
         for (uint256 i = 0; i < newFactories.length; i++) {
             Factory memory factory = newFactories[i];
@@ -216,15 +227,15 @@ abstract contract Network is Script {
             vm.serializeAddress(json, "FoxVault", deployment.foxVault);
         }
 
-        vm.serializeAddress(json, "ValidatorsChecker", validatorsChecker);
-        vm.serializeAddress(json, "ConsolidationsChecker", consolidationsChecker);
-        string memory output = vm.serializeAddress(json, "RewardSplitterFactory", rewardSplitterFactory);
-
+        vm.serializeAddress(json, "OsTokenRedeemer", osTokenRedeemer);
+        string memory output = vm.serializeAddress(json, "ValidatorsChecker", validatorsChecker);
         string memory path = string.concat("./deployments/", getNetworkName(), "-new.json");
         vm.writeJson(output, path);
     }
 
-    function _serializeAddVaultImpl(address vaultImpl) private returns (string memory) {
+    function _serializeAddVaultImpl(
+        address vaultImpl
+    ) private returns (string memory) {
         string memory object = "addVaultImpl";
         Deployment memory deployment = getDeploymentData();
         vm.serializeAddress(object, "to", deployment.vaultsRegistry);
@@ -242,7 +253,9 @@ abstract contract Network is Script {
         return vm.serializeAddress(object, "params", params);
     }
 
-    function _serializeAddFactory(address factory) private returns (string memory) {
+    function _serializeAddFactory(
+        address factory
+    ) private returns (string memory) {
         string memory object = "addFactory";
         Deployment memory deployment = getDeploymentData();
         vm.serializeAddress(object, "to", deployment.vaultsRegistry);
@@ -260,7 +273,9 @@ abstract contract Network is Script {
         return vm.serializeAddress(object, "params", params);
     }
 
-    function _serializeRemoveFactory(address factory) private returns (string memory) {
+    function _serializeRemoveFactory(
+        address factory
+    ) private returns (string memory) {
         string memory object = "removeFactory";
         Deployment memory deployment = getDeploymentData();
         vm.serializeAddress(object, "to", deployment.vaultsRegistry);
@@ -278,7 +293,10 @@ abstract contract Network is Script {
         return vm.serializeAddress(object, "params", params);
     }
 
-    function _serializeSetOsTokenRedeemer(address osTokenConfig, address redeemer) private returns (string memory) {
+    function _serializeSetOsTokenRedeemer(
+        address osTokenConfig,
+        address redeemer
+    ) private returns (string memory) {
         string memory object = "setRedeemer";
         vm.serializeAddress(object, "to", osTokenConfig);
         vm.serializeString(object, "operation", "0");
