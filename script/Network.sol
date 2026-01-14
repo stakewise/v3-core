@@ -167,9 +167,7 @@ abstract contract Network is Script {
         vm.writeJson(output, filePath);
     }
 
-    function generateUpgradesJson(
-        address[] memory vaultImpls
-    ) internal {
+    function generateUpgradesJson(address[] memory vaultImpls) internal {
         string memory upgrades = "upgrades";
 
         string memory output;
@@ -184,11 +182,9 @@ abstract contract Network is Script {
         vm.writeJson(output, getUpgradesFilePath());
     }
 
-    function generateAddressesJson(
-        Factory[] memory newFactories,
-        address validatorsChecker,
-        address osTokenRedeemer
-    ) internal {
+    function generateAddressesJson(Factory[] memory newFactories, address validatorsChecker, address osTokenRedeemer)
+        internal
+    {
         Deployment memory deployment = getDeploymentData();
 
         string memory json = "addresses";
@@ -233,9 +229,7 @@ abstract contract Network is Script {
         vm.writeJson(output, path);
     }
 
-    function _serializeAddVaultImpl(
-        address vaultImpl
-    ) private returns (string memory) {
+    function _serializeAddVaultImpl(address vaultImpl) private returns (string memory) {
         string memory object = "addVaultImpl";
         Deployment memory deployment = getDeploymentData();
         vm.serializeAddress(object, "to", deployment.vaultsRegistry);
@@ -253,9 +247,7 @@ abstract contract Network is Script {
         return vm.serializeAddress(object, "params", params);
     }
 
-    function _serializeAddFactory(
-        address factory
-    ) private returns (string memory) {
+    function _serializeAddFactory(address factory) private returns (string memory) {
         string memory object = "addFactory";
         Deployment memory deployment = getDeploymentData();
         vm.serializeAddress(object, "to", deployment.vaultsRegistry);
@@ -273,9 +265,7 @@ abstract contract Network is Script {
         return vm.serializeAddress(object, "params", params);
     }
 
-    function _serializeRemoveFactory(
-        address factory
-    ) private returns (string memory) {
+    function _serializeRemoveFactory(address factory) private returns (string memory) {
         string memory object = "removeFactory";
         Deployment memory deployment = getDeploymentData();
         vm.serializeAddress(object, "to", deployment.vaultsRegistry);
@@ -293,10 +283,7 @@ abstract contract Network is Script {
         return vm.serializeAddress(object, "params", params);
     }
 
-    function _serializeSetOsTokenRedeemer(
-        address osTokenConfig,
-        address redeemer
-    ) private returns (string memory) {
+    function _serializeSetOsTokenRedeemer(address osTokenConfig, address redeemer) private returns (string memory) {
         string memory object = "setRedeemer";
         vm.serializeAddress(object, "to", osTokenConfig);
         vm.serializeString(object, "operation", "0");
