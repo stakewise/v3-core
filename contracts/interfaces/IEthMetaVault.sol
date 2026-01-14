@@ -11,7 +11,6 @@ import {IMetaVault} from "./IMetaVault.sol";
  * @notice Defines the interface for the EthMetaVault contract
  */
 interface IEthMetaVault is IMetaVault {
-
     /**
      * @notice Initializes or upgrades the EthMetaVault contract. Must transfer security deposit during the deployment.
      * @param params The encoded parameters for initializing the EthVault contract

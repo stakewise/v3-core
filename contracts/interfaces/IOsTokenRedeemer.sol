@@ -154,7 +154,7 @@ interface IOsTokenRedeemer is IMulticall {
 
     /**
      * @notice The address authorized to redeem OsToken positions
-     * @return The address of the redeemer
+     * @return The address of the positions manager
      */
     function positionsManager() external view returns (address);
 
