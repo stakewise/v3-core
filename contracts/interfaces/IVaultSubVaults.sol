@@ -57,6 +57,13 @@ interface IVaultSubVaults {
     event MetaSubVaultProposed(address indexed caller, address indexed vault);
 
     /**
+     * @notice Emitted when the meta sub-vault is rejected
+     * @param caller The address of the caller
+     * @param vault The address of the meta sub-vault
+     */
+    event MetaSubVaultRejected(address indexed caller, address indexed vault);
+
+    /**
      * @notice Emitted when the sub-vault is ejecting
      * @param caller The address of the caller
      * @param vault The address of the sub-vault
@@ -88,6 +95,12 @@ interface IVaultSubVaults {
      * @return The address of the ejecting sub-vault
      */
     function ejectingSubVault() external view returns (address);
+
+    /**
+     * @notice Pending meta sub-vault waiting for approval
+     * @return The address of the pending meta sub-vault
+     */
+    function pendingMetaSubVault() external view returns (address);
 
     /**
      * @notice Function to get the list sub-vaults
@@ -137,6 +150,12 @@ interface IVaultSubVaults {
      * @param metaSubVault The address of the meta sub-vault to accept
      */
     function acceptMetaSubVault(address metaSubVault) external;
+
+    /**
+     * @notice Function to reject a meta sub-vault. Can only be called by the VaultsRegistry owner or admin.
+     * @param metaSubVault The address of the meta sub-vault to reject
+     */
+    function rejectMetaSubVault(address metaSubVault) external;
 
     /**
      * @notice Function to remove a sub-vault. Can only be called by the admin.
