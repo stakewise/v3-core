@@ -285,7 +285,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         metaVault.addSubVault(newSubVault);
     }
 
-    function test_addSubVault_firstSubVault() internal {
+    function test_addSubVault_firstSubVault() public {
         // create new meta vault
         bytes memory initParams = abi.encode(
             IMetaVault.MetaVaultInitParams({
@@ -1364,28 +1364,132 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         );
     }
 
-    function test_addSubVault_metaVaultAsSubVault_success() public {
+    function test_addSubVault_metaVaultAsSubVault_proposesMetaVault() public {
         // Setup: Create meta vault as sub vault
-        address metaSubVault = _setupMetaSubVault(admin);
+        address metaSubVault = _createMetaSubVault(admin);
 
-        // Get sub vault count before adding
-        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+        // Verify pendingMetaSubVault is empty
+        assertEq(metaVault.pendingMetaSubVault(), address(0), "Pending meta sub vault should be empty");
+
+        // Expect the MetaSubVaultProposed event
+        vm.expectEmit(true, true, false, true);
+        emit IVaultSubVaults.MetaSubVaultProposed(admin, metaSubVault);
 
         // Start gas measurement
-        _startSnapshotGas("VaultSubVaultsTest_test_addSubVault_metaVaultAsSubVault_success");
+        _startSnapshotGas("VaultSubVaultsTest_test_addSubVault_metaVaultAsSubVault_proposesMetaVault");
 
-        // Expect the SubVaultAdded event
-        vm.expectEmit(true, true, false, true);
-        emit IVaultSubVaults.SubVaultAdded(admin, metaSubVault);
-
-        // Action: Add the meta vault as sub vault
+        // Action: Add the meta vault as sub vault (should only propose, not add)
         vm.prank(admin);
         metaVault.addSubVault(metaSubVault);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
+        // Assert: Verify the meta vault is pending, not added
+        assertEq(metaVault.pendingMetaSubVault(), metaSubVault, "Meta vault should be pending");
+
+        // Verify the vault was NOT added to the sub vaults list yet
+        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        bool found = false;
+        for (uint256 i = 0; i < subVaultsAfter.length; i++) {
+            if (subVaultsAfter[i] == metaSubVault) {
+                found = true;
+                break;
+            }
+        }
+        assertFalse(found, "Meta vault should NOT be in sub vaults list yet");
+    }
+
+    function test_addSubVault_metaVaultAsSubVault_pendingAlreadyExists() public {
+        // Setup: Create two meta vaults as sub vaults
+        address metaSubVault1 = _createMetaSubVault(admin);
+        address metaSubVault2 = _createMetaSubVault(admin);
+
+        // Propose the first meta sub vault
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault1);
+
+        // Verify pendingMetaSubVault is set
+        assertEq(metaVault.pendingMetaSubVault(), metaSubVault1, "First meta sub vault should be pending");
+
+        // Action & Assert: Cannot propose another meta sub vault while one is pending
+        vm.prank(admin);
+        vm.expectRevert(Errors.AlreadyAdded.selector);
+        metaVault.addSubVault(metaSubVault2);
+    }
+
+    function test_acceptMetaSubVault_notVaultsRegistryOwner() public {
+        // Setup: Create and propose meta sub vault
+        address metaSubVault = _createMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Action & Assert: Non-VaultsRegistry owner cannot accept meta sub vault
+        address nonOwner = makeAddr("NonOwner");
+        vm.prank(nonOwner);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        metaVault.acceptMetaSubVault(metaSubVault);
+
+        // Also test that admin cannot accept
+        vm.prank(admin);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        metaVault.acceptMetaSubVault(metaSubVault);
+    }
+
+    function test_acceptMetaSubVault_zeroAddress() public {
+        // Setup: Create and propose meta sub vault
+        address metaSubVault = _createMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Action & Assert: Cannot accept zero address
+        vm.prank(contracts.vaultsRegistry.owner());
+        vm.expectRevert(Errors.InvalidVault.selector);
+        metaVault.acceptMetaSubVault(address(0));
+    }
+
+    function test_acceptMetaSubVault_invalidVault() public {
+        // Setup: Create and propose meta sub vault
+        address metaSubVault = _createMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Setup: Create another meta sub vault (not pending)
+        address otherMetaSubVault = _createMetaSubVault(admin);
+
+        // Action & Assert: Cannot accept a vault that is not pending
+        vm.prank(contracts.vaultsRegistry.owner());
+        vm.expectRevert(Errors.InvalidVault.selector);
+        metaVault.acceptMetaSubVault(otherMetaSubVault);
+    }
+
+    function test_acceptMetaSubVault_success() public {
+        // Setup: Create meta vault as sub vault
+        address metaSubVault = _createMetaSubVault(admin);
+
+        // Propose meta sub vault
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Get sub vault count before accepting
+        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+
+        // Expect the SubVaultAdded event
+        vm.expectEmit(true, true, false, true);
+        emit IVaultSubVaults.SubVaultAdded(contracts.vaultsRegistry.owner(), metaSubVault);
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_acceptMetaSubVault_success");
+
+        // Action: Accept meta sub vault by VaultsRegistry owner
+        vm.prank(contracts.vaultsRegistry.owner());
+        metaVault.acceptMetaSubVault(metaSubVault);
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
         // Assert: Verify the meta vault was added as sub vault
+        assertEq(metaVault.pendingMetaSubVault(), address(0), "Pending meta sub vault should be cleared");
         address[] memory subVaultsAfter = metaVault.getSubVaults();
         assertEq(subVaultsAfter.length, subVaultsCountBefore + 1, "Sub vault count should increase by 1");
 
@@ -1397,6 +1501,122 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             }
         }
         assertTrue(found, "Meta vault should be found in sub vaults list");
+    }
+
+    function test_rejectMetaSubVault_notAdminOrOwner() public {
+        // Setup: Create and propose meta sub vault
+        address metaSubVault = _createMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Action & Assert: Non-admin/non-owner cannot reject meta sub vault
+        address nonAdmin = makeAddr("NonAdmin");
+        vm.prank(nonAdmin);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        metaVault.rejectMetaSubVault(metaSubVault);
+    }
+
+    function test_rejectMetaSubVault_zeroAddress() public {
+        // Setup: Create and propose meta sub vault
+        address metaSubVault = _createMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Action & Assert: Cannot reject zero address
+        vm.prank(admin);
+        vm.expectRevert(Errors.InvalidVault.selector);
+        metaVault.rejectMetaSubVault(address(0));
+    }
+
+    function test_rejectMetaSubVault_invalidVault() public {
+        // Setup: Create and propose meta sub vault
+        address metaSubVault = _createMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Setup: Create another meta sub vault (not pending)
+        address otherMetaSubVault = _createMetaSubVault(admin);
+
+        // Action & Assert: Cannot reject a vault that is not pending
+        vm.prank(admin);
+        vm.expectRevert(Errors.InvalidVault.selector);
+        metaVault.rejectMetaSubVault(otherMetaSubVault);
+    }
+
+    function test_rejectMetaSubVault_byOwner_success() public {
+        // Setup: Create and propose meta sub vault
+        address metaSubVault = _createMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Get sub vault count before rejection
+        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+
+        // Expect the MetaSubVaultRejected event
+        vm.expectEmit(true, true, false, true);
+        emit IVaultSubVaults.MetaSubVaultRejected(contracts.vaultsRegistry.owner(), metaSubVault);
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_rejectMetaSubVault_byOwner_success");
+
+        // Action: Reject meta sub vault by VaultsRegistry owner
+        vm.prank(contracts.vaultsRegistry.owner());
+        metaVault.rejectMetaSubVault(metaSubVault);
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Assert: Verify the pending meta sub vault was cleared and vault not added
+        assertEq(metaVault.pendingMetaSubVault(), address(0), "Pending meta sub vault should be cleared");
+        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        assertEq(subVaultsAfter.length, subVaultsCountBefore, "Sub vault count should not change");
+
+        bool found = false;
+        for (uint256 i = 0; i < subVaultsAfter.length; i++) {
+            if (subVaultsAfter[i] == metaSubVault) {
+                found = true;
+                break;
+            }
+        }
+        assertFalse(found, "Meta vault should NOT be in sub vaults list");
+    }
+
+    function test_rejectMetaSubVault_byAdmin_success() public {
+        // Setup: Create and propose meta sub vault
+        address metaSubVault = _createMetaSubVault(admin);
+        vm.prank(admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Get sub vault count before rejection
+        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+
+        // Expect the MetaSubVaultRejected event
+        vm.expectEmit(true, true, false, true);
+        emit IVaultSubVaults.MetaSubVaultRejected(admin, metaSubVault);
+
+        // Start gas measurement
+        _startSnapshotGas("VaultSubVaultsTest_test_rejectMetaSubVault_byAdmin_success");
+
+        // Action: Reject meta sub vault by admin
+        vm.prank(admin);
+        metaVault.rejectMetaSubVault(metaSubVault);
+
+        // Stop gas measurement
+        _stopSnapshotGas();
+
+        // Assert: Verify the pending meta sub vault was cleared and vault not added
+        assertEq(metaVault.pendingMetaSubVault(), address(0), "Pending meta sub vault should be cleared");
+        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        assertEq(subVaultsAfter.length, subVaultsCountBefore, "Sub vault count should not change");
+
+        bool found = false;
+        for (uint256 i = 0; i < subVaultsAfter.length; i++) {
+            if (subVaultsAfter[i] == metaSubVault) {
+                found = true;
+                break;
+            }
+        }
+        assertFalse(found, "Meta vault should NOT be in sub vaults list");
     }
 
     function test_addSubVault_metaVaultAsSubVault_notCollateralized() public {
@@ -1418,25 +1638,27 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     }
 
     function test_addSubVault_metaVaultAsSubVault_notHarvested() public {
-        // Setup: Create and collateralize meta vault as sub vault
-        address metaSubVault = _setupMetaSubVault(admin);
+        // Setup: Create meta vault as sub vault (but don't add it yet)
+        address metaSubVault = _createMetaSubVault(admin);
 
         // Setup: Set different rewards nonce for the meta sub vault
         uint64 currentNonce = contracts.keeper.rewardsNonce();
         uint64 differentNonce = currentNonce + 1;
         _setMetaVaultRewardsNonce(metaSubVault, uint128(differentNonce));
 
-        // Action & Assert: Cannot add meta vault with different rewards nonce
+        // Propose meta sub vault (this should succeed)
         vm.prank(admin);
-        vm.expectRevert(Errors.NotHarvested.selector);
         metaVault.addSubVault(metaSubVault);
+
+        // Action & Assert: Accept should fail because meta vault has different rewards nonce
+        vm.prank(contracts.vaultsRegistry.owner());
+        vm.expectRevert(Errors.NotHarvested.selector);
+        metaVault.acceptMetaSubVault(metaSubVault);
     }
 
     function test_ejectSubVault_metaVaultAsSubVault_emptySubVault() public {
         // Setup: Add meta vault as sub vault
         address metaSubVault = _setupMetaSubVault(admin);
-        vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
 
         // Get sub vault count before ejection
         uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
@@ -1472,8 +1694,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_ejectSubVault_metaVaultAsSubVault_withShares() public {
         // Setup: Add meta vault as sub vault
         address metaSubVault = _setupMetaSubVault(admin);
-        vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
 
         // Deposit to main meta vault
         vm.deal(address(this), 5 ether);
@@ -1523,8 +1743,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_depositToSubVaults_withMetaVaultSubVault() public {
         // Setup: Add meta vault as sub vault
         address metaSubVault = _setupMetaSubVault(admin);
-        vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
 
         // Deposit to main meta vault
         vm.deal(address(this), 10 ether);
@@ -1563,8 +1781,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_depositToSubVaults_nestedMetaVaultDepositsToItsSubVaults() public {
         // Setup: Add meta vault as sub vault
         address metaSubVault = _setupMetaSubVault(admin);
-        vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
 
         // Deposit to main meta vault
         vm.deal(address(this), 20 ether);
@@ -1592,8 +1808,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_updateState_withMetaVaultSubVault_success() public {
         // Setup: Add meta vault as sub vault and deposit
         address metaSubVault = _setupMetaSubVault(admin);
-        vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
 
         vm.deal(address(this), 5 ether);
         metaVault.deposit{value: 5 ether}(address(this), address(0));
@@ -1634,8 +1848,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_updateState_withMetaVaultSubVault_notHarvested() public {
         // Setup: Add meta vault as sub vault
         address metaSubVault = _setupMetaSubVault(admin);
-        vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
 
         // Setup: Make the meta sub vault appear not harvested by setting outdated nonce
         uint64 currentNonce = contracts.keeper.rewardsNonce();
@@ -1670,6 +1882,19 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     }
 
     function _setupMetaSubVault(address _admin) internal returns (address metaSubVault) {
+        // Deploy meta vault that will be used as sub vault
+        metaSubVault = _createMetaSubVault(_admin);
+
+        // Propose and accept the meta sub vault on the main metaVault
+        vm.prank(_admin);
+        metaVault.addSubVault(metaSubVault);
+
+        // Accept the meta sub vault by VaultsRegistry owner
+        vm.prank(contracts.vaultsRegistry.owner());
+        metaVault.acceptMetaSubVault(metaSubVault);
+    }
+
+    function _createMetaSubVault(address _admin) internal returns (address metaSubVault) {
         // Deploy meta vault that will be used as sub vault
         bytes memory initParams = abi.encode(
             IMetaVault.MetaVaultInitParams({
