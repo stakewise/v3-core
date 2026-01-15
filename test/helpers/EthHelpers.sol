@@ -25,6 +25,7 @@ import {EthVault, IEthVault} from "../../contracts/vaults/ethereum/EthVault.sol"
 import {EthVaultFactory} from "../../contracts/vaults/ethereum/EthVaultFactory.sol";
 import {IEthFoxVault, EthFoxVault} from "../../contracts/vaults/ethereum/custom/EthFoxVault.sol";
 import {EthMetaVault} from "../../contracts/vaults/ethereum/EthMetaVault.sol";
+import {EthPrivMetaVault} from "../../contracts/vaults/ethereum/EthPrivMetaVault.sol";
 import {EthMetaVaultFactory} from "../../contracts/vaults/ethereum/EthMetaVaultFactory.sol";
 import {Keeper} from "../../contracts/keeper/Keeper.sol";
 import {ValidatorsConsolidationsMock} from "../../contracts/mocks/ValidatorsConsolidationsMock.sol";
@@ -34,7 +35,7 @@ import {VaultsRegistry, IVaultsRegistry} from "../../contracts/vaults/VaultsRegi
 import {CuratorsRegistry} from "../../contracts/curators/CuratorsRegistry.sol";
 
 abstract contract EthHelpers is Test, ValidatorsHelpers {
-    uint256 internal constant forkBlockNumber = 22100000;
+    uint256 internal constant forkBlockNumber = 24235110;
     uint256 internal constant _securityDeposit = 1e9;
     address private constant _keeper = 0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5;
     address private constant _validatorsRegistry = 0x00000000219ab540356cBB839Cbe05303d7705Fa;
@@ -48,6 +49,8 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     address internal constant _depositDataRegistry = 0x75AB6DdCe07556639333d3Df1eaa684F5735223e;
     address internal constant _poolEscrow = 0x2296e122c1a20Fca3CAc3371357BdAd3be0dF079;
     address internal constant _rewardEthToken = 0x20BC832ca081b91433ff6c17f85701B6e92486c5;
+    address internal constant _consolidationsChecker = 0x033E5BaE5bdc459CBb7d388b41a9d62020Be810F;
+    address internal constant _curatorsRegistry = 0xa23F7c8d25f4503cA4cEd84d9CC2428e8745933C;
     uint256 internal constant _exitingAssetsClaimDelay = 15 hours;
 
     enum VaultType {
@@ -59,7 +62,8 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         EthBlocklistErc20Vault,
         EthPrivErc20Vault,
         EthFoxVault,
-        EthMetaVault
+        EthMetaVault,
+        EthPrivMetaVault
     }
 
     struct ForkContracts {
@@ -77,18 +81,14 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     mapping(VaultType vaultType => address vaultFactory) private _vaultFactories;
     mapping(VaultType vaultType => address vaultFactory) private _vaultPrevFactories;
 
-    address internal _consolidationsChecker;
     address internal _validatorsWithdrawals;
     address internal _validatorsConsolidations;
-    address internal _curatorsRegistry;
 
     function _activateEthereumFork() internal returns (ForkContracts memory) {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), forkBlockNumber);
 
         _validatorsWithdrawals = address(new ValidatorsWithdrawalsMock());
         _validatorsConsolidations = address(new ValidatorsConsolidationsMock());
-        _consolidationsChecker = address(new ConsolidationsChecker(address(_keeper)));
-        _curatorsRegistry = address(new CuratorsRegistry());
 
         return ForkContracts({
             keeper: Keeper(_keeper),
@@ -175,6 +175,8 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             impl = 0x9488A7dd178F0D927707eEc61A7D8C0ae9558c88;
         } else if (_vaultType == VaultType.EthBlocklistErc20Vault) {
             impl = 0x84d44A696539B3eF4162184fb8ab97596A311e9E;
+        } else if (_vaultType == VaultType.EthMetaVault) {
+            impl = 0xD0D527B67186d8880f9427ea4Cf9847E89bcE764;
         } else {
             return EthVaultFactory(address(0));
         }
@@ -256,15 +258,19 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
 
         // Update with actual deployed vault addresses for each type
         if (vaultType == VaultType.EthVault) {
-            return 0x8A93A876912c9F03F88Bc9114847cf5b63c89f56;
+            return 0x7Eed3ea8D83ba4Ccc1b20674F46825ece2fce594;
         } else if (vaultType == VaultType.EthPrivVault) {
             return 0xD66A71A68392767F26b7EE47e9a0293191A23072;
         } else if (vaultType == VaultType.EthErc20Vault) {
-            return 0x7106FA765d45dF6d5340972C58742fC54f0d1Ef9;
+            return 0x9c29c571847A68A947AceC8bacd303e36bC72ec5;
         } else if (vaultType == VaultType.EthPrivErc20Vault) {
             return 0xFB22Ded2bd69aff0907e195F23E448aB44E3cA97;
-        } else if (vaultType == VaultType.EthFoxVault) {
-            return 0x4FEF9D741011476750A243aC70b9789a63dd47Df;
+        } else if (vaultType == VaultType.EthBlocklistVault) {
+            return 0xf51033647a8ab632B80B69b1c680aaDcC8ADa048;
+        } else if (vaultType == VaultType.EthBlocklistErc20Vault) {
+            return 0x498399e4f5FDe641a43DCEAFc0aac858abaF2034;
+        } else if (vaultType == VaultType.EthMetaVault) {
+            return 0x15639E82d2072Fa510E5d2b5F0db361c823bCad3;
         }
         return address(0);
     }
@@ -277,10 +283,10 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         // Update with actual values if needed for specific vaults
         if (vault == 0xAC0F906E433d58FA868F936E8A43230473652885) {
             // Genesis Vault
-            newTotalReward += 11492988394536925432019;
-            newUnlockedMevReward += 588134256533622872486;
+            newTotalReward += 15357936244318545414766;
+            newUnlockedMevReward += 954581796972242855233;
         } else if (vault == 0x4FEF9D741011476750A243aC70b9789a63dd47Df) {
-            newTotalReward += 242948554351000000000;
+            newTotalReward += 1097049381115000000000;
         }
 
         if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
@@ -288,11 +294,14 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         }
 
         // Add specific rewards for each vault type
-        if (vault == 0x8A93A876912c9F03F88Bc9114847cf5b63c89f56) {
-            newTotalReward += 39158842473943927643;
-            newUnlockedMevReward += 6210915181493109989;
+        if (vault == 0x7Eed3ea8D83ba4Ccc1b20674F46825ece2fce594) {
+            newTotalReward += 1835140592094467096;
+            newUnlockedMevReward += 246577230094467096;
         } else if (vault == 0xD66A71A68392767F26b7EE47e9a0293191A23072) {
             newTotalReward += 17651468000000000;
+        } else if (vault == 0x9c29c571847A68A947AceC8bacd303e36bC72ec5) {
+            newTotalReward += 1590862592749045978;
+            newUnlockedMevReward += 251734367749045978;
         }
 
         return (newTotalReward, newUnlockedMevReward);
@@ -341,10 +350,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         return vaultAddress;
     }
 
-    function _createV1EthVault(address admin, bytes memory initParams, bool isOwnMevEscrow)
-        internal
-        returns (address)
-    {
+    function _createV1EthVault(address admin, bytes memory initParams, bool isOwnMevEscrow) internal returns (address) {
         EthVaultFactory factory = EthVaultFactory(0xDada5a8E3703B1e3EA2bAe5Ab704627eb2659fCC);
 
         vm.prank(VaultsRegistry(_vaultsRegistry).owner());
@@ -364,6 +370,9 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         if (vaultType == VaultType.EthFoxVault) {
             if (currentVersion == 2) return;
             require(currentVersion == 1, "Invalid vault version");
+        } else if (vaultType == VaultType.EthMetaVault || vaultType == VaultType.EthPrivMetaVault) {
+            if (currentVersion == 6) return;
+            require(currentVersion == 5, "Invalid vault version");
         } else {
             if (currentVersion == 5) return;
             require(currentVersion == 4, "Invalid vault version");
@@ -450,6 +459,19 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
                 uint64(_exitingAssetsClaimDelay)
             );
             impl = address(new EthMetaVault(ethMetaVaultArgs));
+        } else if (_vaultType == VaultType.EthPrivMetaVault) {
+            IMetaVault.MetaVaultConstructorArgs memory ethMetaVaultArgs = IMetaVault.MetaVaultConstructorArgs(
+                _keeper,
+                _vaultsRegistry,
+                _osTokenVaultController,
+                _osTokenConfig,
+                _osTokenVaultEscrow,
+                _curatorsRegistry,
+                uint64(_exitingAssetsClaimDelay)
+            );
+            impl = address(new EthPrivMetaVault(ethMetaVaultArgs));
+        } else {
+            revert("Unsupported vault type");
         }
 
         _vaultImplementations[_vaultType] = impl;

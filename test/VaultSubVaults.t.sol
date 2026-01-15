@@ -41,7 +41,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up accounts
-        admin = makeAddr("admin");
+        admin = makeAddr("Admin");
         vm.deal(admin, 100 ether);
 
         // Create a curator
@@ -78,8 +78,8 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
     function test_setSubVaultsCurator_notAdmin() public {
         // Setup
-        address nonAdmin = makeAddr("nonAdmin");
-        address newCurator = makeAddr("newCurator");
+        address nonAdmin = makeAddr("NonAdmin");
+        address newCurator = makeAddr("NewCurator");
 
         // Register the new curator in the curators registry
         vm.prank(CuratorsRegistry(_curatorsRegistry).owner());
@@ -110,7 +110,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
     function test_setSubVaultsCurator_notRegisteredCurator() public {
         // Setup: Create a new curator address that is not registered
-        address unregisteredCurator = makeAddr("unregisteredCurator");
+        address unregisteredCurator = makeAddr("UnregisteredCurator");
 
         // Action & Assert: Expect revert when trying to set an unregistered curator
         vm.prank(admin);
@@ -120,7 +120,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
     function test_setSubVaultsCurator_success() public {
         // Setup: Create and register a new curator
-        address newCurator = makeAddr("newCurator");
+        address newCurator = makeAddr("NewCurator");
         vm.prank(CuratorsRegistry(_curatorsRegistry).owner());
         CuratorsRegistry(_curatorsRegistry).addCurator(newCurator);
 
@@ -148,7 +148,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), newSubVault);
 
         // Setup: Create a non-admin user
-        address nonAdmin = makeAddr("nonAdmin");
+        address nonAdmin = makeAddr("NonAdmin");
 
         // Action & Assert: Non-admin cannot add a sub vault
         vm.prank(nonAdmin);
@@ -172,7 +172,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
     function test_addSubVault_notRegisteredVault() public {
         // Setup: Create an address that's not registered as a vault
-        address fakeVault = makeAddr("fakeVault");
+        address fakeVault = makeAddr("FakeVault");
 
         // Action & Assert: Cannot add non-registered vault
         vm.prank(admin);
@@ -362,7 +362,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         address subVaultToEject = subVaults[0];
 
         // Setup: Create a non-admin user
-        address nonAdmin = makeAddr("nonAdmin");
+        address nonAdmin = makeAddr("NonAdmin");
 
         // Action & Assert: Non-admin cannot eject a sub vault
         vm.prank(nonAdmin);

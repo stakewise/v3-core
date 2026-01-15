@@ -31,11 +31,11 @@ contract EthPrivVaultTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
-        other = makeAddr("other");
-        whitelister = makeAddr("whitelister");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
+        other = makeAddr("Other");
+        whitelister = makeAddr("Whitelister");
 
         // Fund accounts with ETH for testing
         vm.deal(sender, 100 ether);
@@ -391,7 +391,7 @@ contract EthPrivVaultTest is Test, EthHelpers {
     }
 
     function test_setWhitelister() public {
-        address newWhitelister = makeAddr("newWhitelister");
+        address newWhitelister = makeAddr("NewWhitelister");
 
         // Non-admin cannot set whitelister
         vm.prank(other);

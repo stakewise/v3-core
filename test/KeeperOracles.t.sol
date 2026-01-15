@@ -23,8 +23,8 @@ contract KeeperOraclesTest is Test, EthHelpers {
 
         // Set up test accounts
         owner = keeper.owner();
-        newOracle = makeAddr("newOracle");
-        nonOwner = makeAddr("nonOwner");
+        newOracle = makeAddr("NewOracle");
+        nonOwner = makeAddr("NonOwner");
     }
 
     // Test cases for addOracle
@@ -97,7 +97,7 @@ contract KeeperOraclesTest is Test, EthHelpers {
         vm.prank(owner);
         _startSnapshotGas("KeeperOraclesTest_test_addOracle_maxOraclesExceeded");
         vm.expectRevert(Errors.MaxOraclesExceeded.selector);
-        keeper.addOracle(makeAddr("oneMoreOracle"));
+        keeper.addOracle(makeAddr("OneMoreOracle"));
         _stopSnapshotGas();
     }
 

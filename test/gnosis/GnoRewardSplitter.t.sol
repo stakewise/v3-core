@@ -36,11 +36,11 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        shareholder1 = makeAddr("shareholder1");
-        shareholder2 = makeAddr("shareholder2");
-        depositor = makeAddr("depositor");
-        claimer = makeAddr("claimer");
+        admin = makeAddr("Admin");
+        shareholder1 = makeAddr("Shareholder1");
+        shareholder2 = makeAddr("Shareholder2");
+        depositor = makeAddr("Depositor");
+        claimer = makeAddr("Claimer");
 
         // Fund accounts
         vm.deal(admin, 100 ether);

@@ -36,9 +36,9 @@ contract SharedMevEscrowTest is Test {
 
     function setUp() public {
         // Setup test accounts
-        owner = makeAddr("owner");
-        nonRegisteredAccount = makeAddr("nonRegisteredAccount");
-        mevSender = makeAddr("mevSender");
+        owner = makeAddr("Owner");
+        nonRegisteredAccount = makeAddr("NonRegisteredAccount");
+        mevSender = makeAddr("MevSender");
 
         // Fund accounts
         vm.deal(mevSender, 10 ether);

@@ -23,11 +23,11 @@ contract VaultsRegistryTest is Test, EthHelpers {
         registry = contracts.vaultsRegistry;
 
         // Set up test accounts
-        owner = makeAddr("owner");
-        nonOwner = makeAddr("nonOwner");
-        mockFactory = makeAddr("mockFactory");
-        mockVaultImpl = makeAddr("mockVaultImpl");
-        mockVault = makeAddr("mockVault");
+        owner = makeAddr("Owner");
+        nonOwner = makeAddr("NonOwner");
+        mockFactory = makeAddr("MockFactory");
+        mockVaultImpl = makeAddr("MockVaultImpl");
+        mockVault = makeAddr("MockVault");
 
         // Since the registry is already deployed on the fork, we need to
         // impersonate its owner to perform ownership-restricted actions
@@ -137,7 +137,7 @@ contract VaultsRegistryTest is Test, EthHelpers {
         // Deploy a new VaultsRegistry contract to test initialization
         VaultsRegistry newRegistry = new VaultsRegistry();
 
-        address newOwner = makeAddr("newOwner");
+        address newOwner = makeAddr("NewOwner");
 
         vm.prank(newRegistry.owner());
         _startSnapshotGas("VaultsRegistryTest_test_initialize");
@@ -211,8 +211,8 @@ contract VaultsRegistryTest is Test, EthHelpers {
         // Create a new registry and initialize it once
         VaultsRegistry newRegistry = new VaultsRegistry();
 
-        address newOwner = makeAddr("newOwner");
-        address anotherOwner = makeAddr("anotherOwner");
+        address newOwner = makeAddr("NewOwner");
+        address anotherOwner = makeAddr("AnotherOwner");
 
         vm.prank(newRegistry.owner());
         newRegistry.initialize(newOwner);

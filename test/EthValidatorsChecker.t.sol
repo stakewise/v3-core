@@ -43,8 +43,8 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         );
 
         // Setup accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
         vm.deal(user, 100 ether);
 
         // Create and prepare a vault with sufficient funds
@@ -89,7 +89,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
 
     function testValidatorsManagerSignature_InvalidVault() public {
         // Use non-existent vault
-        address invalidVault = makeAddr("nonVault");
+        address invalidVault = makeAddr("NonVault");
 
         // Test with invalid vault
         (uint256 blockNumber, IValidatorsChecker.Status status) =
@@ -155,7 +155,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
 
     function testCheckDepositDataRoot_InvalidVault() public {
         // Use non-existent vault
-        address invalidVault = makeAddr("nonVault");
+        address invalidVault = makeAddr("NonVault");
 
         // Create params with invalid vault
         IValidatorsChecker.DepositDataRootCheckParams memory params = IValidatorsChecker.DepositDataRootCheckParams({
@@ -249,7 +249,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         _collateralizeEthVault(address(customVault));
 
         // Set a custom validators manager
-        address customManager = makeAddr("customManager");
+        address customManager = makeAddr("CustomManager");
         vm.prank(admin);
         IVaultValidators(customVault).setValidatorsManager(customManager);
 
@@ -360,7 +360,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
 
     function test_checkValidatorsManagerSignature_Success() public {
         // 1. Get the validators manager
-        address validatorsManager = makeAddr("validatorsManager");
+        address validatorsManager = makeAddr("ValidatorsManager");
         uint256 validatorsManagerPrivKey = uint256(keccak256(abi.encodePacked("validatorsManager_key")));
         validatorsManager = vm.addr(validatorsManagerPrivKey);
 

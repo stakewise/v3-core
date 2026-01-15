@@ -44,10 +44,10 @@ contract GnoVaultExitQueueTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        user1 = makeAddr("user1");
-        user2 = makeAddr("user2");
-        user3 = makeAddr("user3");
+        admin = makeAddr("Admin");
+        user1 = makeAddr("User1");
+        user2 = makeAddr("User2");
+        user3 = makeAddr("User3");
 
         // Fund accounts
         _mintGnoToken(admin, 100 ether);

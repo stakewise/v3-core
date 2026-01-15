@@ -29,8 +29,8 @@ contract KeeperValidatorsTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
         owner = contracts.keeper.owner();
 
         // Fund accounts
@@ -407,7 +407,7 @@ contract KeeperValidatorsTest is Test, EthHelpers {
         uint256 currentMinOracles = contracts.keeper.validatorsMinOracles();
 
         // Act & Assert: Call from non-owner should fail
-        address nonOwner = makeAddr("nonOwner");
+        address nonOwner = makeAddr("NonOwner");
         vm.prank(nonOwner);
         _startSnapshotGas("KeeperValidatorsTest_test_setValidatorsMinOracles_unauthorized");
         vm.expectRevert(abi.encodeWithSignature("OwnableUnauthorizedAccount(address)", nonOwner));

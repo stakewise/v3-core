@@ -22,11 +22,11 @@ contract GnoSharedMevEscrowTest is Test, GnoHelpers {
         sharedMevEscrow = new GnoSharedMevEscrow(address(contracts.vaultsRegistry));
 
         // Set up test account
-        other = makeAddr("other");
+        other = makeAddr("Other");
         vm.deal(other, 10 ether);
 
         // Register a mock vault in the registry
-        mockVault = makeAddr("mockVault");
+        mockVault = makeAddr("MockVault");
         vm.prank(contracts.vaultsRegistry.owner());
         contracts.vaultsRegistry.addVault(mockVault);
     }

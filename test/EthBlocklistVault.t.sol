@@ -31,11 +31,11 @@ contract EthBlocklistVaultTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
-        other = makeAddr("other");
-        blocklistManager = makeAddr("blocklistManager");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
+        other = makeAddr("Other");
+        blocklistManager = makeAddr("BlocklistManager");
 
         // Fund accounts with ETH for testing
         vm.deal(sender, 100 ether);

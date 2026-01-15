@@ -19,8 +19,8 @@ contract GnoOwnMevEscrowTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        vault = makeAddr("vault");
-        other = makeAddr("other");
+        vault = makeAddr("Vault");
+        other = makeAddr("Other");
         vm.deal(other, 10 ether); // Give 'other' some xDAI
 
         // Deploy the contract

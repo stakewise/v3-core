@@ -29,8 +29,8 @@ contract GnoOsTokenVaultEscrowTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Setup addresses
-        user = makeAddr("user");
-        admin = makeAddr("admin");
+        user = makeAddr("User");
+        admin = makeAddr("Admin");
 
         // Fund accounts
         vm.deal(user, 1 ether);

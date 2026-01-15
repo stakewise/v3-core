@@ -24,6 +24,7 @@ import {GnoPrivErc20Vault} from "../../contracts/vaults/gnosis/GnoPrivErc20Vault
 import {GnoPrivVault} from "../../contracts/vaults/gnosis/GnoPrivVault.sol";
 import {GnoVault, IGnoVault} from "../../contracts/vaults/gnosis/GnoVault.sol";
 import {GnoMetaVault} from "../../contracts/vaults/gnosis/GnoMetaVault.sol";
+import {GnoPrivMetaVault} from "../../contracts/vaults/gnosis/GnoPrivMetaVault.sol";
 import {GnoMetaVaultFactory} from "../../contracts/vaults/gnosis/GnoMetaVaultFactory.sol";
 import {GnoVaultFactory} from "../../contracts/vaults/gnosis/GnoVaultFactory.sol";
 import {Keeper} from "../../contracts/keeper/Keeper.sol";
@@ -65,7 +66,8 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         GnoErc20Vault,
         GnoBlocklistErc20Vault,
         GnoPrivErc20Vault,
-        GnoMetaVault
+        GnoMetaVault,
+        GnoPrivMetaVault
     }
 
     struct ForkContracts {
@@ -83,6 +85,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
 
     mapping(VaultType vaultType => address vaultImpl) private _vaultImplementations;
     mapping(VaultType vaultType => address vaultFactory) private _vaultFactories;
+    mapping(VaultType vaultType => address vaultFactory) private _vaultPrevFactories;
 
     address private _consolidationsChecker;
     address private _validatorsWithdrawals;
@@ -327,7 +330,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         returns (address)
     {
         address vaultAddress;
-        if (vaultType == VaultType.GnoMetaVault) {
+        if (vaultType == VaultType.GnoMetaVault || vaultType == VaultType.GnoPrivMetaVault) {
             GnoMetaVaultFactory factory = _getOrCreateMetaFactory(vaultType);
             vm.startPrank(admin);
             IERC20(_gnoToken).approve(address(factory), _securityDeposit);
@@ -362,6 +365,9 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         GnoVault vaultContract = GnoVault(payable(vault));
         uint256 currentVersion = vaultContract.version();
         if (vaultType == VaultType.GnoGenesisVault) {
+            if (currentVersion == 4) return;
+            require(currentVersion == 3, "Invalid vault version");
+        } else if (vaultType == VaultType.GnoMetaVault || vaultType == VaultType.GnoPrivMetaVault) {
             if (currentVersion == 4) return;
             require(currentVersion == 3, "Invalid vault version");
         } else {
@@ -428,8 +434,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         } else if (_vaultType == VaultType.GnoPrivErc20Vault) {
             impl = address(new GnoPrivErc20Vault(gnoErc20Args));
         } else if (_vaultType == VaultType.GnoMetaVault) {
-            IMetaVault.MetaVaultConstructorArgs memory gnoMetaVaultArgs = IMetaVault
-                .MetaVaultConstructorArgs(
+            IMetaVault.MetaVaultConstructorArgs memory gnoMetaVaultArgs = IMetaVault.MetaVaultConstructorArgs(
                 _keeper,
                 _vaultsRegistry,
                 _osTokenVaultController,
@@ -439,10 +444,25 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
                 uint64(_exitingAssetsClaimDelay)
             );
             impl = address(new GnoMetaVault(_gnoToken, gnoMetaVaultArgs));
+        } else if (_vaultType == VaultType.GnoPrivMetaVault) {
+            IMetaVault.MetaVaultConstructorArgs memory gnoMetaVaultArgs = IMetaVault.MetaVaultConstructorArgs(
+                _keeper,
+                _vaultsRegistry,
+                _osTokenVaultController,
+                _osTokenConfig,
+                _osTokenVaultEscrow,
+                _curatorsRegistry,
+                uint64(_exitingAssetsClaimDelay)
+            );
+            impl = address(new GnoPrivMetaVault(_gnoToken, gnoMetaVaultArgs));
+        } else {
+            revert("Unsupported vault type");
         }
         _vaultImplementations[_vaultType] = impl;
 
         vm.prank(VaultsRegistry(_vaultsRegistry).owner());
         VaultsRegistry(_vaultsRegistry).addVaultImpl(impl);
+
+        return impl;
     }
 }

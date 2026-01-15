@@ -28,9 +28,9 @@ contract VaultValidatorsTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
-        nonManager = makeAddr("nonManager");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
+        nonManager = makeAddr("NonManager");
         (validatorsManager, validatorsManagerPrivateKey) = makeAddrAndKey("validatorsManager");
 
         // Fund accounts with ETH for testing

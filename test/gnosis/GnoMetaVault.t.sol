@@ -42,10 +42,10 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        referrer = makeAddr("referrer");
+        admin = makeAddr("Admin");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        referrer = makeAddr("Referrer");
 
         // Mint GNO tokens to accounts
         _mintGnoToken(admin, 100 ether);
@@ -97,7 +97,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
     function test_deployment() public view {
         // Verify the vault was deployed correctly
         assertEq(metaVault.vaultId(), keccak256("GnoMetaVault"), "Incorrect vault ID");
-        assertEq(metaVault.version(), 3, "Incorrect version");
+        assertEq(metaVault.version(), 4, "Incorrect version");
         assertEq(metaVault.admin(), admin, "Incorrect admin");
         assertEq(metaVault.subVaultsCurator(), curator, "Incorrect curator");
         assertEq(metaVault.capacity(), 1000 ether, "Incorrect capacity");

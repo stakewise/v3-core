@@ -28,10 +28,10 @@ contract VaultFeeTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
-        feeRecipient = makeAddr("feeRecipient");
-        newFeeRecipient = makeAddr("newFeeRecipient");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
+        feeRecipient = makeAddr("FeeRecipient");
+        newFeeRecipient = makeAddr("NewFeeRecipient");
 
         // Fund accounts with ETH for testing
         vm.deal(admin, 100 ether);
@@ -174,13 +174,13 @@ contract VaultFeeTest is Test, EthHelpers {
     }
 
     function test_setFeePercent_tooSoon() public {
-        // First set fee percentage
-        uint16 firstFeePercent = 500; // 5%
+        // First set fee percentage (use a valid increase from initial)
+        uint16 firstFeePercent = initialFeePercent + 1;
         vm.prank(admin);
         vault.setFeePercent(firstFeePercent);
 
         // Then try to set again too soon (before feeChangeDelay have passed)
-        uint16 secondFeePercent = 600; // 6%
+        uint16 secondFeePercent = firstFeePercent + 1;
         vm.prank(admin);
         _startSnapshotGas("VaultFeeTest_test_setFeePercent_tooSoon");
         vm.expectRevert(Errors.TooEarlyUpdate.selector);
@@ -198,16 +198,16 @@ contract VaultFeeTest is Test, EthHelpers {
     }
 
     function test_setFeePercent_maxIncrease() public {
-        // First set fee percentage
-        uint16 firstFeePercent = 500; // 5%
+        // First set fee percentage to a known value (use a valid increase from initial)
+        uint16 firstFeePercent = initialFeePercent + 1;
         vm.prank(admin);
         vault.setFeePercent(firstFeePercent);
 
         // Wait for delay period
         vm.warp(vm.getBlockTimestamp() + feeChangeDelay + 1);
 
-        // Try to increase fee by more than 20%
-        uint16 invalidIncrease = 700; // 7% (more than 20% increase from 5%)
+        // Try to increase fee by more than 20% (more than 120% of current)
+        uint16 invalidIncrease = uint16((uint256(firstFeePercent) * 121) / 100); // ~21% increase
         vm.prank(admin);
         _startSnapshotGas("VaultFeeTest_test_setFeePercent_maxIncrease");
         vm.expectRevert(Errors.InvalidFeePercent.selector);
@@ -217,8 +217,8 @@ contract VaultFeeTest is Test, EthHelpers {
         // Fee percentage should remain at the first update
         assertEq(vault.feePercent(), firstFeePercent, "Fee percent should not change");
 
-        // Try a valid increase (below 20%)
-        uint16 validIncrease = 600; // 6% (20% increase from 5%)
+        // Try a valid increase (at most 20%)
+        uint16 validIncrease = uint16((uint256(firstFeePercent) * 120) / 100); // exactly 20% increase
         vm.prank(admin);
         vault.setFeePercent(validIncrease);
         assertEq(vault.feePercent(), validIncrease, "Fee percent should update with valid increase");
@@ -233,7 +233,7 @@ contract VaultFeeTest is Test, EthHelpers {
 
         // Test setting fee percentage without harvesting
         vm.warp(vm.getBlockTimestamp() + feeChangeDelay + 1);
-        uint16 newFeePercent = 500; // 5%
+        uint16 newFeePercent = initialFeePercent + 1; // valid increase
         vm.prank(admin);
         _startSnapshotGas("VaultFeeTest_test_setFeePercent_requiresHarvest");
         vm.expectRevert(Errors.NotHarvested.selector);

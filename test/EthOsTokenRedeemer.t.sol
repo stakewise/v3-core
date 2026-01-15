@@ -44,12 +44,12 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Setup test accounts
-        owner = makeAddr("owner");
-        positionsManager = makeAddr("positionsManager");
-        user1 = makeAddr("user1");
-        user2 = makeAddr("user2");
-        user3 = makeAddr("user3");
-        admin = makeAddr("admin");
+        owner = makeAddr("Owner");
+        positionsManager = makeAddr("PositionsManager");
+        user1 = makeAddr("User1");
+        user2 = makeAddr("User2");
+        user3 = makeAddr("User3");
+        admin = makeAddr("Admin");
 
         // Fund accounts
         _fundAccounts();
@@ -199,7 +199,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     }
 
     function test_setPositionsManager_notOwner() public {
-        address newManager = makeAddr("newManager");
+        address newManager = makeAddr("NewManager");
 
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
@@ -219,7 +219,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     }
 
     function test_setPositionsManager_success() public {
-        address newManager = makeAddr("newManager");
+        address newManager = makeAddr("NewManager");
 
         vm.expectEmit(true, false, false, true);
         emit IOsTokenRedeemer.PositionsManagerUpdated(newManager);
@@ -542,7 +542,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         assertEq(exitRequestShares, osTokenShares, "Exit request not recorded correctly");
 
         // Test entering queue with different receiver
-        address receiver = makeAddr("receiver");
+        address receiver = makeAddr("Receiver");
 
         // Mint more osTokens
         vm.prank(user1);
@@ -979,7 +979,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
 
     function test_processExitQueue_success() public {
         uint256 queuedShares = 100 ether;
-        address user = makeAddr("user");
+        address user = makeAddr("User");
         _enterExitQueue(user, queuedShares);
 
         _swapQueuedShares(queuedShares / 2);
@@ -1048,7 +1048,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Setup: Create a non-existent position ticket
         uint256 nonExistentTicket = 99999;
         uint256 nonExistentExitQueueIndex = 0;
-        address nonExistentUser = makeAddr("nonExistentUser");
+        address nonExistentUser = makeAddr("NonExistentUser");
 
         // Act & Assert: Try to claim from a non-existent position
         vm.prank(nonExistentUser);
@@ -1072,7 +1072,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     function test_claimExitedAssets_partialWithdrawal() public {
         // Setup: Create a user with a large position
         uint256 sharesToQueue = 100 ether;
-        address user = makeAddr("user");
+        address user = makeAddr("User");
         uint256 positionTicket = _enterExitQueue(user, sharesToQueue);
 
         // Simulate partial processing by having limited assets available
@@ -1142,7 +1142,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     function test_claimExitedAssets_fullWithdrawal() public {
         // Setup: Create a user with a large position
         uint256 sharesToQueue = 100 ether;
-        address user = makeAddr("user");
+        address user = makeAddr("User");
         uint256 positionTicket = _enterExitQueue(user, sharesToQueue);
 
         // Simulate partial processing by having limited assets available

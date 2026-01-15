@@ -26,10 +26,10 @@ contract VaultEnterExitTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        sender = makeAddr("sender");
-        sender2 = makeAddr("sender2");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
+        sender = makeAddr("Sender");
+        sender2 = makeAddr("Sender2");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
 
         // Fund accounts with ETH for testing
         vm.deal(sender, 100 ether);
@@ -166,7 +166,7 @@ contract VaultEnterExitTest is Test, EthHelpers {
 
     function test_deposit_success_withReferrer() public {
         // Set up a referrer
-        address validReferrer = makeAddr("referrer");
+        address validReferrer = makeAddr("Referrer");
 
         // Record initial balances and state
         uint256 senderBalanceBefore = sender.balance;
@@ -641,7 +641,7 @@ contract VaultEnterExitTest is Test, EthHelpers {
     }
 
     function test_enterExitQueue_afterValidatorExit() public {
-        address validatorsManager = makeAddr("validatorsManager");
+        address validatorsManager = makeAddr("ValidatorsManager");
         vm.prank(admin);
         vault.setValidatorsManager(validatorsManager);
 

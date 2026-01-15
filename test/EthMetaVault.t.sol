@@ -37,10 +37,10 @@ contract EthMetaVaultTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        referrer = makeAddr("referrer");
+        admin = makeAddr("Admin");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        referrer = makeAddr("Referrer");
 
         // Deal ETH to accounts
         vm.deal(admin, 100 ether);
@@ -90,7 +90,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
     function test_deployment() public view {
         // Verify the vault was deployed correctly
         assertEq(metaVault.vaultId(), keccak256("EthMetaVault"), "Incorrect vault ID");
-        assertEq(metaVault.version(), 5, "Incorrect version");
+        assertEq(metaVault.version(), 6, "Incorrect version");
         assertEq(metaVault.admin(), admin, "Incorrect admin");
         assertEq(metaVault.subVaultsCurator(), curator, "Incorrect curator");
         assertEq(metaVault.capacity(), 1000 ether, "Incorrect capacity");
@@ -455,14 +455,12 @@ contract EthMetaVaultTest is Test, EthHelpers {
     }
 
     function _setVaultRewardsNonce(address vault, uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewards(address)").with_key(vault).depth(
-            1
-        ).checked_write(rewardsNonce);
+        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewards(address)").with_key(vault)
+            .depth(1).checked_write(rewardsNonce);
     }
 
     function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewardsNonce()").checked_write(
-            rewardsNonce
-        );
+        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewardsNonce()")
+            .checked_write(rewardsNonce);
     }
 }

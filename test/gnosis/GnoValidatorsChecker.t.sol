@@ -35,8 +35,8 @@ contract GnoValidatorsCheckerTest is Test, GnoHelpers {
         );
 
         // Setup accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
         _mintGnoToken(user, 100 ether);
         _mintGnoToken(admin, 100 ether);
 

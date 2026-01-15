@@ -33,10 +33,10 @@ contract GnoOsTokenRedeemerTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        owner = makeAddr("owner");
-        positionsManager = makeAddr("positionsManager");
-        user = makeAddr("user");
-        redeemer = makeAddr("redeemer");
+        owner = makeAddr("Owner");
+        positionsManager = makeAddr("PositionsManager");
+        user = makeAddr("User");
+        redeemer = makeAddr("Redeemer");
 
         // Fund accounts with GNO tokens and xDAI
         _mintGnoToken(user, 100 ether);

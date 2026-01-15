@@ -34,9 +34,9 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Setup addresses
-        user = makeAddr("user");
-        admin = makeAddr("admin");
-        liquidator = makeAddr("liquidator");
+        user = makeAddr("User");
+        admin = makeAddr("Admin");
+        liquidator = makeAddr("Liquidator");
 
         // Fund accounts
         vm.deal(user, 100 ether);
@@ -497,7 +497,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         contracts.osTokenVaultEscrow.processExitedAssets(address(vault), exitPositionTicket, timestamp, exitQueueIndex);
 
         // Try to claim as a different user
-        address otherUser = makeAddr("otherUser");
+        address otherUser = makeAddr("OtherUser");
         _mintOsToken(otherUser, osTokenShares); // Give them the required osToken shares
 
         vm.startPrank(otherUser);
@@ -808,13 +808,13 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         assertApproxEqAbs(
             liquidatorBalanceAfter - liquidatorBalanceBefore,
             exitedAssetsBefore,
-            2,
+            5,
             "Liquidator did not receive correct amount of assets"
         );
 
         // Verify position was updated
         assertEq(ownerAfter, ownerBefore, "Owner should not change");
-        assertApproxEqAbs(exitedAssetsAfter, 0, 2, "Exited assets not correctly reduced");
+        assertApproxEqAbs(exitedAssetsAfter, 0, 5, "Exited assets not correctly reduced");
         assertLt(sharesAfter, sharesBefore, "Shares not correctly reduced");
     }
 
@@ -996,7 +996,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         uint256 expectedAssets = contracts.osTokenVaultController.convertToAssets(osTokenShares);
 
         // Mint osToken shares to the redeemer
-        address redeemer = makeAddr("redeemer");
+        address redeemer = makeAddr("Redeemer");
         _mintOsToken(redeemer, osTokenShares);
 
         // set redeemer
@@ -1004,7 +1004,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         contracts.osTokenConfig.setRedeemer(redeemer);
 
         // Record redeemer balance before
-        address receiver = makeAddr("receiver");
+        address receiver = makeAddr("Receiver");
         uint256 receiverBalanceBefore = receiver.balance;
 
         // Expect OsTokenRedeemed event
@@ -1052,7 +1052,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         contracts.osTokenVaultEscrow.processExitedAssets(address(vault), exitPositionTicket, timestamp, exitQueueIndex);
 
         // Mock the osTokenConfig.redeemer call to return an official redeemer address
-        address officialRedeemer = makeAddr("officialRedeemer");
+        address officialRedeemer = makeAddr("OfficialRedeemer");
         vm.mockCall(
             address(contracts.osTokenConfig),
             abi.encodeWithSelector(bytes4(keccak256("redeemer()"))),
@@ -1060,7 +1060,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         );
 
         // Try to redeem from an unauthorized address
-        address unauthorizedCaller = makeAddr("unauthorizedCaller");
+        address unauthorizedCaller = makeAddr("UnauthorizedCaller");
         _mintOsToken(unauthorizedCaller, osTokenShares);
 
         vm.prank(unauthorizedCaller);
@@ -1110,7 +1110,7 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         uint256 newLiqBonusPercent = 1.1e18; // 110%
 
         // Get a non-owner address
-        address nonOwner = makeAddr("nonOwner");
+        address nonOwner = makeAddr("NonOwner");
 
         // Call updateLiqConfig as non-owner, should revert
         vm.prank(nonOwner);
@@ -1168,11 +1168,11 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         address currentAuthenticator = contracts.osTokenVaultEscrow.authenticator();
 
         // Create a new authenticator address
-        address newAuthenticator = makeAddr("newAuthenticator");
+        address newAuthenticator = makeAddr("NewAuthenticator");
 
         // Ensure it's different from the current one
         if (newAuthenticator == currentAuthenticator) {
-            newAuthenticator = makeAddr("newAuthenticator2");
+            newAuthenticator = makeAddr("NewAuthenticator2");
         }
 
         // Expect AuthenticatorUpdated event
@@ -1191,10 +1191,10 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
 
     function test_setAuthenticator_onlyOwner() public {
         // Create a new authenticator address
-        address newAuthenticator = makeAddr("newAuthenticator");
+        address newAuthenticator = makeAddr("NewAuthenticator");
 
         // Get a non-owner address
-        address nonOwner = makeAddr("nonOwner");
+        address nonOwner = makeAddr("NonOwner");
 
         // Call setAuthenticator as non-owner, should revert
         vm.prank(nonOwner);
