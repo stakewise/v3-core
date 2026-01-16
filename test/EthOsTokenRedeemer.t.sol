@@ -1,22 +1,29 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, stdStorage, StdStorage} from "forge-std/Test.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
 import {IOsTokenRedeemer} from "../contracts/interfaces/IOsTokenRedeemer.sol";
 import {EthVault, IEthVault} from "../contracts/vaults/ethereum/EthVault.sol";
+import {EthMetaVault} from "../contracts/vaults/ethereum/EthMetaVault.sol";
+import {IMetaVault} from "../contracts/interfaces/IMetaVault.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
+import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 
 contract EthOsTokenRedeemerTest is Test, EthHelpers {
+    using stdStorage for StdStorage;
+
     // Test contracts
     ForkContracts public contracts;
     EthOsTokenRedeemer public osTokenRedeemer;
     EthVault public vault;
     EthVault public vault2;
+    EthMetaVault public metaVault;
+    address[] public subVaults;
 
     // Test accounts
     address public owner;
@@ -55,8 +62,13 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         _fundAccounts();
 
         // Deploy OsTokenRedeemer
-        osTokenRedeemer =
-            new EthOsTokenRedeemer(address(contracts.vaultsRegistry), _osToken, address(contracts.osTokenVaultController), owner, EXIT_QUEUE_UPDATE_DELAY);
+        osTokenRedeemer = new EthOsTokenRedeemer(
+            address(contracts.vaultsRegistry),
+            _osToken,
+            address(contracts.osTokenVaultController),
+            owner,
+            EXIT_QUEUE_UPDATE_DELAY
+        );
 
         // Set up manager
         vm.prank(owner);
@@ -116,6 +128,66 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         _depositToVault(address(vault2), DEPOSIT_AMOUNT, user3, user3);
     }
 
+    function _setupMetaVault() internal {
+        // Deploy meta vault
+        bytes memory initParams = abi.encode(
+            IMetaVault.MetaVaultInitParams({
+                subVaultsCurator: _balancedCurator,
+                capacity: type(uint256).max,
+                feePercent: 0,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        metaVault = EthMetaVault(payable(_getOrCreateVault(VaultType.EthMetaVault, admin, initParams, false)));
+
+        // Get existing sub vaults (if any from fork)
+        address[] memory currentSubVaults = metaVault.getSubVaults();
+        for (uint256 i = 0; i < currentSubVaults.length; i++) {
+            subVaults.push(currentSubVaults[i]);
+        }
+
+        // Deploy and add sub vaults
+        for (uint256 i = 0; i < 2; i++) {
+            address subVault = _createSubVault(admin);
+            _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), subVault);
+            subVaults.push(subVault);
+
+            vm.prank(admin);
+            metaVault.addSubVault(subVault);
+        }
+
+        // Deposit to meta vault to make it have assets
+        vm.deal(user1, 100 ether);
+        vm.prank(user1);
+        metaVault.deposit{value: 50 ether}(user1, address(0));
+
+        // Update meta vault state to distribute to sub vaults
+        _updateMetaVaultState();
+    }
+
+    function _createSubVault(address _admin) internal returns (address) {
+        bytes memory initParams = abi.encode(
+            IEthVault.EthVaultInitParams({
+                capacity: 1000 ether,
+                feePercent: 5, // 5%
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        return _createVault(VaultType.EthVault, _admin, initParams, false);
+    }
+
+    function _updateMetaVaultState() internal {
+        // Update nonces for sub vaults to prepare for state update
+        uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
+        _setKeeperRewardsNonce(newNonce);
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            _setVaultRewardsNonce(subVaults[i], newNonce);
+        }
+
+        // Update meta vault state
+        metaVault.updateState(_getEmptyHarvestParams());
+    }
+
     function _setRedeemablePositions(IOsTokenRedeemer.RedeemablePositions memory positions) internal {
         vm.prank(owner);
         osTokenRedeemer.setRedeemablePositions(positions);
@@ -149,10 +221,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Create merkle tree for positions
         IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
         positions[0] = IOsTokenRedeemer.OsTokenPosition({
-            vault: address(vault),
-            owner: user1,
-            leafShares: shares,
-            sharesToRedeem: shares
+            vault: address(vault), owner: user1, leafShares: shares, sharesToRedeem: shares
         });
 
         // Create merkle root
@@ -195,7 +264,13 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         uint256 invalidExitQueueDelay = uint256(type(uint64).max) + 1;
 
         vm.expectRevert(Errors.InvalidDelay.selector);
-        new EthOsTokenRedeemer(address(contracts.vaultsRegistry),_osToken, address(contracts.osTokenVaultController), owner, invalidExitQueueDelay);
+        new EthOsTokenRedeemer(
+            address(contracts.vaultsRegistry),
+            _osToken,
+            address(contracts.osTokenVaultController),
+            owner,
+            invalidExitQueueDelay
+        );
     }
 
     function test_setPositionsManager_notOwner() public {
@@ -242,6 +317,37 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
 
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
+        osTokenRedeemer.setRedeemablePositions(positions);
+    }
+
+    function test_setRedeemablePositions_sameValue() public {
+        IOsTokenRedeemer.RedeemablePositions memory positions =
+            IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: TEST_IPFS_HASH});
+
+        // First set
+        vm.prank(owner);
+        osTokenRedeemer.setRedeemablePositions(positions);
+
+        // Try setting same value again
+        vm.prank(owner);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        osTokenRedeemer.setRedeemablePositions(positions);
+    }
+
+    function test_setRedeemablePositions_zeroRoot() public {
+        // Try to set redeemable positions with zero merkle root
+        IOsTokenRedeemer.RedeemablePositions memory positions =
+            IOsTokenRedeemer.RedeemablePositions({merkleRoot: bytes32(0), ipfsHash: TEST_IPFS_HASH});
+
+        vm.prank(owner);
+        vm.expectRevert(Errors.InvalidRedeemablePositions.selector);
+        osTokenRedeemer.setRedeemablePositions(positions);
+
+        // Try to set redeemable positions with empty ipfsHash
+        positions = IOsTokenRedeemer.RedeemablePositions({merkleRoot: keccak256("test"), ipfsHash: ""});
+
+        vm.prank(owner);
+        vm.expectRevert(Errors.InvalidRedeemablePositions.selector);
         osTokenRedeemer.setRedeemablePositions(positions);
     }
 
@@ -501,6 +607,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         uint256 initialQueuedShares = osTokenRedeemer.queuedShares();
         uint256 initialOsTokenBalance = IERC20(_osToken).balanceOf(user1);
         uint256 initialRedeemerBalance = IERC20(_osToken).balanceOf(address(osTokenRedeemer));
+        uint256 initialCumulativeTickets = osTokenRedeemer.getExitQueueCumulativeTickets();
 
         // Calculate expected position ticket
         (,, uint256 totalTickets) = osTokenRedeemer.getExitQueueData();
@@ -522,6 +629,13 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Verify queued shares increased
         assertEq(
             osTokenRedeemer.queuedShares(), initialQueuedShares + osTokenShares, "Queued shares not updated correctly"
+        );
+
+        // Verify cumulative tickets increased correctly
+        assertEq(
+            osTokenRedeemer.getExitQueueCumulativeTickets(),
+            initialCumulativeTickets + osTokenShares,
+            "Cumulative tickets not updated correctly"
         );
 
         // Verify osToken was transferred from user to redeemer
@@ -561,14 +675,155 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         assertEq(exitRequestShares2, osTokenShares, "Exit request with different receiver not recorded correctly");
     }
 
+    function test_redeemSubVaultsAssets_notPositionsManager() public {
+        _setupMetaVault();
+
+        // Try to call redeemSubVaultsAssets as a non-positionsManager
+        vm.prank(user1);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), 1 ether);
+
+        // Try with owner (still not positionsManager)
+        vm.prank(owner);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), 1 ether);
+    }
+
+    function test_redeemSubVaultsAssets_invalidMetaVault() public {
+        // Try with a regular vault (not a meta vault)
+        vm.prank(positionsManager);
+        vm.expectRevert(Errors.InvalidVault.selector);
+        osTokenRedeemer.redeemSubVaultsAssets(address(vault), 1 ether);
+
+        // Try with a random address (not registered in vaults registry)
+        address randomAddress = makeAddr("RandomAddress");
+        vm.prank(positionsManager);
+        vm.expectRevert(Errors.InvalidVault.selector);
+        osTokenRedeemer.redeemSubVaultsAssets(randomAddress, 1 ether);
+    }
+
+    function test_redeemSubVaultsAssets_zeroAssetsToRedeem() public {
+        _setupMetaVault();
+
+        // Try to redeem zero assets
+        vm.prank(positionsManager);
+        vm.expectRevert(Errors.InvalidAssets.selector);
+        osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), 0);
+    }
+
+    function test_redeemSubVaultOsToken_invalidMetaVault() public {
+        _setupMetaVault();
+
+        // Try calling from a non-meta vault (user)
+        vm.prank(user1);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        osTokenRedeemer.redeemSubVaultOsToken(subVaults[0], 1 ether);
+
+        // Try calling from a regular vault (not a meta vault)
+        vm.prank(address(vault));
+        vm.expectRevert(Errors.AccessDenied.selector);
+        osTokenRedeemer.redeemSubVaultOsToken(subVaults[0], 1 ether);
+
+        // Try with invalid sub vault (not registered)
+        address randomSubVault = makeAddr("RandomSubVault");
+        vm.prank(address(metaVault));
+        vm.expectRevert(Errors.AccessDenied.selector);
+        osTokenRedeemer.redeemSubVaultOsToken(randomSubVault, 1 ether);
+    }
+
+    function test_redeemSubVaultOsToken_zeroSharesToRedeem() public {
+        _setupMetaVault();
+
+        // Try to redeem zero shares
+        vm.prank(address(metaVault));
+        vm.expectRevert(Errors.InvalidShares.selector);
+        osTokenRedeemer.redeemSubVaultOsToken(subVaults[0], 0);
+    }
+
+    function test_getExitQueueMissingAssets_noMissingAssets() public {
+        // Setup: Enter exit queue and process to create some totalTickets
+        uint256 sharesToQueue = 10 ether;
+        address user = makeAddr("User");
+        _enterExitQueue(user, sharesToQueue);
+
+        // Swap all queued shares to process them
+        _swapQueuedShares(sharesToQueue);
+
+        // Process the exit queue
+        vm.warp(block.timestamp + EXIT_QUEUE_UPDATE_DELAY + 1);
+        osTokenRedeemer.processExitQueue();
+
+        // Get the totalTickets after processing
+        (,, uint256 totalTickets) = osTokenRedeemer.getExitQueueData();
+
+        // Query with targetCumulativeTickets <= totalTickets should return 0
+        uint256 missingAssets = osTokenRedeemer.getExitQueueMissingAssets(totalTickets);
+        assertEq(missingAssets, 0, "Missing assets should be 0 when target <= totalTickets");
+
+        // Query with targetCumulativeTickets < totalTickets should also return 0
+        missingAssets = osTokenRedeemer.getExitQueueMissingAssets(totalTickets / 2);
+        assertEq(missingAssets, 0, "Missing assets should be 0 when target < totalTickets");
+    }
+
+    function test_getExitQueueMissingAssets_availableAssetsExceedMissing() public {
+        // Setup: Enter exit queue with some shares
+        uint256 sharesToQueue = 10 ether;
+        address user = makeAddr("User");
+        _enterExitQueue(user, sharesToQueue);
+
+        // Send ETH directly to the redeemer contract (not via swap) to create available assets
+        // This way availableAssets > unclaimedAssets
+        uint256 directDeposit = 20 ether;
+        vm.deal(address(this), directDeposit);
+        (bool success,) = address(osTokenRedeemer).call{value: directDeposit}("");
+        require(success, "Transfer failed");
+
+        // Get exit queue data
+        (,, uint256 totalTickets) = osTokenRedeemer.getExitQueueData();
+
+        // Target slightly above totalTickets - the direct deposit should cover this
+        uint256 ticketsToCover = 1 ether;
+        uint256 targetCumulativeTickets = totalTickets + ticketsToCover;
+
+        // Query missing assets - should be 0 because available assets exceed the missing amount
+        uint256 missingAssets = osTokenRedeemer.getExitQueueMissingAssets(targetCumulativeTickets);
+
+        // The contract has enough ETH to cover the missing assets
+        assertEq(missingAssets, 0, "Missing assets should be 0 when available assets exceed missing");
+    }
+
+    function test_getExitQueueMissingAssets_missingAssetsExceedAvailable() public {
+        // Setup: Enter exit queue with shares
+        uint256 sharesToQueue = 100 ether;
+        address user = makeAddr("User");
+        _enterExitQueue(user, sharesToQueue);
+
+        // Don't add any available assets - the redeemer contract has no ETH
+        // Get exit queue data
+        (,, uint256 totalTickets) = osTokenRedeemer.getExitQueueData();
+        uint256 cumulativeTickets = osTokenRedeemer.getExitQueueCumulativeTickets();
+
+        // Target the full cumulativeTickets (all queued shares)
+        uint256 targetCumulativeTickets = cumulativeTickets;
+
+        // Calculate expected missing assets
+        uint256 ticketsToCover = targetCumulativeTickets - totalTickets;
+        uint256 expectedMissingAssets = contracts.osTokenVaultController.convertToAssets(ticketsToCover);
+
+        // Query missing assets
+        uint256 missingAssets = osTokenRedeemer.getExitQueueMissingAssets(targetCumulativeTickets);
+
+        // Since redeemer has no available assets, missing assets should equal the full amount needed
+        assertEq(
+            missingAssets, expectedMissingAssets, "Missing assets should equal full amount when no available assets"
+        );
+    }
+
     function test_redeemOsTokenPositions_noQueuedShares() public {
         // Prepare merkle tree data
         IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
         positions[0] = IOsTokenRedeemer.OsTokenPosition({
-            vault: address(vault),
-            owner: user1,
-            leafShares: 1 ether,
-            sharesToRedeem: 1 ether
+            vault: address(vault), owner: user1, leafShares: 1 ether, sharesToRedeem: 1 ether
         });
 
         bytes32[] memory proof = new bytes32[](0);
@@ -681,10 +936,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Create position
         IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
         positions[0] = IOsTokenRedeemer.OsTokenPosition({
-            vault: address(vault),
-            owner: user1,
-            leafShares: 1 ether,
-            sharesToRedeem: 1 ether
+            vault: address(vault), owner: user1, leafShares: 1 ether, sharesToRedeem: 1 ether
         });
 
         // Set up merkle root with different values (invalid proof)
@@ -704,6 +956,38 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Should revert with invalid proof
         vm.prank(user1);
         vm.expectRevert(); // Invalid merkle proof
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+    }
+
+    function test_redeemOsTokenPositions_zeroRoot() public {
+        // Setup: Create queued shares
+        _collateralizeEthVault(address(vault));
+        _depositToVault(address(vault), DEPOSIT_AMOUNT, user1, user1);
+
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, osTokenShares, address(0));
+
+        vm.prank(user1);
+        IERC20(_osToken).approve(address(osTokenRedeemer), osTokenShares);
+
+        vm.prank(user1);
+        osTokenRedeemer.enterExitQueue(osTokenShares, user1);
+
+        // Create position (redeemable positions not set - merkle root is zero)
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault), owner: user1, leafShares: osTokenShares, sharesToRedeem: osTokenShares
+        });
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
+        // When redeemable positions were never set, nonce is 0
+        // The contract uses nonce - 1 for leaf calculation, which causes an underflow
+        // This effectively protects against calling redeemOsTokenPositions without setting positions first
+        vm.prank(positionsManager);
+        vm.expectRevert(); // Arithmetic underflow because nonce = 0 and code does nonce - 1
         osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
     }
 
@@ -800,16 +1084,10 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Create multiple positions
         IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](2);
         positions[0] = IOsTokenRedeemer.OsTokenPosition({
-            vault: address(vault),
-            owner: user1,
-            leafShares: user1Shares,
-            sharesToRedeem: user1Shares / 2
+            vault: address(vault), owner: user1, leafShares: user1Shares, sharesToRedeem: user1Shares / 2
         });
         positions[1] = IOsTokenRedeemer.OsTokenPosition({
-            vault: address(vault2),
-            owner: user2,
-            leafShares: user2Shares,
-            sharesToRedeem: user2Shares
+            vault: address(vault2), owner: user2, leafShares: user2Shares, sharesToRedeem: user2Shares
         });
 
         // Create merkle tree
@@ -1182,5 +1460,23 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         assertEq(
             userBalanceAfter - userBalanceBefore, exitedAssets, "User should receive the partially processed assets"
         );
+    }
+
+    // ========== Helper Functions for Meta Vault Tests ==========
+
+    function _getEmptyHarvestParams() internal pure returns (IKeeperRewards.HarvestParams memory) {
+        bytes32[] memory emptyProof;
+        return
+            IKeeperRewards.HarvestParams({rewardsRoot: bytes32(0), proof: emptyProof, reward: 0, unlockedMevReward: 0});
+    }
+
+    function _setVaultRewardsNonce(address _vault, uint64 rewardsNonce) internal {
+        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewards(address)").with_key(_vault)
+            .depth(1).checked_write(rewardsNonce);
+    }
+
+    function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {
+        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewardsNonce()")
+            .checked_write(rewardsNonce);
     }
 }

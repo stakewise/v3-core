@@ -81,13 +81,13 @@ abstract contract MetaVault is
         nonReentrant
         returns (uint256 totalRedeemedAssets)
     {
-        if (assetsToRedeem == 0) {
-            revert Errors.InvalidAssets();
-        }
-
         // check only redeemer can call
         address redeemer = _osTokenConfig.redeemer();
         if (msg.sender != redeemer) revert Errors.AccessDenied();
+
+        if (assetsToRedeem == 0) {
+            revert Errors.InvalidAssets();
+        }
 
         // get redeem requests
         ISubVaultsCurator.ExitRequest[] memory redeemRequests = calculateSubVaultsRedemptions(assetsToRedeem);
