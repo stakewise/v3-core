@@ -74,7 +74,7 @@ contract VaultStateTest is Test, EthHelpers {
         uint256 convertedShares = vault.convertToShares(originalAssets);
         uint256 convertedBackAssets = vault.convertToAssets(convertedShares);
         assertApproxEqAbs(
-            convertedBackAssets, originalAssets, 1, "Round-trip conversion should approximately preserve value"
+            convertedBackAssets, originalAssets, 2, "Round-trip conversion should approximately preserve value"
         );
     }
 

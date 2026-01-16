@@ -51,6 +51,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     address internal constant _rewardEthToken = 0x20BC832ca081b91433ff6c17f85701B6e92486c5;
     address internal constant _consolidationsChecker = 0x033E5BaE5bdc459CBb7d388b41a9d62020Be810F;
     address internal constant _curatorsRegistry = 0xa23F7c8d25f4503cA4cEd84d9CC2428e8745933C;
+    address internal constant _balancedCurator = 0xD30E7e4bDbd396cfBe72Ad2f4856769C54eA6b0b;
     uint256 internal constant _exitingAssetsClaimDelay = 15 hours;
 
     enum VaultType {
@@ -121,6 +122,10 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         if (currentAdmin != admin) {
             vm.prank(currentAdmin);
             IEthVault(vault).setAdmin(admin);
+        }
+        if (IEthVault(vault).feeRecipient() != admin) {
+            vm.prank(admin);
+            IEthVault(vault).setFeeRecipient(admin);
         }
     }
 
@@ -270,7 +275,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         } else if (vaultType == VaultType.EthBlocklistErc20Vault) {
             return 0x498399e4f5FDe641a43DCEAFc0aac858abaF2034;
         } else if (vaultType == VaultType.EthMetaVault) {
-            return 0x15639E82d2072Fa510E5d2b5F0db361c823bCad3;
+            return 0x34284C27A2304132aF751b0dEc5bBa2CF98eD039;
         }
         return address(0);
     }

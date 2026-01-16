@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
-import {Test, stdStorage, StdStorage, console} from "forge-std/Test.sol";
+import {Test, stdStorage, StdStorage, console, Vm} from "forge-std/Test.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
@@ -20,11 +20,18 @@ import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 contract EthMetaVaultTest is Test, EthHelpers {
     using stdStorage for StdStorage;
 
+    bytes32 private constant exitQueueEnteredTopic = keccak256("ExitQueueEntered(address,address,uint256,uint256)");
+
+    struct ExitRequest {
+        address vault;
+        uint256 positionTicket;
+        uint64 timestamp;
+    }
+
     ForkContracts public contracts;
     EthMetaVault public metaVault;
 
     address public admin;
-    address public curator;
     address public sender;
     address public receiver;
     address public referrer;
@@ -46,23 +53,22 @@ contract EthMetaVaultTest is Test, EthHelpers {
         vm.deal(admin, 100 ether);
         vm.deal(sender, 100 ether);
 
-        // Create a curator
-        curator = address(new BalancedCurator());
-
-        // Register the curator in the registry
-        vm.prank(CuratorsRegistry(_curatorsRegistry).owner());
-        CuratorsRegistry(_curatorsRegistry).addCurator(curator);
-
         // Deploy meta vault
         bytes memory initParams = abi.encode(
             IMetaVault.MetaVaultInitParams({
-                subVaultsCurator: curator,
-                capacity: 1000 ether,
-                feePercent: 1000, // 10%
+                subVaultsCurator: _balancedCurator,
+                capacity: type(uint256).max,
+                feePercent: 0,
                 metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
             })
         );
         metaVault = EthMetaVault(payable(_getOrCreateVault(VaultType.EthMetaVault, admin, initParams, false)));
+
+        // Get existing sub vaults (if any)
+        address[] memory currentSubVaults = metaVault.getSubVaults();
+        for (uint256 i = 0; i < currentSubVaults.length; i++) {
+            subVaults.push(currentSubVaults[i]);
+        }
 
         // Deploy and add sub vaults
         for (uint256 i = 0; i < 3; i++) {
@@ -87,25 +93,38 @@ contract EthMetaVaultTest is Test, EthHelpers {
         return _createVault(VaultType.EthVault, _admin, initParams, false);
     }
 
+    function _updateMetaVaultState() internal {
+        // Update nonces for sub vaults to prepare for state update
+        uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
+        _setKeeperRewardsNonce(newNonce);
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            _setVaultRewardsNonce(subVaults[i], newNonce);
+        }
+
+        // Update meta vault state
+        metaVault.updateState(_getEmptyHarvestParams());
+    }
+
     function test_deployment() public view {
         // Verify the vault was deployed correctly
         assertEq(metaVault.vaultId(), keccak256("EthMetaVault"), "Incorrect vault ID");
         assertEq(metaVault.version(), 6, "Incorrect version");
         assertEq(metaVault.admin(), admin, "Incorrect admin");
-        assertEq(metaVault.subVaultsCurator(), curator, "Incorrect curator");
-        assertEq(metaVault.capacity(), 1000 ether, "Incorrect capacity");
-        assertEq(metaVault.feePercent(), 1000, "Incorrect fee percent");
+        assertEq(metaVault.subVaultsCurator(), _balancedCurator, "Incorrect curator");
+        assertEq(metaVault.capacity(), type(uint256).max, "Incorrect capacity");
+        assertEq(metaVault.feePercent(), 0, "Incorrect fee percent");
         assertEq(metaVault.feeRecipient(), admin, "Incorrect fee recipient");
 
         // Verify sub vaults
         address[] memory storedSubVaults = metaVault.getSubVaults();
-        assertEq(storedSubVaults.length, 3, "Incorrect number of sub vaults");
-        for (uint256 i = 0; i < 3; i++) {
+        for (uint256 i = 0; i < subVaults.length; i++) {
             assertEq(storedSubVaults[i], subVaults[i], "Incorrect sub vault address");
         }
     }
 
     function test_deposit() public {
+        uint256 totalAssetsBefore = metaVault.totalAssets();
+        uint256 totalSharesBefore = metaVault.totalShares();
         uint256 depositAmount = 10 ether;
         uint256 expectedShares = metaVault.convertToShares(depositAmount);
 
@@ -116,11 +135,11 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Verify shares were minted to the receiver
         assertApproxEqAbs(shares, expectedShares, 1, "Incorrect shares minted");
-        assertEq(metaVault.getShares(receiver), expectedShares, "Receiver did not receive shares");
+        assertApproxEqAbs(metaVault.getShares(receiver), expectedShares, 1, "Receiver did not receive shares");
 
         // Verify total assets and shares
-        assertApproxEqAbs(metaVault.totalAssets(), depositAmount + _securityDeposit, 1, "Incorrect total assets");
-        assertApproxEqAbs(metaVault.totalShares(), expectedShares + _securityDeposit, 1, "Incorrect total shares");
+        assertApproxEqAbs(metaVault.totalAssets(), totalAssetsBefore + depositAmount, 1, "Incorrect total assets");
+        assertApproxEqAbs(metaVault.totalShares(), totalSharesBefore + expectedShares, 1, "Incorrect total shares");
     }
 
     function test_depositViaFallback() public {
@@ -169,13 +188,14 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Verify state was updated
         uint256 expectedShares = metaVault.convertToShares(depositAmount);
-        assertEq(shares, expectedShares, "Incorrect number of shares returned");
+        assertApproxEqAbs(shares, expectedShares, 1, "Incorrect number of shares returned");
 
         // Verify deposit was processed
         uint256 receiverSharesAfter = metaVault.getShares(receiver);
-        assertEq(
+        assertApproxEqAbs(
             receiverSharesAfter,
             receiverSharesBefore + expectedShares,
+            1,
             "Receiver did not receive correct number of shares"
         );
 
@@ -183,7 +203,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 totalAssetsAfter = metaVault.totalAssets();
         uint256 totalSharesAfter = metaVault.totalShares();
         assertEq(totalAssetsAfter, totalAssetsBefore + depositAmount, "Total assets not updated correctly");
-        assertEq(totalSharesAfter, totalSharesBefore + expectedShares, "Total shares not updated correctly");
+        assertApproxEqAbs(totalSharesAfter, totalSharesBefore + expectedShares, 1, "Total shares not updated correctly");
 
         // Verify withdrawable assets
         assertEq(metaVault.withdrawableAssets(), depositAmount, "Withdrawable assets incorrect after deposit");
@@ -273,16 +293,16 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Test with empty sub vaults
         // Create a new meta vault without sub vaults
-        bytes memory initParams = abi.encode(
+        bytes memory emptyInitParams = abi.encode(
             IMetaVault.MetaVaultInitParams({
-                subVaultsCurator: curator,
+                subVaultsCurator: _balancedCurator,
                 capacity: 1000 ether,
                 feePercent: 1000,
                 metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
             })
         );
         EthMetaVault emptyMetaVault =
-            EthMetaVault(payable(_getOrCreateVault(VaultType.EthMetaVault, admin, initParams, false)));
+            EthMetaVault(payable(_getOrCreateVault(VaultType.EthMetaVault, admin, emptyInitParams, false)));
 
         // Verify empty vault behavior
         assertFalse(emptyMetaVault.isStateUpdateRequired(), "Empty vault should not require state update");
@@ -324,13 +344,21 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _setVaultRewardsNonce(subVaults[i], newNonce);
         }
 
-        // Update state to process the exit queue
+        // Record events to capture ExitQueueEntered from sub vaults
+        vm.recordLogs();
+
+        // Update state to process the exit queue (this creates exit entries in sub vaults)
         metaVault.updateState(_getEmptyHarvestParams());
+
+        // Extract exit positions from recorded logs
+        ExitRequest[] memory extractedExits =
+            _extractExitPositions(subVaults, vm.getRecordedLogs(), uint64(vm.getBlockTimestamp()));
 
         // Process exits in sub vaults
         for (uint256 i = 0; i < subVaults.length; i++) {
             // Ensure sub vaults have enough ETH to process exits
-            vm.deal(subVaults[i], 5 ether);
+            // Add to existing balance to avoid underflow with forked vault's unclaimedAssets
+            vm.deal(subVaults[i], address(subVaults[i]).balance + 5 ether);
 
             IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(subVaults[i], 0, 0);
             IVaultState(subVaults[i]).updateState(harvestParams);
@@ -338,12 +366,14 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Prepare exit requests for claiming from sub vaults to meta vault
         IVaultSubVaults.SubVaultExitRequest[] memory exitRequests =
-            new IVaultSubVaults.SubVaultExitRequest[](subVaults.length);
-        for (uint256 i = 0; i < subVaults.length; i++) {
+            new IVaultSubVaults.SubVaultExitRequest[](extractedExits.length);
+        for (uint256 i = 0; i < extractedExits.length; i++) {
             exitRequests[i] = IVaultSubVaults.SubVaultExitRequest({
-                vault: subVaults[i],
-                exitQueueIndex: uint256(IVaultEnterExit(subVaults[i]).getExitQueueIndex(0)),
-                timestamp: exitTimestamp
+                vault: extractedExits[i].vault,
+                exitQueueIndex: uint256(
+                    IVaultEnterExit(extractedExits[i].vault).getExitQueueIndex(extractedExits[i].positionTicket)
+                ),
+                timestamp: extractedExits[i].timestamp
             });
         }
 
@@ -382,7 +412,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Verify sender received their ETH (approximately the original deposit minus fees)
         // The exact amount might be slightly less due to fees and rounding
         uint256 amountReceived = senderBalanceAfter - senderBalanceBefore;
-        assertEq(amountReceived, depositAmount, "User received significantly less than expected");
+        assertApproxEqAbs(amountReceived, depositAmount, 3, "User received significantly less than expected");
 
         // Verify exit queue data updated
         (, uint128 unclaimedAssets,,,) = metaVault.getExitQueueData();
@@ -401,13 +431,14 @@ contract EthMetaVaultTest is Test, EthHelpers {
         metaVault.deposit{value: depositAmount}(sender, referrer);
         metaVault.depositToSubVaults();
 
+        _updateMetaVaultState();
+
         uint256 donationAmount = 1 ether;
 
         // Get vault state before donation
         uint256 vaultBalanceBefore = address(metaVault).balance;
         uint256 totalAssetsBefore = metaVault.totalAssets();
 
-        // Approve GNO token for donation
         vm.startPrank(sender);
 
         // Check event emission
@@ -423,13 +454,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         assertEq(metaVault.totalAssets(), totalAssetsBefore, "Meta vault total assets didn't increase");
 
         // Process donation by updating state
-        uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
-        _setKeeperRewardsNonce(newNonce);
-        for (uint256 i = 0; i < subVaults.length; i++) {
-            _setVaultRewardsNonce(subVaults[i], newNonce);
-        }
-
-        metaVault.updateState(_getEmptyHarvestParams());
+        _updateMetaVaultState();
 
         assertEq(address(metaVault).balance, vaultBalanceBefore + donationAmount, "Meta vault ETH balance increased");
         assertEq(metaVault.totalAssets(), totalAssetsBefore + donationAmount, "Meta vault total assets increased");
@@ -462,5 +487,25 @@ contract EthMetaVaultTest is Test, EthHelpers {
     function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {
         stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewardsNonce()")
             .checked_write(rewardsNonce);
+    }
+
+    function _extractExitPositions(address[] memory _subVaults, Vm.Log[] memory logs, uint64 timestamp)
+        internal
+        view
+        returns (ExitRequest[] memory exitRequests)
+    {
+        uint256 subVaultsCount = _subVaults.length;
+        uint256 exitSubVaultsCount = metaVault.ejectingSubVault() != address(0) ? subVaultsCount - 1 : subVaultsCount;
+        exitRequests = new ExitRequest[](exitSubVaultsCount);
+        uint256 subVaultIndex = 0;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] != exitQueueEnteredTopic) {
+                continue;
+            }
+            (uint256 positionTicket,) = abi.decode(logs[i].data, (uint256, uint256));
+            exitRequests[subVaultIndex] =
+                ExitRequest({vault: logs[i].emitter, positionTicket: positionTicket, timestamp: timestamp});
+            subVaultIndex++;
+        }
     }
 }

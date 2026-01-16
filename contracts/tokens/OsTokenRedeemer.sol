@@ -102,6 +102,12 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     }
 
     /// @inheritdoc IOsTokenRedeemer
+    function getExitQueueCumulativeTickets() external view override returns (uint256) {
+        (uint256 _queuedShares, , uint256 totalTickets) = getExitQueueData();
+        return totalTickets + _queuedShares;
+    }
+
+    /// @inheritdoc IOsTokenRedeemer
     function redeemablePositions() external view override returns (bytes32 merkleRoot, string memory ipfsHash) {
         merkleRoot = _redeemablePositions.merkleRoot;
         ipfsHash = _redeemablePositions.ipfsHash;

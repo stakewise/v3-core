@@ -175,6 +175,12 @@ interface IOsTokenRedeemer is IMulticall {
         view
         returns (uint256 queuedShares, uint256 unclaimedAssets, uint256 totalTickets);
 
+	/**
+	 * @notice Gets the cumulative tickets in the exit queue
+	 * @return The cumulative tickets in the exit queue
+	 */
+    function getExitQueueCumulativeTickets() external view  returns (uint256);
+
     /**
      * @notice Calculates the missing assets in the exit queue for a target cumulative tickets.
      * @param targetCumulativeTickets The target cumulative tickets in the exit queue
