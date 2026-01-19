@@ -101,11 +101,9 @@ abstract contract VaultValidators is
         _checkHarvested();
 
         // check access
-        if (
-            !_isValidatorsManager(
+        if (!_isValidatorsManager(
                 keeperParams.validators, keeperParams.validatorsRegistryRoot, validatorsManagerSignature
-            )
-        ) {
+            )) {
             revert Errors.AccessDenied();
         }
 
@@ -249,9 +247,8 @@ abstract contract VaultValidators is
 
         // migrate deposit data variables to DepositDataRegistry contract
         if (__deprecated__validatorsRoot != bytes32(0)) {
-            IDepositDataRegistry(_depositDataRegistry).migrate(
-                __deprecated__validatorsRoot, __deprecated__validatorIndex, validatorsManager
-            );
+            IDepositDataRegistry(_depositDataRegistry)
+                .migrate(__deprecated__validatorsRoot, __deprecated__validatorIndex, validatorsManager);
             delete __deprecated__validatorIndex;
             delete __deprecated__validatorsRoot;
             delete validatorsManager;

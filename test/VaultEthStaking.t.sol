@@ -29,11 +29,11 @@ contract VaultEthStakingTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
-        referrer = makeAddr("referrer");
-        validatorsManager = makeAddr("validatorsManager");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
+        referrer = makeAddr("Referrer");
+        validatorsManager = makeAddr("ValidatorsManager");
 
         // Fund accounts for testing
         vm.deal(sender, 100 ether);
@@ -61,7 +61,7 @@ contract VaultEthStakingTest is Test, EthHelpers {
     function test_invalidSecurityDeposit() public {
         // Security deposit amount is defined as 1e9 (1 Gwei) in the EthHelpers contract
         // Create a new admin address for this test
-        address newAdmin = makeAddr("newAdmin");
+        address newAdmin = makeAddr("NewAdmin");
         vm.deal(newAdmin, 1 ether);
 
         // Get the factory for creating vaults

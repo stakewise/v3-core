@@ -28,8 +28,8 @@ contract GnoGenesisVaultTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
 
         // Provide GNO to the test accounts
         _mintGnoToken(admin, 100 ether);

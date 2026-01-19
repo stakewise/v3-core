@@ -25,7 +25,7 @@ interface IOsTokenRedeemer is IMulticall {
      * @param vault The address of the Vault
      * @param owner The address of the position owner
      * @param leafShares The amount of OsToken shares used to calculate the merkle leaf
-     * @param osTokenSharesToRedeem The amount of OsToken shares to redeem
+     * @param sharesToRedeem The amount of OsToken shares to redeem
      */
     struct OsTokenPosition {
         address vault;
@@ -45,28 +45,7 @@ interface IOsTokenRedeemer is IMulticall {
      * @param merkleRoot The Merkle root of the redeemable positions
      * @param ipfsHash The IPFS hash of the redeemable positions
      */
-    event RedeemablePositionsProposed(bytes32 indexed merkleRoot, string ipfsHash);
-
-    /**
-     * @notice Event emitted when the pending redeemable positions are accepted
-     * @param merkleRoot The Merkle root of the accepted redeemable positions
-     * @param ipfsHash The IPFS hash of the accepted redeemable positions
-     */
-    event RedeemablePositionsAccepted(bytes32 indexed merkleRoot, string ipfsHash);
-
-    /**
-     * @notice Event emitted when the new redeemable positions are denied
-     * @param merkleRoot The Merkle root of the denied redeemable positions
-     * @param ipfsHash The IPFS hash of the denied redeemable positions
-     */
-    event RedeemablePositionsDenied(bytes32 indexed merkleRoot, string ipfsHash);
-
-    /**
-     * @notice Event emitted when the redeemable positions are removed
-     * @param merkleRoot The Merkle root of the removed redeemable positions
-     * @param ipfsHash The IPFS hash of the removed redeemable positions
-     */
-    event RedeemablePositionsRemoved(bytes32 indexed merkleRoot, string ipfsHash);
+    event RedeemablePositionsUpdated(bytes32 indexed merkleRoot, string ipfsHash);
 
     /**
      * @notice Event emitted on shares added to the exit queue
@@ -174,7 +153,7 @@ interface IOsTokenRedeemer is IMulticall {
     function exitQueueTimestamp() external view returns (uint256);
 
     /**
-     * @notice The address that can propose redeemable OsToken positions
+     * @notice The address authorized to redeem OsToken positions
      * @return The address of the positions manager
      */
     function positionsManager() external view returns (address);
@@ -197,6 +176,19 @@ interface IOsTokenRedeemer is IMulticall {
         returns (uint256 queuedShares, uint256 unclaimedAssets, uint256 totalTickets);
 
     /**
+     * @notice Gets the cumulative tickets in the exit queue
+     * @return The cumulative tickets in the exit queue
+     */
+    function getExitQueueCumulativeTickets() external view returns (uint256);
+
+    /**
+     * @notice Calculates the missing assets in the exit queue for a target cumulative tickets.
+     * @param targetCumulativeTickets The target cumulative tickets in the exit queue
+     * @return missingAssets The number of missing assets in the exit queue
+     */
+    function getExitQueueMissingAssets(uint256 targetCumulativeTickets) external view returns (uint256 missingAssets);
+
+    /**
      * @notice Checks if the exit queue can be processed
      * @return True if the exit queue can be processed, false otherwise
      */
@@ -208,13 +200,6 @@ interface IOsTokenRedeemer is IMulticall {
      * @return ipfsHash The IPFS hash of the redeemable positions
      */
     function redeemablePositions() external view returns (bytes32 merkleRoot, string memory ipfsHash);
-
-    /**
-     * @notice The pending redeemable positions Merkle root and IPFS hash that is waiting to be accepted
-     * @return merkleRoot The Merkle root of the pending redeemable positions
-     * @return ipfsHash The IPFS hash of the pending redeemable positions
-     */
-    function pendingRedeemablePositions() external view returns (bytes32 merkleRoot, string memory ipfsHash);
 
     /**
      * @notice Gets the index of the exit queue for a given position ticket.
@@ -244,25 +229,10 @@ interface IOsTokenRedeemer is IMulticall {
     function setPositionsManager(address positionsManager_) external;
 
     /**
-     * @notice Proposes new redeemable positions. Can only be called by the positions manager.
-     * @param newPositions The new redeemable positions to propose
+     * @notice Set new redeemable positions. Can only be called by the owner.
+     * @param newPositions The new redeemable positions
      */
-    function proposeRedeemablePositions(RedeemablePositions calldata newPositions) external;
-
-    /**
-     * @notice Accepts the pending redeemable positions. Can only be called by the owner.
-     */
-    function acceptRedeemablePositions() external;
-
-    /**
-     * @notice Denies the pending redeemable positions. Can only be called by the owner.
-     */
-    function denyRedeemablePositions() external;
-
-    /**
-     * @notice Removes the redeemable positions. Can only be called by the owner.
-     */
-    function removeRedeemablePositions() external;
+    function setRedeemablePositions(RedeemablePositions calldata newPositions) external;
 
     /**
      * @notice Permit OsToken shares to be used for redemption.
@@ -288,6 +258,24 @@ interface IOsTokenRedeemer is IMulticall {
      * @param exitQueueIndex The index of the exit queue to claim exited assets for
      */
     function claimExitedAssets(uint256 positionTicket, uint256 exitQueueIndex) external;
+
+    /**
+     * @notice Redeem OsToken shares from a specific sub-vault. Can only be called by the meta vault.
+     * @param subVault The address of the sub-vault
+     * @param osTokenShares The number of OsToken shares to redeem
+     * @return The amount of redeemed assets
+     */
+    function redeemSubVaultOsToken(address subVault, uint256 osTokenShares) external returns (uint256);
+
+    /**
+     * @notice Redeem assets from the sub-vaults to the meta vault. Can only be called by the positions manager.
+     * @param metaVault The address of the meta vault
+     * @param assetsToRedeem The number of assets to redeem
+     * @return totalRedeemedAssets The total number of redeemed assets
+     */
+    function redeemSubVaultsAssets(address metaVault, uint256 assetsToRedeem)
+        external
+        returns (uint256 totalRedeemedAssets);
 
     /**
      * @notice Redeem OsToken shares from the vault positions.

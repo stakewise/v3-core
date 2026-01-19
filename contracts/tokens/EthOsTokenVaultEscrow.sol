@@ -39,12 +39,7 @@ contract EthOsTokenVaultEscrow is ReentrancyGuard, OsTokenVaultEscrow {
     )
         ReentrancyGuard()
         OsTokenVaultEscrow(
-            osTokenVaultController,
-            osTokenConfig,
-            initialOwner,
-            _authenticator,
-            _liqThresholdPercent,
-            _liqBonusPercent
+            osTokenVaultController, osTokenConfig, initialOwner, _authenticator, _liqThresholdPercent, _liqBonusPercent
         )
     {}
 

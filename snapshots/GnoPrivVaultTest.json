@@ -1,8 +1,8 @@
 {
-  "GnoPrivVaultTest_test_canDepositAsWhitelistedUser": "154120",
+  "GnoPrivVaultTest_test_canDepositAsWhitelistedUser": "154140",
   "GnoPrivVaultTest_test_canMintOsTokenAsWhitelistedUser": "161480",
-  "GnoPrivVaultTest_test_deploysCorrectly": "702342",
+  "GnoPrivVaultTest_test_deploysCorrectly": "702431",
   "GnoPrivVaultTest_test_setWhitelister": "36608",
   "GnoPrivVaultTest_test_updateWhitelist": "54521",
-  "GnoPrivVaultTest_test_upgradesCorrectly": "334541"
+  "GnoPrivVaultTest_test_upgradesCorrectly": "339304"
 }

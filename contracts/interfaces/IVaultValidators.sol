@@ -100,9 +100,7 @@ interface IVaultValidators is IVaultAdmin, IVaultState {
      * @param validators The concatenated validators data
      * @param validatorsManagerSignature The optional signature from the validators manager
      */
-    function withdrawValidators(bytes calldata validators, bytes calldata validatorsManagerSignature)
-        external
-        payable;
+    function withdrawValidators(bytes calldata validators, bytes calldata validatorsManagerSignature) external payable;
 
     /**
      * @notice Function for consolidating single or multiple validators

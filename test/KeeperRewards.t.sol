@@ -30,8 +30,8 @@ contract KeeperRewardsTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
 
         // Fund accounts
         vm.deal(admin, 100 ether);
@@ -180,7 +180,7 @@ contract KeeperRewardsTest is Test, EthHelpers {
 
         // Make sure we add enough oracles
         while (contracts.keeper.totalOracles() < newMinOracles) {
-            address newOracle = makeAddr("newOracle");
+            address newOracle = makeAddr("NewOracle");
             vm.prank(keeperOwner);
             contracts.keeper.addOracle(newOracle);
         }

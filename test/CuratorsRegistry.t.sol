@@ -14,10 +14,10 @@ contract CuratorsRegistryTest is Test {
 
     function setUp() public {
         // Create accounts
-        owner = makeAddr("owner");
-        newOwner = makeAddr("newOwner");
-        curator = makeAddr("curator");
-        nonOwner = makeAddr("nonOwner");
+        owner = makeAddr("Owner");
+        newOwner = makeAddr("NewOwner");
+        curator = makeAddr("Curator");
+        nonOwner = makeAddr("NonOwner");
 
         // Deploy registry with owner as the deployer
         vm.prank(owner);

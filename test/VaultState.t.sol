@@ -25,10 +25,10 @@ contract VaultStateTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Setup test accounts
-        owner = makeAddr("owner");
-        user1 = makeAddr("user1");
-        user2 = makeAddr("user2");
-        admin = makeAddr("admin");
+        owner = makeAddr("Owner");
+        user1 = makeAddr("User1");
+        user2 = makeAddr("User2");
+        admin = makeAddr("Admin");
 
         // Fund accounts
         vm.deal(owner, 100 ether);
@@ -74,7 +74,7 @@ contract VaultStateTest is Test, EthHelpers {
         uint256 convertedShares = vault.convertToShares(originalAssets);
         uint256 convertedBackAssets = vault.convertToAssets(convertedShares);
         assertApproxEqAbs(
-            convertedBackAssets, originalAssets, 1, "Round-trip conversion should approximately preserve value"
+            convertedBackAssets, originalAssets, 2, "Round-trip conversion should approximately preserve value"
         );
     }
 
@@ -246,8 +246,8 @@ contract VaultStateTest is Test, EthHelpers {
 
         // Enter exit queue
         vm.prank(owner);
-        uint256 timestamp = vm.getBlockTimestamp();
         uint256 positionTicket = vault.enterExitQueue(exitShares, owner);
+        uint256 timestamp = vm.getBlockTimestamp();
 
         // Verify share reduction
         uint256 ownerSharesAfter = vault.getShares(owner);

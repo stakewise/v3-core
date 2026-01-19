@@ -29,8 +29,8 @@ contract GnoOsTokenVaultEscrowTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Setup addresses
-        user = makeAddr("user");
-        admin = makeAddr("admin");
+        user = makeAddr("User");
+        admin = makeAddr("Admin");
 
         // Fund accounts
         vm.deal(user, 1 ether);
@@ -99,9 +99,10 @@ contract GnoOsTokenVaultEscrowTest is Test, GnoHelpers {
         vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
 
         _startSnapshotGas("GnoOsTokenVaultEscrowTest_test_transferAssets_process");
-        contracts.osTokenVaultEscrow.processExitedAssets(
-            address(vault), exitPositionTicket, timestamp, uint256(vault.getExitQueueIndex(exitPositionTicket))
-        );
+        contracts.osTokenVaultEscrow
+            .processExitedAssets(
+                address(vault), exitPositionTicket, timestamp, uint256(vault.getExitQueueIndex(exitPositionTicket))
+            );
         _stopSnapshotGas();
 
         // User claims exited assets

@@ -96,13 +96,11 @@ contract DepositDataRegistry is Multicall, IDepositDataRegistry {
         bytes32 depositDataRoot = depositDataRoots[vault];
 
         // check matches merkle root and next validator index
-        if (
-            !MerkleProof.verifyCalldata(
+        if (!MerkleProof.verifyCalldata(
                 proof,
                 depositDataRoot,
                 keccak256(bytes.concat(keccak256(abi.encode(keeperParams.validators, currentIndex))))
-            )
-        ) {
+            )) {
             revert Errors.InvalidProof();
         }
 

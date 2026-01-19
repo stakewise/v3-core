@@ -38,7 +38,7 @@ contract DepositDataRegistryTest is Test, EthHelpers {
         depositDataRegistry = IDepositDataRegistry(_depositDataRegistry);
 
         // Create a valid vault (version >= 2)
-        admin = makeAddr("admin");
+        admin = makeAddr("Admin");
         validVault = _getOrCreateVault(
             VaultType.EthVault,
             admin,
@@ -59,13 +59,13 @@ contract DepositDataRegistryTest is Test, EthHelpers {
             IEthVault(validVault).getExitQueueData();
         exitingAssets = totalExitingAssets + IEthVault(validVault).convertToAssets(queuedShares) + unclaimedAssets;
 
-        invalidVault = makeAddr("invalidVault");
-        nonAdmin = makeAddr("nonAdmin");
-        newDepositDataManager = makeAddr("newDepositDataManager");
+        invalidVault = makeAddr("InvalidVault");
+        nonAdmin = makeAddr("NonAdmin");
+        newDepositDataManager = makeAddr("NewDepositDataManager");
 
         // Create or mock a vault with version < 2
         // For this test, we'll simulate a vault with version 1
-        lowVersionVault = makeAddr("lowVersionVault");
+        lowVersionVault = makeAddr("LowVersionVault");
         vm.mockCall(lowVersionVault, abi.encodeWithSelector(IVaultVersion.version.selector), abi.encode(uint8(1)));
 
         // Mock that lowVersionVault is registered in the vaults registry

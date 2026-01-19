@@ -26,10 +26,10 @@ contract VaultEnterExitTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        sender = makeAddr("sender");
-        sender2 = makeAddr("sender2");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
+        sender = makeAddr("Sender");
+        sender2 = makeAddr("Sender2");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
 
         // Fund accounts with ETH for testing
         vm.deal(sender, 100 ether);
@@ -166,7 +166,7 @@ contract VaultEnterExitTest is Test, EthHelpers {
 
     function test_deposit_success_withReferrer() public {
         // Set up a referrer
-        address validReferrer = makeAddr("referrer");
+        address validReferrer = makeAddr("Referrer");
 
         // Record initial balances and state
         uint256 senderBalanceBefore = sender.balance;
@@ -448,12 +448,13 @@ contract VaultEnterExitTest is Test, EthHelpers {
     function test_calculateExitedAssets_invalidPosition() public {
         // Try to calculate exited assets for a non-existent position
         _startSnapshotGas("VaultEnterExitTest_test_calculateExitedAssets_invalidPosition");
-        (uint256 leftTickets, uint256 exitedTickets, uint256 exitedAssets) = vault.calculateExitedAssets(
-            receiver,
-            999, // Non-existent position ticket
-            vm.getBlockTimestamp(),
-            0
-        );
+        (uint256 leftTickets, uint256 exitedTickets, uint256 exitedAssets) =
+            vault.calculateExitedAssets(
+                receiver,
+                999, // Non-existent position ticket
+                vm.getBlockTimestamp(),
+                0
+            );
         _stopSnapshotGas();
 
         assertEq(leftTickets, 0, "Left tickets should be 0 for non-existent position");
@@ -641,7 +642,7 @@ contract VaultEnterExitTest is Test, EthHelpers {
     }
 
     function test_enterExitQueue_afterValidatorExit() public {
-        address validatorsManager = makeAddr("validatorsManager");
+        address validatorsManager = makeAddr("ValidatorsManager");
         vm.prank(admin);
         vault.setValidatorsManager(validatorsManager);
 

@@ -3,64 +3,14 @@
 pragma solidity ^0.8.22;
 
 import {IKeeperRewards} from "./IKeeperRewards.sol";
-import {IVaultAdmin} from "./IVaultAdmin.sol";
-import {IVaultVersion} from "./IVaultVersion.sol";
-import {IVaultFee} from "./IVaultFee.sol";
-import {IVaultState} from "./IVaultState.sol";
-import {IVaultEnterExit} from "./IVaultEnterExit.sol";
-import {IVaultOsToken} from "./IVaultOsToken.sol";
-import {IVaultSubVaults} from "./IVaultSubVaults.sol";
-import {IMulticall} from "./IMulticall.sol";
+import {IMetaVault} from "./IMetaVault.sol";
 
 /**
  * @title IEthMetaVault
  * @author StakeWise
  * @notice Defines the interface for the EthMetaVault contract
  */
-interface IEthMetaVault is
-    IVaultAdmin,
-    IVaultVersion,
-    IVaultFee,
-    IVaultState,
-    IVaultEnterExit,
-    IVaultOsToken,
-    IVaultSubVaults,
-    IMulticall
-{
-    /**
-     * @dev Struct for deploying the EthMetaVault contract
-     * @param keeper The address of the Keeper contract
-     * @param vaultsRegistry The address of the VaultsRegistry contract
-     * @param osTokenVaultController The address of the OsTokenVaultController contract
-     * @param osTokenConfig The address of the OsTokenConfig contract
-     * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
-     * @param curatorsRegistry The address of the CuratorsRegistry contract
-     * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
-     */
-    struct EthMetaVaultConstructorArgs {
-        address keeper;
-        address vaultsRegistry;
-        address osTokenVaultController;
-        address osTokenConfig;
-        address osTokenVaultEscrow;
-        address curatorsRegistry;
-        uint64 exitingAssetsClaimDelay;
-    }
-
-    /**
-     * @dev Struct for initializing the EthMetaVault contract
-     * @param subVaultsCurator The address of the initial sub-vaults curator
-     * @param capacity The Vault stops accepting deposits after exceeding the capacity
-     * @param feePercent The fee percent that is charged by the Vault
-     * @param metadataIpfsHash The IPFS hash of the Vault's metadata file
-     */
-    struct EthMetaVaultInitParams {
-        address subVaultsCurator;
-        uint256 capacity;
-        uint16 feePercent;
-        string metadataIpfsHash;
-    }
-
+interface IEthMetaVault is IMetaVault {
     /**
      * @notice Initializes or upgrades the EthMetaVault contract. Must transfer security deposit during the deployment.
      * @param params The encoded parameters for initializing the EthVault contract

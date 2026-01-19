@@ -40,12 +40,7 @@ abstract contract VaultEnterExit is VaultImmutables, Initializable, VaultState, 
     }
 
     /// @inheritdoc IVaultEnterExit
-    function enterExitQueue(uint256 shares, address receiver)
-        public
-        virtual
-        override
-        returns (uint256 positionTicket)
-    {
+    function enterExitQueue(uint256 shares, address receiver) public virtual override returns (uint256 positionTicket) {
         return _enterExitQueue(msg.sender, shares, receiver);
     }
 

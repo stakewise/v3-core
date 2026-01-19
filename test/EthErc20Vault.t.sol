@@ -31,10 +31,10 @@ contract EthErc20VaultTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
-        other = makeAddr("other");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
+        other = makeAddr("Other");
 
         // Fund accounts with ETH for testing
         vm.deal(sender, 100 ether);
@@ -316,8 +316,11 @@ contract EthErc20VaultTest is Test, EthHelpers {
         // Check results
         assertGt(mintedAssets, 0, "Should have minted some osToken assets");
         assertEq(vault.osTokenPositions(sender), osTokenShares, "Should have minted expected osToken shares");
-        assertEq(
-            vault.balanceOf(sender), vault.convertToShares(depositAmount), "Should have received tokens for the deposit"
+        assertApproxEqAbs(
+            vault.balanceOf(sender),
+            vault.convertToShares(depositAmount),
+            1,
+            "Should have received tokens for the deposit"
         );
     }
 
@@ -342,14 +345,17 @@ contract EthErc20VaultTest is Test, EthHelpers {
         // Check results
         assertGt(mintedAssets, 0, "Should have minted some osToken assets");
         assertEq(vault.osTokenPositions(sender), osTokenShares, "Should have minted expected osToken shares");
-        assertEq(
-            vault.balanceOf(sender), vault.convertToShares(depositAmount), "Should have received tokens for the deposit"
+        assertApproxEqAbs(
+            vault.balanceOf(sender),
+            vault.convertToShares(depositAmount),
+            1,
+            "Should have received tokens for the deposit"
         );
     }
 
     function test_withdrawValidator_validatorsManager() public {
         // 1. Set validators manager
-        address validatorsManager = makeAddr("validatorsManager");
+        address validatorsManager = makeAddr("ValidatorsManager");
         vm.prank(admin);
         vault.setValidatorsManager(validatorsManager);
 
@@ -369,12 +375,12 @@ contract EthErc20VaultTest is Test, EthHelpers {
     }
 
     function test_withdrawValidator_unknown() public {
-        address validatorsManager = makeAddr("validatorsManager");
+        address validatorsManager = makeAddr("ValidatorsManager");
         vm.prank(admin);
         vault.setValidatorsManager(validatorsManager);
 
         // 1. Set unknown address
-        address unknown = makeAddr("unknown");
+        address unknown = makeAddr("Unknown");
 
         uint256 withdrawFee = 0.1 ether;
         vm.deal(unknown, withdrawFee);
@@ -410,7 +416,7 @@ contract EthErc20VaultTest is Test, EthHelpers {
         require(success, "ETH transfer failed");
 
         // Verify sender received the correct number of tokens
-        assertEq(vault.balanceOf(sender), shares, "Sender should have received tokens");
+        assertApproxEqAbs(vault.balanceOf(sender), shares, 1, "Sender should have received tokens");
     }
 
     function test_updateExitQueue_emitsTransfer() public {

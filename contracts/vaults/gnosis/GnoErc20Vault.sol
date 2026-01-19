@@ -165,9 +165,7 @@ contract GnoErc20Vault is
      * @param ownMevEscrow The address of the MEV escrow owned by the Vault. Zero address if shared MEV escrow is used.
      * @param params The decoded parameters for initializing the GnoErc20Vault contract
      */
-    function __GnoErc20Vault_init(address admin, address ownMevEscrow, GnoErc20VaultInitParams memory params)
-        internal
-    {
+    function __GnoErc20Vault_init(address admin, address ownMevEscrow, GnoErc20VaultInitParams memory params) internal {
         __VaultAdmin_init(admin, params.metadataIpfsHash);
         // fee recipient is initially set to admin address
         __VaultFee_init(admin, params.feePercent);

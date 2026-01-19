@@ -1,11 +1,11 @@
 {
   "GnoErc20VaultTest_test_canTransferFromSharesWithHighLtv": "90100",
   "GnoErc20VaultTest_test_cannotTransferFromSharesWithLowLtv": "96637",
-  "GnoErc20VaultTest_test_deploysCorrectly": "753241",
-  "GnoErc20VaultTest_test_deposit_emitsTransfer": "98232",
+  "GnoErc20VaultTest_test_deploysCorrectly": "753330",
+  "GnoErc20VaultTest_test_deposit_emitsTransfer": "100732",
   "GnoErc20VaultTest_test_enterExitQueue_emitsTransfer": "89780",
   "GnoErc20VaultTest_test_redeem_emitsEvent": "77069",
-  "GnoErc20VaultTest_test_upgradesCorrectly": "335083",
+  "GnoErc20VaultTest_test_upgradesCorrectly": "339858",
   "VaultGnoErc20VaultTest_test_withdrawValidator_unknown": "55973",
   "VaultGnoErc20VaultTest_test_withdrawValidator_validatorsManager": "74114"
 }

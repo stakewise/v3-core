@@ -32,10 +32,10 @@ contract OsTokenConfigTest is Test, EthHelpers {
 
         // Set up test accounts
         owner = Ownable(address(osTokenConfig)).owner();
-        nonOwner = makeAddr("nonOwner");
-        newRedeemer = makeAddr("newRedeemer");
-        vault = makeAddr("vault");
-        anotherVault = makeAddr("anotherVault");
+        nonOwner = makeAddr("NonOwner");
+        newRedeemer = makeAddr("NewRedeemer");
+        vault = makeAddr("Vault");
+        anotherVault = makeAddr("AnotherVault");
     }
 
     // Test for initial contract state
@@ -78,7 +78,7 @@ contract OsTokenConfigTest is Test, EthHelpers {
 
         // Make sure our new redeemer is different
         if (newRedeemer == currentRedeemer) {
-            newRedeemer = makeAddr("anotherNewRedeemer");
+            newRedeemer = makeAddr("AnotherNewRedeemer");
         }
 
         // Set up expected event
@@ -360,13 +360,11 @@ contract OsTokenConfigTest is Test, EthHelpers {
         uint128 newLiqBonusPercent = 1.1e18; // 110%
 
         IOsTokenConfig.Config memory newDefaultConfig = IOsTokenConfig.Config({
-            ltvPercent: newLtvPercent,
-            liqThresholdPercent: newLiqThresholdPercent,
-            liqBonusPercent: newLiqBonusPercent
+            ltvPercent: newLtvPercent, liqThresholdPercent: newLiqThresholdPercent, liqBonusPercent: newLiqBonusPercent
         });
 
         // Test address that doesn't have a specific config
-        address randomVault = makeAddr("randomVault");
+        address randomVault = makeAddr("RandomVault");
 
         // Expect OsTokenConfigUpdated event
         vm.expectEmit(true, false, true, true);

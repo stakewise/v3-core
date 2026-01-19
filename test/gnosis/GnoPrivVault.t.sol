@@ -29,11 +29,11 @@ contract GnoPrivVaultTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
-        other = makeAddr("other");
-        whitelister = makeAddr("whitelister");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
+        other = makeAddr("Other");
+        whitelister = makeAddr("Whitelister");
 
         // Fund accounts with GNO for testing
         _mintGnoToken(sender, 100 ether);
@@ -309,7 +309,7 @@ contract GnoPrivVaultTest is Test, GnoHelpers {
     }
 
     function test_setWhitelister() public {
-        address newWhitelister = makeAddr("newWhitelister");
+        address newWhitelister = makeAddr("NewWhitelister");
 
         // Non-admin cannot set whitelister
         vm.prank(other);

@@ -26,7 +26,7 @@ contract PriceFeedTest is Test, EthHelpers {
         osTokenVaultController = contracts.osTokenVaultController;
 
         // Set up test accounts
-        user = makeAddr("user");
+        user = makeAddr("User");
 
         // Deploy the PriceFeed contract
         priceFeed = new PriceFeed(address(osTokenVaultController), "StakeWise osETH/ETH Price Feed");

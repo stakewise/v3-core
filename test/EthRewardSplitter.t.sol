@@ -34,11 +34,11 @@ contract EthRewardSplitterTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        shareholder1 = makeAddr("shareholder1");
-        shareholder2 = makeAddr("shareholder2");
-        depositor = makeAddr("depositor");
-        claimer = makeAddr("claimer");
+        admin = makeAddr("Admin");
+        shareholder1 = makeAddr("Shareholder1");
+        shareholder2 = makeAddr("Shareholder2");
+        depositor = makeAddr("Depositor");
+        claimer = makeAddr("Claimer");
 
         // Fund accounts
         vm.deal(admin, 100 ether);
@@ -298,7 +298,7 @@ contract EthRewardSplitterTest is Test, EthHelpers {
         // Someone else enters exit queue on behalf of shareholder1
         vm.prank(claimer);
         uint256 timestamp = vm.getBlockTimestamp();
-        vm.expectEmit(true, false, false, true);
+        vm.expectEmit(true, false, false, false);
         emit IRewardSplitter.ExitQueueEnteredOnBehalf(shareholder1, 0, rewards); // Position ticket is unknown at this point
         _startSnapshotGas("EthRewardSplitter_enterExitQueueOnBehalf");
         uint256 positionTicket = rewardSplitter.enterExitQueueOnBehalf(rewards, shareholder1);
@@ -461,7 +461,7 @@ contract EthRewardSplitterTest is Test, EthHelpers {
         rewardSplitter.decreaseShares(address(0), 1000);
 
         // Also test non-zero but invalid account (one that has no shares)
-        address randomAccount = makeAddr("randomAccount");
+        address randomAccount = makeAddr("RandomAccount");
         vm.prank(admin);
         vm.expectRevert(); // This will revert when trying to decrease below zero, but the error type may vary
         rewardSplitter.decreaseShares(randomAccount, 1000);

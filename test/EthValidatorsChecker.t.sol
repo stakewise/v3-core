@@ -43,8 +43,8 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         );
 
         // Setup accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
         vm.deal(user, 100 ether);
 
         // Create and prepare a vault with sufficient funds
@@ -89,7 +89,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
 
     function testValidatorsManagerSignature_InvalidVault() public {
         // Use non-existent vault
-        address invalidVault = makeAddr("nonVault");
+        address invalidVault = makeAddr("NonVault");
 
         // Test with invalid vault
         (uint256 blockNumber, IValidatorsChecker.Status status) =
@@ -155,7 +155,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
 
     function testCheckDepositDataRoot_InvalidVault() public {
         // Use non-existent vault
-        address invalidVault = makeAddr("nonVault");
+        address invalidVault = makeAddr("NonVault");
 
         // Create params with invalid vault
         IValidatorsChecker.DepositDataRootCheckParams memory params = IValidatorsChecker.DepositDataRootCheckParams({
@@ -249,7 +249,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         _collateralizeEthVault(address(customVault));
 
         // Set a custom validators manager
-        address customManager = makeAddr("customManager");
+        address customManager = makeAddr("CustomManager");
         vm.prank(admin);
         IVaultValidators(customVault).setValidatorsManager(customManager);
 
@@ -360,7 +360,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
 
     function test_checkValidatorsManagerSignature_Success() public {
         // 1. Get the validators manager
-        address validatorsManager = makeAddr("validatorsManager");
+        address validatorsManager = makeAddr("ValidatorsManager");
         uint256 validatorsManagerPrivKey = uint256(keccak256(abi.encodePacked("validatorsManager_key")));
         validatorsManager = vm.addr(validatorsManagerPrivKey);
 
@@ -482,6 +482,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         uint256 missingAssets = validatorsChecker.getExitQueueMissingAssets(
             emptyVault,
             0, // No pending assets
+            0, // No redemption assets
             targetCumulativeTickets
         );
 
@@ -507,13 +508,14 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         uint256 missingAssetsNoPending = validatorsChecker.getExitQueueMissingAssets(
             vault,
             0, // No pending assets
+            0, // No redemption assets
             cumulativeTickets
         );
 
         // Test with some pending assets
         uint256 pendingAssets = 0.5 ether;
         uint256 missingAssetsWithPending =
-            validatorsChecker.getExitQueueMissingAssets(vault, pendingAssets, cumulativeTickets);
+            validatorsChecker.getExitQueueMissingAssets(vault, pendingAssets, 0, cumulativeTickets);
 
         // Pending assets should reduce missing assets
         assertGt(missingAssetsNoPending, missingAssetsWithPending, "Pending assets should reduce missing assets");
@@ -542,13 +544,14 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         uint256 initialMissingAssets = validatorsChecker.getExitQueueMissingAssets(
             vault,
             0, // No pending assets
+            0,
             cumulativeTickets
         );
 
         // Add pending assets and check changes
         uint256 pendingAssets = 4 ether;
         uint256 updatedMissingAssets =
-            validatorsChecker.getExitQueueMissingAssets(vault, pendingAssets, cumulativeTickets);
+            validatorsChecker.getExitQueueMissingAssets(vault, pendingAssets, 0, cumulativeTickets);
 
         // Verify missing assets decrease with pending assets
         assertLt(updatedMissingAssets, initialMissingAssets, "Missing assets should decrease with pending assets");
@@ -566,12 +569,12 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         uint256 cumulativeTickets = validatorsChecker.getExitQueueCumulativeTickets(vault);
 
         // Get missing assets with no pending assets
-        uint256 missingAssetsBefore = validatorsChecker.getExitQueueMissingAssets(vault, 0, cumulativeTickets);
+        uint256 missingAssetsBefore = validatorsChecker.getExitQueueMissingAssets(vault, 0, 0, cumulativeTickets);
 
         // Test with large amount of pending assets (more than missing)
         uint256 excessPendingAssets = missingAssetsBefore * 2;
         uint256 missingAssetsAfter =
-            validatorsChecker.getExitQueueMissingAssets(vault, excessPendingAssets, cumulativeTickets);
+            validatorsChecker.getExitQueueMissingAssets(vault, excessPendingAssets, 0, cumulativeTickets);
 
         // No missing assets with excess pending assets
         assertEq(missingAssetsAfter, 0, "No missing assets with excess pending assets");
@@ -595,6 +598,7 @@ contract EthValidatorsCheckerTest is Test, EthHelpers {
         uint256 missingAssets = validatorsChecker.getExitQueueMissingAssets(
             vault,
             0, // No pending assets
+            0,
             cumulativeTickets
         );
 

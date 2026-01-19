@@ -2,71 +2,50 @@
 
 pragma solidity ^0.8.22;
 
+import {IEthMetaVault} from "../../interfaces/IEthMetaVault.sol";
+import {IEthMetaVaultFactory} from "../../interfaces/IEthMetaVaultFactory.sol";
+import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
+import {IVaultEthStaking} from "../../interfaces/IVaultEthStaking.sol";
+import {Errors} from "../../libraries/Errors.sol";
+import {MetaVault} from "../base/MetaVault.sol";
+import {VaultEnterExit} from "../modules/VaultEnterExit.sol";
+import {VaultState} from "../modules/VaultState.sol";
+import {VaultSubVaults} from "../modules/VaultSubVaults.sol";
+import {IVaultVersion, VaultVersion} from "../modules/VaultVersion.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IVaultEthStaking} from "../../../interfaces/IVaultEthStaking.sol";
-import {IEthMetaVaultFactory} from "../../../interfaces/IEthMetaVaultFactory.sol";
-import {IKeeperRewards} from "../../../interfaces/IKeeperRewards.sol";
-import {IEthMetaVault} from "../../../interfaces/IEthMetaVault.sol";
-import {Errors} from "../../../libraries/Errors.sol";
-import {VaultImmutables} from "../../modules/VaultImmutables.sol";
-import {VaultAdmin} from "../../modules/VaultAdmin.sol";
-import {VaultVersion, IVaultVersion} from "../../modules/VaultVersion.sol";
-import {VaultFee} from "../../modules/VaultFee.sol";
-import {VaultState, IVaultState} from "../../modules/VaultState.sol";
-import {VaultEnterExit, IVaultEnterExit} from "../../modules/VaultEnterExit.sol";
-import {VaultOsToken} from "../../modules/VaultOsToken.sol";
-import {VaultSubVaults} from "../../modules/VaultSubVaults.sol";
-import {Multicall} from "../../../base/Multicall.sol";
 
 /**
  * @title EthMetaVault
  * @author StakeWise
- * @notice Defines the Meta Vault that delegates stake to the sub vaults on Ethereum
+ * @notice Defines the Meta Vault functionality on Ethereum
  */
-contract EthMetaVault is
-    VaultImmutables,
-    Initializable,
-    VaultAdmin,
-    VaultVersion,
-    VaultFee,
-    VaultState,
-    VaultEnterExit,
-    VaultOsToken,
-    VaultSubVaults,
-    Multicall,
-    IEthMetaVault
-{
+contract EthMetaVault is Initializable, MetaVault, IEthMetaVault {
     using EnumerableSet for EnumerableSet.AddressSet;
 
-    uint8 private constant _version = 5;
+    uint8 private constant _version = 6;
     uint256 private constant _securityDeposit = 1e9;
 
     /**
      * @dev Constructor
      * @dev Since the immutable variable value is stored in the bytecode,
      *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-     * @param args The arguments for initializing the EthMetaVault contract
+     * @param args The arguments for initializing the MetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(EthMetaVaultConstructorArgs memory args)
-        VaultImmutables(args.keeper, args.vaultsRegistry)
-        VaultEnterExit(args.exitingAssetsClaimDelay)
-        VaultOsToken(args.osTokenVaultController, args.osTokenConfig, args.osTokenVaultEscrow)
-        VaultSubVaults(args.curatorsRegistry)
-    {
+    constructor(MetaVaultConstructorArgs memory args) MetaVault(args) {
         _disableInitializers();
     }
 
     /// @inheritdoc IEthMetaVault
     function initialize(bytes calldata params) external payable virtual override reinitializer(_version) {
-        __EthMetaVault_init(IEthMetaVaultFactory(msg.sender).vaultAdmin(), abi.decode(params, (EthMetaVaultInitParams)));
-    }
+        // if admin is already set, it's an upgrade from version 5 to 6
+        if (admin != address(0)) {
+            return;
+        }
 
-    /// @inheritdoc IVaultState
-    function isStateUpdateRequired() public view override(IVaultState, VaultState, VaultSubVaults) returns (bool) {
-        return super.isStateUpdateRequired();
+        __EthMetaVault_init(IEthMetaVaultFactory(msg.sender).vaultAdmin(), abi.decode(params, (MetaVaultInitParams)));
     }
 
     /// @inheritdoc IEthMetaVault
@@ -83,24 +62,6 @@ contract EthMetaVault is
             return;
         }
         _deposit(msg.sender, msg.value, address(0));
-    }
-
-    // @inheritdoc IVaultState
-    function updateState(IKeeperRewards.HarvestParams calldata harvestParams)
-        public
-        override(IVaultState, VaultState, VaultSubVaults)
-    {
-        super.updateState(harvestParams);
-    }
-
-    /// @inheritdoc IVaultEnterExit
-    function enterExitQueue(uint256 shares, address receiver)
-        public
-        virtual
-        override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
-        returns (uint256 positionTicket)
-    {
-        return super.enterExitQueue(shares, receiver);
     }
 
     /// @inheritdoc IEthMetaVault
@@ -154,16 +115,6 @@ contract EthMetaVault is
         return _version;
     }
 
-    /// @inheritdoc VaultImmutables
-    function _checkHarvested() internal view override(VaultImmutables, VaultSubVaults) {
-        super._checkHarvested();
-    }
-
-    /// @inheritdoc VaultImmutables
-    function _isCollateralized() internal view virtual override(VaultImmutables, VaultSubVaults) returns (bool) {
-        return super._isCollateralized();
-    }
-
     /// @inheritdoc VaultSubVaults
     function _depositToVault(address vault, uint256 assets) internal override returns (uint256) {
         return IVaultEthStaking(vault).deposit{value: assets}(address(this), address(0));
@@ -182,14 +133,10 @@ contract EthMetaVault is
     /**
      * @dev Initializes the EthMetaVault contract
      * @param admin The address of the admin of the Vault
-     * @param params The parameters for initializing the EthMetaVault contract
+     * @param params The parameters for initializing the MetaVault contract
      */
-    function __EthMetaVault_init(address admin, EthMetaVaultInitParams memory params) internal onlyInitializing {
-        __VaultAdmin_init(admin, params.metadataIpfsHash);
-        __VaultSubVaults_init(params.subVaultsCurator);
-        // fee recipient is initially set to admin address
-        __VaultFee_init(admin, params.feePercent);
-        __VaultState_init(params.capacity);
+    function __EthMetaVault_init(address admin, MetaVaultInitParams memory params) internal onlyInitializing {
+        __MetaVault_init(admin, params);
 
         // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
         if (msg.value < _securityDeposit) revert Errors.InvalidSecurityDeposit();

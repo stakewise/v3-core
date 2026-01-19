@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
-import {Test, stdStorage, StdStorage, console} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -10,17 +10,16 @@ import {IGnoVault} from "../../contracts/interfaces/IGnoVault.sol";
 import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
 import {IVaultSubVaults} from "../../contracts/interfaces/IVaultSubVaults.sol";
 import {IVaultEnterExit} from "../../contracts/interfaces/IVaultEnterExit.sol";
+import {IMetaVault} from "../../contracts/interfaces/IMetaVault.sol";
 import {Errors} from "../../contracts/libraries/Errors.sol";
-import {GnoMetaVault} from "../../contracts/vaults/gnosis/custom/GnoMetaVault.sol";
-import {GnoMetaVaultFactory} from "../../contracts/vaults/gnosis/custom/GnoMetaVaultFactory.sol";
+import {GnoMetaVault} from "../../contracts/vaults/gnosis/GnoMetaVault.sol";
+import {GnoMetaVaultFactory} from "../../contracts/vaults/gnosis/GnoMetaVaultFactory.sol";
 import {BalancedCurator} from "../../contracts/curators/BalancedCurator.sol";
 import {CuratorsRegistry} from "../../contracts/curators/CuratorsRegistry.sol";
 import {GnoHelpers} from "../helpers/GnoHelpers.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 
 contract GnoMetaVaultTest is Test, GnoHelpers {
-    using stdStorage for StdStorage;
-
     ForkContracts public contracts;
     GnoMetaVault public metaVault;
 
@@ -41,10 +40,10 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        referrer = makeAddr("referrer");
+        admin = makeAddr("Admin");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        referrer = makeAddr("Referrer");
 
         // Mint GNO tokens to accounts
         _mintGnoToken(admin, 100 ether);
@@ -60,7 +59,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
 
         // Deploy meta vault
         bytes memory initParams = abi.encode(
-            IGnoMetaVault.GnoMetaVaultInitParams({
+            IMetaVault.MetaVaultInitParams({
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%
@@ -92,27 +91,10 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         return _createVault(VaultType.GnoVault, _admin, initParams, false);
     }
 
-    function test_deployWithZeroAdmin() public {
-        // Attempt to deploy with zero admin
-        bytes memory initParams = abi.encode(
-            IGnoMetaVault.GnoMetaVaultInitParams({
-                subVaultsCurator: curator,
-                capacity: 1000 ether,
-                feePercent: 1000, // 10%
-                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
-            })
-        );
-
-        GnoMetaVaultFactory factory = _getOrCreateMetaFactory(VaultType.GnoMetaVault);
-        contracts.gnoToken.approve(address(factory), _securityDeposit);
-        vm.expectRevert(abi.encodeWithSelector(Errors.ZeroAddress.selector));
-        factory.createVault(address(0), initParams);
-    }
-
     function test_deployment() public view {
         // Verify the vault was deployed correctly
         assertEq(metaVault.vaultId(), keccak256("GnoMetaVault"), "Incorrect vault ID");
-        assertEq(metaVault.version(), 3, "Incorrect version");
+        assertEq(metaVault.version(), 4, "Incorrect version");
         assertEq(metaVault.admin(), admin, "Incorrect admin");
         assertEq(metaVault.subVaultsCurator(), curator, "Incorrect curator");
         assertEq(metaVault.capacity(), 1000 ether, "Incorrect capacity");
@@ -467,23 +449,5 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         vm.prank(sender);
         vm.expectRevert(Errors.InvalidAssets.selector);
         metaVault.donateAssets(0);
-    }
-
-    function _getEmptyHarvestParams() internal pure returns (IKeeperRewards.HarvestParams memory) {
-        bytes32[] memory emptyProof;
-        return
-            IKeeperRewards.HarvestParams({rewardsRoot: bytes32(0), proof: emptyProof, reward: 0, unlockedMevReward: 0});
-    }
-
-    function _setVaultRewardsNonce(address vault, uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewards(address)").with_key(vault).depth(
-            1
-        ).checked_write(rewardsNonce);
-    }
-
-    function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewardsNonce()").checked_write(
-            rewardsNonce
-        );
     }
 }

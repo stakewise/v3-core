@@ -2,19 +2,22 @@
 
 pragma solidity ^0.8.22;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {IVaultOsToken} from "../interfaces/IVaultOsToken.sol";
-import {IOsTokenVaultController} from "../interfaces/IOsTokenVaultController.sol";
+import {Multicall} from "../base/Multicall.sol";
+import {IMetaVault} from "../interfaces/IMetaVault.sol";
 import {IOsTokenRedeemer} from "../interfaces/IOsTokenRedeemer.sol";
+import {IOsTokenVaultController} from "../interfaces/IOsTokenVaultController.sol";
+import {IVaultOsToken} from "../interfaces/IVaultOsToken.sol";
+import {IVaultSubVaults} from "../interfaces/IVaultSubVaults.sol";
+import {IVaultsRegistry} from "../interfaces/IVaultsRegistry.sol";
 import {Errors} from "../libraries/Errors.sol";
 import {ExitQueue} from "../libraries/ExitQueue.sol";
-import {Multicall} from "../base/Multicall.sol";
+import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 /**
  * @title OsTokenRedeemer
@@ -22,6 +25,7 @@ import {Multicall} from "../base/Multicall.sol";
  * @notice This contract is used to redeem OsTokens for the underlying asset.
  */
 abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
+    IVaultsRegistry private immutable _vaultsRegistry;
     IERC20 private immutable _osToken;
     IOsTokenVaultController private immutable _osTokenVaultController;
 
@@ -62,29 +66,34 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     uint256 public override exitQueueTimestamp;
 
     RedeemablePositions private _redeemablePositions;
-    RedeemablePositions private _pendingRedeemablePositions;
     ExitQueue.History private _exitQueue;
 
     /**
      * @dev Constructor
+     * @param vaultsRegistry_ The address of the VaultsRegistry contract
      * @param osToken_ The address of the OsToken contract
      * @param osTokenVaultController_ The address of the OsTokenVaultController contract
      * @param owner_ The address of the owner
      * @param exitQueueUpdateDelay_ The delay in seconds for exit queue updates
      */
-    constructor(address osToken_, address osTokenVaultController_, address owner_, uint256 exitQueueUpdateDelay_)
-        Ownable(owner_)
-    {
+    constructor(
+        address vaultsRegistry_,
+        address osToken_,
+        address osTokenVaultController_,
+        address owner_,
+        uint256 exitQueueUpdateDelay_
+    ) Ownable(owner_) {
         if (exitQueueUpdateDelay_ > type(uint64).max) {
             revert Errors.InvalidDelay();
         }
+        _vaultsRegistry = IVaultsRegistry(vaultsRegistry_);
         _osToken = IERC20(osToken_);
         _osTokenVaultController = IOsTokenVaultController(osTokenVaultController_);
         exitQueueUpdateDelay = exitQueueUpdateDelay_;
     }
 
     /// @inheritdoc IOsTokenRedeemer
-    function getExitQueueData() external view override returns (uint256, uint256, uint256) {
+    function getExitQueueData() public view override returns (uint256, uint256, uint256) {
         return (
             queuedShares,
             unclaimedAssets + redeemedAssets + swappedAssets,
@@ -93,15 +102,15 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     }
 
     /// @inheritdoc IOsTokenRedeemer
-    function redeemablePositions() external view override returns (bytes32 merkleRoot, string memory ipfsHash) {
-        merkleRoot = _redeemablePositions.merkleRoot;
-        ipfsHash = _redeemablePositions.ipfsHash;
+    function getExitQueueCumulativeTickets() external view override returns (uint256) {
+        (uint256 _queuedShares,, uint256 totalTickets) = getExitQueueData();
+        return totalTickets + _queuedShares;
     }
 
     /// @inheritdoc IOsTokenRedeemer
-    function pendingRedeemablePositions() external view override returns (bytes32 merkleRoot, string memory ipfsHash) {
-        merkleRoot = _pendingRedeemablePositions.merkleRoot;
-        ipfsHash = _pendingRedeemablePositions.ipfsHash;
+    function redeemablePositions() external view override returns (bytes32 merkleRoot, string memory ipfsHash) {
+        merkleRoot = _redeemablePositions.merkleRoot;
+        ipfsHash = _redeemablePositions.ipfsHash;
     }
 
     /// @inheritdoc IOsTokenRedeemer
@@ -152,73 +161,49 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     }
 
     /// @inheritdoc IOsTokenRedeemer
-    function proposeRedeemablePositions(RedeemablePositions calldata newPositions) external override {
-        if (msg.sender != positionsManager) {
-            revert Errors.AccessDenied();
-        }
-        if (newPositions.merkleRoot == bytes32(0) || bytes(newPositions.ipfsHash).length == 0) {
-            revert Errors.InvalidRedeemablePositions();
+    function getExitQueueMissingAssets(uint256 targetCumulativeTickets)
+        external
+        view
+        override
+        returns (uint256 missingAssets)
+    {
+        // SLOAD to memory
+        (uint256 _queuedShares, uint256 _unclaimedAssets, uint256 totalTickets) = getExitQueueData();
+
+        // check whether already covered
+        if (totalTickets >= targetCumulativeTickets) {
+            return 0;
         }
 
-        // SLOAD to memory
-        RedeemablePositions memory pendingPositions = _pendingRedeemablePositions;
-        if (pendingPositions.merkleRoot != bytes32(0) || bytes(pendingPositions.ipfsHash).length != 0) {
-            revert Errors.RedeemablePositionsProposed();
+        // calculate the amount of tickets that need to be covered
+        uint256 totalTicketsToCover = targetCumulativeTickets - totalTickets;
+
+        // calculate missing assets
+        missingAssets = _osTokenVaultController.convertToAssets(Math.min(totalTicketsToCover, _queuedShares));
+
+        // check whether there is enough available assets
+        uint256 availableAssets = _getAssets(address(this)) - _unclaimedAssets;
+        return availableAssets >= missingAssets ? 0 : missingAssets - availableAssets;
+    }
+
+    /// @inheritdoc IOsTokenRedeemer
+    function setRedeemablePositions(RedeemablePositions calldata newPositions) external override onlyOwner {
+        if (newPositions.merkleRoot == bytes32(0) || bytes(newPositions.ipfsHash).length == 0) {
+            revert Errors.InvalidRedeemablePositions();
         }
 
         // SLOAD to memory
         RedeemablePositions memory currentPositions = _redeemablePositions;
-        if (newPositions.merkleRoot == currentPositions.merkleRoot || bytes(pendingPositions.ipfsHash).length != 0) {
+        if (newPositions.merkleRoot == currentPositions.merkleRoot) {
             revert Errors.ValueNotChanged();
-        }
-
-        // update state
-        _pendingRedeemablePositions = newPositions;
-
-        // emit event
-        emit RedeemablePositionsProposed(newPositions.merkleRoot, newPositions.ipfsHash);
-    }
-
-    /// @inheritdoc IOsTokenRedeemer
-    function acceptRedeemablePositions() external override onlyOwner {
-        // SLOAD to memory
-        RedeemablePositions memory newPositions = _pendingRedeemablePositions;
-        if (newPositions.merkleRoot == bytes32(0) || bytes(newPositions.ipfsHash).length == 0) {
-            revert Errors.InvalidRedeemablePositions();
         }
 
         // update state
         nonce += 1;
         _redeemablePositions = newPositions;
-        delete _pendingRedeemablePositions;
 
         // emit event
-        emit RedeemablePositionsAccepted(newPositions.merkleRoot, newPositions.ipfsHash);
-    }
-
-    /// @inheritdoc IOsTokenRedeemer
-    function denyRedeemablePositions() external override onlyOwner {
-        // SLOAD to memory
-        RedeemablePositions memory newPositions = _pendingRedeemablePositions;
-        if (newPositions.merkleRoot == bytes32(0)) {
-            return;
-        }
-        delete _pendingRedeemablePositions;
-
-        // emit event
-        emit RedeemablePositionsDenied(newPositions.merkleRoot, newPositions.ipfsHash);
-    }
-
-    /// @inheritdoc IOsTokenRedeemer
-    function removeRedeemablePositions() external override onlyOwner {
-        // SLOAD to memory
-        RedeemablePositions memory positions = _redeemablePositions;
-        if (positions.merkleRoot == bytes32(0)) {
-            return;
-        }
-
-        delete _redeemablePositions;
-        emit RedeemablePositionsRemoved(positions.merkleRoot, positions.ipfsHash);
+        emit RedeemablePositionsUpdated(newPositions.merkleRoot, newPositions.ipfsHash);
     }
 
     /// @inheritdoc IOsTokenRedeemer
@@ -280,11 +265,51 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         emit ExitedAssetsClaimed(msg.sender, positionTicket, newPositionTicket, exitedAssets);
     }
 
+    /// @inheritdoc IOsTokenRedeemer
+    function redeemSubVaultsAssets(address metaVault, uint256 assetsToRedeem)
+        external
+        override
+        returns (uint256 totalRedeemedAssets)
+    {
+        if (msg.sender != positionsManager) {
+            revert Errors.AccessDenied();
+        }
+
+        if (!_isMetaVault(metaVault)) {
+            revert Errors.InvalidVault();
+        }
+
+        return IMetaVault(metaVault).redeemSubVaultsAssets(assetsToRedeem);
+    }
+
+    /// @inheritdoc IOsTokenRedeemer
+    function redeemSubVaultOsToken(address subVault, uint256 osTokenShares) external override returns (uint256) {
+        if (!_vaultsRegistry.vaults(subVault) || !_isMetaVault(msg.sender)) {
+            revert Errors.AccessDenied();
+        }
+        if (osTokenShares == 0) {
+            revert Errors.InvalidShares();
+        }
+
+        uint256 _vaultAssetsBefore = _getAssets(msg.sender);
+
+        // redeem osToken shares from sub vault to meta vault
+        IVaultOsToken(subVault).redeemOsToken(osTokenShares, msg.sender, msg.sender);
+
+        // calculate redeemed assets
+        return _getAssets(msg.sender) - _vaultAssetsBefore;
+    }
+
+    /// @inheritdoc IOsTokenRedeemer
     function redeemOsTokenPositions(
         OsTokenPosition[] memory positions,
         bytes32[] calldata proof,
         bool[] calldata proofFlags
     ) external override {
+        if (msg.sender != positionsManager) {
+            revert Errors.AccessDenied();
+        }
+
         // SLOAD to memory
         uint256 _queuedShares = queuedShares;
         uint256 positionsCount = positions.length;
@@ -318,8 +343,12 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
 
             // update state
             if (position.sharesToRedeem > 0) {
-                _queuedShares -= position.sharesToRedeem;
-                leafToProcessedShares[leaf] = processedPositionShares + position.sharesToRedeem;
+                unchecked {
+                    // position.sharesToRedeem <= _queuedShares checked above
+                    _queuedShares -= position.sharesToRedeem;
+                    // cannot realistically overflow
+                    leafToProcessedShares[leaf] = processedPositionShares + position.sharesToRedeem;
+                }
             }
 
             unchecked {
@@ -338,7 +367,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         }
 
         // redeem positions
-        uint256 availableAssetsBefore = _availableAssets();
+        uint256 availableAssetsBefore = _getAssets(address(this));
         for (uint256 i = 0; i < positionsCount;) {
             OsTokenPosition memory position = positions[i];
             if (position.sharesToRedeem > 0) {
@@ -353,7 +382,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         }
 
         // calculate processed assets and shares
-        uint256 processedAssets = _availableAssets() - availableAssetsBefore;
+        uint256 processedAssets = _getAssets(address(this)) - availableAssetsBefore;
         uint256 processedShares = queuedShares - _queuedShares;
 
         // update state
@@ -371,6 +400,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
             revert Errors.TooEarlyUpdate();
         }
 
+        // update state
         uint256 processedShares = swappedShares + redeemedShares;
         uint256 processedAssets = swappedAssets + redeemedAssets;
         swappedShares = 0;
@@ -420,10 +450,30 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     }
 
     /**
-     * @dev Internal function that must be implemented to return the available assets for exit
-     * @return The amount of available assets for exit
+     * @dev Internal function to check whether the caller is a meta vault
+     * @param vault The address of the vault to check
+     * @return True if the caller is a meta vault, false otherwise
      */
-    function _availableAssets() internal view virtual returns (uint256);
+    function _isMetaVault(address vault) private view returns (bool) {
+        // must be a registered vault
+        if (!_vaultsRegistry.vaults(vault)) {
+            return false;
+        }
+
+        // must be a meta vault
+        try IVaultSubVaults(vault).getSubVaults() {
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * @dev Internal function that must be implemented to return the account assets
+     * @param account The address of the account
+     * @return The amount of assets in the vault
+     */
+    function _getAssets(address account) internal view virtual returns (uint256);
 
     /**
      * @dev Internal function for transferring assets to the receiver

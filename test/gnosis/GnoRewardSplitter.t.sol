@@ -36,11 +36,11 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        shareholder1 = makeAddr("shareholder1");
-        shareholder2 = makeAddr("shareholder2");
-        depositor = makeAddr("depositor");
-        claimer = makeAddr("claimer");
+        admin = makeAddr("Admin");
+        shareholder1 = makeAddr("Shareholder1");
+        shareholder2 = makeAddr("Shareholder2");
+        depositor = makeAddr("Depositor");
+        claimer = makeAddr("Claimer");
 
         // Fund accounts
         vm.deal(admin, 100 ether);
@@ -317,9 +317,8 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
         int256 exitQueueIndex = IVaultEnterExit(vault).getExitQueueIndex(positionTicket);
 
         // Expected reward amount to be claimed
-        (,, uint256 exitedAssets) = IVaultEnterExit(vault).calculateExitedAssets(
-            address(rewardSplitter), positionTicket, timestamp, uint256(exitQueueIndex)
-        );
+        (,, uint256 exitedAssets) = IVaultEnterExit(vault)
+            .calculateExitedAssets(address(rewardSplitter), positionTicket, timestamp, uint256(exitQueueIndex));
 
         vm.prank(admin);
         vm.expectEmit(true, false, false, true);

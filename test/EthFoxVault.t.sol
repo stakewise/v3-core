@@ -28,11 +28,11 @@ contract EthFoxVaultTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
-        other = makeAddr("other");
-        blocklistManager = makeAddr("blocklistManager");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
+        other = makeAddr("Other");
+        blocklistManager = makeAddr("BlocklistManager");
 
         // Fund accounts with ETH for testing
         vm.deal(sender, 100 ether);
@@ -254,7 +254,7 @@ contract EthFoxVaultTest is Test, EthHelpers {
 
     function test_withdrawValidator_validatorsManager() public {
         // 1. Set validators manager
-        address validatorsManager = makeAddr("validatorsManager");
+        address validatorsManager = makeAddr("ValidatorsManager");
         vm.prank(admin);
         vault.setValidatorsManager(validatorsManager);
 
@@ -275,7 +275,7 @@ contract EthFoxVaultTest is Test, EthHelpers {
 
     function test_withdrawValidator_unknown() public {
         // 1. Set unknown address
-        address unknown = makeAddr("unknown");
+        address unknown = makeAddr("Unknown");
 
         uint256 withdrawFee = 0.1 ether;
         vm.deal(unknown, withdrawFee);

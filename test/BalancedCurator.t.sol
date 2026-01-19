@@ -75,7 +75,7 @@ contract BalancedCuratorTest is Test {
         // 100 ETH to distribute across 5 vaults, but one is ejecting
         uint256 assetsToDeposit = 100 ether;
         address[] memory vaults = subVaults;
-        address ejecting = makeAddr("unknown");
+        address ejecting = makeAddr("Unknown");
 
         // Should revert with EjectingVaultNotFound error
         vm.expectRevert(Errors.EjectingVaultNotFound.selector);

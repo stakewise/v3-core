@@ -33,10 +33,10 @@ contract GnoOsTokenRedeemerTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        owner = makeAddr("owner");
-        positionsManager = makeAddr("positionsManager");
-        user = makeAddr("user");
-        redeemer = makeAddr("redeemer");
+        owner = makeAddr("Owner");
+        positionsManager = makeAddr("PositionsManager");
+        user = makeAddr("User");
+        redeemer = makeAddr("Redeemer");
 
         // Fund accounts with GNO tokens and xDAI
         _mintGnoToken(user, 100 ether);
@@ -48,6 +48,7 @@ contract GnoOsTokenRedeemerTest is Test, GnoHelpers {
         // Deploy GnoOsTokenRedeemer
         osTokenRedeemer = new GnoOsTokenRedeemer(
             address(contracts.gnoToken),
+            address(contracts.vaultsRegistry),
             _osToken,
             address(contracts.osTokenVaultController),
             owner,
@@ -203,11 +204,8 @@ contract GnoOsTokenRedeemerTest is Test, GnoHelpers {
         IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
             IOsTokenRedeemer.RedeemablePositions({merkleRoot: leaf, ipfsHash: "QmTest123"});
 
-        vm.prank(positionsManager);
-        osTokenRedeemer.proposeRedeemablePositions(redeemablePositions);
-
         vm.prank(owner);
-        osTokenRedeemer.acceptRedeemablePositions();
+        osTokenRedeemer.setRedeemablePositions(redeemablePositions);
 
         bytes32[] memory proof = new bytes32[](0);
         bool[] memory proofFlags = new bool[](0);
@@ -221,7 +219,7 @@ contract GnoOsTokenRedeemerTest is Test, GnoHelpers {
         emit IOsTokenRedeemer.OsTokenPositionsRedeemed(expectedRedeemedShares, expectedRedeemedAssets);
 
         // Redeem position
-        vm.prank(user);
+        vm.prank(positionsManager);
         _startSnapshotGas("GnoOsTokenRedeemerTest_test_redeemOsTokenPositions_success_singlePosition");
         osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
         _stopSnapshotGas();

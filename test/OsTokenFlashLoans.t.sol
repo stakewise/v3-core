@@ -34,8 +34,8 @@ contract OsTokenFlashLoansTest is Test, EthHelpers {
         osToken = OsToken(_osToken);
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
         vm.deal(user, 100 ether);
 
         // Deploy mock recipient

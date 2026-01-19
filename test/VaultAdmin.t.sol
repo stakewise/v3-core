@@ -25,9 +25,9 @@ contract VaultAdminTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        nonAdmin = makeAddr("nonAdmin");
-        newAdmin = makeAddr("newAdmin");
+        admin = makeAddr("Admin");
+        nonAdmin = makeAddr("NonAdmin");
+        newAdmin = makeAddr("NewAdmin");
 
         // Create a vault with admin as the admin
         bytes memory initParams = abi.encode(

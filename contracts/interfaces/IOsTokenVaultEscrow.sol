@@ -192,8 +192,7 @@ interface IOsTokenVaultEscrow is IMulticall {
      * @param osTokenShares The amount of osToken shares to redeem
      * @param receiver The address of the receiver of the redeemed assets
      */
-    function redeemOsToken(address vault, uint256 exitPositionTicket, uint256 osTokenShares, address receiver)
-        external;
+    function redeemOsToken(address vault, uint256 exitPositionTicket, uint256 osTokenShares, address receiver) external;
 
     /**
      * @notice Updates the authenticator. Can only be called by the owner.

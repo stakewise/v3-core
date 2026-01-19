@@ -47,13 +47,7 @@ contract EthGenesisVault is Initializable, EthVault, IEthGenesisVault {
     }
 
     /// @inheritdoc IEthVault
-    function initialize(bytes calldata)
-        external
-        payable
-        virtual
-        override(IEthVault, EthVault)
-        reinitializer(_version)
-    {
+    function initialize(bytes calldata) external payable virtual override(IEthVault, EthVault) reinitializer(_version) {
         if (admin == address(0)) {
             revert Errors.UpgradeFailed();
         }

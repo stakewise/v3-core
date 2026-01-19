@@ -19,8 +19,9 @@ contract MockVaultEthStaking {
 
 // Mock non-compliant vault that doesn't implement receiveFromMevEscrow
 contract MockNonCompliantVault {
-// No receiveFromMevEscrow function
-}
+    // No receiveFromMevEscrow function
+
+    }
 
 contract SharedMevEscrowTest is Test {
     VaultsRegistry public vaultsRegistry;
@@ -36,9 +37,9 @@ contract SharedMevEscrowTest is Test {
 
     function setUp() public {
         // Setup test accounts
-        owner = makeAddr("owner");
-        nonRegisteredAccount = makeAddr("nonRegisteredAccount");
-        mevSender = makeAddr("mevSender");
+        owner = makeAddr("Owner");
+        nonRegisteredAccount = makeAddr("NonRegisteredAccount");
+        mevSender = makeAddr("MevSender");
 
         // Fund accounts
         vm.deal(mevSender, 10 ether);

@@ -31,11 +31,11 @@ contract GnoVaultTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
-        referrer = makeAddr("referrer");
-        validatorsManager = makeAddr("validatorsManager");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
+        referrer = makeAddr("Referrer");
+        validatorsManager = makeAddr("ValidatorsManager");
 
         // Fund accounts with GNO for testing
         _mintGnoToken(sender, 100 ether);
@@ -257,8 +257,7 @@ contract GnoVaultTest is Test, GnoHelpers {
         uint256 senderSharesBefore = vault.getShares(sender);
         (
             uint128 queuedSharesBefore,
-            uint128 unclaimedAssetsBefore,
-            ,
+            uint128 unclaimedAssetsBefore,,
             uint128 totalExitingAssetsBefore,
             uint256 totalTicketsBefore
         ) = vault.getExitQueueData();
@@ -275,8 +274,7 @@ contract GnoVaultTest is Test, GnoHelpers {
 
         (
             uint128 queuedSharesAfter,
-            uint128 unclaimedAssetsAfter,
-            ,
+            uint128 unclaimedAssetsAfter,,
             uint128 totalExitingAssetsAfter,
             uint256 totalTicketsAfter
         ) = vault.getExitQueueData();
@@ -370,7 +368,7 @@ contract GnoVaultTest is Test, GnoHelpers {
 
     function test_withdrawValidator_unknown() public {
         // Create an unknown address
-        address unknown = makeAddr("unknown");
+        address unknown = makeAddr("Unknown");
 
         // Fund the unknown account
         uint256 withdrawFee = 0.1 ether;

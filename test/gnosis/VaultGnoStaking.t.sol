@@ -29,11 +29,11 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
-        referrer = makeAddr("referrer");
-        validatorsManager = makeAddr("validatorsManager");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
+        referrer = makeAddr("Referrer");
+        validatorsManager = makeAddr("ValidatorsManager");
 
         // Fund accounts with GNO for testing
         _mintGnoToken(sender, 100 ether);

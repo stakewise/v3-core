@@ -31,10 +31,10 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
         contracts = _activateGnosisFork();
 
         // Set up test accounts
-        sender = makeAddr("sender");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
-        other = makeAddr("other");
+        sender = makeAddr("Sender");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
+        other = makeAddr("Other");
 
         // Fund accounts with GNO for testing
         _mintGnoToken(sender, 100 ether);
@@ -305,7 +305,7 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
 
     function test_withdrawValidator_validatorsManager() public {
         // 1. Set validators manager
-        address validatorsManager = makeAddr("validatorsManager");
+        address validatorsManager = makeAddr("ValidatorsManager");
         vm.prank(admin);
         vault.setValidatorsManager(validatorsManager);
 
@@ -325,12 +325,12 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
     }
 
     function test_withdrawValidator_unknown() public {
-        address validatorsManager = makeAddr("validatorsManager");
+        address validatorsManager = makeAddr("ValidatorsManager");
         vm.prank(admin);
         vault.setValidatorsManager(validatorsManager);
 
         // 1. Set unknown address
-        address unknown = makeAddr("unknown");
+        address unknown = makeAddr("Unknown");
 
         uint256 withdrawFee = 0.1 ether;
         vm.deal(unknown, withdrawFee);

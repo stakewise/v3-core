@@ -28,9 +28,9 @@ contract VaultValidatorsTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
-        nonManager = makeAddr("nonManager");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
+        nonManager = makeAddr("NonManager");
         (validatorsManager, validatorsManagerPrivateKey) = makeAddrAndKey("validatorsManager");
 
         // Fund accounts with ETH for testing
@@ -533,8 +533,9 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory validTopUpData = bytes.concat(publicKey, signature, depositDataRoot, bytes8(uint64(topUpAmount)));
 
         // Create validator manager signature
-        bytes32 message =
-            _getValidatorsManagerSigningMessage(address(vault), bytes32(vault.validatorsManagerNonce()), validTopUpData);
+        bytes32 message = _getValidatorsManagerSigningMessage(
+            address(vault), bytes32(vault.validatorsManagerNonce()), validTopUpData
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorsManagerPrivateKey, message);
         bytes memory validatorManagerSignature = abi.encodePacked(r, s, v);
 
@@ -625,8 +626,9 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
         // Create invalid signature (wrong signer)
         (, uint256 wrongPrivateKey) = makeAddrAndKey("wrong");
-        bytes32 message =
-            _getValidatorsManagerSigningMessage(address(vault), bytes32(vault.validatorsManagerNonce()), validTopUpData);
+        bytes32 message = _getValidatorsManagerSigningMessage(
+            address(vault), bytes32(vault.validatorsManagerNonce()), validTopUpData
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongPrivateKey, message);
         bytes memory invalidSignature = abi.encodePacked(r, s, v);
 
@@ -851,8 +853,9 @@ contract VaultValidatorsTest is Test, EthHelpers {
         bytes memory withdrawalData = abi.encodePacked(publicKey, bytes8(uint64(withdrawalAmount)));
 
         // 3. Create validator manager signature
-        bytes32 message =
-            _getValidatorsManagerSigningMessage(address(vault), bytes32(vault.validatorsManagerNonce()), withdrawalData);
+        bytes32 message = _getValidatorsManagerSigningMessage(
+            address(vault), bytes32(vault.validatorsManagerNonce()), withdrawalData
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorsManagerPrivateKey, message);
         bytes memory signature = abi.encodePacked(r, s, v);
 
@@ -910,8 +913,9 @@ contract VaultValidatorsTest is Test, EthHelpers {
 
         // 3. Create invalid signature (wrong signer)
         (, uint256 wrongPrivateKey) = makeAddrAndKey("wrong");
-        bytes32 message =
-            _getValidatorsManagerSigningMessage(address(vault), bytes32(vault.validatorsManagerNonce()), withdrawalData);
+        bytes32 message = _getValidatorsManagerSigningMessage(
+            address(vault), bytes32(vault.validatorsManagerNonce()), withdrawalData
+        );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(wrongPrivateKey, message);
         bytes memory invalidSignature = abi.encodePacked(r, s, v);
 

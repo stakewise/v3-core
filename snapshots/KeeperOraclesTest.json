@@ -1,12 +1,12 @@
 {
-  "KeeperOraclesTest_test_addOracle_alreadyAdded": "28022",
-  "KeeperOraclesTest_test_addOracle_maxOraclesExceeded": "33511",
-  "KeeperOraclesTest_test_addOracle_onlyOwner": "32780",
-  "KeeperOraclesTest_test_addOracle_success": "55972",
-  "KeeperOraclesTest_test_removeOracle_alreadyRemoved": "32141",
-  "KeeperOraclesTest_test_removeOracle_onlyOwner": "26396",
-  "KeeperOraclesTest_test_removeOracle_success": "34154",
+  "KeeperOraclesTest_test_addOracle_alreadyAdded": "28034",
+  "KeeperOraclesTest_test_addOracle_maxOraclesExceeded": "36011",
+  "KeeperOraclesTest_test_addOracle_onlyOwner": "32792",
+  "KeeperOraclesTest_test_addOracle_success": "58484",
+  "KeeperOraclesTest_test_removeOracle_alreadyRemoved": "34653",
+  "KeeperOraclesTest_test_removeOracle_onlyOwner": "26408",
+  "KeeperOraclesTest_test_removeOracle_success": "36666",
   "KeeperOraclesTest_test_updateConfig_onlyOwner": "31726",
   "KeeperOraclesTest_test_updateConfig_success": "32787",
-  "KeeperOraclesTest_test_verifySignatures_throughKeeperRewards": "234771"
+  "KeeperOraclesTest_test_verifySignatures_throughKeeperRewards": "242271"
 }

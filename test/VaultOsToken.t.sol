@@ -43,10 +43,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
         osTokenConfig = contracts.osTokenConfig;
 
         // Set up test accounts
-        owner = makeAddr("owner");
-        receiver = makeAddr("receiver");
-        admin = makeAddr("admin");
-        referrer = makeAddr("referrer");
+        owner = makeAddr("Owner");
+        receiver = makeAddr("Receiver");
+        admin = makeAddr("Admin");
+        referrer = makeAddr("Referrer");
 
         // Fund accounts for testing
         vm.deal(owner, 100 ether);
@@ -349,8 +349,8 @@ contract VaultOsTokenTest is Test, EthHelpers {
 
     // Test minting to different receivers
     function test_mintOsToken_multipleReceivers() public {
-        address receiver1 = makeAddr("receiver1");
-        address receiver2 = makeAddr("receiver2");
+        address receiver1 = makeAddr("Receiver1");
+        address receiver2 = makeAddr("Receiver2");
 
         uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
 
@@ -469,7 +469,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
     // Test burning with non-existent position
     function test_burnOsToken_invalidPosition() public {
         // Use a different address that has no position
-        address nonPositionHolder = makeAddr("nonPositionHolder");
+        address nonPositionHolder = makeAddr("NonPositionHolder");
 
         uint256 mintAmount = contracts.osTokenVaultController.convertToShares(1 ether);
         vm.prank(owner);
@@ -620,7 +620,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
         vault.mintOsToken(owner, mintAmount, referrer);
 
         // Try to redeem as non-redeemer
-        address nonRedeemer = makeAddr("nonRedeemer");
+        address nonRedeemer = makeAddr("NonRedeemer");
         vm.prank(nonRedeemer);
         _startSnapshotGas("VaultOsTokenTest_test_redeemOsToken_onlyRedeemer");
         vm.expectRevert(Errors.AccessDenied.selector);
@@ -671,7 +671,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
     // Test redemption with non-existent position
     function test_redeemOsToken_nonExistentPosition() public {
         // Try to redeem from an address with no position
-        address noPositionAddr = makeAddr("noPosition");
+        address noPositionAddr = makeAddr("NoPosition");
         address redeemer = osTokenConfig.redeemer();
 
         vm.prank(redeemer);
@@ -890,7 +890,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
         vault.enterExitQueue(exitAmount, owner);
 
         // Try to liquidate - will fail because health factor not below threshold yet
-        address liquidator = makeAddr("liquidator");
+        address liquidator = makeAddr("Liquidator");
         vm.prank(liquidator);
         vm.expectRevert(Errors.InvalidHealthFactor.selector);
         vault.liquidateOsToken(maxOsTokenShares / 2, owner, liquidator);
@@ -931,7 +931,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
         vault.updateState(harvestParams);
 
         // Verify the position is now liquidatable
-        address liquidator = makeAddr("liquidator");
+        address liquidator = makeAddr("Liquidator");
         uint256 liquidatorInitialBalance = liquidator.balance;
         _mintOsToken(liquidator, osTokenShares);
 
@@ -985,7 +985,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
         uint256 expectedAssets = (normalAssets * config.liqBonusPercent) / 1e18;
 
         // Prepare liquidator
-        address liquidator = makeAddr("liquidator");
+        address liquidator = makeAddr("Liquidator");
         uint256 liquidatorInitialBalance = liquidator.balance;
         _mintOsToken(liquidator, liquidationAmount);
 
@@ -1020,7 +1020,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
     // Test that liquidation is disabled when configured
     function test_liquidateOsToken_liquidationDisabled() public {
         // Create a vault with disabled liquidations
-        address adminWithDisabledLiq = makeAddr("adminWithDisabledLiq");
+        address adminWithDisabledLiq = makeAddr("AdminWithDisabledLiq");
         vm.deal(adminWithDisabledLiq, 100 ether);
         bytes memory initParams = abi.encode(
             IEthVault.EthVaultInitParams({
@@ -1044,7 +1044,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
         vm.stopPrank();
 
         // Deposit to vault and collateralize
-        address vaultOwner = makeAddr("vaultOwner");
+        address vaultOwner = makeAddr("VaultOwner");
         vm.deal(vaultOwner, 100 ether);
         _depositToVault(address(vaultWithDisabledLiq), 50 ether, vaultOwner, vaultOwner);
         _collateralizeEthVault(address(vaultWithDisabledLiq));
@@ -1060,7 +1060,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
         vaultWithDisabledLiq.updateState(harvestParams);
 
         // Prepare liquidator
-        address liquidator = makeAddr("liquidator");
+        address liquidator = makeAddr("Liquidator");
         uint256 liquidationAmount = osTokenShares / 4;
         _mintOsToken(liquidator, liquidationAmount);
 
@@ -1107,7 +1107,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
         uint256 initialPosition = vault.osTokenPositions(owner);
 
         // Prepare for partial liquidation
-        address liquidator = makeAddr("liquidator");
+        address liquidator = makeAddr("Liquidator");
         uint256 liquidationAmount = osTokenShares / 3;
         _mintOsToken(liquidator, liquidationAmount);
 
@@ -1179,7 +1179,7 @@ contract VaultOsTokenTest is Test, EthHelpers {
         vault.updateState(harvestParams);
 
         // Verify the position is now liquidatable
-        address liquidator = makeAddr("liquidator");
+        address liquidator = makeAddr("Liquidator");
         _mintOsToken(liquidator, osTokenShares);
 
         // remove withdrawable assets
@@ -1235,9 +1235,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
 
         // Process the exited assets
         _startSnapshotGas("VaultOsTokenTest_test_transferOsTokenPositionToEscrow_process");
-        contracts.osTokenVaultEscrow.processExitedAssets(
-            address(vault), exitPositionTicket, timestamp, uint256(vault.getExitQueueIndex(exitPositionTicket))
-        );
+        contracts.osTokenVaultEscrow
+            .processExitedAssets(
+                address(vault), exitPositionTicket, timestamp, uint256(vault.getExitQueueIndex(exitPositionTicket))
+            );
         _stopSnapshotGas();
 
         // Record user's ETH balance before claiming

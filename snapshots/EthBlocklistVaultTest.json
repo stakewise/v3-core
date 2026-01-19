@@ -1,7 +1,7 @@
 {
-  "EthBlocklistVaultTest_test_canDepositAsNonBlockedUser": "87971",
+  "EthBlocklistVaultTest_test_canDepositAsNonBlockedUser": "87959",
   "EthBlocklistVaultTest_test_canDepositUsingReceiveAsNotBlockedUser": "82360",
   "EthBlocklistVaultTest_test_canMintOsTokenAsNonBlockedUser": "161528",
   "EthBlocklistVaultTest_test_deploysCorrectly": "550241",
-  "EthBlocklistVaultTest_test_upgradesCorrectly": "111607"
+  "EthBlocklistVaultTest_test_upgradesCorrectly": "118869"
 }

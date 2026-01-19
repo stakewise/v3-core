@@ -32,8 +32,8 @@ contract VaultVersionTest is Test, EthHelpers {
         vaultsRegistry = contracts.vaultsRegistry;
 
         // Set up accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
         vm.deal(admin, 100 ether);
         vm.deal(user, 100 ether);
 

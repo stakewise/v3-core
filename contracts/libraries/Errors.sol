@@ -61,6 +61,5 @@ library Errors {
     error InvalidCurator();
     error RewardsNonceIsHigher();
     error InvalidRedeemablePositions();
-    error RedeemablePositionsProposed();
     error InvalidDelay();
 }

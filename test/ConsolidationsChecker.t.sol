@@ -30,8 +30,8 @@ contract ConsolidationsCheckerTest is Test, EthHelpers {
         consolidationsChecker = ConsolidationsChecker(address(contracts.consolidationsChecker));
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        vault = makeAddr("vault");
+        admin = makeAddr("Admin");
+        vault = makeAddr("Vault");
 
         // Store initial min oracles value
         _validatorsMinOraclesBefore = contracts.keeper.validatorsMinOracles();
@@ -412,7 +412,7 @@ contract ConsolidationsCheckerTest is Test, EthHelpers {
             _generateValidSignatures(vault, validatorsData, contracts.keeper.validatorsMinOracles());
 
         // Create a different vault address
-        address differentVault = makeAddr("differentVault");
+        address differentVault = makeAddr("DifferentVault");
 
         // Try to verify signatures with different vault
         _startSnapshotGas("ConsolidationsCheckerTest_test_verifySignatures_differentVault");

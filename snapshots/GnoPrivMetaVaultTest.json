@@ -1,0 +1,8 @@
+{
+  "GnoPrivMetaVaultTest_test_canDepositAsWhitelistedUser": "103337",
+  "GnoPrivMetaVaultTest_test_canMintOsTokenAsWhitelistedUser": "161126",
+  "GnoPrivMetaVaultTest_test_depositToSubVaultsWorksWithWhitelistedUser": "329543",
+  "GnoPrivMetaVaultTest_test_enterExitQueueWorksForWhitelistedUserAfterRemoval": "84646",
+  "GnoPrivMetaVaultTest_test_setWhitelister": "36586",
+  "GnoPrivMetaVaultTest_test_updateWhitelist": "54477"
+}

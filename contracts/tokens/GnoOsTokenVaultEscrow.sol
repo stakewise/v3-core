@@ -34,12 +34,7 @@ contract GnoOsTokenVaultEscrow is OsTokenVaultEscrow {
         address gnoToken
     )
         OsTokenVaultEscrow(
-            osTokenVaultController,
-            osTokenConfig,
-            initialOwner,
-            _authenticator,
-            _liqThresholdPercent,
-            _liqBonusPercent
+            osTokenVaultController, osTokenConfig, initialOwner, _authenticator, _liqThresholdPercent, _liqBonusPercent
         )
     {
         _gnoToken = IERC20(gnoToken);

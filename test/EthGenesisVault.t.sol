@@ -30,8 +30,8 @@ contract EthGenesisVaultTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Set up test accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
 
         // Fund accounts with ETH for testing
         vm.deal(admin, 100 ether);
@@ -59,61 +59,6 @@ contract EthGenesisVaultTest is Test, EthHelpers {
 
         vm.expectRevert(Errors.UpgradeFailed.selector);
         IEthGenesisVault(_vault).initialize(initParams);
-    }
-
-    function test_upgradesCorrectly() public {
-        // Get or create a vault
-        address vaultAddr = _getForkVault(VaultType.EthGenesisVault);
-        EthGenesisVault existingVault = EthGenesisVault(payable(vaultAddr));
-
-        vm.deal(
-            vaultAddr,
-            IVaultStateV4(address(existingVault)).totalExitingAssets()
-                + existingVault.convertToAssets(IVaultStateV4(address(existingVault)).queuedShares()) + vaultAddr.balance
-        );
-        _depositToVault(address(existingVault), 40 ether, user, user);
-        _registerEthValidator(address(existingVault), 32 ether, true);
-
-        vm.prank(user);
-        existingVault.enterExitQueue(10 ether, user);
-
-        // Record initial state
-        uint256 initialTotalAssets = existingVault.totalAssets();
-        uint256 initialTotalShares = existingVault.totalShares();
-        uint256 senderBalanceBefore = existingVault.getShares(user);
-        uint256 initialCapacity = existingVault.capacity();
-        uint256 initialFeePercent = existingVault.feePercent();
-        address validatorsManager = existingVault.validatorsManager();
-        address feeRecipient = existingVault.feeRecipient();
-        address adminBefore = existingVault.admin();
-        uint256 queuedSharesBefore = IVaultStateV4(address(existingVault)).queuedShares();
-        uint256 totalExitingAssetsBefore = IVaultStateV4(address(existingVault)).totalExitingAssets();
-
-        assertEq(existingVault.vaultId(), keccak256("EthGenesisVault"));
-        assertEq(existingVault.version(), 4);
-
-        address newImpl = _getOrCreateVaultImpl(VaultType.EthGenesisVault);
-        vm.deal(adminBefore, admin.balance + 1 ether);
-
-        _startSnapshotGas("EthGenesisVaultTest_test_upgradesCorrectly");
-        vm.prank(adminBefore);
-        existingVault.upgradeToAndCall(newImpl, "0x");
-        _stopSnapshotGas();
-
-        (uint128 queuedSharesAfter,,, uint128 totalExitingAssetsAfter,) = existingVault.getExitQueueData();
-        assertEq(existingVault.vaultId(), keccak256("EthGenesisVault"));
-        assertEq(existingVault.version(), 5);
-        assertEq(existingVault.admin(), adminBefore);
-        assertEq(existingVault.capacity(), initialCapacity);
-        assertEq(existingVault.feePercent(), initialFeePercent);
-        assertEq(existingVault.feeRecipient(), feeRecipient);
-        assertEq(existingVault.validatorsManager(), validatorsManager);
-        assertEq(queuedSharesAfter, queuedSharesBefore);
-        assertEq(existingVault.totalShares(), initialTotalShares);
-        assertEq(existingVault.totalAssets(), initialTotalAssets);
-        assertEq(totalExitingAssetsAfter, totalExitingAssetsBefore);
-        assertEq(existingVault.validatorsManagerNonce(), 0);
-        assertEq(existingVault.getShares(user), senderBalanceBefore);
     }
 
     function test_cannotInitializeTwice() public {

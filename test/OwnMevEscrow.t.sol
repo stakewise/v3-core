@@ -22,8 +22,8 @@ contract OwnMevEscrowTest is Test, EthHelpers {
         contracts = _activateEthereumFork();
 
         // Setup test accounts
-        admin = makeAddr("admin");
-        user = makeAddr("user");
+        admin = makeAddr("Admin");
+        user = makeAddr("User");
         vm.deal(admin, 100 ether);
         vm.deal(user, 100 ether);
 
@@ -161,7 +161,7 @@ contract OwnMevEscrowTest is Test, EthHelpers {
     // Test 7: Multiple senders
     function test_multipleSenders() public {
         // Create another user
-        address anotherUser = makeAddr("anotherUser");
+        address anotherUser = makeAddr("AnotherUser");
         vm.deal(anotherUser, 5 ether);
 
         // Send ETH from multiple accounts
@@ -190,7 +190,7 @@ contract OwnMevEscrowTest is Test, EthHelpers {
 
     // Test 8: Create escrow directly
     function test_createEscrowDirectly() public {
-        address newVault = makeAddr("newVault");
+        address newVault = makeAddr("NewVault");
 
         // Create a new escrow with newVault as the vault address
         OwnMevEscrow newEscrow = new OwnMevEscrow(newVault);

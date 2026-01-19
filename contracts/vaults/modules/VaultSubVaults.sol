@@ -2,11 +2,11 @@
 
 pragma solidity ^0.8.22;
 
-import {Packing} from "@openzeppelin/contracts/utils/Packing.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {DoubleEndedQueue} from "@openzeppelin/contracts/utils/structs/DoubleEndedQueue.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IVaultsRegistry} from "../../interfaces/IVaultsRegistry.sol";
@@ -18,6 +18,8 @@ import {ICuratorsRegistry} from "../../interfaces/ICuratorsRegistry.sol";
 import {IVaultVersion} from "../../interfaces/IVaultVersion.sol";
 import {ExitQueue} from "../../libraries/ExitQueue.sol";
 import {Errors} from "../../libraries/Errors.sol";
+import {SubVaultUtils} from "../../libraries/SubVaultUtils.sol";
+import {SubVaultExits} from "../../libraries/SubVaultExits.sol";
 import {VaultAdmin} from "./VaultAdmin.sol";
 import {VaultImmutables} from "./VaultImmutables.sol";
 import {VaultState, IVaultState} from "./VaultState.sol";
@@ -38,8 +40,6 @@ abstract contract VaultSubVaults is
     using EnumerableSet for EnumerableSet.AddressSet;
     using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
 
-    uint256 private constant _maxSubVaults = 50;
-
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address private immutable _curatorsRegistry;
 
@@ -51,14 +51,17 @@ abstract contract VaultSubVaults is
 
     EnumerableSet.AddressSet internal _subVaults;
     mapping(address vault => DoubleEndedQueue.Bytes32Deque) private _subVaultsExits;
-    mapping(address vault => SubVaultState state) private _subVaultsStates;
+    mapping(address vault => SubVaultState state) internal _subVaultsStates;
 
     /// @inheritdoc IVaultSubVaults
     uint128 public override subVaultsRewardsNonce;
-    uint128 private _subVaultsTotalAssets;
+    uint128 internal _subVaultsTotalAssets;
 
     uint256 private _totalProcessedExitQueueTickets;
-    uint256 private _ejectingSubVaultShares;
+    uint256 internal _ejectingSubVaultShares;
+
+    /// @inheritdoc IVaultSubVaults
+    address public override pendingMetaSubVault;
 
     /**
      * @dev Constructor
@@ -90,82 +93,72 @@ abstract contract VaultSubVaults is
     /// @inheritdoc IVaultSubVaults
     function addSubVault(address vault) public virtual override {
         _checkAdmin();
-        // check whether the vault is registered in the registry
-        if (vault == address(0) || vault == address(this) || !IVaultsRegistry(_vaultsRegistry).vaults(vault)) {
+
+        // check new sub-vault validity
+        SubVaultUtils.validateSubVault(_subVaults, _vaultsRegistry, _keeper, vault);
+
+        if (_isMetaVault(vault)) {
+            // meta vault must be approved before being added as a sub vault
+            if (pendingMetaSubVault != address(0)) {
+                revert Errors.AlreadyAdded();
+            }
+            pendingMetaSubVault = vault;
+            emit MetaSubVaultProposed(msg.sender, vault);
+        } else {
+            _addSubVault(vault);
+        }
+    }
+
+    /// @inheritdoc IVaultSubVaults
+    function acceptMetaSubVault(address metaSubVault) external virtual override {
+        // only the VaultsRegistry owner can accept a meta vault addition as a sub vault
+        if (msg.sender != Ownable(_vaultsRegistry).owner()) {
+            revert Errors.AccessDenied();
+        }
+
+        if (metaSubVault == address(0) || pendingMetaSubVault != metaSubVault) {
             revert Errors.InvalidVault();
         }
-        // check whether the vault is not already added
-        if (_subVaults.contains(vault)) {
-            revert Errors.AlreadyAdded();
-        }
-        // check whether the vault is not exceeding the limit
-        uint256 subVaultsCount = _subVaults.length();
-        if (subVaultsCount >= _maxSubVaults) {
-            revert Errors.CapacityExceeded();
-        }
-        // check whether vault is collateralized
-        if (!_isSubVaultCollateralized(vault)) {
-            revert Errors.NotCollateralized();
+
+        // check sub-vault validity
+        SubVaultUtils.validateSubVault(_subVaults, _vaultsRegistry, _keeper, metaSubVault);
+
+        // update state
+        delete pendingMetaSubVault;
+        _addSubVault(metaSubVault);
+    }
+
+    /// @inheritdoc IVaultSubVaults
+    function rejectMetaSubVault(address metaSubVault) external virtual override {
+        // only the VaultsRegistry owner or admin can reject a meta vault addition as a sub vault
+        if (msg.sender != Ownable(_vaultsRegistry).owner() && msg.sender != admin) {
+            revert Errors.AccessDenied();
         }
 
-        // check whether legacy exit queue is processed, will revert if vault doesn't have `getExitQueueData` function
-        (,, uint128 totalExitingTickets, uint128 totalExitingAssets,) = IVaultState(vault).getExitQueueData();
-        if (totalExitingTickets != 0 || totalExitingAssets != 0) {
-            revert Errors.ExitRequestNotProcessed();
+        if (metaSubVault == address(0) || pendingMetaSubVault != metaSubVault) {
+            revert Errors.InvalidVault();
         }
 
-        // check harvested
-        uint256 vaultNonce = _getSubVaultRewardsNonce(vault);
-        uint256 lastSubVaultsRewardsNonce = subVaultsRewardsNonce;
-        if (subVaultsCount == 0) {
-            subVaultsRewardsNonce = SafeCast.toUint128(vaultNonce);
-            emit RewardsNonceUpdated(vaultNonce);
-        } else if (vaultNonce != lastSubVaultsRewardsNonce) {
-            revert Errors.NotHarvested();
-        }
+        // update state
+        delete pendingMetaSubVault;
 
-        // add the vault to the list of sub vaults
-        _subVaults.add(vault);
-        emit SubVaultAdded(msg.sender, vault);
+        // emit event
+        emit MetaSubVaultRejected(msg.sender, metaSubVault);
     }
 
     /// @inheritdoc IVaultSubVaults
     function ejectSubVault(address vault) public virtual override {
         _checkAdmin();
 
-        if (ejectingSubVault != address(0)) {
-            revert Errors.EjectingVault();
-        }
-        if (!_subVaults.contains(vault)) {
-            revert Errors.AlreadyRemoved();
-        }
-        if (_subVaults.length() == 1) {
-            revert Errors.EmptySubVaults();
-        }
+        (bool ejected, uint128 ejectingShares) =
+            SubVaultUtils.ejectSubVault(_subVaults, _subVaultsStates, _subVaultsExits, ejectingSubVault, vault);
 
-        // check the vault state
-        SubVaultState memory state = _subVaultsStates[vault];
-        if (state.stakedShares > 0) {
-            // enter exit queue for all the vault staked shares
-            uint256 positionTicket = IVaultEnterExit(vault).enterExitQueue(state.stakedShares, address(this));
-            // add ejecting shares to the vault's exit positions
-            _pushSubVaultExit(vault, SafeCast.toUint160(positionTicket), SafeCast.toUint96(state.stakedShares), false);
-            state.queuedShares += state.stakedShares;
-        }
-
-        // update state
-        if (state.queuedShares > 0) {
-            ejectingSubVault = vault;
-            _ejectingSubVaultShares = state.stakedShares;
-            state.stakedShares = 0;
-            _subVaultsStates[vault] = state;
-            emit SubVaultEjecting(msg.sender, vault);
-        } else {
-            // no shares left
-            _subVaultsExits[vault].clear();
-            // remove the vault from the list of sub vaults
-            _subVaults.remove(vault);
+        if (ejected) {
             emit SubVaultEjected(msg.sender, vault);
+        } else {
+            ejectingSubVault = vault;
+            _ejectingSubVaultShares = ejectingShares;
+            emit SubVaultEjecting(msg.sender, vault);
         }
     }
 
@@ -239,53 +232,26 @@ abstract contract VaultSubVaults is
 
     /// @inheritdoc IVaultSubVaults
     function claimSubVaultsExitedAssets(SubVaultExitRequest[] calldata exitRequests) external override {
-        uint256 exitRequestsLength = exitRequests.length;
         // SLOAD to memory
-        uint256 subVaultsTotalAssets = _subVaultsTotalAssets;
         address _ejectingSubVault = ejectingSubVault;
-        for (uint256 i = 0; i < exitRequestsLength;) {
-            SubVaultExitRequest calldata exitRequest = exitRequests[i];
-            SubVaultState memory subVaultState = _subVaultsStates[exitRequest.vault];
-            (uint256 positionTicket, uint256 positionShares) = _popSubVaultExit(exitRequest.vault);
-            (uint256 leftShares, uint256 exitedShares, uint256 exitedAssets) = IVaultEnterExit(exitRequest.vault)
-                .calculateExitedAssets(address(this), positionTicket, exitRequest.timestamp, exitRequest.exitQueueIndex);
+        uint256 totalExitedAssets =
+            SubVaultUtils.claimSubVaultsExitedAssets(_subVaultsStates, _subVaultsExits, exitRequests);
 
-            subVaultState.queuedShares -= SafeCast.toUint128(positionShares);
-            if (leftShares > 0) {
-                // exit request was not processed in full
-                _pushSubVaultExit(
-                    exitRequest.vault,
-                    SafeCast.toUint160(positionTicket + exitedShares),
-                    SafeCast.toUint96(leftShares),
-                    true
-                );
-                subVaultState.queuedShares += SafeCast.toUint128(leftShares);
-            }
-
-            // update total assets, vault state
-            subVaultsTotalAssets -= exitedAssets;
-            _subVaultsStates[exitRequest.vault] = subVaultState;
-
-            // claim exited assets from the vault
-            IVaultEnterExit(exitRequest.vault).claimExitedAssets(
-                positionTicket, exitRequest.timestamp, exitRequest.exitQueueIndex
-            );
-            if (_ejectingSubVault == exitRequest.vault && subVaultState.queuedShares == 0) {
+        if (_ejectingSubVault != address(0)) {
+            // check whether ejecting vault can be cleaned up
+            SubVaultState memory subVaultState = _subVaultsStates[_ejectingSubVault];
+            if (subVaultState.queuedShares == 0) {
                 // clean up ejecting vault
                 delete ejectingSubVault;
                 delete _ejectingSubVaultShares;
-                _subVaultsExits[exitRequest.vault].clear();
-                _subVaults.remove(exitRequest.vault);
-                emit SubVaultEjected(msg.sender, exitRequest.vault);
-            }
-
-            unchecked {
-                // cannot realistically overflow
-                ++i;
+                _subVaultsExits[_ejectingSubVault].clear();
+                _subVaults.remove(_ejectingSubVault);
+                emit SubVaultEjected(msg.sender, _ejectingSubVault);
             }
         }
-        // update  sub vaults total assets
-        _subVaultsTotalAssets = SafeCast.toUint128(subVaultsTotalAssets);
+
+        // update sub vaults total assets
+        _subVaultsTotalAssets -= SafeCast.toUint128(totalExitedAssets);
     }
 
     /// @inheritdoc IVaultState
@@ -305,26 +271,9 @@ abstract contract VaultSubVaults is
         _checkSubVaultsExitClaims(vaults);
 
         // calculate new total assets and save balances in each sub vault
+        uint256[] memory balances;
         uint256 newSubVaultsTotalAssets;
-        uint256[] memory balances = new uint256[](vaultsLength);
-        for (uint256 i = 0; i < vaultsLength;) {
-            address vault = vaults[i];
-            SubVaultState memory vaultState = _subVaultsStates[vault];
-            uint256 vaultTotalShares = vaultState.stakedShares + vaultState.queuedShares;
-            if (vaultTotalShares > 0) {
-                newSubVaultsTotalAssets += IVaultState(vault).convertToAssets(vaultTotalShares);
-            }
-
-            if (vaultState.stakedShares > 0) {
-                balances[i] = IVaultState(vault).convertToAssets(vaultState.stakedShares);
-            } else {
-                balances[i] = 0;
-            }
-            unchecked {
-                // cannot realistically overflow
-                ++i;
-            }
-        }
+        (balances, newSubVaultsTotalAssets) = SubVaultUtils.getSubVaultsBalances(_subVaultsStates, vaults, true);
 
         // store new sub vaults total assets delta
         int256 totalAssetsDelta = SafeCast.toInt256(newSubVaultsTotalAssets) - SafeCast.toInt256(_subVaultsTotalAssets);
@@ -355,6 +304,25 @@ abstract contract VaultSubVaults is
     {
         // not used
         return (0, false);
+    }
+
+    /**
+     * @dev Internal function to add a sub-vault
+     * @param vault The address of the sub-vault to add
+     */
+    function _addSubVault(address vault) private {
+        // update nonce
+        uint256 vaultNonce = _getSubVaultRewardsNonce(vault);
+        uint256 lastSubVaultsRewardsNonce = subVaultsRewardsNonce;
+        if (_subVaults.length() == 0) {
+            subVaultsRewardsNonce = SafeCast.toUint128(vaultNonce);
+            emit RewardsNonceUpdated(vaultNonce);
+        } else if (vaultNonce != lastSubVaultsRewardsNonce) {
+            revert Errors.NotHarvested();
+        }
+
+        _subVaults.add(vault);
+        emit SubVaultAdded(msg.sender, vault);
     }
 
     /**
@@ -421,8 +389,12 @@ abstract contract VaultSubVaults is
             uint256 positionTicket = IVaultEnterExit(exitRequest.vault).enterExitQueue(vaultShares, address(this));
 
             // save exit request
-            _pushSubVaultExit(
-                exitRequest.vault, SafeCast.toUint160(positionTicket), SafeCast.toUint96(vaultShares), false
+            SubVaultExits.pushSubVaultExit(
+                _subVaultsExits,
+                exitRequest.vault,
+                SafeCast.toUint160(positionTicket),
+                SafeCast.toUint96(vaultShares),
+                false
             );
 
             // update state
@@ -451,7 +423,7 @@ abstract contract VaultSubVaults is
         uint256 vaultsLength = vaults.length;
         for (uint256 i = 0; i < vaultsLength;) {
             address vault = vaults[i];
-            (uint256 positionTicket, uint256 exitShares) = _peekSubVaultExit(vault);
+            (uint256 positionTicket, uint256 exitShares) = SubVaultExits.peekSubVaultExit(_subVaultsExits, vault);
             if (positionTicket == 0 && exitShares == 0) {
                 // no queue positions
                 unchecked {
@@ -544,50 +516,6 @@ abstract contract VaultSubVaults is
             ejectingSubVaultShares - IVaultState(_ejectingSubVault).convertToShares(processedAssets);
     }
 
-    /**
-     * @dev Fetches the sub-vault exit data
-     * @param vault The address of the sub-vault
-     * @return positionTicket The position ticket of the sub-vault
-     * @return shares The shares to be exited from the sub-vault
-     */
-    function _peekSubVaultExit(address vault) private view returns (uint160 positionTicket, uint96 shares) {
-        if (_subVaultsExits[vault].empty()) {
-            return (0, 0);
-        }
-        bytes32 packed = _subVaultsExits[vault].front();
-        positionTicket = uint160(Packing.extract_32_20(packed, 0));
-        shares = uint96(Packing.extract_32_12(packed, 20));
-    }
-
-    /**
-     * @dev Stores the sub-vault exit data
-     * @param vault The address of the sub-vault
-     * @param positionTicket The position ticket of the sub-vault
-     * @param shares The shares to be exited from the sub-vault
-     * @param front Whether to insert the exit data at the front of the queue
-     */
-    function _pushSubVaultExit(address vault, uint160 positionTicket, uint96 shares, bool front) private {
-        if (shares == 0) revert Errors.InvalidShares();
-        bytes32 packed = Packing.pack_20_12(bytes20(positionTicket), bytes12(shares));
-        if (front) {
-            _subVaultsExits[vault].pushFront(packed);
-        } else {
-            _subVaultsExits[vault].pushBack(packed);
-        }
-    }
-
-    /**
-     * @dev Removes the sub-vault exit data
-     * @param vault The address of the sub-vault
-     * @return positionTicket The position ticket of the sub-vault
-     * @return shares The shares to be exited from the sub-vault
-     */
-    function _popSubVaultExit(address vault) private returns (uint160 positionTicket, uint96 shares) {
-        bytes32 packed = _subVaultsExits[vault].popFront();
-        positionTicket = uint160(Packing.extract_32_20(packed, 0));
-        shares = uint96(Packing.extract_32_12(packed, 20));
-    }
-
     /// @inheritdoc VaultImmutables
     function _checkHarvested() internal view virtual override {
         if (isStateUpdateRequired()) {
@@ -598,19 +526,6 @@ abstract contract VaultSubVaults is
     /// @inheritdoc VaultImmutables
     function _isCollateralized() internal view virtual override returns (bool) {
         return _subVaults.length() > 0;
-    }
-
-    /**
-     * @dev Internal function to check whether a sub-vault is collateralized
-     * @param subVault The address of the sub-vault
-     * @return true if the sub-vault is collateralized
-     */
-    function _isSubVaultCollateralized(address subVault) private view returns (bool) {
-        try IVaultSubVaults(subVault).isCollateralized() returns (bool collateralized) {
-            return collateralized;
-        } catch {}
-
-        return IKeeperRewards(_keeper).isCollateralized(subVault);
     }
 
     /**
@@ -650,6 +565,19 @@ abstract contract VaultSubVaults is
     }
 
     /**
+     * @dev Internal function to check whether the vault is a meta vault
+     * @param vault The address of the vault
+     * @return True if the vault is a meta vault, false otherwise
+     */
+    function _isMetaVault(address vault) private view returns (bool) {
+        try IVaultSubVaults(vault).getSubVaults() {
+            return true;
+        } catch {
+            return false;
+        }
+    }
+
+    /**
      * @dev Internal function to deposit assets to the vault
      * @param vault The address of the vault
      * @param assets The amount of assets to deposit
@@ -672,5 +600,5 @@ abstract contract VaultSubVaults is
      * variables without shifting down storage in the inheritance chain.
      * See https://docs.openzeppelin.com/contracts/4.x/upgradeable#storage_gaps
      */
-    uint256[50] private __gap;
+    uint256[49] private __gap;
 }

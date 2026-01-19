@@ -1,9 +1,17 @@
 {
-  "EthMetaVaultTest_test_deposit": "83013",
-  "EthMetaVaultTest_test_depositAndMintOsToken": "179864",
-  "EthMetaVaultTest_test_depositViaFallback": "79631",
-  "EthMetaVaultTest_test_isStateUpdateRequired_true": "138057",
-  "EthMetaVaultTest_test_updateStateAndDeposit": "188941",
-  "EthMetaVaultTest_test_updateStateAndDepositAndMintOsToken": "200835",
-  "EthMetaVaultTest_test_userClaimExitedAssets": "51730"
+  "EthMetaVaultTest_test_calculateSubVaultsRedemptions_exactWithdrawableAssets": "47214",
+  "EthMetaVaultTest_test_calculateSubVaultsRedemptions_insufficientWithdrawableAssets": "96978",
+  "EthMetaVaultTest_test_calculateSubVaultsRedemptions_success": "97007",
+  "EthMetaVaultTest_test_deposit": "85504",
+  "EthMetaVaultTest_test_depositAndMintOsToken": "179869",
+  "EthMetaVaultTest_test_depositViaFallback": "82122",
+  "EthMetaVaultTest_test_isStateUpdateRequired_true": "136011",
+  "EthMetaVaultTest_test_redeemSubVaultsAssets_noRedeemRequests": "69102",
+  "EthMetaVaultTest_test_redeemSubVaultsAssets_noRoundingErrors": "549703",
+  "EthMetaVaultTest_test_redeemSubVaultsAssets_redeemAssetsExceedSubVaultsWithdrawableAssets": "548661",
+  "EthMetaVaultTest_test_redeemSubVaultsAssets_redeemAssetsLessThanSubVaultsWithdrawableAssets": "549679",
+  "EthMetaVaultTest_test_redeemSubVaultsAssets_success": "549679",
+  "EthMetaVaultTest_test_updateStateAndDeposit": "197478",
+  "EthMetaVaultTest_test_updateStateAndDepositAndMintOsToken": "200840",
+  "EthMetaVaultTest_test_userClaimExitedAssets": "54213"
 }
