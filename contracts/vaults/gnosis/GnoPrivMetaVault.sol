@@ -38,6 +38,7 @@ contract GnoPrivMetaVault is Initializable, GnoMetaVault, VaultWhitelist, IGnoPr
         override(IGnoMetaVault, GnoMetaVault)
         reinitializer(_version)
     {
+        // do not check for the upgrades since this is the first implementation of GnoPrivMetaVault
         // initialize deployed vault
         address _admin = IGnoMetaVaultFactory(msg.sender).vaultAdmin();
         __GnoMetaVault_init(_admin, abi.decode(params, (MetaVaultInitParams)));
