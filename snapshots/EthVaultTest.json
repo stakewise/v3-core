@@ -1,10 +1,10 @@
 {
-  "EthVaultTest_test_deploysCorrectly": "379895",
-  "EthVaultTest_test_depositAndMintOsToken": "202060",
-  "EthVaultTest_test_exitQueue_works": "99131",
-  "EthVaultTest_test_fallbackDeposit": "77627",
-  "EthVaultTest_test_updateStateAndDepositAndMintOsToken": "228182",
-  "EthVaultTest_test_upgradesCorrectly": "119172",
-  "EthVaultTest_test_withdrawValidator_unknown": "55973",
-  "EthVaultTest_test_withdrawValidator_validatorsManager": "74114"
+  "EthVaultTest_test_deploysCorrectly": "1106052",
+  "EthVaultTest_test_depositAndMintOsToken": "201897",
+  "EthVaultTest_test_exitQueue_works": "84171",
+  "EthVaultTest_test_fallbackDeposit": "79703",
+  "EthVaultTest_test_updateStateAndDepositAndMintOsToken": "212767",
+  "EthVaultTest_test_upgradesCorrectly": "118828",
+  "EthVaultTest_test_withdrawValidator_unknown": "55896",
+  "EthVaultTest_test_withdrawValidator_validatorsManager": "74037"
 }
