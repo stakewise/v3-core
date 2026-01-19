@@ -2,6 +2,9 @@
 
 pragma solidity ^0.8.22;
 
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IGnoMetaVault} from "../../interfaces/IGnoMetaVault.sol";
 import {IGnoMetaVaultFactory} from "../../interfaces/IGnoMetaVaultFactory.sol";
 import {IVaultGnoStaking} from "../../interfaces/IVaultGnoStaking.sol";
@@ -11,9 +14,6 @@ import {VaultEnterExit} from "../modules/VaultEnterExit.sol";
 import {VaultState} from "../modules/VaultState.sol";
 import {IVaultSubVaults, VaultSubVaults} from "../modules/VaultSubVaults.sol";
 import {IVaultVersion, VaultVersion} from "../modules/VaultVersion.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title GnoMetaVault

@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.22;
 
+import {console} from "forge-std/console.sol";
 import {IMetaVault} from "../contracts/interfaces/IMetaVault.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
@@ -11,7 +12,6 @@ import {EthMetaVault} from "../contracts/vaults/ethereum/EthMetaVault.sol";
 import {EthMetaVaultFactory} from "../contracts/vaults/ethereum/EthMetaVaultFactory.sol";
 import {EthPrivMetaVault} from "../contracts/vaults/ethereum/EthPrivMetaVault.sol";
 import {Network} from "./Network.sol";
-import {console} from "forge-std/console.sol";
 
 contract UpgradeEthNetwork is Network {
     address public osTokenRedeemerOwner;

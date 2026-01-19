@@ -10,11 +10,13 @@ pragma solidity ^0.8.22;
 interface IGnoMetaVaultFactory {
     /**
      * @notice Event emitted on a MetaVault creation
+     * @dev the caller address is redundant, but keep it in the event for backward compatibility
+     * @param caller The address of the factory caller
      * @param admin The address of the Vault admin
      * @param vault The address of the created Vault
      * @param params The encoded parameters for initializing the Vault contract
      */
-    event MetaVaultCreated(address indexed admin, address indexed vault, bytes params);
+    event MetaVaultCreated(address indexed caller, address indexed admin, address indexed vault, bytes params);
 
     /**
      * @notice The address of the Vault implementation contract used for proxy creation

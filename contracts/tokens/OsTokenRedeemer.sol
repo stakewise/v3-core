@@ -2,15 +2,6 @@
 
 pragma solidity ^0.8.22;
 
-import {Multicall} from "../base/Multicall.sol";
-import {IMetaVault} from "../interfaces/IMetaVault.sol";
-import {IOsTokenRedeemer} from "../interfaces/IOsTokenRedeemer.sol";
-import {IOsTokenVaultController} from "../interfaces/IOsTokenVaultController.sol";
-import {IVaultOsToken} from "../interfaces/IVaultOsToken.sol";
-import {IVaultSubVaults} from "../interfaces/IVaultSubVaults.sol";
-import {IVaultsRegistry} from "../interfaces/IVaultsRegistry.sol";
-import {Errors} from "../libraries/Errors.sol";
-import {ExitQueue} from "../libraries/ExitQueue.sol";
 import {Ownable, Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
@@ -18,6 +9,15 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {IMetaVault} from "../interfaces/IMetaVault.sol";
+import {IOsTokenRedeemer} from "../interfaces/IOsTokenRedeemer.sol";
+import {IOsTokenVaultController} from "../interfaces/IOsTokenVaultController.sol";
+import {IVaultOsToken} from "../interfaces/IVaultOsToken.sol";
+import {IVaultSubVaults} from "../interfaces/IVaultSubVaults.sol";
+import {IVaultsRegistry} from "../interfaces/IVaultsRegistry.sol";
+import {Multicall} from "../base/Multicall.sol";
+import {Errors} from "../libraries/Errors.sol";
+import {ExitQueue} from "../libraries/ExitQueue.sol";
 
 /**
  * @title OsTokenRedeemer

@@ -2,14 +2,14 @@
 
 pragma solidity ^0.8.22;
 
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {IEthMetaVaultFactory} from "../../interfaces/IEthMetaVaultFactory.sol";
 import {IEthPrivMetaVault} from "../../interfaces/IEthPrivMetaVault.sol";
 import {IVaultOsToken, VaultOsToken} from "../modules/VaultOsToken.sol";
 import {IVaultVersion} from "../modules/VaultVersion.sol";
 import {VaultWhitelist} from "../modules/VaultWhitelist.sol";
 import {EthMetaVault, IEthMetaVault} from "./EthMetaVault.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /**
  * @title EthPrivMetaVault
@@ -41,6 +41,7 @@ contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPr
         override(IEthMetaVault, EthMetaVault)
         reinitializer(_version)
     {
+        // do not check for the upgrades since this is the first implementation of EthPrivMetaVault
         // initialize deployed vault
         address _admin = IEthMetaVaultFactory(msg.sender).vaultAdmin();
         __EthMetaVault_init(_admin, abi.decode(params, (MetaVaultInitParams)));

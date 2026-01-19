@@ -2,6 +2,9 @@
 
 pragma solidity ^0.8.22;
 
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Address} from "@openzeppelin/contracts/utils/Address.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {IEthMetaVault} from "../../interfaces/IEthMetaVault.sol";
 import {IEthMetaVaultFactory} from "../../interfaces/IEthMetaVaultFactory.sol";
 import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
@@ -12,9 +15,6 @@ import {VaultEnterExit} from "../modules/VaultEnterExit.sol";
 import {VaultState} from "../modules/VaultState.sol";
 import {VaultSubVaults} from "../modules/VaultSubVaults.sol";
 import {IVaultVersion, VaultVersion} from "../modules/VaultVersion.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 /**
  * @title EthMetaVault

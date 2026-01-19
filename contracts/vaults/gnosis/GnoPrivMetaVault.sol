@@ -2,13 +2,13 @@
 
 pragma solidity ^0.8.22;
 
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IGnoMetaVaultFactory} from "../../interfaces/IGnoMetaVaultFactory.sol";
 import {IGnoPrivMetaVault} from "../../interfaces/IGnoPrivMetaVault.sol";
 import {IVaultOsToken, VaultOsToken} from "../modules/VaultOsToken.sol";
 import {IVaultVersion, VaultVersion} from "../modules/VaultVersion.sol";
 import {VaultWhitelist} from "../modules/VaultWhitelist.sol";
 import {GnoMetaVault, IGnoMetaVault} from "./GnoMetaVault.sol";
-import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
  * @title GnoPrivMetaVault

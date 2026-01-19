@@ -37,6 +37,7 @@ contract GnoPrivErc20Vault is Initializable, GnoErc20Vault, VaultWhitelist, IGno
         override(IGnoErc20Vault, GnoErc20Vault)
         reinitializer(_version)
     {
+        // do not check for the upgrades since this is the first implementation of EthPrivMetaVault
         // if admin is already set, it's an upgrade from version 2 to 3
         if (admin != address(0)) {
             __GnoErc20Vault_upgrade();
