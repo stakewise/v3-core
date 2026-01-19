@@ -8,5 +8,5 @@
   "KeeperOraclesTest_test_removeOracle_success": "36666",
   "KeeperOraclesTest_test_updateConfig_onlyOwner": "31726",
   "KeeperOraclesTest_test_updateConfig_success": "32787",
-  "KeeperOraclesTest_test_verifySignatures_throughKeeperRewards": "242384"
+  "KeeperOraclesTest_test_verifySignatures_throughKeeperRewards": "242271"
 }

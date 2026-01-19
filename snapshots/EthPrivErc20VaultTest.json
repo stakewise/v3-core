@@ -1,9 +1,9 @@
 {
-  "EthPrivErc20VaultTest_test_canDepositAndMintOsTokenAsWhitelistedUser": "206492",
-  "EthPrivErc20VaultTest_test_canDepositAsWhitelistedUser": "81309",
-  "EthPrivErc20VaultTest_test_canDepositUsingReceiveAsWhitelistedUser": "77607",
-  "EthPrivErc20VaultTest_test_canMintOsTokenAsWhitelistedUser": "161447",
-  "EthPrivErc20VaultTest_test_deploysCorrectly": "1351603",
-  "EthPrivErc20VaultTest_test_transfer": "59632",
+  "EthPrivErc20VaultTest_test_canDepositAndMintOsTokenAsWhitelistedUser": "206655",
+  "EthPrivErc20VaultTest_test_canDepositAsWhitelistedUser": "81395",
+  "EthPrivErc20VaultTest_test_canDepositUsingReceiveAsWhitelistedUser": "77693",
+  "EthPrivErc20VaultTest_test_canMintOsTokenAsWhitelistedUser": "161601",
+  "EthPrivErc20VaultTest_test_deploysCorrectly": "625462",
+  "EthPrivErc20VaultTest_test_transfer": "59709",
   "EthPrivErc20VaultTest_test_upgradesCorrectly": "119559"
 }

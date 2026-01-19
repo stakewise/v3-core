@@ -1,12 +1,12 @@
 {
-  "VaultVersionTest_test_reinitializeFails": "30846",
-  "VaultVersionTest_test_upgradeMultipleSteps": "60956",
-  "VaultVersionTest_test_upgradeNonAdminFails": "38795",
-  "VaultVersionTest_test_upgradeToDifferentVaultIdFails": "42287",
-  "VaultVersionTest_test_upgradeToNextVersion": "83604",
-  "VaultVersionTest_test_upgradeToSameVersionFails": "37028",
-  "VaultVersionTest_test_upgradeToSkipVersionFails": "42997",
-  "VaultVersionTest_test_upgradeToUnapprovedImplementationFails": "46282",
-  "VaultVersionTest_test_upgradeToZeroAddressFails": "36563",
-  "VaultVersionTest_test_upgradeWithInvalidCallDataFails": "60653"
+  "VaultVersionTest_test_reinitializeFails": "30923",
+  "VaultVersionTest_test_upgradeMultipleSteps": "61033",
+  "VaultVersionTest_test_upgradeNonAdminFails": "38872",
+  "VaultVersionTest_test_upgradeToDifferentVaultIdFails": "42352",
+  "VaultVersionTest_test_upgradeToNextVersion": "83681",
+  "VaultVersionTest_test_upgradeToSameVersionFails": "37105",
+  "VaultVersionTest_test_upgradeToSkipVersionFails": "43074",
+  "VaultVersionTest_test_upgradeToUnapprovedImplementationFails": "46371",
+  "VaultVersionTest_test_upgradeToZeroAddressFails": "36640",
+  "VaultVersionTest_test_upgradeWithInvalidCallDataFails": "60730"
 }
