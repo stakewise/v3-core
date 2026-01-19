@@ -25,7 +25,7 @@ interface IOsTokenRedeemer is IMulticall {
      * @param vault The address of the Vault
      * @param owner The address of the position owner
      * @param leafShares The amount of OsToken shares used to calculate the merkle leaf
-     * @param osTokenSharesToRedeem The amount of OsToken shares to redeem
+     * @param sharesToRedeem The amount of OsToken shares to redeem
      */
     struct OsTokenPosition {
         address vault;
@@ -175,11 +175,11 @@ interface IOsTokenRedeemer is IMulticall {
         view
         returns (uint256 queuedShares, uint256 unclaimedAssets, uint256 totalTickets);
 
-	/**
-	 * @notice Gets the cumulative tickets in the exit queue
-	 * @return The cumulative tickets in the exit queue
-	 */
-    function getExitQueueCumulativeTickets() external view  returns (uint256);
+    /**
+     * @notice Gets the cumulative tickets in the exit queue
+     * @return The cumulative tickets in the exit queue
+     */
+    function getExitQueueCumulativeTickets() external view returns (uint256);
 
     /**
      * @notice Calculates the missing assets in the exit queue for a target cumulative tickets.
@@ -263,8 +263,9 @@ interface IOsTokenRedeemer is IMulticall {
      * @notice Redeem OsToken shares from a specific sub-vault. Can only be called by the meta vault.
      * @param subVault The address of the sub-vault
      * @param osTokenShares The number of OsToken shares to redeem
+     * @return The amount of redeemed assets
      */
-    function redeemSubVaultOsToken(address subVault, uint256 osTokenShares) external;
+    function redeemSubVaultOsToken(address subVault, uint256 osTokenShares) external returns (uint256);
 
     /**
      * @notice Redeem assets from the sub-vaults to the meta vault. Can only be called by the positions manager.

@@ -1,5 +1,5 @@
 {
-  "GnoGenesisVaultTest_test_migrate_works": "204216",
-  "GnoGenesisVaultTest_test_pullWithdrawals_claimEscrowAssets": "867236",
-  "GnoGenesisVaultTest_test_upgradesCorrectly": "5823320"
+  "GnoGenesisVaultTest_test_migrate_works": "206716",
+  "GnoGenesisVaultTest_test_pullWithdrawals_claimEscrowAssets": "879736",
+  "GnoGenesisVaultTest_test_upgradesCorrectly": "5830820"
 }

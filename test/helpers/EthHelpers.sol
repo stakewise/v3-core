@@ -2,7 +2,7 @@
 
 pragma solidity ^0.8.22;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, stdStorage, StdStorage} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {IKeeperValidators} from "../../contracts/interfaces/IKeeperValidators.sol";
 import {IOsTokenConfig} from "../../contracts/interfaces/IOsTokenConfig.sol";
@@ -35,6 +35,8 @@ import {VaultsRegistry, IVaultsRegistry} from "../../contracts/vaults/VaultsRegi
 import {CuratorsRegistry} from "../../contracts/curators/CuratorsRegistry.sol";
 
 abstract contract EthHelpers is Test, ValidatorsHelpers {
+    using stdStorage for StdStorage;
+
     uint256 internal constant forkBlockNumber = 24235110;
     uint256 internal constant _securityDeposit = 1e9;
     address private constant _keeper = 0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5;
@@ -485,5 +487,23 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         VaultsRegistry(_vaultsRegistry).addVaultImpl(impl);
 
         return impl;
+    }
+
+    // ============ Shared Meta Vault Test Helpers ============
+
+    function _getEmptyHarvestParams() internal pure returns (IKeeperRewards.HarvestParams memory) {
+        bytes32[] memory emptyProof;
+        return
+            IKeeperRewards.HarvestParams({rewardsRoot: bytes32(0), proof: emptyProof, reward: 0, unlockedMevReward: 0});
+    }
+
+    function _setVaultRewardsNonce(address vault, uint64 rewardsNonce) internal {
+        stdstore.enable_packed_slots().target(_keeper).sig("rewards(address)").with_key(vault).depth(1).checked_write(
+            rewardsNonce
+        );
+    }
+
+    function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {
+        stdstore.enable_packed_slots().target(_keeper).sig("rewardsNonce()").checked_write(rewardsNonce);
     }
 }

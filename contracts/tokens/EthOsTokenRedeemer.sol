@@ -33,22 +33,17 @@ contract EthOsTokenRedeemer is IEthOsTokenRedeemer, ReentrancyGuard, OsTokenRede
     {}
 
     /// @inheritdoc IEthOsTokenRedeemer
-    function swapAssetsToOsTokenShares(
-        address receiver
-    ) external payable override returns (uint256 osTokenShares) {
+    function swapAssetsToOsTokenShares(address receiver) external payable override returns (uint256 osTokenShares) {
         return _swapAssetsToOsTokenShares(receiver, msg.value);
     }
 
     /// @inheritdoc OsTokenRedeemer
-    function _availableAssets() internal view override returns (uint256) {
-        return address(this).balance;
+    function _getAssets(address account) internal view override returns (uint256) {
+        return account.balance;
     }
 
     /// @inheritdoc OsTokenRedeemer
-    function _transferAssets(
-        address receiver,
-        uint256 assets
-    ) internal override nonReentrant {
+    function _transferAssets(address receiver, uint256 assets) internal override nonReentrant {
         return Address.sendValue(payable(receiver), assets);
     }
 

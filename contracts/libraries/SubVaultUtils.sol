@@ -146,16 +146,18 @@ library SubVaultUtils {
             }
             IVaultOsToken(redeemRequest.vault).mintOsToken(redeemer, osTokenShares, address(0));
 
+            // get shares before redemption to track actual consumption
+            uint256 sharesBefore = IVaultState(redeemRequest.vault).getShares(address(this));
+
             // execute redeem
-            IOsTokenRedeemer(redeemer).redeemSubVaultOsToken(redeemRequest.vault, osTokenShares);
+            redeemAssets = IOsTokenRedeemer(redeemer).redeemSubVaultOsToken(redeemRequest.vault, osTokenShares);
 
             // check position is closed
             if (IVaultOsToken(redeemRequest.vault).osTokenPositions(address(this)) > 0) {
                 revert Errors.InvalidPosition();
             }
 
-            // update state
-            uint256 redeemedShares = IVaultState(redeemRequest.vault).convertToShares(redeemAssets);
+            uint256 redeemedShares = sharesBefore - IVaultState(redeemRequest.vault).getShares(address(this));
             subVaultsStates[redeemRequest.vault].stakedShares -= SafeCast.toUint128(redeemedShares);
             totalRedeemedAssets += redeemAssets;
 

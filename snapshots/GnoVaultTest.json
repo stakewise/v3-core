@@ -1,7 +1,7 @@
 {
-  "GnoVaultTest_test_deploysCorrectly": "678256",
-  "GnoVaultTest_test_exitQueue_works": "96643",
-  "GnoVaultTest_test_upgradesCorrectly": "334443",
+  "GnoVaultTest_test_deploysCorrectly": "678345",
+  "GnoVaultTest_test_exitQueue_works": "99131",
+  "GnoVaultTest_test_upgradesCorrectly": "339549",
   "GnoVaultTest_test_withdrawValidator_unknown": "55950",
   "GnoVaultTest_test_withdrawValidator_validatorsManager": "74091"
 }

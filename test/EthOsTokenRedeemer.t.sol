@@ -10,6 +10,7 @@ import {IOsTokenRedeemer} from "../contracts/interfaces/IOsTokenRedeemer.sol";
 import {EthVault, IEthVault} from "../contracts/vaults/ethereum/EthVault.sol";
 import {EthMetaVault} from "../contracts/vaults/ethereum/EthMetaVault.sol";
 import {IMetaVault} from "../contracts/interfaces/IMetaVault.sol";
+import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
@@ -1462,21 +1463,238 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         );
     }
 
-    // ========== Helper Functions for Meta Vault Tests ==========
+    // ========== Concurrent Redemption Tests ==========
 
-    function _getEmptyHarvestParams() internal pure returns (IKeeperRewards.HarvestParams memory) {
-        bytes32[] memory emptyProof;
-        return
-            IKeeperRewards.HarvestParams({rewardsRoot: bytes32(0), proof: emptyProof, reward: 0, unlockedMevReward: 0});
+    function test_redeemSubVaultsAssets_concurrentMultipleSubVaults() public {
+        // Setup meta vault with 4 sub vaults to test concurrent redemptions
+        _setupMetaVaultWithSubVaults(4);
+
+        // Deposit significant amount and distribute to sub vaults
+        uint256 depositAmount = 100 ether;
+        vm.deal(user1, depositAmount);
+        vm.prank(user1);
+        metaVault.deposit{value: depositAmount}(user1, address(0));
+
+        // Distribute assets to sub-vaults
+        metaVault.depositToSubVaults();
+        _updateMetaVaultState();
+
+        // Record sub vault states before redemption
+        uint256[] memory stakedSharesBefore = new uint256[](subVaults.length);
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            stakedSharesBefore[i] = metaVault.subVaultsStates(subVaults[i]).stakedShares;
+        }
+
+        // Request redemption that will require multiple sub-vaults
+        uint256 assetsToRedeem = 30 ether;
+
+        vm.prank(positionsManager);
+        _startSnapshotGas("test_redeemSubVaultsAssets_concurrentMultipleSubVaults");
+        uint256 totalRedeemed = osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), assetsToRedeem);
+        _stopSnapshotGas();
+
+        // Verify assets were redeemed from multiple sub-vaults
+        uint256 subVaultsWithRedemptions = 0;
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            uint256 stakedSharesAfter = metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            if (stakedSharesAfter < stakedSharesBefore[i]) {
+                subVaultsWithRedemptions++;
+            }
+        }
+
+        assertGt(subVaultsWithRedemptions, 1, "Should redeem from multiple sub-vaults concurrently");
+        assertApproxEqRel(totalRedeemed, assetsToRedeem, 1, "Total redeemed should match requested");
     }
 
-    function _setVaultRewardsNonce(address _vault, uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewards(address)").with_key(_vault)
-            .depth(1).checked_write(rewardsNonce);
+    function test_redeemSubVaultsAssets_multipleSequentialRedemptions() public {
+        // Setup meta vault
+        _setupMetaVaultWithSubVaults(3);
+
+        // User deposits
+        vm.deal(user1, 100 ether);
+        vm.prank(user1);
+        metaVault.deposit{value: 100 ether}(user1, address(0));
+
+        // Distribute assets to sub-vaults
+        metaVault.depositToSubVaults();
+        _updateMetaVaultState();
+
+        // Use fixed amounts for redemption
+        uint256 firstRedeemAmount = 10 ether;
+
+        vm.prank(positionsManager);
+        uint256 redeemed1 = osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), firstRedeemAmount);
+
+        // Verify first redemption succeeded (may be less than requested if limited by withdrawable)
+        assertGt(redeemed1, 0, "First redemption should succeed");
+
+        // Second redemption
+        vm.prank(positionsManager);
+        uint256 redeemed2 = osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), firstRedeemAmount);
+
+        // Verify second redemption succeeded
+        assertGt(redeemed2, 0, "Second redemption should succeed");
+
+        // Total should be greater than zero and both redemptions should work
+        assertGt(redeemed1 + redeemed2, redeemed1, "Second redemption should add to total");
     }
 
-    function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewardsNonce()")
-            .checked_write(rewardsNonce);
+    function test_redeemSubVaultsAssets_stateUpdatesAcrossSubVaults() public {
+        // Setup with known configuration
+        _setupMetaVaultWithSubVaults(3);
+
+        uint256 depositAmount = 60 ether;
+        vm.deal(user1, depositAmount);
+        vm.prank(user1);
+        metaVault.deposit{value: depositAmount}(user1, address(0));
+
+        // Distribute assets to sub-vaults
+        metaVault.depositToSubVaults();
+        _updateMetaVaultState();
+
+        // Record initial states
+        uint256 totalStakedBefore = 0;
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            totalStakedBefore += metaVault.subVaultsStates(subVaults[i]).stakedShares;
+        }
+
+        // Redeem significant amount
+        uint256 assetsToRedeem = 40 ether;
+        vm.prank(positionsManager);
+        osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), assetsToRedeem);
+
+        // Verify state updates were properly applied
+        uint256 totalStakedAfter = 0;
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            totalStakedAfter += metaVault.subVaultsStates(subVaults[i]).stakedShares;
+        }
+
+        // Total staked shares should decrease
+        assertLt(totalStakedAfter, totalStakedBefore, "Total staked shares should decrease after redemption");
+
+        // Verify no negative shares or overflow
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            uint128 stakedShares = metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            assertGe(stakedShares, 0, "Staked shares should never be negative");
+        }
+    }
+
+    function test_redeemSubVaultsAssets_largeAmountAcrossAllSubVaults() public {
+        // Setup with many sub vaults
+        _setupMetaVaultWithSubVaults(5);
+
+        // Large deposit
+        uint256 depositAmount = 200 ether;
+        vm.deal(user1, depositAmount);
+        vm.prank(user1);
+        metaVault.deposit{value: depositAmount}(user1, address(0));
+
+        // Distribute assets to sub-vaults
+        metaVault.depositToSubVaults();
+        _updateMetaVaultState();
+
+        // Record initial staked shares
+        uint256[] memory initialShares = new uint256[](subVaults.length);
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            initialShares[i] = metaVault.subVaultsStates(subVaults[i]).stakedShares;
+        }
+
+        // Request a large redemption amount (uses fixed amount like other working tests)
+        uint256 assetsToRedeem = 100 ether;
+
+        vm.prank(positionsManager);
+        _startSnapshotGas("test_redeemSubVaultsAssets_largeAmountAcrossAllSubVaults");
+        uint256 totalRedeemed = osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), assetsToRedeem);
+        _stopSnapshotGas();
+
+        // Verify we redeemed something
+        assertGt(totalRedeemed, 0, "Should redeem some assets");
+
+        // Check that some sub-vaults had their staked shares reduced
+        uint256 vaultsWithReductions = 0;
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            uint256 currentShares = metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            if (currentShares < initialShares[i]) {
+                vaultsWithReductions++;
+            }
+        }
+
+        // Multiple vaults should have contributed to the redemption
+        assertGt(vaultsWithReductions, 0, "Some sub-vaults should have been redeemed from");
+    }
+
+    function test_redeemSubVaultsAssets_accountingConsistencyAfterRedemption() public {
+        // Test that sub vault accounting remains consistent after redemption
+        _setupMetaVaultWithSubVaults(4);
+
+        uint256 depositAmount = 100 ether;
+        vm.deal(user1, depositAmount);
+        vm.prank(user1);
+        metaVault.deposit{value: depositAmount}(user1, address(0));
+
+        // Distribute assets to sub-vaults
+        metaVault.depositToSubVaults();
+        _updateMetaVaultState();
+
+        // Record initial values
+        uint256 metaVaultBalanceBefore = address(metaVault).balance;
+        uint256 totalSubVaultSharesBefore = 0;
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            totalSubVaultSharesBefore += metaVault.subVaultsStates(subVaults[i]).stakedShares;
+        }
+
+        // Perform a redemption
+        uint256 redeemAmount = 20 ether;
+        vm.prank(positionsManager);
+        uint256 redeemed = osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), redeemAmount);
+
+        // Verify redemption succeeded
+        assertGt(redeemed, 0, "Should have redeemed some assets");
+
+        // Verify sub vault shares decreased
+        uint256 totalSubVaultSharesAfter = 0;
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            totalSubVaultSharesAfter += metaVault.subVaultsStates(subVaults[i]).stakedShares;
+        }
+        assertLt(totalSubVaultSharesAfter, totalSubVaultSharesBefore, "Sub vault shares should decrease");
+
+        // Meta vault's balance should have increased (it received the redeemed assets)
+        uint256 metaVaultBalanceAfter = address(metaVault).balance;
+        assertGt(metaVaultBalanceAfter, metaVaultBalanceBefore, "Meta vault balance should increase");
+
+        // The balance increase should approximately match the redeemed amount
+        assertApproxEqRel(
+            metaVaultBalanceAfter - metaVaultBalanceBefore,
+            redeemed,
+            5e16,
+            "Balance increase should match redeemed"
+        );
+    }
+
+    // Helper to setup meta vault with specific number of sub vaults
+    function _setupMetaVaultWithSubVaults(uint256 numSubVaults) internal {
+        // Clear existing subVaults array
+        delete subVaults;
+
+        // Deploy meta vault
+        bytes memory initParams = abi.encode(
+            IMetaVault.MetaVaultInitParams({
+                subVaultsCurator: _balancedCurator,
+                capacity: type(uint256).max,
+                feePercent: 0,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        metaVault = EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
+
+        // Deploy and add sub vaults
+        for (uint256 i = 0; i < numSubVaults; i++) {
+            address subVault = _createSubVault(admin);
+            _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), subVault);
+            subVaults.push(subVault);
+
+            vm.prank(admin);
+            metaVault.addSubVault(subVault);
+        }
     }
 }

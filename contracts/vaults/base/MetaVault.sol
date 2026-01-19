@@ -56,22 +56,12 @@ abstract contract MetaVault is
 
     /// @inheritdoc IMetaVault
     function calculateSubVaultsRedemptions(uint256 assetsToRedeem)
-        public
+        external
         view
         override
         returns (ISubVaultsCurator.ExitRequest[] memory redeemRequests)
     {
-        _checkHarvested();
-
-        return SubVaultUtils.calculateSubVaultsRedemptions(
-            _subVaultsStates,
-            subVaultsCurator,
-            getSubVaults(),
-            assetsToRedeem,
-            withdrawableAssets(),
-            ejectingSubVault,
-            _ejectingSubVaultShares
-        );
+        return _calculateSubVaultsRedemptions(assetsToRedeem, true);
     }
 
     /// @inheritdoc IMetaVault
@@ -90,7 +80,7 @@ abstract contract MetaVault is
         }
 
         // get redeem requests
-        ISubVaultsCurator.ExitRequest[] memory redeemRequests = calculateSubVaultsRedemptions(assetsToRedeem);
+        ISubVaultsCurator.ExitRequest[] memory redeemRequests = _calculateSubVaultsRedemptions(assetsToRedeem, false);
         if (redeemRequests.length == 0) {
             return totalRedeemedAssets;
         }
@@ -136,6 +126,30 @@ abstract contract MetaVault is
     /// @inheritdoc VaultImmutables
     function _checkHarvested() internal view override(VaultImmutables, VaultSubVaults) {
         super._checkHarvested();
+    }
+
+    /**
+     * @dev Calculates the required sub-vaults exit requests to fulfill the assets to redeem
+     * @param assetsToRedeem The amount of assets to redeem
+     * @param includeEjectingSubVaultShares Whether to take into account shares from the ejecting sub-vault
+     * @return redeemRequests The array of sub-vaults exit requests
+     */
+    function _calculateSubVaultsRedemptions(uint256 assetsToRedeem, bool includeEjectingSubVaultShares)
+        private
+        view
+        returns (ISubVaultsCurator.ExitRequest[] memory redeemRequests)
+    {
+        _checkHarvested();
+
+        return SubVaultUtils.calculateSubVaultsRedemptions(
+            _subVaultsStates,
+            subVaultsCurator,
+            getSubVaults(),
+            assetsToRedeem,
+            withdrawableAssets(),
+            ejectingSubVault,
+            includeEjectingSubVaultShares ? _ejectingSubVaultShares : 0
+        );
     }
 
     /// @inheritdoc VaultImmutables

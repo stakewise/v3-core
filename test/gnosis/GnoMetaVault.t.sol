@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
-import {Test, stdStorage, StdStorage, console} from "forge-std/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -20,7 +20,6 @@ import {GnoHelpers} from "../helpers/GnoHelpers.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 
 contract GnoMetaVaultTest is Test, GnoHelpers {
-    using stdStorage for StdStorage;
 
     ForkContracts public contracts;
     GnoMetaVault public metaVault;
@@ -452,23 +451,5 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         vm.prank(sender);
         vm.expectRevert(Errors.InvalidAssets.selector);
         metaVault.donateAssets(0);
-    }
-
-    function _getEmptyHarvestParams() internal pure returns (IKeeperRewards.HarvestParams memory) {
-        bytes32[] memory emptyProof;
-        return
-            IKeeperRewards.HarvestParams({rewardsRoot: bytes32(0), proof: emptyProof, reward: 0, unlockedMevReward: 0});
-    }
-
-    function _setVaultRewardsNonce(address vault, uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewards(address)").with_key(vault).depth(
-            1
-        ).checked_write(rewardsNonce);
-    }
-
-    function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewardsNonce()").checked_write(
-            rewardsNonce
-        );
     }
 }

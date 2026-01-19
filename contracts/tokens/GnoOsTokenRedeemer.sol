@@ -37,35 +37,27 @@ contract GnoOsTokenRedeemer is IGnoOsTokenRedeemer, OsTokenRedeemer {
     }
 
     /// @inheritdoc IGnoOsTokenRedeemer
-    function permitGnoToken(
-        uint256 amount,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    ) external override {
+    function permitGnoToken(uint256 amount, uint256 deadline, uint8 v, bytes32 r, bytes32 s) external override {
         try IERC20Permit(address(_gnoToken)).permit(msg.sender, address(this), amount, deadline, v, r, s) {} catch {}
     }
 
     /// @inheritdoc IGnoOsTokenRedeemer
-    function swapAssetsToOsTokenShares(
-        address receiver,
-        uint256 assets
-    ) external override returns (uint256 osTokenShares) {
+    function swapAssetsToOsTokenShares(address receiver, uint256 assets)
+        external
+        override
+        returns (uint256 osTokenShares)
+    {
         SafeERC20.safeTransferFrom(_gnoToken, msg.sender, address(this), assets);
         return _swapAssetsToOsTokenShares(receiver, assets);
     }
 
     /// @inheritdoc OsTokenRedeemer
-    function _availableAssets() internal view override returns (uint256) {
-        return _gnoToken.balanceOf(address(this));
+    function _getAssets(address account) internal view override returns (uint256) {
+        return _gnoToken.balanceOf(account);
     }
 
     /// @inheritdoc OsTokenRedeemer
-    function _transferAssets(
-        address receiver,
-        uint256 assets
-    ) internal override {
+    function _transferAssets(address receiver, uint256 assets) internal override {
         SafeERC20.safeTransfer(_gnoToken, receiver, assets);
     }
 }

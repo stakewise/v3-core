@@ -672,9 +672,6 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             initialTotalStaked += initialStates[i].stakedShares;
         }
 
-        // Calculate available assets
-        uint256 availableAssets = metaVault.withdrawableAssets();
-
         // Start gas measurement
         _startSnapshotGas("VaultSubVaultsTest_test_depositToSubVaults_multipleSubVaults");
 
@@ -2036,24 +2033,8 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         EthMetaVault(payable(metaSubVault)).updateState(_getEmptyHarvestParams());
     }
 
-    function _setVaultRewardsNonce(address vault, uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewards(address)").with_key(vault)
-            .depth(1).checked_write(rewardsNonce);
-    }
-
     function _setMetaVaultRewardsNonce(address vault, uint128 rewardsNonce) internal {
         stdstore.target(vault).sig("subVaultsRewardsNonce()").checked_write(rewardsNonce);
-    }
-
-    function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(address(contracts.keeper)).sig("rewardsNonce()")
-            .checked_write(rewardsNonce);
-    }
-
-    function _getEmptyHarvestParams() internal pure returns (IKeeperRewards.HarvestParams memory) {
-        bytes32[] memory emptyProof;
-        return
-            IKeeperRewards.HarvestParams({rewardsRoot: bytes32(0), proof: emptyProof, reward: 0, unlockedMevReward: 0});
     }
 
     function _extractExitPositions(address[] memory _subVaults, Vm.Log[] memory logs, uint64 timestamp)
