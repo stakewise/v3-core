@@ -1664,10 +1664,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
 
         // The balance increase should approximately match the redeemed amount
         assertApproxEqRel(
-            metaVaultBalanceAfter - metaVaultBalanceBefore,
-            redeemed,
-            5e16,
-            "Balance increase should match redeemed"
+            metaVaultBalanceAfter - metaVaultBalanceBefore, redeemed, 5e16, "Balance increase should match redeemed"
         );
     }
 

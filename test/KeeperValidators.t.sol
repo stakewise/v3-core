@@ -242,12 +242,13 @@ contract KeeperValidatorsTest is Test, EthHelpers {
         // Act & Assert: Call should fail due to invalid vault
         _startSnapshotGas("KeeperValidatorsTest_test_updateExitSignatures_invalidVault");
         vm.expectRevert(Errors.InvalidVault.selector);
-        contracts.keeper.updateExitSignatures(
-            address(contracts.keeper), // Using Keeper as vault (invalid)
-            deadline,
-            exitSignaturesIpfsHash,
-            signatures
-        );
+        contracts.keeper
+            .updateExitSignatures(
+                address(contracts.keeper), // Using Keeper as vault (invalid)
+                deadline,
+                exitSignaturesIpfsHash,
+                signatures
+            );
         _stopSnapshotGas();
 
         // Clean up

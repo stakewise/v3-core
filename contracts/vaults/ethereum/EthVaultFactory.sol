@@ -36,12 +36,7 @@ contract EthVaultFactory is IEthVaultFactory {
     }
 
     /// @inheritdoc IEthVaultFactory
-    function createVault(bytes calldata params, bool isOwnMevEscrow)
-        external
-        payable
-        override
-        returns (address vault)
-    {
+    function createVault(bytes calldata params, bool isOwnMevEscrow) external payable override returns (address vault) {
         // create vault
         vault = address(new ERC1967Proxy(implementation, ""));
 

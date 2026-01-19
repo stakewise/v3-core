@@ -29,16 +29,18 @@ contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPr
      * @param args The arguments for initializing the EthMetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        MetaVaultConstructorArgs memory args
-    ) EthMetaVault(args) {
+    constructor(MetaVaultConstructorArgs memory args) EthMetaVault(args) {
         _disableInitializers();
     }
 
     /// @inheritdoc IEthMetaVault
-    function initialize(
-        bytes calldata params
-    ) external payable virtual override(IEthMetaVault, EthMetaVault) reinitializer(_version) {
+    function initialize(bytes calldata params)
+        external
+        payable
+        virtual
+        override(IEthMetaVault, EthMetaVault)
+        reinitializer(_version)
+    {
         // initialize deployed vault
         address _admin = IEthMetaVaultFactory(msg.sender).vaultAdmin();
         __EthMetaVault_init(_admin, abi.decode(params, (MetaVaultInitParams)));
@@ -47,10 +49,13 @@ contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPr
     }
 
     /// @inheritdoc IEthMetaVault
-    function deposit(
-        address receiver,
-        address referrer
-    ) public payable virtual override(IEthMetaVault, EthMetaVault) returns (uint256 shares) {
+    function deposit(address receiver, address referrer)
+        public
+        payable
+        virtual
+        override(IEthMetaVault, EthMetaVault)
+        returns (uint256 shares)
+    {
         _checkWhitelist(msg.sender);
         _checkWhitelist(receiver);
         return super.deposit(receiver, referrer);
@@ -67,11 +72,12 @@ contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPr
     }
 
     /// @inheritdoc IVaultOsToken
-    function mintOsToken(
-        address receiver,
-        uint256 osTokenShares,
-        address referrer
-    ) public virtual override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
+    function mintOsToken(address receiver, uint256 osTokenShares, address referrer)
+        public
+        virtual
+        override(IVaultOsToken, VaultOsToken)
+        returns (uint256 assets)
+    {
         _checkWhitelist(msg.sender);
         return super.mintOsToken(receiver, osTokenShares, referrer);
     }

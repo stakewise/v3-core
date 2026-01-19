@@ -210,8 +210,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         }
 
         address impl = _getOrCreateVaultImpl(_vaultType);
-        GnoMetaVaultFactory factory =
-            new GnoMetaVaultFactory(impl, IVaultsRegistry(_vaultsRegistry), _gnoToken);
+        GnoMetaVaultFactory factory = new GnoMetaVaultFactory(impl, IVaultsRegistry(_vaultsRegistry), _gnoToken);
 
         _vaultFactories[_vaultType] = address(factory);
 
@@ -381,7 +380,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
 
         vm.deal(admin, admin.balance + 1 ether);
         vm.prank(admin);
-        vaultContract.upgradeToAndCall(newImpl, "0x");
+        vaultContract.upgradeToAndCall(newImpl, "");
     }
 
     function _getOrCreateVaultImpl(VaultType _vaultType) internal returns (address impl) {
@@ -477,9 +476,8 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     }
 
     function _setVaultRewardsNonce(address vault, uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(_keeper).sig("rewards(address)").with_key(vault).depth(1).checked_write(
-            rewardsNonce
-        );
+        stdstore.enable_packed_slots().target(_keeper).sig("rewards(address)").with_key(vault).depth(1)
+            .checked_write(rewardsNonce);
     }
 
     function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {

@@ -360,9 +360,7 @@ contract OsTokenConfigTest is Test, EthHelpers {
         uint128 newLiqBonusPercent = 1.1e18; // 110%
 
         IOsTokenConfig.Config memory newDefaultConfig = IOsTokenConfig.Config({
-            ltvPercent: newLtvPercent,
-            liqThresholdPercent: newLiqThresholdPercent,
-            liqBonusPercent: newLiqBonusPercent
+            ltvPercent: newLtvPercent, liqThresholdPercent: newLiqThresholdPercent, liqBonusPercent: newLiqBonusPercent
         });
 
         // Test address that doesn't have a specific config

@@ -34,8 +34,7 @@ contract GnoMetaVaultFactory is IGnoMetaVaultFactory {
      * @param vaultsRegistry The address of the VaultsRegistry contract
      * @param gnoToken The address of the GNO token contract
      */
-    constructor(address _implementation, IVaultsRegistry vaultsRegistry, address gnoToken)
-    {
+    constructor(address _implementation, IVaultsRegistry vaultsRegistry, address gnoToken) {
         implementation = _implementation;
         _vaultsRegistry = vaultsRegistry;
         _gnoToken = IERC20(gnoToken);

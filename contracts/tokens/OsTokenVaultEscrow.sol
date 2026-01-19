@@ -106,9 +106,8 @@ abstract contract OsTokenVaultEscrow is Ownable2Step, Multicall, IOsTokenVaultEs
         if (position.owner == address(0)) revert Errors.InvalidPosition();
 
         // claim exited assets
-        (uint256 leftTickets,, uint256 exitedAssets) = IVaultEnterExit(vault).calculateExitedAssets(
-            address(this), exitPositionTicket, timestamp, uint256(exitQueueIndex)
-        );
+        (uint256 leftTickets,, uint256 exitedAssets) = IVaultEnterExit(vault)
+            .calculateExitedAssets(address(this), exitPositionTicket, timestamp, uint256(exitQueueIndex));
         // the exit request must be fully processed (1 ticket could be a rounding error)
         if (leftTickets > 1) revert Errors.ExitRequestNotProcessed();
         IVaultEnterExit(vault).claimExitedAssets(exitPositionTicket, timestamp, uint256(exitQueueIndex));

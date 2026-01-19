@@ -390,7 +390,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
 
         vm.deal(admin, admin.balance + 1 ether);
         vm.prank(admin);
-        vaultContract.upgradeToAndCall(newImpl, "0x");
+        vaultContract.upgradeToAndCall(newImpl, "");
     }
 
     function _getOrCreateVaultImpl(VaultType _vaultType) internal returns (address impl) {
@@ -498,9 +498,8 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     }
 
     function _setVaultRewardsNonce(address vault, uint64 rewardsNonce) internal {
-        stdstore.enable_packed_slots().target(_keeper).sig("rewards(address)").with_key(vault).depth(1).checked_write(
-            rewardsNonce
-        );
+        stdstore.enable_packed_slots().target(_keeper).sig("rewards(address)").with_key(vault).depth(1)
+            .checked_write(rewardsNonce);
     }
 
     function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {

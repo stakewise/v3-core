@@ -540,11 +540,12 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         vm.prank(user);
         _startSnapshotGas("EthOsTokenVaultEscrowTest_test_claimExitedAssets_insufficientShares");
         vm.expectRevert(Errors.InvalidShares.selector);
-        contracts.osTokenVaultEscrow.claimExitedAssets(
-            address(vault),
-            exitPositionTicket,
-            osTokenShares * 2 // More than available
-        );
+        contracts.osTokenVaultEscrow
+            .claimExitedAssets(
+                address(vault),
+                exitPositionTicket,
+                osTokenShares * 2 // More than available
+            );
         _stopSnapshotGas();
     }
 
@@ -794,9 +795,8 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         // Liquidate the position
         vm.prank(liquidator);
         _startSnapshotGas("OsTokenLiquidationTest_test_liquidateOsToken_success");
-        contracts.osTokenVaultEscrow.liquidateOsToken(
-            address(vault), exitPositionTicket_, liquidationShares, liquidator
-        );
+        contracts.osTokenVaultEscrow
+            .liquidateOsToken(address(vault), exitPositionTicket_, liquidationShares, liquidator);
         _stopSnapshotGas();
 
         // Get position details after liquidation
@@ -942,9 +942,8 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         // Liquidate half the position
         vm.prank(liquidator);
         _startSnapshotGas("OsTokenLiquidationTest_test_liquidateOsToken_partialLiquidation");
-        contracts.osTokenVaultEscrow.liquidateOsToken(
-            address(vault), exitPositionTicket, halfLiquidationShares, liquidator
-        );
+        contracts.osTokenVaultEscrow
+            .liquidateOsToken(address(vault), exitPositionTicket, halfLiquidationShares, liquidator);
         _stopSnapshotGas();
 
         // push down the stack
@@ -1066,9 +1065,8 @@ contract EthOsTokenVaultEscrowTest is Test, EthHelpers {
         vm.prank(unauthorizedCaller);
         _startSnapshotGas("OsTokenLiquidationTest_test_redeemOsToken_notRedeemer");
         vm.expectRevert(Errors.AccessDenied.selector);
-        contracts.osTokenVaultEscrow.redeemOsToken(
-            address(vault), exitPositionTicket, osTokenShares, unauthorizedCaller
-        );
+        contracts.osTokenVaultEscrow
+            .redeemOsToken(address(vault), exitPositionTicket, osTokenShares, unauthorizedCaller);
         _stopSnapshotGas();
 
         // Clear the mock

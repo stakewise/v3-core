@@ -178,13 +178,11 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
         }
 
         // verify the proof
-        if (
-            !MerkleProof.verifyCalldata(
+        if (!MerkleProof.verifyCalldata(
                 params.proof,
                 params.rewardsRoot,
                 keccak256(bytes.concat(keccak256(abi.encode(msg.sender, params.reward, params.unlockedMevReward))))
-            )
-        ) {
+            )) {
             revert Errors.InvalidProof();
         }
 

@@ -94,13 +94,14 @@ abstract contract VaultGnoStaking is
             depositData.depositAmount /= 32;
 
             // deposit GNO tokens to the validators registry
-            IGnoValidatorsRegistry(_validatorsRegistry).deposit(
-                depositData.publicKey,
-                depositData.withdrawalCredentials,
-                depositData.signature,
-                depositData.depositDataRoot,
-                depositData.depositAmount
-            );
+            IGnoValidatorsRegistry(_validatorsRegistry)
+                .deposit(
+                    depositData.publicKey,
+                    depositData.withdrawalCredentials,
+                    depositData.signature,
+                    depositData.depositDataRoot,
+                    depositData.depositAmount
+                );
 
             // will revert if not enough assets
             availableAssets -= depositData.depositAmount;

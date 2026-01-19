@@ -27,6 +27,7 @@ contract OsTokenFlashLoans is ReentrancyGuard, IOsTokenFlashLoans {
     }
 
     /// @inheritdoc IOsTokenFlashLoans
+    // slither-disable-start reentrancy-balance
     function flashLoan(uint256 osTokenShares, bytes memory userData) external override nonReentrant {
         // check if not more than max flash loan amount requested
         if (osTokenShares == 0 || osTokenShares > _maxFlashLoanAmount) {
@@ -56,4 +57,5 @@ contract OsTokenFlashLoans is ReentrancyGuard, IOsTokenFlashLoans {
         // emit event
         emit OsTokenFlashLoan(msg.sender, osTokenShares);
     }
+    // slither-disable-end reentrancy-balance
 }

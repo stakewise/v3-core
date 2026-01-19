@@ -257,8 +257,7 @@ contract GnoVaultTest is Test, GnoHelpers {
         uint256 senderSharesBefore = vault.getShares(sender);
         (
             uint128 queuedSharesBefore,
-            uint128 unclaimedAssetsBefore,
-            ,
+            uint128 unclaimedAssetsBefore,,
             uint128 totalExitingAssetsBefore,
             uint256 totalTicketsBefore
         ) = vault.getExitQueueData();
@@ -275,8 +274,7 @@ contract GnoVaultTest is Test, GnoHelpers {
 
         (
             uint128 queuedSharesAfter,
-            uint128 unclaimedAssetsAfter,
-            ,
+            uint128 unclaimedAssetsAfter,,
             uint128 totalExitingAssetsAfter,
             uint256 totalTicketsAfter
         ) = vault.getExitQueueData();

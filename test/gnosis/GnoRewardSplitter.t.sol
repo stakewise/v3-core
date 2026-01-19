@@ -317,9 +317,8 @@ contract GnoRewardSplitterTest is Test, GnoHelpers {
         int256 exitQueueIndex = IVaultEnterExit(vault).getExitQueueIndex(positionTicket);
 
         // Expected reward amount to be claimed
-        (,, uint256 exitedAssets) = IVaultEnterExit(vault).calculateExitedAssets(
-            address(rewardSplitter), positionTicket, timestamp, uint256(exitQueueIndex)
-        );
+        (,, uint256 exitedAssets) = IVaultEnterExit(vault)
+            .calculateExitedAssets(address(rewardSplitter), positionTicket, timestamp, uint256(exitQueueIndex));
 
         vm.prank(admin);
         vm.expectEmit(true, false, false, true);

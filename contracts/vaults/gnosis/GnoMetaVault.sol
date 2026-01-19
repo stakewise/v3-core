@@ -34,18 +34,13 @@ contract GnoMetaVault is Initializable, MetaVault, IGnoMetaVault {
      * @param args The arguments for initializing the MetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        address gnoToken,
-        MetaVaultConstructorArgs memory args
-    ) MetaVault(args) {
+    constructor(address gnoToken, MetaVaultConstructorArgs memory args) MetaVault(args) {
         _gnoToken = IERC20(gnoToken);
         _disableInitializers();
     }
 
     /// @inheritdoc IGnoMetaVault
-    function initialize(
-        bytes calldata params
-    ) external virtual override reinitializer(_version) {
+    function initialize(bytes calldata params) external virtual override reinitializer(_version) {
         // if admin is already set, it's an upgrade from version 3 to 4
         if (admin != address(0)) {
             return;
@@ -55,38 +50,33 @@ contract GnoMetaVault is Initializable, MetaVault, IGnoMetaVault {
     }
 
     /// @inheritdoc IGnoMetaVault
-    function deposit(
-        uint256 assets,
-        address receiver,
-        address referrer
-    ) public virtual override returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver, address referrer)
+        public
+        virtual
+        override
+        returns (uint256 shares)
+    {
         // withdraw GNO tokens from the user
         SafeERC20.safeTransferFrom(_gnoToken, msg.sender, address(this), assets);
         shares = _deposit(receiver, assets, referrer);
     }
 
     /// @inheritdoc IVaultSubVaults
-    function addSubVault(
-        address vault
-    ) public virtual override(IVaultSubVaults, VaultSubVaults) {
+    function addSubVault(address vault) public virtual override(IVaultSubVaults, VaultSubVaults) {
         super.addSubVault(vault);
         // approve transferring GNO to sub-vault
         _gnoToken.approve(vault, type(uint256).max);
     }
 
     /// @inheritdoc IVaultSubVaults
-    function ejectSubVault(
-        address vault
-    ) public virtual override(IVaultSubVaults, VaultSubVaults) {
+    function ejectSubVault(address vault) public virtual override(IVaultSubVaults, VaultSubVaults) {
         super.ejectSubVault(vault);
         // revoke transferring GNO to sub-vault
         _gnoToken.approve(vault, 0);
     }
 
     /// @inheritdoc IGnoMetaVault
-    function donateAssets(
-        uint256 amount
-    ) external override nonReentrant {
+    function donateAssets(uint256 amount) external override nonReentrant {
         if (amount == 0) {
             revert Errors.InvalidAssets();
         }
@@ -107,10 +97,7 @@ contract GnoMetaVault is Initializable, MetaVault, IGnoMetaVault {
     }
 
     /// @inheritdoc VaultSubVaults
-    function _depositToVault(
-        address vault,
-        uint256 assets
-    ) internal override returns (uint256) {
+    function _depositToVault(address vault, uint256 assets) internal override returns (uint256) {
         return IVaultGnoStaking(vault).deposit(assets, address(this), address(0));
     }
 
@@ -120,10 +107,7 @@ contract GnoMetaVault is Initializable, MetaVault, IGnoMetaVault {
     }
 
     /// @inheritdoc VaultEnterExit
-    function _transferVaultAssets(
-        address receiver,
-        uint256 assets
-    ) internal virtual override nonReentrant {
+    function _transferVaultAssets(address receiver, uint256 assets) internal virtual override nonReentrant {
         SafeERC20.safeTransfer(_gnoToken, receiver, assets);
     }
 
@@ -132,10 +116,7 @@ contract GnoMetaVault is Initializable, MetaVault, IGnoMetaVault {
      * @param admin The address of the admin of the Vault
      * @param params The parameters for initializing the MetaVault contract
      */
-    function __GnoMetaVault_init(
-        address admin,
-        MetaVaultInitParams memory params
-    ) internal onlyInitializing {
+    function __GnoMetaVault_init(address admin, MetaVaultInitParams memory params) internal onlyInitializing {
         __MetaVault_init(admin, params);
 
         _deposit(address(this), _securityDeposit, address(0));

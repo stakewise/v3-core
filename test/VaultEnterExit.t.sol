@@ -448,12 +448,13 @@ contract VaultEnterExitTest is Test, EthHelpers {
     function test_calculateExitedAssets_invalidPosition() public {
         // Try to calculate exited assets for a non-existent position
         _startSnapshotGas("VaultEnterExitTest_test_calculateExitedAssets_invalidPosition");
-        (uint256 leftTickets, uint256 exitedTickets, uint256 exitedAssets) = vault.calculateExitedAssets(
-            receiver,
-            999, // Non-existent position ticket
-            vm.getBlockTimestamp(),
-            0
-        );
+        (uint256 leftTickets, uint256 exitedTickets, uint256 exitedAssets) =
+            vault.calculateExitedAssets(
+                receiver,
+                999, // Non-existent position ticket
+                vm.getBlockTimestamp(),
+                0
+            );
         _stopSnapshotGas();
 
         assertEq(leftTickets, 0, "Left tickets should be 0 for non-existent position");

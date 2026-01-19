@@ -27,17 +27,17 @@ contract GnoPrivMetaVault is Initializable, GnoMetaVault, VaultWhitelist, IGnoPr
      * @param args The arguments for initializing the GnoMetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        address gnoToken,
-        MetaVaultConstructorArgs memory args
-    ) GnoMetaVault(gnoToken, args) {
+    constructor(address gnoToken, MetaVaultConstructorArgs memory args) GnoMetaVault(gnoToken, args) {
         _disableInitializers();
     }
 
     /// @inheritdoc IGnoMetaVault
-    function initialize(
-        bytes calldata params
-    ) external virtual override(IGnoMetaVault, GnoMetaVault) reinitializer(_version) {
+    function initialize(bytes calldata params)
+        external
+        virtual
+        override(IGnoMetaVault, GnoMetaVault)
+        reinitializer(_version)
+    {
         // initialize deployed vault
         address _admin = IGnoMetaVaultFactory(msg.sender).vaultAdmin();
         __GnoMetaVault_init(_admin, abi.decode(params, (MetaVaultInitParams)));
@@ -46,22 +46,24 @@ contract GnoPrivMetaVault is Initializable, GnoMetaVault, VaultWhitelist, IGnoPr
     }
 
     /// @inheritdoc IGnoMetaVault
-    function deposit(
-        uint256 assets,
-        address receiver,
-        address referrer
-    ) public virtual override(IGnoMetaVault, GnoMetaVault) returns (uint256 shares) {
+    function deposit(uint256 assets, address receiver, address referrer)
+        public
+        virtual
+        override(IGnoMetaVault, GnoMetaVault)
+        returns (uint256 shares)
+    {
         _checkWhitelist(msg.sender);
         _checkWhitelist(receiver);
         return super.deposit(assets, receiver, referrer);
     }
 
     /// @inheritdoc IVaultOsToken
-    function mintOsToken(
-        address receiver,
-        uint256 osTokenShares,
-        address referrer
-    ) public virtual override(IVaultOsToken, VaultOsToken) returns (uint256 assets) {
+    function mintOsToken(address receiver, uint256 osTokenShares, address referrer)
+        public
+        virtual
+        override(IVaultOsToken, VaultOsToken)
+        returns (uint256 assets)
+    {
         _checkWhitelist(msg.sender);
         return super.mintOsToken(receiver, osTokenShares, referrer);
     }

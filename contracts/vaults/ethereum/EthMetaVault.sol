@@ -34,16 +34,12 @@ contract EthMetaVault is Initializable, MetaVault, IEthMetaVault {
      * @param args The arguments for initializing the MetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(
-        MetaVaultConstructorArgs memory args
-    ) MetaVault(args) {
+    constructor(MetaVaultConstructorArgs memory args) MetaVault(args) {
         _disableInitializers();
     }
 
     /// @inheritdoc IEthMetaVault
-    function initialize(
-        bytes calldata params
-    ) external payable virtual override reinitializer(_version) {
+    function initialize(bytes calldata params) external payable virtual override reinitializer(_version) {
         // if admin is already set, it's an upgrade from version 5 to 6
         if (admin != address(0)) {
             return;
@@ -53,10 +49,7 @@ contract EthMetaVault is Initializable, MetaVault, IEthMetaVault {
     }
 
     /// @inheritdoc IEthMetaVault
-    function deposit(
-        address receiver,
-        address referrer
-    ) public payable virtual override returns (uint256 shares) {
+    function deposit(address receiver, address referrer) public payable virtual override returns (uint256 shares) {
         return _deposit(receiver, msg.value, referrer);
     }
 
@@ -82,11 +75,12 @@ contract EthMetaVault is Initializable, MetaVault, IEthMetaVault {
     }
 
     /// @inheritdoc IEthMetaVault
-    function depositAndMintOsToken(
-        address receiver,
-        uint256 osTokenShares,
-        address referrer
-    ) public payable override returns (uint256) {
+    function depositAndMintOsToken(address receiver, uint256 osTokenShares, address referrer)
+        public
+        payable
+        override
+        returns (uint256)
+    {
         deposit(msg.sender, referrer);
         return mintOsToken(receiver, osTokenShares, referrer);
     }
@@ -122,10 +116,7 @@ contract EthMetaVault is Initializable, MetaVault, IEthMetaVault {
     }
 
     /// @inheritdoc VaultSubVaults
-    function _depositToVault(
-        address vault,
-        uint256 assets
-    ) internal override returns (uint256) {
+    function _depositToVault(address vault, uint256 assets) internal override returns (uint256) {
         return IVaultEthStaking(vault).deposit{value: assets}(address(this), address(0));
     }
 
@@ -135,10 +126,7 @@ contract EthMetaVault is Initializable, MetaVault, IEthMetaVault {
     }
 
     /// @inheritdoc VaultEnterExit
-    function _transferVaultAssets(
-        address receiver,
-        uint256 assets
-    ) internal virtual override nonReentrant {
+    function _transferVaultAssets(address receiver, uint256 assets) internal virtual override nonReentrant {
         return Address.sendValue(payable(receiver), assets);
     }
 
@@ -147,10 +135,7 @@ contract EthMetaVault is Initializable, MetaVault, IEthMetaVault {
      * @param admin The address of the admin of the Vault
      * @param params The parameters for initializing the MetaVault contract
      */
-    function __EthMetaVault_init(
-        address admin,
-        MetaVaultInitParams memory params
-    ) internal onlyInitializing {
+    function __EthMetaVault_init(address admin, MetaVaultInitParams memory params) internal onlyInitializing {
         __MetaVault_init(admin, params);
 
         // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706

@@ -317,7 +317,10 @@ contract EthErc20VaultTest is Test, EthHelpers {
         assertGt(mintedAssets, 0, "Should have minted some osToken assets");
         assertEq(vault.osTokenPositions(sender), osTokenShares, "Should have minted expected osToken shares");
         assertApproxEqAbs(
-            vault.balanceOf(sender), vault.convertToShares(depositAmount), 1, "Should have received tokens for the deposit"
+            vault.balanceOf(sender),
+            vault.convertToShares(depositAmount),
+            1,
+            "Should have received tokens for the deposit"
         );
     }
 

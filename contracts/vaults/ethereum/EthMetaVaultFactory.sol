@@ -33,12 +33,7 @@ contract EthMetaVaultFactory is IEthMetaVaultFactory {
     }
 
     /// @inheritdoc IEthMetaVaultFactory
-    function createVault(bytes calldata params)
-        external
-        payable
-        override
-        returns (address vault)
-    {
+    function createVault(bytes calldata params) external payable override returns (address vault) {
         // create vault
         vault = address(new ERC1967Proxy(implementation, ""));
 

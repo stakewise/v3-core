@@ -20,8 +20,9 @@ library EIP712Utils {
      * @return The hash of the EIP712 typed data
      */
     function computeDomainSeparator(string memory name, address verifyingContract) external view returns (bytes32) {
-        return keccak256(
-            abi.encode(_domainTypeHash, keccak256(bytes(name)), _versionHash, block.chainid, verifyingContract)
-        );
+        return
+            keccak256(
+                abi.encode(_domainTypeHash, keccak256(bytes(name)), _versionHash, block.chainid, verifyingContract)
+            );
     }
 }

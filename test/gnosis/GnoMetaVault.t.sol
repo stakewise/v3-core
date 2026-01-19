@@ -20,7 +20,6 @@ import {GnoHelpers} from "../helpers/GnoHelpers.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 
 contract GnoMetaVaultTest is Test, GnoHelpers {
-
     ForkContracts public contracts;
     GnoMetaVault public metaVault;
 
@@ -91,7 +90,6 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
 
         return _createVault(VaultType.GnoVault, _admin, initParams, false);
     }
-
 
     function test_deployment() public view {
         // Verify the vault was deployed correctly

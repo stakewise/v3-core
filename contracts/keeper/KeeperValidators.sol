@@ -80,7 +80,9 @@ abstract contract KeeperValidators is KeeperOracles, KeeperRewards, IKeeperValid
         string calldata exitSignaturesIpfsHash,
         bytes calldata oraclesSignatures
     ) external override {
-        if (!(_vaultsRegistry.vaults(vault) && isCollateralized(vault))) revert Errors.InvalidVault();
+        if (!(_vaultsRegistry.vaults(vault) && isCollateralized(vault))) {
+            revert Errors.InvalidVault();
+        }
         if (deadline < block.timestamp) revert Errors.DeadlineExpired();
 
         // SLOAD to memory

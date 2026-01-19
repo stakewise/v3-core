@@ -1235,9 +1235,10 @@ contract VaultOsTokenTest is Test, EthHelpers {
 
         // Process the exited assets
         _startSnapshotGas("VaultOsTokenTest_test_transferOsTokenPositionToEscrow_process");
-        contracts.osTokenVaultEscrow.processExitedAssets(
-            address(vault), exitPositionTicket, timestamp, uint256(vault.getExitQueueIndex(exitPositionTicket))
-        );
+        contracts.osTokenVaultEscrow
+            .processExitedAssets(
+                address(vault), exitPositionTicket, timestamp, uint256(vault.getExitQueueIndex(exitPositionTicket))
+            );
         _stopSnapshotGas();
 
         // Record user's ETH balance before claiming
