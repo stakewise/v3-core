@@ -109,6 +109,60 @@ library SubVaultUtils {
     }
 
     /**
+     * @dev Calculates the required sub-vaults exit requests to fulfill the assets to redeem
+     * @param subVaultsStates The mapping of sub-vault addresses to their states
+     * @param subVaultsCurator The address of the sub-vaults curator
+     * @param vaults The addresses of the sub-vaults
+     * @param assetsToRedeem The amount of assets to redeem
+     * @param withdrawableAssets The amount of withdrawable assets in the meta vault
+     * @param ejectingSubVault The address of the ejecting sub-vault
+     * @param ejectingSubVaultShares The shares of the ejecting sub-vault
+     * @return redeemRequests The array of sub-vaults exit requests
+     */
+    function calculateSubVaultsRedemptions(
+        mapping(address vault => IVaultSubVaults.SubVaultState state) storage subVaultsStates,
+        address subVaultsCurator,
+        address[] memory vaults,
+        uint256 assetsToRedeem,
+        uint256 withdrawableAssets,
+        address ejectingSubVault,
+        uint256 ejectingSubVaultShares
+    ) external view returns (ISubVaultsCurator.ExitRequest[] memory redeemRequests) {
+        // check whether enough assets available
+        unchecked {
+            assetsToRedeem -= Math.min(assetsToRedeem, withdrawableAssets);
+        }
+        if (assetsToRedeem == 0) {
+            // if enough withdrawable assets, return empty array
+            return redeemRequests;
+        }
+
+        // check whether ejecting shares can be consumed
+        if (ejectingSubVault != address(0) && ejectingSubVaultShares != 0) {
+            uint256 ejectingVaultAssets = IVaultState(ejectingSubVault).convertToAssets(ejectingSubVaultShares);
+            unchecked {
+                assetsToRedeem -= Math.min(assetsToRedeem, ejectingVaultAssets);
+            }
+        }
+
+        if (assetsToRedeem == 0) {
+            // if no assets to redeem, return empty array
+            return redeemRequests;
+        }
+
+        // check vaults length
+        uint256 vaultsLength = vaults.length;
+        if (vaultsLength == 0) revert Errors.EmptySubVaults();
+
+        // fetch current sub-vaults balances
+        uint256[] memory balances;
+        (balances,) = getSubVaultsBalances(subVaultsStates, vaults, false);
+
+        // fetch redeems from the curator
+        return ISubVaultsCurator(subVaultsCurator).getExitRequests(assetsToRedeem, vaults, balances, ejectingSubVault);
+    }
+
+    /**
      * @dev Processes the given redeem requests
      * @param subVaultsStates The mapping of sub-vault addresses to their states
      * @param osTokenVaultController The address of the osToken vault controller contract
@@ -218,73 +272,6 @@ library SubVaultUtils {
     }
 
     /**
-     * @dev Internal function to check whether a sub-vault is collateralized
-     * @param subVault The address of the sub-vault
-     * @return true if the sub-vault is collateralized
-     */
-    function _isSubVaultCollateralized(address keeper, address subVault) private view returns (bool) {
-        try IVaultSubVaults(subVault).isCollateralized() returns (bool collateralized) {
-            return collateralized;
-        } catch {}
-
-        return IKeeperRewards(keeper).isCollateralized(subVault);
-    }
-
-    /**
-     * @dev Calculates the required sub-vaults exit requests to fulfill the assets to redeem
-     * @param subVaultsStates The mapping of sub-vault addresses to their states
-     * @param subVaultsCurator The address of the sub-vaults curator
-     * @param vaults The addresses of the sub-vaults
-     * @param assetsToRedeem The amount of assets to redeem
-     * @param withdrawableAssets The amount of withdrawable assets in the meta vault
-     * @param ejectingSubVault The address of the ejecting sub-vault
-     * @param ejectingSubVaultShares The shares of the ejecting sub-vault
-     * @return redeemRequests The array of sub-vaults exit requests
-     */
-    function calculateSubVaultsRedemptions(
-        mapping(address vault => IVaultSubVaults.SubVaultState state) storage subVaultsStates,
-        address subVaultsCurator,
-        address[] memory vaults,
-        uint256 assetsToRedeem,
-        uint256 withdrawableAssets,
-        address ejectingSubVault,
-        uint256 ejectingSubVaultShares
-    ) external view returns (ISubVaultsCurator.ExitRequest[] memory redeemRequests) {
-        // check whether enough assets available
-        unchecked {
-            assetsToRedeem -= Math.min(assetsToRedeem, withdrawableAssets);
-        }
-        if (assetsToRedeem == 0) {
-            // if enough withdrawable assets, return empty array
-            return redeemRequests;
-        }
-
-        // check whether ejecting shares can be consumed
-        if (ejectingSubVault != address(0) && ejectingSubVaultShares != 0) {
-            uint256 ejectingVaultAssets = IVaultState(ejectingSubVault).convertToAssets(ejectingSubVaultShares);
-            unchecked {
-                assetsToRedeem -= Math.min(assetsToRedeem, ejectingVaultAssets);
-            }
-        }
-
-        if (assetsToRedeem == 0) {
-            // if no assets to redeem, return empty array
-            return redeemRequests;
-        }
-
-        // check vaults length
-        uint256 vaultsLength = vaults.length;
-        if (vaultsLength == 0) revert Errors.EmptySubVaults();
-
-        // fetch current sub-vaults balances
-        uint256[] memory balances;
-        (balances,) = getSubVaultsBalances(subVaultsStates, vaults, false);
-
-        // fetch redeems from the curator
-        return ISubVaultsCurator(subVaultsCurator).getExitRequests(assetsToRedeem, vaults, balances, ejectingSubVault);
-    }
-
-    /**
      * @dev Ejects a sub-vault from the meta vault
      * @param subVaults The set of currently added sub-vaults
      * @param subVaultsStates The mapping of sub-vault addresses to their states
@@ -336,5 +323,18 @@ library SubVaultUtils {
             subVaults.remove(vault);
             return (true, 0);
         }
+    }
+
+    /**
+     * @dev Internal function to check whether a sub-vault is collateralized
+     * @param subVault The address of the sub-vault
+     * @return true if the sub-vault is collateralized
+     */
+    function _isSubVaultCollateralized(address keeper, address subVault) private view returns (bool) {
+        try IVaultSubVaults(subVault).isCollateralized() returns (bool collateralized) {
+            return collateralized;
+        } catch {}
+
+        return IKeeperRewards(keeper).isCollateralized(subVault);
     }
 }

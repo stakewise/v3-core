@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.22;
 
-import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
-import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
-import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Script} from "forge-std/Script.sol";
 import {stdJson} from "forge-std/StdJson.sol";
+import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
+import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
+import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
 
 /**
  * @title Network

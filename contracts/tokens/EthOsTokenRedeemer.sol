@@ -2,10 +2,10 @@
 
 pragma solidity ^0.8.22;
 
-import {IEthOsTokenRedeemer} from "../interfaces/IEthOsTokenRedeemer.sol";
-import {OsTokenRedeemer} from "./OsTokenRedeemer.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {IEthOsTokenRedeemer} from "../interfaces/IEthOsTokenRedeemer.sol";
+import {OsTokenRedeemer} from "./OsTokenRedeemer.sol";
 
 /**
  * @title EthOsTokenRedeemer

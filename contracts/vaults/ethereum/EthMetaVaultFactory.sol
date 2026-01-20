@@ -50,6 +50,6 @@ contract EthMetaVaultFactory is IEthMetaVaultFactory {
         _vaultsRegistry.addVault(vault);
 
         // emit event
-        emit MetaVaultCreated(msg.sender, vault, params);
+        emit MetaVaultCreated(msg.sender, msg.sender, vault, params);
     }
 }

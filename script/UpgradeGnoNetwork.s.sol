@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.22;
 
+import {console} from "forge-std/console.sol";
 import {IMetaVault} from "../contracts/interfaces/IMetaVault.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
@@ -11,7 +12,6 @@ import {GnoMetaVault} from "../contracts/vaults/gnosis/GnoMetaVault.sol";
 import {GnoMetaVaultFactory} from "../contracts/vaults/gnosis/GnoMetaVaultFactory.sol";
 import {GnoPrivMetaVault} from "../contracts/vaults/gnosis/GnoPrivMetaVault.sol";
 import {Network} from "./Network.sol";
-import {console} from "forge-std/console.sol";
 
 contract UpgradeGnoNetwork is Network {
     address public osTokenRedeemerOwner;
