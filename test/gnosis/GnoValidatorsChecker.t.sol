@@ -7,6 +7,7 @@ import {IGnoVault} from "../../contracts/interfaces/IGnoVault.sol";
 import {IVaultEnterExit} from "../../contracts/interfaces/IVaultEnterExit.sol";
 import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
+import {IValidatorsChecker} from "../../contracts/interfaces/IValidatorsChecker.sol";
 import {GnoHelpers} from "../helpers/GnoHelpers.sol";
 
 contract GnoValidatorsCheckerTest is Test, GnoHelpers {
@@ -62,6 +63,17 @@ contract GnoValidatorsCheckerTest is Test, GnoHelpers {
 
         // Get valid registry root
         validRegistryRoot = contracts.validatorsRegistry.get_deposit_root();
+    }
+
+    // Test checkValidatorsManagerSignature with an empty vault
+    function testCheckValidatorsManagerSignature_InsufficientAssets() public view {
+        // Test with empty vault
+        (uint256 blockNumber, IValidatorsChecker.Status status) =
+            validatorsChecker.checkValidatorsManagerSignature(emptyVault, validRegistryRoot, "", "");
+
+        // Verify result
+        assertEq(uint256(status), uint256(IValidatorsChecker.Status.INSUFFICIENT_ASSETS));
+        assertEq(blockNumber, block.number);
     }
 
     // Test getExitQueueCumulativeTickets and getExitQueueMissingAssets with an empty exit queue
