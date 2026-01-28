@@ -3,7 +3,7 @@
 pragma solidity ^0.8.22;
 
 import {console} from "forge-std/console.sol";
-import {IMetaVault} from "../contracts/interfaces/IMetaVault.sol";
+import {IGnoMetaVault} from "../contracts/interfaces/IGnoMetaVault.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
 import {GnoOsTokenRedeemer} from "../contracts/tokens/GnoOsTokenRedeemer.sol";
@@ -73,7 +73,7 @@ contract UpgradeGnoNetwork is Network {
 
     function _deployImplementations() internal {
         // constructors for implementations
-        IMetaVault.MetaVaultConstructorArgs memory metaVaultArgs = _getMetaVaultConstructorArgs();
+        IGnoMetaVault.GnoMetaVaultConstructorArgs memory metaVaultArgs = _getGnoMetaVaultConstructorArgs();
 
         // deploy meta vaults
         metaVaultArgs.exitingAssetsClaimDelay = PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY;
@@ -102,9 +102,9 @@ contract UpgradeGnoNetwork is Network {
         }
     }
 
-    function _getMetaVaultConstructorArgs() internal returns (IMetaVault.MetaVaultConstructorArgs memory) {
+    function _getGnoMetaVaultConstructorArgs() internal returns (IGnoMetaVault.GnoMetaVaultConstructorArgs memory) {
         Deployment memory deployment = getDeploymentData();
-        return IMetaVault.MetaVaultConstructorArgs({
+        return IGnoMetaVault.GnoMetaVaultConstructorArgs({
             keeper: deployment.keeper,
             vaultsRegistry: deployment.vaultsRegistry,
             osTokenVaultController: deployment.osTokenVaultController,

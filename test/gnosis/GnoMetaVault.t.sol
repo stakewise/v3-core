@@ -10,7 +10,6 @@ import {IGnoVault} from "../../contracts/interfaces/IGnoVault.sol";
 import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
 import {IVaultSubVaults} from "../../contracts/interfaces/IVaultSubVaults.sol";
 import {IVaultEnterExit} from "../../contracts/interfaces/IVaultEnterExit.sol";
-import {IMetaVault} from "../../contracts/interfaces/IMetaVault.sol";
 import {Errors} from "../../contracts/libraries/Errors.sol";
 import {GnoMetaVault} from "../../contracts/vaults/gnosis/GnoMetaVault.sol";
 import {GnoMetaVaultFactory} from "../../contracts/vaults/gnosis/GnoMetaVaultFactory.sol";
@@ -59,7 +58,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
 
         // Deploy meta vault
         bytes memory initParams = abi.encode(
-            IMetaVault.MetaVaultInitParams({
+            IGnoMetaVault.GnoMetaVaultInitParams({
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%

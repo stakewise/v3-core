@@ -27,7 +27,7 @@ contract GnoPrivMetaVault is Initializable, GnoMetaVault, VaultWhitelist, IGnoPr
      * @param args The arguments for initializing the GnoMetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address gnoToken, MetaVaultConstructorArgs memory args) GnoMetaVault(gnoToken, args) {
+    constructor(address gnoToken, GnoMetaVaultConstructorArgs memory args) GnoMetaVault(gnoToken, args) {
         _disableInitializers();
     }
 
@@ -41,7 +41,7 @@ contract GnoPrivMetaVault is Initializable, GnoMetaVault, VaultWhitelist, IGnoPr
         // do not check for the upgrades since this is the first implementation of GnoPrivMetaVault
         // initialize deployed vault
         address _admin = IGnoMetaVaultFactory(msg.sender).vaultAdmin();
-        __GnoMetaVault_init(_admin, abi.decode(params, (MetaVaultInitParams)));
+        __GnoMetaVault_init(_admin, abi.decode(params, (GnoMetaVaultInitParams)));
         // whitelister is initially set to admin address
         __VaultWhitelist_init(_admin);
     }

@@ -29,7 +29,7 @@ contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPr
      * @param args The arguments for initializing the EthMetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(MetaVaultConstructorArgs memory args) EthMetaVault(args) {
+    constructor(EthMetaVaultConstructorArgs memory args) EthMetaVault(args) {
         _disableInitializers();
     }
 
@@ -44,7 +44,7 @@ contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPr
         // do not check for the upgrades since this is the first implementation of EthPrivMetaVault
         // initialize deployed vault
         address _admin = IEthMetaVaultFactory(msg.sender).vaultAdmin();
-        __EthMetaVault_init(_admin, abi.decode(params, (MetaVaultInitParams)));
+        __EthMetaVault_init(_admin, abi.decode(params, (EthMetaVaultInitParams)));
         // whitelister is initially set to admin address
         __VaultWhitelist_init(_admin);
     }

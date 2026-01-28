@@ -7,20 +7,37 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IGnoMetaVault} from "../../interfaces/IGnoMetaVault.sol";
 import {IGnoMetaVaultFactory} from "../../interfaces/IGnoMetaVaultFactory.sol";
+import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
 import {IVaultGnoStaking} from "../../interfaces/IVaultGnoStaking.sol";
 import {Errors} from "../../libraries/Errors.sol";
-import {MetaVault} from "../base/MetaVault.sol";
-import {VaultEnterExit} from "../modules/VaultEnterExit.sol";
-import {VaultState} from "../modules/VaultState.sol";
-import {IVaultSubVaults, VaultSubVaults} from "../modules/VaultSubVaults.sol";
+import {Multicall} from "../../base/Multicall.sol";
+import {VaultImmutables} from "../modules/VaultImmutables.sol";
+import {VaultAdmin} from "../modules/VaultAdmin.sol";
 import {IVaultVersion, VaultVersion} from "../modules/VaultVersion.sol";
+import {VaultFee} from "../modules/VaultFee.sol";
+import {IVaultState, VaultState} from "../modules/VaultState.sol";
+import {IVaultEnterExit, VaultEnterExit} from "../modules/VaultEnterExit.sol";
+import {VaultOsToken} from "../modules/VaultOsToken.sol";
+import {IVaultSubVaults, VaultSubVaults} from "../modules/VaultSubVaults.sol";
 
 /**
  * @title GnoMetaVault
  * @author StakeWise
  * @notice Defines the Meta Vault functionality on Gnosis
  */
-contract GnoMetaVault is Initializable, MetaVault, IGnoMetaVault {
+contract GnoMetaVault is
+    VaultImmutables,
+    Initializable,
+    VaultAdmin,
+    VaultVersion,
+    VaultFee,
+    VaultState,
+    VaultEnterExit,
+    VaultOsToken,
+    VaultSubVaults,
+    Multicall,
+    IGnoMetaVault
+{
     uint8 private constant _version = 4;
     uint256 private constant _securityDeposit = 1e9;
 
@@ -31,10 +48,15 @@ contract GnoMetaVault is Initializable, MetaVault, IGnoMetaVault {
      * @dev Since the immutable variable value is stored in the bytecode,
      *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
      * @param gnoToken The address of the GNO token contract
-     * @param args The arguments for initializing the MetaVault contract
+     * @param args The arguments for initializing the GnoMetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address gnoToken, MetaVaultConstructorArgs memory args) MetaVault(args) {
+    constructor(address gnoToken, GnoMetaVaultConstructorArgs memory args)
+        VaultImmutables(args.keeper, args.vaultsRegistry, args.osTokenVaultController, args.osTokenConfig)
+        VaultEnterExit(args.exitingAssetsClaimDelay)
+        VaultOsToken(args.osTokenVaultEscrow)
+        VaultSubVaults(args.curatorsRegistry)
+    {
         _gnoToken = IERC20(gnoToken);
         _disableInitializers();
     }
@@ -46,7 +68,7 @@ contract GnoMetaVault is Initializable, MetaVault, IGnoMetaVault {
             return;
         }
 
-        __GnoMetaVault_init(IGnoMetaVaultFactory(msg.sender).vaultAdmin(), abi.decode(params, (MetaVaultInitParams)));
+        __GnoMetaVault_init(IGnoMetaVaultFactory(msg.sender).vaultAdmin(), abi.decode(params, (GnoMetaVaultInitParams)));
     }
 
     /// @inheritdoc IGnoMetaVault
@@ -111,13 +133,57 @@ contract GnoMetaVault is Initializable, MetaVault, IGnoMetaVault {
         SafeERC20.safeTransfer(_gnoToken, receiver, assets);
     }
 
+    /// @inheritdoc IVaultState
+    function isStateUpdateRequired()
+        public
+        view
+        virtual
+        override(IVaultState, VaultState, VaultSubVaults)
+        returns (bool)
+    {
+        return super.isStateUpdateRequired();
+    }
+
+    /// @inheritdoc IVaultState
+    function updateState(IKeeperRewards.HarvestParams calldata harvestParams)
+        public
+        virtual
+        override(IVaultState, VaultState, VaultSubVaults)
+    {
+        super.updateState(harvestParams);
+    }
+
+    /// @inheritdoc IVaultEnterExit
+    function enterExitQueue(uint256 shares, address receiver)
+        public
+        virtual
+        override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+        returns (uint256 positionTicket)
+    {
+        return super.enterExitQueue(shares, receiver);
+    }
+
+    /// @inheritdoc VaultImmutables
+    function _checkHarvested() internal view virtual override(VaultImmutables, VaultSubVaults) {
+        super._checkHarvested();
+    }
+
+    /// @inheritdoc VaultImmutables
+    function _isCollateralized() internal view virtual override(VaultImmutables, VaultSubVaults) returns (bool) {
+        return super._isCollateralized();
+    }
+
     /**
      * @dev Initializes the GnoMetaVault contract
-     * @param admin The address of the admin of the Vault
-     * @param params The parameters for initializing the MetaVault contract
+     * @param _admin The address of the admin of the Vault
+     * @param params The parameters for initializing the GnoMetaVault contract
      */
-    function __GnoMetaVault_init(address admin, MetaVaultInitParams memory params) internal onlyInitializing {
-        __MetaVault_init(admin, params);
+    function __GnoMetaVault_init(address _admin, GnoMetaVaultInitParams memory params) internal onlyInitializing {
+        __VaultAdmin_init(_admin, params.metadataIpfsHash);
+        __VaultSubVaults_init(params.subVaultsCurator);
+        // fee recipient is initially set to admin address
+        __VaultFee_init(_admin, params.feePercent);
+        __VaultState_init(params.capacity);
 
         _deposit(address(this), _securityDeposit, address(0));
         // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706

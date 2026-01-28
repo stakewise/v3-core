@@ -7,7 +7,6 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IGnoPrivMetaVault} from "../../contracts/interfaces/IGnoPrivMetaVault.sol";
 import {IGnoMetaVault} from "../../contracts/interfaces/IGnoMetaVault.sol";
 import {IGnoVault} from "../../contracts/interfaces/IGnoVault.sol";
-import {IMetaVault} from "../../contracts/interfaces/IMetaVault.sol";
 import {IVaultSubVaults} from "../../contracts/interfaces/IVaultSubVaults.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 import {Errors} from "../../contracts/libraries/Errors.sol";
@@ -61,7 +60,7 @@ contract GnoPrivMetaVaultTest is Test, GnoHelpers {
 
         // Deploy private meta vault
         bytes memory initParams = abi.encode(
-            IMetaVault.MetaVaultInitParams({
+            IGnoMetaVault.GnoMetaVaultInitParams({
                 subVaultsCurator: curator,
                 capacity: type(uint256).max,
                 feePercent: 0,

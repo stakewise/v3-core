@@ -9,7 +9,6 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {IMetaVault} from "../interfaces/IMetaVault.sol";
 import {IKeeperRewards} from "../interfaces/IKeeperRewards.sol";
 import {IOsTokenRedeemer} from "../interfaces/IOsTokenRedeemer.sol";
 import {IOsTokenVaultController} from "../interfaces/IOsTokenVaultController.sol";
@@ -281,7 +280,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
             revert Errors.InvalidVault();
         }
 
-        return IMetaVault(metaVault).redeemSubVaultsAssets(assetsToRedeem);
+        return IVaultSubVaults(metaVault).redeemSubVaultsAssets(assetsToRedeem);
     }
 
     /// @inheritdoc IOsTokenRedeemer

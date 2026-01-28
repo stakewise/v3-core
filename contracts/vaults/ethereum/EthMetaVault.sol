@@ -10,18 +10,34 @@ import {IEthMetaVaultFactory} from "../../interfaces/IEthMetaVaultFactory.sol";
 import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
 import {IVaultEthStaking} from "../../interfaces/IVaultEthStaking.sol";
 import {Errors} from "../../libraries/Errors.sol";
-import {MetaVault} from "../base/MetaVault.sol";
-import {VaultEnterExit} from "../modules/VaultEnterExit.sol";
-import {VaultState} from "../modules/VaultState.sol";
-import {VaultSubVaults} from "../modules/VaultSubVaults.sol";
+import {Multicall} from "../../base/Multicall.sol";
+import {VaultImmutables} from "../modules/VaultImmutables.sol";
+import {VaultAdmin} from "../modules/VaultAdmin.sol";
 import {IVaultVersion, VaultVersion} from "../modules/VaultVersion.sol";
+import {VaultFee} from "../modules/VaultFee.sol";
+import {IVaultState, VaultState} from "../modules/VaultState.sol";
+import {IVaultEnterExit, VaultEnterExit} from "../modules/VaultEnterExit.sol";
+import {VaultOsToken} from "../modules/VaultOsToken.sol";
+import {VaultSubVaults} from "../modules/VaultSubVaults.sol";
 
 /**
  * @title EthMetaVault
  * @author StakeWise
  * @notice Defines the Meta Vault functionality on Ethereum
  */
-contract EthMetaVault is Initializable, MetaVault, IEthMetaVault {
+contract EthMetaVault is
+    VaultImmutables,
+    Initializable,
+    VaultAdmin,
+    VaultVersion,
+    VaultFee,
+    VaultState,
+    VaultEnterExit,
+    VaultOsToken,
+    VaultSubVaults,
+    Multicall,
+    IEthMetaVault
+{
     using EnumerableSet for EnumerableSet.AddressSet;
 
     uint8 private constant _version = 6;
@@ -31,10 +47,15 @@ contract EthMetaVault is Initializable, MetaVault, IEthMetaVault {
      * @dev Constructor
      * @dev Since the immutable variable value is stored in the bytecode,
      *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-     * @param args The arguments for initializing the MetaVault contract
+     * @param args The arguments for initializing the EthMetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(MetaVaultConstructorArgs memory args) MetaVault(args) {
+    constructor(EthMetaVaultConstructorArgs memory args)
+        VaultImmutables(args.keeper, args.vaultsRegistry, args.osTokenVaultController, args.osTokenConfig)
+        VaultEnterExit(args.exitingAssetsClaimDelay)
+        VaultOsToken(args.osTokenVaultEscrow)
+        VaultSubVaults(args.curatorsRegistry)
+    {
         _disableInitializers();
     }
 
@@ -45,7 +66,7 @@ contract EthMetaVault is Initializable, MetaVault, IEthMetaVault {
             return;
         }
 
-        __EthMetaVault_init(IEthMetaVaultFactory(msg.sender).vaultAdmin(), abi.decode(params, (MetaVaultInitParams)));
+        __EthMetaVault_init(IEthMetaVaultFactory(msg.sender).vaultAdmin(), abi.decode(params, (EthMetaVaultInitParams)));
     }
 
     /// @inheritdoc IEthMetaVault
@@ -130,13 +151,57 @@ contract EthMetaVault is Initializable, MetaVault, IEthMetaVault {
         return Address.sendValue(payable(receiver), assets);
     }
 
+    /// @inheritdoc IVaultState
+    function isStateUpdateRequired()
+        public
+        view
+        virtual
+        override(IVaultState, VaultState, VaultSubVaults)
+        returns (bool)
+    {
+        return super.isStateUpdateRequired();
+    }
+
+    /// @inheritdoc IVaultState
+    function updateState(IKeeperRewards.HarvestParams calldata harvestParams)
+        public
+        virtual
+        override(IVaultState, VaultState, VaultSubVaults)
+    {
+        super.updateState(harvestParams);
+    }
+
+    /// @inheritdoc IVaultEnterExit
+    function enterExitQueue(uint256 shares, address receiver)
+        public
+        virtual
+        override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+        returns (uint256 positionTicket)
+    {
+        return super.enterExitQueue(shares, receiver);
+    }
+
+    /// @inheritdoc VaultImmutables
+    function _checkHarvested() internal view virtual override(VaultImmutables, VaultSubVaults) {
+        super._checkHarvested();
+    }
+
+    /// @inheritdoc VaultImmutables
+    function _isCollateralized() internal view virtual override(VaultImmutables, VaultSubVaults) returns (bool) {
+        return super._isCollateralized();
+    }
+
     /**
      * @dev Initializes the EthMetaVault contract
-     * @param admin The address of the admin of the Vault
-     * @param params The parameters for initializing the MetaVault contract
+     * @param _admin The address of the admin of the Vault
+     * @param params The parameters for initializing the EthMetaVault contract
      */
-    function __EthMetaVault_init(address admin, MetaVaultInitParams memory params) internal onlyInitializing {
-        __MetaVault_init(admin, params);
+    function __EthMetaVault_init(address _admin, EthMetaVaultInitParams memory params) internal onlyInitializing {
+        __VaultAdmin_init(_admin, params.metadataIpfsHash);
+        __VaultSubVaults_init(params.subVaultsCurator);
+        // fee recipient is initially set to admin address
+        __VaultFee_init(_admin, params.feePercent);
+        __VaultState_init(params.capacity);
 
         // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
         if (msg.value < _securityDeposit) revert Errors.InvalidSecurityDeposit();

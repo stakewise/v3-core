@@ -7,7 +7,6 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IEthPrivMetaVault} from "../contracts/interfaces/IEthPrivMetaVault.sol";
 import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
-import {IMetaVault} from "../contracts/interfaces/IMetaVault.sol";
 import {IVaultSubVaults} from "../contracts/interfaces/IVaultSubVaults.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
@@ -47,7 +46,7 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
 
         // Deploy private meta vault
         bytes memory initParams = abi.encode(
-            IMetaVault.MetaVaultInitParams({
+            IEthMetaVault.EthMetaVaultInitParams({
                 subVaultsCurator: _balancedCurator,
                 capacity: type(uint256).max,
                 feePercent: 0,

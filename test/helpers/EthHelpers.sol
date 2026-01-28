@@ -12,7 +12,7 @@ import {ISharedMevEscrow} from "../../contracts/interfaces/ISharedMevEscrow.sol"
 import {IEthValidatorsRegistry} from "../../contracts/interfaces/IEthValidatorsRegistry.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
-import {IMetaVault} from "../../contracts/interfaces/IMetaVault.sol";
+import {IEthMetaVault} from "../../contracts/interfaces/IEthMetaVault.sol";
 import {IConsolidationsChecker} from "../../contracts/interfaces/IConsolidationsChecker.sol";
 import {ConsolidationsChecker} from "../../contracts/validators/ConsolidationsChecker.sol";
 import {EthBlocklistErc20Vault} from "../../contracts/vaults/ethereum/EthBlocklistErc20Vault.sol";
@@ -456,7 +456,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             );
             impl = address(new EthFoxVault(ethFoxVaultArgs));
         } else if (_vaultType == VaultType.EthMetaVault) {
-            IMetaVault.MetaVaultConstructorArgs memory ethMetaVaultArgs = IMetaVault.MetaVaultConstructorArgs(
+            IEthMetaVault.EthMetaVaultConstructorArgs memory ethMetaVaultArgs = IEthMetaVault.EthMetaVaultConstructorArgs(
                 _keeper,
                 _vaultsRegistry,
                 _osTokenVaultController,
@@ -467,7 +467,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             );
             impl = address(new EthMetaVault(ethMetaVaultArgs));
         } else if (_vaultType == VaultType.EthPrivMetaVault) {
-            IMetaVault.MetaVaultConstructorArgs memory ethMetaVaultArgs = IMetaVault.MetaVaultConstructorArgs(
+            IEthMetaVault.EthMetaVaultConstructorArgs memory ethMetaVaultArgs = IEthMetaVault.EthMetaVaultConstructorArgs(
                 _keeper,
                 _vaultsRegistry,
                 _osTokenVaultController,

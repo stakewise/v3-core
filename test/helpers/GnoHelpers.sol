@@ -14,7 +14,7 @@ import {IGnoValidatorsRegistry} from "../../contracts/interfaces/IGnoValidatorsR
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
 import {IConsolidationsChecker} from "../../contracts/interfaces/IConsolidationsChecker.sol";
-import {IMetaVault} from "../../contracts/interfaces/IMetaVault.sol";
+import {IGnoMetaVault} from "../../contracts/interfaces/IGnoMetaVault.sol";
 import {ConsolidationsChecker} from "../../contracts/validators/ConsolidationsChecker.sol";
 import {GnoBlocklistErc20Vault} from "../../contracts/vaults/gnosis/GnoBlocklistErc20Vault.sol";
 import {GnoBlocklistVault} from "../../contracts/vaults/gnosis/GnoBlocklistVault.sol";
@@ -435,7 +435,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         } else if (_vaultType == VaultType.GnoPrivErc20Vault) {
             impl = address(new GnoPrivErc20Vault(gnoErc20Args));
         } else if (_vaultType == VaultType.GnoMetaVault) {
-            IMetaVault.MetaVaultConstructorArgs memory gnoMetaVaultArgs = IMetaVault.MetaVaultConstructorArgs(
+            IGnoMetaVault.GnoMetaVaultConstructorArgs memory gnoMetaVaultArgs = IGnoMetaVault.GnoMetaVaultConstructorArgs(
                 _keeper,
                 _vaultsRegistry,
                 _osTokenVaultController,
@@ -446,7 +446,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
             );
             impl = address(new GnoMetaVault(_gnoToken, gnoMetaVaultArgs));
         } else if (_vaultType == VaultType.GnoPrivMetaVault) {
-            IMetaVault.MetaVaultConstructorArgs memory gnoMetaVaultArgs = IMetaVault.MetaVaultConstructorArgs(
+            IGnoMetaVault.GnoMetaVaultConstructorArgs memory gnoMetaVaultArgs = IGnoMetaVault.GnoMetaVaultConstructorArgs(
                 _keeper,
                 _vaultsRegistry,
                 _osTokenVaultController,

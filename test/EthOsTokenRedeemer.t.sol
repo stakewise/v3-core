@@ -9,7 +9,7 @@ import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
 import {IOsTokenRedeemer} from "../contracts/interfaces/IOsTokenRedeemer.sol";
 import {EthVault, IEthVault} from "../contracts/vaults/ethereum/EthVault.sol";
 import {EthMetaVault} from "../contracts/vaults/ethereum/EthMetaVault.sol";
-import {IMetaVault} from "../contracts/interfaces/IMetaVault.sol";
+import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
@@ -132,7 +132,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     function _setupMetaVault() internal {
         // Deploy meta vault
         bytes memory initParams = abi.encode(
-            IMetaVault.MetaVaultInitParams({
+            IEthMetaVault.EthMetaVaultInitParams({
                 subVaultsCurator: _balancedCurator,
                 capacity: type(uint256).max,
                 feePercent: 0,
@@ -1730,7 +1730,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
 
         // Deploy meta vault
         bytes memory initParams = abi.encode(
-            IMetaVault.MetaVaultInitParams({
+            IEthMetaVault.EthMetaVaultInitParams({
                 subVaultsCurator: _balancedCurator,
                 capacity: type(uint256).max,
                 feePercent: 0,

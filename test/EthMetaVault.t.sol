@@ -6,7 +6,6 @@ import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
-import {IMetaVault} from "../contracts/interfaces/IMetaVault.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {IVaultSubVaults} from "../contracts/interfaces/IVaultSubVaults.sol";
 import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
@@ -82,7 +81,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Deploy meta vault
         bytes memory initParams = abi.encode(
-            IMetaVault.MetaVaultInitParams({
+            IEthMetaVault.EthMetaVaultInitParams({
                 subVaultsCurator: _balancedCurator,
                 capacity: type(uint256).max,
                 feePercent: 0,
@@ -343,7 +342,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Test with empty sub vaults
         // Create a new meta vault without sub vaults
         bytes memory emptyInitParams = abi.encode(
-            IMetaVault.MetaVaultInitParams({
+            IEthMetaVault.EthMetaVaultInitParams({
                 subVaultsCurator: _balancedCurator,
                 capacity: 1000 ether,
                 feePercent: 1000,
@@ -592,7 +591,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Create another meta vault to use as a sub vault
         bytes memory metaInitParams = abi.encode(
-            IMetaVault.MetaVaultInitParams({
+            IEthMetaVault.EthMetaVaultInitParams({
                 subVaultsCurator: _balancedCurator,
                 capacity: type(uint256).max,
                 feePercent: 0,
