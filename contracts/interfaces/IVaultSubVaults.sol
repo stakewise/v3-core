@@ -2,6 +2,8 @@
 
 pragma solidity ^0.8.22;
 
+import {ISubVaultsCurator} from "./ISubVaultsCurator.sol";
+
 /**
  * @title IVaultSubVaults
  * @author StakeWise
@@ -83,6 +85,12 @@ interface IVaultSubVaults {
      * @param curator The address of the new sub-vaults curator
      */
     event SubVaultsCuratorUpdated(address indexed caller, address indexed curator);
+
+    /**
+     * @notice Event emitted when assets are redeemed from sub-vaults
+     * @param assetsRedeemed The amount of assets redeemed to the meta vault
+     */
+    event SubVaultsAssetsRedeemed(uint256 assetsRedeemed);
 
     /**
      * @notice Sub-vaults curator contract
@@ -174,4 +182,21 @@ interface IVaultSubVaults {
      * @param exitRequests The array of exit requests to claim
      */
     function claimSubVaultsExitedAssets(SubVaultExitRequest[] calldata exitRequests) external;
+
+    /**
+     * @notice Calculates the required sub-vaults exit requests to fulfill the assets to redeem
+     * @param assetsToRedeem The amount of assets to redeem
+     * @return redeemRequests The array of sub-vaults exit requests
+     */
+    function calculateSubVaultsRedemptions(uint256 assetsToRedeem)
+        external
+        view
+        returns (ISubVaultsCurator.ExitRequest[] memory redeemRequests);
+
+    /**
+     * @notice Redeems assets from sub-vaults to the meta vault. Can only be called by the redeemer.
+     * @param assetsToRedeem The amount of assets to redeem to the meta vault
+     * @return totalRedeemedAssets The total amount of assets redeemed from sub-vaults
+     */
+    function redeemSubVaultsAssets(uint256 assetsToRedeem) external returns (uint256 totalRedeemedAssets);
 }

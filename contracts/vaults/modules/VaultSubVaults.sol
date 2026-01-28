@@ -254,6 +254,57 @@ abstract contract VaultSubVaults is
         _subVaultsTotalAssets -= SafeCast.toUint128(totalExitedAssets);
     }
 
+    /// @inheritdoc IVaultSubVaults
+    function calculateSubVaultsRedemptions(uint256 assetsToRedeem)
+        external
+        view
+        override
+        returns (ISubVaultsCurator.ExitRequest[] memory redeemRequests)
+    {
+        return _calculateSubVaultsRedemptions(assetsToRedeem, true);
+    }
+
+    /// @inheritdoc IVaultSubVaults
+    function redeemSubVaultsAssets(uint256 assetsToRedeem)
+        external
+        override
+        nonReentrant
+        returns (uint256 totalRedeemedAssets)
+    {
+        // check only redeemer can call
+        address redeemer = _osTokenConfig.redeemer();
+        if (msg.sender != redeemer) revert Errors.AccessDenied();
+
+        if (assetsToRedeem == 0) {
+            revert Errors.InvalidAssets();
+        }
+
+        // get redeem requests
+        ISubVaultsCurator.ExitRequest[] memory redeemRequests = _calculateSubVaultsRedemptions(assetsToRedeem, false);
+        if (redeemRequests.length == 0) {
+            return totalRedeemedAssets;
+        }
+
+        // check assets before
+        uint256 assetsBefore = _vaultAssets();
+
+        // perform redemptions
+        totalRedeemedAssets = SubVaultUtils.processRedeemRequests(
+            _subVaultsStates, address(_osTokenVaultController), redeemer, redeemRequests
+        );
+
+        // check redeemed assets transferred back
+        if (_vaultAssets() - assetsBefore != totalRedeemedAssets) {
+            revert Errors.InvalidAssets();
+        }
+
+        // update sub vaults total assets
+        _subVaultsTotalAssets -= SafeCast.toUint128(totalRedeemedAssets);
+
+        // emit event
+        emit SubVaultsAssetsRedeemed(totalRedeemedAssets);
+    }
+
     /// @inheritdoc IVaultState
     function updateState(IKeeperRewards.HarvestParams calldata) public virtual override {
         // fetch all the vaults
@@ -584,6 +635,30 @@ abstract contract VaultSubVaults is
      * @return The amount of vault shares received
      */
     function _depositToVault(address vault, uint256 assets) internal virtual returns (uint256);
+
+    /**
+     * @dev Calculates the required sub-vaults exit requests to fulfill the assets to redeem
+     * @param assetsToRedeem The amount of assets to redeem
+     * @param includeEjectingSubVaultShares Whether to take into account shares from the ejecting sub-vault
+     * @return redeemRequests The array of sub-vaults exit requests
+     */
+    function _calculateSubVaultsRedemptions(uint256 assetsToRedeem, bool includeEjectingSubVaultShares)
+        private
+        view
+        returns (ISubVaultsCurator.ExitRequest[] memory redeemRequests)
+    {
+        _checkHarvested();
+
+        return SubVaultUtils.calculateSubVaultsRedemptions(
+            _subVaultsStates,
+            subVaultsCurator,
+            getSubVaults(),
+            assetsToRedeem,
+            withdrawableAssets(),
+            ejectingSubVault,
+            includeEjectingSubVaultShares ? _ejectingSubVaultShares : 0
+        );
+    }
 
     /**
      * @dev Initializes the VaultSubVaults contract

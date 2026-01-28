@@ -48,7 +48,7 @@ contract EthVault is
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(EthVaultConstructorArgs memory args)
-        VaultImmutables(args.keeper, args.vaultsRegistry)
+        VaultImmutables(args.keeper, args.vaultsRegistry, args.osTokenVaultController, args.osTokenConfig)
         VaultValidators(
             args.depositDataRegistry,
             args.validatorsRegistry,
@@ -57,7 +57,7 @@ contract EthVault is
             args.consolidationsChecker
         )
         VaultEnterExit(args.exitingAssetsClaimDelay)
-        VaultOsToken(args.osTokenVaultController, args.osTokenConfig, args.osTokenVaultEscrow)
+        VaultOsToken(args.osTokenVaultEscrow)
         VaultMev(args.sharedMevEscrow)
     {
         _disableInitializers();

@@ -47,7 +47,7 @@ contract EthFoxVault is
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(EthFoxVaultConstructorArgs memory args)
-        VaultImmutables(args.keeper, args.vaultsRegistry)
+        VaultImmutables(args.keeper, args.vaultsRegistry, address(0), address(0))
         VaultValidators(
             args.depositDataRegistry,
             args.validatorsRegistry,
