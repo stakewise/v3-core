@@ -2,6 +2,7 @@
 
 pragma solidity ^0.8.22;
 
+import {IKeeperRewards} from "./IKeeperRewards.sol";
 import {IMulticall} from "./IMulticall.sol";
 
 /**
@@ -288,6 +289,13 @@ interface IOsTokenRedeemer is IMulticall {
         bytes32[] calldata proof,
         bool[] calldata proofFlags
     ) external;
+
+    /**
+     * @notice Updates the vault state. To be used in multicall to update state and redeem positions.
+     * @param vault The address of the vault to update
+     * @param harvestParams The harvest parameters for the vault state update
+     */
+    function updateVaultState(address vault, IKeeperRewards.HarvestParams calldata harvestParams) external;
 
     /**
      * @notice Process the exit queue and checkpoint swapped or redeemed shares. Can only be called once per `exitQueueUpdateDelay`.

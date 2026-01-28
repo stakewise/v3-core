@@ -10,9 +10,11 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {IMetaVault} from "../interfaces/IMetaVault.sol";
+import {IKeeperRewards} from "../interfaces/IKeeperRewards.sol";
 import {IOsTokenRedeemer} from "../interfaces/IOsTokenRedeemer.sol";
 import {IOsTokenVaultController} from "../interfaces/IOsTokenVaultController.sol";
 import {IVaultOsToken} from "../interfaces/IVaultOsToken.sol";
+import {IVaultState} from "../interfaces/IVaultState.sol";
 import {IVaultSubVaults} from "../interfaces/IVaultSubVaults.sol";
 import {IVaultsRegistry} from "../interfaces/IVaultsRegistry.sol";
 import {Multicall} from "../base/Multicall.sol";
@@ -418,6 +420,15 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         ExitQueue.push(_exitQueue, processedShares, processedAssets);
         exitQueueTimestamp = block.timestamp;
         emit CheckpointCreated(processedShares, processedAssets);
+    }
+
+    /// @inheritdoc IOsTokenRedeemer
+    function updateVaultState(address vault, IKeeperRewards.HarvestParams calldata harvestParams) external override {
+        // must be a registered vault
+        if (!_vaultsRegistry.vaults(vault)) {
+            revert Errors.InvalidVault();
+        }
+        IVaultState(vault).updateState(harvestParams);
     }
 
     /**

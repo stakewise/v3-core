@@ -1668,6 +1668,61 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         );
     }
 
+    // ============ test_updateVaultState Tests ============
+
+    function test_updateVaultState_success() public {
+        // Get the vault's reward nonce before update
+        (, uint64 nonceBefore) = contracts.keeper.rewards(address(vault));
+
+        // Create harvest params with some rewards
+        IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 1 ether, 0);
+
+        // Call updateVaultState through the redeemer
+        _startSnapshotGas("EthOsTokenRedeemerTest_test_updateVaultState_success");
+        osTokenRedeemer.updateVaultState(address(vault), harvestParams);
+        _stopSnapshotGas();
+
+        // Verify the vault state was updated (nonce should increase)
+        (, uint64 nonceAfter) = contracts.keeper.rewards(address(vault));
+        assertGt(nonceAfter, nonceBefore, "Vault reward nonce should increase after update");
+    }
+
+    function test_updateVaultState_zeroRewards() public {
+        // Get the vault's reward nonce before update
+        (, uint64 nonceBefore) = contracts.keeper.rewards(address(vault));
+
+        // Create harvest params with zero rewards
+        IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+
+        // Call updateVaultState with zero rewards - should succeed
+        osTokenRedeemer.updateVaultState(address(vault), harvestParams);
+
+        // Verify the vault state was updated (nonce should increase even with zero rewards)
+        (, uint64 nonceAfter) = contracts.keeper.rewards(address(vault));
+        assertGt(nonceAfter, nonceBefore, "Vault reward nonce should increase after update");
+    }
+
+    function test_updateVaultState_invalidVault() public {
+        // Create harvest params
+        IKeeperRewards.HarvestParams memory harvestParams = _getEmptyHarvestParams();
+
+        // Try to call updateVaultState on an invalid vault address
+        address invalidVault = makeAddr("InvalidVault");
+
+        // Should revert with InvalidVault error when calling on a non-registered vault address
+        vm.expectRevert(Errors.InvalidVault.selector);
+        osTokenRedeemer.updateVaultState(invalidVault, harvestParams);
+    }
+
+    function test_updateVaultState_invalidRewardsRoot() public {
+        // Get empty harvest params (invalid rewards root)
+        IKeeperRewards.HarvestParams memory harvestParams = _getEmptyHarvestParams();
+
+        // Should revert with InvalidRewardsRoot when using empty params
+        vm.expectRevert(Errors.InvalidRewardsRoot.selector);
+        osTokenRedeemer.updateVaultState(address(vault), harvestParams);
+    }
+
     // Helper to setup meta vault with specific number of sub vaults
     function _setupMetaVaultWithSubVaults(uint256 numSubVaults) internal {
         // Clear existing subVaults array
