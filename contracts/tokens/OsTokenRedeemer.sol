@@ -15,6 +15,7 @@ import {IOsTokenVaultController} from "../interfaces/IOsTokenVaultController.sol
 import {IVaultOsToken} from "../interfaces/IVaultOsToken.sol";
 import {IVaultState} from "../interfaces/IVaultState.sol";
 import {IVaultSubVaults} from "../interfaces/IVaultSubVaults.sol";
+import {ISubVaultsRegistry} from "../interfaces/ISubVaultsRegistry.sol";
 import {IVaultsRegistry} from "../interfaces/IVaultsRegistry.sol";
 import {Multicall} from "../base/Multicall.sol";
 import {Errors} from "../libraries/Errors.sol";
@@ -280,7 +281,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
             revert Errors.InvalidVault();
         }
 
-        return IVaultSubVaults(metaVault).redeemSubVaultsAssets(assetsToRedeem);
+        return ISubVaultsRegistry(IVaultSubVaults(metaVault).subVaultsRegistry()).redeemSubVaultsAssets(assetsToRedeem);
     }
 
     /// @inheritdoc IOsTokenRedeemer
@@ -471,7 +472,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         }
 
         // must be a meta vault
-        try IVaultSubVaults(vault).getSubVaults() {
+        try IVaultSubVaults(vault).subVaultsRegistry() {
             return true;
         } catch {
             return false;
