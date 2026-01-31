@@ -132,7 +132,10 @@ contract EthErc20Vault is
         returns (uint256 positionTicket)
     {
         positionTicket = super.enterExitQueue(shares, receiver);
-        emit Transfer(msg.sender, address(this), shares);
+        // only emit Transfer if shares were queued (not directly redeemed when non-collateralized)
+        if (positionTicket != type(uint256).max) {
+            emit Transfer(msg.sender, address(this), shares);
+        }
     }
 
     /// @inheritdoc IVaultVersion

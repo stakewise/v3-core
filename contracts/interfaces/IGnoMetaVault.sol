@@ -33,7 +33,7 @@ interface IGnoMetaVault is
      * @param osTokenVaultController The address of the OsTokenVaultController contract
      * @param osTokenConfig The address of the OsTokenConfig contract
      * @param osTokenVaultEscrow The address of the OsTokenVaultEscrow contract
-     * @param curatorsRegistry The address of the CuratorsRegistry contract
+     * @param subVaultsRegistryFactory The address of the factory for creating SubVaultsRegistry contracts
      * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
      */
     struct GnoMetaVaultConstructorArgs {
@@ -42,7 +42,7 @@ interface IGnoMetaVault is
         address osTokenVaultController;
         address osTokenConfig;
         address osTokenVaultEscrow;
-        address curatorsRegistry;
+        address subVaultsRegistryFactory;
         uint64 exitingAssetsClaimDelay;
     }
 
@@ -62,7 +62,7 @@ interface IGnoMetaVault is
 
     /**
      * @notice Initializes or upgrades the GnoMetaVault contract. Must transfer security deposit during the deployment.
-     * @param params The encoded parameters for initializing the GnoVault contract
+     * @param params The encoded parameters for initializing the GnoMetaVault contract
      */
     function initialize(bytes calldata params) external;
 

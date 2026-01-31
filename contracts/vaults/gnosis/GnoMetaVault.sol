@@ -5,6 +5,7 @@ pragma solidity ^0.8.22;
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {IGnoMetaVault} from "../../interfaces/IGnoMetaVault.sol";
 import {IGnoMetaVaultFactory} from "../../interfaces/IGnoMetaVaultFactory.sol";
 import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
@@ -28,6 +29,7 @@ import {IVaultSubVaults, VaultSubVaults} from "../modules/VaultSubVaults.sol";
 contract GnoMetaVault is
     VaultImmutables,
     Initializable,
+    ReentrancyGuardUpgradeable,
     VaultAdmin,
     VaultVersion,
     VaultFee,
@@ -55,7 +57,7 @@ contract GnoMetaVault is
         VaultImmutables(args.keeper, args.vaultsRegistry, args.osTokenVaultController, args.osTokenConfig)
         VaultEnterExit(args.exitingAssetsClaimDelay)
         VaultOsToken(args.osTokenVaultEscrow)
-        VaultSubVaults(args.curatorsRegistry)
+        VaultSubVaults(args.subVaultsRegistryFactory)
     {
         _gnoToken = IERC20(gnoToken);
         _disableInitializers();
@@ -65,6 +67,7 @@ contract GnoMetaVault is
     function initialize(bytes calldata params) external virtual override reinitializer(_version) {
         // if admin is already set, it's an upgrade from version 3 to 4
         if (admin != address(0)) {
+            __GnoMetaVault_upgrade();
             return;
         }
 
@@ -81,20 +84,6 @@ contract GnoMetaVault is
         // withdraw GNO tokens from the user
         SafeERC20.safeTransferFrom(_gnoToken, msg.sender, address(this), assets);
         shares = _deposit(receiver, assets, referrer);
-    }
-
-    /// @inheritdoc IVaultSubVaults
-    function addSubVault(address vault) public virtual override(IVaultSubVaults, VaultSubVaults) {
-        super.addSubVault(vault);
-        // approve transferring GNO to sub-vault
-        _gnoToken.approve(vault, type(uint256).max);
-    }
-
-    /// @inheritdoc IVaultSubVaults
-    function ejectSubVault(address vault) public virtual override(IVaultSubVaults, VaultSubVaults) {
-        super.ejectSubVault(vault);
-        // revoke transferring GNO to sub-vault
-        _gnoToken.approve(vault, 0);
     }
 
     /// @inheritdoc IGnoMetaVault
@@ -120,6 +109,7 @@ contract GnoMetaVault is
 
     /// @inheritdoc VaultSubVaults
     function _depositToVault(address vault, uint256 assets) internal override returns (uint256) {
+        _gnoToken.approve(vault, assets);
         return IVaultGnoStaking(vault).deposit(assets, address(this), address(0));
     }
 
@@ -174,11 +164,19 @@ contract GnoMetaVault is
     }
 
     /**
+     * @dev Upgrades the GnoMetaVault contract
+     */
+    function __GnoMetaVault_upgrade() internal {
+        __VaultSubVaults_upgrade();
+    }
+
+    /**
      * @dev Initializes the GnoMetaVault contract
      * @param _admin The address of the admin of the Vault
      * @param params The parameters for initializing the GnoMetaVault contract
      */
     function __GnoMetaVault_init(address _admin, GnoMetaVaultInitParams memory params) internal onlyInitializing {
+        __ReentrancyGuard_init();
         __VaultAdmin_init(_admin, params.metadataIpfsHash);
         __VaultSubVaults_init(params.subVaultsCurator);
         // fee recipient is initially set to admin address
