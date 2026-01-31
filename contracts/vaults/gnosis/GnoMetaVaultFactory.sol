@@ -8,7 +8,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IGnoMetaVaultFactory} from "../../interfaces/IGnoMetaVaultFactory.sol";
 import {IGnoMetaVault} from "../../interfaces/IGnoMetaVault.sol";
 import {IVaultsRegistry} from "../../interfaces/IVaultsRegistry.sol";
-import {Errors} from "../../libraries/Errors.sol";
 
 /**
  * @title GnoMetaVaultFactory

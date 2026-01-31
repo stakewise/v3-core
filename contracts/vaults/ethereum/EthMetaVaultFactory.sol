@@ -6,7 +6,6 @@ import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.s
 import {IEthMetaVaultFactory} from "../../interfaces/IEthMetaVaultFactory.sol";
 import {IEthMetaVault} from "../../interfaces/IEthMetaVault.sol";
 import {IVaultsRegistry} from "../../interfaces/IVaultsRegistry.sol";
-import {Errors} from "../../libraries/Errors.sol";
 
 /**
  * @title EthMetaVaultFactory
