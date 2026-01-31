@@ -182,9 +182,12 @@ abstract contract Network is Script {
         vm.writeJson(output, getUpgradesFilePath());
     }
 
-    function generateAddressesJson(Factory[] memory newFactories, address validatorsChecker, address osTokenRedeemer)
-        internal
-    {
+    function generateAddressesJson(
+        Factory[] memory newFactories,
+        address validatorsChecker,
+        address osTokenRedeemer,
+        address subVaultsRegistryFactory
+    ) internal {
         Deployment memory deployment = getDeploymentData();
 
         string memory json = "addresses";
@@ -224,6 +227,7 @@ abstract contract Network is Script {
         }
 
         vm.serializeAddress(json, "OsTokenRedeemer", osTokenRedeemer);
+        vm.serializeAddress(json, "SubVaultsRegistryFactory", subVaultsRegistryFactory);
         string memory output = vm.serializeAddress(json, "ValidatorsChecker", validatorsChecker);
         string memory path = string.concat("./deployments/", getNetworkName(), "-new.json");
         vm.writeJson(output, path);
