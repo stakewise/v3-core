@@ -11,6 +11,52 @@ import {IVaultState} from "./IVaultState.sol";
  */
 interface IVaultSubVaults is IVaultState {
     /**
+     * @notice Emitted when the rewards nonce is updated
+     * @dev Deprecated: moved to SubVaultsRegistry
+     * @param rewardsNonce The new rewards nonce
+     */
+    event RewardsNonceUpdated(uint256 rewardsNonce);
+
+    /**
+     * @notice Emitted when the sub vaults are harvested
+     * @dev Deprecated: moved to SubVaultsRegistry
+     * @param totalAssetsDelta The change in total assets after the harvest
+     */
+    event SubVaultsHarvested(int256 totalAssetsDelta);
+
+    /**
+     * @notice Emitted when the new sub-vault is added
+     * @dev Deprecated: moved to SubVaultsRegistry
+     * @param caller The address of the caller
+     * @param vault The address of the sub-vault
+     */
+    event SubVaultAdded(address indexed caller, address indexed vault);
+
+    /**
+     * @notice Emitted when the sub-vault is ejecting
+     * @dev Deprecated: moved to SubVaultsRegistry
+     * @param caller The address of the caller
+     * @param vault The address of the sub-vault
+     */
+    event SubVaultEjecting(address indexed caller, address indexed vault);
+
+    /**
+     * @notice Emitted when the sub-vault is ejected
+     * @dev Deprecated: moved to SubVaultsRegistry
+     * @param caller The address of the caller
+     * @param vault The address of the sub-vault
+     */
+    event SubVaultEjected(address indexed caller, address indexed vault);
+
+    /**
+     * @notice Emitted when the sub-vaults curator is updated
+     * @dev Deprecated: moved to SubVaultsRegistry
+     * @param caller The address of the caller
+     * @param curator The address of the new sub-vaults curator
+     */
+    event SubVaultsCuratorUpdated(address indexed caller, address indexed curator);
+
+    /**
      * @notice Returns the address of the SubVaultsRegistry contract
      * @return The address of the SubVaultsRegistry
      */
