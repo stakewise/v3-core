@@ -235,6 +235,48 @@ contract SubVaultsRegistry is
     }
 
     /// @inheritdoc ISubVaultsRegistry
+    function ejectSubVault(address vault) external override onlyMetaVaultAdmin {
+        if (ejectingSubVault != address(0)) {
+            revert Errors.EjectingVault();
+        }
+        if (!_subVaults.contains(vault)) {
+            revert Errors.AlreadyRemoved();
+        }
+        if (_subVaults.length() == 1) {
+            revert Errors.EmptySubVaults();
+        }
+
+        // check the vault state
+        SubVaultState memory state = _subVaultsStates[vault];
+        if (state.stakedShares > 0) {
+            // enter exit queue for all the vault staked shares
+            uint256 positionTicket = IVaultSubVaults(metaVault).enterSubVaultExitQueue(vault, state.stakedShares);
+            // add ejecting shares to the vault's exit positions
+            SubVaultExits.pushSubVaultExit(
+                _subVaultsExits, vault, SafeCast.toUint160(positionTicket), SafeCast.toUint96(state.stakedShares), false
+            );
+            state.queuedShares += state.stakedShares;
+        }
+
+        // update state
+        if (state.queuedShares > 0) {
+            ejectingSubVault = vault;
+            if (state.stakedShares > 0) {
+                ejectingSubVaultShares = state.stakedShares;
+                state.stakedShares = 0;
+            }
+            _subVaultsStates[vault] = state;
+            emit SubVaultEjecting(vault);
+        } else {
+            // no shares left
+            _subVaultsExits[vault].clear();
+            // remove the vault from the list of sub vaults
+            _subVaults.remove(vault);
+            emit SubVaultEjected(vault);
+        }
+    }
+
+    /// @inheritdoc ISubVaultsRegistry
     function subVaultsStates(address vault) external view override returns (SubVaultState memory) {
         return _subVaultsStates[vault];
     }
@@ -306,48 +348,6 @@ contract SubVaultsRegistry is
         }
         // update last sync sub vaults assets
         subVaultsTotalAssets = SafeCast.toUint128(totalAssets);
-    }
-
-    /// @inheritdoc ISubVaultsRegistry
-    function ejectSubVault(address vault) external override onlyMetaVaultAdmin {
-        if (ejectingSubVault != address(0)) {
-            revert Errors.EjectingVault();
-        }
-        if (!_subVaults.contains(vault)) {
-            revert Errors.AlreadyRemoved();
-        }
-        if (_subVaults.length() == 1) {
-            revert Errors.EmptySubVaults();
-        }
-
-        // check the vault state
-        SubVaultState memory state = _subVaultsStates[vault];
-        if (state.stakedShares > 0) {
-            // enter exit queue for all the vault staked shares
-            uint256 positionTicket = IVaultSubVaults(metaVault).enterSubVaultExitQueue(vault, state.stakedShares);
-            // add ejecting shares to the vault's exit positions
-            SubVaultExits.pushSubVaultExit(
-                _subVaultsExits, vault, SafeCast.toUint160(positionTicket), SafeCast.toUint96(state.stakedShares), false
-            );
-            state.queuedShares += state.stakedShares;
-        }
-
-        // update state
-        if (state.queuedShares > 0) {
-            ejectingSubVault = vault;
-            if (state.stakedShares > 0) {
-                ejectingSubVaultShares = state.stakedShares;
-                state.stakedShares = 0;
-            }
-            _subVaultsStates[vault] = state;
-            emit SubVaultEjecting(vault);
-        } else {
-            // no shares left
-            _subVaultsExits[vault].clear();
-            // remove the vault from the list of sub vaults
-            _subVaults.remove(vault);
-            emit SubVaultEjected(vault);
-        }
     }
 
     /// @inheritdoc ISubVaultsRegistry
