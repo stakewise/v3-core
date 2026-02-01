@@ -36,6 +36,9 @@ contract EthMetaVaultFactory is IEthMetaVaultFactory {
         // create vault
         vault = address(new ERC1967Proxy(implementation, ""));
 
+        // add vault to the registry
+        _vaultsRegistry.addVault(vault);
+
         // set admin so that it can be initialized in the Vault
         vaultAdmin = msg.sender;
 
@@ -44,9 +47,6 @@ contract EthMetaVaultFactory is IEthMetaVaultFactory {
 
         // cleanup admin
         delete vaultAdmin;
-
-        // add vault to the registry
-        _vaultsRegistry.addVault(vault);
 
         // emit event
         emit MetaVaultCreated(msg.sender, msg.sender, vault, params);

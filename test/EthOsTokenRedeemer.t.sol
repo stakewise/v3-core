@@ -14,6 +14,7 @@ import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
+import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
 
 contract EthOsTokenRedeemerTest is Test, EthHelpers {
     using stdStorage for StdStorage;
@@ -24,6 +25,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     EthVault public vault;
     EthVault public vault2;
     EthMetaVault public metaVault;
+    ISubVaultsRegistry public registry;
     address[] public subVaults;
 
     // Test accounts
@@ -141,8 +143,11 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         );
         metaVault = EthMetaVault(payable(_getOrCreateVault(VaultType.EthMetaVault, admin, initParams, false)));
 
+        // Get registry reference
+        registry = ISubVaultsRegistry(metaVault.subVaultsRegistry());
+
         // Get existing sub vaults (if any from fork)
-        address[] memory currentSubVaults = metaVault.getSubVaults();
+        address[] memory currentSubVaults = registry.getSubVaults();
         for (uint256 i = 0; i < currentSubVaults.length; i++) {
             subVaults.push(currentSubVaults[i]);
         }
@@ -154,7 +159,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
             subVaults.push(subVault);
 
             vm.prank(admin);
-            metaVault.addSubVault(subVault);
+            registry.addSubVault(subVault);
         }
 
         // Deposit to meta vault to make it have assets
@@ -1476,13 +1481,13 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         metaVault.deposit{value: depositAmount}(user1, address(0));
 
         // Distribute assets to sub-vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
         _updateMetaVaultState();
 
         // Record sub vault states before redemption
         uint256[] memory stakedSharesBefore = new uint256[](subVaults.length);
         for (uint256 i = 0; i < subVaults.length; i++) {
-            stakedSharesBefore[i] = metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            stakedSharesBefore[i] = registry.subVaultsStates(subVaults[i]).stakedShares;
         }
 
         // Request redemption that will require multiple sub-vaults
@@ -1496,7 +1501,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Verify assets were redeemed from multiple sub-vaults
         uint256 subVaultsWithRedemptions = 0;
         for (uint256 i = 0; i < subVaults.length; i++) {
-            uint256 stakedSharesAfter = metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            uint256 stakedSharesAfter = registry.subVaultsStates(subVaults[i]).stakedShares;
             if (stakedSharesAfter < stakedSharesBefore[i]) {
                 subVaultsWithRedemptions++;
             }
@@ -1516,7 +1521,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         metaVault.deposit{value: 100 ether}(user1, address(0));
 
         // Distribute assets to sub-vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
         _updateMetaVaultState();
 
         // Use fixed amounts for redemption
@@ -1549,13 +1554,13 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         metaVault.deposit{value: depositAmount}(user1, address(0));
 
         // Distribute assets to sub-vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
         _updateMetaVaultState();
 
         // Record initial states
         uint256 totalStakedBefore = 0;
         for (uint256 i = 0; i < subVaults.length; i++) {
-            totalStakedBefore += metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            totalStakedBefore += registry.subVaultsStates(subVaults[i]).stakedShares;
         }
 
         // Redeem significant amount
@@ -1566,7 +1571,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Verify state updates were properly applied
         uint256 totalStakedAfter = 0;
         for (uint256 i = 0; i < subVaults.length; i++) {
-            totalStakedAfter += metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            totalStakedAfter += registry.subVaultsStates(subVaults[i]).stakedShares;
         }
 
         // Total staked shares should decrease
@@ -1574,7 +1579,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
 
         // Verify no negative shares or overflow
         for (uint256 i = 0; i < subVaults.length; i++) {
-            uint128 stakedShares = metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            uint128 stakedShares = registry.subVaultsStates(subVaults[i]).stakedShares;
             assertGe(stakedShares, 0, "Staked shares should never be negative");
         }
     }
@@ -1590,13 +1595,13 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         metaVault.deposit{value: depositAmount}(user1, address(0));
 
         // Distribute assets to sub-vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
         _updateMetaVaultState();
 
         // Record initial staked shares
         uint256[] memory initialShares = new uint256[](subVaults.length);
         for (uint256 i = 0; i < subVaults.length; i++) {
-            initialShares[i] = metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            initialShares[i] = registry.subVaultsStates(subVaults[i]).stakedShares;
         }
 
         // Request a large redemption amount (uses fixed amount like other working tests)
@@ -1613,7 +1618,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Check that some sub-vaults had their staked shares reduced
         uint256 vaultsWithReductions = 0;
         for (uint256 i = 0; i < subVaults.length; i++) {
-            uint256 currentShares = metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            uint256 currentShares = registry.subVaultsStates(subVaults[i]).stakedShares;
             if (currentShares < initialShares[i]) {
                 vaultsWithReductions++;
             }
@@ -1633,14 +1638,14 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         metaVault.deposit{value: depositAmount}(user1, address(0));
 
         // Distribute assets to sub-vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
         _updateMetaVaultState();
 
         // Record initial values
         uint256 metaVaultBalanceBefore = address(metaVault).balance;
         uint256 totalSubVaultSharesBefore = 0;
         for (uint256 i = 0; i < subVaults.length; i++) {
-            totalSubVaultSharesBefore += metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            totalSubVaultSharesBefore += registry.subVaultsStates(subVaults[i]).stakedShares;
         }
 
         // Perform a redemption
@@ -1654,7 +1659,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Verify sub vault shares decreased
         uint256 totalSubVaultSharesAfter = 0;
         for (uint256 i = 0; i < subVaults.length; i++) {
-            totalSubVaultSharesAfter += metaVault.subVaultsStates(subVaults[i]).stakedShares;
+            totalSubVaultSharesAfter += registry.subVaultsStates(subVaults[i]).stakedShares;
         }
         assertLt(totalSubVaultSharesAfter, totalSubVaultSharesBefore, "Sub vault shares should decrease");
 
@@ -1739,6 +1744,9 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         );
         metaVault = EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
 
+        // Update registry reference for new meta vault
+        registry = ISubVaultsRegistry(metaVault.subVaultsRegistry());
+
         // Deploy and add sub vaults
         for (uint256 i = 0; i < numSubVaults; i++) {
             address subVault = _createSubVault(admin);
@@ -1746,7 +1754,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
             subVaults.push(subVault);
 
             vm.prank(admin);
-            metaVault.addSubVault(subVault);
+            registry.addSubVault(subVault);
         }
     }
 }

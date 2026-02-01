@@ -281,4 +281,116 @@ contract EthGenesisVaultTest is Test, EthHelpers {
         vm.prank(user);
         vault.claimExitedAssets(positionTicket, timestamp, uint256(exitQueueIndex));
     }
+
+    function test_vaultIdAndVersion() public {
+        address vaultAddr = _getOrCreateVault(VaultType.EthGenesisVault, admin, initParams, false);
+        EthGenesisVault vault = EthGenesisVault(payable(vaultAddr));
+        assertEq(vault.vaultId(), keccak256("EthGenesisVault"), "Incorrect vault ID");
+        assertEq(vault.version(), 5, "Incorrect version");
+    }
+
+    function test_deposit() public {
+        address vaultAddr = _getOrCreateVault(VaultType.EthGenesisVault, admin, initParams, false);
+        EthGenesisVault vault = EthGenesisVault(payable(vaultAddr));
+
+        uint256 depositAmount = 10 ether;
+        uint256 sharesBefore = vault.getShares(user);
+        uint256 totalAssetsBefore = vault.totalAssets();
+
+        _startSnapshotGas("EthGenesisVaultTest_test_deposit");
+        _depositToVault(vaultAddr, depositAmount, user, user);
+        _stopSnapshotGas();
+
+        assertGt(vault.getShares(user), sharesBefore, "Shares should increase");
+        assertEq(vault.totalAssets(), totalAssetsBefore + depositAmount, "Total assets should increase");
+    }
+
+    function test_migrate_mintsOsTokenShares() public {
+        address vaultAddr = _getOrCreateVault(VaultType.EthGenesisVault, admin, initParams, false);
+        EthGenesisVault vault = EthGenesisVault(payable(vaultAddr));
+
+        // Ensure vault is harvested and collateralized
+        _collateralizeEthVault(address(vault));
+
+        // Mock the pool escrow owner to be the vault
+        vm.mockCall(poolEscrow, abi.encodeWithSelector(IEthPoolEscrow.owner.selector), abi.encode(address(vault)));
+
+        // Ensure osToken position is empty
+        assertEq(vault.osTokenPositions(user), 0, "OsToken position should be empty");
+
+        // Perform migration
+        uint256 migrateAmount = 10 ether;
+        vm.prank(rewardEthToken);
+        vault.migrate(user, migrateAmount);
+
+        // Verify osToken position was created
+        uint256 osTokenShares = vault.osTokenPositions(user);
+        assertGt(osTokenShares, 0, "OsToken position should be created");
+    }
+
+    function test_migrate_existingOsTokenPosition() public {
+        address vaultAddr = _getOrCreateVault(VaultType.EthGenesisVault, admin, initParams, false);
+        EthGenesisVault vault = EthGenesisVault(payable(vaultAddr));
+
+        // Ensure vault is harvested and collateralized
+        _collateralizeEthVault(address(vault));
+
+        // First deposit and mint osToken to create an existing position
+        _depositToVault(vaultAddr, 10 ether, user, user);
+        uint256 osTokenAmount = 1 ether;
+        vm.prank(user);
+        vault.mintOsToken(user, osTokenAmount, address(0));
+
+        uint256 osTokenPositionBefore = vault.osTokenPositions(user);
+        assertEq(osTokenPositionBefore, osTokenAmount, "OsToken position should exist");
+
+        // Mock the pool escrow owner to be the vault
+        vm.mockCall(poolEscrow, abi.encodeWithSelector(IEthPoolEscrow.owner.selector), abi.encode(address(vault)));
+
+        // Perform migration
+        uint256 migrateAmount = 10 ether;
+        vm.prank(rewardEthToken);
+        vault.migrate(user, migrateAmount);
+
+        // Verify osToken position increased
+        uint256 osTokenPositionAfter = vault.osTokenPositions(user);
+        assertGt(osTokenPositionAfter, osTokenPositionBefore, "OsToken position should increase after migration");
+    }
+
+    function test_transferVaultAssets_pullsFromEscrow() public {
+        address vaultAddr = _getOrCreateVault(VaultType.EthGenesisVault, admin, initParams, false);
+        EthGenesisVault vault = EthGenesisVault(payable(vaultAddr));
+
+        // Deposit and enter exit queue
+        uint256 depositAmount = 10 ether;
+        _depositToVault(vaultAddr, depositAmount, user, user);
+
+        uint256 shares = vault.getShares(user);
+        vm.prank(user);
+        uint256 timestamp = vm.getBlockTimestamp();
+        uint256 positionTicket = vault.enterExitQueue(shares, user);
+
+        // Process exit queue
+        IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(address(vault), 0, 0);
+        vault.updateState(harvestParams);
+
+        // Wait for claim delay
+        vm.warp(timestamp + _exitingAssetsClaimDelay + 1);
+
+        // Move all vault balance to pool escrow (simulating assets in escrow)
+        uint256 vaultBalance = address(vault).balance;
+        vm.deal(poolEscrow, poolEscrow.balance + vaultBalance);
+        vm.deal(vaultAddr, 0);
+
+        // Claim should still work by pulling from pool escrow
+        int256 exitQueueIndex = vault.getExitQueueIndex(positionTicket);
+        uint256 userBalanceBefore = user.balance;
+
+        vm.prank(user);
+        _startSnapshotGas("EthGenesisVaultTest_test_transferVaultAssets_pullsFromEscrow");
+        vault.claimExitedAssets(positionTicket, timestamp, uint256(exitQueueIndex));
+        _stopSnapshotGas();
+
+        assertGt(user.balance, userBalanceBefore, "User should receive assets");
+    }
 }

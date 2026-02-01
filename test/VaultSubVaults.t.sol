@@ -6,6 +6,7 @@ import {Vm} from "forge-std/Vm.sol";
 import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
 import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IVaultSubVaults} from "../contracts/interfaces/IVaultSubVaults.sol";
+import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
@@ -27,8 +28,13 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         uint64 timestamp;
     }
 
+    function _getRegistry(address vault) internal view returns (ISubVaultsRegistry) {
+        return ISubVaultsRegistry(EthMetaVault(payable(vault)).subVaultsRegistry());
+    }
+
     ForkContracts public contracts;
     EthMetaVault public metaVault;
+    ISubVaultsRegistry public registry;
     address public admin;
     address public curator;
 
@@ -60,8 +66,11 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         );
         metaVault = EthMetaVault(payable(_getOrCreateVault(VaultType.EthMetaVault, admin, initParams, false)));
 
+        // Get registry reference
+        registry = ISubVaultsRegistry(metaVault.subVaultsRegistry());
+
         // Get existing sub vaults (if any) from fork vault
-        address[] memory currentSubVaults = metaVault.getSubVaults();
+        address[] memory currentSubVaults = registry.getSubVaults();
         for (uint256 i = 0; i < currentSubVaults.length; i++) {
             subVaults.push(currentSubVaults[i]);
         }
@@ -73,7 +82,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             subVaults.push(subVault);
 
             vm.prank(admin);
-            metaVault.addSubVault(subVault);
+            registry.addSubVault(subVault);
         }
 
         // Deposit funds to meta vault
@@ -93,24 +102,24 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Expect revert when a non-admin tries to set the curator
         vm.prank(nonAdmin);
         vm.expectRevert(Errors.AccessDenied.selector);
-        metaVault.setSubVaultsCurator(newCurator);
+        registry.setSubVaultsCurator(newCurator);
     }
 
     function test_setSubVaultsCurator_zeroAddress() public {
         // Action & Assert: Expect revert when trying to set the curator to the zero address
         vm.prank(admin);
         vm.expectRevert(Errors.ZeroAddress.selector);
-        metaVault.setSubVaultsCurator(address(0));
+        registry.setSubVaultsCurator(address(0));
     }
 
     function test_setSubVaultsCurator_sameValue() public {
         // Setup: Get the current curator
-        address currentCurator = metaVault.subVaultsCurator();
+        address currentCurator = registry.subVaultsCurator();
 
         // Action & Assert: Expect revert when trying to set the curator to the current value
         vm.prank(admin);
         vm.expectRevert(Errors.ValueNotChanged.selector);
-        metaVault.setSubVaultsCurator(currentCurator);
+        registry.setSubVaultsCurator(currentCurator);
     }
 
     function test_setSubVaultsCurator_notRegisteredCurator() public {
@@ -120,7 +129,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Expect revert when trying to set an unregistered curator
         vm.prank(admin);
         vm.expectRevert(Errors.InvalidCurator.selector);
-        metaVault.setSubVaultsCurator(unregisteredCurator);
+        registry.setSubVaultsCurator(unregisteredCurator);
     }
 
     function test_setSubVaultsCurator_success() public {
@@ -134,17 +143,17 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Expect the SubVaultsCuratorUpdated event
         vm.expectEmit(true, false, false, true);
-        emit IVaultSubVaults.SubVaultsCuratorUpdated(admin, newCurator);
+        emit ISubVaultsRegistry.SubVaultsCuratorUpdated(newCurator);
 
         // Action: Set the new curator
         vm.prank(admin);
-        metaVault.setSubVaultsCurator(newCurator);
+        registry.setSubVaultsCurator(newCurator);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
         // Assert: Verify the curator was updated
-        assertEq(metaVault.subVaultsCurator(), newCurator);
+        assertEq(registry.subVaultsCurator(), newCurator);
     }
 
     function test_addSubVault_notAdmin() public {
@@ -158,21 +167,21 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Non-admin cannot add a sub vault
         vm.prank(nonAdmin);
         vm.expectRevert(Errors.AccessDenied.selector);
-        metaVault.addSubVault(newSubVault);
+        registry.addSubVault(newSubVault);
     }
 
     function test_addSubVault_zeroAddress() public {
         // Action & Assert: Cannot add zero address as sub vault
         vm.prank(admin);
         vm.expectRevert(Errors.InvalidVault.selector);
-        metaVault.addSubVault(address(0));
+        registry.addSubVault(address(0));
     }
 
     function test_addSubVault_sameVaultAddress() public {
         // Action & Assert: Cannot add meta vault itself as a sub vault
         vm.prank(admin);
         vm.expectRevert(Errors.InvalidVault.selector);
-        metaVault.addSubVault(address(metaVault));
+        registry.addSubVault(address(metaVault));
     }
 
     function test_addSubVault_notRegisteredVault() public {
@@ -182,7 +191,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Cannot add non-registered vault
         vm.prank(admin);
         vm.expectRevert(Errors.InvalidVault.selector);
-        metaVault.addSubVault(fakeVault);
+        registry.addSubVault(fakeVault);
     }
 
     function test_addSubVault_alreadyAddedSubVault() public {
@@ -192,12 +201,12 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Cannot add already added sub vault
         vm.prank(admin);
         vm.expectRevert(Errors.AlreadyAdded.selector);
-        metaVault.addSubVault(existingSubVault);
+        registry.addSubVault(existingSubVault);
     }
 
     function test_addSubVault_moreThanMaxSubVaults() public {
         // Get current sub vault count
-        uint256 currentCount = metaVault.getSubVaults().length;
+        uint256 currentCount = registry.getSubVaults().length;
         uint256 maxSubVaults = 50;
 
         // Add sub vaults until we reach the max
@@ -209,11 +218,11 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
             // Add the sub vault
             vm.prank(admin);
-            metaVault.addSubVault(newSubVault);
+            registry.addSubVault(newSubVault);
         }
 
         // Verify we now have exactly 50 sub vaults
-        assertEq(metaVault.getSubVaults().length, 50, "Should have 50 sub vaults");
+        assertEq(registry.getSubVaults().length, 50, "Should have 50 sub vaults");
 
         // Try to add one more (the 51st)
         address oneMoreVault = _createSubVault(admin);
@@ -222,10 +231,10 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // This should revert with CapacityExceeded
         vm.prank(admin);
         vm.expectRevert(Errors.CapacityExceeded.selector);
-        metaVault.addSubVault(oneMoreVault);
+        registry.addSubVault(oneMoreVault);
 
         // Verify the number of sub vaults remains at 50
-        assertEq(metaVault.getSubVaults().length, 50, "Should still have 50 sub vaults");
+        assertEq(registry.getSubVaults().length, 50, "Should still have 50 sub vaults");
     }
 
     function test_addSubVault_notCollateralized() public {
@@ -235,7 +244,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Cannot add non-collateralized vault
         vm.prank(admin);
         vm.expectRevert(Errors.NotCollateralized.selector);
-        metaVault.addSubVault(newSubVault);
+        registry.addSubVault(newSubVault);
     }
 
     function test_addSubVault_unprocessedLegacyExitQueueTickets() public {
@@ -263,10 +272,10 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // 5. Try to add the vault to the meta vault
         vm.prank(admin);
         vm.expectRevert(Errors.ExitRequestNotProcessed.selector);
-        metaVault.addSubVault(newSubVault);
+        registry.addSubVault(newSubVault);
 
         // 6. Verify the vault wasn't added
-        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        address[] memory subVaultsAfter = registry.getSubVaults();
         bool found = false;
         for (uint256 i = 0; i < subVaultsAfter.length; i++) {
             if (subVaultsAfter[i] == newSubVault) {
@@ -292,7 +301,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Cannot add vault with different rewards nonce
         vm.prank(admin);
         vm.expectRevert(Errors.NotHarvested.selector);
-        metaVault.addSubVault(newSubVault);
+        registry.addSubVault(newSubVault);
     }
 
     function test_addSubVault_firstSubVault() public {
@@ -307,6 +316,8 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         );
         EthMetaVault newMetaVault =
             EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
+
+        ISubVaultsRegistry newRegistry = _getRegistry(address(newMetaVault));
 
         // create new sub vault
         address subVault = _createSubVault(admin);
@@ -325,13 +336,13 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Action: Add the new sub vault
         vm.prank(admin);
-        newMetaVault.addSubVault(subVault);
+        newRegistry.addSubVault(subVault);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
         // Assert: Verify the sub vault was added
-        address[] memory subVaultsAfter = newMetaVault.getSubVaults();
+        address[] memory subVaultsAfter = newRegistry.getSubVaults();
         assertEq(subVaultsAfter.length, 1, "Sub vaults length should be 1");
         assertEq(subVaultsAfter[0], subVault, "Sub vault address mismatch");
     }
@@ -346,17 +357,17 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Expect the SubVaultAdded event
         vm.expectEmit(true, true, false, true);
-        emit IVaultSubVaults.SubVaultAdded(admin, newSubVault);
+        emit ISubVaultsRegistry.SubVaultAdded(newSubVault);
 
         // Action: Add the new sub vault
         vm.prank(admin);
-        metaVault.addSubVault(newSubVault);
+        registry.addSubVault(newSubVault);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
         // Assert: Verify the sub vault was added
-        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        address[] memory subVaultsAfter = registry.getSubVaults();
         bool found = false;
         for (uint256 i = 0; i < subVaultsAfter.length; i++) {
             if (subVaultsAfter[i] == newSubVault) {
@@ -377,7 +388,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Non-admin cannot eject a sub vault
         vm.prank(nonAdmin);
         vm.expectRevert(Errors.AccessDenied.selector);
-        metaVault.ejectSubVault(subVaultToEject);
+        registry.ejectSubVault(subVaultToEject);
     }
 
     function test_ejectSubVault_alreadyEjecting() public {
@@ -386,17 +397,16 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         address secondSubVault = subVaults[1];
 
         // Deposit to sub vaults first to ensure they have staked shares
-        vm.prank(admin);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Eject the first sub vault
         vm.prank(admin);
-        metaVault.ejectSubVault(firstSubVault);
+        registry.ejectSubVault(firstSubVault);
 
         // Action & Assert: Cannot eject another sub vault while one is already being ejected
         vm.prank(admin);
         vm.expectRevert(Errors.EjectingVault.selector);
-        metaVault.ejectSubVault(secondSubVault);
+        registry.ejectSubVault(secondSubVault);
     }
 
     function test_ejectSubVault_singleSubVaultLeft() public {
@@ -412,28 +422,30 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         EthMetaVault newMetaVault =
             EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
 
+        ISubVaultsRegistry newRegistry = _getRegistry(address(newMetaVault));
+
         // Create and add 2 empty sub vaults
         address subVault1 = _createSubVault(admin);
         _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), subVault1);
         vm.prank(admin);
-        newMetaVault.addSubVault(subVault1);
+        newRegistry.addSubVault(subVault1);
 
         address subVault2 = _createSubVault(admin);
         _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), subVault2);
         vm.prank(admin);
-        newMetaVault.addSubVault(subVault2);
+        newRegistry.addSubVault(subVault2);
 
         // Eject the first sub vault (empty, so it's immediately removed)
         vm.prank(admin);
-        newMetaVault.ejectSubVault(subVault1);
+        newRegistry.ejectSubVault(subVault1);
 
-        address[] memory remainingSubVaults = newMetaVault.getSubVaults();
+        address[] memory remainingSubVaults = newRegistry.getSubVaults();
         assertEq(remainingSubVaults.length, 1, "Should have 1 sub vault left");
 
         // Action & Assert: Cannot eject the last sub vault
         vm.prank(admin);
         vm.expectRevert(Errors.EmptySubVaults.selector);
-        newMetaVault.ejectSubVault(subVault2);
+        newRegistry.ejectSubVault(subVault2);
     }
 
     function test_ejectSubVault_notInSubVaults() public {
@@ -444,7 +456,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Cannot eject a vault that's not in sub vaults
         vm.prank(admin);
         vm.expectRevert(Errors.AlreadyRemoved.selector);
-        metaVault.ejectSubVault(nonSubVault);
+        registry.ejectSubVault(nonSubVault);
     }
 
     function test_ejectSubVault_emptySubVault() public {
@@ -460,54 +472,56 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         EthMetaVault newMetaVault =
             EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
 
+        ISubVaultsRegistry newRegistry = _getRegistry(address(newMetaVault));
+
         // Create and add empty sub vaults (not depositing to them)
         address subVault1 = _createSubVault(admin);
         _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), subVault1);
         vm.prank(admin);
-        newMetaVault.addSubVault(subVault1);
+        newRegistry.addSubVault(subVault1);
 
         address subVault2 = _createSubVault(admin);
         _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), subVault2);
         vm.prank(admin);
-        newMetaVault.addSubVault(subVault2);
+        newRegistry.addSubVault(subVault2);
 
         address subVault3 = _createSubVault(admin);
         _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), subVault3);
         vm.prank(admin);
-        newMetaVault.addSubVault(subVault3);
+        newRegistry.addSubVault(subVault3);
 
         // Verify sub vaults have no staked shares
-        assertEq(newMetaVault.subVaultsStates(subVault1).stakedShares, 0, "Sub vault 1 should have no staked shares");
-        assertEq(newMetaVault.subVaultsStates(subVault2).stakedShares, 0, "Sub vault 2 should have no staked shares");
+        assertEq(newRegistry.subVaultsStates(subVault1).stakedShares, 0, "Sub vault 1 should have no staked shares");
+        assertEq(newRegistry.subVaultsStates(subVault2).stakedShares, 0, "Sub vault 2 should have no staked shares");
 
         // Start gas measurement
         _startSnapshotGas("test_ejectSubVault_emptySubVault");
 
         // Expect SubVaultEjected event
         vm.expectEmit(true, true, false, false);
-        emit IVaultSubVaults.SubVaultEjected(admin, subVault1);
+        emit ISubVaultsRegistry.SubVaultEjected(subVault1);
 
         // Action: Eject the sub vault
         vm.prank(admin);
-        newMetaVault.ejectSubVault(subVault1);
+        newRegistry.ejectSubVault(subVault1);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
         // Assert: Verify the sub vault was removed from the list
-        address[] memory subVaultsAfter = newMetaVault.getSubVaults();
+        address[] memory subVaultsAfter = newRegistry.getSubVaults();
         assertEq(subVaultsAfter.length, 2, "Should have 2 sub vaults left");
 
         // Expect SubVaultEjected event
         vm.expectEmit(true, true, false, false);
-        emit IVaultSubVaults.SubVaultEjected(admin, subVault2);
+        emit ISubVaultsRegistry.SubVaultEjected(subVault2);
 
         // Can remove another sub vault
         vm.prank(admin);
-        newMetaVault.ejectSubVault(subVault2);
+        newRegistry.ejectSubVault(subVault2);
 
         // Assert: Verify the sub vault was removed from the list
-        subVaultsAfter = newMetaVault.getSubVaults();
+        subVaultsAfter = newRegistry.getSubVaults();
         assertEq(subVaultsAfter.length, 1, "Should have 1 sub vault left");
     }
 
@@ -516,8 +530,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         address subVaultToEject = subVaults[0];
 
         // Deposit to sub vaults to get collateralized state
-        vm.prank(admin);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Start gas measurement
         _startSnapshotGas("test_ejectSubVault_subVaultWithShares");
@@ -528,16 +541,16 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Action: Eject the sub vault
         vm.prank(admin);
-        metaVault.ejectSubVault(subVaultToEject);
+        registry.ejectSubVault(subVaultToEject);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
-        assertEq(metaVault.ejectingSubVault(), subVaultToEject);
+        assertEq(registry.ejectingSubVault(), subVaultToEject);
 
         // And verify it's in the list
         bool found = false;
-        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        address[] memory subVaultsAfter = registry.getSubVaults();
         for (uint256 i = 0; i < subVaultsAfter.length; i++) {
             if (subVaultsAfter[i] == subVaultToEject) {
                 found = true;
@@ -552,7 +565,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         address subVaultToEject = subVaults[0];
 
         // Deposit to sub vaults to get collateralized state
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // user enters exit queue
         metaVault.enterExitQueue(metaVault.getShares(address(this)) / 2, address(this));
@@ -570,14 +583,14 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         metaVault.updateState(_getEmptyHarvestParams());
 
-        IVaultSubVaults.SubVaultState memory stateBefore = metaVault.subVaultsStates(subVaultToEject);
+        ISubVaultsRegistry.SubVaultState memory stateBefore = registry.subVaultsStates(subVaultToEject);
         assertGt(stateBefore.queuedShares, 0, "Queued shares should be greater than 0");
         assertGt(stateBefore.stakedShares, 0, "Staked shares should be greater than 0");
 
         // Action: Eject the sub vault
         vm.prank(admin);
-        metaVault.ejectSubVault(subVaultToEject);
-        IVaultSubVaults.SubVaultState memory stateAfter = metaVault.subVaultsStates(subVaultToEject);
+        registry.ejectSubVault(subVaultToEject);
+        ISubVaultsRegistry.SubVaultState memory stateAfter = registry.subVaultsStates(subVaultToEject);
         assertEq(
             stateBefore.queuedShares + stateBefore.stakedShares,
             stateAfter.queuedShares,
@@ -593,7 +606,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Action & Assert: Expect revert when trying to deposit when not harvested
         vm.expectRevert(Errors.NotHarvested.selector);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
     }
 
     function test_depositToSubVaults_emptySubVaults() public {
@@ -609,32 +622,33 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         EthMetaVault newMetaVault =
             EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
 
+        ISubVaultsRegistry newRegistry = _getRegistry(address(newMetaVault));
+
         // Action & Assert: Expect revert when trying to deposit to empty sub vaults
-        vm.prank(admin);
         vm.expectRevert(Errors.EmptySubVaults.selector);
-        newMetaVault.depositToSubVaults();
+        newRegistry.depositToSubVaults();
     }
 
     function test_depositToSubVaults_noAvailableAssets() public {
         vm.deal(address(metaVault), 0);
         vm.expectRevert(Errors.InvalidAssets.selector);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
     }
 
     function test_depositToSubVaults_singleSubVault() public {
         // Setup: Remove all but one sub vault
         for (uint256 i = 1; i < subVaults.length; i++) {
             vm.prank(admin);
-            metaVault.ejectSubVault(subVaults[i]);
+            registry.ejectSubVault(subVaults[i]);
         }
 
         // Verify there's only one sub vault left
-        address[] memory remainingSubVaults = metaVault.getSubVaults();
+        address[] memory remainingSubVaults = registry.getSubVaults();
         assertEq(remainingSubVaults.length, 1, "Should have only one sub vault");
 
         // Get initial state of the remaining sub vault
         address depositSubVault = remainingSubVaults[0];
-        IVaultSubVaults.SubVaultState memory initialState = metaVault.subVaultsStates(depositSubVault);
+        ISubVaultsRegistry.SubVaultState memory initialState = registry.subVaultsStates(depositSubVault);
 
         uint256 availableAssets = metaVault.withdrawableAssets();
         uint256 newShares = IEthVault(depositSubVault).convertToShares(availableAssets);
@@ -643,7 +657,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         _startSnapshotGas("VaultSubVaultsTest_test_depositToSubVaults_singleSubVault");
 
         // Action: Deposit to sub vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Stop gas measurement
         _stopSnapshotGas();
@@ -652,7 +666,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         assertApproxEqAbs(metaVault.withdrawableAssets(), 0, 2, "Withdrawable assets should be 0");
 
         // Assert: Verify the sub vault received staked shares (allow small tolerance for rounding)
-        IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(remainingSubVaults[0]);
+        ISubVaultsRegistry.SubVaultState memory finalState = registry.subVaultsStates(remainingSubVaults[0]);
         assertApproxEqAbs(
             finalState.stakedShares,
             initialState.stakedShares + newShares,
@@ -664,10 +678,10 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_depositToSubVaults_multipleSubVaults() public {
         // Setup: Get initial state of all sub vaults
         uint256 subVaultCount = subVaults.length;
-        IVaultSubVaults.SubVaultState[] memory initialStates = new IVaultSubVaults.SubVaultState[](subVaultCount);
+        ISubVaultsRegistry.SubVaultState[] memory initialStates = new ISubVaultsRegistry.SubVaultState[](subVaultCount);
         uint256 initialTotalStaked = 0;
         for (uint256 i = 0; i < subVaultCount; i++) {
-            initialStates[i] = metaVault.subVaultsStates(subVaults[i]);
+            initialStates[i] = registry.subVaultsStates(subVaults[i]);
             initialTotalStaked += initialStates[i].stakedShares;
         }
 
@@ -675,7 +689,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         _startSnapshotGas("VaultSubVaultsTest_test_depositToSubVaults_multipleSubVaults");
 
         // Action: Deposit to sub vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Stop gas measurement
         _stopSnapshotGas();
@@ -686,7 +700,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Assert: Verify all sub vaults received staked shares and total increased
         uint256 finalTotalStaked = 0;
         for (uint256 i = 0; i < subVaultCount; i++) {
-            IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(subVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory finalState = registry.subVaultsStates(subVaults[i]);
             assertGe(
                 finalState.stakedShares, initialStates[i].stakedShares, "Sub vault staked shares should not decrease"
             );
@@ -698,7 +712,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     }
 
     function test_depositToSubVaults_ejectingSubVault() public {
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Deposit funds to meta vault
         vm.deal(address(this), 10 ether);
@@ -707,21 +721,21 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Use the last sub vault to eject (guaranteed to exist)
         address ejectingSubVault = subVaults[subVaults.length - 1];
         vm.prank(metaVault.admin());
-        metaVault.ejectSubVault(ejectingSubVault);
+        registry.ejectSubVault(ejectingSubVault);
 
         // Setup: Get initial state of all sub vaults
         uint256 subVaultCount = subVaults.length;
-        IVaultSubVaults.SubVaultState[] memory initialStates = new IVaultSubVaults.SubVaultState[](subVaultCount);
+        ISubVaultsRegistry.SubVaultState[] memory initialStates = new ISubVaultsRegistry.SubVaultState[](subVaultCount);
         uint256 initialTotalStaked = 0;
         for (uint256 i = 0; i < subVaultCount; i++) {
-            initialStates[i] = metaVault.subVaultsStates(subVaults[i]);
+            initialStates[i] = registry.subVaultsStates(subVaults[i]);
             initialTotalStaked += initialStates[i].stakedShares;
         }
 
         _startSnapshotGas("test_depositToSubVaults_ejectingSubVault");
 
         // Action: Deposit to sub vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         _stopSnapshotGas();
 
@@ -729,7 +743,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         assertApproxEqAbs(metaVault.withdrawableAssets(), 0, 2, "Withdrawable assets should be 0");
 
         // Assert: Verify ejecting sub vault received no new staked shares
-        IVaultSubVaults.SubVaultState memory ejectingFinalState = metaVault.subVaultsStates(ejectingSubVault);
+        ISubVaultsRegistry.SubVaultState memory ejectingFinalState = registry.subVaultsStates(ejectingSubVault);
         assertEq(
             ejectingFinalState.stakedShares,
             initialStates[subVaults.length - 1].stakedShares,
@@ -739,7 +753,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Assert: Verify other sub vaults received staked shares
         uint256 finalTotalStaked = 0;
         for (uint256 i = 0; i < subVaultCount; i++) {
-            IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(subVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory finalState = registry.subVaultsStates(subVaults[i]);
             finalTotalStaked += finalState.stakedShares;
         }
         assertGt(finalTotalStaked, initialTotalStaked, "Total staked shares should have increased");
@@ -747,7 +761,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
     function test_depositToSubVaults_maxVaults() public {
         // Get current sub vaults and add more to reach maximum (50)
-        address[] memory currentSubVaults = metaVault.getSubVaults();
+        address[] memory currentSubVaults = registry.getSubVaults();
         uint256 currentCount = currentSubVaults.length;
 
         address[] memory maxSubVaults = new address[](50);
@@ -759,18 +773,18 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), newSubVault);
 
             vm.prank(admin);
-            metaVault.addSubVault(newSubVault);
+            registry.addSubVault(newSubVault);
             maxSubVaults[i] = newSubVault;
         }
 
         // Verify we have exactly 50 sub vaults
-        currentSubVaults = metaVault.getSubVaults();
+        currentSubVaults = registry.getSubVaults();
         assertEq(currentSubVaults.length, 50, "Should have exactly 50 sub vaults");
 
         // Get initial state of all sub vaults
-        IVaultSubVaults.SubVaultState[] memory initialStates = new IVaultSubVaults.SubVaultState[](50);
+        ISubVaultsRegistry.SubVaultState[] memory initialStates = new ISubVaultsRegistry.SubVaultState[](50);
         for (uint256 i = 0; i < 50; i++) {
-            initialStates[i] = metaVault.subVaultsStates(maxSubVaults[i]);
+            initialStates[i] = registry.subVaultsStates(maxSubVaults[i]);
         }
 
         // Calculate available assets and expected distribution
@@ -787,7 +801,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         _startSnapshotGas("VaultSubVaultsTest_test_depositToSubVaults_maxVaults");
 
         // Action: Deposit to all 50 sub vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Stop gas measurement
         _stopSnapshotGas();
@@ -795,7 +809,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Assert: Verify each sub vault received its portion of assets
         uint256 totalStakedShares = 0;
         for (uint256 i = 0; i < 50; i++) {
-            IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(maxSubVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory finalState = registry.subVaultsStates(maxSubVaults[i]);
             uint256 newShares = finalState.stakedShares - initialStates[i].stakedShares;
 
             // We want to be a bit flexible with the exact share calculation due to rounding
@@ -920,19 +934,21 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         EthMetaVault newMetaVault =
             EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
 
+        ISubVaultsRegistry newRegistry = _getRegistry(address(newMetaVault));
+
         // Create and add sub vaults
         address[] memory newSubVaults = new address[](3);
         for (uint256 i = 0; i < 3; i++) {
             newSubVaults[i] = _createSubVault(admin);
             _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), newSubVaults[i]);
             vm.prank(admin);
-            newMetaVault.addSubVault(newSubVaults[i]);
+            newRegistry.addSubVault(newSubVaults[i]);
         }
 
         // Deposit to meta vault and distribute to sub vaults
         vm.deal(address(this), 10 ether);
         newMetaVault.deposit{value: 10 ether}(address(this), address(0));
-        newMetaVault.depositToSubVaults();
+        newRegistry.depositToSubVaults();
 
         // user enters exit queue
         newMetaVault.enterExitQueue(newMetaVault.getShares(address(this)), address(this));
@@ -958,10 +974,10 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         }
 
         // set up exit requests for sub vaults using captured position tickets
-        IVaultSubVaults.SubVaultExitRequest[] memory exitRequests =
-            new IVaultSubVaults.SubVaultExitRequest[](exitPositions.length);
+        ISubVaultsRegistry.SubVaultExitRequest[] memory exitRequests =
+            new ISubVaultsRegistry.SubVaultExitRequest[](exitPositions.length);
         for (uint256 i = 0; i < exitPositions.length; i++) {
-            exitRequests[i] = IVaultSubVaults.SubVaultExitRequest({
+            exitRequests[i] = ISubVaultsRegistry.SubVaultExitRequest({
                 vault: exitPositions[i].vault,
                 exitQueueIndex: uint256(
                     IVaultEnterExit(exitPositions[i].vault).getExitQueueIndex(exitPositions[i].positionTicket)
@@ -983,7 +999,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // claim exited assets
         vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
-        newMetaVault.claimSubVaultsExitedAssets(exitRequests);
+        newRegistry.claimSubVaultsExitedAssets(exitRequests);
 
         // succeeds
         uint256 feeRecipientShares = newMetaVault.getShares(newMetaVault.feeRecipient());
@@ -1011,20 +1027,22 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         );
         IEthMetaVault newMetaVault = IEthMetaVault(_createVault(VaultType.EthMetaVault, admin, initParams, false));
 
+        ISubVaultsRegistry newRegistry = _getRegistry(address(newMetaVault));
+
         // Create and add new sub vaults
         address[] memory newSubVaults = new address[](3);
         for (uint256 i = 0; i < 3; i++) {
             newSubVaults[i] = _createSubVault(admin);
             _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), newSubVaults[i]);
             vm.prank(admin);
-            newMetaVault.addSubVault(newSubVaults[i]);
+            newRegistry.addSubVault(newSubVaults[i]);
         }
 
         // Deposit to meta vault and then to sub vaults
         uint256 depositAmount = 10 ether;
         vm.deal(address(this), depositAmount);
         newMetaVault.deposit{value: depositAmount}(address(this), address(0));
-        newMetaVault.depositToSubVaults();
+        newRegistry.depositToSubVaults();
 
         uint256 totalAssetsBefore = newMetaVault.totalAssets();
 
@@ -1035,7 +1053,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             _setVaultRewardsNonce(newSubVaults[i], newNonce);
         }
 
-        assertTrue(newMetaVault.canUpdateState(), "Meta vault should be able to update state");
+        assertTrue(newRegistry.canUpdateState(), "Meta vault should be able to update state");
 
         // update nonce for meta vault
         newMetaVault.updateState(_getEmptyHarvestParams());
@@ -1114,10 +1132,10 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // claim exited assets
         vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
-        IVaultSubVaults.SubVaultExitRequest[] memory claims =
-            new IVaultSubVaults.SubVaultExitRequest[](exitRequests2.length);
+        ISubVaultsRegistry.SubVaultExitRequest[] memory claims =
+            new ISubVaultsRegistry.SubVaultExitRequest[](exitRequests2.length);
         for (uint256 i = 0; i < exitRequests2.length; i++) {
-            claims[i] = IVaultSubVaults.SubVaultExitRequest({
+            claims[i] = ISubVaultsRegistry.SubVaultExitRequest({
                 vault: exitRequests2[i].vault,
                 exitQueueIndex: uint256(
                     IVaultEnterExit(exitRequests2[i].vault).getExitQueueIndex(exitRequests2[i].positionTicket)
@@ -1126,7 +1144,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             });
         }
 
-        newMetaVault.claimSubVaultsExitedAssets(claims);
+        newRegistry.claimSubVaultsExitedAssets(claims);
         assertEq(
             newMetaVault.totalAssets(),
             expectedTotalAssets,
@@ -1151,7 +1169,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
     function test_updateState_enterExitQueueMaxVaults() public {
         // Get current sub vaults and add more to reach maximum (50)
-        address[] memory currentSubVaults = metaVault.getSubVaults();
+        address[] memory currentSubVaults = registry.getSubVaults();
         uint256 currentCount = currentSubVaults.length;
 
         address[] memory maxSubVaults = new address[](50);
@@ -1163,21 +1181,21 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), newSubVault);
 
             vm.prank(admin);
-            metaVault.addSubVault(newSubVault);
+            registry.addSubVault(newSubVault);
             maxSubVaults[i] = newSubVault;
         }
 
         // Verify we have exactly 50 sub vaults
-        currentSubVaults = metaVault.getSubVaults();
+        currentSubVaults = registry.getSubVaults();
         assertEq(currentSubVaults.length, 50, "Should have exactly 50 sub vaults");
 
         // Deposit assets to all sub vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Get initial state of all sub vaults
-        IVaultSubVaults.SubVaultState[] memory initialStates = new IVaultSubVaults.SubVaultState[](50);
+        ISubVaultsRegistry.SubVaultState[] memory initialStates = new ISubVaultsRegistry.SubVaultState[](50);
         for (uint256 i = 0; i < 50; i++) {
-            initialStates[i] = metaVault.subVaultsStates(maxSubVaults[i]);
+            initialStates[i] = registry.subVaultsStates(maxSubVaults[i]);
             assertGt(initialStates[i].stakedShares, 0, "Sub vault should have staked shares after deposit");
         }
 
@@ -1215,7 +1233,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         uint256 vaultsWithExits = 0;
 
         for (uint256 i = 0; i < 50; i++) {
-            IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(maxSubVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory finalState = registry.subVaultsStates(maxSubVaults[i]);
             uint256 queuedSharesDelta = finalState.queuedShares - initialStates[i].queuedShares;
             uint256 stakedSharesDelta = initialStates[i].stakedShares - finalState.stakedShares;
 
@@ -1247,7 +1265,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         uint256 assetsMoved = 0;
 
         for (uint256 i = 0; i < 50; i++) {
-            IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(maxSubVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory finalState = registry.subVaultsStates(maxSubVaults[i]);
             uint256 queuedSharesDelta = finalState.queuedShares - initialStates[i].queuedShares;
             if (queuedSharesDelta > 0) {
                 assetsMoved += IVaultState(maxSubVaults[i]).convertToAssets(queuedSharesDelta);
@@ -1270,6 +1288,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         );
         EthMetaVault newMetaVault =
             EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
+        ISubVaultsRegistry newRegistry = _getRegistry(address(newMetaVault));
 
         // Create and add sub vaults
         address[] memory newSubVaults = new address[](3);
@@ -1277,13 +1296,13 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             newSubVaults[i] = _createSubVault(admin);
             _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), newSubVaults[i]);
             vm.prank(admin);
-            newMetaVault.addSubVault(newSubVaults[i]);
+            newRegistry.addSubVault(newSubVaults[i]);
         }
 
         // Deposit to meta vault and distribute to sub vaults
         vm.deal(address(this), 10 ether);
         newMetaVault.deposit{value: 10 ether}(address(this), address(0));
-        newMetaVault.depositToSubVaults();
+        newRegistry.depositToSubVaults();
 
         // Get a reference to a single sub vault we'll use for the test
         address testSubVault = newSubVaults[0];
@@ -1304,7 +1323,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         newMetaVault.updateState(_getEmptyHarvestParams());
         ExitRequest[] memory exitPositions = _extractExitPositions(newSubVaults, vm.getRecordedLogs(), timestamp);
 
-        IVaultSubVaults.SubVaultState memory stateBefore = newMetaVault.subVaultsStates(testSubVault);
+        ISubVaultsRegistry.SubVaultState memory stateBefore = newRegistry.subVaultsStates(testSubVault);
 
         // Process the exit request but only provide small amount of funds
         uint256 processedAssets = 0.1 ether;
@@ -1327,10 +1346,11 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         }
 
         // Create a single exit request to claim using captured position ticket
-        IVaultSubVaults.SubVaultExitRequest[] memory singleExitRequest = new IVaultSubVaults.SubVaultExitRequest[](1);
+        ISubVaultsRegistry.SubVaultExitRequest[] memory singleExitRequest =
+            new ISubVaultsRegistry.SubVaultExitRequest[](1);
         int256 exitQueueIndex = IVaultEnterExit(testSubVault).getExitQueueIndex(testSubVaultPositionTicket);
 
-        singleExitRequest[0] = IVaultSubVaults.SubVaultExitRequest({
+        singleExitRequest[0] = ISubVaultsRegistry.SubVaultExitRequest({
             vault: testSubVault, exitQueueIndex: uint256(exitQueueIndex), timestamp: timestamp
         });
 
@@ -1340,7 +1360,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         _startSnapshotGas("VaultSubVaultsTest_test_claimSubVaultsExitedAssets_partiallyClaimsExitedAssets");
 
         // Claim the exited assets
-        newMetaVault.claimSubVaultsExitedAssets(singleExitRequest);
+        newRegistry.claimSubVaultsExitedAssets(singleExitRequest);
 
         // Stop gas measurement
         _stopSnapshotGas();
@@ -1358,7 +1378,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         assertEq(claimedAssets, processedAssets, "Claimed assets should be equal to processed assets");
 
         // The sub vault's queued shares should decrease but not to zero
-        IVaultSubVaults.SubVaultState memory stateAfter = newMetaVault.subVaultsStates(testSubVault);
+        ISubVaultsRegistry.SubVaultState memory stateAfter = newRegistry.subVaultsStates(testSubVault);
         assertLt(stateAfter.queuedShares, stateBefore.queuedShares, "Queued shares should decrease");
         assertGt(stateAfter.queuedShares, 0, "Queued shares should not be zero - only partial was processed");
     }
@@ -1376,19 +1396,21 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         EthMetaVault newMetaVault =
             EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
 
+        ISubVaultsRegistry newRegistry = _getRegistry(address(newMetaVault));
+
         // Create and add sub vaults
         address[] memory newSubVaults = new address[](3);
         for (uint256 i = 0; i < 3; i++) {
             newSubVaults[i] = _createSubVault(admin);
             _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), newSubVaults[i]);
             vm.prank(admin);
-            newMetaVault.addSubVault(newSubVaults[i]);
+            newRegistry.addSubVault(newSubVaults[i]);
         }
 
         // Deposit to meta vault and distribute to sub vaults
         vm.deal(address(this), 10 ether);
         newMetaVault.deposit{value: 10 ether}(address(this), address(0));
-        newMetaVault.depositToSubVaults();
+        newRegistry.depositToSubVaults();
 
         // Choose a sub vault to eject
         address ejectingSubVault = newSubVaults[0];
@@ -1396,7 +1418,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Eject the sub vault - record logs to capture position ticket
         vm.recordLogs();
         vm.prank(admin);
-        newMetaVault.ejectSubVault(ejectingSubVault);
+        newRegistry.ejectSubVault(ejectingSubVault);
         uint64 ejectTimestamp = uint64(vm.getBlockTimestamp());
         address[] memory ejectingVaults = new address[](1);
         ejectingVaults[0] = ejectingSubVault;
@@ -1404,10 +1426,10 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             _extractExitPositions(ejectingVaults, vm.getRecordedLogs(), ejectTimestamp);
 
         // Verify the ejecting sub vault is set correctly
-        assertEq(newMetaVault.ejectingSubVault(), ejectingSubVault, "Ejecting sub vault should be set");
+        assertEq(newRegistry.ejectingSubVault(), ejectingSubVault, "Ejecting sub vault should be set");
 
         // Verify the vault has moved from staked to queued shares
-        IVaultSubVaults.SubVaultState memory state = newMetaVault.subVaultsStates(ejectingSubVault);
+        ISubVaultsRegistry.SubVaultState memory state = newRegistry.subVaultsStates(ejectingSubVault);
         assertEq(state.stakedShares, 0, "Staked shares should be zero after ejection");
         assertGt(state.queuedShares, 0, "Queued shares should be positive after ejection");
 
@@ -1441,8 +1463,8 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Create exit requests for claiming using captured position ticket from ejection
         require(ejectPositions.length > 0, "Should have captured position ticket from ejection");
-        IVaultSubVaults.SubVaultExitRequest[] memory claimRequests = new IVaultSubVaults.SubVaultExitRequest[](1);
-        claimRequests[0] = IVaultSubVaults.SubVaultExitRequest({
+        ISubVaultsRegistry.SubVaultExitRequest[] memory claimRequests = new ISubVaultsRegistry.SubVaultExitRequest[](1);
+        claimRequests[0] = ISubVaultsRegistry.SubVaultExitRequest({
             vault: ejectingSubVault,
             exitQueueIndex: uint256(
                 IVaultEnterExit(ejectingSubVault).getExitQueueIndex(ejectPositions[0].positionTicket)
@@ -1451,17 +1473,17 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         });
 
         // Claim exited assets
-        newMetaVault.claimSubVaultsExitedAssets(claimRequests);
+        newRegistry.claimSubVaultsExitedAssets(claimRequests);
 
         // Verify the ejecting sub vault is removed from the state
-        assertEq(newMetaVault.ejectingSubVault(), address(0), "Ejecting sub vault should be removed");
+        assertEq(newRegistry.ejectingSubVault(), address(0), "Ejecting sub vault should be removed");
         assertEq(
-            newMetaVault.subVaultsStates(ejectingSubVault).stakedShares,
+            newRegistry.subVaultsStates(ejectingSubVault).stakedShares,
             0,
             "Ejecting sub vault should have zero staked shares after claim"
         );
         assertEq(
-            newMetaVault.subVaultsStates(ejectingSubVault).queuedShares,
+            newRegistry.subVaultsStates(ejectingSubVault).queuedShares,
             0,
             "Ejecting sub vault should have zero queued shares after claim"
         );
@@ -1472,27 +1494,27 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         address metaSubVault = _createMetaSubVault(admin);
 
         // Verify pendingMetaSubVault is empty
-        assertEq(metaVault.pendingMetaSubVault(), address(0), "Pending meta sub vault should be empty");
+        assertEq(registry.pendingMetaSubVault(), address(0), "Pending meta sub vault should be empty");
 
         // Expect the MetaSubVaultProposed event
         vm.expectEmit(true, true, false, true);
-        emit IVaultSubVaults.MetaSubVaultProposed(admin, metaSubVault);
+        emit ISubVaultsRegistry.MetaSubVaultProposed(metaSubVault);
 
         // Start gas measurement
         _startSnapshotGas("VaultSubVaultsTest_test_addSubVault_metaVaultAsSubVault_proposesMetaVault");
 
         // Action: Add the meta vault as sub vault (should only propose, not add)
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
         // Assert: Verify the meta vault is pending, not added
-        assertEq(metaVault.pendingMetaSubVault(), metaSubVault, "Meta vault should be pending");
+        assertEq(registry.pendingMetaSubVault(), metaSubVault, "Meta vault should be pending");
 
         // Verify the vault was NOT added to the sub vaults list yet
-        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        address[] memory subVaultsAfter = registry.getSubVaults();
         bool found = false;
         for (uint256 i = 0; i < subVaultsAfter.length; i++) {
             if (subVaultsAfter[i] == metaSubVault) {
@@ -1510,52 +1532,55 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Propose the first meta sub vault
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault1);
+        registry.addSubVault(metaSubVault1);
 
         // Verify pendingMetaSubVault is set
-        assertEq(metaVault.pendingMetaSubVault(), metaSubVault1, "First meta sub vault should be pending");
+        assertEq(registry.pendingMetaSubVault(), metaSubVault1, "First meta sub vault should be pending");
 
         // Action & Assert: Cannot propose another meta sub vault while one is pending
         vm.prank(admin);
         vm.expectRevert(Errors.AlreadyAdded.selector);
-        metaVault.addSubVault(metaSubVault2);
+        registry.addSubVault(metaSubVault2);
     }
 
     function test_acceptMetaSubVault_notVaultsRegistryOwner() public {
         // Setup: Create and propose meta sub vault
         address metaSubVault = _createMetaSubVault(admin);
+
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Action & Assert: Non-VaultsRegistry owner cannot accept meta sub vault
         address nonOwner = makeAddr("NonOwner");
         vm.prank(nonOwner);
         vm.expectRevert(Errors.AccessDenied.selector);
-        metaVault.acceptMetaSubVault(metaSubVault);
+        registry.acceptMetaSubVault(metaSubVault);
 
         // Also test that admin cannot accept
         vm.prank(admin);
         vm.expectRevert(Errors.AccessDenied.selector);
-        metaVault.acceptMetaSubVault(metaSubVault);
+        registry.acceptMetaSubVault(metaSubVault);
     }
 
     function test_acceptMetaSubVault_zeroAddress() public {
         // Setup: Create and propose meta sub vault
         address metaSubVault = _createMetaSubVault(admin);
+
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Action & Assert: Cannot accept zero address
         vm.prank(contracts.vaultsRegistry.owner());
         vm.expectRevert(Errors.InvalidVault.selector);
-        metaVault.acceptMetaSubVault(address(0));
+        registry.acceptMetaSubVault(address(0));
     }
 
     function test_acceptMetaSubVault_invalidVault() public {
         // Setup: Create and propose meta sub vault
         address metaSubVault = _createMetaSubVault(admin);
+
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Setup: Create another meta sub vault (not pending)
         address otherMetaSubVault = _createMetaSubVault(admin);
@@ -1563,7 +1588,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Cannot accept a vault that is not pending
         vm.prank(contracts.vaultsRegistry.owner());
         vm.expectRevert(Errors.InvalidVault.selector);
-        metaVault.acceptMetaSubVault(otherMetaSubVault);
+        registry.acceptMetaSubVault(otherMetaSubVault);
     }
 
     function test_acceptMetaSubVault_success() public {
@@ -1572,28 +1597,28 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Propose meta sub vault
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Get sub vault count before accepting
-        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+        uint256 subVaultsCountBefore = registry.getSubVaults().length;
 
         // Expect the SubVaultAdded event
         vm.expectEmit(true, true, false, true);
-        emit IVaultSubVaults.SubVaultAdded(contracts.vaultsRegistry.owner(), metaSubVault);
+        emit ISubVaultsRegistry.SubVaultAdded(metaSubVault);
 
         // Start gas measurement
         _startSnapshotGas("VaultSubVaultsTest_test_acceptMetaSubVault_success");
 
         // Action: Accept meta sub vault by VaultsRegistry owner
         vm.prank(contracts.vaultsRegistry.owner());
-        metaVault.acceptMetaSubVault(metaSubVault);
+        registry.acceptMetaSubVault(metaSubVault);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
         // Assert: Verify the meta vault was added as sub vault
-        assertEq(metaVault.pendingMetaSubVault(), address(0), "Pending meta sub vault should be cleared");
-        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        assertEq(registry.pendingMetaSubVault(), address(0), "Pending meta sub vault should be cleared");
+        address[] memory subVaultsAfter = registry.getSubVaults();
         assertEq(subVaultsAfter.length, subVaultsCountBefore + 1, "Sub vault count should increase by 1");
 
         bool found = false;
@@ -1609,33 +1634,36 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_rejectMetaSubVault_notAdminOrOwner() public {
         // Setup: Create and propose meta sub vault
         address metaSubVault = _createMetaSubVault(admin);
+
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Action & Assert: Non-admin/non-owner cannot reject meta sub vault
         address nonAdmin = makeAddr("NonAdmin");
         vm.prank(nonAdmin);
         vm.expectRevert(Errors.AccessDenied.selector);
-        metaVault.rejectMetaSubVault(metaSubVault);
+        registry.rejectMetaSubVault(metaSubVault);
     }
 
     function test_rejectMetaSubVault_zeroAddress() public {
         // Setup: Create and propose meta sub vault
         address metaSubVault = _createMetaSubVault(admin);
+
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Action & Assert: Cannot reject zero address
         vm.prank(admin);
         vm.expectRevert(Errors.InvalidVault.selector);
-        metaVault.rejectMetaSubVault(address(0));
+        registry.rejectMetaSubVault(address(0));
     }
 
     function test_rejectMetaSubVault_invalidVault() public {
         // Setup: Create and propose meta sub vault
         address metaSubVault = _createMetaSubVault(admin);
+
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Setup: Create another meta sub vault (not pending)
         address otherMetaSubVault = _createMetaSubVault(admin);
@@ -1643,35 +1671,36 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Cannot reject a vault that is not pending
         vm.prank(admin);
         vm.expectRevert(Errors.InvalidVault.selector);
-        metaVault.rejectMetaSubVault(otherMetaSubVault);
+        registry.rejectMetaSubVault(otherMetaSubVault);
     }
 
     function test_rejectMetaSubVault_byOwner_success() public {
         // Setup: Create and propose meta sub vault
         address metaSubVault = _createMetaSubVault(admin);
+
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Get sub vault count before rejection
-        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+        uint256 subVaultsCountBefore = registry.getSubVaults().length;
 
         // Expect the MetaSubVaultRejected event
         vm.expectEmit(true, true, false, true);
-        emit IVaultSubVaults.MetaSubVaultRejected(contracts.vaultsRegistry.owner(), metaSubVault);
+        emit ISubVaultsRegistry.MetaSubVaultRejected(metaSubVault);
 
         // Start gas measurement
         _startSnapshotGas("VaultSubVaultsTest_test_rejectMetaSubVault_byOwner_success");
 
         // Action: Reject meta sub vault by VaultsRegistry owner
         vm.prank(contracts.vaultsRegistry.owner());
-        metaVault.rejectMetaSubVault(metaSubVault);
+        registry.rejectMetaSubVault(metaSubVault);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
         // Assert: Verify the pending meta sub vault was cleared and vault not added
-        assertEq(metaVault.pendingMetaSubVault(), address(0), "Pending meta sub vault should be cleared");
-        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        assertEq(registry.pendingMetaSubVault(), address(0), "Pending meta sub vault should be cleared");
+        address[] memory subVaultsAfter = registry.getSubVaults();
         assertEq(subVaultsAfter.length, subVaultsCountBefore, "Sub vault count should not change");
 
         bool found = false;
@@ -1687,29 +1716,30 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     function test_rejectMetaSubVault_byAdmin_success() public {
         // Setup: Create and propose meta sub vault
         address metaSubVault = _createMetaSubVault(admin);
+
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Get sub vault count before rejection
-        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+        uint256 subVaultsCountBefore = registry.getSubVaults().length;
 
         // Expect the MetaSubVaultRejected event
         vm.expectEmit(true, true, false, true);
-        emit IVaultSubVaults.MetaSubVaultRejected(admin, metaSubVault);
+        emit ISubVaultsRegistry.MetaSubVaultRejected(metaSubVault);
 
         // Start gas measurement
         _startSnapshotGas("VaultSubVaultsTest_test_rejectMetaSubVault_byAdmin_success");
 
         // Action: Reject meta sub vault by admin
         vm.prank(admin);
-        metaVault.rejectMetaSubVault(metaSubVault);
+        registry.rejectMetaSubVault(metaSubVault);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
         // Assert: Verify the pending meta sub vault was cleared and vault not added
-        assertEq(metaVault.pendingMetaSubVault(), address(0), "Pending meta sub vault should be cleared");
-        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        assertEq(registry.pendingMetaSubVault(), address(0), "Pending meta sub vault should be cleared");
+        address[] memory subVaultsAfter = registry.getSubVaults();
         assertEq(subVaultsAfter.length, subVaultsCountBefore, "Sub vault count should not change");
 
         bool found = false;
@@ -1737,7 +1767,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Action & Assert: Cannot add non-collateralized meta vault
         vm.prank(admin);
         vm.expectRevert(Errors.NotCollateralized.selector);
-        metaVault.addSubVault(unCollateralizedMetaVault);
+        registry.addSubVault(unCollateralizedMetaVault);
     }
 
     function test_addSubVault_metaVaultAsSubVault_notHarvested() public {
@@ -1751,12 +1781,12 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Propose meta sub vault (this should succeed)
         vm.prank(admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Action & Assert: Accept should fail because meta vault has different rewards nonce
         vm.prank(contracts.vaultsRegistry.owner());
         vm.expectRevert(Errors.NotHarvested.selector);
-        metaVault.acceptMetaSubVault(metaSubVault);
+        registry.acceptMetaSubVault(metaSubVault);
     }
 
     function test_ejectSubVault_metaVaultAsSubVault_emptySubVault() public {
@@ -1764,24 +1794,24 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         address metaSubVault = _setupMetaSubVault(admin);
 
         // Get sub vault count before ejection
-        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+        uint256 subVaultsCountBefore = registry.getSubVaults().length;
 
         // Start gas measurement
         _startSnapshotGas("VaultSubVaultsTest_test_ejectSubVault_metaVaultAsSubVault_emptySubVault");
 
         // Expect SubVaultEjected event
         vm.expectEmit(true, true, false, false);
-        emit IVaultSubVaults.SubVaultEjected(admin, metaSubVault);
+        emit ISubVaultsRegistry.SubVaultEjected(metaSubVault);
 
         // Action: Eject the meta vault sub vault
         vm.prank(admin);
-        metaVault.ejectSubVault(metaSubVault);
+        registry.ejectSubVault(metaSubVault);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
         // Assert: Verify the meta vault was removed from the list
-        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        address[] memory subVaultsAfter = registry.getSubVaults();
         assertEq(subVaultsAfter.length, subVaultsCountBefore - 1, "Meta vault sub vault should be removed");
 
         bool found = false;
@@ -1803,10 +1833,10 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         metaVault.deposit{value: 5 ether}(address(this), address(0));
 
         // Deposit to sub vaults to get collateralized state
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Verify the meta sub vault has staked shares
-        IVaultSubVaults.SubVaultState memory stateBefore = metaVault.subVaultsStates(metaSubVault);
+        ISubVaultsRegistry.SubVaultState memory stateBefore = registry.subVaultsStates(metaSubVault);
         assertGt(stateBefore.stakedShares, 0, "Meta sub vault should have staked shares");
 
         // Start gas measurement
@@ -1818,22 +1848,22 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Action: Eject the meta vault sub vault with shares
         vm.prank(admin);
-        metaVault.ejectSubVault(metaSubVault);
+        registry.ejectSubVault(metaSubVault);
 
         // Stop gas measurement
         _stopSnapshotGas();
 
         // Assert: Verify ejecting sub vault is set
-        assertEq(metaVault.ejectingSubVault(), metaSubVault, "Ejecting sub vault should be the meta sub vault");
+        assertEq(registry.ejectingSubVault(), metaSubVault, "Ejecting sub vault should be the meta sub vault");
 
         // Verify state changes - shares moved from staked to queued
-        IVaultSubVaults.SubVaultState memory stateAfter = metaVault.subVaultsStates(metaSubVault);
+        ISubVaultsRegistry.SubVaultState memory stateAfter = registry.subVaultsStates(metaSubVault);
         assertEq(stateAfter.stakedShares, 0, "Staked shares should be zero after ejection");
         assertEq(stateAfter.queuedShares, stateBefore.stakedShares, "Queued shares should equal previous staked shares");
 
         // Verify the meta vault is still in the list (ejecting)
         bool found = false;
-        address[] memory subVaultsAfter = metaVault.getSubVaults();
+        address[] memory subVaultsAfter = registry.getSubVaults();
         for (uint256 i = 0; i < subVaultsAfter.length; i++) {
             if (subVaultsAfter[i] == metaSubVault) {
                 found = true;
@@ -1862,7 +1892,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         _startSnapshotGas("VaultSubVaultsTest_test_depositToSubVaults_withMetaVaultSubVault");
 
         // Action: Deposit to sub vaults (including meta sub vault)
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Stop gas measurement
         _stopSnapshotGas();
@@ -1872,9 +1902,9 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         assertGt(metaSubVaultBalanceAfter, metaSubVaultBalanceBefore, "Meta sub vault should receive funds");
 
         // Verify sub vault states are updated
-        address[] memory allSubVaults = metaVault.getSubVaults();
+        address[] memory allSubVaults = registry.getSubVaults();
         for (uint256 i = 0; i < allSubVaults.length; i++) {
-            IVaultSubVaults.SubVaultState memory state = metaVault.subVaultsStates(allSubVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory state = registry.subVaultsStates(allSubVaults[i]);
             if (allSubVaults[i] == metaSubVault) {
                 assertGt(state.stakedShares, 0, "Meta sub vault should have staked shares");
             }
@@ -1885,25 +1915,27 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // Setup: Add meta vault as sub vault
         address metaSubVault = _setupMetaSubVault(admin);
 
+        ISubVaultsRegistry metaSubVaultRegistry = _getRegistry(metaSubVault);
+
         // Deposit to main meta vault
         vm.deal(address(this), 20 ether);
         metaVault.deposit{value: 20 ether}(address(this), address(0));
 
         // Deposit to sub vaults (including meta sub vault)
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Verify meta sub vault received funds
         assertGt(metaSubVault.balance, 0, "Meta sub vault should have received funds");
 
         // Now deposit from meta sub vault to its own sub vault
-        EthMetaVault(payable(metaSubVault)).depositToSubVaults();
+        metaSubVaultRegistry.depositToSubVaults();
 
         // Assert: Verify nested meta vault deposited to its sub vault
-        address[] memory nestedSubVaults = EthMetaVault(payable(metaSubVault)).getSubVaults();
+        address[] memory nestedSubVaults = metaSubVaultRegistry.getSubVaults();
         assertEq(nestedSubVaults.length, 1, "Meta sub vault should have exactly 1 sub vault");
 
         address nestedSubVault = nestedSubVaults[0];
-        IVaultSubVaults.SubVaultState memory state = EthMetaVault(payable(metaSubVault)).subVaultsStates(nestedSubVault);
+        ISubVaultsRegistry.SubVaultState memory state = metaSubVaultRegistry.subVaultsStates(nestedSubVault);
         assertGt(state.stakedShares, 0, "Nested sub vault should have staked shares");
         assertGt(nestedSubVault.balance, 0, "Nested sub vault should have received funds");
     }
@@ -1914,7 +1946,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         vm.deal(address(this), 5 ether);
         metaVault.deposit{value: 5 ether}(address(this), address(0));
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Set up current nonce for all vaults
         uint64 currentNonce = contracts.keeper.rewardsNonce() + 1;
@@ -1930,7 +1962,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
             _setVaultRewardsNonce(subVaults[i], currentNonce);
         }
 
-        uint256 nonceBefore = metaVault.subVaultsRewardsNonce();
+        uint256 nonceBefore = registry.subVaultsRewardsNonce();
 
         // Start gas measurement
         _startSnapshotGas("VaultSubVaultsTest_test_updateState_withMetaVaultSubVault_success");
@@ -1943,7 +1975,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Assert: Verify state was updated successfully
         // Check that nonce was updated
-        uint256 metaVaultNonce = metaVault.subVaultsRewardsNonce();
+        uint256 metaVaultNonce = registry.subVaultsRewardsNonce();
         assertEq(metaVaultNonce, currentNonce, "Meta vault nonce should be updated");
         assertGt(metaVaultNonce, nonceBefore, "Meta vault nonce should have increased");
     }
@@ -1990,11 +2022,11 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Propose and accept the meta sub vault on the main metaVault
         vm.prank(_admin);
-        metaVault.addSubVault(metaSubVault);
+        registry.addSubVault(metaSubVault);
 
         // Accept the meta sub vault by VaultsRegistry owner
         vm.prank(contracts.vaultsRegistry.owner());
-        metaVault.acceptMetaSubVault(metaSubVault);
+        registry.acceptMetaSubVault(metaSubVault);
     }
 
     function _createMetaSubVault(address _admin) internal returns (address metaSubVault) {
@@ -2013,13 +2045,15 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         address subVault = _createSubVault(_admin);
         _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), subVault);
 
+        ISubVaultsRegistry metaSubVaultRegistry = _getRegistry(metaSubVault);
+
         vm.prank(_admin);
-        EthMetaVault(payable(metaSubVault)).addSubVault(subVault);
+        metaSubVaultRegistry.addSubVault(subVault);
     }
 
     function _harvestMetaSubVault(address metaSubVault, int160 totalReward, uint160 unlockedMevReward) internal {
         // Get the sub vault of the meta sub vault
-        address[] memory metaSubSubVaults = EthMetaVault(payable(metaSubVault)).getSubVaults();
+        address[] memory metaSubSubVaults = _getRegistry(metaSubVault).getSubVaults();
         require(metaSubSubVaults.length > 0, "Meta sub vault should have sub vaults");
 
         // First harvest the sub vault of the meta sub vault
@@ -2033,7 +2067,9 @@ contract VaultSubVaultsTest is Test, EthHelpers {
     }
 
     function _setMetaVaultRewardsNonce(address vault, uint128 rewardsNonce) internal {
-        stdstore.target(vault).sig("subVaultsRewardsNonce()").checked_write(rewardsNonce);
+        // subVaultsRewardsNonce is now on the SubVaultsRegistry, not the meta vault
+        address vaultRegistry = IVaultSubVaults(vault).subVaultsRegistry();
+        stdstore.target(vaultRegistry).sig("subVaultsRewardsNonce()").checked_write(rewardsNonce);
     }
 
     function _extractExitPositions(address[] memory _subVaults, Vm.Log[] memory logs, uint64 timestamp)
@@ -2042,7 +2078,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         returns (ExitRequest[] memory exitRequests)
     {
         uint256 subVaultsCount = _subVaults.length;
-        uint256 exitSubVaultsCount = metaVault.ejectingSubVault() != address(0) ? subVaultsCount - 1 : subVaultsCount;
+        uint256 exitSubVaultsCount = registry.ejectingSubVault() != address(0) ? subVaultsCount - 1 : subVaultsCount;
         exitRequests = new ExitRequest[](exitSubVaultsCount);
         uint256 subVaultIndex = 0;
         for (uint256 i = 0; i < logs.length; i++) {

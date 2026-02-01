@@ -26,13 +26,19 @@ import {EthVaultFactory} from "../../contracts/vaults/ethereum/EthVaultFactory.s
 import {IEthFoxVault, EthFoxVault} from "../../contracts/vaults/ethereum/custom/EthFoxVault.sol";
 import {EthMetaVault} from "../../contracts/vaults/ethereum/EthMetaVault.sol";
 import {EthPrivMetaVault} from "../../contracts/vaults/ethereum/EthPrivMetaVault.sol";
+import {EthErc20MetaVault, IEthErc20MetaVault} from "../../contracts/vaults/ethereum/EthErc20MetaVault.sol";
+import {EthPrivErc20MetaVault} from "../../contracts/vaults/ethereum/EthPrivErc20MetaVault.sol";
 import {EthMetaVaultFactory} from "../../contracts/vaults/ethereum/EthMetaVaultFactory.sol";
+import {SubVaultsRegistry} from "../../contracts/vaults/SubVaultsRegistry.sol";
+import {SubVaultsRegistryFactory} from "../../contracts/vaults/SubVaultsRegistryFactory.sol";
 import {Keeper} from "../../contracts/keeper/Keeper.sol";
 import {ValidatorsConsolidationsMock} from "../../contracts/mocks/ValidatorsConsolidationsMock.sol";
 import {ValidatorsHelpers} from "./ValidatorsHelpers.sol";
 import {ValidatorsWithdrawalsMock} from "../../contracts/mocks/ValidatorsWithdrawalsMock.sol";
 import {VaultsRegistry, IVaultsRegistry} from "../../contracts/vaults/VaultsRegistry.sol";
 import {CuratorsRegistry} from "../../contracts/curators/CuratorsRegistry.sol";
+import {IVaultSubVaults} from "../../contracts/interfaces/IVaultSubVaults.sol";
+import {ISubVaultsRegistry} from "../../contracts/interfaces/ISubVaultsRegistry.sol";
 
 abstract contract EthHelpers is Test, ValidatorsHelpers {
     using stdStorage for StdStorage;
@@ -66,7 +72,9 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         EthPrivErc20Vault,
         EthFoxVault,
         EthMetaVault,
-        EthPrivMetaVault
+        EthPrivMetaVault,
+        EthErc20MetaVault,
+        EthPrivErc20MetaVault
     }
 
     struct ForkContracts {
@@ -86,12 +94,20 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
 
     address internal _validatorsWithdrawals;
     address internal _validatorsConsolidations;
+    address internal _subVaultsRegistryFactory;
 
     function _activateEthereumFork() internal returns (ForkContracts memory) {
         vm.createSelectFork(vm.envString("MAINNET_RPC_URL"), forkBlockNumber);
 
         _validatorsWithdrawals = address(new ValidatorsWithdrawalsMock());
         _validatorsConsolidations = address(new ValidatorsConsolidationsMock());
+
+        // Deploy SubVaultsRegistryFactory
+        address subVaultsRegistryImpl = address(
+            new SubVaultsRegistry(_curatorsRegistry, _vaultsRegistry, _keeper, _osTokenVaultController, _osTokenConfig)
+        );
+        _subVaultsRegistryFactory =
+            address(new SubVaultsRegistryFactory(subVaultsRegistryImpl, IVaultsRegistry(_vaultsRegistry)));
 
         return ForkContracts({
             keeper: Keeper(_keeper),
@@ -329,7 +345,10 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         }
 
         address vaultAddress;
-        if (vaultType == VaultType.EthMetaVault) {
+        if (
+            vaultType == VaultType.EthMetaVault || vaultType == VaultType.EthPrivMetaVault
+                || vaultType == VaultType.EthErc20MetaVault || vaultType == VaultType.EthPrivErc20MetaVault
+        ) {
             EthMetaVaultFactory factory = _getOrCreateMetaFactory(vaultType);
             vm.deal(admin, admin.balance + _securityDeposit);
             vm.prank(admin);
@@ -377,7 +396,10 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         if (vaultType == VaultType.EthFoxVault) {
             if (currentVersion == 2) return;
             require(currentVersion == 1, "Invalid vault version");
-        } else if (vaultType == VaultType.EthMetaVault || vaultType == VaultType.EthPrivMetaVault) {
+        } else if (
+            vaultType == VaultType.EthMetaVault || vaultType == VaultType.EthPrivMetaVault
+                || vaultType == VaultType.EthErc20MetaVault || vaultType == VaultType.EthPrivErc20MetaVault
+        ) {
             if (currentVersion == 6) return;
             require(currentVersion == 5, "Invalid vault version");
         } else {
@@ -455,28 +477,33 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
                 uint64(_exitingAssetsClaimDelay)
             );
             impl = address(new EthFoxVault(ethFoxVaultArgs));
-        } else if (_vaultType == VaultType.EthMetaVault) {
+        } else if (_vaultType == VaultType.EthMetaVault || _vaultType == VaultType.EthPrivMetaVault) {
             IEthMetaVault.EthMetaVaultConstructorArgs memory ethMetaVaultArgs = IEthMetaVault.EthMetaVaultConstructorArgs(
                 _keeper,
                 _vaultsRegistry,
                 _osTokenVaultController,
                 _osTokenConfig,
                 _osTokenVaultEscrow,
-                _curatorsRegistry,
+                _subVaultsRegistryFactory,
                 uint64(_exitingAssetsClaimDelay)
             );
-            impl = address(new EthMetaVault(ethMetaVaultArgs));
-        } else if (_vaultType == VaultType.EthPrivMetaVault) {
-            IEthMetaVault.EthMetaVaultConstructorArgs memory ethMetaVaultArgs = IEthMetaVault.EthMetaVaultConstructorArgs(
-                _keeper,
-                _vaultsRegistry,
-                _osTokenVaultController,
-                _osTokenConfig,
-                _osTokenVaultEscrow,
-                _curatorsRegistry,
-                uint64(_exitingAssetsClaimDelay)
-            );
-            impl = address(new EthPrivMetaVault(ethMetaVaultArgs));
+            impl = _vaultType == VaultType.EthMetaVault
+                ? address(new EthMetaVault(ethMetaVaultArgs))
+                : address(new EthPrivMetaVault(ethMetaVaultArgs));
+        } else if (_vaultType == VaultType.EthErc20MetaVault || _vaultType == VaultType.EthPrivErc20MetaVault) {
+            IEthErc20MetaVault.EthErc20MetaVaultConstructorArgs memory ethErc20MetaVaultArgs =
+                IEthErc20MetaVault.EthErc20MetaVaultConstructorArgs(
+                    _keeper,
+                    _vaultsRegistry,
+                    _osTokenVaultController,
+                    _osTokenConfig,
+                    _osTokenVaultEscrow,
+                    _subVaultsRegistryFactory,
+                    uint64(_exitingAssetsClaimDelay)
+                );
+            impl = _vaultType == VaultType.EthErc20MetaVault
+                ? address(new EthErc20MetaVault(ethErc20MetaVaultArgs))
+                : address(new EthPrivErc20MetaVault(ethErc20MetaVaultArgs));
         } else {
             revert("Unsupported vault type");
         }
@@ -504,5 +531,21 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
 
     function _setKeeperRewardsNonce(uint64 rewardsNonce) internal {
         stdstore.enable_packed_slots().target(_keeper).sig("rewardsNonce()").checked_write(rewardsNonce);
+    }
+
+    function _getSubVaultsRegistry(address vault) internal view returns (ISubVaultsRegistry) {
+        return ISubVaultsRegistry(IVaultSubVaults(vault).subVaultsRegistry());
+    }
+
+    function _createEthSubVault(address _admin) internal returns (address) {
+        bytes memory initParams = abi.encode(
+            IEthVault.EthVaultInitParams({
+                capacity: 1000 ether,
+                feePercent: 5,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+
+        return _createVault(VaultType.EthVault, _admin, initParams, false);
     }
 }

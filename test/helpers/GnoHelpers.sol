@@ -24,9 +24,10 @@ import {GnoPrivErc20Vault} from "../../contracts/vaults/gnosis/GnoPrivErc20Vault
 import {GnoPrivVault} from "../../contracts/vaults/gnosis/GnoPrivVault.sol";
 import {GnoVault, IGnoVault} from "../../contracts/vaults/gnosis/GnoVault.sol";
 import {GnoMetaVault} from "../../contracts/vaults/gnosis/GnoMetaVault.sol";
-import {GnoPrivMetaVault} from "../../contracts/vaults/gnosis/GnoPrivMetaVault.sol";
 import {GnoMetaVaultFactory} from "../../contracts/vaults/gnosis/GnoMetaVaultFactory.sol";
 import {GnoVaultFactory} from "../../contracts/vaults/gnosis/GnoVaultFactory.sol";
+import {SubVaultsRegistry} from "../../contracts/vaults/SubVaultsRegistry.sol";
+import {SubVaultsRegistryFactory} from "../../contracts/vaults/SubVaultsRegistryFactory.sol";
 import {Keeper} from "../../contracts/keeper/Keeper.sol";
 import {ValidatorsConsolidationsMock} from "../../contracts/mocks/ValidatorsConsolidationsMock.sol";
 import {ValidatorsWithdrawalsMock} from "../../contracts/mocks/ValidatorsWithdrawalsMock.sol";
@@ -68,8 +69,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         GnoErc20Vault,
         GnoBlocklistErc20Vault,
         GnoPrivErc20Vault,
-        GnoMetaVault,
-        GnoPrivMetaVault
+        GnoMetaVault
     }
 
     struct ForkContracts {
@@ -93,6 +93,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
     address private _validatorsWithdrawals;
     address private _validatorsConsolidations;
     address internal _curatorsRegistry;
+    address internal _subVaultsRegistryFactory;
 
     function _activateGnosisFork() internal returns (ForkContracts memory) {
         vm.createSelectFork(vm.envString("GNOSIS_RPC_URL"), forkBlockNumber);
@@ -101,6 +102,13 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         _validatorsConsolidations = address(new ValidatorsConsolidationsMock());
         _consolidationsChecker = address(new ConsolidationsChecker(address(_keeper)));
         _curatorsRegistry = address(new CuratorsRegistry());
+
+        // Deploy SubVaultsRegistryFactory
+        address subVaultsRegistryImpl = address(
+            new SubVaultsRegistry(_curatorsRegistry, _vaultsRegistry, _keeper, _osTokenVaultController, _osTokenConfig)
+        );
+        _subVaultsRegistryFactory =
+            address(new SubVaultsRegistryFactory(subVaultsRegistryImpl, IVaultsRegistry(_vaultsRegistry)));
 
         return ForkContracts({
             keeper: Keeper(_keeper),
@@ -331,7 +339,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         returns (address)
     {
         address vaultAddress;
-        if (vaultType == VaultType.GnoMetaVault || vaultType == VaultType.GnoPrivMetaVault) {
+        if (vaultType == VaultType.GnoMetaVault) {
             GnoMetaVaultFactory factory = _getOrCreateMetaFactory(vaultType);
             vm.startPrank(admin);
             IERC20(_gnoToken).approve(address(factory), _securityDeposit);
@@ -368,7 +376,7 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         if (vaultType == VaultType.GnoGenesisVault) {
             if (currentVersion == 4) return;
             require(currentVersion == 3, "Invalid vault version");
-        } else if (vaultType == VaultType.GnoMetaVault || vaultType == VaultType.GnoPrivMetaVault) {
+        } else if (vaultType == VaultType.GnoMetaVault) {
             if (currentVersion == 4) return;
             require(currentVersion == 3, "Invalid vault version");
         } else {
@@ -441,21 +449,10 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
                 _osTokenVaultController,
                 _osTokenConfig,
                 _osTokenVaultEscrow,
-                _curatorsRegistry,
+                _subVaultsRegistryFactory,
                 uint64(_exitingAssetsClaimDelay)
             );
             impl = address(new GnoMetaVault(_gnoToken, gnoMetaVaultArgs));
-        } else if (_vaultType == VaultType.GnoPrivMetaVault) {
-            IGnoMetaVault.GnoMetaVaultConstructorArgs memory gnoMetaVaultArgs = IGnoMetaVault.GnoMetaVaultConstructorArgs(
-                _keeper,
-                _vaultsRegistry,
-                _osTokenVaultController,
-                _osTokenConfig,
-                _osTokenVaultEscrow,
-                _curatorsRegistry,
-                uint64(_exitingAssetsClaimDelay)
-            );
-            impl = address(new GnoPrivMetaVault(_gnoToken, gnoMetaVaultArgs));
         } else {
             revert("Unsupported vault type");
         }

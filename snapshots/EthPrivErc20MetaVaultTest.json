@@ -1,0 +1,9 @@
+{
+  "EthPrivErc20MetaVaultTest_test_depositViaFallback_whitelistedUser": "97921",
+  "EthPrivErc20MetaVaultTest_test_deposit_whitelistedUser": "102209",
+  "EthPrivErc20MetaVaultTest_test_mintOsToken_whitelistedUser": "172632",
+  "EthPrivErc20MetaVaultTest_test_setWhitelister": "41109",
+  "EthPrivErc20MetaVaultTest_test_transferFrom_bothWhitelisted": "67611",
+  "EthPrivErc20MetaVaultTest_test_transfer_bothWhitelisted": "66486",
+  "EthPrivErc20MetaVaultTest_test_updateWhitelist": "60956"
+}

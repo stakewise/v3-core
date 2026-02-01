@@ -37,12 +37,12 @@
   "VaultOsTokenTest_test_redeemVsLiquidate": "134071",
   "VaultOsTokenTest_test_test_liquidateOsToken_notHarvested": "43548",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_basic": "167657",
-  "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_claim": "107765",
+  "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_claim": "107777",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_maxAmount": "167657",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_moreThanOwned": "44819",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_noPosition": "43502",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_notHarvested": "41342",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_partialTransfer": "173220",
-  "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_process": "736184",
+  "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_process": "736148",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_zeroShares": "47545"
 }

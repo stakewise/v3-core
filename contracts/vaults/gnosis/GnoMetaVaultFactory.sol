@@ -48,6 +48,9 @@ contract GnoMetaVaultFactory is IGnoMetaVaultFactory {
         // create vault
         vault = address(new ERC1967Proxy(implementation, ""));
 
+        // add vault to the registry
+        _vaultsRegistry.addVault(vault);
+
         // approve GNO token for the vault security deposit
         _gnoToken.approve(vault, _securityDeposit);
 
@@ -59,9 +62,6 @@ contract GnoMetaVaultFactory is IGnoMetaVaultFactory {
 
         // cleanup admin
         delete vaultAdmin;
-
-        // add vault to the registry
-        _vaultsRegistry.addVault(vault);
 
         // emit event
         emit MetaVaultCreated(msg.sender, msg.sender, vault, params);

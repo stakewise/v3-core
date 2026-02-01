@@ -8,6 +8,7 @@ import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {IVaultSubVaults} from "../contracts/interfaces/IVaultSubVaults.sol";
+import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
 import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {IVaultOsToken} from "../contracts/interfaces/IVaultOsToken.sol";
 import {ISubVaultsCurator} from "../contracts/interfaces/ISubVaultsCurator.sol";
@@ -19,6 +20,19 @@ import {CuratorsRegistry} from "../contracts/curators/CuratorsRegistry.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
+
+/// @dev Legacy interface for V5 meta vault that had sub-vault functions directly on it
+interface ILegacyMetaVaultV5 {
+    struct SubVaultState {
+        uint128 stakedShares;
+        uint128 queuedShares;
+    }
+
+    function subVaultsCurator() external view returns (address);
+    function subVaultsRewardsNonce() external view returns (uint128);
+    function getSubVaults() external view returns (address[] memory);
+    function subVaultsStates(address vault) external view returns (SubVaultState memory);
+}
 
 contract EthMetaVaultTest is Test, EthHelpers {
     bytes32 private constant exitQueueEnteredTopic = keccak256("ExitQueueEntered(address,address,uint256,uint256)");
@@ -46,6 +60,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
     ForkContracts public contracts;
     EthMetaVault public metaVault;
+    ISubVaultsRegistry public registry;
 
     address public admin;
     address public sender;
@@ -58,7 +73,11 @@ contract EthMetaVaultTest is Test, EthHelpers {
     // Pre-upgrade state for fork vault upgrade test
     PreUpgradeState public preUpgradeState;
     address[] public preUpgradeSubVaults;
-    mapping(address => IVaultSubVaults.SubVaultState) public preUpgradeSubVaultStates;
+    mapping(address => ISubVaultsRegistry.SubVaultState) public preUpgradeSubVaultStates;
+
+    function _getRegistry(address vault) internal view returns (ISubVaultsRegistry) {
+        return ISubVaultsRegistry(EthMetaVault(payable(vault)).subVaultsRegistry());
+    }
 
     function setUp() public {
         // Activate Ethereum fork and get the contracts
@@ -90,8 +109,11 @@ contract EthMetaVaultTest is Test, EthHelpers {
         );
         metaVault = EthMetaVault(payable(_getOrCreateVault(VaultType.EthMetaVault, admin, initParams, false)));
 
+        // Get registry reference
+        registry = ISubVaultsRegistry(metaVault.subVaultsRegistry());
+
         // Get existing sub vaults (if any)
-        address[] memory currentSubVaults = metaVault.getSubVaults();
+        address[] memory currentSubVaults = registry.getSubVaults();
         for (uint256 i = 0; i < currentSubVaults.length; i++) {
             subVaults.push(currentSubVaults[i]);
         }
@@ -103,7 +125,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
             subVaults.push(subVault);
 
             vm.prank(admin);
-            metaVault.addSubVault(subVault);
+            registry.addSubVault(subVault);
         }
     }
 
@@ -111,21 +133,27 @@ contract EthMetaVaultTest is Test, EthHelpers {
         EthMetaVault vault = EthMetaVault(payable(FORK_META_VAULT));
         require(vault.version() == 5, "Fork vault is not version 5");
 
+        // Use legacy interface for V5 vault functions that are now on the registry
+        ILegacyMetaVaultV5 legacyVault = ILegacyMetaVaultV5(FORK_META_VAULT);
+
         preUpgradeState.admin = vault.admin();
         preUpgradeState.feeRecipient = vault.feeRecipient();
         preUpgradeState.feePercent = vault.feePercent();
         preUpgradeState.totalShares = vault.totalShares();
         preUpgradeState.totalAssets = vault.totalAssets();
         preUpgradeState.capacity = vault.capacity();
-        preUpgradeState.curator = vault.subVaultsCurator();
-        preUpgradeState.rewardsNonce = vault.subVaultsRewardsNonce();
+        preUpgradeState.curator = legacyVault.subVaultsCurator();
+        preUpgradeState.rewardsNonce = legacyVault.subVaultsRewardsNonce();
         (preUpgradeState.queuedShares, preUpgradeState.unclaimedAssets,,, preUpgradeState.totalTickets) =
             vault.getExitQueueData();
 
-        address[] memory vaultSubVaults = vault.getSubVaults();
+        address[] memory vaultSubVaults = legacyVault.getSubVaults();
         for (uint256 i = 0; i < vaultSubVaults.length; i++) {
             preUpgradeSubVaults.push(vaultSubVaults[i]);
-            preUpgradeSubVaultStates[vaultSubVaults[i]] = vault.subVaultsStates(vaultSubVaults[i]);
+            ILegacyMetaVaultV5.SubVaultState memory legacyState = legacyVault.subVaultsStates(vaultSubVaults[i]);
+            preUpgradeSubVaultStates[vaultSubVaults[i]] = ISubVaultsRegistry.SubVaultState({
+                stakedShares: legacyState.stakedShares, queuedShares: legacyState.queuedShares
+            });
         }
     }
 
@@ -158,13 +186,13 @@ contract EthMetaVaultTest is Test, EthHelpers {
         assertEq(metaVault.vaultId(), keccak256("EthMetaVault"), "Incorrect vault ID");
         assertEq(metaVault.version(), 6, "Incorrect version");
         assertEq(metaVault.admin(), admin, "Incorrect admin");
-        assertEq(metaVault.subVaultsCurator(), _balancedCurator, "Incorrect curator");
+        assertEq(registry.subVaultsCurator(), _balancedCurator, "Incorrect curator");
         assertEq(metaVault.capacity(), type(uint256).max, "Incorrect capacity");
         assertEq(metaVault.feePercent(), 0, "Incorrect fee percent");
         assertEq(metaVault.feeRecipient(), admin, "Incorrect fee recipient");
 
         // Verify sub vaults
-        address[] memory storedSubVaults = metaVault.getSubVaults();
+        address[] memory storedSubVaults = registry.getSubVaults();
         for (uint256 i = 0; i < subVaults.length; i++) {
             assertEq(storedSubVaults[i], subVaults[i], "Incorrect sub vault address");
         }
@@ -175,6 +203,10 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 totalSharesBefore = metaVault.totalShares();
         uint256 depositAmount = 10 ether;
         uint256 expectedShares = metaVault.convertToShares(depositAmount);
+
+        // Expect Deposited event
+        vm.expectEmit(true, true, false, false);
+        emit IVaultEnterExit.Deposited(sender, receiver, depositAmount, expectedShares, referrer);
 
         vm.prank(sender);
         _startSnapshotGas("EthMetaVaultTest_test_deposit");
@@ -195,6 +227,10 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 5 ether;
         uint256 expectedShares = metaVault.convertToShares(depositAmount);
 
+        // Expect Deposited event
+        vm.expectEmit(true, true, false, false);
+        emit IVaultEnterExit.Deposited(address(this), address(this), depositAmount, expectedShares, address(0));
+
         _startSnapshotGas("EthMetaVaultTest_test_depositViaFallback");
         Address.sendValue(payable(address(metaVault)), depositAmount);
         _stopSnapshotGas();
@@ -208,7 +244,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 initialDeposit = 5 ether;
         vm.prank(sender);
         metaVault.deposit{value: initialDeposit}(sender, address(0));
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Set up a new deposit
         uint256 depositAmount = 10 ether;
@@ -262,10 +298,16 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 10 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Mint osTokens
         uint256 osTokenShares = depositAmount / 2; // 50% of deposit
+
+        // Expect Deposited and OsTokenMinted events
+        vm.expectEmit(true, true, false, false);
+        emit IVaultEnterExit.Deposited(sender, sender, depositAmount, 0, referrer);
+        vm.expectEmit(true, false, false, false);
+        emit IVaultOsToken.OsTokenMinted(sender, sender, 0, osTokenShares, referrer);
 
         vm.prank(sender);
         _startSnapshotGas("EthMetaVaultTest_test_depositAndMintOsToken");
@@ -283,7 +325,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 10 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Set up harvest params
         IKeeperRewards.HarvestParams memory harvestParams = _getEmptyHarvestParams();
@@ -311,19 +353,19 @@ contract EthMetaVaultTest is Test, EthHelpers {
         metaVault.deposit{value: depositAmount}(sender, referrer);
 
         // Verify initial state - should not require update
-        assertFalse(metaVault.isStateUpdateRequired(), "Should not require state update initially");
+        assertFalse(registry.isStateUpdateRequired(), "Should not require state update initially");
 
         // Get current nonce
         uint64 initialNonce = contracts.keeper.rewardsNonce();
 
         // Increase keeper nonce by 1 - still should not require update
         _setKeeperRewardsNonce(initialNonce + 1);
-        assertFalse(metaVault.isStateUpdateRequired(), "Should not require state update when nonce is only 1 higher");
+        assertFalse(registry.isStateUpdateRequired(), "Should not require state update when nonce is only 1 higher");
 
         // Increase keeper nonce by 1 more - now should require update
         _startSnapshotGas("EthMetaVaultTest_test_isStateUpdateRequired_true");
         _setKeeperRewardsNonce(initialNonce + 2);
-        bool required = metaVault.isStateUpdateRequired();
+        bool required = registry.isStateUpdateRequired();
         _stopSnapshotGas();
 
         assertTrue(required, "Should require state update when nonce is 2 higher");
@@ -337,7 +379,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         metaVault.updateState(_getEmptyHarvestParams());
 
         // Verify no update required after state update
-        assertFalse(metaVault.isStateUpdateRequired(), "Should not require state update after updating");
+        assertFalse(registry.isStateUpdateRequired(), "Should not require state update after updating");
 
         // Test with empty sub vaults
         // Create a new meta vault without sub vaults
@@ -367,7 +409,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         _setKeeperRewardsNonce(initialNonce + 2);
 
         // Verify behavior
-        assertFalse(metaVault.isStateUpdateRequired(), "Should not require update when keeper nonce is lower");
+        assertFalse(registry.isStateUpdateRequired(), "Should not require update when keeper nonce is lower");
     }
 
     function test_userClaimExitedAssets() public {
@@ -377,7 +419,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         metaVault.deposit{value: depositAmount}(sender, referrer);
 
         // Deposit to sub vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Enter exit queue with all shares
         uint256 senderShares = metaVault.getShares(sender);
@@ -413,10 +455,10 @@ contract EthMetaVaultTest is Test, EthHelpers {
         }
 
         // Prepare exit requests for claiming from sub vaults to meta vault
-        IVaultSubVaults.SubVaultExitRequest[] memory exitRequests =
-            new IVaultSubVaults.SubVaultExitRequest[](extractedExits.length);
+        ISubVaultsRegistry.SubVaultExitRequest[] memory exitRequests =
+            new ISubVaultsRegistry.SubVaultExitRequest[](extractedExits.length);
         for (uint256 i = 0; i < extractedExits.length; i++) {
-            exitRequests[i] = IVaultSubVaults.SubVaultExitRequest({
+            exitRequests[i] = ISubVaultsRegistry.SubVaultExitRequest({
                 vault: extractedExits[i].vault,
                 exitQueueIndex: uint256(
                     IVaultEnterExit(extractedExits[i].vault).getExitQueueIndex(extractedExits[i].positionTicket)
@@ -429,7 +471,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
 
         // Claim exited assets from sub vaults to meta vault
-        metaVault.claimSubVaultsExitedAssets(exitRequests);
+        registry.claimSubVaultsExitedAssets(exitRequests);
 
         // Update nonces for sub vaults to process exit queue
         newNonce = contracts.keeper.rewardsNonce() + 1;
@@ -477,7 +519,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 10 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         _updateMetaVaultState();
 
@@ -513,7 +555,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 10 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Trying to donate 0 ETH should revert
         vm.prank(sender);
@@ -538,20 +580,23 @@ contract EthMetaVaultTest is Test, EthHelpers {
         assertEq(vault.feePercent(), preUpgradeState.feePercent, "Fee percent should be preserved");
 
         // Verify vault state preserved
+        ISubVaultsRegistry vaultRegistry = _getRegistry(address(vault));
         assertEq(vault.totalShares(), preUpgradeState.totalShares, "Total shares should be preserved");
         assertEq(vault.totalAssets(), preUpgradeState.totalAssets, "Total assets should be preserved");
         assertEq(vault.capacity(), preUpgradeState.capacity, "Capacity should be preserved");
-        assertEq(vault.subVaultsCurator(), preUpgradeState.curator, "Curator should be preserved");
-        assertEq(vault.subVaultsRewardsNonce(), preUpgradeState.rewardsNonce, "Rewards nonce should be preserved");
+        assertEq(vaultRegistry.subVaultsCurator(), preUpgradeState.curator, "Curator should be preserved");
+        assertEq(
+            vaultRegistry.subVaultsRewardsNonce(), preUpgradeState.rewardsNonce, "Rewards nonce should be preserved"
+        );
 
         // Verify sub vaults state preserved (original sub vaults should still be present)
-        address[] memory postSubVaults = vault.getSubVaults();
+        address[] memory postSubVaults = vaultRegistry.getSubVaults();
         assertGe(postSubVaults.length, preUpgradeSubVaults.length, "Should have at least original sub vaults");
         for (uint256 i = 0; i < preUpgradeSubVaults.length; i++) {
             // Original sub vaults should be at the beginning of the list
             assertEq(postSubVaults[i], preUpgradeSubVaults[i], "Sub vault address should be preserved");
-            IVaultSubVaults.SubVaultState memory postState = vault.subVaultsStates(preUpgradeSubVaults[i]);
-            IVaultSubVaults.SubVaultState memory preState = preUpgradeSubVaultStates[preUpgradeSubVaults[i]];
+            ISubVaultsRegistry.SubVaultState memory postState = vaultRegistry.subVaultsStates(preUpgradeSubVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory preState = preUpgradeSubVaultStates[preUpgradeSubVaults[i]];
             assertEq(postState.stakedShares, preState.stakedShares, "Staked shares should be preserved");
             assertEq(postState.queuedShares, preState.queuedShares, "Queued shares should be preserved");
         }
@@ -568,18 +613,18 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 10 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Increase keeper nonce by 2 to trigger NotHarvested
         uint64 initialNonce = contracts.keeper.rewardsNonce();
         _setKeeperRewardsNonce(initialNonce + 2);
 
         // Verify state update is required
-        assertTrue(metaVault.isStateUpdateRequired(), "State update should be required");
+        assertTrue(registry.isStateUpdateRequired(), "State update should be required");
 
         // Try to call calculateSubVaultsRedemptions - should revert with NotHarvested
         vm.expectRevert(Errors.NotHarvested.selector);
-        metaVault.calculateSubVaultsRedemptions(1 ether);
+        registry.calculateSubVaultsRedemptions(1 ether);
     }
 
     function test_calculateSubVaultsRedemptions_withMetaSubVault() public {
@@ -587,7 +632,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         _updateMetaVaultState();
 
         // Get the current nonce that main meta vault is at
-        uint128 currentNonce = metaVault.subVaultsRewardsNonce();
+        uint128 currentNonce = registry.subVaultsRewardsNonce();
 
         // Create another meta vault to use as a sub vault
         bytes memory metaInitParams = abi.encode(
@@ -608,8 +653,9 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Set the nested sub vault's nonce to match what the sub meta vault expects
         _setVaultRewardsNonce(nestedSubVault, uint64(currentNonce));
 
+        ISubVaultsRegistry subMetaVaultRegistry = _getRegistry(address(subMetaVault));
         vm.prank(admin);
-        subMetaVault.addSubVault(nestedSubVault);
+        subMetaVaultRegistry.addSubVault(nestedSubVault);
 
         // Deposit to sub meta vault
         vm.deal(admin, 50 ether);
@@ -631,16 +677,16 @@ contract EthMetaVaultTest is Test, EthHelpers {
         metaVault.updateState(_getEmptyHarvestParams());
 
         // Deposit to sub vaults
-        subMetaVault.depositToSubVaults();
+        _getRegistry(address(subMetaVault)).depositToSubVaults();
 
         // Propose adding meta vault as sub vault (requires approval)
         vm.prank(admin);
-        metaVault.addSubVault(address(subMetaVault));
+        registry.addSubVault(address(subMetaVault));
 
         // Accept the meta sub vault (requires VaultsRegistry owner)
         address registryOwner = contracts.vaultsRegistry.owner();
         vm.prank(registryOwner);
-        metaVault.acceptMetaSubVault(address(subMetaVault));
+        registry.acceptMetaSubVault(address(subMetaVault));
 
         // Deposit to main meta vault
         vm.prank(sender);
@@ -657,7 +703,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         metaVault.updateState(_getEmptyHarvestParams());
 
         // Deposit main meta vault assets to sub vaults to make withdrawable assets 0
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Set meta vault balance to cover unclaimed assets only (withdrawable = 0)
         (, uint256 unclaimedAssets,,,) = metaVault.getExitQueueData();
@@ -683,7 +729,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Test calculateSubVaultsRedemptions with meta sub vault present
         uint256 assetsToRedeem = 5 ether;
-        ISubVaultsCurator.ExitRequest[] memory requests = metaVault.calculateSubVaultsRedemptions(assetsToRedeem);
+        ISubVaultsCurator.ExitRequest[] memory requests = registry.calculateSubVaultsRedemptions(assetsToRedeem);
 
         // Should return exit requests since withdrawable assets are 0
         assertGt(requests.length, 0, "Should return exit requests when no withdrawable assets");
@@ -696,7 +742,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
             // If the request is for the sub meta vault, verify it can calculate its own redemptions
             if (requests[i].vault == address(subMetaVault)) {
                 ISubVaultsCurator.ExitRequest[] memory subMetaRequests =
-                    subMetaVault.calculateSubVaultsRedemptions(requests[i].assets);
+                    _getRegistry(address(subMetaVault)).calculateSubVaultsRedemptions(requests[i].assets);
 
                 // Sub meta vault should also return exit requests from its nested sub vault
                 assertGt(subMetaRequests.length, 0, "Sub meta vault should return exit requests");
@@ -722,7 +768,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Update meta vault state
         _updateMetaVaultState();
@@ -730,10 +776,10 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Start ejecting one of the sub vaults
         address vaultToEject = subVaults[0];
         vm.prank(admin);
-        metaVault.ejectSubVault(vaultToEject);
+        registry.ejectSubVault(vaultToEject);
 
         // Verify ejecting sub vault is set
-        assertEq(metaVault.ejectingSubVault(), vaultToEject, "Ejecting sub vault should be set");
+        assertEq(registry.ejectingSubVault(), vaultToEject, "Ejecting sub vault should be set");
 
         // Update meta vault state after ejection
         _updateMetaVaultState();
@@ -742,7 +788,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 withdrawableAssets = metaVault.withdrawableAssets();
 
         // Get ejecting sub vault assets - these are counted as available in calculateSubVaultsRedemptions
-        IVaultSubVaults.SubVaultState memory ejectingState = metaVault.subVaultsStates(vaultToEject);
+        ISubVaultsRegistry.SubVaultState memory ejectingState = registry.subVaultsStates(vaultToEject);
         uint256 ejectingAssets = 0;
         if (ejectingState.queuedShares > 0) {
             ejectingAssets = IVaultState(vaultToEject).convertToAssets(ejectingState.queuedShares);
@@ -750,7 +796,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Request redemption for more than withdrawable + ejecting assets to force requests from other sub vaults
         uint256 assetsToRedeem = withdrawableAssets + ejectingAssets + 5 ether;
-        ISubVaultsCurator.ExitRequest[] memory requests = metaVault.calculateSubVaultsRedemptions(assetsToRedeem);
+        ISubVaultsCurator.ExitRequest[] memory requests = registry.calculateSubVaultsRedemptions(assetsToRedeem);
 
         // Should return exit requests since we're requesting more than available
         assertGt(requests.length, 0, "Should return exit requests");
@@ -783,7 +829,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Update meta vault state
         _updateMetaVaultState();
@@ -795,7 +841,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Request more assets than withdrawable
         uint256 assetsToRedeem = 10 ether;
         _startSnapshotGas("EthMetaVaultTest_test_calculateSubVaultsRedemptions_insufficientWithdrawableAssets");
-        ISubVaultsCurator.ExitRequest[] memory requests = metaVault.calculateSubVaultsRedemptions(assetsToRedeem);
+        ISubVaultsCurator.ExitRequest[] memory requests = registry.calculateSubVaultsRedemptions(assetsToRedeem);
         _stopSnapshotGas();
 
         // Should return exit requests from sub vaults
@@ -826,7 +872,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Request exactly the withdrawable assets
         _startSnapshotGas("EthMetaVaultTest_test_calculateSubVaultsRedemptions_exactWithdrawableAssets");
-        ISubVaultsCurator.ExitRequest[] memory requests = metaVault.calculateSubVaultsRedemptions(withdrawableAssets);
+        ISubVaultsCurator.ExitRequest[] memory requests = registry.calculateSubVaultsRedemptions(withdrawableAssets);
         _stopSnapshotGas();
 
         // Should return empty array since withdrawable assets exactly match
@@ -838,7 +884,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 50 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Update meta vault state
         _updateMetaVaultState();
@@ -850,7 +896,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 assetsToRedeem = withdrawableAssets + 20 ether;
 
         _startSnapshotGas("EthMetaVaultTest_test_calculateSubVaultsRedemptions_success");
-        ISubVaultsCurator.ExitRequest[] memory requests = metaVault.calculateSubVaultsRedemptions(assetsToRedeem);
+        ISubVaultsCurator.ExitRequest[] memory requests = registry.calculateSubVaultsRedemptions(assetsToRedeem);
         _stopSnapshotGas();
 
         // Should return exit requests from sub vaults
@@ -890,7 +936,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         _updateMetaVaultState();
 
         // Request zero assets - should return empty array
-        ISubVaultsCurator.ExitRequest[] memory requests = metaVault.calculateSubVaultsRedemptions(0);
+        ISubVaultsCurator.ExitRequest[] memory requests = registry.calculateSubVaultsRedemptions(0);
         assertEq(requests.length, 0, "Should return empty requests for zero assets");
     }
 
@@ -905,7 +951,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Request less than withdrawable
         uint256 assetsToRedeem = 5 ether;
-        ISubVaultsCurator.ExitRequest[] memory requests = metaVault.calculateSubVaultsRedemptions(assetsToRedeem);
+        ISubVaultsCurator.ExitRequest[] memory requests = registry.calculateSubVaultsRedemptions(assetsToRedeem);
 
         // Should return empty array since withdrawable covers it
         assertEq(requests.length, 0, "Should return empty requests when less than withdrawable");
@@ -915,11 +961,11 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Only the redeemer can call redeemSubVaultsAssets
         vm.prank(sender);
         vm.expectRevert(Errors.AccessDenied.selector);
-        metaVault.redeemSubVaultsAssets(1 ether);
+        registry.redeemSubVaultsAssets(1 ether);
 
         vm.prank(admin);
         vm.expectRevert(Errors.AccessDenied.selector);
-        metaVault.redeemSubVaultsAssets(1 ether);
+        registry.redeemSubVaultsAssets(1 ether);
     }
 
     function test_redeemSubVaultsAssets_zeroAssets() public {
@@ -929,7 +975,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Try to redeem zero assets
         vm.prank(redeemer);
         vm.expectRevert(Errors.InvalidAssets.selector);
-        metaVault.redeemSubVaultsAssets(0);
+        registry.redeemSubVaultsAssets(0);
     }
 
     function test_redeemSubVaultsAssets_noRedeemRequests() public {
@@ -955,7 +1001,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Should return 0 since no redeem requests needed (withdrawable covers it)
         vm.prank(redeemer);
         _startSnapshotGas("EthMetaVaultTest_test_redeemSubVaultsAssets_noRedeemRequests");
-        uint256 totalRedeemed = metaVault.redeemSubVaultsAssets(depositAmount);
+        uint256 totalRedeemed = registry.redeemSubVaultsAssets(depositAmount);
         _stopSnapshotGas();
 
         // Verify meta vault balance unchanged (no redemptions occurred)
@@ -982,7 +1028,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Update meta vault state
         _updateMetaVaultState();
@@ -1014,7 +1060,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
         _startSnapshotGas("EthMetaVaultTest_test_redeemSubVaultsAssets_redeemAssetsExceedSubVaultsWithdrawableAssets");
-        uint256 totalRedeemed = metaVault.redeemSubVaultsAssets(assetsToRedeem);
+        uint256 totalRedeemed = registry.redeemSubVaultsAssets(assetsToRedeem);
         _stopSnapshotGas();
 
         // Verify redemption occurred - total redeemed should equal total sub vault withdrawable
@@ -1045,7 +1091,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Update meta vault state
         _updateMetaVaultState();
@@ -1077,7 +1123,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
         _startSnapshotGas("EthMetaVaultTest_test_redeemSubVaultsAssets_redeemAssetsLessThanSubVaultsWithdrawableAssets");
-        uint256 totalRedeemed = metaVault.redeemSubVaultsAssets(assetsToRedeem);
+        uint256 totalRedeemed = registry.redeemSubVaultsAssets(assetsToRedeem);
         _stopSnapshotGas();
 
         // Verify redemption occurred and matches requested amount (not more)
@@ -1122,7 +1168,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Update meta vault state
         _updateMetaVaultState();
@@ -1153,7 +1199,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
         _startSnapshotGas("EthMetaVaultTest_test_redeemSubVaultsAssets_success");
-        uint256 totalRedeemed = metaVault.redeemSubVaultsAssets(assetsToRedeem);
+        uint256 totalRedeemed = registry.redeemSubVaultsAssets(assetsToRedeem);
         _stopSnapshotGas();
 
         // Verify redemption occurred
@@ -1185,7 +1231,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Update meta vault state
         _updateMetaVaultState();
@@ -1207,7 +1253,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
         _startSnapshotGas("EthMetaVaultTest_test_redeemSubVaultsAssets_noRoundingErrors");
-        uint256 totalRedeemed = metaVault.redeemSubVaultsAssets(assetsToRedeem);
+        uint256 totalRedeemed = registry.redeemSubVaultsAssets(assetsToRedeem);
         _stopSnapshotGas();
 
         // Verify no rounding errors - redeemed amount should match requested exactly or be very close
@@ -1234,7 +1280,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Verify sub vault states were properly updated (no extra shares remaining)
         uint256 totalSubVaultAssets = 0;
         for (uint256 i = 0; i < subVaults.length; i++) {
-            IVaultSubVaults.SubVaultState memory state = metaVault.subVaultsStates(subVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory state = registry.subVaultsStates(subVaults[i]);
             if (state.stakedShares > 0) {
                 totalSubVaultAssets += IVaultState(subVaults[i]).convertToAssets(state.stakedShares);
             }
@@ -1255,7 +1301,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Increase keeper nonce by 2 to trigger NotHarvested
         uint64 initialNonce = contracts.keeper.rewardsNonce();
@@ -1274,13 +1320,13 @@ contract EthMetaVaultTest is Test, EthHelpers {
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
 
         // Verify state update is required
-        assertTrue(metaVault.isStateUpdateRequired(), "State update should be required");
+        assertTrue(registry.isStateUpdateRequired(), "State update should be required");
 
         // Try to redeem - should revert with NotHarvested
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
         vm.expectRevert(Errors.NotHarvested.selector);
-        metaVault.redeemSubVaultsAssets(1 ether);
+        registry.redeemSubVaultsAssets(1 ether);
     }
 
     function test_redeemSubVaultsAssets_emitsEvent() public {
@@ -1300,7 +1346,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         _updateMetaVaultState();
 
@@ -1315,7 +1361,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
         vm.recordLogs();
-        uint256 totalRedeemed = metaVault.redeemSubVaultsAssets(assetsToRedeem);
+        uint256 totalRedeemed = registry.redeemSubVaultsAssets(assetsToRedeem);
 
         // Find and verify the SubVaultsAssetsRedeemed event
         Vm.Log[] memory logs = vm.getRecordedLogs();
@@ -1349,14 +1395,14 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         _updateMetaVaultState();
 
         // Record staked shares before
         uint256[] memory stakedSharesBefore = new uint256[](subVaults.length);
         for (uint256 i = 0; i < subVaults.length; i++) {
-            IVaultSubVaults.SubVaultState memory state = metaVault.subVaultsStates(subVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory state = registry.subVaultsStates(subVaults[i]);
             stakedSharesBefore[i] = state.stakedShares;
         }
 
@@ -1370,12 +1416,12 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Perform redemption
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
-        metaVault.redeemSubVaultsAssets(assetsToRedeem);
+        registry.redeemSubVaultsAssets(assetsToRedeem);
 
         // Verify staked shares decreased for at least one sub vault
         bool anySharesReduced = false;
         for (uint256 i = 0; i < subVaults.length; i++) {
-            IVaultSubVaults.SubVaultState memory stateAfter = metaVault.subVaultsStates(subVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory stateAfter = registry.subVaultsStates(subVaults[i]);
             if (stateAfter.stakedShares < stakedSharesBefore[i]) {
                 anySharesReduced = true;
                 break;
@@ -1401,20 +1447,20 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         _updateMetaVaultState();
 
         // Start ejecting one sub vault (use last one since it's always a newly created vault)
         address vaultToEject = subVaults[subVaults.length - 1];
         vm.prank(admin);
-        metaVault.ejectSubVault(vaultToEject);
+        registry.ejectSubVault(vaultToEject);
 
         _updateMetaVaultState();
 
         // Get the ejecting vault's queued shares value - these are counted toward redemption
         // but can't be redeemed immediately (they're in exit queue)
-        IVaultSubVaults.SubVaultState memory ejectingState = metaVault.subVaultsStates(vaultToEject);
+        ISubVaultsRegistry.SubVaultState memory ejectingState = registry.subVaultsStates(vaultToEject);
         uint256 ejectingVaultAssets = IVaultState(vaultToEject).convertToAssets(ejectingState.queuedShares);
 
         // Give remaining sub vaults (all except the ejecting one) withdrawable assets
@@ -1428,15 +1474,15 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 assetsToRedeem = ejectingVaultAssets + 5 ether;
 
         // Record ejecting vault's state before
-        IVaultSubVaults.SubVaultState memory ejectingStateBefore = metaVault.subVaultsStates(vaultToEject);
+        ISubVaultsRegistry.SubVaultState memory ejectingStateBefore = registry.subVaultsStates(vaultToEject);
 
         // Perform redemption
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
-        uint256 totalRedeemed = metaVault.redeemSubVaultsAssets(assetsToRedeem);
+        uint256 totalRedeemed = registry.redeemSubVaultsAssets(assetsToRedeem);
 
         // Verify ejecting vault's state unchanged (ejecting shares are not modified by redemption)
-        IVaultSubVaults.SubVaultState memory ejectingStateAfter = metaVault.subVaultsStates(vaultToEject);
+        ISubVaultsRegistry.SubVaultState memory ejectingStateAfter = registry.subVaultsStates(vaultToEject);
         assertEq(
             ejectingStateAfter.stakedShares,
             ejectingStateBefore.stakedShares,
@@ -1472,7 +1518,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         _updateMetaVaultState();
 
@@ -1490,7 +1536,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Try to redeem - should return 0 since no sub vaults have withdrawable assets
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
-        uint256 totalRedeemed = metaVault.redeemSubVaultsAssets(5 ether);
+        uint256 totalRedeemed = registry.redeemSubVaultsAssets(5 ether);
 
         assertEq(totalRedeemed, 0, "Should redeem 0 when all sub vaults have 0 withdrawable");
     }
@@ -1512,7 +1558,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         _updateMetaVaultState();
 
@@ -1530,7 +1576,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
         // Perform first redemption
         vm.prank(redeemer);
-        uint256 redeemed1 = metaVault.redeemSubVaultsAssets(3 ether);
+        uint256 redeemed1 = registry.redeemSubVaultsAssets(3 ether);
         totalRedeemed += redeemed1;
 
         // Note: After first redemption, meta vault now has withdrawable assets (redeemed1)
@@ -1540,13 +1586,13 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Second redemption - request more than current withdrawable
         uint256 metaVaultWithdrawable = metaVault.withdrawableAssets();
         vm.prank(redeemer);
-        uint256 redeemed2 = metaVault.redeemSubVaultsAssets(metaVaultWithdrawable + 4 ether);
+        uint256 redeemed2 = registry.redeemSubVaultsAssets(metaVaultWithdrawable + 4 ether);
         totalRedeemed += redeemed2;
 
         // Third redemption
         metaVaultWithdrawable = metaVault.withdrawableAssets();
         vm.prank(redeemer);
-        uint256 redeemed3 = metaVault.redeemSubVaultsAssets(metaVaultWithdrawable + 2 ether);
+        uint256 redeemed3 = registry.redeemSubVaultsAssets(metaVaultWithdrawable + 2 ether);
         totalRedeemed += redeemed3;
 
         // Verify total redeemed is sum of all redemptions
@@ -1580,7 +1626,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         _updateMetaVaultState();
 
@@ -1594,7 +1640,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         address redeemer = contracts.osTokenConfig.redeemer();
         uint256 smallAmount = 10;
         vm.prank(redeemer);
-        uint256 totalRedeemed = metaVault.redeemSubVaultsAssets(smallAmount);
+        uint256 totalRedeemed = registry.redeemSubVaultsAssets(smallAmount);
 
         // Verify redemption succeeded with minimal rounding
         assertApproxEqAbs(totalRedeemed, smallAmount, 5, "Small redemption should work with minimal rounding");
@@ -1619,7 +1665,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         metaVault.deposit{value: depositAmount}(sender, referrer);
 
         // Deposit only part to sub vaults by manipulating the balance
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         _updateMetaVaultState();
 
@@ -1639,7 +1685,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Redeem more than meta vault's withdrawable but less than total
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
-        uint256 totalRedeemed = metaVault.redeemSubVaultsAssets(8 ether);
+        uint256 totalRedeemed = registry.redeemSubVaultsAssets(8 ether);
 
         // Should only redeem from sub vaults the amount exceeding meta vault's withdrawable (3 ether)
         // Allow slightly larger delta for fork state rounding differences
@@ -1663,12 +1709,12 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         _updateMetaVaultState();
 
         // Record staked shares before for first sub vault
-        IVaultSubVaults.SubVaultState memory stateBefore = metaVault.subVaultsStates(subVaults[0]);
+        ISubVaultsRegistry.SubVaultState memory stateBefore = registry.subVaultsStates(subVaults[0]);
         uint256 stakedAssetsBefore = IVaultState(subVaults[0]).convertToAssets(stateBefore.stakedShares);
 
         // Set all sub vaults to have 0 withdrawable except the first one
@@ -1695,7 +1741,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // but only the first vault can actually provide assets
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
-        uint256 totalRedeemed = metaVault.redeemSubVaultsAssets(5 ether);
+        uint256 totalRedeemed = registry.redeemSubVaultsAssets(5 ether);
 
         // The actual redemption is limited by what the curator requests from the first vault
         // The curator uses balanced distribution, so it may request less from each vault
@@ -1703,7 +1749,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         assertGt(totalRedeemed, 0, "Should redeem some assets from the first sub vault");
 
         // Verify first sub vault's staked shares decreased
-        IVaultSubVaults.SubVaultState memory stateAfter = metaVault.subVaultsStates(subVaults[0]);
+        ISubVaultsRegistry.SubVaultState memory stateAfter = registry.subVaultsStates(subVaults[0]);
         uint256 stakedAssetsAfter = IVaultState(subVaults[0]).convertToAssets(stateAfter.stakedShares);
         assertLt(stakedAssetsAfter, stakedAssetsBefore, "First sub vault staked assets should decrease");
 
@@ -1733,7 +1779,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 30 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         _updateMetaVaultState();
 
@@ -1755,7 +1801,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Perform redemption
         address redeemer = contracts.osTokenConfig.redeemer();
         vm.prank(redeemer);
-        metaVault.redeemSubVaultsAssets(10 ether);
+        registry.redeemSubVaultsAssets(10 ether);
 
         // Verify meta vault still has no osToken positions in sub vaults after
         for (uint256 i = 0; i < subVaults.length; i++) {
@@ -1773,7 +1819,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         returns (ExitRequest[] memory exitRequests)
     {
         uint256 subVaultsCount = _subVaults.length;
-        uint256 exitSubVaultsCount = metaVault.ejectingSubVault() != address(0) ? subVaultsCount - 1 : subVaultsCount;
+        uint256 exitSubVaultsCount = registry.ejectingSubVault() != address(0) ? subVaultsCount - 1 : subVaultsCount;
         exitRequests = new ExitRequest[](exitSubVaultsCount);
         uint256 subVaultIndex = 0;
         for (uint256 i = 0; i < logs.length; i++) {
