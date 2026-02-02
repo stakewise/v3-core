@@ -15,6 +15,7 @@ import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
 import {IConsolidationsChecker} from "../../contracts/interfaces/IConsolidationsChecker.sol";
 import {IGnoMetaVault} from "../../contracts/interfaces/IGnoMetaVault.sol";
+import {ITokensConverterFactory} from "../../contracts/interfaces/ITokensConverterFactory.sol";
 import {ConsolidationsChecker} from "../../contracts/validators/ConsolidationsChecker.sol";
 import {GnoBlocklistErc20Vault} from "../../contracts/vaults/gnosis/GnoBlocklistErc20Vault.sol";
 import {GnoBlocklistVault} from "../../contracts/vaults/gnosis/GnoBlocklistVault.sol";
@@ -43,7 +44,7 @@ interface IGnoToken {
 abstract contract GnoHelpers is Test, ValidatorsHelpers {
     using stdStorage for StdStorage;
 
-    uint256 internal constant forkBlockNumber = 40107000;
+    uint256 internal constant forkBlockNumber = 44470000;
     uint256 internal constant _securityDeposit = 1e9;
     address private constant _keeper = 0xcAC0e3E35d3BA271cd2aaBE688ac9DB1898C26aa;
     address private constant _validatorsRegistry = 0x0B98057eA310F4d31F2a452B414647007d1645d9;
@@ -303,14 +304,23 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         return address(0);
     }
 
+    function _getTokensConverter(address vault) internal view returns (address) {
+        // Return hardcoded converter addresses for fork vaults
+        if (vault == 0x00025C729A3364FaEf02c7D1F577068d87E90ba6) {
+            return 0xf0A005327E740daaAaf1DCeB86ca57e5C4df767B;
+        }
+        // For non-fork vaults, use the factory prediction
+        return ITokensConverterFactory(_tokensConverterFactory).getTokensConverter(vault);
+    }
+
     function _getVaultRewards(address vault, int160 newTotalReward, uint160 newUnlockedMevReward)
         private
         view
         returns (int160, uint160)
     {
         if (vault == 0x4b4406Ed8659D03423490D8b62a1639206dA0A7a) {
-            newTotalReward += 16036446295848871046698;
-            newUnlockedMevReward += 16104786197270190915179;
+            newTotalReward += 23125290825193839796698;
+            newUnlockedMevReward += 38182422752656127683973;
         }
 
         if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
@@ -318,18 +328,20 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         }
 
         if (vault == 0x00025C729A3364FaEf02c7D1F577068d87E90ba6) {
-            newTotalReward += 597138686177531250000;
-            newUnlockedMevReward += 2173687084505551299451;
+            newTotalReward += 1475599926192906250000;
+            newUnlockedMevReward += 4881832791211425238314;
         } else if (vault == 0x79Dbec2d18A758C62D410F9763956D52fbd4A3CC) {
-            newTotalReward += 2986604545031250000;
-            newUnlockedMevReward += 8209964011439485540;
+            newTotalReward += 7939266211593750000;
+            newUnlockedMevReward += 21543285647562346901;
         } else if (vault == 0x52Bd0fbF4839824680001d3653f2d503C6081085) {
-            newTotalReward += 55585164426875000000;
+            newTotalReward += 55733289651656250000;
+            newUnlockedMevReward += 99060935491632538003;
         } else if (vault == 0x33C346928eD9249Cf1d5fc16aE32a8CFFa1671AD) {
-            newTotalReward += 118624342091343750000;
-            newUnlockedMevReward += 263665552420563946481;
+            newTotalReward += 176255397509625000000;
+            newUnlockedMevReward += 438358384873681497429;
         } else if (vault == 0xdfdA4238359703180DAEc01e48F4625C1569c4dE) {
-            newTotalReward += 45747108062500000;
+            newTotalReward += 87578485156250000;
+            newUnlockedMevReward += 29001412383187947;
         }
         return (newTotalReward, newUnlockedMevReward);
     }
@@ -361,6 +373,12 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         returns (address)
     {
         GnoVaultFactory factory = _getPrevVersionVaultFactory(vaultType);
+
+        // Re-register the old factory if it's not already registered
+        if (!VaultsRegistry(_vaultsRegistry).factories(address(factory))) {
+            vm.prank(VaultsRegistry(_vaultsRegistry).owner());
+            VaultsRegistry(_vaultsRegistry).addFactory(address(factory));
+        }
 
         vm.startPrank(admin);
         IERC20(_gnoToken).approve(address(factory), _securityDeposit);

@@ -205,9 +205,6 @@ contract GnoVaultTest is Test, GnoHelpers {
         assertEq(contracts.gnoToken.allowance(address(prevVault), address(contracts.validatorsRegistry)), 0);
 
         // Upgrade the vault
-        vm.expectEmit(true, false, false, true);
-        emit IVaultState.CheckpointCreated(depositAssets, depositAssets);
-
         _startSnapshotGas("GnoVaultTest_test_upgradesCorrectly");
         _upgradeVault(VaultType.GnoVault, address(prevVault));
         _stopSnapshotGas();

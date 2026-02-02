@@ -749,7 +749,6 @@ contract SubVaultsRegistryFactoryTest is Test, EthHelpers {
 /// @notice Tests for __VaultSubVaults_upgrade function on Ethereum
 contract VaultSubVaultsUpgradeEthTest is Test, EthHelpers {
     // Existing Ethereum meta vault address for fork testing
-    // Note: Use lowercase when querying subgraph
     address private constant FORK_ETH_META_VAULT = 0x34284C27A2304132aF751b0dEc5bBa2CF98eD039;
 
     // Pre-upgrade state storage
@@ -1004,7 +1003,6 @@ contract VaultSubVaultsUpgradeEthTest is Test, EthHelpers {
 /// @notice Tests for __VaultSubVaults_upgrade function on Gnosis network
 contract VaultSubVaultsUpgradeGnoTest is Test, GnoHelpers {
     // Existing Gnosis meta vault address for fork testing
-    // Note: Use lowercase when querying subgraph
     address private constant FORK_GNO_META_VAULT = 0x34284C27A2304132aF751b0dEc5bBa2CF98eD039;
 
     // Pre-upgrade state storage
@@ -1043,15 +1041,6 @@ contract VaultSubVaultsUpgradeGnoTest is Test, GnoHelpers {
     function test_upgrade_existingGnosisVault_preservesState() public {
         // Skip if not using fork vaults
         if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
-            return;
-        }
-
-        // Check if the vault exists at this address on Gnosis
-        uint256 codeSize;
-        assembly {
-            codeSize := extcodesize(FORK_GNO_META_VAULT)
-        }
-        if (codeSize == 0) {
             return;
         }
 
@@ -1107,15 +1096,6 @@ contract VaultSubVaultsUpgradeGnoTest is Test, GnoHelpers {
     function test_upgrade_existingGnosisVault_remainsFunctional() public {
         // Skip if not using fork vaults
         if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
-            return;
-        }
-
-        // Check if the vault exists at this address on Gnosis
-        uint256 codeSize;
-        assembly {
-            codeSize := extcodesize(FORK_GNO_META_VAULT)
-        }
-        if (codeSize == 0) {
             return;
         }
 
