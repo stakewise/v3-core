@@ -25,12 +25,6 @@ abstract contract VaultSubVaults is VaultImmutables, Initializable, VaultState, 
     using EnumerableSet for EnumerableSet.AddressSet;
     using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
 
-    /// @dev Deprecated: moved to SubVaultsRegistry
-    struct SubVaultState {
-        uint128 stakedShares;
-        uint128 queuedShares;
-    }
-
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address private immutable _subVaultsRegistryFactory;
 
@@ -47,7 +41,7 @@ abstract contract VaultSubVaults is VaultImmutables, Initializable, VaultState, 
     mapping(address vault => DoubleEndedQueue.Bytes32Deque) private __deprecated__subVaultsExits;
 
     /// @dev Deprecated: moved to SubVaultsRegistry
-    mapping(address vault => SubVaultState state) private __deprecated__subVaultsStates;
+    mapping(address vault => ISubVaultsRegistry.SubVaultState state) private __deprecated__subVaultsStates;
 
     /// @dev Deprecated: moved to SubVaultsRegistry
     uint128 private __deprecated__subVaultsRewardsNonce;
@@ -207,7 +201,7 @@ abstract contract VaultSubVaults is VaultImmutables, Initializable, VaultState, 
             address vault = subVaults[i];
 
             // migrate state
-            SubVaultState memory state = __deprecated__subVaultsStates[vault];
+            ISubVaultsRegistry.SubVaultState memory state = __deprecated__subVaultsStates[vault];
             states[i] =
                 ISubVaultsRegistry.SubVaultState({stakedShares: state.stakedShares, queuedShares: state.queuedShares});
             delete __deprecated__subVaultsStates[vault];
@@ -226,6 +220,9 @@ abstract contract VaultSubVaults is VaultImmutables, Initializable, VaultState, 
             unchecked {
                 ++i;
             }
+
+            // remove vault from deprecated set
+            __deprecated__subVaults.remove(vault);
         }
 
         // create SubVaultsRegistry
@@ -254,7 +251,6 @@ abstract contract VaultSubVaults is VaultImmutables, Initializable, VaultState, 
         delete __deprecated__subVaultsRewardsNonce;
         delete __deprecated__subVaultsTotalAssets;
         delete __deprecated__totalProcessedExitQueueTickets;
-        __deprecated__subVaults.clear();
     }
 
     /**
