@@ -54,9 +54,9 @@ contract GnoMetaVault is
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(address gnoToken, GnoMetaVaultConstructorArgs memory args)
-        VaultImmutables(args.keeper, args.vaultsRegistry, args.osTokenVaultController, args.osTokenConfig)
+        VaultImmutables(args.keeper, args.vaultsRegistry)
         VaultEnterExit(args.exitingAssetsClaimDelay)
-        VaultOsToken(args.osTokenVaultEscrow)
+        VaultOsToken(args.osTokenVaultController, args.osTokenConfig, args.osTokenVaultEscrow)
         VaultSubVaults(args.subVaultsRegistryFactory)
     {
         _gnoToken = IERC20(gnoToken);

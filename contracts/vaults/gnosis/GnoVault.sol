@@ -48,7 +48,7 @@ contract GnoVault is
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(GnoVaultConstructorArgs memory args)
-        VaultImmutables(args.keeper, args.vaultsRegistry, args.osTokenVaultController, args.osTokenConfig)
+        VaultImmutables(args.keeper, args.vaultsRegistry)
         VaultValidators(
             args.depositDataRegistry,
             args.validatorsRegistry,
@@ -57,7 +57,7 @@ contract GnoVault is
             args.consolidationsChecker
         )
         VaultEnterExit(args.exitingAssetsClaimDelay)
-        VaultOsToken(args.osTokenVaultEscrow)
+        VaultOsToken(args.osTokenVaultController, args.osTokenConfig, args.osTokenVaultEscrow)
         VaultMev(args.sharedMevEscrow)
         VaultGnoStaking(args.gnoToken, args.tokensConverterFactory)
     {

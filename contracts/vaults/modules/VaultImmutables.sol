@@ -3,8 +3,6 @@
 pragma solidity ^0.8.22;
 
 import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
-import {IOsTokenVaultController} from "../../interfaces/IOsTokenVaultController.sol";
-import {IOsTokenConfig} from "../../interfaces/IOsTokenConfig.sol";
 import {Errors} from "../../libraries/Errors.sol";
 
 /**
@@ -19,27 +17,17 @@ abstract contract VaultImmutables {
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     address internal immutable _vaultsRegistry;
 
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IOsTokenVaultController internal immutable _osTokenVaultController;
-
-    /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IOsTokenConfig internal immutable _osTokenConfig;
-
     /**
      * @dev Constructor
      * @dev Since the immutable variable value is stored in the bytecode,
      *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
      * @param keeper The address of the Keeper contract
      * @param vaultsRegistry The address of the VaultsRegistry contract
-     * @param osTokenVaultController The address of the OsTokenVaultController contract
-     * @param osTokenConfig The address of the OsTokenConfig contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address keeper, address vaultsRegistry, address osTokenVaultController, address osTokenConfig) {
+    constructor(address keeper, address vaultsRegistry) {
         _keeper = keeper;
         _vaultsRegistry = vaultsRegistry;
-        _osTokenVaultController = IOsTokenVaultController(osTokenVaultController);
-        _osTokenConfig = IOsTokenConfig(osTokenConfig);
     }
 
     /**

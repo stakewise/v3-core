@@ -24,7 +24,7 @@ contract EthPrivErc20MetaVault is Initializable, EthErc20MetaVault, VaultWhiteli
     /**
      * @dev Constructor
      * @dev Since the immutable variable value is stored in the bytecode,
-     *      its value would be shared among all proxies pointing to a given contract instead of each proxy's storage.
+     *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
      * @param args The arguments for initializing the EthErc20MetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
