@@ -1,7 +1,7 @@
 {
-  "EthPrivErc20MetaVaultTest_test_depositViaFallback_whitelistedUser": "97921",
-  "EthPrivErc20MetaVaultTest_test_deposit_whitelistedUser": "98209",
-  "EthPrivErc20MetaVaultTest_test_mintOsToken_whitelistedUser": "172632",
+  "EthPrivErc20MetaVaultTest_test_depositViaFallback_whitelistedUser": "97878",
+  "EthPrivErc20MetaVaultTest_test_deposit_whitelistedUser": "98144",
+  "EthPrivErc20MetaVaultTest_test_mintOsToken_whitelistedUser": "172589",
   "EthPrivErc20MetaVaultTest_test_setWhitelister": "41109",
   "EthPrivErc20MetaVaultTest_test_transferFrom_bothWhitelisted": "65611",
   "EthPrivErc20MetaVaultTest_test_transfer_bothWhitelisted": "64486",

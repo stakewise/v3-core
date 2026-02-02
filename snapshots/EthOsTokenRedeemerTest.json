@@ -12,6 +12,6 @@
   "test_claimExitedAssets_fullWithdrawal": "53564",
   "test_claimExitedAssets_noPosition": "30222",
   "test_claimExitedAssets_partialWithdrawal": "75901",
-  "test_redeemSubVaultsAssets_concurrentMultipleSubVaults": "683491",
-  "test_redeemSubVaultsAssets_largeAmountAcrossAllSubVaults": "823030"
+  "test_redeemSubVaultsAssets_concurrentMultipleSubVaults": "683579",
+  "test_redeemSubVaultsAssets_largeAmountAcrossAllSubVaults": "823140"
 }

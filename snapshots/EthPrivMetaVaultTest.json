@@ -1,11 +1,11 @@
 {
-  "EthPrivMetaVaultTest_test_canDepositAndMintOsTokenAsWhitelistedUser": "195448",
-  "EthPrivMetaVaultTest_test_canDepositAsWhitelistedUser": "91767",
-  "EthPrivMetaVaultTest_test_canDepositUsingReceiveAsWhitelistedUser": "91479",
-  "EthPrivMetaVaultTest_test_canMintOsTokenAsWhitelistedUser": "172703",
-  "EthPrivMetaVaultTest_test_canUpdateStateAndDepositAsWhitelistedUser": "126660",
-  "EthPrivMetaVaultTest_test_depositToSubVaultsWorksWithWhitelistedUser": "331209",
-  "EthPrivMetaVaultTest_test_enterExitQueueWorksForWhitelistedUserAfterRemoval": "94894",
+  "EthPrivMetaVaultTest_test_canDepositAndMintOsTokenAsWhitelistedUser": "195340",
+  "EthPrivMetaVaultTest_test_canDepositAsWhitelistedUser": "91702",
+  "EthPrivMetaVaultTest_test_canDepositUsingReceiveAsWhitelistedUser": "91436",
+  "EthPrivMetaVaultTest_test_canMintOsTokenAsWhitelistedUser": "172660",
+  "EthPrivMetaVaultTest_test_canUpdateStateAndDepositAsWhitelistedUser": "126550",
+  "EthPrivMetaVaultTest_test_depositToSubVaultsWorksWithWhitelistedUser": "331231",
+  "EthPrivMetaVaultTest_test_enterExitQueueWorksForWhitelistedUserAfterRemoval": "94916",
   "EthPrivMetaVaultTest_test_setWhitelister": "36608",
   "EthPrivMetaVaultTest_test_updateWhitelist": "54543"
 }

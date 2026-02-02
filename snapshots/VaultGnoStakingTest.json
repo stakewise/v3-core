@@ -10,5 +10,5 @@
   "VaultGnoStakingTest_test_vaultGnoStaking_init": "678256",
   "VaultGnoStakingTest_test_withdrawValidator_fullFlow": "74091",
   "test_registerValidators_succeeds_0x01": "286528",
-  "test_registerValidators_succeeds_0x02": "630148"
+  "test_registerValidators_succeeds_0x02": "630128"
 }
