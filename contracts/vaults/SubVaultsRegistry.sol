@@ -12,7 +12,6 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import {ICuratorsRegistry} from "../interfaces/ICuratorsRegistry.sol";
 import {ISubVaultsCurator} from "../interfaces/ISubVaultsCurator.sol";
-import {Multicall} from "../base/Multicall.sol";
 import {IKeeperRewards} from "../interfaces/IKeeperRewards.sol";
 import {ISubVaultsRegistry} from "../interfaces/ISubVaultsRegistry.sol";
 import {IVaultEnterExit} from "../interfaces/IVaultEnterExit.sol";
@@ -23,6 +22,7 @@ import {IVaultsRegistry} from "../interfaces/IVaultsRegistry.sol";
 import {IOsTokenConfig} from "../interfaces/IOsTokenConfig.sol";
 import {IOsTokenVaultController} from "../interfaces/IOsTokenVaultController.sol";
 import {IVaultOsToken} from "../interfaces/IVaultOsToken.sol";
+import {Multicall} from "../base/Multicall.sol";
 import {Errors} from "../libraries/Errors.sol";
 import {SubVaultExits} from "../libraries/SubVaultExits.sol";
 
@@ -351,7 +351,7 @@ contract SubVaultsRegistry is
     }
 
     /// @inheritdoc ISubVaultsRegistry
-    function claimSubVaultsExitedAssets(SubVaultExitRequest[] calldata exitRequests) external override {
+    function claimSubVaultsExitedAssets(SubVaultExitRequest[] calldata exitRequests) external override nonReentrant {
         uint256 exitRequestsLength = exitRequests.length;
         // SLOAD to memory
         uint256 _subVaultsTotalAssets = subVaultsTotalAssets;
