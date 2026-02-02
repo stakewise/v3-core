@@ -4,29 +4,32 @@ pragma solidity ^0.8.22;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
-import {IEthMetaVault} from "../../interfaces/IEthMetaVault.sol";
+import {IEthErc20MetaVault} from "../../interfaces/IEthErc20MetaVault.sol";
 import {IEthMetaVaultFactory} from "../../interfaces/IEthMetaVaultFactory.sol";
 import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
 import {IVaultEthStaking} from "../../interfaces/IVaultEthStaking.sol";
 import {ISubVaultsRegistry} from "../../interfaces/ISubVaultsRegistry.sol";
 import {Errors} from "../../libraries/Errors.sol";
 import {Multicall} from "../../base/Multicall.sol";
+import {ERC20Upgradeable} from "../../base/ERC20Upgradeable.sol";
 import {VaultImmutables} from "../modules/VaultImmutables.sol";
 import {VaultAdmin} from "../modules/VaultAdmin.sol";
-import {IVaultVersion, VaultVersion} from "../modules/VaultVersion.sol";
+import {VaultVersion, IVaultVersion} from "../modules/VaultVersion.sol";
 import {VaultFee} from "../modules/VaultFee.sol";
-import {IVaultState, VaultState} from "../modules/VaultState.sol";
-import {IVaultEnterExit, VaultEnterExit} from "../modules/VaultEnterExit.sol";
+import {VaultState, IVaultState} from "../modules/VaultState.sol";
+import {VaultEnterExit, IVaultEnterExit} from "../modules/VaultEnterExit.sol";
 import {VaultOsToken} from "../modules/VaultOsToken.sol";
 import {VaultSubVaults} from "../modules/VaultSubVaults.sol";
+import {VaultToken} from "../modules/VaultToken.sol";
 
 /**
- * @title EthMetaVault
+ * @title EthErc20MetaVault
  * @author StakeWise
- * @notice Defines the Meta Vault functionality on Ethereum
+ * @notice Defines the Meta Vault functionality with ERC-20 token on Ethereum
  */
-contract EthMetaVault is
+contract EthErc20MetaVault is
     VaultImmutables,
     Initializable,
     ReentrancyGuardUpgradeable,
@@ -36,9 +39,10 @@ contract EthMetaVault is
     VaultState,
     VaultEnterExit,
     VaultOsToken,
+    VaultToken,
     VaultSubVaults,
     Multicall,
-    IEthMetaVault
+    IEthErc20MetaVault
 {
     uint8 private constant _version = 6;
     uint256 private constant _securityDeposit = 1e9;
@@ -47,10 +51,10 @@ contract EthMetaVault is
      * @dev Constructor
      * @dev Since the immutable variable value is stored in the bytecode,
      *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-     * @param args The arguments for initializing the EthMetaVault contract
+     * @param args The arguments for initializing the EthErc20MetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(EthMetaVaultConstructorArgs memory args)
+    constructor(EthErc20MetaVaultConstructorArgs memory args)
         VaultImmutables(args.keeper, args.vaultsRegistry)
         VaultEnterExit(args.exitingAssetsClaimDelay)
         VaultOsToken(args.osTokenVaultController, args.osTokenConfig, args.osTokenVaultEscrow)
@@ -59,18 +63,15 @@ contract EthMetaVault is
         _disableInitializers();
     }
 
-    /// @inheritdoc IEthMetaVault
+    /// @inheritdoc IEthErc20MetaVault
     function initialize(bytes calldata params) external payable virtual override reinitializer(_version) {
-        // if admin is already set, it's an upgrade from version 5 to 6
-        if (admin != address(0)) {
-            __EthMetaVault_upgrade();
-            return;
-        }
-
-        __EthMetaVault_init(IEthMetaVaultFactory(msg.sender).vaultAdmin(), abi.decode(params, (EthMetaVaultInitParams)));
+        // do not check for the upgrades since this is the first implementation of EthErc20MetaVault
+        __EthErc20MetaVault_init(
+            IEthMetaVaultFactory(msg.sender).vaultAdmin(), abi.decode(params, (EthErc20MetaVaultInitParams))
+        );
     }
 
-    /// @inheritdoc IEthMetaVault
+    /// @inheritdoc IEthErc20MetaVault
     function deposit(address receiver, address referrer) public payable virtual override returns (uint256 shares) {
         return _deposit(receiver, msg.value, referrer);
     }
@@ -86,7 +87,7 @@ contract EthMetaVault is
         _deposit(msg.sender, msg.value, address(0));
     }
 
-    /// @inheritdoc IEthMetaVault
+    /// @inheritdoc IEthErc20MetaVault
     function updateStateAndDeposit(
         address receiver,
         address referrer,
@@ -96,7 +97,7 @@ contract EthMetaVault is
         return deposit(receiver, referrer);
     }
 
-    /// @inheritdoc IEthMetaVault
+    /// @inheritdoc IEthErc20MetaVault
     function depositAndMintOsToken(address receiver, uint256 osTokenShares, address referrer)
         public
         payable
@@ -107,7 +108,7 @@ contract EthMetaVault is
         return mintOsToken(receiver, osTokenShares, referrer);
     }
 
-    /// @inheritdoc IEthMetaVault
+    /// @inheritdoc IEthErc20MetaVault
     function updateStateAndDepositAndMintOsToken(
         address receiver,
         uint256 osTokenShares,
@@ -118,7 +119,7 @@ contract EthMetaVault is
         return depositAndMintOsToken(receiver, osTokenShares, referrer);
     }
 
-    /// @inheritdoc IEthMetaVault
+    /// @inheritdoc IEthErc20MetaVault
     function donateAssets() external payable override {
         if (msg.value == 0) {
             revert Errors.InvalidAssets();
@@ -127,9 +128,42 @@ contract EthMetaVault is
         emit AssetsDonated(msg.sender, msg.value);
     }
 
-    /// @inheritdoc VaultVersion
+    /// @inheritdoc IERC20
+    function transfer(address to, uint256 amount) public virtual override(IERC20, ERC20Upgradeable) returns (bool) {
+        bool success = super.transfer(to, amount);
+        _checkOsTokenPosition(msg.sender);
+        return success;
+    }
+
+    /// @inheritdoc IERC20
+    function transferFrom(address from, address to, uint256 amount)
+        public
+        virtual
+        override(IERC20, ERC20Upgradeable)
+        returns (bool)
+    {
+        bool success = super.transferFrom(from, to, amount);
+        _checkOsTokenPosition(from);
+        return success;
+    }
+
+    /// @inheritdoc IVaultEnterExit
+    function enterExitQueue(uint256 shares, address receiver)
+        public
+        virtual
+        override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
+        returns (uint256 positionTicket)
+    {
+        positionTicket = super.enterExitQueue(shares, receiver);
+        // only emit Transfer if shares were queued (not directly redeemed when non-collateralized)
+        if (positionTicket != type(uint256).max) {
+            emit Transfer(msg.sender, address(this), shares);
+        }
+    }
+
+    /// @inheritdoc IVaultVersion
     function vaultId() public pure virtual override(IVaultVersion, VaultVersion) returns (bytes32) {
-        return keccak256("EthMetaVault");
+        return keccak256("EthErc20MetaVault");
     }
 
     /// @inheritdoc IVaultVersion
@@ -173,14 +207,19 @@ contract EthMetaVault is
         super.updateState(harvestParams);
     }
 
-    /// @inheritdoc IVaultEnterExit
-    function enterExitQueue(uint256 shares, address receiver)
-        public
-        virtual
-        override(IVaultEnterExit, VaultEnterExit, VaultOsToken)
-        returns (uint256 positionTicket)
-    {
-        return super.enterExitQueue(shares, receiver);
+    /// @inheritdoc VaultState
+    function _updateExitQueue() internal virtual override(VaultState, VaultToken) returns (uint256 burnedShares) {
+        return super._updateExitQueue();
+    }
+
+    /// @inheritdoc VaultState
+    function _mintShares(address owner, uint256 shares) internal virtual override(VaultState, VaultToken) {
+        super._mintShares(owner, shares);
+    }
+
+    /// @inheritdoc VaultState
+    function _burnShares(address owner, uint256 shares) internal virtual override(VaultState, VaultToken) {
+        super._burnShares(owner, shares);
     }
 
     /// @inheritdoc VaultImmutables
@@ -194,24 +233,21 @@ contract EthMetaVault is
     }
 
     /**
-     * @dev Upgrades the EthMetaVault contract
-     */
-    function __EthMetaVault_upgrade() internal {
-        __VaultSubVaults_upgrade();
-    }
-
-    /**
-     * @dev Initializes the EthMetaVault contract
+     * @dev Initializes the EthErc20MetaVault contract
      * @param _admin The address of the admin of the Vault
-     * @param params The parameters for initializing the EthMetaVault contract
+     * @param params The parameters for initializing the EthErc20MetaVault contract
      */
-    function __EthMetaVault_init(address _admin, EthMetaVaultInitParams memory params) internal onlyInitializing {
+    function __EthErc20MetaVault_init(address _admin, EthErc20MetaVaultInitParams memory params)
+        internal
+        onlyInitializing
+    {
         __ReentrancyGuard_init();
         __VaultAdmin_init(_admin, params.metadataIpfsHash);
         __VaultSubVaults_init(params.subVaultsCurator);
         // fee recipient is initially set to admin address
         __VaultFee_init(_admin, params.feePercent);
         __VaultState_init(params.capacity);
+        __VaultToken_init(params.name, params.symbol);
 
         // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
         if (msg.value < _securityDeposit) revert Errors.InvalidSecurityDeposit();

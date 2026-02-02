@@ -9,8 +9,8 @@ import {IGnoMetaVault} from "../../contracts/interfaces/IGnoMetaVault.sol";
 import {IGnoVault} from "../../contracts/interfaces/IGnoVault.sol";
 import {IVaultState} from "../../contracts/interfaces/IVaultState.sol";
 import {IVaultSubVaults} from "../../contracts/interfaces/IVaultSubVaults.sol";
+import {ISubVaultsRegistry} from "../../contracts/interfaces/ISubVaultsRegistry.sol";
 import {IVaultEnterExit} from "../../contracts/interfaces/IVaultEnterExit.sol";
-import {IMetaVault} from "../../contracts/interfaces/IMetaVault.sol";
 import {Errors} from "../../contracts/libraries/Errors.sol";
 import {GnoMetaVault} from "../../contracts/vaults/gnosis/GnoMetaVault.sol";
 import {GnoMetaVaultFactory} from "../../contracts/vaults/gnosis/GnoMetaVaultFactory.sol";
@@ -22,6 +22,7 @@ import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 contract GnoMetaVaultTest is Test, GnoHelpers {
     ForkContracts public contracts;
     GnoMetaVault public metaVault;
+    ISubVaultsRegistry public registry;
 
     address public admin;
     address public curator;
@@ -59,7 +60,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
 
         // Deploy meta vault
         bytes memory initParams = abi.encode(
-            IMetaVault.MetaVaultInitParams({
+            IGnoMetaVault.GnoMetaVaultInitParams({
                 subVaultsCurator: curator,
                 capacity: 1000 ether,
                 feePercent: 1000, // 10%
@@ -68,6 +69,9 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         );
         metaVault = GnoMetaVault(payable(_getOrCreateVault(VaultType.GnoMetaVault, admin, initParams, false)));
 
+        // Get registry reference
+        registry = ISubVaultsRegistry(metaVault.subVaultsRegistry());
+
         // Deploy and add sub vaults
         for (uint256 i = 0; i < 3; i++) {
             address subVault = _createSubVault(admin);
@@ -75,7 +79,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
             subVaults.push(subVault);
 
             vm.prank(admin);
-            metaVault.addSubVault(subVault);
+            registry.addSubVault(subVault);
         }
     }
 
@@ -96,13 +100,13 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         assertEq(metaVault.vaultId(), keccak256("GnoMetaVault"), "Incorrect vault ID");
         assertEq(metaVault.version(), 4, "Incorrect version");
         assertEq(metaVault.admin(), admin, "Incorrect admin");
-        assertEq(metaVault.subVaultsCurator(), curator, "Incorrect curator");
+        assertEq(registry.subVaultsCurator(), curator, "Incorrect curator");
         assertEq(metaVault.capacity(), 1000 ether, "Incorrect capacity");
         assertEq(metaVault.feePercent(), 1000, "Incorrect fee percent");
         assertEq(metaVault.feeRecipient(), admin, "Incorrect fee recipient");
 
         // Verify sub vaults
-        address[] memory storedSubVaults = metaVault.getSubVaults();
+        address[] memory storedSubVaults = registry.getSubVaults();
         assertEq(storedSubVaults.length, 3, "Incorrect number of sub vaults");
         for (uint256 i = 0; i < 3; i++) {
             assertEq(storedSubVaults[i], subVaults[i], "Incorrect sub vault address");
@@ -116,6 +120,10 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         // Approve tokens for deposit
         vm.startPrank(sender);
         IERC20(address(contracts.gnoToken)).approve(address(metaVault), depositAmount);
+
+        // Expect Deposited event
+        vm.expectEmit(true, true, false, false);
+        emit IVaultEnterExit.Deposited(sender, receiver, depositAmount, expectedShares, referrer);
 
         _startSnapshotGas("GnoMetaVaultTest_test_deposit");
         uint256 shares = metaVault.deposit(depositAmount, receiver, referrer);
@@ -143,14 +151,15 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         assertGt(metaVault.withdrawableAssets(), 0, "Withdrawable assets should be greater than 0");
 
         // Get sub vault states before deposit
-        IVaultSubVaults.SubVaultState[] memory initialStates = new IVaultSubVaults.SubVaultState[](subVaults.length);
+        ISubVaultsRegistry.SubVaultState[] memory initialStates =
+            new ISubVaultsRegistry.SubVaultState[](subVaults.length);
         for (uint256 i = 0; i < subVaults.length; i++) {
-            initialStates[i] = metaVault.subVaultsStates(subVaults[i]);
+            initialStates[i] = registry.subVaultsStates(subVaults[i]);
         }
 
         // Call depositToSubVaults
         _startSnapshotGas("GnoMetaVaultTest_test_depositToSubVaults");
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
         _stopSnapshotGas();
 
         // Verify withdrawable assets are empty
@@ -158,7 +167,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
 
         // Verify sub vault balances increased
         for (uint256 i = 0; i < subVaults.length; i++) {
-            IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(subVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory finalState = registry.subVaultsStates(subVaults[i]);
             assertGt(finalState.stakedShares, initialStates[i].stakedShares, "Sub vault staked shares should increase");
         }
     }
@@ -169,21 +178,21 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         _collateralizeGnoVault(newSubVault);
 
         // Get sub vault count before adding
-        uint256 subVaultsCountBefore = metaVault.getSubVaults().length;
+        uint256 subVaultsCountBefore = registry.getSubVaults().length;
+
+        // Expect SubVaultAdded event
+        vm.expectEmit(true, false, false, true);
+        emit ISubVaultsRegistry.SubVaultAdded(newSubVault);
 
         // Add the new sub vault
         vm.prank(admin);
         _startSnapshotGas("GnoMetaVaultTest_test_addSubVault");
-        metaVault.addSubVault(newSubVault);
+        registry.addSubVault(newSubVault);
         _stopSnapshotGas();
 
         // Verify sub vault was added
-        address[] memory storedSubVaults = metaVault.getSubVaults();
+        address[] memory storedSubVaults = registry.getSubVaults();
         assertEq(storedSubVaults.length, subVaultsCountBefore + 1, "Sub vault not added");
-
-        // Verify approval for GNO token transfer
-        uint256 allowance = IERC20(address(contracts.gnoToken)).allowance(address(metaVault), newSubVault);
-        assertEq(allowance, type(uint256).max, "GNO token allowance not set correctly");
     }
 
     function test_ejectSubVault() public {
@@ -195,26 +204,26 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         metaVault.deposit(depositAmount, sender, referrer);
         vm.stopPrank();
 
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Get a sub vault to eject
         address subVaultToEject = subVaults[0];
 
         // Get initial state
-        IVaultSubVaults.SubVaultState memory initialState = metaVault.subVaultsStates(subVaultToEject);
+        ISubVaultsRegistry.SubVaultState memory initialState = registry.subVaultsStates(subVaultToEject);
         require(initialState.stakedShares > 0, "Sub vault should have staked shares");
 
         // Eject the sub vault
         vm.prank(admin);
         _startSnapshotGas("GnoMetaVaultTest_test_ejectSubVault");
-        metaVault.ejectSubVault(subVaultToEject);
+        registry.ejectSubVault(subVaultToEject);
         _stopSnapshotGas();
 
         // Verify ejecting sub vault is set
-        assertEq(metaVault.ejectingSubVault(), subVaultToEject, "Ejecting sub vault not set correctly");
+        assertEq(registry.ejectingSubVault(), subVaultToEject, "Ejecting sub vault not set correctly");
 
         // Verify state changes
-        IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(subVaultToEject);
+        ISubVaultsRegistry.SubVaultState memory finalState = registry.subVaultsStates(subVaultToEject);
         assertEq(finalState.stakedShares, 0, "Staked shares should be zero");
         assertEq(finalState.queuedShares, initialState.stakedShares, "Queued shares should equal initial staked shares");
 
@@ -232,7 +241,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         metaVault.deposit(depositAmount, sender, referrer);
         vm.stopPrank();
 
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Update nonces for sub vaults
         uint64 newNonce = contracts.keeper.rewardsNonce() + 2;
@@ -241,8 +250,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
             _setVaultRewardsNonce(subVaults[i], newNonce);
         }
 
-        bool updateRequiredAfter = metaVault.isStateUpdateRequired();
-        assertTrue(updateRequiredAfter, "State update should be required");
+        assertTrue(registry.isStateUpdateRequired(), "State update should be required");
 
         // Create harvest params
         IKeeperRewards.HarvestParams memory harvestParams = _getEmptyHarvestParams();
@@ -272,8 +280,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         assertTrue(foundEvent, "RewardsNonceUpdated event was not emitted");
 
         // Verify state update is no longer required
-        updateRequiredAfter = metaVault.isStateUpdateRequired();
-        assertFalse(updateRequiredAfter, "State update should no longer be required");
+        assertFalse(registry.isStateUpdateRequired(), "State update should no longer be required");
     }
 
     function test_enterExitQueue() public {
@@ -287,6 +294,10 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
 
         // Get shares of sender
         uint256 senderShares = metaVault.getShares(sender);
+
+        // Expect ExitQueueEntered event
+        vm.expectEmit(true, true, false, false);
+        emit IVaultEnterExit.ExitQueueEntered(sender, sender, 0, senderShares);
 
         // Enter exit queue
         vm.prank(sender);
@@ -320,7 +331,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         vm.stopPrank();
 
         // Deposit to sub vaults
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Enter exit queue with all shares
         uint256 senderShares = metaVault.getShares(sender);
@@ -349,10 +360,10 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         }
 
         // Prepare exit requests for claiming from sub vaults to meta vault
-        IVaultSubVaults.SubVaultExitRequest[] memory exitRequests =
-            new IVaultSubVaults.SubVaultExitRequest[](subVaults.length);
+        ISubVaultsRegistry.SubVaultExitRequest[] memory exitRequests =
+            new ISubVaultsRegistry.SubVaultExitRequest[](subVaults.length);
         for (uint256 i = 0; i < subVaults.length; i++) {
-            exitRequests[i] = IVaultSubVaults.SubVaultExitRequest({
+            exitRequests[i] = ISubVaultsRegistry.SubVaultExitRequest({
                 vault: subVaults[i],
                 exitQueueIndex: uint256(IVaultEnterExit(subVaults[i]).getExitQueueIndex(0)),
                 timestamp: exitTimestamp
@@ -363,7 +374,7 @@ contract GnoMetaVaultTest is Test, GnoHelpers {
         vm.warp(block.timestamp + _exitingAssetsClaimDelay + 1);
 
         // Claim exited assets from sub vaults to meta vault
-        metaVault.claimSubVaultsExitedAssets(exitRequests);
+        registry.claimSubVaultsExitedAssets(exitRequests);
 
         // Update nonces for sub vaults to process exit queue
         newNonce = contracts.keeper.rewardsNonce() + 1;

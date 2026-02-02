@@ -10,7 +10,6 @@ import {GnoHelpers} from "../helpers/GnoHelpers.sol";
 import {Errors} from "../../contracts/libraries/Errors.sol";
 import {GnoVault} from "../../contracts/vaults/gnosis/GnoVault.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
-import {ITokensConverterFactory} from "../../contracts/interfaces/ITokensConverterFactory.sol";
 
 contract VaultGnoStakingTest is Test, GnoHelpers {
     ForkContracts public contracts;
@@ -121,7 +120,7 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         _collateralizeGnoVault(address(vault));
         IKeeperRewards.HarvestParams memory harvestParams = _setGnoVaultReward(address(vault), 0, 1 ether);
 
-        address converter = ITokensConverterFactory(_tokensConverterFactory).getTokensConverter(address(vault));
+        address converter = _getTokensConverter(address(vault));
         uint256 balanceBefore = contracts.sdaiToken.balanceOf(converter);
 
         // Update state which will trigger _processTotalAssetsDelta
@@ -138,7 +137,7 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
     }
 
     function test_processTotalAssetsDelta_smallXdaiBalance() public {
-        address converter = ITokensConverterFactory(_tokensConverterFactory).getTokensConverter(address(vault));
+        address converter = _getTokensConverter(address(vault));
 
         // Deposit GNO
         _depositGno(depositAmount, sender, sender);
@@ -341,7 +340,7 @@ contract VaultGnoStakingTest is Test, GnoHelpers {
         uint256 sendAmount = 0.5 ether;
         vm.deal(sender, sendAmount);
 
-        address converter = ITokensConverterFactory(_tokensConverterFactory).getTokensConverter(address(vault));
+        address converter = _getTokensConverter(address(vault));
         uint256 balanceBefore = contracts.sdaiToken.balanceOf(converter);
 
         vm.prank(sender);

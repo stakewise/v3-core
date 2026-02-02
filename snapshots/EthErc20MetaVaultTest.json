@@ -1,0 +1,11 @@
+{
+  "EthErc20MetaVaultTest_test_deposit": "93642",
+  "EthErc20MetaVaultTest_test_depositAndMintOsToken": "194438",
+  "EthErc20MetaVaultTest_test_depositViaFallback": "95642",
+  "EthErc20MetaVaultTest_test_enterExitQueue": "106106",
+  "EthErc20MetaVaultTest_test_enterExitQueue_nonCollateralized": "106106",
+  "EthErc20MetaVaultTest_test_transfer": "64426",
+  "EthErc20MetaVaultTest_test_transferFrom": "61161",
+  "EthErc20MetaVaultTest_test_updateStateAndDeposit": "212459",
+  "EthErc20MetaVaultTest_test_updateStateAndDepositAndMintOsToken": "218872"
+}

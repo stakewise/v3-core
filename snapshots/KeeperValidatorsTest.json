@@ -1,15 +1,15 @@
 {
   "KeeperValidatorsTest_test_approveValidators_accessDenied": "139546",
-  "KeeperValidatorsTest_test_approveValidators_invalidDeadline": "31828",
-  "KeeperValidatorsTest_test_approveValidators_invalidRegistry": "134445",
-  "KeeperValidatorsTest_test_approveValidators_success": "179025",
+  "KeeperValidatorsTest_test_approveValidators_invalidDeadline": "31852",
+  "KeeperValidatorsTest_test_approveValidators_invalidRegistry": "134469",
+  "KeeperValidatorsTest_test_approveValidators_success": "179049",
   "KeeperValidatorsTest_test_setValidatorsMinOracles_success": "37599",
   "KeeperValidatorsTest_test_setValidatorsMinOracles_tooHigh": "29460",
   "KeeperValidatorsTest_test_setValidatorsMinOracles_unauthorized": "30245",
   "KeeperValidatorsTest_test_setValidatorsMinOracles_zero": "29882",
-  "KeeperValidatorsTest_test_updateExitSignatures_duplicateUpdate": "45623",
-  "KeeperValidatorsTest_test_updateExitSignatures_expiredDeadline": "36838",
+  "KeeperValidatorsTest_test_updateExitSignatures_duplicateUpdate": "45635",
+  "KeeperValidatorsTest_test_updateExitSignatures_expiredDeadline": "36850",
   "KeeperValidatorsTest_test_updateExitSignatures_invalidVault": "31986",
-  "KeeperValidatorsTest_test_updateExitSignatures_notCollateralized": "34301",
-  "KeeperValidatorsTest_test_updateExitSignatures_success": "70498"
+  "KeeperValidatorsTest_test_updateExitSignatures_notCollateralized": "34313",
+  "KeeperValidatorsTest_test_updateExitSignatures_success": "70510"
 }

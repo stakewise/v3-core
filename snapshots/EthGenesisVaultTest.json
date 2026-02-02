@@ -1,7 +1,9 @@
 {
   "EthGenesisVaultTest_test_claimsPoolEscrowAssets": "78175",
+  "EthGenesisVaultTest_test_deposit": "81489",
   "EthGenesisVaultTest_test_fallback_acceptsEtherFromPoolEscrow": "35807",
   "EthGenesisVaultTest_test_fallback_acceptsEtherFromUser": "79346",
   "EthGenesisVaultTest_test_migrate_works": "204956",
+  "EthGenesisVaultTest_test_transferVaultAssets_pullsFromEscrow": "74422",
   "GnoGenesisVaultTest_test_pullWithdrawals_claimEscrowAssets": "819842"
 }

@@ -3,14 +3,15 @@
 pragma solidity ^0.8.22;
 
 import {console} from "forge-std/console.sol";
-import {IMetaVault} from "../contracts/interfaces/IMetaVault.sol";
+import {IGnoMetaVault} from "../contracts/interfaces/IGnoMetaVault.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
 import {GnoOsTokenRedeemer} from "../contracts/tokens/GnoOsTokenRedeemer.sol";
 import {GnoValidatorsChecker} from "../contracts/validators/GnoValidatorsChecker.sol";
+import {SubVaultsRegistry} from "../contracts/vaults/SubVaultsRegistry.sol";
+import {SubVaultsRegistryFactory} from "../contracts/vaults/SubVaultsRegistryFactory.sol";
 import {GnoMetaVault} from "../contracts/vaults/gnosis/GnoMetaVault.sol";
 import {GnoMetaVaultFactory} from "../contracts/vaults/gnosis/GnoMetaVaultFactory.sol";
-import {GnoPrivMetaVault} from "../contracts/vaults/gnosis/GnoPrivMetaVault.sol";
 import {Network} from "./Network.sol";
 
 contract UpgradeGnoNetwork is Network {
@@ -21,6 +22,7 @@ contract UpgradeGnoNetwork is Network {
 
     address public validatorsChecker;
     address public osTokenRedeemer;
+    address public subVaultsRegistryFactory;
 
     address[] public vaultImpls;
     Factory[] public vaultFactories;
@@ -62,28 +64,37 @@ contract UpgradeGnoNetwork is Network {
             )
         );
 
+        // Deploy SubVaultsRegistryFactory
+        address subVaultsRegistryImpl = address(
+            new SubVaultsRegistry(
+                deployment.curatorsRegistry,
+                deployment.vaultsRegistry,
+                deployment.keeper,
+                deployment.osTokenVaultController,
+                deployment.osTokenConfig
+            )
+        );
+        subVaultsRegistryFactory =
+            address(new SubVaultsRegistryFactory(subVaultsRegistryImpl, IVaultsRegistry(deployment.vaultsRegistry)));
+
         _deployImplementations();
         _deployFactories();
         vm.stopBroadcast();
 
         generateGovernorTxJson(vaultImpls, vaultFactories, osTokenRedeemer);
         generateUpgradesJson(vaultImpls);
-        generateAddressesJson(vaultFactories, validatorsChecker, osTokenRedeemer);
+        generateAddressesJson(vaultFactories, validatorsChecker, osTokenRedeemer, subVaultsRegistryFactory);
     }
 
     function _deployImplementations() internal {
         // constructors for implementations
-        IMetaVault.MetaVaultConstructorArgs memory metaVaultArgs = _getMetaVaultConstructorArgs();
+        IGnoMetaVault.GnoMetaVaultConstructorArgs memory metaVaultArgs = _getGnoMetaVaultConstructorArgs();
 
         // deploy meta vaults
         metaVaultArgs.exitingAssetsClaimDelay = PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY;
         GnoMetaVault gnoMetaVault = new GnoMetaVault(gnoToken, metaVaultArgs);
 
-        metaVaultArgs.exitingAssetsClaimDelay = PRIVATE_VAULT_EXITED_ASSETS_CLAIM_DELAY;
-        GnoPrivMetaVault gnoPrivMetaVault = new GnoPrivMetaVault(gnoToken, metaVaultArgs);
-
         vaultImpls.push(address(gnoMetaVault));
-        vaultImpls.push(address(gnoPrivMetaVault));
     }
 
     function _deployFactories() internal {
@@ -96,21 +107,19 @@ contract UpgradeGnoNetwork is Network {
                 address(new GnoMetaVaultFactory(vaultImpl, IVaultsRegistry(deployment.vaultsRegistry), gnoToken));
             if (vaultId == keccak256("GnoMetaVault")) {
                 vaultFactories.push(Factory({name: "MetaVaultFactory", factory: factory}));
-            } else if (vaultId == keccak256("GnoPrivMetaVault")) {
-                vaultFactories.push(Factory({name: "PrivMetaVaultFactory", factory: factory}));
             }
         }
     }
 
-    function _getMetaVaultConstructorArgs() internal returns (IMetaVault.MetaVaultConstructorArgs memory) {
+    function _getGnoMetaVaultConstructorArgs() internal returns (IGnoMetaVault.GnoMetaVaultConstructorArgs memory) {
         Deployment memory deployment = getDeploymentData();
-        return IMetaVault.MetaVaultConstructorArgs({
+        return IGnoMetaVault.GnoMetaVaultConstructorArgs({
             keeper: deployment.keeper,
             vaultsRegistry: deployment.vaultsRegistry,
             osTokenVaultController: deployment.osTokenVaultController,
             osTokenConfig: deployment.osTokenConfig,
             osTokenVaultEscrow: deployment.osTokenVaultEscrow,
-            curatorsRegistry: deployment.curatorsRegistry,
+            subVaultsRegistryFactory: subVaultsRegistryFactory,
             exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
         });
     }

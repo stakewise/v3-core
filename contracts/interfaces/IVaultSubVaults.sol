@@ -2,69 +2,39 @@
 
 pragma solidity ^0.8.22;
 
+import {IVaultState} from "./IVaultState.sol";
+
 /**
  * @title IVaultSubVaults
  * @author StakeWise
  * @notice Defines the interface for the VaultSubVaults contract
  */
-interface IVaultSubVaults {
-    /**
-     * @notice Struct for sub vault state
-     * @param stakedShares The number of shares staked in the sub vault
-     * @param queuedShares The number of shares queued for exit in the sub vault
-     */
-    struct SubVaultState {
-        uint128 stakedShares;
-        uint128 queuedShares;
-    }
-
-    /**
-     * @notice Struct for submitting sub vault exit request
-     * @param exitQueueIndex The index of the exit queue
-     * @param vault The address of the vault
-     * @param timestamp The timestamp of the exit request
-     */
-    struct SubVaultExitRequest {
-        uint256 exitQueueIndex;
-        address vault;
-        uint64 timestamp;
-    }
-
+interface IVaultSubVaults is IVaultState {
     /**
      * @notice Emitted when the rewards nonce is updated
+     * @dev Deprecated: moved to SubVaultsRegistry
      * @param rewardsNonce The new rewards nonce
      */
     event RewardsNonceUpdated(uint256 rewardsNonce);
 
     /**
      * @notice Emitted when the sub vaults are harvested
+     * @dev Deprecated: moved to SubVaultsRegistry
      * @param totalAssetsDelta The change in total assets after the harvest
      */
     event SubVaultsHarvested(int256 totalAssetsDelta);
 
     /**
      * @notice Emitted when the new sub-vault is added
+     * @dev Deprecated: moved to SubVaultsRegistry
      * @param caller The address of the caller
      * @param vault The address of the sub-vault
      */
     event SubVaultAdded(address indexed caller, address indexed vault);
 
     /**
-     * @notice Emitted when the new meta sub-vault is proposed
-     * @param caller The address of the caller
-     * @param vault The address of the meta sub-vault
-     */
-    event MetaSubVaultProposed(address indexed caller, address indexed vault);
-
-    /**
-     * @notice Emitted when the meta sub-vault is rejected
-     * @param caller The address of the caller
-     * @param vault The address of the meta sub-vault
-     */
-    event MetaSubVaultRejected(address indexed caller, address indexed vault);
-
-    /**
      * @notice Emitted when the sub-vault is ejecting
+     * @dev Deprecated: moved to SubVaultsRegistry
      * @param caller The address of the caller
      * @param vault The address of the sub-vault
      */
@@ -72,6 +42,7 @@ interface IVaultSubVaults {
 
     /**
      * @notice Emitted when the sub-vault is ejected
+     * @dev Deprecated: moved to SubVaultsRegistry
      * @param caller The address of the caller
      * @param vault The address of the sub-vault
      */
@@ -79,99 +50,60 @@ interface IVaultSubVaults {
 
     /**
      * @notice Emitted when the sub-vaults curator is updated
+     * @dev Deprecated: moved to SubVaultsRegistry
      * @param caller The address of the caller
      * @param curator The address of the new sub-vaults curator
      */
     event SubVaultsCuratorUpdated(address indexed caller, address indexed curator);
 
     /**
-     * @notice Sub-vaults curator contract
-     * @return The address of the Sub-vaults curator contract
+     * @notice Returns the address of the SubVaultsRegistry contract
+     * @return The address of the SubVaultsRegistry
      */
-    function subVaultsCurator() external view returns (address);
+    function subVaultsRegistry() external view returns (address);
 
     /**
-     * @notice Ejecting sub-vault
-     * @return The address of the ejecting sub-vault
-     */
-    function ejectingSubVault() external view returns (address);
-
-    /**
-     * @notice Pending meta sub-vault waiting for approval
-     * @return The address of the pending meta sub-vault
-     */
-    function pendingMetaSubVault() external view returns (address);
-
-    /**
-     * @notice Function to get the list sub-vaults
-     * @return An array of addresses of the sub-vaults
-     */
-    function getSubVaults() external view returns (address[] memory);
-
-    /**
-     * @notice Function to get the rewards nonce of the sub-vaults
-     * @return The rewards nonce
-     */
-    function subVaultsRewardsNonce() external view returns (uint128);
-
-    /**
-     * @notice Function to get the state of a sub-vault
+     * @notice Function to deposit assets to a sub vault. Can only be called by SubVaultsRegistry contract.
      * @param vault The address of the sub-vault
-     * @return The state of the sub-vault
+     * @param assets The amount of assets to deposit
+     * @return shares The amount of vault shares received
      */
-    function subVaultsStates(address vault) external view returns (SubVaultState memory);
+    function depositToSubVault(address vault, uint256 assets) external returns (uint256 shares);
 
     /**
-     * @notice Checks whether the meta vault can be updated
-     * @return `true` if the meta vault can be updated, `false` otherwise
+     * @notice Function to enter sub-vault exit queue. Can only be called by SubVaultsRegistry contract.
+     * @param vault The address of the sub-vault
+     * @param shares The amount of shares to exit
+     * @return positionTicket The position ticket in the exit queue
      */
-    function canUpdateState() external view returns (bool);
+    function enterSubVaultExitQueue(address vault, uint256 shares) external returns (uint256 positionTicket);
 
     /**
-     * @notice Checks whether the vault is collateralized
-     * @return `true` if the vault is collateralized, `false` otherwise
+     * @notice Function to claim exited assets from a sub-vault. Can only be called by SubVaultsRegistry contract.
+     * @param vault The address of the sub-vault
+     * @param positionTicket The position ticket in the exit queue
+     * @param timestamp The timestamp of the exit request
+     * @param exitQueueIndex The index of the exit queue
      */
-    function isCollateralized() external view returns (bool);
+    function claimSubVaultExitedAssets(address vault, uint256 positionTicket, uint256 timestamp, uint256 exitQueueIndex)
+        external;
 
     /**
-     * @notice Function to update the the sub-vaults curator. Can only be called by the admin.
-     * @param curator The address of the new sub-vaults curator
+     * @notice Function to mint osToken for a sub-vault. Can only be called by SubVaultsRegistry contract.
+     * @param vault The address of the sub-vault
+     * @param receiver The address that will receive the minted osToken shares
+     * @param osTokenShares The amount of osToken shares to mint
      */
-    function setSubVaultsCurator(address curator) external;
+    function mintSubVaultOsToken(address vault, address receiver, uint256 osTokenShares) external;
 
     /**
-     * @notice Function to add a new sub-vault. Can only be called by the admin.
-     * @param vault The address of the sub-vault to add
+     * @notice Function to redeem osToken from a sub-vault. Can only be called by SubVaultsRegistry contract.
+     * @param vault The address of the sub-vault
+     * @param redeemer The address of the OsToken redeemer
+     * @param osTokenShares The amount of osToken shares to redeem
+     * @return assets The amount of assets redeemed
      */
-    function addSubVault(address vault) external;
-
-    /**
-     * @notice Function to accept a meta sub-vault. Can only be called by the VaultsRegistry owner.
-     * @param metaSubVault The address of the meta sub-vault to accept
-     */
-    function acceptMetaSubVault(address metaSubVault) external;
-
-    /**
-     * @notice Function to reject a meta sub-vault. Can only be called by the VaultsRegistry owner or admin.
-     * @param metaSubVault The address of the meta sub-vault to reject
-     */
-    function rejectMetaSubVault(address metaSubVault) external;
-
-    /**
-     * @notice Function to remove a sub-vault. Can only be called by the admin.
-     * All the sub-vault shares will be added to the exit queue.
-     * @param vault The address of the sub-vault to remove
-     */
-    function ejectSubVault(address vault) external;
-
-    /**
-     * @notice Deposit available assets to the sub vaults
-     */
-    function depositToSubVaults() external;
-
-    /**
-     * @notice Claim the exited assets from the sub vaults
-     * @param exitRequests The array of exit requests to claim
-     */
-    function claimSubVaultsExitedAssets(SubVaultExitRequest[] calldata exitRequests) external;
+    function redeemSubVaultOsToken(address vault, address redeemer, uint256 osTokenShares)
+        external
+        returns (uint256 assets);
 }

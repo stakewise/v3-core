@@ -7,8 +7,11 @@ import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Ini
 import {IEthPrivMetaVault} from "../contracts/interfaces/IEthPrivMetaVault.sol";
 import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
-import {IMetaVault} from "../contracts/interfaces/IMetaVault.sol";
 import {IVaultSubVaults} from "../contracts/interfaces/IVaultSubVaults.sol";
+import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
+import {IVaultOsToken} from "../contracts/interfaces/IVaultOsToken.sol";
+import {IVaultWhitelist} from "../contracts/interfaces/IVaultWhitelist.sol";
+import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthPrivMetaVault} from "../contracts/vaults/ethereum/EthPrivMetaVault.sol";
@@ -17,6 +20,7 @@ import {EthHelpers} from "./helpers/EthHelpers.sol";
 contract EthPrivMetaVaultTest is Test, EthHelpers {
     ForkContracts public contracts;
     EthPrivMetaVault public metaVault;
+    ISubVaultsRegistry public registry;
 
     address public admin;
     address public sender;
@@ -47,7 +51,7 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
 
         // Deploy private meta vault
         bytes memory initParams = abi.encode(
-            IMetaVault.MetaVaultInitParams({
+            IEthMetaVault.EthMetaVaultInitParams({
                 subVaultsCurator: _balancedCurator,
                 capacity: type(uint256).max,
                 feePercent: 0,
@@ -56,8 +60,11 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         );
         metaVault = EthPrivMetaVault(payable(_getOrCreateVault(VaultType.EthPrivMetaVault, admin, initParams, false)));
 
+        // Get registry reference
+        registry = ISubVaultsRegistry(metaVault.subVaultsRegistry());
+
         // Get existing sub vaults (if any)
-        address[] memory currentSubVaults = metaVault.getSubVaults();
+        address[] memory currentSubVaults = registry.getSubVaults();
         for (uint256 i = 0; i < currentSubVaults.length; i++) {
             subVaults.push(currentSubVaults[i]);
         }
@@ -69,7 +76,7 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
             subVaults.push(subVault);
 
             vm.prank(admin);
-            metaVault.addSubVault(subVault);
+            registry.addSubVault(subVault);
         }
     }
 
@@ -104,13 +111,13 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         assertEq(metaVault.version(), 6, "Incorrect version");
         assertEq(metaVault.admin(), admin, "Incorrect admin");
         assertEq(metaVault.whitelister(), admin, "Whitelister should be admin initially");
-        assertEq(metaVault.subVaultsCurator(), _balancedCurator, "Incorrect curator");
+        assertEq(registry.subVaultsCurator(), _balancedCurator, "Incorrect curator");
         assertEq(metaVault.capacity(), type(uint256).max, "Incorrect capacity");
         assertEq(metaVault.feePercent(), 0, "Incorrect fee percent");
         assertEq(metaVault.feeRecipient(), admin, "Incorrect fee recipient");
 
         // Verify sub vaults
-        address[] memory storedSubVaults = metaVault.getSubVaults();
+        address[] memory storedSubVaults = registry.getSubVaults();
         for (uint256 i = 0; i < subVaults.length; i++) {
             assertEq(storedSubVaults[i], subVaults[i], "Incorrect sub vault address");
         }
@@ -169,6 +176,10 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         metaVault.updateWhitelist(receiver, true);
         vm.stopPrank();
 
+        // Expect Deposited event
+        vm.expectEmit(true, true, false, false);
+        emit IVaultEnterExit.Deposited(sender, receiver, amount, expectedShares, referrer);
+
         // Deposit as whitelisted user
         vm.prank(sender);
         _startSnapshotGas("EthPrivMetaVaultTest_test_canDepositAsWhitelistedUser");
@@ -207,6 +218,10 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         vm.prank(whitelister);
         metaVault.updateWhitelist(sender, true);
 
+        // Expect Deposited event
+        vm.expectEmit(true, true, false, false);
+        emit IVaultEnterExit.Deposited(sender, sender, amount, expectedShares, address(0));
+
         // Deposit using receive function as whitelisted user
         vm.prank(sender);
         _startSnapshotGas("EthPrivMetaVaultTest_test_canDepositUsingReceiveAsWhitelistedUser");
@@ -230,7 +245,7 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         uint256 depositAmount = 10 ether;
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Sub vault is NOT whitelisted
         assertFalse(metaVault.whitelistedAccounts(subVaults[0]), "Sub vault should not be whitelisted");
@@ -268,7 +283,7 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         metaVault.deposit{value: depositAmount}(sender, referrer);
 
         // Deposit to sub vaults to collateralize
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Remove sender from whitelist
         vm.prank(whitelister);
@@ -296,10 +311,15 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         metaVault.deposit{value: depositAmount}(sender, referrer);
 
         // Deposit to sub vaults to collateralize
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Mint osToken as whitelisted user
         uint256 osTokenShares = depositAmount / 2;
+
+        // Expect OsTokenMinted event
+        vm.expectEmit(true, false, false, false);
+        emit IVaultOsToken.OsTokenMinted(sender, sender, 0, osTokenShares, referrer);
+
         vm.prank(sender);
         _startSnapshotGas("EthPrivMetaVaultTest_test_canMintOsTokenAsWhitelistedUser");
         uint256 assets = metaVault.mintOsToken(sender, osTokenShares, referrer);
@@ -325,7 +345,7 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
 
         vm.prank(admin);
         metaVault.deposit{value: depositAmount}(admin, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Whitelist receiver but not sender
         vm.prank(whitelister);
@@ -350,10 +370,17 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
 
         vm.prank(sender);
         metaVault.deposit{value: depositAmount}(sender, referrer);
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
 
         // Deposit and mint osToken as whitelisted user
         uint256 osTokenShares = depositAmount / 2;
+
+        // Expect Deposited and OsTokenMinted events
+        vm.expectEmit(true, true, false, false);
+        emit IVaultEnterExit.Deposited(sender, sender, depositAmount, 0, referrer);
+        vm.expectEmit(true, false, false, false);
+        emit IVaultOsToken.OsTokenMinted(sender, sender, 0, osTokenShares, referrer);
+
         vm.prank(sender);
         _startSnapshotGas("EthPrivMetaVaultTest_test_canDepositAndMintOsTokenAsWhitelistedUser");
         uint256 assets = metaVault.depositAndMintOsToken{value: depositAmount}(sender, osTokenShares, referrer);
@@ -415,6 +442,10 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         vm.expectRevert(Errors.AccessDenied.selector);
         metaVault.setWhitelister(newWhitelister);
 
+        // Expect WhitelisterUpdated event
+        vm.expectEmit(true, true, false, true);
+        emit IVaultWhitelist.WhitelisterUpdated(admin, newWhitelister);
+
         // Admin can set whitelister
         vm.prank(admin);
         _startSnapshotGas("EthPrivMetaVaultTest_test_setWhitelister");
@@ -442,6 +473,10 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         vm.expectRevert(Errors.AccessDenied.selector);
         metaVault.updateWhitelist(sender, true);
 
+        // Expect WhitelistUpdated event
+        vm.expectEmit(true, true, false, true);
+        emit IVaultWhitelist.WhitelistUpdated(whitelister, sender, true);
+
         // Whitelister can update whitelist
         vm.prank(whitelister);
         _startSnapshotGas("EthPrivMetaVaultTest_test_updateWhitelist");
@@ -449,6 +484,10 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         _stopSnapshotGas();
 
         assertTrue(metaVault.whitelistedAccounts(sender), "Account not whitelisted correctly");
+
+        // Expect WhitelistUpdated event for removal
+        vm.expectEmit(true, true, false, true);
+        emit IVaultWhitelist.WhitelistUpdated(whitelister, sender, false);
 
         // Whitelister can remove from whitelist
         vm.prank(whitelister);
@@ -533,19 +572,20 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         metaVault.deposit{value: depositAmount}(sender, referrer);
 
         // Get sub vault states before deposit
-        IVaultSubVaults.SubVaultState[] memory initialStates = new IVaultSubVaults.SubVaultState[](subVaults.length);
+        ISubVaultsRegistry.SubVaultState[] memory initialStates =
+            new ISubVaultsRegistry.SubVaultState[](subVaults.length);
         for (uint256 i = 0; i < subVaults.length; i++) {
-            initialStates[i] = metaVault.subVaultsStates(subVaults[i]);
+            initialStates[i] = registry.subVaultsStates(subVaults[i]);
         }
 
         // Deposit to sub vaults (anyone can call this)
         _startSnapshotGas("EthPrivMetaVaultTest_test_depositToSubVaultsWorksWithWhitelistedUser");
-        metaVault.depositToSubVaults();
+        registry.depositToSubVaults();
         _stopSnapshotGas();
 
         // Verify sub vault balances increased
         for (uint256 i = 0; i < subVaults.length; i++) {
-            IVaultSubVaults.SubVaultState memory finalState = metaVault.subVaultsStates(subVaults[i]);
+            ISubVaultsRegistry.SubVaultState memory finalState = registry.subVaultsStates(subVaults[i]);
             assertGt(finalState.stakedShares, initialStates[i].stakedShares, "Sub vault staked shares should increase");
         }
     }
@@ -569,6 +609,10 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         // Remove from whitelist
         vm.prank(whitelister);
         metaVault.updateWhitelist(sender, false);
+
+        // Expect ExitQueueEntered event
+        vm.expectEmit(true, true, false, false);
+        emit IVaultEnterExit.ExitQueueEntered(sender, sender, 0, senderShares);
 
         // Should still be able to exit (enter exit queue)
         vm.prank(sender);

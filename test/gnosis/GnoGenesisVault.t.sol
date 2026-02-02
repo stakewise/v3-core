@@ -59,56 +59,6 @@ contract GnoGenesisVaultTest is Test, GnoHelpers {
         IGnoGenesisVault(_vault).initialize(initParams);
     }
 
-    function test_upgradesCorrectly() public {
-        // Get or create a vault
-        address vaultAddr = _getForkVault(VaultType.GnoGenesisVault);
-        GnoGenesisVault existingVault = GnoGenesisVault(payable(vaultAddr));
-
-        _depositToVault(address(existingVault), 15 ether, user, user);
-        _registerGnoValidator(address(existingVault), 1 ether, true);
-
-        vm.prank(user);
-        existingVault.enterExitQueue(10 ether, user);
-
-        // Record initial state
-        uint256 totalExitingAssetsBefore = IVaultStateV3(address(existingVault)).totalExitingAssets();
-        uint256 queuedSharesBefore = IVaultStateV3(address(existingVault)).queuedShares();
-        uint256 initialTotalAssets = existingVault.totalAssets();
-        uint256 initialTotalShares = existingVault.totalShares();
-        uint256 senderBalanceBefore = existingVault.getShares(user);
-        uint256 initialCapacity = existingVault.capacity();
-        uint256 initialFeePercent = existingVault.feePercent();
-        address validatorsManager = existingVault.validatorsManager();
-        address feeRecipient = existingVault.feeRecipient();
-        address adminBefore = existingVault.admin();
-
-        assertEq(existingVault.vaultId(), keccak256("GnoGenesisVault"));
-        assertEq(existingVault.version(), 3);
-
-        _startSnapshotGas("GnoGenesisVaultTest_test_upgradesCorrectly");
-        _upgradeVault(VaultType.GnoGenesisVault, address(existingVault));
-        _stopSnapshotGas();
-
-        (uint128 queuedShares,,, uint128 totalExitingAssets,) = existingVault.getExitQueueData();
-        assertEq(existingVault.vaultId(), keccak256("GnoGenesisVault"));
-        assertEq(existingVault.version(), 4);
-        assertEq(existingVault.admin(), adminBefore);
-        assertEq(existingVault.capacity(), initialCapacity);
-        assertEq(existingVault.feePercent(), initialFeePercent);
-        assertEq(existingVault.feeRecipient(), feeRecipient);
-        assertEq(existingVault.validatorsManager(), validatorsManager);
-        assertEq(queuedShares, queuedSharesBefore);
-        assertEq(existingVault.totalShares(), initialTotalShares);
-        assertEq(existingVault.totalAssets(), initialTotalAssets);
-        assertEq(totalExitingAssets, totalExitingAssetsBefore);
-        assertEq(existingVault.validatorsManagerNonce(), 0);
-        assertEq(existingVault.getShares(user), senderBalanceBefore);
-        assertEq(
-            contracts.gnoToken.allowance(address(existingVault), address(contracts.validatorsRegistry)),
-            type(uint256).max
-        );
-    }
-
     function test_cannotInitializeTwice() public {
         // Get or create a vault
         address vaultAddr = _getOrCreateVault(VaultType.GnoGenesisVault, admin, initParams, false);

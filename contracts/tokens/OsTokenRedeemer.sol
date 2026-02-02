@@ -9,11 +9,13 @@ import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import {IMetaVault} from "../interfaces/IMetaVault.sol";
+import {IKeeperRewards} from "../interfaces/IKeeperRewards.sol";
 import {IOsTokenRedeemer} from "../interfaces/IOsTokenRedeemer.sol";
 import {IOsTokenVaultController} from "../interfaces/IOsTokenVaultController.sol";
 import {IVaultOsToken} from "../interfaces/IVaultOsToken.sol";
+import {IVaultState} from "../interfaces/IVaultState.sol";
 import {IVaultSubVaults} from "../interfaces/IVaultSubVaults.sol";
+import {ISubVaultsRegistry} from "../interfaces/ISubVaultsRegistry.sol";
 import {IVaultsRegistry} from "../interfaces/IVaultsRegistry.sol";
 import {Multicall} from "../base/Multicall.sol";
 import {Errors} from "../libraries/Errors.sol";
@@ -279,7 +281,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
             revert Errors.InvalidVault();
         }
 
-        return IMetaVault(metaVault).redeemSubVaultsAssets(assetsToRedeem);
+        return ISubVaultsRegistry(IVaultSubVaults(metaVault).subVaultsRegistry()).redeemSubVaultsAssets(assetsToRedeem);
     }
 
     /// @inheritdoc IOsTokenRedeemer
@@ -420,6 +422,15 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         emit CheckpointCreated(processedShares, processedAssets);
     }
 
+    /// @inheritdoc IOsTokenRedeemer
+    function updateVaultState(address vault, IKeeperRewards.HarvestParams calldata harvestParams) external override {
+        // must be a registered vault
+        if (!_vaultsRegistry.vaults(vault)) {
+            revert Errors.InvalidVault();
+        }
+        IVaultState(vault).updateState(harvestParams);
+    }
+
     /**
      * @dev Internal function to swap assets to OsToken shares
      * @param receiver The address that will receive the OsToken shares
@@ -461,7 +472,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         }
 
         // must be a meta vault
-        try IVaultSubVaults(vault).getSubVaults() {
+        try IVaultSubVaults(vault).subVaultsRegistry() {
             return true;
         } catch {
             return false;

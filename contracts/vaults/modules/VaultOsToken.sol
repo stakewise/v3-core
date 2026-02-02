@@ -4,9 +4,9 @@ pragma solidity ^0.8.22;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {IVaultOsToken} from "../../interfaces/IVaultOsToken.sol";
 import {IOsTokenVaultController} from "../../interfaces/IOsTokenVaultController.sol";
 import {IOsTokenConfig} from "../../interfaces/IOsTokenConfig.sol";
-import {IVaultOsToken} from "../../interfaces/IVaultOsToken.sol";
 import {IOsTokenVaultEscrow} from "../../interfaces/IOsTokenVaultEscrow.sol";
 import {Errors} from "../../libraries/Errors.sol";
 import {VaultImmutables} from "./VaultImmutables.sol";
@@ -23,10 +23,10 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     uint256 private constant _maxPercent = 1e18;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IOsTokenVaultController internal immutable _osTokenVaultController;
+    IOsTokenVaultController private immutable _osTokenVaultController;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
-    IOsTokenConfig internal immutable _osTokenConfig;
+    IOsTokenConfig private immutable _osTokenConfig;
 
     /// @custom:oz-upgrades-unsafe-allow state-variable-immutable
     IOsTokenVaultEscrow private immutable _osTokenVaultEscrow;

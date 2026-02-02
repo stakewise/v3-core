@@ -4,19 +4,20 @@ pragma solidity ^0.8.22;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IEthMetaVaultFactory} from "../../interfaces/IEthMetaVaultFactory.sol";
-import {IEthPrivMetaVault} from "../../interfaces/IEthPrivMetaVault.sol";
+import {IEthPrivErc20MetaVault} from "../../interfaces/IEthPrivErc20MetaVault.sol";
 import {ISubVaultsRegistry} from "../../interfaces/ISubVaultsRegistry.sol";
+import {ERC20Upgradeable} from "../../base/ERC20Upgradeable.sol";
 import {IVaultOsToken, VaultOsToken} from "../modules/VaultOsToken.sol";
 import {IVaultVersion} from "../modules/VaultVersion.sol";
 import {VaultWhitelist} from "../modules/VaultWhitelist.sol";
-import {EthMetaVault, IEthMetaVault} from "./EthMetaVault.sol";
+import {EthErc20MetaVault, IEthErc20MetaVault} from "./EthErc20MetaVault.sol";
 
 /**
- * @title EthPrivMetaVault
+ * @title EthPrivErc20MetaVault
  * @author StakeWise
- * @notice Defines the Meta Vault functionality with whitelist on Ethereum
+ * @notice Defines the Meta Vault functionality with whitelist and ERC-20 token on Ethereum
  */
-contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPrivMetaVault {
+contract EthPrivErc20MetaVault is Initializable, EthErc20MetaVault, VaultWhitelist, IEthPrivErc20MetaVault {
     // slither-disable-next-line shadowing-state
     uint8 private constant _version = 6;
 
@@ -24,35 +25,35 @@ contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPr
      * @dev Constructor
      * @dev Since the immutable variable value is stored in the bytecode,
      *      its value would be shared among all proxies pointing to a given contract instead of each proxy’s storage.
-     * @param args The arguments for initializing the EthMetaVault contract
+     * @param args The arguments for initializing the EthErc20MetaVault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(EthMetaVaultConstructorArgs memory args) EthMetaVault(args) {
+    constructor(EthErc20MetaVaultConstructorArgs memory args) EthErc20MetaVault(args) {
         _disableInitializers();
     }
 
-    /// @inheritdoc IEthMetaVault
+    /// @inheritdoc IEthErc20MetaVault
     function initialize(bytes calldata params)
         external
         payable
         virtual
-        override(IEthMetaVault, EthMetaVault)
+        override(IEthErc20MetaVault, EthErc20MetaVault)
         reinitializer(_version)
     {
-        // do not check for the upgrades since this is the first implementation of EthPrivMetaVault
+        // do not check for the upgrades since this is the first implementation of EthPrivErc20MetaVault
         // initialize deployed vault
         address _admin = IEthMetaVaultFactory(msg.sender).vaultAdmin();
-        __EthMetaVault_init(_admin, abi.decode(params, (EthMetaVaultInitParams)));
+        __EthErc20MetaVault_init(_admin, abi.decode(params, (EthErc20MetaVaultInitParams)));
         // whitelister is initially set to admin address
         __VaultWhitelist_init(_admin);
     }
 
-    /// @inheritdoc IEthMetaVault
+    /// @inheritdoc IEthErc20MetaVault
     function deposit(address receiver, address referrer)
         public
         payable
         virtual
-        override(IEthMetaVault, EthMetaVault)
+        override(IEthErc20MetaVault, EthErc20MetaVault)
         returns (uint256 shares)
     {
         _checkWhitelist(msg.sender);
@@ -60,7 +61,7 @@ contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPr
         return super.deposit(receiver, referrer);
     }
 
-    /// @inheritdoc EthMetaVault
+    /// @inheritdoc EthErc20MetaVault
     receive() external payable virtual override {
         // claim exited assets from the sub vaults should not be processed as deposits
         if (ISubVaultsRegistry(subVaultsRegistry).isSubVault(msg.sender)) {
@@ -82,13 +83,20 @@ contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPr
     }
 
     /// @inheritdoc IVaultVersion
-    function vaultId() public pure virtual override(IVaultVersion, EthMetaVault) returns (bytes32) {
-        return keccak256("EthPrivMetaVault");
+    function vaultId() public pure virtual override(IVaultVersion, EthErc20MetaVault) returns (bytes32) {
+        return keccak256("EthPrivErc20MetaVault");
     }
 
     /// @inheritdoc IVaultVersion
-    function version() public pure virtual override(IVaultVersion, EthMetaVault) returns (uint8) {
+    function version() public pure virtual override(IVaultVersion, EthErc20MetaVault) returns (uint8) {
         return _version;
+    }
+
+    /// @inheritdoc ERC20Upgradeable
+    function _transfer(address from, address to, uint256 amount) internal virtual override {
+        _checkWhitelist(from);
+        _checkWhitelist(to);
+        super._transfer(from, to, amount);
     }
 
     /**

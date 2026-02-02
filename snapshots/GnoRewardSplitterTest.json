@@ -1,7 +1,7 @@
 {
   "GnoRewardSplitter_claimExitedAssets": "94809",
-  "GnoRewardSplitter_claimExitedAssetsOnBehalf": "824394",
-  "GnoRewardSplitter_claimVaultTokens": "855626",
+  "GnoRewardSplitter_claimExitedAssetsOnBehalf": "824382",
+  "GnoRewardSplitter_claimVaultTokens": "855614",
   "GnoRewardSplitter_decreaseShares": "101041",
   "GnoRewardSplitter_enterExitQueue": "186729",
   "GnoRewardSplitter_enterExitQueueMaxWithdrawal": "131400",

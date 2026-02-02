@@ -8,7 +8,6 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IGnoMetaVaultFactory} from "../../interfaces/IGnoMetaVaultFactory.sol";
 import {IGnoMetaVault} from "../../interfaces/IGnoMetaVault.sol";
 import {IVaultsRegistry} from "../../interfaces/IVaultsRegistry.sol";
-import {Errors} from "../../libraries/Errors.sol";
 
 /**
  * @title GnoMetaVaultFactory
@@ -49,6 +48,9 @@ contract GnoMetaVaultFactory is IGnoMetaVaultFactory {
         // create vault
         vault = address(new ERC1967Proxy(implementation, ""));
 
+        // add vault to the registry
+        _vaultsRegistry.addVault(vault);
+
         // approve GNO token for the vault security deposit
         _gnoToken.approve(vault, _securityDeposit);
 
@@ -60,9 +62,6 @@ contract GnoMetaVaultFactory is IGnoMetaVaultFactory {
 
         // cleanup admin
         delete vaultAdmin;
-
-        // add vault to the registry
-        _vaultsRegistry.addVault(vault);
 
         // emit event
         emit MetaVaultCreated(msg.sender, msg.sender, vault, params);

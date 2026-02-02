@@ -10,25 +10,27 @@ import {IVaultState} from "./IVaultState.sol";
 import {IVaultEnterExit} from "./IVaultEnterExit.sol";
 import {IVaultOsToken} from "./IVaultOsToken.sol";
 import {IVaultSubVaults} from "./IVaultSubVaults.sol";
+import {IVaultToken} from "./IVaultToken.sol";
 import {IMulticall} from "./IMulticall.sol";
 
 /**
- * @title IEthMetaVault
+ * @title IEthErc20MetaVault
  * @author StakeWise
- * @notice Defines the interface for the EthMetaVault contract
+ * @notice Defines the interface for the EthErc20MetaVault contract
  */
-interface IEthMetaVault is
+interface IEthErc20MetaVault is
     IVaultAdmin,
     IVaultVersion,
     IVaultFee,
     IVaultState,
     IVaultEnterExit,
     IVaultOsToken,
+    IVaultToken,
     IVaultSubVaults,
     IMulticall
 {
     /**
-     * @dev Struct for deploying the EthMetaVault contract
+     * @dev Struct for deploying the EthErc20MetaVault contract
      * @param keeper The address of the Keeper contract
      * @param vaultsRegistry The address of the VaultsRegistry contract
      * @param osTokenVaultController The address of the OsTokenVaultController contract
@@ -37,7 +39,7 @@ interface IEthMetaVault is
      * @param subVaultsRegistryFactory The address of the factory for creating SubVaultsRegistry contracts
      * @param exitingAssetsClaimDelay The delay after which the assets can be claimed after exiting from staking
      */
-    struct EthMetaVaultConstructorArgs {
+    struct EthErc20MetaVaultConstructorArgs {
         address keeper;
         address vaultsRegistry;
         address osTokenVaultController;
@@ -48,22 +50,26 @@ interface IEthMetaVault is
     }
 
     /**
-     * @dev Struct for initializing the EthMetaVault contract
+     * @dev Struct for initializing the EthErc20MetaVault contract
      * @param subVaultsCurator The address of the initial sub-vaults curator
      * @param capacity The Vault stops accepting deposits after exceeding the capacity
      * @param feePercent The fee percent that is charged by the Vault
+     * @param name The name of the ERC20 token
+     * @param symbol The symbol of the ERC20 token
      * @param metadataIpfsHash The IPFS hash of the Vault's metadata file
      */
-    struct EthMetaVaultInitParams {
+    struct EthErc20MetaVaultInitParams {
         address subVaultsCurator;
         uint256 capacity;
         uint16 feePercent;
+        string name;
+        string symbol;
         string metadataIpfsHash;
     }
 
     /**
-     * @notice Initializes or upgrades the EthMetaVault contract. Must transfer security deposit during the deployment.
-     * @param params The encoded parameters for initializing the EthMetaVault contract
+     * @notice Initializes or upgrades the EthErc20MetaVault contract. Must transfer security deposit during the deployment.
+     * @param params The encoded parameters for initializing the EthErc20MetaVault contract
      */
     function initialize(bytes calldata params) external payable;
 

@@ -3,14 +3,15 @@
   "EthOsTokenRedeemerTest_test_permitOsToken_success": "82575",
   "EthOsTokenRedeemerTest_test_processExitQueue_nothingToProcess": "33998",
   "EthOsTokenRedeemerTest_test_processExitQueue_success": "101715",
-  "EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_multiplePositions": "297443",
-  "EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_singlePosition": "201436",
+  "EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_multiplePositions": "297412",
+  "EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_singlePosition": "201405",
   "EthOsTokenRedeemerTest_test_setPositionsManager": "35834",
-  "EthOsTokenRedeemerTest_test_setRedeemablePositions_success": "100561",
+  "EthOsTokenRedeemerTest_test_setRedeemablePositions_success": "100649",
   "EthOsTokenRedeemerTest_test_swapAssetsToOsTokenShares_success": "101264",
+  "EthOsTokenRedeemerTest_test_updateVaultState_success": "129442",
   "test_claimExitedAssets_fullWithdrawal": "53564",
   "test_claimExitedAssets_noPosition": "30222",
   "test_claimExitedAssets_partialWithdrawal": "75901",
-  "test_redeemSubVaultsAssets_concurrentMultipleSubVaults": "675026",
-  "test_redeemSubVaultsAssets_largeAmountAcrossAllSubVaults": "816491"
+  "test_redeemSubVaultsAssets_concurrentMultipleSubVaults": "683579",
+  "test_redeemSubVaultsAssets_largeAmountAcrossAllSubVaults": "823140"
 }
