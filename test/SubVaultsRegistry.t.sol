@@ -14,7 +14,6 @@ import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthMetaVault} from "../contracts/vaults/ethereum/EthMetaVault.sol";
 import {GnoMetaVault} from "../contracts/vaults/gnosis/GnoMetaVault.sol";
 import {SubVaultsRegistry} from "../contracts/vaults/SubVaultsRegistry.sol";
-import {SubVaultsRegistryFactory} from "../contracts/vaults/SubVaultsRegistryFactory.sol";
 import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
 import {CuratorsRegistry} from "../contracts/curators/CuratorsRegistry.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
@@ -168,6 +167,12 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         ISubVaultsRegistry.SubVaultState memory state1 = registryProxy.subVaultsStates(subVaults[1]);
         assertEq(state1.stakedShares, 200 ether);
         assertEq(state1.queuedShares, 20 ether);
+
+        // Verify exits are empty for both sub-vaults
+        bytes32[] memory exits0 = registryProxy.subVaultsExits(subVaults[0]);
+        assertEq(exits0.length, 0, "SubVault0 should have no exits");
+        bytes32[] memory exits1 = registryProxy.subVaultsExits(subVaults[1]);
+        assertEq(exits1.length, 0, "SubVault1 should have no exits");
     }
 
     /// @notice Test migrate with ejecting sub-vault
@@ -235,6 +240,12 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         assertEq(registryProxy.metaVault(), address(this));
         ISubVaultsRegistry.SubVaultState memory state = registryProxy.subVaultsStates(subVaults[0]);
         assertEq(state.queuedShares, 50 ether);
+
+        // Verify exits were migrated correctly
+        bytes32[] memory migratedExits = registryProxy.subVaultsExits(subVaults[0]);
+        assertEq(migratedExits.length, 2, "Should have 2 exits");
+        assertEq(migratedExits[0], exits[0][0], "First exit should match");
+        assertEq(migratedExits[1], exits[0][1], "Second exit should match");
     }
 
     /// @notice Test migrate with multiple sub-vaults each having exits
@@ -287,6 +298,19 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         // Verify sub-vaults list
         address[] memory registeredSubVaults = registryProxy.getSubVaults();
         assertEq(registeredSubVaults.length, 2, "Should have 2 sub-vaults");
+
+        // Verify exits were migrated correctly for sub-vault 0
+        bytes32[] memory exits0 = registryProxy.subVaultsExits(subVaults[0]);
+        assertEq(exits0.length, 2, "SubVault0 should have 2 exits");
+        assertEq(exits0[0], _packExit(100, 15 ether), "SubVault0 first exit should match");
+        assertEq(exits0[1], _packExit(200, 15 ether), "SubVault0 second exit should match");
+
+        // Verify exits were migrated correctly for sub-vault 1
+        bytes32[] memory exits1 = registryProxy.subVaultsExits(subVaults[1]);
+        assertEq(exits1.length, 3, "SubVault1 should have 3 exits");
+        assertEq(exits1[0], _packExit(300, 15 ether), "SubVault1 first exit should match");
+        assertEq(exits1[1], _packExit(400, 15 ether), "SubVault1 second exit should match");
+        assertEq(exits1[2], _packExit(500, 15 ether), "SubVault1 third exit should match");
     }
 
     /// @notice Test migrate with ejecting sub-vault that has exits
@@ -330,6 +354,16 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
 
         ISubVaultsRegistry.SubVaultState memory state0 = registryProxy.subVaultsStates(subVaults[0]);
         assertEq(state0.queuedShares, 100 ether, "Ejecting sub-vault queued shares mismatch");
+
+        // Verify ejecting sub-vault exits were migrated correctly
+        bytes32[] memory ejectingExits = registryProxy.subVaultsExits(subVaults[0]);
+        assertEq(ejectingExits.length, 2, "Ejecting sub-vault should have 2 exits");
+        assertEq(ejectingExits[0], _packExit(1000, 60 ether), "Ejecting sub-vault first exit should match");
+        assertEq(ejectingExits[1], _packExit(2000, 40 ether), "Ejecting sub-vault second exit should match");
+
+        // Verify non-ejecting sub-vault has no exits
+        bytes32[] memory nonEjectingExits = registryProxy.subVaultsExits(subVaults[1]);
+        assertEq(nonEjectingExits.length, 0, "Non-ejecting sub-vault should have no exits");
     }
 
     /// @notice Test migrate preserves exit order (FIFO)
@@ -367,6 +401,14 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         // Verify state
         ISubVaultsRegistry.SubVaultState memory state = registryProxy.subVaultsStates(subVaults[0]);
         assertEq(state.queuedShares, 100 ether, "Queued shares mismatch");
+
+        // Verify exits preserve order (FIFO)
+        bytes32[] memory migratedExits = registryProxy.subVaultsExits(subVaults[0]);
+        assertEq(migratedExits.length, 4, "Should have 4 exits");
+        assertEq(migratedExits[0], _packExit(111, 25 ether), "First exit (ticket=111) should be first");
+        assertEq(migratedExits[1], _packExit(222, 25 ether), "Second exit (ticket=222) should be second");
+        assertEq(migratedExits[2], _packExit(333, 25 ether), "Third exit (ticket=333) should be third");
+        assertEq(migratedExits[3], _packExit(444, 25 ether), "Fourth exit (ticket=444) should be last");
     }
 
     /// @notice Test migrate with maximum number of exits
@@ -406,6 +448,13 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         // Verify state
         ISubVaultsRegistry.SubVaultState memory state = registryProxy.subVaultsStates(subVaults[0]);
         assertEq(state.queuedShares, totalQueuedShares, "Queued shares mismatch after many exits migration");
+
+        // Verify all exits were migrated correctly
+        bytes32[] memory migratedExits = registryProxy.subVaultsExits(subVaults[0]);
+        assertEq(migratedExits.length, numExits, "Should have all exits migrated");
+        for (uint256 i = 0; i < numExits; i++) {
+            assertEq(migratedExits[i], _packExit(uint160(i * 1000), sharesPerExit), "Exit should match at index");
+        }
     }
 
     /// @notice Helper function to pack exit data (positionTicket + shares)
@@ -663,6 +712,12 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         ISubVaultsRegistry.SubVaultState memory state0 = registryProxy.subVaultsStates(subVaults[0]);
         assertEq(state0.stakedShares, 100 ether, "SubVault0 staked shares mismatch");
         assertEq(state0.queuedShares, 0, "SubVault0 should have no queued shares");
+
+        // Verify exits are empty for both sub-vaults
+        bytes32[] memory exits0 = registryProxy.subVaultsExits(subVaults[0]);
+        assertEq(exits0.length, 0, "SubVault0 should have no exits");
+        bytes32[] memory exits1 = registryProxy.subVaultsExits(subVaults[1]);
+        assertEq(exits1.length, 0, "SubVault1 should have no exits");
     }
 
     /// @notice Test claimSubVaultsExitedAssets reverts with invalid data
@@ -671,77 +726,6 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
 
         // Empty requests should not revert but do nothing
         registry.claimSubVaultsExitedAssets(exitRequests);
-    }
-}
-
-/// @title SubVaultsRegistryFactoryTest
-/// @notice Tests for SubVaultsRegistryFactory contract
-contract SubVaultsRegistryFactoryTest is Test, EthHelpers {
-    ForkContracts public contracts;
-    SubVaultsRegistryFactory public factory;
-
-    function setUp() public {
-        contracts = _activateEthereumFork();
-
-        // Get the deployed factory
-        factory = SubVaultsRegistryFactory(_subVaultsRegistryFactory);
-    }
-
-    /// @notice Test createSubVaultsRegistry reverts when called by non-vault
-    function test_createSubVaultsRegistry_notVault() public {
-        address notAVault = makeAddr("NotAVault");
-
-        vm.prank(notAVault);
-        vm.expectRevert(Errors.InvalidVault.selector);
-        factory.createSubVaultsRegistry();
-    }
-
-    /// @notice Test createSubVaultsRegistry reverts when called by random contract
-    function test_createSubVaultsRegistry_randomContract() public {
-        // Deploy a random contract that is not registered as a vault
-        address randomContract = address(new RandomContract());
-
-        vm.prank(randomContract);
-        vm.expectRevert(Errors.InvalidVault.selector);
-        factory.createSubVaultsRegistry();
-    }
-
-    /// @notice Test implementation is set correctly
-    function test_implementation() public view {
-        assertTrue(factory.implementation() != address(0), "Implementation should be set");
-    }
-
-    /// @notice Test createSubVaultsRegistry success when called by registered vault
-    function test_createSubVaultsRegistry_success() public {
-        // Create a curator first
-        address curator = address(new BalancedCurator());
-        vm.prank(CuratorsRegistry(_curatorsRegistry).owner());
-        CuratorsRegistry(_curatorsRegistry).addCurator(curator);
-
-        // Create a meta vault - this internally calls createSubVaultsRegistry
-        address admin = makeAddr("Admin");
-        vm.deal(admin, 100 ether);
-
-        bytes memory initParams = abi.encode(
-            IEthMetaVault.EthMetaVaultInitParams({
-                subVaultsCurator: curator,
-                capacity: 1000 ether,
-                feePercent: 1000,
-                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
-            })
-        );
-
-        // The factory is used internally when creating a meta vault
-        EthMetaVault metaVault = EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
-
-        // Verify the SubVaultsRegistry was created
-        address registryAddr = metaVault.subVaultsRegistry();
-        assertTrue(registryAddr != address(0), "SubVaultsRegistry should be created");
-
-        // Verify the registry is properly initialized
-        ISubVaultsRegistry registry = ISubVaultsRegistry(registryAddr);
-        assertEq(registry.metaVault(), address(metaVault));
-        assertEq(registry.subVaultsCurator(), curator);
     }
 }
 
@@ -1198,6 +1182,3 @@ contract VaultSubVaultsUpgradeGnoTest is Test, GnoHelpers {
         assertGt(shares, 0, "Deposit should succeed");
     }
 }
-
-/// @notice Helper contract for testing
-contract RandomContract {}

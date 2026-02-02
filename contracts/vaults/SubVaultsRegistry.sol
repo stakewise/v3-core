@@ -282,6 +282,19 @@ contract SubVaultsRegistry is
     }
 
     /// @inheritdoc ISubVaultsRegistry
+    function subVaultsExits(address vault) external view override returns (bytes32[] memory) {
+        uint256 length = _subVaultsExits[vault].length();
+        bytes32[] memory exits = new bytes32[](length);
+        for (uint256 i = 0; i < length;) {
+            exits[i] = _subVaultsExits[vault].at(i);
+            unchecked {
+                ++i;
+            }
+        }
+        return exits;
+    }
+
+    /// @inheritdoc ISubVaultsRegistry
     function canUpdateState() external view override returns (bool) {
         uint256 nonce = subVaultsRewardsNonce;
         return nonce != 0 && nonce < _getCurrentRewardsNonce();

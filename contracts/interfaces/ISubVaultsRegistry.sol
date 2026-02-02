@@ -161,6 +161,13 @@ interface ISubVaultsRegistry is IMulticall {
     function subVaultsStates(address vault) external view returns (SubVaultState memory);
 
     /**
+     * @notice Returns the exits queue for a sub-vault
+     * @param vault The address of the sub-vault
+     * @return The array of packed exit data (positionTicket: uint160, shares: uint96)
+     */
+    function subVaultsExits(address vault) external view returns (bytes32[] memory);
+
+    /**
      * @notice Returns the list of sub-vaults
      * @return The array of sub-vault addresses
      */

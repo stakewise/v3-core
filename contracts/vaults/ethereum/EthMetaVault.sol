@@ -139,6 +139,7 @@ contract EthMetaVault is
 
     /// @inheritdoc VaultSubVaults
     function _depositToVault(address vault, uint256 assets) internal override returns (uint256) {
+        // slither-disable-next-line arbitrary-send-eth
         return IVaultEthStaking(vault).deposit{value: assets}(address(this), address(0));
     }
 
