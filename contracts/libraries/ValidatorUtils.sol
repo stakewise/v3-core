@@ -84,7 +84,7 @@ library ValidatorUtils {
         } else {
             withdrawalCredsPrefix = 0x02;
             // extract amount from data, convert gwei to wei by multiplying by 1 gwei
-            validatorDeposit.depositAmount = (uint256(uint64(bytes8(validator[176:184]))) * 1 gwei);
+            validatorDeposit.depositAmount = getValidatorDepositAmount(validator);
         }
         validatorDeposit.withdrawalCredentials = abi.encodePacked(withdrawalCredsPrefix, bytes11(0x0), address(this));
     }
@@ -102,6 +102,15 @@ library ValidatorUtils {
         }
 
         return isV1Validators;
+    }
+
+    /**
+     * @dev Function to get the validator deposit amount
+     * @param validator The validator data
+     * @return depositAmount The deposit amount of the validator in Wei
+     */
+    function getValidatorDepositAmount(bytes calldata validator) internal pure returns (uint256) {
+        return uint256(uint64(bytes8(validator[176:184]))) * 1 gwei;
     }
 
     /**

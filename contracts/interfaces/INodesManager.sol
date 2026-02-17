@@ -2,6 +2,9 @@
 
 pragma solidity ^0.8.22;
 
+import {IKeeperValidators} from "./IKeeperValidators.sol";
+import {IKeeperRewards} from "./IKeeperRewards.sol";
+
 /**
  * @title INodesManager
  * @author StakeWise
@@ -36,6 +39,18 @@ interface INodesManager {
     event DepositQueueExited(address indexed depositor, uint256 indexed ticket, uint256 assets, uint256 penalty);
 
     /**
+     * @notice Event emitted on validators registration
+     * @param depositor The address of the depositor
+     * @param ticket The deposit queue ticket used for the bond
+     * @param validatorsCount The number of validators registered
+     * @param bondAssets The total bond assets deposited to the vault
+     * @param shares The vault shares received for the bond
+     */
+    event ValidatorsRegistered(
+        address indexed depositor, uint256 indexed ticket, uint256 validatorsCount, uint256 bondAssets, uint256 shares
+    );
+
+    /**
      * @notice Event emitted when the minimum bond assets are updated
      * @param minBondAssets The new minimum bond assets
      */
@@ -49,12 +64,25 @@ interface INodesManager {
     event ExitPenaltyPercentUpdated(address indexed caller, uint16 exitPenaltyPercent);
 
     /**
+     * @notice Event emitted when the LTV percent is updated
+     * @param caller The address of the function caller
+     * @param ltvPercent The new LTV percent
+     */
+    event LtvPercentUpdated(address indexed caller, uint16 ltvPercent);
+
+    /**
      * @notice Event emitted when the owner claims accumulated penalties
      * @param caller The address of the function caller
      * @param recipient The address that received the penalty assets
      * @param assets The amount of penalty assets claimed
      */
     event PenaltyClaimed(address indexed caller, address indexed recipient, uint256 assets);
+
+    /**
+     * @notice The address of the vault used for depositing bond assets
+     * @return The vault address
+     */
+    function vault() external view returns (address);
 
     /**
      * @notice The minimum assets required for a deposit request
@@ -69,7 +97,7 @@ interface INodesManager {
     function setMinBondAssets(uint256 newMinBondAssets) external;
 
     /**
-     * @notice The exit penalty percent in BPS applied to processed deposit requests (10000 = 100%)
+     * @notice The exit penalty percent in BPS applied when exiting the deposit queue (10000 = 100%)
      * @return The exit penalty percent
      */
     function exitPenaltyPercent() external view returns (uint16);
@@ -80,6 +108,18 @@ interface INodesManager {
      * @param newExitPenaltyPercent The new exit penalty percent
      */
     function setExitPenaltyPercent(uint16 newExitPenaltyPercent) external;
+
+    /**
+     * @notice The LTV percent in BPS that determines the bond per validator (10000 = 100%)
+     * @return The LTV percent
+     */
+    function ltvPercent() external view returns (uint16);
+
+    /**
+     * @notice Updates the LTV percent. Can only be called by the owner.
+     * @param newLtvPercent The new LTV percent
+     */
+    function setLtvPercent(uint16 newLtvPercent) external;
 
     /**
      * @notice The total unclaimed penalty assets accumulated from exit penalties
@@ -94,16 +134,16 @@ interface INodesManager {
     function claimPenalty(address recipient) external;
 
     /**
-     * @notice The total number of deposit requests
-     * @return The total number of deposit requests
+     * @notice The cumulative total number of tickets created
+     * @return The cumulative total tickets
      */
-    function depositRequestsCount() external view returns (uint256);
+    function totalTickets() external view returns (uint256);
 
     /**
-     * @notice The number of processed deposit requests
-     * @return The number of processed deposit requests
+     * @notice The latest processed ticket
+     * @return The current ticket
      */
-    function processedDepositRequestsCount() external view returns (uint256);
+    function currentTicket() external view returns (uint256);
 
     /**
      * @notice Returns the deposit request for the given ticket
@@ -114,8 +154,28 @@ interface INodesManager {
     function depositRequests(uint256 ticket) external view returns (address depositor, uint96 assets);
 
     /**
+     * @notice Returns the vault shares balance for the given account
+     * @param account The account address
+     * @return The vault shares balance
+     */
+    function balances(address account) external view returns (uint256);
+
+    /**
      * @notice Exits the deposit queue and reclaims the deposit
      * @param ticket The deposit queue ticket to exit
      */
     function exitDepositQueue(uint256 ticket) external;
+
+    /**
+     * @notice Registers validators using bond from the deposit queue
+     * @param ticket The deposit queue ticket to use for the bond
+     * @param keeperParams The keeper approval parameters containing validator data
+     */
+    function registerValidators(uint256 ticket, IKeeperValidators.ApprovalParams calldata keeperParams) external;
+
+    /**
+     * @notice Updates the vault state by harvesting rewards
+     * @param harvestParams The parameters for harvesting Keeper rewards
+     */
+    function updateVaultState(IKeeperRewards.HarvestParams calldata harvestParams) external;
 }

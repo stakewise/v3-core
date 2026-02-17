@@ -4,6 +4,7 @@ pragma solidity ^0.8.22;
 
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {ReentrancyGuardUpgradeable} from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import {IVaultEthStaking} from "../interfaces/IVaultEthStaking.sol";
 import {IEthNodesManager} from "../interfaces/IEthNodesManager.sol";
 import {NodesManager} from "./NodesManager.sol";
 
@@ -13,8 +14,12 @@ import {NodesManager} from "./NodesManager.sol";
  * @notice Implements Ethereum specific functionality for the NodesManager contract
  */
 contract EthNodesManager is ReentrancyGuardUpgradeable, NodesManager, IEthNodesManager {
+    /**
+     * @dev Constructor
+     * @param _vault The address of the vault for depositing bond assets
+     */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() {
+    constructor(address _vault) NodesManager(_vault) {
         _disableInitializers();
     }
 
@@ -23,10 +28,14 @@ contract EthNodesManager is ReentrancyGuardUpgradeable, NodesManager, IEthNodesM
      * @param owner The address of the contract owner
      * @param _minBondAssets The minimum assets required for a deposit request
      * @param _exitPenaltyPercent The exit penalty percent in BPS
+     * @param _ltvPercent The LTV percent in BPS
      */
-    function initialize(address owner, uint256 _minBondAssets, uint16 _exitPenaltyPercent) external initializer {
+    function initialize(address owner, uint256 _minBondAssets, uint16 _exitPenaltyPercent, uint16 _ltvPercent)
+        external
+        initializer
+    {
         __ReentrancyGuard_init();
-        __NodesManager_init(owner, _minBondAssets, _exitPenaltyPercent);
+        __NodesManager_init(owner, _minBondAssets, _exitPenaltyPercent, _ltvPercent);
     }
 
     /// @inheritdoc IEthNodesManager
@@ -37,5 +46,10 @@ contract EthNodesManager is ReentrancyGuardUpgradeable, NodesManager, IEthNodesM
     /// @inheritdoc NodesManager
     function _transferAssets(address receiver, uint256 assets) internal override nonReentrant {
         Address.sendValue(payable(receiver), assets);
+    }
+
+    /// @inheritdoc NodesManager
+    function _depositToVault(uint256 assets) internal override returns (uint256 shares) {
+        return IVaultEthStaking(vault).deposit{value: assets}(address(this), address(0));
     }
 }

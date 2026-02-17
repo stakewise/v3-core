@@ -7,13 +7,23 @@ import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {INodesManager} from "../interfaces/INodesManager.sol";
+import {IKeeperValidators} from "../interfaces/IKeeperValidators.sol";
+import {IKeeperRewards} from "../interfaces/IKeeperRewards.sol";
+import {IVaultState} from "../interfaces/IVaultState.sol";
+import {IVaultValidators} from "../interfaces/IVaultValidators.sol";
 import {Errors} from "../libraries/Errors.sol";
+import {Multicall} from "../base/Multicall.sol";
+import {ValidatorUtils} from "../libraries/ValidatorUtils.sol";
 
-abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, INodesManager {
-    uint256 internal constant _maxPenaltyPercent = 10_000; // @dev 100.00 %
+abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, Multicall, INodesManager {
+    uint256 internal constant _maxPercent = 10_000; // @dev 100.00 %
     uint256 private constant _penaltyUpdateDelay = 3 days;
     uint256 private constant _penaltyUpdateMultiplier = 120;
     uint256 private constant _penaltyUpdateBase = 100;
+    uint256 private constant _validatorV2DepositLength = 184;
+
+    /// @inheritdoc INodesManager
+    address public immutable override vault;
 
     /// @inheritdoc INodesManager
     uint256 public override minBondAssets;
@@ -27,21 +37,36 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, INod
     uint256 public override unclaimedPenalty;
 
     /// @inheritdoc INodesManager
-    uint256 public override depositRequestsCount;
+    uint256 public override totalTickets;
 
     /// @inheritdoc INodesManager
-    uint256 public override processedDepositRequestsCount;
+    uint256 public override currentTicket;
 
     /// @inheritdoc INodesManager
     mapping(uint256 ticket => DepositRequest request) public override depositRequests;
+
+    /// @inheritdoc INodesManager
+    uint16 public override ltvPercent;
+
+    /// @inheritdoc INodesManager
+    mapping(address account => uint256 shares) public override balances;
+
+    /**
+     * @dev Constructor sets the vault immutable
+     * @param _vault The address of the vault for depositing bond assets
+     */
+    constructor(address _vault) {
+        vault = _vault;
+    }
 
     /**
      * @dev Initializes the NodesManager contract
      * @param _owner The address of the contract owner
      * @param _minBondAssets The minimum assets required for a deposit request
      * @param _exitPenaltyPercent The exit penalty percent in BPS
+     * @param _ltvPercent The LTV percent in BPS
      */
-    function __NodesManager_init(address _owner, uint256 _minBondAssets, uint16 _exitPenaltyPercent)
+    function __NodesManager_init(address _owner, uint256 _minBondAssets, uint16 _exitPenaltyPercent, uint16 _ltvPercent)
         internal
         onlyInitializing
     {
@@ -50,6 +75,7 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, INod
         __UUPSUpgradeable_init();
         _setMinBondAssets(_minBondAssets);
         _setExitPenaltyPercent(_exitPenaltyPercent, true);
+        _setLtvPercent(_ltvPercent);
     }
 
     /// @inheritdoc INodesManager
@@ -62,6 +88,12 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, INod
     function setExitPenaltyPercent(uint16 newExitPenaltyPercent) external override onlyOwner {
         if (exitPenaltyPercent == newExitPenaltyPercent) revert Errors.ValueNotChanged();
         _setExitPenaltyPercent(newExitPenaltyPercent, false);
+    }
+
+    /// @inheritdoc INodesManager
+    function setLtvPercent(uint16 newLtvPercent) external override onlyOwner {
+        if (ltvPercent == newLtvPercent) revert Errors.ValueNotChanged();
+        _setLtvPercent(newLtvPercent);
     }
 
     /// @inheritdoc INodesManager
@@ -78,6 +110,11 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, INod
     }
 
     /// @inheritdoc INodesManager
+    function updateVaultState(IKeeperRewards.HarvestParams calldata harvestParams) external override {
+        IVaultState(vault).updateState(harvestParams);
+    }
+
+    /// @inheritdoc INodesManager
     function exitDepositQueue(uint256 ticket) external override {
         DepositRequest memory request = depositRequests[ticket];
         if (request.depositor != msg.sender) revert Errors.AccessDenied();
@@ -85,19 +122,67 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, INod
         uint256 assets = request.assets;
         if (assets == 0) revert Errors.InvalidAssets();
 
-        uint256 penalty;
-        if (ticket < processedDepositRequestsCount) {
-            // skipped request — apply penalty
-            penalty = Math.mulDiv(assets, exitPenaltyPercent, _maxPenaltyPercent);
+        uint256 penalty = Math.mulDiv(assets, exitPenaltyPercent, _maxPercent);
+        if (penalty > 0) {
             unchecked {
+                // cannot underflow as penalty is guaranteed to be less than assets
                 assets -= penalty;
+                // cannot realistically overflow as penalty is expected to be a small percentage of assets
+                unclaimedPenalty += penalty;
             }
-            unclaimedPenalty += penalty;
         }
 
         delete depositRequests[ticket];
         _transferAssets(msg.sender, assets);
         emit DepositQueueExited(msg.sender, ticket, assets, penalty);
+    }
+
+    /// @inheritdoc INodesManager
+    function registerValidators(uint256 ticket, IKeeperValidators.ApprovalParams calldata keeperParams)
+        external
+        override
+    {
+        // check whether the caller has deposit request based on ticket and msg.sender
+        DepositRequest memory request = depositRequests[ticket];
+        if (request.depositor != msg.sender) revert Errors.AccessDenied();
+
+        (uint256 validatorsCount, uint256 totalDeposit) = _getValidatorsTotalDeposit(keeperParams.validators);
+        if (totalDeposit == 0) revert Errors.InvalidValidators();
+
+        // calculate required bond based on the total deposit and ltvPercent
+        uint256 totalBond = Math.mulDiv(totalDeposit, _maxPercent - ltvPercent, _maxPercent);
+        if (totalBond == 0) revert Errors.InvalidLtvPercent();
+        if (request.assets < totalBond) revert Errors.InvalidAssets();
+
+        // deposit bond to the vault and update balance
+        uint256 shares = _depositToVault(totalBond);
+        balances[msg.sender] += shares;
+
+        // register validators in the vault
+        IVaultValidators(vault).registerValidators(keeperParams, bytes(""));
+
+        // update state
+        if (ticket > currentTicket) {
+            currentTicket = ticket;
+        }
+
+        uint256 remainingAssets;
+        unchecked {
+            // cannot underflow as request.assets >= totalBond is checked above
+            remainingAssets = request.assets - totalBond;
+        }
+
+        if (remainingAssets < minBondAssets) {
+            delete depositRequests[ticket];
+            if (remainingAssets > 0) {
+                _transferAssets(msg.sender, remainingAssets);
+            }
+        } else {
+            depositRequests[ticket].assets = SafeCast.toUint96(remainingAssets);
+        }
+
+        // emit event
+        emit ValidatorsRegistered(msg.sender, ticket, validatorsCount, totalBond, shares);
     }
 
     /**
@@ -109,12 +194,12 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, INod
         if (assets < minBondAssets) revert Errors.InvalidAssets();
 
         // store the sender address and the deposit amount in requests
-        ticket = depositRequestsCount;
+        ticket = totalTickets;
         depositRequests[ticket] = DepositRequest({depositor: msg.sender, assets: SafeCast.toUint96(assets)});
 
         unchecked {
             // cannot realistically overflow
-            depositRequestsCount++;
+            totalTickets++;
         }
 
         emit DepositQueueEntered(msg.sender, ticket, assets);
@@ -136,7 +221,7 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, INod
      * @param isInitialization Flag indicating whether the penalty is set during initialization
      */
     function _setExitPenaltyPercent(uint16 newExitPenaltyPercent, bool isInitialization) private {
-        if (newExitPenaltyPercent > _maxPenaltyPercent) revert Errors.InvalidFeePercent();
+        if (newExitPenaltyPercent > _maxPercent) revert Errors.InvalidFeePercent();
 
         if (!isInitialization) {
             if (_lastPenaltyUpdateTimestamp + _penaltyUpdateDelay > block.timestamp) {
@@ -159,6 +244,46 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, INod
         emit ExitPenaltyPercentUpdated(msg.sender, newExitPenaltyPercent);
     }
 
+    /**
+     * @dev Internal function for updating the LTV percent
+     * @param newLtvPercent The new LTV percent
+     */
+    function _setLtvPercent(uint16 newLtvPercent) private {
+        if (newLtvPercent == 0 || newLtvPercent >= _maxPercent) revert Errors.InvalidLtvPercent();
+        ltvPercent = newLtvPercent;
+        emit LtvPercentUpdated(msg.sender, newLtvPercent);
+    }
+
+    /**
+     * @dev Internal function to calculate the total deposit amount from the validators data
+     * @param validators The concatenation of the validators' data
+     * @return validatorsCount The number of validators
+     * @return totalDeposit The total deposit amount calculated from the validators data
+     */
+    function _getValidatorsTotalDeposit(bytes calldata validators)
+        internal
+        pure
+        returns (uint256 validatorsCount, uint256 totalDeposit)
+    {
+        uint256 validatorsLength = validators.length;
+        if (validatorsLength == 0 || validatorsLength % _validatorV2DepositLength != 0) {
+            revert Errors.InvalidValidators();
+        }
+        validatorsCount = validatorsLength / _validatorV2DepositLength;
+
+        // calculate total deposit by summing up the deposits of all validators
+        uint256 startIndex;
+        for (uint256 i = 0; i < validatorsCount;) {
+            totalDeposit += ValidatorUtils.getValidatorDepositAmount(
+                validators[startIndex:startIndex + _validatorV2DepositLength]
+            );
+            unchecked {
+                ++i;
+                startIndex += _validatorV2DepositLength;
+            }
+        }
+    }
+
     /// @inheritdoc UUPSUpgradeable
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
@@ -168,6 +293,14 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, INod
      * @param assets The amount of assets to transfer
      */
     function _transferAssets(address receiver, uint256 assets) internal virtual;
+
+    /**
+     * @dev Deposits assets to the vault and returns the shares received.
+     *      Must be implemented by network-specific contracts.
+     * @param assets The amount of assets to deposit
+     * @return shares The vault shares received
+     */
+    function _depositToVault(uint256 assets) internal virtual returns (uint256 shares);
 
     /**
      * @dev This empty reserved space is put in place to allow future versions to add new
