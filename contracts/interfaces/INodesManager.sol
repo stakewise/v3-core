@@ -42,13 +42,19 @@ interface INodesManager {
      * @notice Event emitted on validators registration
      * @param depositor The address of the depositor
      * @param ticket The deposit queue ticket used for the bond
-     * @param validatorsCount The number of validators registered
      * @param bondAssets The total bond assets deposited to the vault
      * @param shares The vault shares received for the bond
      */
-    event ValidatorsRegistered(
-        address indexed depositor, uint256 indexed ticket, uint256 validatorsCount, uint256 bondAssets, uint256 shares
-    );
+    event ValidatorsRegistered(address indexed depositor, uint256 indexed ticket, uint256 bondAssets, uint256 shares);
+
+    /**
+     * @notice Event emitted on validators funding
+     * @param depositor The address of the depositor
+     * @param ticket The deposit queue ticket used for the bond
+     * @param bondAssets The total bond assets deposited to the vault
+     * @param shares The vault shares received for the bond
+     */
+    event ValidatorsFunded(address indexed depositor, uint256 indexed ticket, uint256 bondAssets, uint256 shares);
 
     /**
      * @notice Event emitted when the minimum bond assets are updated
@@ -77,6 +83,18 @@ interface INodesManager {
      * @param assets The amount of penalty assets claimed
      */
     event PenaltyClaimed(address indexed caller, address indexed recipient, uint256 assets);
+
+    /**
+     * @notice Event emitted when the withdrawals manager is updated
+     * @param withdrawalsManager The new withdrawals manager address
+     */
+    event WithdrawalsManagerUpdated(address withdrawalsManager);
+
+    /**
+     * @notice Event emitted when a validator withdrawal is submitted
+     * @param caller The address of the function caller
+     */
+    event ValidatorWithdrawalSubmitted(address indexed caller);
 
     /**
      * @notice The address of the vault used for depositing bond assets
@@ -178,4 +196,37 @@ interface INodesManager {
      * @param harvestParams The parameters for harvesting Keeper rewards
      */
     function updateVaultState(IKeeperRewards.HarvestParams calldata harvestParams) external;
+
+    /**
+     * @notice The address of the withdrawals manager
+     * @return The withdrawals manager address
+     */
+    function withdrawalsManager() external view returns (address);
+
+    /**
+     * @notice Updates the withdrawals manager address. Can only be called by the owner.
+     * @param newWithdrawalsManager The new withdrawals manager address
+     */
+    function setWithdrawalsManager(address newWithdrawalsManager) external;
+
+    /**
+     * @notice Returns the current nonce for the given ticket, used for fund validators signature replay protection
+     * @param ticket The deposit queue ticket
+     * @return The current nonce
+     */
+    function ticketNonces(uint256 ticket) external view returns (uint256);
+
+    /**
+     * @notice Funds validators using bond from the deposit queue
+     * @param ticket The deposit queue ticket to use for the bond
+     * @param validators The concatenation of the validators' data
+     * @param signatures The concatenation of the oracles' signatures approving the funding
+     */
+    function fundValidators(uint256 ticket, bytes calldata validators, bytes calldata signatures) external;
+
+    /**
+     * @notice Submits validator withdrawals. Can only be called by the withdrawals manager.
+     * @param validators The concatenation of the validators' data
+     */
+    function withdrawValidators(bytes calldata validators) external payable;
 }

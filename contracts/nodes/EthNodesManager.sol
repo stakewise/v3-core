@@ -17,9 +17,10 @@ contract EthNodesManager is ReentrancyGuardUpgradeable, NodesManager, IEthNodesM
     /**
      * @dev Constructor
      * @param _vault The address of the vault for depositing bond assets
+     * @param _keeper The address of the Keeper contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(address _vault) NodesManager(_vault) {
+    constructor(address _vault, address _keeper) NodesManager(_vault, _keeper) {
         _disableInitializers();
     }
 

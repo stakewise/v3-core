@@ -3,24 +3,38 @@
 pragma solidity ^0.8.22;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {INodesManager} from "../interfaces/INodesManager.sol";
 import {IKeeperValidators} from "../interfaces/IKeeperValidators.sol";
 import {IKeeperRewards} from "../interfaces/IKeeperRewards.sol";
+import {IKeeper} from "../interfaces/IKeeper.sol";
 import {IVaultState} from "../interfaces/IVaultState.sol";
 import {IVaultValidators} from "../interfaces/IVaultValidators.sol";
 import {Errors} from "../libraries/Errors.sol";
-import {Multicall} from "../base/Multicall.sol";
 import {ValidatorUtils} from "../libraries/ValidatorUtils.sol";
+import {Multicall} from "../base/Multicall.sol";
 
-abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, Multicall, INodesManager {
-    uint256 internal constant _maxPercent = 10_000; // @dev 100.00 %
+abstract contract NodesManager is
+    Ownable2StepUpgradeable,
+    EIP712Upgradeable,
+    UUPSUpgradeable,
+    Multicall,
+    INodesManager
+{
+    uint256 private constant _maxPercent = 10_000; // @dev 100.00 %
     uint256 private constant _penaltyUpdateDelay = 3 days;
     uint256 private constant _penaltyUpdateMultiplier = 120;
     uint256 private constant _penaltyUpdateBase = 100;
     uint256 private constant _validatorV2DepositLength = 184;
+    uint256 private constant _signatureLength = 65;
+    bytes32 private constant _fundValidatorsTypeHash =
+        keccak256("FundValidators(uint256 ticket,uint256 nonce,address vault,bytes validators)");
+
+    IKeeper private immutable _keeper;
 
     /// @inheritdoc INodesManager
     address public immutable override vault;
@@ -51,12 +65,28 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, Mult
     /// @inheritdoc INodesManager
     mapping(address account => uint256 shares) public override balances;
 
+    /// @inheritdoc INodesManager
+    address public override withdrawalsManager;
+
+    /// @inheritdoc INodesManager
+    mapping(uint256 ticket => uint256 nonce) public override ticketNonces;
+
     /**
-     * @dev Constructor sets the vault immutable
-     * @param _vault The address of the vault for depositing bond assets
+     * @dev Modifier to restrict access to the withdrawals manager
      */
-    constructor(address _vault) {
-        vault = _vault;
+    modifier onlyWithdrawalsManager() {
+        if (msg.sender != withdrawalsManager) revert Errors.AccessDenied();
+        _;
+    }
+
+    /**
+     * @dev Constructor sets the immutables
+     * @param vault_ The address of the vault for depositing bond assets
+     * @param keeper_ The address of the Keeper contract
+     */
+    constructor(address vault_, address keeper_) {
+        vault = vault_;
+        _keeper = IKeeper(keeper_);
     }
 
     /**
@@ -72,6 +102,7 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, Mult
     {
         __Ownable_init(_owner);
         __Ownable2Step_init();
+        __EIP712_init("NodesManager", "1");
         __UUPSUpgradeable_init();
         _setMinBondAssets(_minBondAssets);
         _setExitPenaltyPercent(_exitPenaltyPercent, true);
@@ -94,6 +125,13 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, Mult
     function setLtvPercent(uint16 newLtvPercent) external override onlyOwner {
         if (ltvPercent == newLtvPercent) revert Errors.ValueNotChanged();
         _setLtvPercent(newLtvPercent);
+    }
+
+    /// @inheritdoc INodesManager
+    function setWithdrawalsManager(address newWithdrawalsManager) external override onlyOwner {
+        if (newWithdrawalsManager == withdrawalsManager) revert Errors.ValueNotChanged();
+        withdrawalsManager = newWithdrawalsManager;
+        emit WithdrawalsManagerUpdated(newWithdrawalsManager);
     }
 
     /// @inheritdoc INodesManager
@@ -122,13 +160,16 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, Mult
         uint256 assets = request.assets;
         if (assets == 0) revert Errors.InvalidAssets();
 
-        uint256 penalty = Math.mulDiv(assets, exitPenaltyPercent, _maxPercent);
-        if (penalty > 0) {
-            unchecked {
-                // cannot underflow as penalty is guaranteed to be less than assets
-                assets -= penalty;
-                // cannot realistically overflow as penalty is expected to be a small percentage of assets
-                unclaimedPenalty += penalty;
+        uint256 penalty;
+        if (ticket < currentTicket) {
+            penalty = Math.mulDiv(assets, exitPenaltyPercent, _maxPercent);
+            if (penalty > 0) {
+                unchecked {
+                    // cannot underflow as penalty is guaranteed to be less than assets
+                    assets -= penalty;
+                    // cannot realistically overflow as penalty is expected to be a small percentage of assets
+                    unclaimedPenalty += penalty;
+                }
             }
         }
 
@@ -142,30 +183,66 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, Mult
         external
         override
     {
-        // check whether the caller has deposit request based on ticket and msg.sender
-        DepositRequest memory request = depositRequests[ticket];
-        if (request.depositor != msg.sender) revert Errors.AccessDenied();
-
-        (uint256 validatorsCount, uint256 totalDeposit) = _getValidatorsTotalDeposit(keeperParams.validators);
-        if (totalDeposit == 0) revert Errors.InvalidValidators();
-
-        // calculate required bond based on the total deposit and ltvPercent
-        uint256 totalBond = Math.mulDiv(totalDeposit, _maxPercent - ltvPercent, _maxPercent);
-        if (totalBond == 0) revert Errors.InvalidLtvPercent();
-        if (request.assets < totalBond) revert Errors.InvalidAssets();
-
-        // deposit bond to the vault and update balance
-        uint256 shares = _depositToVault(totalBond);
-        balances[msg.sender] += shares;
+        (uint256 totalBond, uint256 shares) = _processDepositRequest(ticket, keeperParams.validators);
 
         // register validators in the vault
         IVaultValidators(vault).registerValidators(keeperParams, bytes(""));
 
-        // update state
-        if (ticket > currentTicket) {
-            currentTicket = ticket;
-        }
+        // emit event
+        emit ValidatorsRegistered(msg.sender, ticket, totalBond, shares);
+    }
 
+    /// @inheritdoc INodesManager
+    function fundValidators(uint256 ticket, bytes calldata validators, bytes calldata signatures) external override {
+        // verify oracles approved funding these validators
+        uint256 nonce = ticketNonces[ticket];
+        _verifyFundValidatorsSignatures(ticket, nonce, validators, signatures);
+        ticketNonces[ticket] = nonce + 1;
+
+        (uint256 totalBond, uint256 shares) = _processDepositRequest(ticket, validators);
+
+        // fund validators in the vault
+        IVaultValidators(vault).fundValidators(validators, bytes(""));
+
+        // emit event
+        emit ValidatorsFunded(msg.sender, ticket, totalBond, shares);
+    }
+
+    /// @inheritdoc INodesManager
+    function withdrawValidators(bytes calldata validators) external payable override onlyWithdrawalsManager {
+        IVaultValidators(vault).withdrawValidators{value: msg.value}(validators, bytes(""));
+        emit ValidatorWithdrawalSubmitted(msg.sender);
+    }
+
+    /**
+     * @dev Internal function to process the deposit request for registering or funding validators
+     * @param ticket The deposit queue ticket to process
+     * @param validators The concatenation of the validators' data for calculating the total bond
+     * @return totalBond The total bond amount required for the validators
+     * @return shares The vault shares received after depositing the bond
+     */
+    function _processDepositRequest(uint256 ticket, bytes calldata validators)
+        internal
+        returns (uint256 totalBond, uint256 shares)
+    {
+        // check whether the caller has deposit request based on ticket and msg.sender
+        DepositRequest memory request = depositRequests[ticket];
+        if (request.depositor != msg.sender) revert Errors.AccessDenied();
+
+        // check and update the current ticket
+        uint256 _currentTicket = currentTicket;
+        if (ticket < _currentTicket) revert Errors.InvalidTicket();
+        if (ticket > _currentTicket) currentTicket = ticket;
+
+        (, uint256 totalDeposit) = _getValidatorsTotalDeposit(validators);
+        if (totalDeposit == 0) revert Errors.InvalidValidators();
+
+        // calculate required bond based on the total deposit and ltvPercent
+        totalBond = Math.mulDiv(totalDeposit, _maxPercent - ltvPercent, _maxPercent);
+        if (totalBond == 0) revert Errors.InvalidLtvPercent();
+        if (request.assets < totalBond) revert Errors.InvalidAssets();
+
+        // calculate remaining assets in the deposit request
         uint256 remainingAssets;
         unchecked {
             // cannot underflow as request.assets >= totalBond is checked above
@@ -181,8 +258,9 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, Mult
             depositRequests[ticket].assets = SafeCast.toUint96(remainingAssets);
         }
 
-        // emit event
-        emit ValidatorsRegistered(msg.sender, ticket, validatorsCount, totalBond, shares);
+        // deposit bond to the vault and update balance
+        shares = _depositToVault(totalBond);
+        balances[msg.sender] += shares;
     }
 
     /**
@@ -252,6 +330,55 @@ abstract contract NodesManager is Ownable2StepUpgradeable, UUPSUpgradeable, Mult
         if (newLtvPercent == 0 || newLtvPercent >= _maxPercent) revert Errors.InvalidLtvPercent();
         ltvPercent = newLtvPercent;
         emit LtvPercentUpdated(msg.sender, newLtvPercent);
+    }
+
+    /**
+     * @dev Verifies that oracles have approved funding validators
+     * @param ticket The deposit queue ticket
+     * @param nonce The current fund nonce for the ticket
+     * @param validators The concatenation of the validators' data
+     * @param signatures The concatenation of the oracles' signatures
+     */
+    function _verifyFundValidatorsSignatures(
+        uint256 ticket,
+        uint256 nonce,
+        bytes calldata validators,
+        bytes calldata signatures
+    ) private view {
+        // verify oracle signatures
+        uint256 requiredSignatures = _keeper.validatorsMinOracles();
+        uint256 signaturesLength = signatures.length;
+        if (
+            requiredSignatures == 0 || signaturesLength == 0 || signaturesLength % _signatureLength != 0
+                || signaturesLength < requiredSignatures * _signatureLength
+        ) {
+            revert Errors.InvalidSignatures();
+        }
+
+        bytes32 data =
+            _hashTypedDataV4(keccak256(abi.encode(_fundValidatorsTypeHash, ticket, nonce, vault, keccak256(validators))));
+
+        address lastOracle;
+        address currentOracle;
+        uint256 startIndex;
+        for (uint256 i = 0; i < requiredSignatures; i++) {
+            unchecked {
+                // cannot overflow as signatures.length is checked above
+                currentOracle = ECDSA.recover(data, signatures[startIndex:startIndex + _signatureLength]);
+            }
+            // signatures must be sorted by oracles' addresses and not repeat
+            if (currentOracle <= lastOracle || !_keeper.isOracle(currentOracle)) {
+                revert Errors.InvalidSignatures();
+            }
+
+            // update last oracle
+            lastOracle = currentOracle;
+
+            unchecked {
+                // cannot realistically overflow
+                startIndex += _signatureLength;
+            }
+        }
     }
 
     /**

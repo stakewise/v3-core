@@ -3,9 +3,11 @@ pragma solidity ^0.8.22;
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {EthNodesManager} from "../contracts/nodes/EthNodesManager.sol";
 import {INodesManager} from "../contracts/interfaces/INodesManager.sol";
 import {IEthNodesManager} from "../contracts/interfaces/IEthNodesManager.sol";
+import {IVaultValidators} from "../contracts/interfaces/IVaultValidators.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {IKeeperValidators} from "../contracts/interfaces/IKeeperValidators.sol";
 import {IEthVault} from "../contracts/vaults/ethereum/EthVault.sol";
@@ -48,7 +50,7 @@ contract EthNodesManagerTest is EthHelpers {
         vault = _getOrCreateVault(VaultType.EthVault, owner, initParams, false);
 
         // Deploy implementation and proxy
-        EthNodesManager impl = new EthNodesManager(vault);
+        EthNodesManager impl = new EthNodesManager(vault, address(contracts.keeper));
         address proxy = address(
             new ERC1967Proxy(
                 address(impl),
@@ -73,6 +75,7 @@ contract EthNodesManagerTest is EthHelpers {
         assertEq(nodesManager.totalTickets(), 0);
         assertEq(nodesManager.currentTicket(), 0);
         assertEq(nodesManager.unclaimedPenalty(), 0);
+        assertEq(nodesManager.withdrawalsManager(), address(0));
     }
 
     // ======== enterDepositQueue ========
@@ -122,9 +125,7 @@ contract EthNodesManagerTest is EthHelpers {
     function test_enterDepositQueue_belowMinBond() public {
         vm.prank(user1);
         vm.expectRevert(Errors.InvalidAssets.selector);
-        _startSnapshotGas("EthNodesManagerTest_test_enterDepositQueue_belowMinBond");
         nodesManager.enterDepositQueue{value: MIN_BOND_ASSETS - 1}();
-        _stopSnapshotGas();
     }
 
     // ======== exitDepositQueue ========
@@ -133,20 +134,19 @@ contract EthNodesManagerTest is EthHelpers {
         vm.prank(user1);
         uint256 ticket = nodesManager.enterDepositQueue{value: MIN_BOND_ASSETS}();
 
-        uint256 expectedPenalty = (MIN_BOND_ASSETS * EXIT_PENALTY_PERCENT) / 10_000;
-        uint256 expectedRefund = MIN_BOND_ASSETS - expectedPenalty;
+        // No penalty — ticket (0) >= currentTicket (0)
         uint256 balanceBefore = user1.balance;
 
         vm.expectEmit(true, true, true, true);
-        emit INodesManager.DepositQueueExited(user1, ticket, expectedRefund, expectedPenalty);
+        emit INodesManager.DepositQueueExited(user1, ticket, MIN_BOND_ASSETS, 0);
 
         vm.prank(user1);
         _startSnapshotGas("EthNodesManagerTest_test_exitDepositQueue");
         nodesManager.exitDepositQueue(ticket);
         _stopSnapshotGas();
 
-        assertEq(user1.balance, balanceBefore + expectedRefund);
-        assertEq(nodesManager.unclaimedPenalty(), expectedPenalty);
+        assertEq(user1.balance, balanceBefore + MIN_BOND_ASSETS);
+        assertEq(nodesManager.unclaimedPenalty(), 0);
 
         // Request should be deleted
         (address depositor, uint96 assets) = nodesManager.depositRequests(ticket);
@@ -160,9 +160,43 @@ contract EthNodesManagerTest is EthHelpers {
 
         vm.prank(user2);
         vm.expectRevert(Errors.AccessDenied.selector);
-        _startSnapshotGas("EthNodesManagerTest_test_exitDepositQueue_notDepositor");
         nodesManager.exitDepositQueue(ticket);
+    }
+
+    function test_exitDepositQueue_withPenalty() public {
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
+
+        // user1 enters → ticket 0
+        vm.prank(user1);
+        uint256 ticket0 = nodesManager.enterDepositQueue{value: MIN_BOND_ASSETS}();
+
+        // user2 enters with enough for bond → ticket 1
+        vm.prank(user2);
+        uint256 ticket1 = nodesManager.enterDepositQueue{value: 20 ether}();
+
+        // Register validators with ticket 1 → currentTicket advances to 1
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+        vm.prank(user2);
+        nodesManager.registerValidators(ticket1, approvalParams);
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        // Exit ticket 0 → penalty applies (0 < 1)
+        uint256 expectedPenalty = (MIN_BOND_ASSETS * EXIT_PENALTY_PERCENT) / 10_000;
+        uint256 expectedRefund = MIN_BOND_ASSETS - expectedPenalty;
+        uint256 balanceBefore = user1.balance;
+
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.DepositQueueExited(user1, ticket0, expectedRefund, expectedPenalty);
+
+        vm.prank(user1);
+        _startSnapshotGas("EthNodesManagerTest_test_exitDepositQueue_withPenalty");
+        nodesManager.exitDepositQueue(ticket0);
         _stopSnapshotGas();
+
+        assertEq(user1.balance, balanceBefore + expectedRefund);
+        assertEq(nodesManager.unclaimedPenalty(), expectedPenalty);
     }
 
     function test_exitDepositQueue_alreadyExited() public {
@@ -175,9 +209,7 @@ contract EthNodesManagerTest is EthHelpers {
         // Second exit should revert — depositor is address(0) after deletion
         vm.prank(user1);
         vm.expectRevert(Errors.AccessDenied.selector);
-        _startSnapshotGas("EthNodesManagerTest_test_exitDepositQueue_alreadyExited");
         nodesManager.exitDepositQueue(ticket);
-        _stopSnapshotGas();
     }
 
     // ======== setMinBondAssets ========
@@ -199,17 +231,13 @@ contract EthNodesManagerTest is EthHelpers {
     function test_setMinBondAssets_notOwner() public {
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
-        _startSnapshotGas("EthNodesManagerTest_test_setMinBondAssets_notOwner");
         nodesManager.setMinBondAssets(2 ether);
-        _stopSnapshotGas();
     }
 
     function test_setMinBondAssets_sameValue() public {
         vm.prank(owner);
         vm.expectRevert(Errors.ValueNotChanged.selector);
-        _startSnapshotGas("EthNodesManagerTest_test_setMinBondAssets_sameValue");
         nodesManager.setMinBondAssets(MIN_BOND_ASSETS);
-        _stopSnapshotGas();
     }
 
     function test_setMinBondAssets_zero() public {
@@ -241,9 +269,7 @@ contract EthNodesManagerTest is EthHelpers {
 
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
-        _startSnapshotGas("EthNodesManagerTest_test_setExitPenaltyPercent_notOwner");
         nodesManager.setExitPenaltyPercent(120);
-        _stopSnapshotGas();
     }
 
     function test_setExitPenaltyPercent_tooEarly() public {
@@ -251,9 +277,7 @@ contract EthNodesManagerTest is EthHelpers {
 
         vm.prank(owner);
         vm.expectRevert(Errors.TooEarlyUpdate.selector);
-        _startSnapshotGas("EthNodesManagerTest_test_setExitPenaltyPercent_tooEarly");
         nodesManager.setExitPenaltyPercent(120);
-        _stopSnapshotGas();
     }
 
     function test_setExitPenaltyPercent_exceedsMax() public {
@@ -261,9 +285,7 @@ contract EthNodesManagerTest is EthHelpers {
 
         vm.prank(owner);
         vm.expectRevert(Errors.InvalidFeePercent.selector);
-        _startSnapshotGas("EthNodesManagerTest_test_setExitPenaltyPercent_exceedsMax");
         nodesManager.setExitPenaltyPercent(10_001); // > 100%
-        _stopSnapshotGas();
     }
 
     function test_setExitPenaltyPercent_exceedsIncrease() public {
@@ -272,39 +294,27 @@ contract EthNodesManagerTest is EthHelpers {
         // Current is 100 (1%), max allowed is 100 * 120 / 100 = 120 (1.2%)
         vm.prank(owner);
         vm.expectRevert(Errors.InvalidFeePercent.selector);
-        _startSnapshotGas("EthNodesManagerTest_test_setExitPenaltyPercent_exceedsIncrease");
         nodesManager.setExitPenaltyPercent(121);
-        _stopSnapshotGas();
     }
 
     function test_setExitPenaltyPercent_fromZero() public {
-        // Deploy a new manager with 0 penalty
-        EthNodesManager impl = new EthNodesManager(vault);
-        address proxy = address(
-            new ERC1967Proxy(
-                address(impl),
-                abi.encodeWithSelector(
-                    EthNodesManager.initialize.selector, owner, MIN_BOND_ASSETS, uint16(0), LTV_PERCENT
-                )
-            )
-        );
-        EthNodesManager zeroManager = EthNodesManager(payable(proxy));
+        // Set penalty to 0 first
+        vm.warp(block.timestamp + 3 days);
+        vm.prank(owner);
+        nodesManager.setExitPenaltyPercent(0);
+        assertEq(nodesManager.exitPenaltyPercent(), 0);
 
         vm.warp(block.timestamp + 3 days);
 
         // From 0, max allowed is _penaltyUpdateBase = 100 (1%), so 101 should revert
         vm.prank(owner);
         vm.expectRevert(Errors.InvalidFeePercent.selector);
-        _startSnapshotGas("EthNodesManagerTest_test_setExitPenaltyPercent_fromZero_revert");
-        zeroManager.setExitPenaltyPercent(101);
-        _stopSnapshotGas();
+        nodesManager.setExitPenaltyPercent(101);
 
         // 100 should succeed
         vm.prank(owner);
-        _startSnapshotGas("EthNodesManagerTest_test_setExitPenaltyPercent_fromZero");
-        zeroManager.setExitPenaltyPercent(100);
-        _stopSnapshotGas();
-        assertEq(zeroManager.exitPenaltyPercent(), 100);
+        nodesManager.setExitPenaltyPercent(100);
+        assertEq(nodesManager.exitPenaltyPercent(), 100);
     }
 
     function test_setExitPenaltyPercent_decrease() public {
@@ -379,11 +389,27 @@ contract EthNodesManagerTest is EthHelpers {
     // ======== claimPenalty ========
 
     function test_claimPenalty() public {
-        vm.prank(user1);
-        uint256 ticket = nodesManager.enterDepositQueue{value: MIN_BOND_ASSETS}();
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
 
+        // user1 enters → ticket 0
         vm.prank(user1);
-        nodesManager.exitDepositQueue(ticket);
+        uint256 ticket0 = nodesManager.enterDepositQueue{value: MIN_BOND_ASSETS}();
+
+        // user2 enters with enough for bond → ticket 1
+        vm.prank(user2);
+        uint256 ticket1 = nodesManager.enterDepositQueue{value: 20 ether}();
+
+        // Register with ticket 1 → currentTicket = 1
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+        vm.prank(user2);
+        nodesManager.registerValidators(ticket1, approvalParams);
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        // Exit ticket 0 → penalty (0 < 1)
+        vm.prank(user1);
+        nodesManager.exitDepositQueue(ticket0);
 
         uint256 penalty = nodesManager.unclaimedPenalty();
         assertGt(penalty, 0);
@@ -405,31 +431,26 @@ contract EthNodesManagerTest is EthHelpers {
     function test_claimPenalty_notOwner() public {
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
-        _startSnapshotGas("EthNodesManagerTest_test_claimPenalty_notOwner");
         nodesManager.claimPenalty(user1);
-        _stopSnapshotGas();
     }
 
     function test_claimPenalty_zeroAddress() public {
         vm.prank(owner);
         vm.expectRevert(Errors.ZeroAddress.selector);
-        _startSnapshotGas("EthNodesManagerTest_test_claimPenalty_zeroAddress");
         nodesManager.claimPenalty(address(0));
-        _stopSnapshotGas();
     }
 
     function test_claimPenalty_noPenalty() public {
         vm.prank(owner);
         vm.expectRevert(Errors.InvalidAssets.selector);
-        _startSnapshotGas("EthNodesManagerTest_test_claimPenalty_noPenalty");
         nodesManager.claimPenalty(makeAddr("Recipient"));
-        _stopSnapshotGas();
     }
 
     // ======== registerValidators ========
 
     function test_registerValidators_assetsLargerThanBond() public {
-        _prepareForRegistration();
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
 
         // With 50% LTV: bond = 32 * 50% = 16 ETH
         // Deposit 20 ETH: remaining = 20 - 16 = 4 ETH >= 1 ETH minBond → request updated
@@ -442,6 +463,10 @@ contract EthNodesManagerTest is EthHelpers {
 
         IKeeperValidators.ApprovalParams memory approvalParams =
             _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        uint256 expectedShares = IEthVault(vault).convertToShares(expectedBond);
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.ValidatorsRegistered(user1, ticket, expectedBond, expectedShares);
 
         vm.prank(user1);
         _startSnapshotGas("EthNodesManagerTest_test_registerValidators_assetsLargerThanBond");
@@ -463,7 +488,8 @@ contract EthNodesManagerTest is EthHelpers {
     }
 
     function test_registerValidators_assetsLargerThanBond_remainingBelowMinBond() public {
-        _prepareForRegistration();
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
 
         // Bond = 16 ETH, deposit 16.5 ETH → remaining = 0.5 ETH < 1 ETH minBond
         // → request deleted, 0.5 ETH refunded
@@ -478,6 +504,10 @@ contract EthNodesManagerTest is EthHelpers {
 
         IKeeperValidators.ApprovalParams memory approvalParams =
             _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        uint256 expectedShares = IEthVault(vault).convertToShares(expectedBond);
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.ValidatorsRegistered(user1, ticket, expectedBond, expectedShares);
 
         vm.prank(user1);
         _startSnapshotGas("EthNodesManagerTest_test_registerValidators_assetsLargerThanBond_remainingBelowMinBond");
@@ -496,7 +526,8 @@ contract EthNodesManagerTest is EthHelpers {
     }
 
     function test_registerValidators_assetsEqualToBond() public {
-        _prepareForRegistration();
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
 
         // Bond = 16 ETH, deposit exactly 16 ETH → remaining = 0, request deleted
         uint256 depositAmount = 16 ether;
@@ -508,6 +539,10 @@ contract EthNodesManagerTest is EthHelpers {
 
         IKeeperValidators.ApprovalParams memory approvalParams =
             _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        uint256 expectedShares = IEthVault(vault).convertToShares(depositAmount);
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.ValidatorsRegistered(user1, ticket, depositAmount, expectedShares);
 
         vm.prank(user1);
         _startSnapshotGas("EthNodesManagerTest_test_registerValidators_assetsEqualToBond");
@@ -526,7 +561,8 @@ contract EthNodesManagerTest is EthHelpers {
     }
 
     function test_registerValidators_assetsSmallerThanBond() public {
-        _prepareForRegistration();
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
 
         // Bond = 16 ETH, deposit only 15 ETH → reverts
         uint256 depositAmount = 15 ether;
@@ -539,15 +575,14 @@ contract EthNodesManagerTest is EthHelpers {
 
         vm.prank(user1);
         vm.expectRevert(Errors.InvalidAssets.selector);
-        _startSnapshotGas("EthNodesManagerTest_test_registerValidators_assetsSmallerThanBond");
         nodesManager.registerValidators(ticket, approvalParams);
-        _stopSnapshotGas();
 
-        _cleanupAfterRegistration();
+        _stopOracleImpersonate(address(contracts.keeper));
     }
 
     function test_registerValidators_notDepositor() public {
-        _prepareForRegistration();
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
 
         vm.prank(user1);
         uint256 ticket = nodesManager.enterDepositQueue{value: 20 ether}();
@@ -559,24 +594,355 @@ contract EthNodesManagerTest is EthHelpers {
         vm.expectRevert(Errors.AccessDenied.selector);
         nodesManager.registerValidators(ticket, approvalParams);
 
-        _cleanupAfterRegistration();
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    function test_registerValidators_invalidTicket() public {
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
+
+        // user1 enters → ticket 0, user2 enters → ticket 1
+        vm.prank(user1);
+        uint256 ticket0 = nodesManager.enterDepositQueue{value: 20 ether}();
+
+        vm.prank(user2);
+        uint256 ticket1 = nodesManager.enterDepositQueue{value: 20 ether}();
+
+        // Register with ticket 1 → currentTicket = 1
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+        vm.prank(user2);
+        nodesManager.registerValidators(ticket1, approvalParams);
+
+        // Try registering with ticket 0 → reverts (0 < currentTicket 1)
+        approvalParams = _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash2", false);
+
+        vm.prank(user1);
+        vm.expectRevert(Errors.InvalidTicket.selector);
+        nodesManager.registerValidators(ticket0, approvalParams);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    // ======== setWithdrawalsManager ========
+
+    function test_setWithdrawalsManager() public {
+        address newManager = makeAddr("WithdrawalsManager");
+
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.WithdrawalsManagerUpdated(newManager);
+
+        vm.prank(owner);
+        _startSnapshotGas("EthNodesManagerTest_test_setWithdrawalsManager");
+        nodesManager.setWithdrawalsManager(newManager);
+        _stopSnapshotGas();
+
+        assertEq(nodesManager.withdrawalsManager(), newManager);
+    }
+
+    function test_setWithdrawalsManager_notOwner() public {
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
+        nodesManager.setWithdrawalsManager(makeAddr("WithdrawalsManager"));
+    }
+
+    function test_setWithdrawalsManager_sameValue() public {
+        vm.prank(owner);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        nodesManager.setWithdrawalsManager(address(0));
+    }
+
+    // ======== fundValidators ========
+
+    function test_fundValidators() public {
+        _addWithdrawableAssets(2);
+        _startOracleImpersonate(address(contracts.keeper));
+
+        // user1 enters with enough for both register and fund bonds
+        // bond = 16 ETH each, so 40 ETH covers two rounds with 8 ETH remaining
+        vm.prank(user1);
+        uint256 ticket = nodesManager.enterDepositQueue{value: 40 ether}();
+
+        // Register validators (pubkey added to v2Validators)
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        vm.prank(user1);
+        nodesManager.registerValidators(ticket, approvalParams);
+
+        // Fund same validators with same ticket (same operator)
+        bytes memory validators = approvalParams.validators;
+        bytes memory signatures = _getFundValidatorsSignature(ticket, validators);
+
+        uint256 expectedBond = 16 ether;
+        uint256 expectedShares = IEthVault(vault).convertToShares(expectedBond);
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.ValidatorsFunded(user1, ticket, expectedBond, expectedShares);
+
+        vm.prank(user1);
+        _startSnapshotGas("EthNodesManagerTest_test_fundValidators");
+        nodesManager.fundValidators(ticket, validators, signatures);
+        _stopSnapshotGas();
+
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        // Check shares balance
+        assertGt(nodesManager.balances(user1), 0);
+
+        // After register: remaining = 40 - 16 = 24 ETH
+        // After fund: remaining = 24 - 16 = 8 ETH >= 1 ETH minBond
+        (address depositor, uint96 assets) = nodesManager.depositRequests(ticket);
+        assertEq(depositor, user1);
+        assertEq(assets, 8 ether);
+    }
+
+    function test_fundValidators_notDepositor() public {
+        _addWithdrawableAssets(2);
+        _startOracleImpersonate(address(contracts.keeper));
+
+        // user1 enters and registers validators
+        vm.prank(user1);
+        uint256 ticket = nodesManager.enterDepositQueue{value: 40 ether}();
+
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        vm.prank(user1);
+        nodesManager.registerValidators(ticket, approvalParams);
+
+        // user2 tries to fund user1's ticket → reverts
+        bytes memory validators = approvalParams.validators;
+        bytes memory signatures = _getFundValidatorsSignature(ticket, validators);
+
+        vm.prank(user2);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        nodesManager.fundValidators(ticket, validators, signatures);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    function test_fundValidators_invalidSignatures_empty() public {
+        _startOracleImpersonate(address(contracts.keeper));
+
+        vm.prank(user1);
+        uint256 ticket = nodesManager.enterDepositQueue{value: 20 ether}();
+
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        vm.prank(user1);
+        vm.expectRevert(Errors.InvalidSignatures.selector);
+        nodesManager.fundValidators(ticket, approvalParams.validators, bytes(""));
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    function test_fundValidators_invalidSignatures_wrongLength() public {
+        _startOracleImpersonate(address(contracts.keeper));
+
+        vm.prank(user1);
+        uint256 ticket = nodesManager.enterDepositQueue{value: 20 ether}();
+
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        // Wrong length (not a multiple of 65)
+        bytes memory badSig = new bytes(64);
+
+        vm.prank(user1);
+        vm.expectRevert(Errors.InvalidSignatures.selector);
+        nodesManager.fundValidators(ticket, approvalParams.validators, badSig);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    function test_fundValidators_invalidSignatures_wrongSigner() public {
+        _startOracleImpersonate(address(contracts.keeper));
+
+        vm.prank(user1);
+        uint256 ticket = nodesManager.enterDepositQueue{value: 20 ether}();
+
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        // Sign with a non-oracle key
+        (, uint256 nonOracleKey) = makeAddrAndKey("nonOracle");
+        bytes memory signatures = _getFundValidatorsSignatureWithKey(ticket, approvalParams.validators, nonOracleKey);
+
+        vm.prank(user1);
+        vm.expectRevert(Errors.InvalidSignatures.selector);
+        nodesManager.fundValidators(ticket, approvalParams.validators, signatures);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    function test_fundValidators_invalidTicket() public {
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
+
+        // user1 enters two deposits → ticket 0 and ticket 1
+        vm.prank(user1);
+        uint256 ticket0 = nodesManager.enterDepositQueue{value: 20 ether}();
+
+        vm.prank(user1);
+        uint256 ticket1 = nodesManager.enterDepositQueue{value: 20 ether}();
+
+        // Register with ticket 1 → currentTicket = 1
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+        vm.prank(user1);
+        nodesManager.registerValidators(ticket1, approvalParams);
+
+        // Fund with ticket 0 → reverts (0 < currentTicket 1)
+        bytes memory validators = approvalParams.validators;
+        bytes memory signatures = _getFundValidatorsSignature(ticket0, validators);
+
+        vm.prank(user1);
+        vm.expectRevert(Errors.InvalidTicket.selector);
+        nodesManager.fundValidators(ticket0, validators, signatures);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    function test_fundValidators_signatureReplay() public {
+        _addWithdrawableAssets(3);
+        _startOracleImpersonate(address(contracts.keeper));
+
+        // user1 enters with enough for register + 2 fund rounds
+        // bond = 16 ETH each, so 56 ETH covers three rounds with 8 ETH remaining
+        vm.prank(user1);
+        uint256 ticket = nodesManager.enterDepositQueue{value: 56 ether}();
+
+        // Register validators
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+        vm.prank(user1);
+        nodesManager.registerValidators(ticket, approvalParams);
+
+        // Fund validators (nonce 0)
+        bytes memory validators = approvalParams.validators;
+        bytes memory signatures = _getFundValidatorsSignature(ticket, validators);
+        vm.prank(user1);
+        nodesManager.fundValidators(ticket, validators, signatures);
+        assertEq(nodesManager.ticketNonces(ticket), 1);
+
+        // Replay same signatures (nonce 0) → reverts because nonce is now 1
+        vm.prank(user1);
+        vm.expectRevert(Errors.InvalidSignatures.selector);
+        nodesManager.fundValidators(ticket, validators, signatures);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    // ======== withdrawValidators ========
+
+    function test_withdrawValidators() public {
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
+
+        // Register a validator to collateralize the vault
+        vm.prank(user1);
+        uint256 ticket = nodesManager.enterDepositQueue{value: 20 ether}();
+
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        vm.prank(user1);
+        nodesManager.registerValidators(ticket, approvalParams);
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        // Set withdrawals manager
+        address wManager = makeAddr("WithdrawalsManager");
+        vm.prank(owner);
+        nodesManager.setWithdrawalsManager(wManager);
+
+        // Construct withdrawal data: 48 bytes pubkey + 8 bytes amount (gwei)
+        bytes memory pubKey = new bytes(48);
+        bytes memory withdrawalData = bytes.concat(pubKey, bytes8(uint64(32 ether / 1 gwei)));
+
+        // Fee is 0.1 ETH per validator in the mock
+        uint256 fee = 0.1 ether;
+        vm.deal(wManager, fee);
+
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.ValidatorWithdrawalSubmitted(wManager);
+
+        vm.prank(wManager);
+        _startSnapshotGas("EthNodesManagerTest_test_withdrawValidators");
+        nodesManager.withdrawValidators{value: fee}(withdrawalData);
+        _stopSnapshotGas();
+    }
+
+    function test_withdrawValidators_notWithdrawalsManager() public {
+        // Set withdrawals manager
+        address wManager = makeAddr("WithdrawalsManager");
+        vm.prank(owner);
+        nodesManager.setWithdrawalsManager(wManager);
+
+        bytes memory withdrawalData = new bytes(56);
+
+        vm.prank(user1);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        nodesManager.withdrawValidators(withdrawalData);
+    }
+
+    function test_withdrawValidators_noWithdrawalsManager() public {
+        bytes memory withdrawalData = new bytes(56);
+
+        vm.prank(user1);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        nodesManager.withdrawValidators(withdrawalData);
     }
 
     // ======== Helpers ========
 
-    function _prepareForRegistration() internal {
+    function _addWithdrawableAssets(uint256 validatorDeposits) internal {
         // A forked vault may have queued shares in the exit queue that reduce
         // withdrawableAssets, so account for those when pre-funding the vault.
         (uint128 queuedShares,,, uint128 totalExitingAssets,) = IEthVault(vault).getExitQueueData();
         uint256 queuedAssets = IEthVault(vault).convertToAssets(queuedShares) + totalExitingAssets;
-        uint256 depositAmount = VALIDATOR_DEPOSIT + queuedAssets;
+        uint256 depositAmount = validatorDeposits * VALIDATOR_DEPOSIT + queuedAssets;
         vm.deal(address(this), depositAmount);
         IEthVault(vault).deposit{value: depositAmount}(address(this), address(0));
-
-        _startOracleImpersonate(address(contracts.keeper));
     }
 
-    function _cleanupAfterRegistration() internal {
-        _stopOracleImpersonate(address(contracts.keeper));
+    function _hashNodesManagerTypedData(bytes32 structHash) internal view returns (bytes32) {
+        return MessageHashUtils.toTypedDataHash(
+            keccak256(
+                abi.encode(
+                    keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
+                    keccak256(bytes("NodesManager")),
+                    keccak256(bytes("1")),
+                    block.chainid,
+                    address(nodesManager)
+                )
+            ),
+            structHash
+        );
+    }
+
+    function _getFundValidatorsSignature(uint256 ticket, bytes memory validators) internal view returns (bytes memory) {
+        return _getFundValidatorsSignatureWithKey(ticket, validators, _oraclePrivateKey);
+    }
+
+    function _getFundValidatorsSignatureWithKey(uint256 ticket, bytes memory validators, uint256 privateKey)
+        internal
+        view
+        returns (bytes memory)
+    {
+        uint256 nonce = nodesManager.ticketNonces(ticket);
+        bytes32 digest = _hashNodesManagerTypedData(
+            keccak256(
+                abi.encode(
+                    keccak256("FundValidators(uint256 ticket,uint256 nonce,address vault,bytes validators)"),
+                    ticket,
+                    nonce,
+                    vault,
+                    keccak256(validators)
+                )
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+        return abi.encodePacked(r, s, v);
     }
 }
