@@ -12,49 +12,28 @@ import {IKeeperRewards} from "./IKeeperRewards.sol";
  */
 interface INodesManager {
     /**
-     * @notice Struct for storing deposit request data
-     * @param depositor The address of the depositor
+     * @notice Event emitted on deposit
+     * @param user The address of the user
      * @param assets The deposit assets
+     * @param shares The vault shares received for the deposit
      */
-    struct DepositRequest {
-        address depositor;
-        uint96 assets;
-    }
-
-    /**
-     * @notice Event emitted on entering the deposit queue
-     * @param depositor The address of the depositor
-     * @param ticket The deposit queue ticket assigned to the request
-     * @param assets The deposit assets
-     */
-    event DepositQueueEntered(address indexed depositor, uint256 indexed ticket, uint256 assets);
-
-    /**
-     * @notice Event emitted on exiting the deposit queue
-     * @param depositor The address of the depositor
-     * @param ticket The deposit queue ticket that was exited
-     * @param assets The assets returned to the depositor
-     * @param penalty The penalty assets deducted
-     */
-    event DepositQueueExited(address indexed depositor, uint256 indexed ticket, uint256 assets, uint256 penalty);
+    event Deposited(address indexed user, uint256 assets, uint256 shares);
 
     /**
      * @notice Event emitted on validators registration
-     * @param depositor The address of the depositor
-     * @param ticket The deposit queue ticket used for the bond
-     * @param bondAssets The total bond assets deposited to the vault
-     * @param shares The vault shares received for the bond
+     * @param user The address of the user
+     * @param nonce The nonce used for signature replay protection
+     * @param publicKeys The concatenation of the validators' public keys
      */
-    event ValidatorsRegistered(address indexed depositor, uint256 indexed ticket, uint256 bondAssets, uint256 shares);
+    event ValidatorsRegistered(address indexed user, uint256 nonce, bytes publicKeys);
 
     /**
      * @notice Event emitted on validators funding
-     * @param depositor The address of the depositor
-     * @param ticket The deposit queue ticket used for the bond
-     * @param bondAssets The total bond assets deposited to the vault
-     * @param shares The vault shares received for the bond
+     * @param user The address of the user
+     * @param nonce The nonce used for signature replay protection
+     * @param publicKeys The concatenation of the validators' public keys
      */
-    event ValidatorsFunded(address indexed depositor, uint256 indexed ticket, uint256 bondAssets, uint256 shares);
+    event ValidatorsFunded(address indexed user, uint256 nonce, bytes publicKeys);
 
     /**
      * @notice Event emitted when the minimum bond assets are updated
@@ -63,26 +42,11 @@ interface INodesManager {
     event MinBondAssetsUpdated(uint256 minBondAssets);
 
     /**
-     * @notice Event emitted when the exit penalty percent is updated
-     * @param caller The address of the function caller
-     * @param exitPenaltyPercent The new exit penalty percent
-     */
-    event ExitPenaltyPercentUpdated(address indexed caller, uint16 exitPenaltyPercent);
-
-    /**
      * @notice Event emitted when the LTV percent is updated
      * @param caller The address of the function caller
      * @param ltvPercent The new LTV percent
      */
     event LtvPercentUpdated(address indexed caller, uint16 ltvPercent);
-
-    /**
-     * @notice Event emitted when the owner claims accumulated penalties
-     * @param caller The address of the function caller
-     * @param recipient The address that received the penalty assets
-     * @param assets The amount of penalty assets claimed
-     */
-    event PenaltyClaimed(address indexed caller, address indexed recipient, uint256 assets);
 
     /**
      * @notice Event emitted when the withdrawals manager is updated
@@ -115,19 +79,6 @@ interface INodesManager {
     function setMinBondAssets(uint256 newMinBondAssets) external;
 
     /**
-     * @notice The exit penalty percent in BPS applied when exiting the deposit queue (10000 = 100%)
-     * @return The exit penalty percent
-     */
-    function exitPenaltyPercent() external view returns (uint16);
-
-    /**
-     * @notice Updates the exit penalty percent. Can only be called by the owner.
-     *         Subject to a 3-day delay and max 20% increase per update.
-     * @param newExitPenaltyPercent The new exit penalty percent
-     */
-    function setExitPenaltyPercent(uint16 newExitPenaltyPercent) external;
-
-    /**
      * @notice The LTV percent in BPS that determines the bond per validator (10000 = 100%)
      * @return The LTV percent
      */
@@ -140,56 +91,18 @@ interface INodesManager {
     function setLtvPercent(uint16 newLtvPercent) external;
 
     /**
-     * @notice The total unclaimed penalty assets accumulated from exit penalties
-     * @return The unclaimed penalty assets
-     */
-    function unclaimedPenalty() external view returns (uint256);
-
-    /**
-     * @notice Claims accumulated penalty assets. Can only be called by the owner.
-     * @param recipient The address to receive the penalty assets
-     */
-    function claimPenalty(address recipient) external;
-
-    /**
-     * @notice The cumulative total number of tickets created
-     * @return The cumulative total tickets
-     */
-    function totalTickets() external view returns (uint256);
-
-    /**
-     * @notice The latest processed ticket
-     * @return The current ticket
-     */
-    function currentTicket() external view returns (uint256);
-
-    /**
-     * @notice Returns the deposit request for the given ticket
-     * @param ticket The deposit queue ticket
-     * @return depositor The address of the depositor
-     * @return assets The deposit assets
-     */
-    function depositRequests(uint256 ticket) external view returns (address depositor, uint96 assets);
-
-    /**
      * @notice Returns the vault shares balance for the given account
-     * @param account The account address
+     * @param user The user address
      * @return The vault shares balance
      */
-    function balances(address account) external view returns (uint256);
+    function balances(address user) external view returns (uint256);
 
     /**
-     * @notice Exits the deposit queue and reclaims the deposit
-     * @param ticket The deposit queue ticket to exit
+     * @notice Returns the current nonce for the given user, used for signature replay protection
+     * @param user The user address
+     * @return The current nonce
      */
-    function exitDepositQueue(uint256 ticket) external;
-
-    /**
-     * @notice Registers validators using bond from the deposit queue
-     * @param ticket The deposit queue ticket to use for the bond
-     * @param keeperParams The keeper approval parameters containing validator data
-     */
-    function registerValidators(uint256 ticket, IKeeperValidators.ApprovalParams calldata keeperParams) external;
+    function nonces(address user) external view returns (uint256);
 
     /**
      * @notice Updates the vault state by harvesting rewards
@@ -210,19 +123,19 @@ interface INodesManager {
     function setWithdrawalsManager(address newWithdrawalsManager) external;
 
     /**
-     * @notice Returns the current nonce for the given ticket, used for fund validators signature replay protection
-     * @param ticket The deposit queue ticket
-     * @return The current nonce
+     * @notice Registers validators with oracle-approved signatures
+     * @param keeperParams The keeper approval parameters containing validator data
+     * @param signatures The concatenation of the oracles' signatures
      */
-    function ticketNonces(uint256 ticket) external view returns (uint256);
+    function registerValidators(IKeeperValidators.ApprovalParams calldata keeperParams, bytes calldata signatures)
+        external;
 
     /**
-     * @notice Funds validators using bond from the deposit queue
-     * @param ticket The deposit queue ticket to use for the bond
+     * @notice Funds validators with oracle-approved signatures
      * @param validators The concatenation of the validators' data
      * @param signatures The concatenation of the oracles' signatures approving the funding
      */
-    function fundValidators(uint256 ticket, bytes calldata validators, bytes calldata signatures) external;
+    function fundValidators(bytes calldata validators, bytes calldata signatures) external;
 
     /**
      * @notice Submits validator withdrawals. Can only be called by the withdrawals manager.

@@ -2,9 +2,7 @@
 
 pragma solidity ^0.8.22;
 
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -15,7 +13,6 @@ import {IKeeper} from "../interfaces/IKeeper.sol";
 import {IVaultState} from "../interfaces/IVaultState.sol";
 import {IVaultValidators} from "../interfaces/IVaultValidators.sol";
 import {Errors} from "../libraries/Errors.sol";
-import {ValidatorUtils} from "../libraries/ValidatorUtils.sol";
 import {Multicall} from "../base/Multicall.sol";
 
 abstract contract NodesManager is
@@ -26,13 +23,12 @@ abstract contract NodesManager is
     INodesManager
 {
     uint256 private constant _maxPercent = 10_000; // @dev 100.00 %
-    uint256 private constant _penaltyUpdateDelay = 3 days;
-    uint256 private constant _penaltyUpdateMultiplier = 120;
-    uint256 private constant _penaltyUpdateBase = 100;
     uint256 private constant _validatorV2DepositLength = 184;
     uint256 private constant _signatureLength = 65;
     bytes32 private constant _fundValidatorsTypeHash =
-        keccak256("FundValidators(uint256 ticket,uint256 nonce,address vault,bytes validators)");
+        keccak256("FundValidators(address user,uint256 nonce,address vault,bytes validators)");
+    bytes32 private constant _registerValidatorsTypeHash =
+        keccak256("RegisterValidators(address user,uint256 nonce,address vault,bytes validators)");
 
     IKeeper private immutable _keeper;
 
@@ -43,33 +39,16 @@ abstract contract NodesManager is
     uint256 public override minBondAssets;
 
     /// @inheritdoc INodesManager
-    uint16 public override exitPenaltyPercent;
-
-    uint64 private _lastPenaltyUpdateTimestamp;
-
-    /// @inheritdoc INodesManager
-    uint256 public override unclaimedPenalty;
-
-    /// @inheritdoc INodesManager
-    uint256 public override totalTickets;
-
-    /// @inheritdoc INodesManager
-    uint256 public override currentTicket;
-
-    /// @inheritdoc INodesManager
-    mapping(uint256 ticket => DepositRequest request) public override depositRequests;
-
-    /// @inheritdoc INodesManager
     uint16 public override ltvPercent;
-
-    /// @inheritdoc INodesManager
-    mapping(address account => uint256 shares) public override balances;
 
     /// @inheritdoc INodesManager
     address public override withdrawalsManager;
 
     /// @inheritdoc INodesManager
-    mapping(uint256 ticket => uint256 nonce) public override ticketNonces;
+    mapping(address user => uint256 shares) public override balances;
+
+    /// @inheritdoc INodesManager
+    mapping(address user => uint256 nonce) public override nonces;
 
     /**
      * @dev Modifier to restrict access to the withdrawals manager
@@ -93,19 +72,14 @@ abstract contract NodesManager is
      * @dev Initializes the NodesManager contract
      * @param _owner The address of the contract owner
      * @param _minBondAssets The minimum assets required for a deposit request
-     * @param _exitPenaltyPercent The exit penalty percent in BPS
      * @param _ltvPercent The LTV percent in BPS
      */
-    function __NodesManager_init(address _owner, uint256 _minBondAssets, uint16 _exitPenaltyPercent, uint16 _ltvPercent)
-        internal
-        onlyInitializing
-    {
+    function __NodesManager_init(address _owner, uint256 _minBondAssets, uint16 _ltvPercent) internal onlyInitializing {
         __Ownable_init(_owner);
         __Ownable2Step_init();
         __EIP712_init("NodesManager", "1");
         __UUPSUpgradeable_init();
         _setMinBondAssets(_minBondAssets);
-        _setExitPenaltyPercent(_exitPenaltyPercent, true);
         _setLtvPercent(_ltvPercent);
     }
 
@@ -113,12 +87,6 @@ abstract contract NodesManager is
     function setMinBondAssets(uint256 newMinBondAssets) external override onlyOwner {
         if (minBondAssets == newMinBondAssets) revert Errors.ValueNotChanged();
         _setMinBondAssets(newMinBondAssets);
-    }
-
-    /// @inheritdoc INodesManager
-    function setExitPenaltyPercent(uint16 newExitPenaltyPercent) external override onlyOwner {
-        if (exitPenaltyPercent == newExitPenaltyPercent) revert Errors.ValueNotChanged();
-        _setExitPenaltyPercent(newExitPenaltyPercent, false);
     }
 
     /// @inheritdoc INodesManager
@@ -135,77 +103,57 @@ abstract contract NodesManager is
     }
 
     /// @inheritdoc INodesManager
-    function claimPenalty(address recipient) external override onlyOwner {
-        if (recipient == address(0)) revert Errors.ZeroAddress();
-
-        // SLOAD to memory
-        uint256 assets = unclaimedPenalty;
-        if (assets == 0) revert Errors.InvalidAssets();
-
-        unclaimedPenalty = 0;
-        _transferAssets(recipient, assets);
-        emit PenaltyClaimed(msg.sender, recipient, assets);
-    }
-
-    /// @inheritdoc INodesManager
     function updateVaultState(IKeeperRewards.HarvestParams calldata harvestParams) external override {
         IVaultState(vault).updateState(harvestParams);
     }
 
     /// @inheritdoc INodesManager
-    function exitDepositQueue(uint256 ticket) external override {
-        DepositRequest memory request = depositRequests[ticket];
-        if (request.depositor != msg.sender) revert Errors.AccessDenied();
-
-        uint256 assets = request.assets;
-        if (assets == 0) revert Errors.InvalidAssets();
-
-        uint256 penalty;
-        if (ticket < currentTicket) {
-            penalty = Math.mulDiv(assets, exitPenaltyPercent, _maxPercent);
-            if (penalty > 0) {
-                unchecked {
-                    // cannot underflow as penalty is guaranteed to be less than assets
-                    assets -= penalty;
-                    // cannot realistically overflow as penalty is expected to be a small percentage of assets
-                    unclaimedPenalty += penalty;
-                }
-            }
-        }
-
-        delete depositRequests[ticket];
-        _transferAssets(msg.sender, assets);
-        emit DepositQueueExited(msg.sender, ticket, assets, penalty);
-    }
-
-    /// @inheritdoc INodesManager
-    function registerValidators(uint256 ticket, IKeeperValidators.ApprovalParams calldata keeperParams)
+    function registerValidators(IKeeperValidators.ApprovalParams calldata keeperParams, bytes calldata signatures)
         external
         override
     {
-        (uint256 totalBond, uint256 shares) = _processDepositRequest(ticket, keeperParams.validators);
+        // verify oracles approved registering these validators
+        uint256 nonce = nonces[msg.sender];
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(
+                abi.encode(_registerValidatorsTypeHash, msg.sender, nonce, vault, keccak256(keeperParams.validators))
+            )
+        );
+        _verifySignatures(digest, signatures);
 
         // register validators in the vault
         IVaultValidators(vault).registerValidators(keeperParams, bytes(""));
 
+        // extract public keys from validators data
+        bytes memory publicKeys = _getValidatorsPublicKeys(keeperParams.validators);
+
+        // update nonce
+        nonces[msg.sender] = nonce + 1;
+
         // emit event
-        emit ValidatorsRegistered(msg.sender, ticket, totalBond, shares);
+        emit ValidatorsRegistered(msg.sender, nonce, publicKeys);
     }
 
     /// @inheritdoc INodesManager
-    function fundValidators(uint256 ticket, bytes calldata validators, bytes calldata signatures) external override {
+    function fundValidators(bytes calldata validators, bytes calldata signatures) external override {
         // verify oracles approved funding these validators
-        uint256 nonce = ticketNonces[ticket];
-        _verifyFundValidatorsSignatures(ticket, nonce, validators, signatures);
-        ticketNonces[ticket] = nonce + 1;
-
-        (uint256 totalBond, uint256 shares) = _processDepositRequest(ticket, validators);
+        uint256 nonce = nonces[msg.sender];
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(abi.encode(_fundValidatorsTypeHash, msg.sender, nonce, vault, keccak256(validators)))
+        );
+        _verifySignatures(digest, signatures);
 
         // fund validators in the vault
         IVaultValidators(vault).fundValidators(validators, bytes(""));
 
+        // extract public keys from validators data
+        bytes memory publicKeys = _getValidatorsPublicKeys(validators);
+
+        // update nonce
+        nonces[msg.sender] = nonce + 1;
+
         // emit event
-        emit ValidatorsFunded(msg.sender, ticket, totalBond, shares);
+        emit ValidatorsFunded(msg.sender, nonce, publicKeys);
     }
 
     /// @inheritdoc INodesManager
@@ -215,72 +163,23 @@ abstract contract NodesManager is
     }
 
     /**
-     * @dev Internal function to process the deposit request for registering or funding validators
-     * @param ticket The deposit queue ticket to process
-     * @param validators The concatenation of the validators' data for calculating the total bond
-     * @return totalBond The total bond amount required for the validators
-     * @return shares The vault shares received after depositing the bond
+     * @dev Internal function to deposit bond assets to the vault and update the depositor's shares balance
+     * @param assets The amount of bond assets to deposit
+     * @return shares The amount of shares received from the vault for the deposited bond assets
      */
-    function _processDepositRequest(uint256 ticket, bytes calldata validators)
-        internal
-        returns (uint256 totalBond, uint256 shares)
-    {
-        // check whether the caller has deposit request based on ticket and msg.sender
-        DepositRequest memory request = depositRequests[ticket];
-        if (request.depositor != msg.sender) revert Errors.AccessDenied();
-
-        // check and update the current ticket
-        uint256 _currentTicket = currentTicket;
-        if (ticket < _currentTicket) revert Errors.InvalidTicket();
-        if (ticket > _currentTicket) currentTicket = ticket;
-
-        (, uint256 totalDeposit) = _getValidatorsTotalDeposit(validators);
-        if (totalDeposit == 0) revert Errors.InvalidValidators();
-
-        // calculate required bond based on the total deposit and ltvPercent
-        totalBond = Math.mulDiv(totalDeposit, _maxPercent - ltvPercent, _maxPercent);
-        if (totalBond == 0) revert Errors.InvalidLtvPercent();
-        if (request.assets < totalBond) revert Errors.InvalidAssets();
-
-        // calculate remaining assets in the deposit request
-        uint256 remainingAssets;
-        unchecked {
-            // cannot underflow as request.assets >= totalBond is checked above
-            remainingAssets = request.assets - totalBond;
-        }
-
-        if (remainingAssets < minBondAssets) {
-            delete depositRequests[ticket];
-            if (remainingAssets > 0) {
-                _transferAssets(msg.sender, remainingAssets);
-            }
-        } else {
-            depositRequests[ticket].assets = SafeCast.toUint96(remainingAssets);
-        }
-
-        // deposit bond to the vault and update balance
-        shares = _depositToVault(totalBond);
-        balances[msg.sender] += shares;
-    }
-
-    /**
-     * @dev Enters the deposit queue with the given assets
-     * @param assets The amount of assets to deposit
-     * @return ticket The deposit queue ticket assigned to the request
-     */
-    function _enterDepositQueue(uint256 assets) internal returns (uint256 ticket) {
+    function _deposit(uint256 assets) internal returns (uint256 shares) {
         if (assets < minBondAssets) revert Errors.InvalidAssets();
 
-        // store the sender address and the deposit amount in requests
-        ticket = totalTickets;
-        depositRequests[ticket] = DepositRequest({depositor: msg.sender, assets: SafeCast.toUint96(assets)});
+        // deposit assets to the vault
+        shares = _depositToVault(assets);
 
         unchecked {
-            // cannot realistically overflow
-            totalTickets++;
+            // cannot overflow because the sum of all user
+            // balances can't exceed the max uint256 value
+            balances[msg.sender] += shares;
         }
 
-        emit DepositQueueEntered(msg.sender, ticket, assets);
+        emit Deposited(msg.sender, assets, shares);
     }
 
     /**
@@ -294,35 +193,6 @@ abstract contract NodesManager is
     }
 
     /**
-     * @dev Internal function for updating the exit penalty percent
-     * @param newExitPenaltyPercent The new exit penalty percent
-     * @param isInitialization Flag indicating whether the penalty is set during initialization
-     */
-    function _setExitPenaltyPercent(uint16 newExitPenaltyPercent, bool isInitialization) private {
-        if (newExitPenaltyPercent > _maxPercent) revert Errors.InvalidFeePercent();
-
-        if (!isInitialization) {
-            if (_lastPenaltyUpdateTimestamp + _penaltyUpdateDelay > block.timestamp) {
-                revert Errors.TooEarlyUpdate();
-            }
-
-            // check that the penalty percent can be increased only by 20% at a time
-            // if the current penalty is 0, then it cannot exceed 1% initially
-            uint256 currentPenaltyPercent = exitPenaltyPercent;
-            uint256 maxAllowedPercent = currentPenaltyPercent > 0
-                ? (currentPenaltyPercent * _penaltyUpdateMultiplier) / _penaltyUpdateBase
-                : _penaltyUpdateBase;
-            if (maxAllowedPercent < newExitPenaltyPercent) {
-                revert Errors.InvalidFeePercent();
-            }
-        }
-
-        exitPenaltyPercent = newExitPenaltyPercent;
-        _lastPenaltyUpdateTimestamp = uint64(block.timestamp);
-        emit ExitPenaltyPercentUpdated(msg.sender, newExitPenaltyPercent);
-    }
-
-    /**
      * @dev Internal function for updating the LTV percent
      * @param newLtvPercent The new LTV percent
      */
@@ -333,19 +203,11 @@ abstract contract NodesManager is
     }
 
     /**
-     * @dev Verifies that oracles have approved funding validators
-     * @param ticket The deposit queue ticket
-     * @param nonce The current fund nonce for the ticket
-     * @param validators The concatenation of the validators' data
+     * @dev Verifies that oracles have approved the action by checking their signatures
+     * @param digest The EIP-712 typed data hash to verify signatures against
      * @param signatures The concatenation of the oracles' signatures
      */
-    function _verifyFundValidatorsSignatures(
-        uint256 ticket,
-        uint256 nonce,
-        bytes calldata validators,
-        bytes calldata signatures
-    ) private view {
-        // verify oracle signatures
+    function _verifySignatures(bytes32 digest, bytes calldata signatures) private view {
         uint256 requiredSignatures = _keeper.validatorsMinOracles();
         uint256 signaturesLength = signatures.length;
         if (
@@ -355,16 +217,13 @@ abstract contract NodesManager is
             revert Errors.InvalidSignatures();
         }
 
-        bytes32 data =
-            _hashTypedDataV4(keccak256(abi.encode(_fundValidatorsTypeHash, ticket, nonce, vault, keccak256(validators))));
-
         address lastOracle;
         address currentOracle;
         uint256 startIndex;
         for (uint256 i = 0; i < requiredSignatures; i++) {
             unchecked {
                 // cannot overflow as signatures.length is checked above
-                currentOracle = ECDSA.recover(data, signatures[startIndex:startIndex + _signatureLength]);
+                currentOracle = ECDSA.recover(digest, signatures[startIndex:startIndex + _signatureLength]);
             }
             // signatures must be sorted by oracles' addresses and not repeat
             if (currentOracle <= lastOracle || !_keeper.isOracle(currentOracle)) {
@@ -382,28 +241,22 @@ abstract contract NodesManager is
     }
 
     /**
-     * @dev Internal function to calculate the total deposit amount from the validators data
+     * @dev Internal function to extract the validators' public keys from the concatenated validators data
      * @param validators The concatenation of the validators' data
-     * @return validatorsCount The number of validators
-     * @return totalDeposit The total deposit amount calculated from the validators data
+     * @return publicKeys The concatenation of the validators' public keys extracted from the validators data
      */
-    function _getValidatorsTotalDeposit(bytes calldata validators)
-        internal
-        pure
-        returns (uint256 validatorsCount, uint256 totalDeposit)
-    {
+    function _getValidatorsPublicKeys(bytes calldata validators) internal pure returns (bytes memory publicKeys) {
         uint256 validatorsLength = validators.length;
         if (validatorsLength == 0 || validatorsLength % _validatorV2DepositLength != 0) {
             revert Errors.InvalidValidators();
         }
-        validatorsCount = validatorsLength / _validatorV2DepositLength;
+        uint256 validatorsCount = validatorsLength / _validatorV2DepositLength;
 
-        // calculate total deposit by summing up the deposits of all validators
+        // extract public keys
         uint256 startIndex;
         for (uint256 i = 0; i < validatorsCount;) {
-            totalDeposit += ValidatorUtils.getValidatorDepositAmount(
-                validators[startIndex:startIndex + _validatorV2DepositLength]
-            );
+            bytes calldata validator = validators[startIndex:startIndex + _validatorV2DepositLength];
+            publicKeys = bytes.concat(publicKeys, validator[:48]);
             unchecked {
                 ++i;
                 startIndex += _validatorV2DepositLength;
@@ -413,13 +266,6 @@ abstract contract NodesManager is
 
     /// @inheritdoc UUPSUpgradeable
     function _authorizeUpgrade(address) internal override onlyOwner {}
-
-    /**
-     * @dev Transfers assets to the receiver. Must be implemented by network-specific contracts.
-     * @param receiver The address to transfer assets to
-     * @param assets The amount of assets to transfer
-     */
-    function _transferAssets(address receiver, uint256 assets) internal virtual;
 
     /**
      * @dev Deposits assets to the vault and returns the shares received.

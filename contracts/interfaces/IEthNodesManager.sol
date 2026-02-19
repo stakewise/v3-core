@@ -11,8 +11,8 @@ import {INodesManager} from "./INodesManager.sol";
  */
 interface IEthNodesManager is INodesManager {
     /**
-     * @notice Enters the deposit queue by sending ETH
-     * @return ticket The deposit queue ticket assigned to the request
+     * @notice Deposits ETH as bond assets
+     * @return shares The vault shares received for the deposit
      */
-    function enterDepositQueue() external payable returns (uint256 ticket);
+    function deposit() external payable returns (uint256 shares);
 }
