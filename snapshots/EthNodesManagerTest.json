@@ -1,11 +1,11 @@
 {
-  "EthNodesManagerTest_test_deposit": "119092",
-  "EthNodesManagerTest_test_deposit_multipleDeposits_first": "119092",
-  "EthNodesManagerTest_test_deposit_multipleDeposits_second": "101343",
-  "EthNodesManagerTest_test_fundValidators": "140006",
-  "EthNodesManagerTest_test_registerValidators": "316858",
-  "EthNodesManagerTest_test_setLtvPercent": "40804",
-  "EthNodesManagerTest_test_setMinBondAssets": "40264",
-  "EthNodesManagerTest_test_setWithdrawalsManager": "40585",
-  "EthNodesManagerTest_test_withdrawValidators": "87416"
+  "EthNodesManagerTest_test_deposit": "119655",
+  "EthNodesManagerTest_test_deposit_multipleDeposits_first": "119655",
+  "EthNodesManagerTest_test_deposit_multipleDeposits_second": "101941",
+  "EthNodesManagerTest_test_fundValidators": "157369",
+  "EthNodesManagerTest_test_registerValidators": "317145",
+  "EthNodesManagerTest_test_setLtvPercent": "40885",
+  "EthNodesManagerTest_test_setMinDepositAssets": "40257",
+  "EthNodesManagerTest_test_setWithdrawalsManager": "40615",
+  "EthNodesManagerTest_test_withdrawValidators": "87441"
 }

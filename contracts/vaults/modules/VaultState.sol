@@ -86,6 +86,15 @@ abstract contract VaultState is VaultImmutables, Initializable, VaultFee, IVault
     }
 
     /// @inheritdoc IVaultState
+    function donateShares(uint256 shares) public virtual override {
+        if (shares == 0) {
+            revert Errors.InvalidShares();
+        }
+        _burnShares(msg.sender, shares);
+        emit SharesDonated(msg.sender, shares);
+    }
+
+    /// @inheritdoc IVaultState
     function capacity() public view override returns (uint256) {
         // SLOAD to memory
         uint256 capacity_ = _capacity;

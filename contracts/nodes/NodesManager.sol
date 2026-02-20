@@ -3,6 +3,8 @@
 pragma solidity ^0.8.22;
 
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
 import {EIP712Upgradeable} from "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
@@ -26,9 +28,11 @@ abstract contract NodesManager is
     uint256 private constant _validatorV2DepositLength = 184;
     uint256 private constant _signatureLength = 65;
     bytes32 private constant _fundValidatorsTypeHash =
-        keccak256("FundValidators(address user,uint256 nonce,address vault,bytes validators)");
+        keccak256("FundValidators(address operator,uint256 nonce,address vault,bytes validators)");
     bytes32 private constant _registerValidatorsTypeHash =
-        keccak256("RegisterValidators(address user,uint256 nonce,address vault,bytes validators)");
+        keccak256("RegisterValidators(address operator,uint256 nonce,address vault,bytes validators)");
+    bytes32 private constant _updateStateTypeHash =
+        keccak256("UpdateState(bytes32 stateRoot,string stateIpfsHash,uint64 updateTimestamp,uint256 nonce)");
 
     IKeeper private immutable _keeper;
 
@@ -36,19 +40,22 @@ abstract contract NodesManager is
     address public immutable override vault;
 
     /// @inheritdoc INodesManager
-    uint256 public override minBondAssets;
+    mapping(address operator => OperatorState state) public override operatorStates;
 
     /// @inheritdoc INodesManager
-    uint16 public override ltvPercent;
+    StateData public override stateData;
+
+    /// @inheritdoc INodesManager
+    uint256 public override minDepositAssets;
 
     /// @inheritdoc INodesManager
     address public override withdrawalsManager;
 
     /// @inheritdoc INodesManager
-    mapping(address user => uint256 shares) public override balances;
+    uint16 public override ltvPercent;
 
     /// @inheritdoc INodesManager
-    mapping(address user => uint256 nonce) public override nonces;
+    mapping(address operator => mapping(OperatorNonceType nonceType => uint256 nonce)) public override operatorNonces;
 
     /**
      * @dev Modifier to restrict access to the withdrawals manager
@@ -60,7 +67,7 @@ abstract contract NodesManager is
 
     /**
      * @dev Constructor sets the immutables
-     * @param vault_ The address of the vault for depositing bond assets
+     * @param vault_ The address of the vault
      * @param keeper_ The address of the Keeper contract
      */
     constructor(address vault_, address keeper_) {
@@ -71,22 +78,29 @@ abstract contract NodesManager is
     /**
      * @dev Initializes the NodesManager contract
      * @param _owner The address of the contract owner
-     * @param _minBondAssets The minimum assets required for a deposit request
+     * @param _minDepositAssets The minimum assets required for a deposit request
      * @param _ltvPercent The LTV percent in BPS
+     * @param _stateUpdateDelay The delay in seconds between state updates
      */
-    function __NodesManager_init(address _owner, uint256 _minBondAssets, uint16 _ltvPercent) internal onlyInitializing {
+    function __NodesManager_init(
+        address _owner,
+        uint256 _minDepositAssets,
+        uint16 _ltvPercent,
+        uint256 _stateUpdateDelay
+    ) internal onlyInitializing {
         __Ownable_init(_owner);
         __Ownable2Step_init();
         __EIP712_init("NodesManager", "1");
         __UUPSUpgradeable_init();
-        _setMinBondAssets(_minBondAssets);
+        _setMinDepositAssets(_minDepositAssets);
         _setLtvPercent(_ltvPercent);
+        _setStateUpdateDelay(_stateUpdateDelay);
     }
 
     /// @inheritdoc INodesManager
-    function setMinBondAssets(uint256 newMinBondAssets) external override onlyOwner {
-        if (minBondAssets == newMinBondAssets) revert Errors.ValueNotChanged();
-        _setMinBondAssets(newMinBondAssets);
+    function setMinDepositAssets(uint256 newMinDepositAssets) external override onlyOwner {
+        if (minDepositAssets == newMinDepositAssets) revert Errors.ValueNotChanged();
+        _setMinDepositAssets(newMinDepositAssets);
     }
 
     /// @inheritdoc INodesManager
@@ -103,8 +117,132 @@ abstract contract NodesManager is
     }
 
     /// @inheritdoc INodesManager
+    function canUpdateState() external view override returns (bool) {
+        // SLOAD to memory
+        StateData memory _stateData = stateData;
+        return _stateData.lastUpdateTimestamp + _stateData.updateDelay <= block.timestamp;
+    }
+
+    /// @inheritdoc INodesManager
+    function updateState(StateUpdateParams calldata params) external override {
+        // SLOAD to memory
+        StateData memory _stateData = stateData;
+
+        // check update delay
+        if (_stateData.lastUpdateTimestamp + _stateData.updateDelay > block.timestamp) {
+            revert Errors.TooEarlyUpdate();
+        }
+        uint256 nonce = _stateData.currentNonce;
+
+        // verify state update signatures
+        bytes32 digest = _hashTypedDataV4(
+            keccak256(
+                abi.encode(
+                    _updateStateTypeHash,
+                    params.stateRoot,
+                    keccak256(bytes(params.stateIpfsHash)),
+                    params.updateTimestamp,
+                    nonce
+                )
+            )
+        );
+        _verifySignatures(digest, params.signatures);
+
+        // update state
+        _stateData.root = params.stateRoot;
+        // cannot overflow on human timescales
+        _stateData.lastUpdateTimestamp = uint64(block.timestamp);
+        _stateData.currentNonce = SafeCast.toUint128(nonce + 1);
+        stateData = _stateData;
+
+        emit StateUpdated(msg.sender, params.stateRoot, params.updateTimestamp, nonce, params.stateIpfsHash);
+    }
+
+    /// @inheritdoc INodesManager
+    function setStateUpdateDelay(uint256 newStateUpdateDelay) external override onlyOwner {
+        if (stateData.updateDelay == newStateUpdateDelay) revert Errors.ValueNotChanged();
+        _setStateUpdateDelay(newStateUpdateDelay);
+    }
+
+    /// @inheritdoc INodesManager
     function updateVaultState(IKeeperRewards.HarvestParams calldata harvestParams) external override {
         IVaultState(vault).updateState(harvestParams);
+    }
+
+    /// @inheritdoc INodesManager
+    function updateOperatorState(OperatorStateUpdateParams calldata params) external override {
+        // check whether the vault is harvested
+        if (_keeper.isHarvestRequired(vault)) revert Errors.NotHarvested();
+
+        // SLOAD to memory
+        OperatorState memory operatorState = operatorStates[msg.sender];
+        StateData memory _stateData = stateData;
+        uint128 currentNonce = _stateData.currentNonce;
+
+        // skip update if the state is already up to date
+        if (operatorNonces[msg.sender][OperatorNonceType.LastStateUpdate] == currentNonce) return;
+
+        // verify merkle proof against current state root
+        if (!MerkleProof.verifyCalldata(
+                params.proof,
+                _stateData.root,
+                keccak256(
+                    bytes.concat(
+                        keccak256(
+                            abi.encode(
+                                msg.sender, params.totalAssets, params.cumPenaltyAssets, params.cumEarnedFeeShares
+                            )
+                        )
+                    )
+                )
+            )) {
+            revert Errors.InvalidProof();
+        }
+
+        // calculate earned fee shares delta to add to balance
+        uint256 earnedFeeSharesDelta = params.cumEarnedFeeShares - operatorState.cumEarnedFeeShares;
+
+        // convert penalty assets delta to shares and deduct from balance
+        uint256 penaltyAssetsDelta = params.cumPenaltyAssets - operatorState.cumPenaltyAssets;
+        uint256 penaltySharesDelta = IVaultState(vault).convertToShares(penaltyAssetsDelta);
+
+        // update operator state
+        operatorState.totalAssets = params.totalAssets;
+        operatorState.balanceShares =
+            SafeCast.toUint128(operatorState.balanceShares + earnedFeeSharesDelta - penaltySharesDelta);
+        operatorState.cumPenaltyAssets = params.cumPenaltyAssets;
+        operatorState.cumEarnedFeeShares = params.cumEarnedFeeShares;
+        operatorStates[msg.sender] = operatorState;
+        operatorNonces[msg.sender][OperatorNonceType.LastStateUpdate] = currentNonce;
+
+        // donate penalty shares to the vault
+        if (penaltySharesDelta > 0) {
+            IVaultState(vault).donateShares(penaltySharesDelta);
+        }
+
+        emit OperatorStateUpdated(msg.sender, params.totalAssets, params.cumPenaltyAssets, params.cumEarnedFeeShares);
+    }
+
+    /// @inheritdoc INodesManager
+    function getOperatorBalance(address operator, uint128 cumPenaltyAssets, uint128 cumEarnedFeeShares)
+        external
+        view
+        override
+        returns (uint256 shares, uint256 assets, bool vaultHarvested)
+    {
+        // SLOAD to memory
+        OperatorState memory operatorState = operatorStates[operator];
+
+        // calculate earned fee shares delta to add to balance
+        uint256 earnedFeeSharesDelta = cumEarnedFeeShares - operatorState.cumEarnedFeeShares;
+
+        // convert penalty assets delta to shares and deduct from balance
+        uint256 penaltyAssetsDelta = cumPenaltyAssets - operatorState.cumPenaltyAssets;
+        uint256 penaltySharesDelta = IVaultState(vault).convertToShares(penaltyAssetsDelta);
+
+        shares = operatorState.balanceShares + earnedFeeSharesDelta - penaltySharesDelta;
+        assets = IVaultState(vault).convertToAssets(shares);
+        vaultHarvested = !_keeper.isHarvestRequired(vault);
     }
 
     /// @inheritdoc INodesManager
@@ -113,7 +251,7 @@ abstract contract NodesManager is
         override
     {
         // verify oracles approved registering these validators
-        uint256 nonce = nonces[msg.sender];
+        uint256 nonce = _useOperatorNonce(msg.sender, OperatorNonceType.RegisterValidatorsSig);
         bytes32 digest = _hashTypedDataV4(
             keccak256(
                 abi.encode(_registerValidatorsTypeHash, msg.sender, nonce, vault, keccak256(keeperParams.validators))
@@ -127,9 +265,6 @@ abstract contract NodesManager is
         // extract public keys from validators data
         bytes memory publicKeys = _getValidatorsPublicKeys(keeperParams.validators);
 
-        // update nonce
-        nonces[msg.sender] = nonce + 1;
-
         // emit event
         emit ValidatorsRegistered(msg.sender, nonce, publicKeys);
     }
@@ -137,7 +272,7 @@ abstract contract NodesManager is
     /// @inheritdoc INodesManager
     function fundValidators(bytes calldata validators, bytes calldata signatures) external override {
         // verify oracles approved funding these validators
-        uint256 nonce = nonces[msg.sender];
+        uint256 nonce = _useOperatorNonce(msg.sender, OperatorNonceType.FundValidatorsSig);
         bytes32 digest = _hashTypedDataV4(
             keccak256(abi.encode(_fundValidatorsTypeHash, msg.sender, nonce, vault, keccak256(validators)))
         );
@@ -148,9 +283,6 @@ abstract contract NodesManager is
 
         // extract public keys from validators data
         bytes memory publicKeys = _getValidatorsPublicKeys(validators);
-
-        // update nonce
-        nonces[msg.sender] = nonce + 1;
 
         // emit event
         emit ValidatorsFunded(msg.sender, nonce, publicKeys);
@@ -163,33 +295,40 @@ abstract contract NodesManager is
     }
 
     /**
-     * @dev Internal function to deposit bond assets to the vault and update the depositor's shares balance
-     * @param assets The amount of bond assets to deposit
-     * @return shares The amount of shares received from the vault for the deposited bond assets
+     * @dev Internal function to deposit assets to the vault and update the operator's shares balance
+     * @param assets The amount of assets to deposit
+     * @return shares The amount of shares received from the vault for the deposited assets
      */
     function _deposit(uint256 assets) internal returns (uint256 shares) {
-        if (assets < minBondAssets) revert Errors.InvalidAssets();
+        if (assets < minDepositAssets) revert Errors.InvalidAssets();
 
         // deposit assets to the vault
         shares = _depositToVault(assets);
 
-        unchecked {
-            // cannot overflow because the sum of all user
-            // balances can't exceed the max uint256 value
-            balances[msg.sender] += shares;
-        }
+        // update operator's shares balance
+        operatorStates[msg.sender].balanceShares += SafeCast.toUint128(shares);
 
         emit Deposited(msg.sender, assets, shares);
     }
 
     /**
-     * @dev Internal function for updating the minimum bond assets
-     * @param newMinBondAssets The new minimum bond assets
+     * @dev Internal function for updating the minimum deposit assets
+     * @param newMinDepositAssets The new minimum deposit assets
      */
-    function _setMinBondAssets(uint256 newMinBondAssets) private {
-        if (newMinBondAssets == 0) revert Errors.InvalidAssets();
-        minBondAssets = newMinBondAssets;
-        emit MinBondAssetsUpdated(newMinBondAssets);
+    function _setMinDepositAssets(uint256 newMinDepositAssets) private {
+        if (newMinDepositAssets == 0) revert Errors.InvalidAssets();
+        minDepositAssets = newMinDepositAssets;
+        emit MinDepositAssetsUpdated(newMinDepositAssets);
+    }
+
+    /**
+     * @dev Internal function for updating the state update delay
+     * @param newStateUpdateDelay The new state update delay in seconds
+     */
+    function _setStateUpdateDelay(uint256 newStateUpdateDelay) private {
+        if (newStateUpdateDelay == 0) revert Errors.InvalidDelay();
+        stateData.updateDelay = SafeCast.toUint64(newStateUpdateDelay);
+        emit StateUpdateDelayUpdated(newStateUpdateDelay);
     }
 
     /**
@@ -200,6 +339,20 @@ abstract contract NodesManager is
         if (newLtvPercent == 0 || newLtvPercent >= _maxPercent) revert Errors.InvalidLtvPercent();
         ltvPercent = newLtvPercent;
         emit LtvPercentUpdated(msg.sender, newLtvPercent);
+    }
+
+    /**
+     * @dev Returns the current nonce for an operator and nonce type, then increments it
+     * @param operator The address of the operator
+     * @param nonceType The type of nonce to use
+     * @return nonce The current nonce before incrementing
+     */
+    function _useOperatorNonce(address operator, OperatorNonceType nonceType) private returns (uint256 nonce) {
+        nonce = operatorNonces[operator][nonceType];
+        unchecked {
+            // cannot realistically overflow
+            operatorNonces[operator][nonceType] = nonce + 1;
+        }
     }
 
     /**

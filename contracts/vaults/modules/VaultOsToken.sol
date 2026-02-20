@@ -11,7 +11,7 @@ import {IOsTokenVaultEscrow} from "../../interfaces/IOsTokenVaultEscrow.sol";
 import {Errors} from "../../libraries/Errors.sol";
 import {VaultImmutables} from "./VaultImmutables.sol";
 import {VaultEnterExit, IVaultEnterExit} from "./VaultEnterExit.sol";
-import {VaultState} from "./VaultState.sol";
+import {VaultState, IVaultState} from "./VaultState.sol";
 import {OsTokenUtils} from "../../libraries/OsTokenUtils.sol";
 
 /**
@@ -130,6 +130,12 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
 
         // transfer to escrow
         _osTokenVaultEscrow.register(msg.sender, positionTicket, osTokenShares, position.cumulativeFeePerShare);
+    }
+
+    /// @inheritdoc IVaultState
+    function donateShares(uint256 shares) public virtual override(IVaultState, VaultState) {
+        super.donateShares(shares);
+        _checkOsTokenPosition(msg.sender);
     }
 
     /// @inheritdoc IVaultEnterExit

@@ -14,7 +14,7 @@ import {NodesManager} from "./NodesManager.sol";
 contract EthNodesManager is NodesManager, IEthNodesManager {
     /**
      * @dev Constructor
-     * @param _vault The address of the vault for depositing bond assets
+     * @param vault_ The address of the vault
      * @param _keeper The address of the Keeper contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
@@ -25,11 +25,15 @@ contract EthNodesManager is NodesManager, IEthNodesManager {
     /**
      * @dev Initializes the EthNodesManager contract
      * @param owner The address of the contract owner
-     * @param _minBondAssets The minimum assets required for a deposit request
+     * @param _minDepositAssets The minimum deposit assets
      * @param _ltvPercent The LTV percent in BPS
+     * @param _stateUpdateDelay The delay in seconds between state updates
      */
-    function initialize(address owner, uint256 _minBondAssets, uint16 _ltvPercent) external initializer {
-        __NodesManager_init(owner, _minBondAssets, _ltvPercent);
+    function initialize(address owner, uint256 _minDepositAssets, uint16 _ltvPercent, uint256 _stateUpdateDelay)
+        external
+        initializer
+    {
+        __NodesManager_init(owner, _minDepositAssets, _ltvPercent, _stateUpdateDelay);
     }
 
     /// @inheritdoc IEthNodesManager

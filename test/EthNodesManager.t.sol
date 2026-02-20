@@ -11,6 +11,7 @@ import {IVaultValidators} from "../contracts/interfaces/IVaultValidators.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {IKeeperValidators} from "../contracts/interfaces/IKeeperValidators.sol";
+import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {IEthVault} from "../contracts/vaults/ethereum/EthVault.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 
@@ -21,8 +22,9 @@ contract EthNodesManagerTest is EthHelpers {
     address public user1;
     address public user2;
 
-    uint256 public constant MIN_BOND_ASSETS = 1 ether;
+    uint256 public constant MIN_DEPOSIT_ASSETS = 1 ether;
     uint16 public constant LTV_PERCENT = 5_000; // 50%
+    uint256 public constant STATE_UPDATE_DELAY = 1 days;
 
     uint256 public constant VALIDATOR_DEPOSIT = 32 ether;
 
@@ -54,7 +56,9 @@ contract EthNodesManagerTest is EthHelpers {
         address proxy = address(
             new ERC1967Proxy(
                 address(impl),
-                abi.encodeWithSelector(EthNodesManager.initialize.selector, owner, MIN_BOND_ASSETS, LTV_PERCENT)
+                abi.encodeWithSelector(
+                    EthNodesManager.initialize.selector, owner, MIN_DEPOSIT_ASSETS, LTV_PERCENT, STATE_UPDATE_DELAY
+                )
             )
         );
         nodesManager = EthNodesManager(payable(proxy));
@@ -68,7 +72,9 @@ contract EthNodesManagerTest is EthHelpers {
 
     function test_initialState() public view {
         assertEq(nodesManager.owner(), owner);
-        assertEq(nodesManager.minBondAssets(), MIN_BOND_ASSETS);
+        assertEq(nodesManager.minDepositAssets(), MIN_DEPOSIT_ASSETS);
+        (, uint64 updateDelay,,) = nodesManager.stateData();
+        assertEq(updateDelay, STATE_UPDATE_DELAY);
         assertEq(nodesManager.ltvPercent(), LTV_PERCENT);
         assertEq(nodesManager.vault(), vault);
         assertEq(nodesManager.withdrawalsManager(), address(0));
@@ -88,13 +94,13 @@ contract EthNodesManagerTest is EthHelpers {
         _stopSnapshotGas();
 
         assertGt(shares, 0);
-        assertEq(nodesManager.balances(user1), shares);
+        assertEq(_getBalanceShares(user1), shares);
     }
 
-    function test_deposit_belowMinBond() public {
+    function test_deposit_belowMinDeposit() public {
         vm.prank(user1);
         vm.expectRevert(Errors.InvalidAssets.selector);
-        nodesManager.deposit{value: MIN_BOND_ASSETS - 1}();
+        nodesManager.deposit{value: MIN_DEPOSIT_ASSETS - 1}();
     }
 
     function test_deposit_zero() public {
@@ -116,8 +122,8 @@ contract EthNodesManagerTest is EthHelpers {
 
         assertGt(shares1, 0);
         assertGt(shares2, 0);
-        assertEq(nodesManager.balances(user1), shares1);
-        assertEq(nodesManager.balances(user2), shares2);
+        assertEq(_getBalanceShares(user1), shares1);
+        assertEq(_getBalanceShares(user2), shares2);
     }
 
     function test_deposit_accumulatesShares() public {
@@ -127,41 +133,41 @@ contract EthNodesManagerTest is EthHelpers {
         vm.prank(user1);
         uint256 shares2 = nodesManager.deposit{value: 5 ether}();
 
-        assertEq(nodesManager.balances(user1), shares1 + shares2);
+        assertEq(_getBalanceShares(user1), shares1 + shares2);
     }
 
-    // ======== setMinBondAssets ========
+    // ======== setMinDepositAssets ========
 
-    function test_setMinBondAssets() public {
+    function test_setMinDepositAssets() public {
         uint256 newMin = 2 ether;
 
         vm.expectEmit(true, true, true, true);
-        emit INodesManager.MinBondAssetsUpdated(newMin);
+        emit INodesManager.MinDepositAssetsUpdated(newMin);
 
         vm.prank(owner);
-        _startSnapshotGas("EthNodesManagerTest_test_setMinBondAssets");
-        nodesManager.setMinBondAssets(newMin);
+        _startSnapshotGas("EthNodesManagerTest_test_setMinDepositAssets");
+        nodesManager.setMinDepositAssets(newMin);
         _stopSnapshotGas();
 
-        assertEq(nodesManager.minBondAssets(), newMin);
+        assertEq(nodesManager.minDepositAssets(), newMin);
     }
 
-    function test_setMinBondAssets_notOwner() public {
+    function test_setMinDepositAssets_notOwner() public {
         vm.prank(user1);
         vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
-        nodesManager.setMinBondAssets(2 ether);
+        nodesManager.setMinDepositAssets(2 ether);
     }
 
-    function test_setMinBondAssets_sameValue() public {
+    function test_setMinDepositAssets_sameValue() public {
         vm.prank(owner);
         vm.expectRevert(Errors.ValueNotChanged.selector);
-        nodesManager.setMinBondAssets(MIN_BOND_ASSETS);
+        nodesManager.setMinDepositAssets(MIN_DEPOSIT_ASSETS);
     }
 
-    function test_setMinBondAssets_zero() public {
+    function test_setMinDepositAssets_zero() public {
         vm.prank(owner);
         vm.expectRevert(Errors.InvalidAssets.selector);
-        nodesManager.setMinBondAssets(0);
+        nodesManager.setMinDepositAssets(0);
     }
 
     // ======== setLtvPercent ========
@@ -262,7 +268,7 @@ contract EthNodesManagerTest is EthHelpers {
         _stopOracleImpersonate(address(contracts.keeper));
 
         // Nonce should be incremented
-        assertEq(nodesManager.nonces(user1), 1);
+        assertEq(nodesManager.operatorNonces(user1, INodesManager.OperatorNonceType.RegisterValidatorsSig), 1);
     }
 
     function test_registerValidators_invalidSignatures_empty() public {
@@ -323,7 +329,7 @@ contract EthNodesManagerTest is EthHelpers {
 
         vm.prank(user1);
         nodesManager.registerValidators(approvalParams, oracleSignatures);
-        assertEq(nodesManager.nonces(user1), 1);
+        assertEq(nodesManager.operatorNonces(user1, INodesManager.OperatorNonceType.RegisterValidatorsSig), 1);
 
         // Replay same signatures (nonce 0) — reverts because nonce is now 1
         IKeeperValidators.ApprovalParams memory approvalParams2 =
@@ -358,7 +364,7 @@ contract EthNodesManagerTest is EthHelpers {
 
         bytes memory publicKeys = _getValidatorsPublicKeys(validators);
         vm.expectEmit(true, true, true, true);
-        emit INodesManager.ValidatorsFunded(user1, 1, publicKeys);
+        emit INodesManager.ValidatorsFunded(user1, 0, publicKeys);
 
         vm.prank(user1);
         _startSnapshotGas("EthNodesManagerTest_test_fundValidators");
@@ -367,8 +373,8 @@ contract EthNodesManagerTest is EthHelpers {
 
         _stopOracleImpersonate(address(contracts.keeper));
 
-        // Nonce should be incremented again
-        assertEq(nodesManager.nonces(user1), 2);
+        // Nonce should be incremented
+        assertEq(nodesManager.operatorNonces(user1, INodesManager.OperatorNonceType.FundValidatorsSig), 1);
     }
 
     function test_fundValidators_invalidSignatures_empty() public {
@@ -430,17 +436,17 @@ contract EthNodesManagerTest is EthHelpers {
 
         vm.prank(user1);
         nodesManager.registerValidators(approvalParams, registerSignatures);
-        assertEq(nodesManager.nonces(user1), 1);
+        assertEq(nodesManager.operatorNonces(user1, INodesManager.OperatorNonceType.RegisterValidatorsSig), 1);
 
-        // Fund validators (nonce 1)
+        // Fund validators (nonce 0 for FundValidatorsSig key)
         bytes memory validators = approvalParams.validators;
         bytes memory fundSignatures = _getFundValidatorsSignature(user1, validators, _oraclePrivateKey);
 
         vm.prank(user1);
         nodesManager.fundValidators(validators, fundSignatures);
-        assertEq(nodesManager.nonces(user1), 2);
+        assertEq(nodesManager.operatorNonces(user1, INodesManager.OperatorNonceType.FundValidatorsSig), 1);
 
-        // Replay same fund signatures (nonce 1) — reverts because nonce is now 2
+        // Replay same fund signatures (nonce 0) — reverts because nonce is now 1
         vm.prank(user1);
         vm.expectRevert(Errors.InvalidSignatures.selector);
         nodesManager.fundValidators(validators, fundSignatures);
@@ -515,6 +521,395 @@ contract EthNodesManagerTest is EthHelpers {
         nodesManager.updateVaultState(harvestParams);
     }
 
+    // ======== canUpdateState ========
+
+    function test_canUpdateState() public view {
+        // After initialization, lastUpdateTimestamp = 0, so canUpdateState should be true
+        assertTrue(nodesManager.canUpdateState());
+    }
+
+    function test_canUpdateState_afterUpdate() public {
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(bytes32(uint256(1)), "ipfsHash");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        // Right after update, should be false
+        assertFalse(nodesManager.canUpdateState());
+
+        // After delay, should be true again
+        vm.warp(block.timestamp + STATE_UPDATE_DELAY + 1);
+        assertTrue(nodesManager.canUpdateState());
+    }
+
+    // ======== updateState ========
+
+    function test_updateState() public {
+        _startOracleImpersonate(address(contracts.keeper));
+
+        bytes32 newRoot = bytes32(uint256(1));
+        string memory ipfsHash = "stateIpfsHash";
+        uint64 updateTimestamp = uint64(block.timestamp);
+
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.StateUpdated(address(this), newRoot, updateTimestamp, 0, ipfsHash);
+
+        _performStateUpdate(newRoot, ipfsHash);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        (bytes32 root,, uint64 lastUpdateTimestamp, uint128 currentNonce) = nodesManager.stateData();
+        assertEq(root, newRoot);
+        assertEq(lastUpdateTimestamp, uint64(block.timestamp));
+        assertEq(currentNonce, 1);
+    }
+
+    function test_updateState_tooEarlyUpdate() public {
+        _startOracleImpersonate(address(contracts.keeper));
+
+        _performStateUpdate(bytes32(uint256(1)), "ipfsHash1");
+
+        INodesManager.StateUpdateParams memory params = _buildStateUpdateParams(bytes32(uint256(2)), "ipfsHash2");
+        vm.expectRevert(Errors.TooEarlyUpdate.selector);
+        nodesManager.updateState(params);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    function test_updateState_invalidSignatures() public {
+        _startOracleImpersonate(address(contracts.keeper));
+
+        (, uint256 nonOracleKey) = makeAddrAndKey("nonOracle");
+        (,,, uint128 currentNonce) = nodesManager.stateData();
+
+        INodesManager.StateUpdateParams memory params = INodesManager.StateUpdateParams({
+            stateRoot: bytes32(uint256(1)),
+            updateTimestamp: uint64(block.timestamp),
+            stateIpfsHash: "ipfsHash",
+            signatures: _getStateUpdateSignature(
+                bytes32(uint256(1)), "ipfsHash", uint64(block.timestamp), currentNonce, nonOracleKey
+            )
+        });
+
+        vm.expectRevert(Errors.InvalidSignatures.selector);
+        nodesManager.updateState(params);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    function test_updateState_multipleUpdates() public {
+        _startOracleImpersonate(address(contracts.keeper));
+
+        _performStateUpdate(bytes32(uint256(1)), "ipfsHash1");
+        (bytes32 root1,,, uint128 nonce1) = nodesManager.stateData();
+        assertEq(root1, bytes32(uint256(1)));
+        assertEq(nonce1, 1);
+
+        vm.warp(block.timestamp + STATE_UPDATE_DELAY + 1);
+
+        _performStateUpdate(bytes32(uint256(2)), "ipfsHash2");
+        (bytes32 root2,,, uint128 nonce2) = nodesManager.stateData();
+        assertEq(root2, bytes32(uint256(2)));
+        assertEq(nonce2, 2);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    // ======== setStateUpdateDelay ========
+
+    function test_setStateUpdateDelay() public {
+        uint256 newDelay = 2 days;
+
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.StateUpdateDelayUpdated(newDelay);
+
+        vm.prank(owner);
+        nodesManager.setStateUpdateDelay(newDelay);
+
+        (, uint64 updateDelay,,) = nodesManager.stateData();
+        assertEq(updateDelay, newDelay);
+    }
+
+    function test_setStateUpdateDelay_notOwner() public {
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
+        nodesManager.setStateUpdateDelay(2 days);
+    }
+
+    function test_setStateUpdateDelay_sameValue() public {
+        vm.prank(owner);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        nodesManager.setStateUpdateDelay(STATE_UPDATE_DELAY);
+    }
+
+    function test_setStateUpdateDelay_zero() public {
+        vm.prank(owner);
+        vm.expectRevert(Errors.InvalidDelay.selector);
+        nodesManager.setStateUpdateDelay(0);
+    }
+
+    // ======== updateOperatorState ========
+
+    function test_updateOperatorState() public {
+        vm.prank(user1);
+        uint256 depositShares = nodesManager.deposit{value: 10 ether}();
+
+        _harvestVault();
+
+        uint128 opTotalAssets = 32 ether;
+        uint128 cumPenaltyAssets = 0;
+        uint128 cumEarnedFeeShares = 0;
+        bytes32 leaf = _computeOperatorLeaf(user1, opTotalAssets, cumPenaltyAssets, cumEarnedFeeShares);
+
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf, "stateIpfs");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        INodesManager.OperatorStateUpdateParams memory params = INodesManager.OperatorStateUpdateParams({
+            totalAssets: opTotalAssets,
+            cumPenaltyAssets: cumPenaltyAssets,
+            cumEarnedFeeShares: cumEarnedFeeShares,
+            proof: new bytes32[](0)
+        });
+
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.OperatorStateUpdated(user1, opTotalAssets, cumPenaltyAssets, cumEarnedFeeShares);
+
+        vm.prank(user1);
+        nodesManager.updateOperatorState(params);
+
+        (uint128 storedTotalAssets, uint128 storedBalanceShares, uint128 storedPenalty, uint128 storedFees) =
+            nodesManager.operatorStates(user1);
+        assertEq(storedTotalAssets, opTotalAssets);
+        assertEq(storedBalanceShares, uint128(depositShares));
+        assertEq(storedPenalty, 0);
+        assertEq(storedFees, 0);
+    }
+
+    function test_updateOperatorState_withEarnedFees() public {
+        vm.prank(user1);
+        uint256 depositShares = nodesManager.deposit{value: 10 ether}();
+
+        _harvestVault();
+
+        uint128 opTotalAssets = 32 ether;
+        uint128 cumEarnedFeeShares = 1000;
+        bytes32 leaf = _computeOperatorLeaf(user1, opTotalAssets, 0, cumEarnedFeeShares);
+
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf, "stateIpfs");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        INodesManager.OperatorStateUpdateParams memory params = INodesManager.OperatorStateUpdateParams({
+            totalAssets: opTotalAssets,
+            cumPenaltyAssets: 0,
+            cumEarnedFeeShares: cumEarnedFeeShares,
+            proof: new bytes32[](0)
+        });
+
+        vm.prank(user1);
+        nodesManager.updateOperatorState(params);
+
+        (, uint128 balanceShares,,) = nodesManager.operatorStates(user1);
+        assertEq(balanceShares, uint128(depositShares) + cumEarnedFeeShares);
+    }
+
+    function test_updateOperatorState_withPenalties() public {
+        vm.prank(user1);
+        uint256 depositShares = nodesManager.deposit{value: 10 ether}();
+
+        _harvestVault();
+
+        uint128 opTotalAssets = 32 ether;
+        uint128 cumPenaltyAssets = 0.1 ether;
+        bytes32 leaf = _computeOperatorLeaf(user1, opTotalAssets, cumPenaltyAssets, 0);
+
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf, "stateIpfs");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        uint256 expectedPenaltyShares = IVaultState(vault).convertToShares(cumPenaltyAssets);
+        uint256 vaultTotalSharesBefore = IVaultState(vault).totalShares();
+        uint256 vaultTotalAssetsBefore = IVaultState(vault).totalAssets();
+
+        INodesManager.OperatorStateUpdateParams memory params = INodesManager.OperatorStateUpdateParams({
+            totalAssets: opTotalAssets,
+            cumPenaltyAssets: cumPenaltyAssets,
+            cumEarnedFeeShares: 0,
+            proof: new bytes32[](0)
+        });
+
+        vm.prank(user1);
+        nodesManager.updateOperatorState(params);
+
+        (, uint128 balanceShares, uint128 storedPenalty,) = nodesManager.operatorStates(user1);
+        assertEq(storedPenalty, cumPenaltyAssets);
+        assertEq(balanceShares, uint128(depositShares) - uint128(expectedPenaltyShares));
+
+        // Verify penalty shares were donated (burned) in the vault
+        assertEq(
+            IVaultState(vault).totalShares(),
+            vaultTotalSharesBefore - expectedPenaltyShares,
+            "Vault total shares should decrease by penalty shares"
+        );
+        assertEq(
+            IVaultState(vault).totalAssets(),
+            vaultTotalAssetsBefore,
+            "Vault total assets should remain unchanged after share donation"
+        );
+    }
+
+    function test_updateOperatorState_withPenaltiesAndFees() public {
+        vm.prank(user1);
+        uint256 depositShares = nodesManager.deposit{value: 10 ether}();
+
+        _harvestVault();
+
+        uint128 opTotalAssets = 32 ether;
+        uint128 cumPenaltyAssets = 0.1 ether;
+        uint128 cumEarnedFeeShares = 1000;
+        bytes32 leaf = _computeOperatorLeaf(user1, opTotalAssets, cumPenaltyAssets, cumEarnedFeeShares);
+
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf, "stateIpfs");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        uint256 expectedPenaltyShares = IVaultState(vault).convertToShares(cumPenaltyAssets);
+        uint256 vaultTotalSharesBefore = IVaultState(vault).totalShares();
+
+        INodesManager.OperatorStateUpdateParams memory params = INodesManager.OperatorStateUpdateParams({
+            totalAssets: opTotalAssets,
+            cumPenaltyAssets: cumPenaltyAssets,
+            cumEarnedFeeShares: cumEarnedFeeShares,
+            proof: new bytes32[](0)
+        });
+
+        vm.prank(user1);
+        nodesManager.updateOperatorState(params);
+
+        (uint128 storedTotalAssets, uint128 balanceShares, uint128 storedPenalty, uint128 storedFees) =
+            nodesManager.operatorStates(user1);
+        assertEq(storedTotalAssets, opTotalAssets);
+        assertEq(storedPenalty, cumPenaltyAssets);
+        assertEq(storedFees, cumEarnedFeeShares);
+        assertEq(
+            balanceShares,
+            uint128(depositShares) + cumEarnedFeeShares - uint128(expectedPenaltyShares),
+            "Balance should reflect both earned fees and penalty deduction"
+        );
+
+        // Verify penalty shares were donated (burned) in the vault
+        assertEq(
+            IVaultState(vault).totalShares(),
+            vaultTotalSharesBefore - expectedPenaltyShares,
+            "Vault total shares should decrease by penalty shares"
+        );
+    }
+
+    function test_updateOperatorState_alreadyUpToDate() public {
+        vm.prank(user1);
+        uint256 depositShares = nodesManager.deposit{value: 10 ether}();
+
+        _harvestVault();
+
+        uint128 opTotalAssets = 32 ether;
+        uint128 cumPenaltyAssets = 0;
+        uint128 cumEarnedFeeShares = 0;
+        bytes32 leaf = _computeOperatorLeaf(user1, opTotalAssets, cumPenaltyAssets, cumEarnedFeeShares);
+
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf, "stateIpfs");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        INodesManager.OperatorStateUpdateParams memory params = INodesManager.OperatorStateUpdateParams({
+            totalAssets: opTotalAssets,
+            cumPenaltyAssets: cumPenaltyAssets,
+            cumEarnedFeeShares: cumEarnedFeeShares,
+            proof: new bytes32[](0)
+        });
+
+        // First update
+        vm.prank(user1);
+        nodesManager.updateOperatorState(params);
+
+        // Second call with same params should silently skip (no revert, no state change)
+        vm.prank(user1);
+        nodesManager.updateOperatorState(params);
+
+        // Balance should remain unchanged
+        assertEq(_getBalanceShares(user1), uint128(depositShares));
+    }
+
+    function test_updateOperatorState_notHarvested() public {
+        _makeHarvestRequired();
+
+        INodesManager.OperatorStateUpdateParams memory params = INodesManager.OperatorStateUpdateParams({
+            totalAssets: 0, cumPenaltyAssets: 0, cumEarnedFeeShares: 0, proof: new bytes32[](0)
+        });
+
+        vm.prank(user1);
+        vm.expectRevert(Errors.NotHarvested.selector);
+        nodesManager.updateOperatorState(params);
+    }
+
+    function test_updateOperatorState_invalidProof() public {
+        _harvestVault();
+
+        bytes32 fakeRoot = bytes32(uint256(42));
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(fakeRoot, "stateIpfs");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        INodesManager.OperatorStateUpdateParams memory params = INodesManager.OperatorStateUpdateParams({
+            totalAssets: 999 ether, cumPenaltyAssets: 0, cumEarnedFeeShares: 0, proof: new bytes32[](0)
+        });
+
+        vm.prank(user1);
+        vm.expectRevert(Errors.InvalidProof.selector);
+        nodesManager.updateOperatorState(params);
+    }
+
+    // ======== getOperatorBalance ========
+
+    function test_getOperatorBalance() public {
+        vm.prank(user1);
+        uint256 depositShares = nodesManager.deposit{value: 10 ether}();
+
+        _harvestVault();
+
+        (uint256 shares, uint256 assets,) = nodesManager.getOperatorBalance(user1, 0, 0);
+        assertEq(shares, depositShares);
+        assertGt(assets, 0);
+    }
+
+    function test_getOperatorBalance_withPendingFees() public {
+        vm.prank(user1);
+        uint256 depositShares = nodesManager.deposit{value: 10 ether}();
+
+        _harvestVault();
+
+        uint128 cumEarnedFeeShares = 1000;
+        (uint256 shares,,) = nodesManager.getOperatorBalance(user1, 0, cumEarnedFeeShares);
+        assertEq(shares, depositShares + cumEarnedFeeShares);
+    }
+
+    function test_getOperatorBalance_withPendingPenalties() public {
+        vm.prank(user1);
+        uint256 depositShares = nodesManager.deposit{value: 10 ether}();
+
+        _harvestVault();
+
+        uint128 cumPenaltyAssets = 0.1 ether;
+        (uint256 shares,,) = nodesManager.getOperatorBalance(user1, cumPenaltyAssets, 0);
+        assertLt(shares, depositShares);
+    }
+
+    function test_getOperatorBalance_notHarvested() public {
+        _makeHarvestRequired();
+
+        (,, bool vaultHarvested) = nodesManager.getOperatorBalance(user1, 0, 0);
+        assertFalse(vaultHarvested);
+    }
+
     // ======== Helpers ========
 
     function _addWithdrawableAssets(uint256 validatorDeposits) internal {
@@ -542,17 +937,17 @@ contract EthNodesManagerTest is EthHelpers {
         );
     }
 
-    function _getRegisterValidatorsSignature(address user, bytes memory validators, uint256 privateKey)
+    function _getRegisterValidatorsSignature(address operator, bytes memory validators, uint256 privateKey)
         internal
         view
         returns (bytes memory)
     {
-        uint256 nonce = nodesManager.nonces(user);
+        uint256 nonce = nodesManager.operatorNonces(operator, INodesManager.OperatorNonceType.RegisterValidatorsSig);
         bytes32 digest = _hashNodesManagerTypedData(
             keccak256(
                 abi.encode(
-                    keccak256("RegisterValidators(address user,uint256 nonce,address vault,bytes validators)"),
-                    user,
+                    keccak256("RegisterValidators(address operator,uint256 nonce,address vault,bytes validators)"),
+                    operator,
                     nonce,
                     vault,
                     keccak256(validators)
@@ -563,17 +958,17 @@ contract EthNodesManagerTest is EthHelpers {
         return abi.encodePacked(r, s, v);
     }
 
-    function _getFundValidatorsSignature(address user, bytes memory validators, uint256 privateKey)
+    function _getFundValidatorsSignature(address operator, bytes memory validators, uint256 privateKey)
         internal
         view
         returns (bytes memory)
     {
-        uint256 nonce = nodesManager.nonces(user);
+        uint256 nonce = nodesManager.operatorNonces(operator, INodesManager.OperatorNonceType.FundValidatorsSig);
         bytes32 digest = _hashNodesManagerTypedData(
             keccak256(
                 abi.encode(
-                    keccak256("FundValidators(address user,uint256 nonce,address vault,bytes validators)"),
-                    user,
+                    keccak256("FundValidators(address operator,uint256 nonce,address vault,bytes validators)"),
+                    operator,
                     nonce,
                     vault,
                     keccak256(validators)
@@ -582,6 +977,81 @@ contract EthNodesManagerTest is EthHelpers {
         );
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
         return abi.encodePacked(r, s, v);
+    }
+
+    function _getBalanceShares(address operator) internal view returns (uint128) {
+        (, uint128 balanceShares,,) = nodesManager.operatorStates(operator);
+        return balanceShares;
+    }
+
+    function _getStateUpdateSignature(
+        bytes32 stateRoot,
+        string memory stateIpfsHash,
+        uint64 updateTimestamp,
+        uint128 nonce,
+        uint256 privateKey
+    ) internal view returns (bytes memory) {
+        bytes32 digest = _hashNodesManagerTypedData(
+            keccak256(
+                abi.encode(
+                    keccak256(
+                        "UpdateState(bytes32 stateRoot,string stateIpfsHash,uint64 updateTimestamp,uint256 nonce)"
+                    ),
+                    stateRoot,
+                    keccak256(bytes(stateIpfsHash)),
+                    updateTimestamp,
+                    nonce
+                )
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+        return abi.encodePacked(r, s, v);
+    }
+
+    function _buildStateUpdateParams(bytes32 stateRoot, string memory stateIpfsHash)
+        internal
+        view
+        returns (INodesManager.StateUpdateParams memory)
+    {
+        (,,, uint128 currentNonce) = nodesManager.stateData();
+        uint64 updateTimestamp = uint64(block.timestamp);
+        return INodesManager.StateUpdateParams({
+            stateRoot: stateRoot,
+            updateTimestamp: updateTimestamp,
+            stateIpfsHash: stateIpfsHash,
+            signatures: _getStateUpdateSignature(
+                stateRoot, stateIpfsHash, updateTimestamp, currentNonce, _oraclePrivateKey
+            )
+        });
+    }
+
+    function _performStateUpdate(bytes32 stateRoot, string memory stateIpfsHash) internal {
+        INodesManager.StateUpdateParams memory params = _buildStateUpdateParams(stateRoot, stateIpfsHash);
+        nodesManager.updateState(params);
+    }
+
+    function _computeOperatorLeaf(
+        address operator,
+        uint128 totalAssets,
+        uint128 cumPenaltyAssets,
+        uint128 cumEarnedFeeShares
+    ) internal pure returns (bytes32) {
+        return keccak256(
+            bytes.concat(keccak256(abi.encode(operator, totalAssets, cumPenaltyAssets, cumEarnedFeeShares)))
+        );
+    }
+
+    function _harvestVault() internal {
+        IKeeperRewards.HarvestParams memory hp = _setEthVaultReward(vault, 0, 0);
+        nodesManager.updateVaultState(hp);
+    }
+
+    function _makeHarvestRequired() internal {
+        // Harvest once to set vault nonce > 0
+        _harvestVault();
+        // Update rewards twice to get rewardsNonce 2 ahead of vault nonce
+        _setEthVaultReward(vault, 0, 0);
+        _setEthVaultReward(vault, 0, 0);
     }
 
     function _getValidatorsPublicKeys(bytes memory validators) internal pure returns (bytes memory publicKeys) {

@@ -40,6 +40,13 @@ interface IVaultState is IVaultFee {
     event AssetsDonated(address sender, uint256 assets);
 
     /**
+     * @notice Event emitted when the shares are donated to the Vault
+     * @param sender The address of the sender
+     * @param shares The number of donated shares
+     */
+    event SharesDonated(address sender, uint256 shares);
+
+    /**
      * @notice Total assets in the Vault
      * @return The total amount of the underlying asset that is "managed" by Vault
      */
@@ -102,6 +109,13 @@ interface IVaultState is IVaultFee {
      * @return assets The amount of assets that the Vault would exchange for the amount of shares provided
      */
     function convertToAssets(uint256 shares) external view returns (uint256 assets);
+
+    /**
+     * @notice Donates shares to the Vault by burning them from the caller,
+     *         increasing the value per share for remaining holders
+     * @param shares The number of shares to donate
+     */
+    function donateShares(uint256 shares) external;
 
     /**
      * @notice Check whether state update is required
