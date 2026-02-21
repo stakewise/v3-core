@@ -3,9 +3,9 @@
   "EthPrivVaultTest_test_canDepositUsingReceiveAsWhitelistedUser": "75857",
   "EthPrivVaultTest_test_canMintOsTokenAsWhitelistedUser": "161673",
   "EthPrivVaultTest_test_canUpdateStateAndDepositAsWhitelistedUser": "140719",
-  "EthPrivVaultTest_test_deploysCorrectly": "550402",
+  "EthPrivVaultTest_test_deploysCorrectly": "550451",
   "EthPrivVaultTest_test_depositAndMintOsTokenAsWhitelistedUser": "200615",
   "EthPrivVaultTest_test_setWhitelister": "36608",
   "EthPrivVaultTest_test_updateWhitelist": "54499",
-  "EthPrivVaultTest_test_upgradesCorrectly": "119005"
+  "EthPrivVaultTest_test_upgradesCorrectly": "119054"
 }

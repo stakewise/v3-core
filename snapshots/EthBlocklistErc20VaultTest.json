@@ -2,7 +2,7 @@
   "EthBlocklistErc20VaultTest_test_canDepositAsNonBlockedUser": "89972",
   "EthBlocklistErc20VaultTest_test_canDepositUsingReceiveAsNotBlockedUser": "84302",
   "EthBlocklistErc20VaultTest_test_canMintOsTokenAsNonBlockedUser": "161501",
-  "EthBlocklistErc20VaultTest_test_deploysCorrectly": "625671",
+  "EthBlocklistErc20VaultTest_test_deploysCorrectly": "625720",
   "EthBlocklistErc20VaultTest_test_transfer": "61693",
-  "EthBlocklistErc20VaultTest_test_upgradesCorrectly": "119646"
+  "EthBlocklistErc20VaultTest_test_upgradesCorrectly": "119695"
 }

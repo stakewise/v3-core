@@ -1,7 +1,7 @@
 {
   "VaultAdminTest_test_checkAdmin_withOtherFunctions_admin": "48301",
   "VaultAdminTest_test_checkAdmin_withOtherFunctions_nonAdmin": "34853",
-  "VaultAdminTest_test_initialization": "378829",
+  "VaultAdminTest_test_initialization": "378878",
   "VaultAdminTest_test_setAdmin_byAdmin": "39247",
   "VaultAdminTest_test_setAdmin_byNonAdmin": "36921",
   "VaultAdminTest_test_setAdmin_toSameValue": "35135",

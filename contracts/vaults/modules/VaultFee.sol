@@ -28,7 +28,7 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
     uint64 private _lastUpdateTimestamp;
 
     /// @inheritdoc IVaultFee
-    function setFeeRecipient(address _feeRecipient) external override {
+    function setFeeRecipient(address _feeRecipient) external virtual override {
         _checkAdmin();
         _setFeeRecipient(_feeRecipient);
     }
@@ -43,7 +43,7 @@ abstract contract VaultFee is VaultImmutables, Initializable, VaultAdmin, IVault
      * @dev Internal function for updating the fee recipient externally or from the initializer
      * @param _feeRecipient The address of the new fee recipient
      */
-    function _setFeeRecipient(address _feeRecipient) private {
+    function _setFeeRecipient(address _feeRecipient) internal virtual {
         _checkHarvested();
         if (_feeRecipient == address(0)) revert Errors.InvalidFeeRecipient();
         if (_feeRecipient == feeRecipient) revert Errors.ValueNotChanged();

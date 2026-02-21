@@ -24,6 +24,7 @@ import {EthPrivVault} from "../../contracts/vaults/ethereum/EthPrivVault.sol";
 import {EthVault, IEthVault} from "../../contracts/vaults/ethereum/EthVault.sol";
 import {EthVaultFactory} from "../../contracts/vaults/ethereum/EthVaultFactory.sol";
 import {IEthFoxVault, EthFoxVault} from "../../contracts/vaults/ethereum/custom/EthFoxVault.sol";
+import {IEthCommunityVault, EthCommunityVault} from "../../contracts/vaults/ethereum/custom/EthCommunityVault.sol";
 import {EthMetaVault} from "../../contracts/vaults/ethereum/EthMetaVault.sol";
 import {EthPrivMetaVault} from "../../contracts/vaults/ethereum/EthPrivMetaVault.sol";
 import {EthErc20MetaVault, IEthErc20MetaVault} from "../../contracts/vaults/ethereum/EthErc20MetaVault.sol";
@@ -74,7 +75,8 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         EthMetaVault,
         EthPrivMetaVault,
         EthErc20MetaVault,
-        EthPrivErc20MetaVault
+        EthPrivErc20MetaVault,
+        EthCommunityVault
     }
 
     struct ForkContracts {
@@ -344,6 +346,16 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             return vault;
         }
 
+        if (vaultType == VaultType.EthCommunityVault) {
+            address vaultImpl = _getOrCreateVaultImpl(vaultType);
+            address vault = address(new ERC1967Proxy(vaultImpl, ""));
+            vm.deal(address(this), 1 ether);
+            IEthVault(vault).initialize{value: _securityDeposit}(initParams);
+            vm.prank(VaultsRegistry(_vaultsRegistry).owner());
+            VaultsRegistry(_vaultsRegistry).addVault(vault);
+            return vault;
+        }
+
         address vaultAddress;
         if (
             vaultType == VaultType.EthMetaVault || vaultType == VaultType.EthPrivMetaVault
@@ -396,6 +408,9 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         if (vaultType == VaultType.EthFoxVault) {
             if (currentVersion == 2) return;
             require(currentVersion == 1, "Invalid vault version");
+        } else if (vaultType == VaultType.EthCommunityVault) {
+            if (currentVersion == 6) return;
+            revert("EthCommunityVault does not support upgrades");
         } else if (
             vaultType == VaultType.EthMetaVault || vaultType == VaultType.EthPrivMetaVault
                 || vaultType == VaultType.EthErc20MetaVault || vaultType == VaultType.EthPrivErc20MetaVault
@@ -464,6 +479,8 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             impl = address(new EthBlocklistErc20Vault(ethErc20Args));
         } else if (_vaultType == VaultType.EthPrivErc20Vault) {
             impl = address(new EthPrivErc20Vault(ethErc20Args));
+        } else if (_vaultType == VaultType.EthCommunityVault) {
+            impl = address(new EthCommunityVault(ethArgs));
         } else if (_vaultType == VaultType.EthFoxVault) {
             IEthFoxVault.EthFoxVaultConstructorArgs memory ethFoxVaultArgs = IEthFoxVault.EthFoxVaultConstructorArgs(
                 _keeper,
