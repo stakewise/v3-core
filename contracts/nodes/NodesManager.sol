@@ -307,7 +307,7 @@ abstract contract NodesManager is
     }
 
     /// @inheritdoc INodesManager
-    function enterExitQueue(uint256 shares) external override returns (uint256 positionTicket) {
+    function enterExitQueue(uint256 shares) external override nonReentrant returns (uint256 positionTicket) {
         if (shares == 0) revert Errors.InvalidShares();
 
         // check whether the operator has synced the latest state
