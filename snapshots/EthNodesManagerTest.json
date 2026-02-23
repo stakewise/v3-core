@@ -1,9 +1,9 @@
 {
-  "EthNodesManagerTest_test_claimExitedAssets": "99193",
+  "EthNodesManagerTest_test_claimExitedAssets": "99257",
   "EthNodesManagerTest_test_deposit": "122128",
   "EthNodesManagerTest_test_deposit_multipleDeposits_first": "122128",
   "EthNodesManagerTest_test_deposit_multipleDeposits_second": "104379",
-  "EthNodesManagerTest_test_enterExitQueue": "134204",
+  "EthNodesManagerTest_test_enterExitQueue": "136645",
   "EthNodesManagerTest_test_fundValidators": "161827",
   "EthNodesManagerTest_test_registerValidators": "321632",
   "EthNodesManagerTest_test_setMinBalancePercent": "40917",
