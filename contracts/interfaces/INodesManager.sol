@@ -19,8 +19,9 @@ interface INodesManager is IERC5267, IERC1822Proxiable, IMulticall {
      * @param operator The address of the operator
      * @param assets The deposit assets
      * @param shares The vault shares received for the deposit
+     * @param penaltyAssets The amount of assets deducted as penalty
      */
-    event Deposited(address indexed operator, uint256 assets, uint256 shares);
+    event Deposited(address indexed operator, uint256 assets, uint256 shares, uint256 penaltyAssets);
 
     /**
      * @notice Event emitted on validators registration
@@ -45,17 +46,49 @@ interface INodesManager is IERC5267, IERC1822Proxiable, IMulticall {
     event MinDepositAssetsUpdated(uint256 minDepositAssets);
 
     /**
-     * @notice Event emitted when the LTV percent is updated
+     * @notice Event emitted when the minimum balance percent is updated
      * @param caller The address of the function caller
-     * @param ltvPercent The new LTV percent
+     * @param minBalancePercent The new minimum balance percent
      */
-    event LtvPercentUpdated(address indexed caller, uint16 ltvPercent);
+    event MinBalancePercentUpdated(address indexed caller, uint16 minBalancePercent);
 
     /**
      * @notice Event emitted when the withdrawals manager is updated
      * @param withdrawalsManager The new withdrawals manager address
      */
     event WithdrawalsManagerUpdated(address withdrawalsManager);
+
+    /**
+     * @notice Event emitted on entering the exit queue
+     * @param operator The address of the operator
+     * @param positionTicket The exit queue ticket assigned to the position
+     * @param shares The number of shares that queued for the exit
+     */
+    event ExitQueueEntered(address indexed operator, uint256 positionTicket, uint256 shares);
+
+    /**
+     * @notice Event emitted when shares are redeemed directly without entering the exit queue
+     * @param operator The address of the operator
+     * @param assets The amount of assets redeemed
+     * @param shares The number of shares redeemed
+     */
+    event Redeemed(address indexed operator, uint256 assets, uint256 shares);
+
+    /**
+     * @notice Event emitted on claim of the exited assets
+     * @param operator The address of the operator
+     * @param prevPositionTicket The exit queue ticket received after the `enterExitQueue` call
+     * @param newPositionTicket The new exit queue ticket in case not all the shares were exited. Otherwise 0.
+     * @param withdrawnAssets The total number of assets withdrawn
+     * @param penaltyAssets The amount of assets deducted as penalty
+     */
+    event ExitedAssetsClaimed(
+        address indexed operator,
+        uint256 prevPositionTicket,
+        uint256 newPositionTicket,
+        uint256 withdrawnAssets,
+        uint256 penaltyAssets
+    );
 
     /**
      * @notice Event emitted when a validator withdrawal is submitted
@@ -97,11 +130,13 @@ interface INodesManager is IERC5267, IERC1822Proxiable, IMulticall {
      * @param RegisterValidatorsSig The nonce key for register validators signatures
      * @param FundValidatorsSig The nonce key for fund validators signatures
      * @param LastStateUpdate The nonce key for the last state update nonce
+     * @param LastValidatorChange The state nonce at the time of the last validator registration or funding
      */
     enum OperatorNonceType {
         RegisterValidatorsSig,
         FundValidatorsSig,
-        LastStateUpdate
+        LastStateUpdate,
+        LastValidatorChange
     }
 
     /**
@@ -161,6 +196,13 @@ interface INodesManager is IERC5267, IERC1822Proxiable, IMulticall {
     }
 
     /**
+     * @notice The pending penalty assets that could not be applied due to insufficient balance
+     * @param operator The operator address
+     * @return penaltyAssets The pending penalty assets
+     */
+    function pendingPenaltyAssets(address operator) external view returns (uint256 penaltyAssets);
+
+    /**
      * @notice The address of the vault the NodesManager is attached to
      * @return The vault address
      */
@@ -212,16 +254,16 @@ interface INodesManager is IERC5267, IERC1822Proxiable, IMulticall {
     function setMinDepositAssets(uint256 newMinDepositAssets) external;
 
     /**
-     * @notice The LTV percent in BPS that determines the assets per validator (10000 = 100%)
-     * @return The LTV percent
+     * @notice The minimum balance percent in BPS (10000 = 100%)
+     * @return The minimum balance percent
      */
-    function ltvPercent() external view returns (uint16);
+    function minBalancePercent() external view returns (uint16);
 
     /**
-     * @notice Updates the LTV percent. Can only be called by the owner.
-     * @param newLtvPercent The new LTV percent
+     * @notice Updates the minimum balance percent. Can only be called by the owner.
+     * @param newMinBalancePercent The new minimum balance percent
      */
-    function setLtvPercent(uint16 newLtvPercent) external;
+    function setMinBalancePercent(uint16 newMinBalancePercent) external;
 
     /**
      * @notice Updates the vault state by harvesting rewards
@@ -257,6 +299,21 @@ interface INodesManager is IERC5267, IERC1822Proxiable, IMulticall {
     function fundValidators(bytes calldata validators, bytes calldata signatures) external;
 
     /**
+     * @notice Enters the exit queue by locking operator shares in the vault's exit queue
+     * @param shares The number of shares to lock in the exit queue
+     * @return positionTicket The position ticket of the exit queue
+     */
+    function enterExitQueue(uint256 shares) external returns (uint256 positionTicket);
+
+    /**
+     * @notice Claims exited assets from the vault's exit queue for the operator
+     * @param positionTicket The exit queue ticket received after the `enterExitQueue` call
+     * @param timestamp The timestamp when the shares entered the exit queue
+     * @param exitQueueIndex The exit queue index at which the shares were burned
+     */
+    function claimExitedAssets(uint256 positionTicket, uint256 timestamp, uint256 exitQueueIndex) external;
+
+    /**
      * @notice Submits validator withdrawals. Can only be called by the withdrawals manager.
      * @param validators The concatenation of the validators' data
      */
@@ -267,20 +324,6 @@ interface INodesManager is IERC5267, IERC1822Proxiable, IMulticall {
      * @param params The parameters for updating the operator state
      */
     function updateOperatorState(OperatorStateUpdateParams calldata params) external;
-
-    /**
-     * @notice Returns the operator's current shares and assets after applying pending penalties and earned fees
-     * @param operator The operator address
-     * @param cumPenaltyAssets The cumulative penalty assets to apply
-     * @param cumEarnedFeeShares The cumulative earned fee shares to apply
-     * @return shares The operator's vault shares balance after adjustments
-     * @return assets The operator's assets value after adjustments
-     * @return vaultHarvested Whether the vault has been harvested
-     */
-    function getOperatorBalance(address operator, uint128 cumPenaltyAssets, uint128 cumEarnedFeeShares)
-        external
-        view
-        returns (uint256 shares, uint256 assets, bool vaultHarvested);
 
     /**
      * @notice Checks whether state can be updated

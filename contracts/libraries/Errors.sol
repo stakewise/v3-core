@@ -63,4 +63,6 @@ library Errors {
     error InvalidRedeemablePositions();
     error InvalidDelay();
     error InvalidTicket();
+    error LowBalance();
+    error InvalidMinBalancePercent();
 }
