@@ -14,6 +14,7 @@ import {IKeeperValidators} from "../contracts/interfaces/IKeeperValidators.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {IEthVault} from "../contracts/vaults/ethereum/EthVault.sol";
+import {IEthCommunityVault} from "../contracts/interfaces/IEthCommunityVault.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 
 contract EthNodesManagerTest is EthHelpers {
@@ -42,17 +43,11 @@ contract EthNodesManagerTest is EthHelpers {
         vm.deal(user1, 100 ether);
         vm.deal(user2, 100 ether);
 
-        // Create vault
-        bytes memory initParams = abi.encode(
-            IEthVault.EthVaultInitParams({
-                capacity: 1000 ether,
-                feePercent: 5,
-                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
-            })
-        );
-        vault = _getOrCreateVault(VaultType.EthVault, owner, initParams, false);
+        // Deploy vault implementation and uninitialized proxy
+        address vaultImpl = _getOrCreateVaultImpl(VaultType.EthCommunityVault);
+        vault = address(new ERC1967Proxy(vaultImpl, ""));
 
-        // Deploy implementation and proxy
+        // Deploy NodesManager with vault address
         EthNodesManager impl = new EthNodesManager(vault, address(contracts.keeper));
         address proxy = address(
             new ERC1967Proxy(
@@ -68,9 +63,22 @@ contract EthNodesManagerTest is EthHelpers {
         );
         nodesManager = EthNodesManager(payable(proxy));
 
-        // Set validators manager to nodesManager
-        vm.prank(owner);
-        IEthVault(vault).setValidatorsManager(address(nodesManager));
+        // Initialize vault with nodesManager as fee recipient and validators manager
+        vm.deal(address(this), 1 ether);
+        bytes memory initParams = abi.encode(
+            IEthCommunityVault.EthCommunityVaultInitParams({
+                admin: owner,
+                nodesManager: address(nodesManager),
+                capacity: 1000 ether,
+                feePercent: 5,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        IEthVault(vault).initialize{value: _securityDeposit}(initParams);
+
+        // Register vault in VaultsRegistry
+        vm.prank(contracts.vaultsRegistry.owner());
+        contracts.vaultsRegistry.addVault(vault);
     }
 
     // ======== Initialization ========

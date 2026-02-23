@@ -1,11 +1,13 @@
 {
-  "EthNodesManagerTest_test_deposit": "119655",
-  "EthNodesManagerTest_test_deposit_multipleDeposits_first": "119655",
-  "EthNodesManagerTest_test_deposit_multipleDeposits_second": "101941",
-  "EthNodesManagerTest_test_fundValidators": "157369",
-  "EthNodesManagerTest_test_registerValidators": "317145",
-  "EthNodesManagerTest_test_setLtvPercent": "40885",
-  "EthNodesManagerTest_test_setMinDepositAssets": "40257",
-  "EthNodesManagerTest_test_setWithdrawalsManager": "40615",
-  "EthNodesManagerTest_test_withdrawValidators": "87441"
+  "EthNodesManagerTest_test_claimExitedAssets": "99193",
+  "EthNodesManagerTest_test_deposit": "122128",
+  "EthNodesManagerTest_test_deposit_multipleDeposits_first": "122128",
+  "EthNodesManagerTest_test_deposit_multipleDeposits_second": "104379",
+  "EthNodesManagerTest_test_enterExitQueue": "134204",
+  "EthNodesManagerTest_test_fundValidators": "161827",
+  "EthNodesManagerTest_test_registerValidators": "321632",
+  "EthNodesManagerTest_test_setMinBalancePercent": "40917",
+  "EthNodesManagerTest_test_setMinDepositAssets": "40222",
+  "EthNodesManagerTest_test_setWithdrawalsManager": "40580",
+  "EthNodesManagerTest_test_withdrawValidators": "87450"
 }
