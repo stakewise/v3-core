@@ -93,4 +93,33 @@ contract EthCommunityVaultTest is Test, EthHelpers {
         vm.expectRevert(Errors.AccessDenied.selector);
         vault.setValidatorsManager(other);
     }
+
+    function test_emitsEthCommunityVaultCreated() public {
+        address impl = _getOrCreateVaultImpl(VaultType.EthCommunityVault);
+        address _vault = address(new ERC1967Proxy(impl, ""));
+
+        bytes memory initParams = abi.encode(
+            IEthCommunityVault.EthCommunityVaultInitParams({
+                admin: admin,
+                nodesManager: nodesManager,
+                capacity: 1000 ether,
+                feePercent: 1000,
+                name: "CommunityVault",
+                symbol: "cVLT",
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+
+        vm.expectEmit(true, true, true, true);
+        emit IEthCommunityVault.EthCommunityVaultCreated(
+            admin,
+            nodesManager,
+            1000 ether,
+            1000,
+            "CommunityVault",
+            "cVLT",
+            "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+        );
+        EthCommunityVault(payable(_vault)).initialize{value: _securityDeposit}(initParams);
+    }
 }

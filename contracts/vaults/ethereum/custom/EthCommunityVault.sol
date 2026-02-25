@@ -63,6 +63,16 @@ contract EthCommunityVault is Initializable, EthErc20Vault, IEthCommunityVault {
         emit FeeRecipientUpdated(msg.sender, nodesManager);
         validatorsManager = nodesManager;
         emit ValidatorsManagerUpdated(msg.sender, nodesManager);
+
+        emit EthCommunityVaultCreated(
+            communityParams.admin,
+            nodesManager,
+            communityParams.capacity,
+            communityParams.feePercent,
+            communityParams.name,
+            communityParams.symbol,
+            communityParams.metadataIpfsHash
+        );
     }
 
     /// @inheritdoc IVaultFee

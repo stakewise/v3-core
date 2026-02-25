@@ -11,6 +11,26 @@ import {IEthErc20Vault} from "./IEthErc20Vault.sol";
  */
 interface IEthCommunityVault is IEthErc20Vault {
     /**
+     * @notice Event emitted on EthCommunityVault creation
+     * @param admin The address of the Vault admin
+     * @param nodesManager The address of the nodes manager
+     * @param capacity The capacity of the Vault
+     * @param feePercent The fee percent of the Vault
+     * @param name The name of the ERC20 token
+     * @param symbol The symbol of the ERC20 token
+     * @param metadataIpfsHash The IPFS hash of the Vault metadata
+     */
+    event EthCommunityVaultCreated(
+        address admin,
+        address nodesManager,
+        uint256 capacity,
+        uint16 feePercent,
+        string name,
+        string symbol,
+        string metadataIpfsHash
+    );
+
+    /**
      * @dev Struct for initializing the EthCommunityVault contract
      * @param admin The address of the Vault admin
      * @param nodesManager The address of the nodes manager (fee recipient and validators manager)
