@@ -11,7 +11,7 @@
   "EthMetaVaultTest_test_redeemSubVaultsAssets_redeemAssetsExceedSubVaultsWithdrawableAssets": "560191",
   "EthMetaVaultTest_test_redeemSubVaultsAssets_redeemAssetsLessThanSubVaultsWithdrawableAssets": "561209",
   "EthMetaVaultTest_test_redeemSubVaultsAssets_success": "561209",
-  "EthMetaVaultTest_test_updateStateAndDeposit": "210417",
+  "EthMetaVaultTest_test_updateStateAndDeposit": "212545",
   "EthMetaVaultTest_test_updateStateAndDepositAndMintOsToken": "216899",
   "EthMetaVaultTest_test_userClaimExitedAssets": "54232"
 }

@@ -964,7 +964,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         uint64 timestamp = uint64(vm.getBlockTimestamp());
         vm.recordLogs();
         newMetaVault.updateState(_getEmptyHarvestParams());
-        ExitRequest[] memory exitPositions = _extractExitPositions(newSubVaults, vm.getRecordedLogs(), timestamp);
+        ExitRequest[] memory exitPositions = _extractExitPositions(vm.getRecordedLogs(), timestamp, newRegistry);
 
         // process exits for sub vaults
         IKeeperRewards.HarvestParams memory harvestParams;
@@ -1102,7 +1102,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         vm.recordLogs();
         newMetaVault.updateState(_getEmptyHarvestParams());
         ExitRequest[] memory exitRequests2 =
-            _extractExitPositions(newSubVaults, vm.getRecordedLogs(), uint64(vm.getBlockTimestamp()));
+            _extractExitPositions(vm.getRecordedLogs(), uint64(vm.getBlockTimestamp()), newRegistry);
         assertApproxEqAbs(
             newMetaVault.totalAssets(), expectedTotalAssets, 2, "Total assets should be equal before rewards"
         );
@@ -1222,7 +1222,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Extract exit positions from logs
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        ExitRequest[] memory exitRequests = _extractExitPositions(maxSubVaults, logs, uint64(vm.getBlockTimestamp()));
+        ExitRequest[] memory exitRequests = _extractExitPositions(logs, uint64(vm.getBlockTimestamp()), registry);
 
         // Verify the correct number of exit requests were created
         assertGt(exitRequests.length, 0, "Should have created exit requests");
@@ -1321,7 +1321,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         uint64 timestamp = uint64(vm.getBlockTimestamp());
         vm.recordLogs();
         newMetaVault.updateState(_getEmptyHarvestParams());
-        ExitRequest[] memory exitPositions = _extractExitPositions(newSubVaults, vm.getRecordedLogs(), timestamp);
+        ExitRequest[] memory exitPositions = _extractExitPositions(vm.getRecordedLogs(), timestamp, newRegistry);
 
         ISubVaultsRegistry.SubVaultState memory stateBefore = newRegistry.subVaultsStates(testSubVault);
 
@@ -1422,8 +1422,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         uint64 ejectTimestamp = uint64(vm.getBlockTimestamp());
         address[] memory ejectingVaults = new address[](1);
         ejectingVaults[0] = ejectingSubVault;
-        ExitRequest[] memory ejectPositions =
-            _extractExitPositions(ejectingVaults, vm.getRecordedLogs(), ejectTimestamp);
+        ExitRequest[] memory ejectPositions = _extractExitPositions(vm.getRecordedLogs(), ejectTimestamp, newRegistry);
 
         // Verify the ejecting sub vault is set correctly
         assertEq(newRegistry.ejectingSubVault(), ejectingSubVault, "Ejecting sub vault should be set");
@@ -2072,23 +2071,145 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         stdstore.target(vaultRegistry).sig("subVaultsRewardsNonce()").checked_write(rewardsNonce);
     }
 
-    function _extractExitPositions(address[] memory _subVaults, Vm.Log[] memory logs, uint64 timestamp)
+    function test_claimSubVaultsExitedAssets_unaccountedExitedAssets() public {
+        // Setup: fresh meta vault with 2 sub-vaults
+        bytes memory initParams = abi.encode(
+            IEthMetaVault.EthMetaVaultInitParams({
+                subVaultsCurator: curator,
+                capacity: 1000 ether,
+                feePercent: 1000,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        EthMetaVault newMetaVault =
+            EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
+        ISubVaultsRegistry newRegistry = _getRegistry(address(newMetaVault));
+
+        address[] memory newSubVaults = new address[](2);
+        for (uint256 i = 0; i < 2; i++) {
+            newSubVaults[i] = _createSubVault(admin);
+            _collateralizeVault(address(contracts.keeper), address(contracts.validatorsRegistry), newSubVaults[i]);
+            vm.prank(admin);
+            newRegistry.addSubVault(newSubVaults[i]);
+        }
+
+        // Deposit to meta vault and distribute to sub-vaults
+        vm.deal(address(this), 10 ether);
+        newMetaVault.deposit{value: 10 ether}(address(this), address(0));
+        newRegistry.depositToSubVaults();
+
+        // User enters exit queue with all shares
+        newMetaVault.enterExitQueue(newMetaVault.getShares(address(this)), address(this));
+
+        // Advance nonce and trigger exit queue processing
+        uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
+        _setKeeperRewardsNonce(newNonce);
+        for (uint256 i = 0; i < newSubVaults.length; i++) {
+            _setVaultRewardsNonce(newSubVaults[i], newNonce);
+        }
+
+        uint64 timestamp = uint64(vm.getBlockTimestamp());
+        vm.recordLogs();
+        newMetaVault.updateState(_getEmptyHarvestParams());
+        ExitRequest[] memory exitPositions = _extractExitPositions(vm.getRecordedLogs(), timestamp, newRegistry);
+
+        uint256 totalAssetsBeforeClaim = newRegistry.subVaultsTotalAssets();
+        assertGt(totalAssetsBeforeClaim, 0, "subVaultsTotalAssets should be positive");
+
+        // Fund sub-vaults with extra ETH for exit liquidity and set 1 ETH reward for each.
+        // This makes exitedAssets > subVaultsTotalAssets since the registry hasn't harvested yet.
+        for (uint256 i = 0; i < newSubVaults.length; i++) {
+            vm.deal(newSubVaults[i], address(newSubVaults[i]).balance + 10 ether);
+            IKeeperRewards.HarvestParams memory harvestParams =
+                _setEthVaultReward(newSubVaults[i], int160(int256(1 ether)), 0);
+            IVaultState(newSubVaults[i]).updateState(harvestParams);
+        }
+
+        // Claim exits — exitedAssets exceeds tracked total, triggering underflow protection
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
+        ISubVaultsRegistry.SubVaultExitRequest[] memory claims =
+            new ISubVaultsRegistry.SubVaultExitRequest[](exitPositions.length);
+        for (uint256 i = 0; i < exitPositions.length; i++) {
+            claims[i] = ISubVaultsRegistry.SubVaultExitRequest({
+                vault: exitPositions[i].vault,
+                exitQueueIndex: uint256(
+                    IVaultEnterExit(exitPositions[i].vault).getExitQueueIndex(exitPositions[i].positionTicket)
+                ),
+                timestamp: timestamp
+            });
+        }
+
+        uint256 balanceBefore = address(newMetaVault).balance;
+        newRegistry.claimSubVaultsExitedAssets(claims);
+
+        assertEq(newRegistry.subVaultsTotalAssets(), 0, "subVaultsTotalAssets should be 0 after claiming all exits");
+
+        uint256 claimedAssets = address(newMetaVault).balance - balanceBefore;
+        assertGt(claimedAssets, totalAssetsBeforeClaim, "Claimed assets should exceed tracked total due to rewards");
+        uint256 expectedUnaccounted = claimedAssets - totalAssetsBeforeClaim;
+
+        // Compute residual sub-vault assets (rounding dust from curator share conversions)
+        uint256 residualSubVaultAssets;
+        for (uint256 i = 0; i < newSubVaults.length; i++) {
+            ISubVaultsRegistry.SubVaultState memory st = newRegistry.subVaultsStates(newSubVaults[i]);
+            uint256 totalShares = uint256(st.stakedShares) + st.queuedShares;
+            if (totalShares > 0) {
+                residualSubVaultAssets += IVaultState(newSubVaults[i]).convertToAssets(totalShares);
+            }
+        }
+
+        // Advance nonces and harvest — verify the delta includes unaccounted exited assets
+        newNonce = contracts.keeper.rewardsNonce() + 1;
+        _setKeeperRewardsNonce(newNonce);
+        for (uint256 i = 0; i < newSubVaults.length; i++) {
+            _setVaultRewardsNonce(newSubVaults[i], newNonce);
+        }
+
+        vm.recordLogs();
+        newMetaVault.updateState(_getEmptyHarvestParams());
+
+        bytes32 harvestedTopic = keccak256("SubVaultsHarvested(int256)");
+        Vm.Log[] memory harvestLogs = vm.getRecordedLogs();
+        int256 totalAssetsDelta;
+        bool found;
+        for (uint256 i = 0; i < harvestLogs.length; i++) {
+            if (harvestLogs[i].topics[0] == harvestedTopic) {
+                totalAssetsDelta = abi.decode(harvestLogs[i].data, (int256));
+                found = true;
+                break;
+            }
+        }
+        assertTrue(found, "SubVaultsHarvested event should be emitted");
+        assertGt(totalAssetsDelta, 0, "totalAssetsDelta should be positive from unaccounted exited assets");
+        assertApproxEqAbs(
+            uint256(totalAssetsDelta),
+            expectedUnaccounted + residualSubVaultAssets,
+            2,
+            "totalAssetsDelta should match expected delta"
+        );
+    }
+
+    function _extractExitPositions(Vm.Log[] memory logs, uint64 timestamp, ISubVaultsRegistry)
         internal
-        view
+        pure
         returns (ExitRequest[] memory exitRequests)
     {
-        uint256 subVaultsCount = _subVaults.length;
-        uint256 exitSubVaultsCount = registry.ejectingSubVault() != address(0) ? subVaultsCount - 1 : subVaultsCount;
-        exitRequests = new ExitRequest[](exitSubVaultsCount);
-        uint256 subVaultIndex = 0;
+        uint256 count;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == exitQueueEnteredTopic) {
+                count++;
+            }
+        }
+        exitRequests = new ExitRequest[](count);
+        uint256 index;
         for (uint256 i = 0; i < logs.length; i++) {
             if (logs[i].topics[0] != exitQueueEnteredTopic) {
                 continue;
             }
             (uint256 positionTicket,) = abi.decode(logs[i].data, (uint256, uint256));
-            exitRequests[subVaultIndex] =
+            exitRequests[index] =
                 ExitRequest({vault: logs[i].emitter, positionTicket: positionTicket, timestamp: timestamp});
-            subVaultIndex++;
+            index++;
         }
     }
 }
