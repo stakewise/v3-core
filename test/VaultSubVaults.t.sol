@@ -964,7 +964,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         uint64 timestamp = uint64(vm.getBlockTimestamp());
         vm.recordLogs();
         newMetaVault.updateState(_getEmptyHarvestParams());
-        ExitRequest[] memory exitPositions = _extractExitPositions(vm.getRecordedLogs(), timestamp, newRegistry);
+        ExitRequest[] memory exitPositions = _extractExitPositions(vm.getRecordedLogs(), timestamp);
 
         // process exits for sub vaults
         IKeeperRewards.HarvestParams memory harvestParams;
@@ -1101,8 +1101,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         // update nonce for meta vault and trigger enter exit queue
         vm.recordLogs();
         newMetaVault.updateState(_getEmptyHarvestParams());
-        ExitRequest[] memory exitRequests2 =
-            _extractExitPositions(vm.getRecordedLogs(), uint64(vm.getBlockTimestamp()), newRegistry);
+        ExitRequest[] memory exitRequests2 = _extractExitPositions(vm.getRecordedLogs(), uint64(vm.getBlockTimestamp()));
         assertApproxEqAbs(
             newMetaVault.totalAssets(), expectedTotalAssets, 2, "Total assets should be equal before rewards"
         );
@@ -1222,7 +1221,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
 
         // Extract exit positions from logs
         Vm.Log[] memory logs = vm.getRecordedLogs();
-        ExitRequest[] memory exitRequests = _extractExitPositions(logs, uint64(vm.getBlockTimestamp()), registry);
+        ExitRequest[] memory exitRequests = _extractExitPositions(logs, uint64(vm.getBlockTimestamp()));
 
         // Verify the correct number of exit requests were created
         assertGt(exitRequests.length, 0, "Should have created exit requests");
@@ -1321,7 +1320,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         uint64 timestamp = uint64(vm.getBlockTimestamp());
         vm.recordLogs();
         newMetaVault.updateState(_getEmptyHarvestParams());
-        ExitRequest[] memory exitPositions = _extractExitPositions(vm.getRecordedLogs(), timestamp, newRegistry);
+        ExitRequest[] memory exitPositions = _extractExitPositions(vm.getRecordedLogs(), timestamp);
 
         ISubVaultsRegistry.SubVaultState memory stateBefore = newRegistry.subVaultsStates(testSubVault);
 
@@ -1422,7 +1421,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         uint64 ejectTimestamp = uint64(vm.getBlockTimestamp());
         address[] memory ejectingVaults = new address[](1);
         ejectingVaults[0] = ejectingSubVault;
-        ExitRequest[] memory ejectPositions = _extractExitPositions(vm.getRecordedLogs(), ejectTimestamp, newRegistry);
+        ExitRequest[] memory ejectPositions = _extractExitPositions(vm.getRecordedLogs(), ejectTimestamp);
 
         // Verify the ejecting sub vault is set correctly
         assertEq(newRegistry.ejectingSubVault(), ejectingSubVault, "Ejecting sub vault should be set");
@@ -2111,7 +2110,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         uint64 timestamp = uint64(vm.getBlockTimestamp());
         vm.recordLogs();
         newMetaVault.updateState(_getEmptyHarvestParams());
-        ExitRequest[] memory exitPositions = _extractExitPositions(vm.getRecordedLogs(), timestamp, newRegistry);
+        ExitRequest[] memory exitPositions = _extractExitPositions(vm.getRecordedLogs(), timestamp);
 
         uint256 totalAssetsBeforeClaim = newRegistry.subVaultsTotalAssets();
         assertGt(totalAssetsBeforeClaim, 0, "subVaultsTotalAssets should be positive");
@@ -2189,7 +2188,7 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         );
     }
 
-    function _extractExitPositions(Vm.Log[] memory logs, uint64 timestamp, ISubVaultsRegistry)
+    function _extractExitPositions(Vm.Log[] memory logs, uint64 timestamp)
         internal
         pure
         returns (ExitRequest[] memory exitRequests)
