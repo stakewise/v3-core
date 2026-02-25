@@ -4,21 +4,21 @@ pragma solidity ^0.8.22;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IEthCommunityVault} from "../../../interfaces/IEthCommunityVault.sol";
-import {IEthVault} from "../../../interfaces/IEthVault.sol";
+import {IEthErc20Vault} from "../../../interfaces/IEthErc20Vault.sol";
 import {IVaultFee} from "../../../interfaces/IVaultFee.sol";
 import {IVaultValidators} from "../../../interfaces/IVaultValidators.sol";
 import {IVaultVersion} from "../../modules/VaultVersion.sol";
 import {Errors} from "../../../libraries/Errors.sol";
 import {VaultFee} from "../../modules/VaultFee.sol";
 import {VaultValidators} from "../../modules/VaultValidators.sol";
-import {EthVault} from "../EthVault.sol";
+import {EthErc20Vault} from "../EthErc20Vault.sol";
 
 /**
  * @title EthCommunityVault
  * @author StakeWise
- * @notice Defines the Ethereum staking Vault with NodesManager as fee recipient and validators manager.
+ * @notice Defines the Ethereum staking Vault with ERC-20 token and NodesManager as fee recipient and validators manager.
  */
-contract EthCommunityVault is Initializable, EthVault, IEthCommunityVault {
+contract EthCommunityVault is Initializable, EthErc20Vault, IEthCommunityVault {
     // slither-disable-next-line shadowing-state
     uint8 private constant _version = 6;
 
@@ -26,30 +26,32 @@ contract EthCommunityVault is Initializable, EthVault, IEthCommunityVault {
      * @dev Constructor
      * @dev Since the immutable variable value is stored in the bytecode,
      *      its value would be shared among all proxies pointing to a given contract instead of each proxy's storage.
-     * @param args The arguments for initializing the EthVault contract
+     * @param args The arguments for initializing the EthErc20Vault contract
      */
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor(EthVaultConstructorArgs memory args) EthVault(args) {
+    constructor(EthErc20VaultConstructorArgs memory args) EthErc20Vault(args) {
         _disableInitializers();
     }
 
-    /// @inheritdoc IEthVault
+    /// @inheritdoc IEthErc20Vault
     function initialize(bytes calldata params)
         external
         payable
         virtual
-        override(IEthVault, EthVault)
+        override(IEthErc20Vault, EthErc20Vault)
         reinitializer(_version)
     {
         // do not check for the upgrades since this is the first implementation of EthCommunityVault
         // initialize deployed vault
         EthCommunityVaultInitParams memory communityParams = abi.decode(params, (EthCommunityVaultInitParams));
-        __EthVault_init(
+        __EthErc20Vault_init(
             communityParams.admin,
             address(0),
-            EthVaultInitParams({
+            EthErc20VaultInitParams({
                 capacity: communityParams.capacity,
                 feePercent: communityParams.feePercent,
+                name: communityParams.name,
+                symbol: communityParams.symbol,
                 metadataIpfsHash: communityParams.metadataIpfsHash
             })
         );
@@ -78,12 +80,12 @@ contract EthCommunityVault is Initializable, EthVault, IEthCommunityVault {
     }
 
     /// @inheritdoc IVaultVersion
-    function vaultId() public pure virtual override(IVaultVersion, EthVault) returns (bytes32) {
+    function vaultId() public pure virtual override(IVaultVersion, EthErc20Vault) returns (bytes32) {
         return keccak256("EthCommunityVault");
     }
 
     /// @inheritdoc IVaultVersion
-    function version() public pure virtual override(IVaultVersion, EthVault) returns (uint8) {
+    function version() public pure virtual override(IVaultVersion, EthErc20Vault) returns (uint8) {
         return _version;
     }
 

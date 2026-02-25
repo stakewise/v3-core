@@ -13,7 +13,8 @@ import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {IKeeperValidators} from "../contracts/interfaces/IKeeperValidators.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
-import {IEthVault} from "../contracts/vaults/ethereum/EthVault.sol";
+import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
+import {IEthErc20Vault} from "../contracts/interfaces/IEthErc20Vault.sol";
 import {IEthCommunityVault} from "../contracts/interfaces/IEthCommunityVault.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 
@@ -71,10 +72,12 @@ contract EthNodesManagerTest is EthHelpers {
                 nodesManager: address(nodesManager),
                 capacity: 1000 ether,
                 feePercent: 5,
+                name: "CommunityVault",
+                symbol: "cVLT",
                 metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
             })
         );
-        IEthVault(vault).initialize{value: _securityDeposit}(initParams);
+        IEthErc20Vault(vault).initialize{value: _securityDeposit}(initParams);
 
         // Register vault in VaultsRegistry
         vm.prank(contracts.vaultsRegistry.owner());
@@ -99,7 +102,7 @@ contract EthNodesManagerTest is EthHelpers {
         uint256 depositAmount = 10 ether;
 
         vm.expectEmit(true, true, true, false);
-        emit INodesManager.Deposited(user1, depositAmount, IEthVault(vault).convertToShares(depositAmount), 0);
+        emit INodesManager.Deposited(user1, depositAmount, IEthVault(vault).convertToShares(depositAmount), 0, 0);
 
         vm.prank(user1);
         _startSnapshotGas("EthNodesManagerTest_test_deposit");

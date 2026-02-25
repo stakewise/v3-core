@@ -143,7 +143,8 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             vm.prank(currentAdmin);
             IEthVault(vault).setAdmin(admin);
         }
-        if (IEthVault(vault).feeRecipient() != admin) {
+        // EthCommunityVault locks feeRecipient to nodesManager, skip for it
+        if (vaultType != VaultType.EthCommunityVault && IEthVault(vault).feeRecipient() != admin) {
             vm.prank(admin);
             IEthVault(vault).setFeeRecipient(admin);
         }
@@ -350,7 +351,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             address vaultImpl = _getOrCreateVaultImpl(vaultType);
             address vault = address(new ERC1967Proxy(vaultImpl, ""));
             vm.deal(address(this), 1 ether);
-            IEthVault(vault).initialize{value: _securityDeposit}(initParams);
+            IEthErc20Vault(vault).initialize{value: _securityDeposit}(initParams);
             vm.prank(VaultsRegistry(_vaultsRegistry).owner());
             VaultsRegistry(_vaultsRegistry).addVault(vault);
             return vault;
@@ -480,7 +481,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         } else if (_vaultType == VaultType.EthPrivErc20Vault) {
             impl = address(new EthPrivErc20Vault(ethErc20Args));
         } else if (_vaultType == VaultType.EthCommunityVault) {
-            impl = address(new EthCommunityVault(ethArgs));
+            impl = address(new EthCommunityVault(ethErc20Args));
         } else if (_vaultType == VaultType.EthFoxVault) {
             IEthFoxVault.EthFoxVaultConstructorArgs memory ethFoxVaultArgs = IEthFoxVault.EthFoxVaultConstructorArgs(
                 _keeper,

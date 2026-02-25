@@ -396,7 +396,10 @@ abstract contract NodesManager is
                 pendingPenaltyAssets[operator] = 0;
                 exitedAssets -= pendingPenalty;
             }
-            // donate deducted penalty back to the vault
+        }
+
+        // donate deducted penalty back to the vault
+        if (penaltyDeducted > 0) {
             _donateAssets(penaltyDeducted);
         }
 
@@ -411,37 +414,42 @@ abstract contract NodesManager is
     /**
      * @dev Internal function to deposit assets to the vault and update the operator's shares balance
      * @param assets The amount of assets to deposit
-     * @return shares The amount of shares received from the vault for the deposited assets
+     * @return addedShares The amount of shares received with penalty applied if any
      */
-    function _deposit(uint256 assets) internal returns (uint256 shares) {
+    function _deposit(uint256 assets) internal returns (uint256 addedShares) {
         if (assets < minDepositAssets) revert Errors.InvalidAssets();
 
         // deposit assets to the vault
-        shares = _depositToVault(assets);
+        uint256 depositShares = _depositToVault(assets);
 
         // apply pending penalty if any
-        uint256 penaltyDeducted;
+        uint256 penaltyAssets;
+        uint256 penaltyShares;
         uint256 pendingPenalty = pendingPenaltyAssets[msg.sender];
         if (pendingPenalty > 0) {
-            uint256 penaltyShares = IVaultState(vault).convertToShares(pendingPenalty);
-            if (penaltyShares <= shares) {
-                penaltyDeducted = pendingPenalty;
-                shares -= penaltyShares;
+            penaltyShares = IVaultState(vault).convertToShares(pendingPenalty);
+            if (penaltyShares <= depositShares) {
+                penaltyAssets = pendingPenalty;
                 pendingPenaltyAssets[msg.sender] = 0;
-                IVaultState(vault).donateShares(penaltyShares);
             } else {
-                uint256 coveredPenaltyAssets = IVaultState(vault).convertToAssets(shares);
-                penaltyDeducted = coveredPenaltyAssets;
-                pendingPenaltyAssets[msg.sender] = pendingPenalty - coveredPenaltyAssets;
-                IVaultState(vault).donateShares(shares);
-                shares = 0;
+                penaltyShares = depositShares;
+                penaltyAssets = IVaultState(vault).convertToAssets(penaltyShares);
+                pendingPenaltyAssets[msg.sender] = pendingPenalty - penaltyAssets;
             }
         }
 
-        // update operator's shares balance
-        operatorStates[msg.sender].balanceShares += SafeCast.toUint128(shares);
+        if (penaltyShares > 0) {
+            // donate penalty shares to the vault
+            IVaultState(vault).donateShares(penaltyShares);
+        }
 
-        emit Deposited(msg.sender, assets, shares, penaltyDeducted);
+        // update operator's shares balance
+        addedShares = depositShares - penaltyShares;
+        if (addedShares > 0) {
+            operatorStates[msg.sender].balanceShares += SafeCast.toUint128(addedShares);
+        }
+
+        emit Deposited(msg.sender, assets, depositShares, penaltyAssets, penaltyShares);
     }
 
     /**

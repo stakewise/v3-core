@@ -2,11 +2,17 @@
 
 pragma solidity ^0.8.22;
 
+import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import {console} from "forge-std/console.sol";
+import {IEthCommunityVault} from "../contracts/interfaces/IEthCommunityVault.sol";
+import {IEthErc20Vault} from "../contracts/interfaces/IEthErc20Vault.sol";
 import {IEthErc20MetaVault} from "../contracts/interfaces/IEthErc20MetaVault.sol";
 import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
+import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
+import {EthNodesManager} from "../contracts/nodes/EthNodesManager.sol";
 import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
 import {EthValidatorsChecker} from "../contracts/validators/EthValidatorsChecker.sol";
 import {SubVaultsRegistry} from "../contracts/vaults/SubVaultsRegistry.sol";
@@ -16,9 +22,12 @@ import {EthMetaVault} from "../contracts/vaults/ethereum/EthMetaVault.sol";
 import {EthMetaVaultFactory} from "../contracts/vaults/ethereum/EthMetaVaultFactory.sol";
 import {EthPrivErc20MetaVault} from "../contracts/vaults/ethereum/EthPrivErc20MetaVault.sol";
 import {EthPrivMetaVault} from "../contracts/vaults/ethereum/EthPrivMetaVault.sol";
+import {EthCommunityVault} from "../contracts/vaults/ethereum/custom/EthCommunityVault.sol";
 import {Network} from "./Network.sol";
 
 contract UpgradeEthNetwork is Network {
+    uint256 private constant _securityDeposit = 1e9;
+
     address public osTokenRedeemerOwner;
     address public validatorsRegistry;
     uint256 public osTokenRedeemerExitQueueUpdateDelay;
@@ -26,6 +35,8 @@ contract UpgradeEthNetwork is Network {
     address public validatorsChecker;
     address public osTokenRedeemer;
     address public subVaultsRegistryFactory;
+    address public communityVault;
+    address public nodesManager;
 
     address[] public vaultImpls;
     Factory[] public vaultFactories;
@@ -79,11 +90,14 @@ contract UpgradeEthNetwork is Network {
 
         _deployImplementations();
         _deployFactories();
+        _deployCommunityVault();
         vm.stopBroadcast();
 
-        generateGovernorTxJson(vaultImpls, vaultFactories, osTokenRedeemer);
+        generateGovernorTxJson(vaultImpls, vaultFactories, osTokenRedeemer, communityVault);
         generateUpgradesJson(vaultImpls);
-        generateAddressesJson(vaultFactories, validatorsChecker, osTokenRedeemer, subVaultsRegistryFactory);
+        generateAddressesJson(
+            vaultFactories, validatorsChecker, osTokenRedeemer, subVaultsRegistryFactory, communityVault, nodesManager
+        );
     }
 
     function _deployImplementations() internal {
@@ -158,5 +172,70 @@ contract UpgradeEthNetwork is Network {
             subVaultsRegistryFactory: subVaultsRegistryFactory,
             exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
         });
+    }
+
+    function _deployCommunityVault() internal {
+        Deployment memory deployment = getDeploymentData();
+
+        // Read community vault init params
+        address vaultAdmin = vm.envAddress("COMMUNITY_VAULT_ADMIN");
+        uint16 vaultFeePercent = SafeCast.toUint16(vm.envUint("COMMUNITY_VAULT_FEE_PERCENT"));
+        string memory vaultName = vm.envString("COMMUNITY_VAULT_NAME");
+        string memory vaultSymbol = vm.envString("COMMUNITY_VAULT_SYMBOL");
+
+        // Read nodes manager init params
+        address nodesManagerOwner = vm.envAddress("NODES_MANAGER_OWNER");
+        uint256 minDepositAssets = vm.envUint("NODES_MANAGER_MIN_DEPOSIT_ASSETS");
+        uint16 minBalancePercent = SafeCast.toUint16(vm.envUint("NODES_MANAGER_MIN_BALANCE_PERCENT"));
+        uint256 stateUpdateDelay = vm.envUint("NODES_MANAGER_STATE_UPDATE_DELAY");
+
+        // Deploy EthCommunityVault implementation
+        IEthErc20Vault.EthErc20VaultConstructorArgs memory vaultArgs = IEthErc20Vault.EthErc20VaultConstructorArgs({
+            keeper: deployment.keeper,
+            vaultsRegistry: deployment.vaultsRegistry,
+            validatorsRegistry: validatorsRegistry,
+            validatorsWithdrawals: VALIDATORS_WITHDRAWALS,
+            validatorsConsolidations: VALIDATORS_CONSOLIDATIONS,
+            consolidationsChecker: deployment.consolidationsChecker,
+            osTokenVaultController: deployment.osTokenVaultController,
+            osTokenConfig: deployment.osTokenConfig,
+            osTokenVaultEscrow: deployment.osTokenVaultEscrow,
+            sharedMevEscrow: deployment.sharedMevEscrow,
+            depositDataRegistry: deployment.depositDataRegistry,
+            exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
+        });
+        address communityVaultImpl = address(new EthCommunityVault(vaultArgs));
+
+        // Deploy vault proxy (uninitialized)
+        communityVault = address(new ERC1967Proxy(communityVaultImpl, ""));
+
+        // Deploy EthNodesManager implementation + proxy
+        EthNodesManager nodesManagerImpl = new EthNodesManager(communityVault, deployment.keeper);
+        nodesManager = address(
+            new ERC1967Proxy(
+                address(nodesManagerImpl),
+                abi.encodeWithSelector(
+                    EthNodesManager.initialize.selector,
+                    nodesManagerOwner,
+                    minDepositAssets,
+                    minBalancePercent,
+                    stateUpdateDelay
+                )
+            )
+        );
+
+        // Initialize vault with NodesManager
+        bytes memory initParams = abi.encode(
+            IEthCommunityVault.EthCommunityVaultInitParams({
+                admin: vaultAdmin,
+                nodesManager: nodesManager,
+                capacity: type(uint256).max,
+                feePercent: vaultFeePercent,
+                name: vaultName,
+                symbol: vaultSymbol,
+                metadataIpfsHash: ""
+            })
+        );
+        IEthErc20Vault(communityVault).initialize{value: _securityDeposit}(initParams);
     }
 }

@@ -35,6 +35,8 @@ contract EthCommunityVaultTest is Test, EthHelpers {
                 nodesManager: nodesManager,
                 capacity: 1000 ether,
                 feePercent: 1000,
+                name: "CommunityVault",
+                symbol: "cVLT",
                 metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
             })
         );
@@ -71,6 +73,8 @@ contract EthCommunityVaultTest is Test, EthHelpers {
                 nodesManager: address(0),
                 capacity: 1000 ether,
                 feePercent: 1000,
+                name: "CommunityVault",
+                symbol: "cVLT",
                 metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
             })
         );

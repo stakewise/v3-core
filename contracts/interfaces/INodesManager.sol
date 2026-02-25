@@ -17,11 +17,14 @@ interface INodesManager is IERC5267, IERC1822Proxiable, IMulticall {
     /**
      * @notice Event emitted on deposit
      * @param operator The address of the operator
-     * @param assets The deposit assets
-     * @param shares The vault shares received for the deposit
+     * @param assets The deposit assets before the penalty is applied if any
+     * @param shares The deposit shares before the penalty is applied if any
      * @param penaltyAssets The amount of assets deducted as penalty
+     * @param penaltyShares The amount of shares deducted as penalty
      */
-    event Deposited(address indexed operator, uint256 assets, uint256 shares, uint256 penaltyAssets);
+    event Deposited(
+        address indexed operator, uint256 assets, uint256 shares, uint256 penaltyAssets, uint256 penaltyShares
+    );
 
     /**
      * @notice Event emitted on validators registration
