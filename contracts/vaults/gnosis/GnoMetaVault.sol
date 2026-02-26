@@ -153,6 +153,11 @@ contract GnoMetaVault is
         return super.enterExitQueue(shares, receiver);
     }
 
+    /// @inheritdoc IVaultState
+    function donateShares(uint256 shares) public virtual override(IVaultState, VaultState, VaultOsToken) {
+        super.donateShares(shares);
+    }
+
     /// @inheritdoc VaultImmutables
     function _checkHarvested() internal view virtual override(VaultImmutables, VaultSubVaults) {
         super._checkHarvested();

@@ -81,9 +81,11 @@ contract UpgradeGnoNetwork is Network {
         _deployFactories();
         vm.stopBroadcast();
 
-        generateGovernorTxJson(vaultImpls, vaultFactories, osTokenRedeemer);
+        generateGovernorTxJson(vaultImpls, vaultFactories, osTokenRedeemer, address(0));
         generateUpgradesJson(vaultImpls);
-        generateAddressesJson(vaultFactories, validatorsChecker, osTokenRedeemer, subVaultsRegistryFactory);
+        generateAddressesJson(
+            vaultFactories, validatorsChecker, osTokenRedeemer, subVaultsRegistryFactory, address(0), address(0)
+        );
     }
 
     function _deployImplementations() internal {

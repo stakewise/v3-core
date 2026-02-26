@@ -139,7 +139,8 @@ abstract contract Network is Script {
     function generateGovernorTxJson(
         address[] memory vaultImpls,
         Factory[] memory vaultFactories,
-        address osTokenRedeemer
+        address osTokenRedeemer,
+        address communityVault
     ) internal {
         if (_governorCalls.length > 0) {
             return;
@@ -161,6 +162,11 @@ abstract contract Network is Script {
         }
 
         _governorCalls.push(_serializeSetOsTokenRedeemer(deployment.osTokenConfig, osTokenRedeemer));
+
+        if (communityVault != address(0)) {
+            _governorCalls.push(_serializeAddVaultImpl(IVaultVersion(communityVault).implementation()));
+            _governorCalls.push(_serializeAddVault(communityVault));
+        }
 
         string memory output = vm.serializeString("governorCalls", "transactions", _governorCalls);
         string memory filePath = getGovernorTxsFilePath();
@@ -186,7 +192,9 @@ abstract contract Network is Script {
         Factory[] memory newFactories,
         address validatorsChecker,
         address osTokenRedeemer,
-        address subVaultsRegistryFactory
+        address subVaultsRegistryFactory,
+        address communityVault,
+        address nodesManager
     ) internal {
         Deployment memory deployment = getDeploymentData();
 
@@ -228,6 +236,12 @@ abstract contract Network is Script {
 
         vm.serializeAddress(json, "OsTokenRedeemer", osTokenRedeemer);
         vm.serializeAddress(json, "SubVaultsRegistryFactory", subVaultsRegistryFactory);
+
+        if (communityVault != address(0)) {
+            vm.serializeAddress(json, "CommunityVault", communityVault);
+            vm.serializeAddress(json, "NodesManager", nodesManager);
+        }
+
         string memory output = vm.serializeAddress(json, "ValidatorsChecker", validatorsChecker);
         string memory path = string.concat("./deployments/", getNetworkName(), "-new.json");
         vm.writeJson(output, path);
@@ -284,6 +298,22 @@ abstract contract Network is Script {
 
         address[] memory params = new address[](1);
         params[0] = factory;
+        return vm.serializeAddress(object, "params", params);
+    }
+
+    function _serializeAddVault(address vault) private returns (string memory) {
+        string memory object = "addVault";
+        Deployment memory deployment = getDeploymentData();
+        vm.serializeAddress(object, "to", deployment.vaultsRegistry);
+        vm.serializeString(object, "operation", "0");
+        vm.serializeString(object, "method", "addVault(address)");
+        vm.serializeString(object, "value", "0.0");
+        vm.serializeBytes(
+            object, "data", abi.encodeWithSelector(IVaultsRegistry(deployment.vaultsRegistry).addVault.selector, vault)
+        );
+
+        address[] memory params = new address[](1);
+        params[0] = vault;
         return vm.serializeAddress(object, "params", params);
     }
 

@@ -7,6 +7,7 @@ import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
 import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {EthVault} from "../contracts/vaults/ethereum/EthVault.sol";
+import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 
 contract VaultStateTest is Test, EthHelpers {
@@ -484,5 +485,99 @@ contract VaultStateTest is Test, EthHelpers {
             0.01e18, // 1% tolerance
             "User should receive all expected assets across multiple checkpoints"
         );
+    }
+
+    // Test donateShares burns caller's shares and increases value per share
+    function test_donateShares() public {
+        // User1 deposits to get shares
+        _depositToVault(address(vault), 10 ether, user1, user1);
+
+        uint256 user1Shares = vault.getShares(user1);
+        uint256 totalSharesBefore = vault.totalShares();
+        uint256 totalAssetsBefore = vault.totalAssets();
+        uint256 sharesToDonate = user1Shares / 2;
+
+        // Calculate asset value per share before donation
+        uint256 assetsPerShareBefore = vault.convertToAssets(1 ether);
+
+        // Donate shares
+        vm.expectEmit(true, true, true, true);
+        emit IVaultState.SharesDonated(user1, sharesToDonate);
+        vm.prank(user1);
+        vault.donateShares(sharesToDonate);
+
+        // Verify caller's shares decreased
+        assertEq(vault.getShares(user1), user1Shares - sharesToDonate, "Donor shares should decrease");
+
+        // Verify total shares decreased
+        assertEq(vault.totalShares(), totalSharesBefore - sharesToDonate, "Total shares should decrease");
+
+        // Verify total assets unchanged
+        assertEq(vault.totalAssets(), totalAssetsBefore, "Total assets should remain the same");
+
+        // Verify value per share increased
+        uint256 assetsPerShareAfter = vault.convertToAssets(1 ether);
+        assertGt(assetsPerShareAfter, assetsPerShareBefore, "Value per share should increase after donation");
+    }
+
+    // Test donateShares reverts when donating more shares than balance
+    function test_donateShares_insufficientShares() public {
+        _depositToVault(address(vault), 5 ether, user1, user1);
+        uint256 user1Shares = vault.getShares(user1);
+
+        vm.prank(user1);
+        vm.expectRevert();
+        vault.donateShares(user1Shares + 1);
+    }
+
+    // Test donateShares with zero shares reverts
+    function test_donateShares_zeroShares() public {
+        _depositToVault(address(vault), 5 ether, user1, user1);
+
+        vm.prank(user1);
+        vm.expectRevert(Errors.InvalidShares.selector);
+        vault.donateShares(0);
+    }
+
+    // Test donateShares with all shares
+    function test_donateShares_allShares() public {
+        _depositToVault(address(vault), 5 ether, user1, user1);
+        uint256 user1Shares = vault.getShares(user1);
+
+        vm.prank(user1);
+        vault.donateShares(user1Shares);
+
+        assertEq(vault.getShares(user1), 0, "Donor should have zero shares");
+    }
+
+    // Test donateShares benefits remaining holders proportionally
+    function test_donateShares_benefitsRemainingHolders() public {
+        // Two users deposit equal amounts
+        _depositToVault(address(vault), 10 ether, user1, user1);
+        _depositToVault(address(vault), 10 ether, user2, user2);
+
+        uint256 user2AssetsBefore = vault.convertToAssets(vault.getShares(user2));
+        uint256 ownerAssetsBefore = vault.convertToAssets(vault.getShares(owner));
+
+        // User1 donates all shares
+        uint256 user1Shares = vault.getShares(user1);
+        vm.prank(user1);
+        vault.donateShares(user1Shares);
+
+        // Other holders' asset values should increase
+        uint256 user2AssetsAfter = vault.convertToAssets(vault.getShares(user2));
+        uint256 ownerAssetsAfter = vault.convertToAssets(vault.getShares(owner));
+
+        assertGt(user2AssetsAfter, user2AssetsBefore, "User2 asset value should increase");
+        assertGt(ownerAssetsAfter, ownerAssetsBefore, "Owner asset value should increase");
+    }
+
+    // Test donateShares from account with no shares
+    function test_donateShares_noShares() public {
+        assertEq(vault.getShares(user1), 0, "User1 should have no shares");
+
+        vm.prank(user1);
+        vm.expectRevert();
+        vault.donateShares(1);
     }
 }

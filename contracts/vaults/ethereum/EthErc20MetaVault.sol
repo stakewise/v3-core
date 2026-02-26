@@ -161,6 +161,11 @@ contract EthErc20MetaVault is
         }
     }
 
+    /// @inheritdoc IVaultState
+    function donateShares(uint256 shares) public virtual override(IVaultState, VaultState, VaultOsToken) {
+        super.donateShares(shares);
+    }
+
     /// @inheritdoc IVaultVersion
     function vaultId() public pure virtual override(IVaultVersion, VaultVersion) returns (bytes32) {
         return keccak256("EthErc20MetaVault");

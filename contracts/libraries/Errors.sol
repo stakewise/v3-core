@@ -62,4 +62,7 @@ library Errors {
     error RewardsNonceIsHigher();
     error InvalidRedeemablePositions();
     error InvalidDelay();
+    error InvalidTicket();
+    error LowBalance();
+    error InvalidMinBalancePercent();
 }

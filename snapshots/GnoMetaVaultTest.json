@@ -1,9 +1,9 @@
 {
-  "GnoMetaVaultTest_test_addSubVault": "132774",
-  "GnoMetaVaultTest_test_claimExitedAssets": "67905",
+  "GnoMetaVaultTest_test_addSubVault": "132818",
+  "GnoMetaVaultTest_test_claimExitedAssets": "67817",
   "GnoMetaVaultTest_test_deposit": "109532",
-  "GnoMetaVaultTest_test_depositToSubVaults": "376819",
+  "GnoMetaVaultTest_test_depositToSubVaults": "376486",
   "GnoMetaVaultTest_test_ejectSubVault": "216850",
-  "GnoMetaVaultTest_test_enterExitQueue": "99334",
-  "GnoMetaVaultTest_test_updateState": "171949"
+  "GnoMetaVaultTest_test_enterExitQueue": "99356",
+  "GnoMetaVaultTest_test_updateState": "174143"
 }

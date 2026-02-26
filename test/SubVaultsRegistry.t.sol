@@ -10,6 +10,7 @@ import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IGnoMetaVault} from "../contracts/interfaces/IGnoMetaVault.sol";
 import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
 import {ISubVaultsCurator} from "../contracts/interfaces/ISubVaultsCurator.sol";
+import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthMetaVault} from "../contracts/vaults/ethereum/EthMetaVault.sol";
 import {GnoMetaVault} from "../contracts/vaults/gnosis/GnoMetaVault.sol";
@@ -491,7 +492,7 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
     }
 
     /// @notice Test canUpdateState returns correct values
-    function test_canUpdateState() public {
+    function test_canUpdateState() public view {
         // Registry should have a valid rewards nonce
         uint128 currentNonce = registry.subVaultsRewardsNonce();
         assertTrue(currentNonce > 0, "Rewards nonce should be set");
@@ -670,11 +671,43 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         }
         metaVault.updateState(_getEmptyHarvestParams());
 
-        // Calculate redemptions - should consider ejecting sub-vault shares
-        ISubVaultsCurator.ExitRequest[] memory requests = registry.calculateSubVaultsRedemptions(1 ether);
+        // Get withdrawable assets (should be 0 since all deposited to sub-vaults)
+        uint256 withdrawableAssets = metaVault.withdrawableAssets();
 
-        // Result depends on withdrawable assets, may be empty if withdrawable is sufficient
-        assertTrue(true, "calculateSubVaultsRedemptions should not revert with ejecting sub-vault");
+        // Get ejecting sub-vault assets - these are counted as available in calculateSubVaultsRedemptions
+        ISubVaultsRegistry.SubVaultState memory ejectingState = registry.subVaultsStates(subVaults[0]);
+        uint256 ejectingAssets = 0;
+        if (ejectingState.queuedShares > 0) {
+            ejectingAssets = IVaultState(subVaults[0]).convertToAssets(ejectingState.queuedShares);
+        }
+
+        // Request redemption for more than withdrawable + ejecting assets to force requests from other sub vaults
+        uint256 assetsToRedeem = withdrawableAssets + ejectingAssets + 1 ether;
+        ISubVaultsCurator.ExitRequest[] memory requests = registry.calculateSubVaultsRedemptions(assetsToRedeem);
+
+        // Should return exit requests since we're requesting more than available
+        assertGt(requests.length, 0, "Should return exit requests");
+
+        // Calculate total assets from redemption requests
+        uint256 totalRequestedAssets;
+        for (uint256 i = 0; i < requests.length; i++) {
+            totalRequestedAssets += requests[i].assets;
+        }
+
+        // Check that total requests + ejecting assets + withdrawable assets cover assets to redeem
+        uint256 totalAvailable = totalRequestedAssets + ejectingAssets + withdrawableAssets;
+        assertGe(totalAvailable, assetsToRedeem, "Total available should cover assets to redeem");
+
+        // Verify ejecting sub vault has 0 assets in redemption requests
+        bool ejectingVaultFound = false;
+        for (uint256 i = 0; i < requests.length; i++) {
+            if (requests[i].vault == subVaults[0]) {
+                ejectingVaultFound = true;
+                assertEq(requests[i].assets, 0, "Ejecting sub vault should have 0 assets in redemption requests");
+                break;
+            }
+        }
+        assertTrue(ejectingVaultFound, "Ejecting sub vault should be in redemption requests");
     }
 
     /// @notice Test migrate with empty exits arrays

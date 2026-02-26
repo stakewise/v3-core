@@ -14,7 +14,7 @@ import {VaultAdmin} from "../modules/VaultAdmin.sol";
 import {VaultFee} from "../modules/VaultFee.sol";
 import {VaultVersion, IVaultVersion} from "../modules/VaultVersion.sol";
 import {VaultImmutables} from "../modules/VaultImmutables.sol";
-import {VaultState} from "../modules/VaultState.sol";
+import {IVaultState, VaultState} from "../modules/VaultState.sol";
 import {VaultEnterExit, IVaultEnterExit} from "../modules/VaultEnterExit.sol";
 import {VaultOsToken} from "../modules/VaultOsToken.sol";
 import {VaultGnoStaking} from "../modules/VaultGnoStaking.sol";
@@ -112,6 +112,11 @@ contract GnoErc20Vault is
     {
         positionTicket = super.enterExitQueue(shares, receiver);
         emit Transfer(msg.sender, address(this), shares);
+    }
+
+    /// @inheritdoc IVaultState
+    function donateShares(uint256 shares) public virtual override(IVaultState, VaultState, VaultOsToken) {
+        super.donateShares(shares);
     }
 
     /// @inheritdoc IVaultVersion

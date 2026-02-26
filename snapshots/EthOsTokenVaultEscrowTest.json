@@ -12,7 +12,7 @@
   "EthOsTokenVaultEscrowTest_test_processExitedAssets_success": "71278",
   "EthOsTokenVaultEscrowTest_test_register_accessDenied": "33699",
   "EthOsTokenVaultEscrowTest_test_register_directCall": "83600",
-  "EthOsTokenVaultEscrowTest_test_register_fullFlow": "163659",
+  "EthOsTokenVaultEscrowTest_test_register_fullFlow": "163637",
   "EthOsTokenVaultEscrowTest_test_register_invalidShares": "33742",
   "EthOsTokenVaultEscrowTest_test_register_zeroAddress": "33386",
   "EthOsTokenVaultEscrowTest_test_setAuthenticator_onlyOwner": "30174",

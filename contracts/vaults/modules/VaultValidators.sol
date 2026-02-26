@@ -172,7 +172,7 @@ abstract contract VaultValidators is
     }
 
     /// @inheritdoc IVaultValidators
-    function setValidatorsManager(address _validatorsManager) external override {
+    function setValidatorsManager(address _validatorsManager) external virtual override {
         _checkAdmin();
         if (_validatorsManager == validatorsManager) {
             revert Errors.ValueNotChanged();

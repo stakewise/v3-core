@@ -75,6 +75,7 @@ contract SubVaultsRegistry is
     uint128 public override subVaultsTotalAssets;
 
     uint256 private _totalProcessedExitQueueTickets;
+    uint256 private _unaccountedExitedAssets;
 
     /**
      * @dev Modifier to check if the caller is the meta vault admin
@@ -368,6 +369,7 @@ contract SubVaultsRegistry is
         uint256 exitRequestsLength = exitRequests.length;
         // SLOAD to memory
         uint256 _subVaultsTotalAssets = subVaultsTotalAssets;
+        uint256 unaccountedExitedAssets = _unaccountedExitedAssets;
         address _ejectingSubVault = ejectingSubVault;
         address _metaVault = metaVault;
         for (uint256 i = 0; i < exitRequestsLength;) {
@@ -392,7 +394,12 @@ contract SubVaultsRegistry is
             }
 
             // update total assets, vault state
-            _subVaultsTotalAssets -= exitedAssets;
+            if (exitedAssets > _subVaultsTotalAssets) {
+                unaccountedExitedAssets += exitedAssets - _subVaultsTotalAssets;
+                _subVaultsTotalAssets = 0;
+            } else {
+                _subVaultsTotalAssets -= exitedAssets;
+            }
             _subVaultsStates[exitRequest.vault] = subVaultState;
 
             // claim exited assets from the vault
@@ -416,6 +423,7 @@ contract SubVaultsRegistry is
         }
         // update sub vaults total assets
         subVaultsTotalAssets = SafeCast.toUint128(_subVaultsTotalAssets);
+        _unaccountedExitedAssets = unaccountedExitedAssets;
     }
 
     /// @inheritdoc ISubVaultsRegistry
@@ -445,6 +453,13 @@ contract SubVaultsRegistry is
 
         // store new sub vaults total assets delta
         totalAssetsDelta = SafeCast.toInt256(newSubVaultsTotalAssets) - SafeCast.toInt256(subVaultsTotalAssets);
+
+        // include unaccounted exited assets from claims that exceeded tracked totals
+        uint256 unaccounted = _unaccountedExitedAssets;
+        if (unaccounted > 0) {
+            totalAssetsDelta += SafeCast.toInt256(unaccounted);
+            delete _unaccountedExitedAssets;
+        }
 
         // update state
         subVaultsTotalAssets = SafeCast.toUint128(newSubVaultsTotalAssets);
