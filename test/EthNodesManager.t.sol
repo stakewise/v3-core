@@ -24,6 +24,7 @@ contract EthNodesManagerTest is EthHelpers {
     address public owner;
     address public user1;
     address public user2;
+    address public validatorsManager1;
 
     uint256 public constant MIN_DEPOSIT_ASSETS = 1 ether;
     uint16 public constant MIN_BALANCE_PERCENT = 5_000; // 50%
@@ -40,6 +41,7 @@ contract EthNodesManagerTest is EthHelpers {
         owner = makeAddr("Owner");
         user1 = makeAddr("User1");
         user2 = makeAddr("User2");
+        validatorsManager1 = makeAddr("ValidatorsManager1");
 
         vm.deal(user1, 100 ether);
         vm.deal(user2, 100 ether);
@@ -82,6 +84,10 @@ contract EthNodesManagerTest is EthHelpers {
         // Register vault in VaultsRegistry
         vm.prank(contracts.vaultsRegistry.owner());
         contracts.vaultsRegistry.addVault(vault);
+
+        // Set validators manager for user1
+        vm.prank(user1);
+        nodesManager.setValidatorsManager(validatorsManager1);
     }
 
     // ======== Initialization ========
@@ -358,6 +364,51 @@ contract EthNodesManagerTest is EthHelpers {
         nodesManager.setWithdrawalsManager(address(0));
     }
 
+    // ======== setValidatorsManager ========
+
+    function test_setValidatorsManager() public {
+        address newManager = makeAddr("NewValidatorsManager");
+
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.ValidatorsManagerUpdated(user2, newManager);
+
+        vm.prank(user2);
+        nodesManager.setValidatorsManager(newManager);
+
+        assertEq(nodesManager.validatorsManagers(user2), newManager);
+    }
+
+    function test_setValidatorsManager_clearToZero() public {
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.ValidatorsManagerUpdated(user1, address(0));
+
+        vm.prank(user1);
+        nodesManager.setValidatorsManager(address(0));
+
+        assertEq(nodesManager.validatorsManagers(user1), address(0));
+    }
+
+    function test_setValidatorsManager_sameValue() public {
+        vm.prank(user1);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        nodesManager.setValidatorsManager(validatorsManager1);
+    }
+
+    function test_setValidatorsManager_sameValueZero() public {
+        vm.prank(user2);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        nodesManager.setValidatorsManager(address(0));
+    }
+
+    function test_setValidatorsManager_update() public {
+        address newManager = makeAddr("UpdatedManager");
+
+        vm.prank(user1);
+        nodesManager.setValidatorsManager(newManager);
+
+        assertEq(nodesManager.validatorsManagers(user1), newManager);
+    }
+
     // ======== canUpdateState ========
 
     function test_canUpdateState() public view {
@@ -518,8 +569,7 @@ contract EthNodesManagerTest is EthHelpers {
         vm.expectEmit(true, true, true, true);
         emit INodesManager.OperatorStateUpdated(user1, opTotalAssets, cumPenaltyAssets, cumEarnedFeeShares);
 
-        vm.prank(user1);
-        nodesManager.updateOperatorState(params);
+        nodesManager.updateOperatorState(user1, params);
 
         (uint128 storedTotalAssets, uint128 storedBalanceShares, uint128 storedPenalty, uint128 storedFees) =
             nodesManager.operatorStates(user1);
@@ -550,8 +600,7 @@ contract EthNodesManagerTest is EthHelpers {
             proof: new bytes32[](0)
         });
 
-        vm.prank(user1);
-        nodesManager.updateOperatorState(params);
+        nodesManager.updateOperatorState(user1, params);
 
         (, uint128 balanceShares,,) = nodesManager.operatorStates(user1);
         assertEq(balanceShares, uint128(depositShares) + cumEarnedFeeShares);
@@ -582,8 +631,7 @@ contract EthNodesManagerTest is EthHelpers {
             proof: new bytes32[](0)
         });
 
-        vm.prank(user1);
-        nodesManager.updateOperatorState(params);
+        nodesManager.updateOperatorState(user1, params);
 
         (, uint128 balanceShares, uint128 storedPenalty,) = nodesManager.operatorStates(user1);
         assertEq(storedPenalty, cumPenaltyAssets);
@@ -627,8 +675,7 @@ contract EthNodesManagerTest is EthHelpers {
             proof: new bytes32[](0)
         });
 
-        vm.prank(user1);
-        nodesManager.updateOperatorState(params);
+        nodesManager.updateOperatorState(user1, params);
 
         (uint128 storedTotalAssets, uint128 balanceShares, uint128 storedPenalty, uint128 storedFees) =
             nodesManager.operatorStates(user1);
@@ -673,8 +720,7 @@ contract EthNodesManagerTest is EthHelpers {
             proof: new bytes32[](0)
         });
 
-        vm.prank(user1);
-        nodesManager.updateOperatorState(params);
+        nodesManager.updateOperatorState(user1, params);
 
         // balance should be zeroed out
         assertEq(_getBalanceShares(user1), 0, "Balance should be 0 when penalty exceeds it");
@@ -713,12 +759,10 @@ contract EthNodesManagerTest is EthHelpers {
         });
 
         // First update
-        vm.prank(user1);
-        nodesManager.updateOperatorState(params);
+        nodesManager.updateOperatorState(user1, params);
 
         // Second call with same params should silently skip (no revert, no state change)
-        vm.prank(user1);
-        nodesManager.updateOperatorState(params);
+        nodesManager.updateOperatorState(user1, params);
 
         // Balance should remain unchanged
         assertEq(_getBalanceShares(user1), uint128(depositShares));
@@ -731,9 +775,17 @@ contract EthNodesManagerTest is EthHelpers {
             totalAssets: 0, cumPenaltyAssets: 0, cumEarnedFeeShares: 0, proof: new bytes32[](0)
         });
 
-        vm.prank(user1);
         vm.expectRevert(Errors.NotHarvested.selector);
-        nodesManager.updateOperatorState(params);
+        nodesManager.updateOperatorState(user1, params);
+    }
+
+    function test_updateOperatorState_zeroAddress() public {
+        INodesManager.OperatorStateUpdateParams memory params = INodesManager.OperatorStateUpdateParams({
+            totalAssets: 0, cumPenaltyAssets: 0, cumEarnedFeeShares: 0, proof: new bytes32[](0)
+        });
+
+        vm.expectRevert(Errors.ZeroAddress.selector);
+        nodesManager.updateOperatorState(address(0), params);
     }
 
     function test_updateOperatorState_invalidProof() public {
@@ -748,9 +800,42 @@ contract EthNodesManagerTest is EthHelpers {
             totalAssets: 999 ether, cumPenaltyAssets: 0, cumEarnedFeeShares: 0, proof: new bytes32[](0)
         });
 
-        vm.prank(user1);
         vm.expectRevert(Errors.InvalidProof.selector);
-        nodesManager.updateOperatorState(params);
+        nodesManager.updateOperatorState(user1, params);
+    }
+
+    function test_updateOperatorState_byThirdParty() public {
+        vm.prank(user1);
+        uint256 depositShares = nodesManager.deposit{value: 10 ether}();
+
+        _harvestVault();
+
+        uint128 opTotalAssets = 32 ether;
+        uint128 cumPenaltyAssets = 0;
+        uint128 cumEarnedFeeShares = 0;
+        bytes32 leaf = _computeOperatorLeaf(user1, opTotalAssets, cumPenaltyAssets, cumEarnedFeeShares);
+
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf, "stateIpfs");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        INodesManager.OperatorStateUpdateParams memory params = INodesManager.OperatorStateUpdateParams({
+            totalAssets: opTotalAssets,
+            cumPenaltyAssets: cumPenaltyAssets,
+            cumEarnedFeeShares: cumEarnedFeeShares,
+            proof: new bytes32[](0)
+        });
+
+        // user2 calls updateOperatorState on behalf of user1
+        vm.expectEmit(true, true, true, true);
+        emit INodesManager.OperatorStateUpdated(user1, opTotalAssets, cumPenaltyAssets, cumEarnedFeeShares);
+
+        vm.prank(user2);
+        nodesManager.updateOperatorState(user1, params);
+
+        (uint128 storedTotalAssets, uint128 storedBalanceShares,,) = nodesManager.operatorStates(user1);
+        assertEq(storedTotalAssets, opTotalAssets);
+        assertEq(storedBalanceShares, uint128(depositShares));
     }
 
     // ======== registerValidators ========
@@ -769,9 +854,9 @@ contract EthNodesManagerTest is EthHelpers {
         vm.expectEmit(true, true, true, true);
         emit INodesManager.ValidatorsRegistered(user1, 0, publicKeys);
 
-        vm.prank(user1);
+        vm.prank(validatorsManager1);
         _startSnapshotGas("EthNodesManagerTest_test_registerValidators");
-        nodesManager.registerValidators(approvalParams, oracleSignatures);
+        nodesManager.registerValidators(user1, approvalParams, oracleSignatures);
         _stopSnapshotGas();
 
         _stopOracleImpersonate(address(contracts.keeper));
@@ -786,9 +871,9 @@ contract EthNodesManagerTest is EthHelpers {
         IKeeperValidators.ApprovalParams memory approvalParams =
             _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
 
-        vm.prank(user1);
+        vm.prank(validatorsManager1);
         vm.expectRevert(Errors.InvalidSignatures.selector);
-        nodesManager.registerValidators(approvalParams, bytes(""));
+        nodesManager.registerValidators(user1, approvalParams, bytes(""));
 
         _stopOracleImpersonate(address(contracts.keeper));
     }
@@ -802,9 +887,9 @@ contract EthNodesManagerTest is EthHelpers {
         // Wrong length (not a multiple of 65)
         bytes memory badSig = new bytes(64);
 
-        vm.prank(user1);
+        vm.prank(validatorsManager1);
         vm.expectRevert(Errors.InvalidSignatures.selector);
-        nodesManager.registerValidators(approvalParams, badSig);
+        nodesManager.registerValidators(user1, approvalParams, badSig);
 
         _stopOracleImpersonate(address(contracts.keeper));
     }
@@ -819,9 +904,9 @@ contract EthNodesManagerTest is EthHelpers {
         (, uint256 nonOracleKey) = makeAddrAndKey("nonOracle");
         bytes memory signatures = _getRegisterValidatorsSignature(user1, approvalParams.validators, nonOracleKey);
 
-        vm.prank(user1);
+        vm.prank(validatorsManager1);
         vm.expectRevert(Errors.InvalidSignatures.selector);
-        nodesManager.registerValidators(approvalParams, signatures);
+        nodesManager.registerValidators(user1, approvalParams, signatures);
 
         _stopOracleImpersonate(address(contracts.keeper));
     }
@@ -836,17 +921,17 @@ contract EthNodesManagerTest is EthHelpers {
         bytes memory oracleSignatures =
             _getRegisterValidatorsSignature(user1, approvalParams.validators, _oraclePrivateKey);
 
-        vm.prank(user1);
-        nodesManager.registerValidators(approvalParams, oracleSignatures);
+        vm.prank(validatorsManager1);
+        nodesManager.registerValidators(user1, approvalParams, oracleSignatures);
         assertEq(nodesManager.operatorNonces(user1, INodesManager.OperatorNonceType.RegisterValidatorsSig), 1);
 
         // Replay same signatures (nonce 0) — reverts because nonce is now 1
         IKeeperValidators.ApprovalParams memory approvalParams2 =
             _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash2", false);
 
-        vm.prank(user1);
+        vm.prank(validatorsManager1);
         vm.expectRevert(Errors.InvalidSignatures.selector);
-        nodesManager.registerValidators(approvalParams2, oracleSignatures);
+        nodesManager.registerValidators(user1, approvalParams2, oracleSignatures);
 
         _stopOracleImpersonate(address(contracts.keeper));
     }
@@ -860,8 +945,8 @@ contract EthNodesManagerTest is EthHelpers {
         bytes memory oracleSignatures =
             _getRegisterValidatorsSignature(user1, approvalParams.validators, _oraclePrivateKey);
 
-        vm.prank(user1);
-        nodesManager.registerValidators(approvalParams, oracleSignatures);
+        vm.prank(validatorsManager1);
+        nodesManager.registerValidators(user1, approvalParams, oracleSignatures);
 
         _stopOracleImpersonate(address(contracts.keeper));
 
@@ -871,6 +956,41 @@ contract EthNodesManagerTest is EthHelpers {
             currentNonce,
             "LastValidatorChange should be set to currentNonce"
         );
+    }
+
+    function test_registerValidators_notValidatorsManager() public {
+        _startOracleImpersonate(address(contracts.keeper));
+
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        bytes memory oracleSignatures =
+            _getRegisterValidatorsSignature(user1, approvalParams.validators, _oraclePrivateKey);
+
+        // user1 (operator) is not the validators manager
+        vm.prank(user1);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        nodesManager.registerValidators(user1, approvalParams, oracleSignatures);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    function test_registerValidators_noValidatorsManagerSet() public {
+        _startOracleImpersonate(address(contracts.keeper));
+
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        bytes memory oracleSignatures =
+            _getRegisterValidatorsSignature(user2, approvalParams.validators, _oraclePrivateKey);
+
+        // user2 has no validators manager set, third party tries to register
+        address thirdParty = makeAddr("ThirdParty");
+        vm.prank(thirdParty);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        nodesManager.registerValidators(user2, approvalParams, oracleSignatures);
+
+        _stopOracleImpersonate(address(contracts.keeper));
     }
 
     // ======== fundValidators ========
@@ -886,8 +1006,8 @@ contract EthNodesManagerTest is EthHelpers {
         bytes memory registerSignatures =
             _getRegisterValidatorsSignature(user1, approvalParams.validators, _oraclePrivateKey);
 
-        vm.prank(user1);
-        nodesManager.registerValidators(approvalParams, registerSignatures);
+        vm.prank(validatorsManager1);
+        nodesManager.registerValidators(user1, approvalParams, registerSignatures);
 
         // Fund same validators
         bytes memory validators = approvalParams.validators;
@@ -897,9 +1017,9 @@ contract EthNodesManagerTest is EthHelpers {
         vm.expectEmit(true, true, true, true);
         emit INodesManager.ValidatorsFunded(user1, 0, publicKeys);
 
-        vm.prank(user1);
+        vm.prank(validatorsManager1);
         _startSnapshotGas("EthNodesManagerTest_test_fundValidators");
-        nodesManager.fundValidators(validators, fundSignatures);
+        nodesManager.fundValidators(user1, validators, fundSignatures);
         _stopSnapshotGas();
 
         _stopOracleImpersonate(address(contracts.keeper));
@@ -914,9 +1034,9 @@ contract EthNodesManagerTest is EthHelpers {
         IKeeperValidators.ApprovalParams memory approvalParams =
             _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
 
-        vm.prank(user1);
+        vm.prank(validatorsManager1);
         vm.expectRevert(Errors.InvalidSignatures.selector);
-        nodesManager.fundValidators(approvalParams.validators, bytes(""));
+        nodesManager.fundValidators(user1, approvalParams.validators, bytes(""));
 
         _stopOracleImpersonate(address(contracts.keeper));
     }
@@ -930,9 +1050,9 @@ contract EthNodesManagerTest is EthHelpers {
         // Wrong length (not a multiple of 65)
         bytes memory badSig = new bytes(64);
 
-        vm.prank(user1);
+        vm.prank(validatorsManager1);
         vm.expectRevert(Errors.InvalidSignatures.selector);
-        nodesManager.fundValidators(approvalParams.validators, badSig);
+        nodesManager.fundValidators(user1, approvalParams.validators, badSig);
 
         _stopOracleImpersonate(address(contracts.keeper));
     }
@@ -947,9 +1067,9 @@ contract EthNodesManagerTest is EthHelpers {
         (, uint256 nonOracleKey) = makeAddrAndKey("nonOracle");
         bytes memory signatures = _getFundValidatorsSignature(user1, approvalParams.validators, nonOracleKey);
 
-        vm.prank(user1);
+        vm.prank(validatorsManager1);
         vm.expectRevert(Errors.InvalidSignatures.selector);
-        nodesManager.fundValidators(approvalParams.validators, signatures);
+        nodesManager.fundValidators(user1, approvalParams.validators, signatures);
 
         _stopOracleImpersonate(address(contracts.keeper));
     }
@@ -965,22 +1085,22 @@ contract EthNodesManagerTest is EthHelpers {
         bytes memory registerSignatures =
             _getRegisterValidatorsSignature(user1, approvalParams.validators, _oraclePrivateKey);
 
-        vm.prank(user1);
-        nodesManager.registerValidators(approvalParams, registerSignatures);
+        vm.prank(validatorsManager1);
+        nodesManager.registerValidators(user1, approvalParams, registerSignatures);
         assertEq(nodesManager.operatorNonces(user1, INodesManager.OperatorNonceType.RegisterValidatorsSig), 1);
 
         // Fund validators (nonce 0 for FundValidatorsSig key)
         bytes memory validators = approvalParams.validators;
         bytes memory fundSignatures = _getFundValidatorsSignature(user1, validators, _oraclePrivateKey);
 
-        vm.prank(user1);
-        nodesManager.fundValidators(validators, fundSignatures);
+        vm.prank(validatorsManager1);
+        nodesManager.fundValidators(user1, validators, fundSignatures);
         assertEq(nodesManager.operatorNonces(user1, INodesManager.OperatorNonceType.FundValidatorsSig), 1);
 
         // Replay same fund signatures (nonce 0) — reverts because nonce is now 1
-        vm.prank(user1);
+        vm.prank(validatorsManager1);
         vm.expectRevert(Errors.InvalidSignatures.selector);
-        nodesManager.fundValidators(validators, fundSignatures);
+        nodesManager.fundValidators(user1, validators, fundSignatures);
 
         _stopOracleImpersonate(address(contracts.keeper));
     }
@@ -994,14 +1114,14 @@ contract EthNodesManagerTest is EthHelpers {
             _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
         bytes memory registerSignatures =
             _getRegisterValidatorsSignature(user1, approvalParams.validators, _oraclePrivateKey);
-        vm.prank(user1);
-        nodesManager.registerValidators(approvalParams, registerSignatures);
+        vm.prank(validatorsManager1);
+        nodesManager.registerValidators(user1, approvalParams, registerSignatures);
 
         // Fund
         bytes memory validators = approvalParams.validators;
         bytes memory fundSignatures = _getFundValidatorsSignature(user1, validators, _oraclePrivateKey);
-        vm.prank(user1);
-        nodesManager.fundValidators(validators, fundSignatures);
+        vm.prank(validatorsManager1);
+        nodesManager.fundValidators(user1, validators, fundSignatures);
 
         _stopOracleImpersonate(address(contracts.keeper));
 
@@ -1011,6 +1131,39 @@ contract EthNodesManagerTest is EthHelpers {
             currentNonce,
             "LastValidatorChange should be set to currentNonce after funding"
         );
+    }
+
+    function test_fundValidators_notValidatorsManager() public {
+        _startOracleImpersonate(address(contracts.keeper));
+
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        bytes memory fundSignatures = _getFundValidatorsSignature(user1, approvalParams.validators, _oraclePrivateKey);
+
+        // user1 (operator) is not the validators manager
+        vm.prank(user1);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        nodesManager.fundValidators(user1, approvalParams.validators, fundSignatures);
+
+        _stopOracleImpersonate(address(contracts.keeper));
+    }
+
+    function test_fundValidators_noValidatorsManagerSet() public {
+        _startOracleImpersonate(address(contracts.keeper));
+
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        bytes memory fundSignatures = _getFundValidatorsSignature(user2, approvalParams.validators, _oraclePrivateKey);
+
+        // user2 has no validators manager set, third party tries to fund
+        address thirdParty = makeAddr("ThirdParty");
+        vm.prank(thirdParty);
+        vm.expectRevert(Errors.AccessDenied.selector);
+        nodesManager.fundValidators(user2, approvalParams.validators, fundSignatures);
+
+        _stopOracleImpersonate(address(contracts.keeper));
     }
 
     // ======== withdrawValidators ========
@@ -1026,8 +1179,8 @@ contract EthNodesManagerTest is EthHelpers {
         bytes memory registerSignatures =
             _getRegisterValidatorsSignature(user1, approvalParams.validators, _oraclePrivateKey);
 
-        vm.prank(user1);
-        nodesManager.registerValidators(approvalParams, registerSignatures);
+        vm.prank(validatorsManager1);
+        nodesManager.registerValidators(user1, approvalParams, registerSignatures);
         _stopOracleImpersonate(address(contracts.keeper));
 
         // Set withdrawals manager
@@ -1508,8 +1661,8 @@ contract EthNodesManagerTest is EthHelpers {
         IKeeperValidators.ApprovalParams memory approvalParams =
             _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
         bytes memory registerSig = _getRegisterValidatorsSignature(user1, approvalParams.validators, _oraclePrivateKey);
-        vm.prank(user1);
-        nodesManager.registerValidators(approvalParams, registerSig);
+        vm.prank(validatorsManager1);
+        nodesManager.registerValidators(user1, approvalParams, registerSig);
         _stopOracleImpersonate(address(contracts.keeper));
 
         // enter exit queue (operator still synced at nonce 1)
@@ -1731,8 +1884,7 @@ contract EthNodesManagerTest is EthHelpers {
                 cumEarnedFeeShares: cumEarnedFeeShares,
                 proof: new bytes32[](0)
             });
-        vm.prank(operator);
-        nodesManager.updateOperatorState(params);
+        nodesManager.updateOperatorState(operator, params);
     }
 
     function _computeOperatorLeaf(
