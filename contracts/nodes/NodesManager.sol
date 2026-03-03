@@ -66,6 +66,9 @@ abstract contract NodesManager is
     /// @inheritdoc INodesManager
     mapping(address operator => uint256 penaltyAssets) public override pendingPenaltyAssets;
 
+    /// @inheritdoc INodesManager
+    mapping(address operator => address manager) public override validatorsManagers;
+
     mapping(uint256 positionTicket => address operator) private _exitPositions;
 
     /**
@@ -129,6 +132,13 @@ abstract contract NodesManager is
     }
 
     /// @inheritdoc INodesManager
+    function setValidatorsManager(address validatorsManager) external override {
+        if (validatorsManagers[msg.sender] == validatorsManager) revert Errors.ValueNotChanged();
+        validatorsManagers[msg.sender] = validatorsManager;
+        emit ValidatorsManagerUpdated(msg.sender, validatorsManager);
+    }
+
+    /// @inheritdoc INodesManager
     function canUpdateState() external view override returns (bool) {
         // SLOAD to memory
         StateData memory _stateData = stateData;
@@ -182,17 +192,19 @@ abstract contract NodesManager is
     }
 
     /// @inheritdoc INodesManager
-    function updateOperatorState(OperatorStateUpdateParams calldata params) external override {
+    function updateOperatorState(address operator, OperatorStateUpdateParams calldata params) external override {
+        if (operator == address(0)) revert Errors.ZeroAddress();
+
         // check whether the vault is harvested
         if (_keeper.isHarvestRequired(vault)) revert Errors.NotHarvested();
 
         // SLOAD to memory
-        OperatorState memory operatorState = operatorStates[msg.sender];
+        OperatorState memory operatorState = operatorStates[operator];
         StateData memory _stateData = stateData;
         uint128 currentNonce = _stateData.currentNonce;
 
         // skip update if the state is already up to date
-        if (operatorNonces[msg.sender][OperatorNonceType.LastStateUpdate] == currentNonce) return;
+        if (operatorNonces[operator][OperatorNonceType.LastStateUpdate] == currentNonce) return;
 
         // verify merkle proof against current state root
         if (!MerkleProof.verifyCalldata(
@@ -201,9 +213,7 @@ abstract contract NodesManager is
                 keccak256(
                     bytes.concat(
                         keccak256(
-                            abi.encode(
-                                msg.sender, params.totalAssets, params.cumPenaltyAssets, params.cumEarnedFeeShares
-                            )
+                            abi.encode(operator, params.totalAssets, params.cumPenaltyAssets, params.cumEarnedFeeShares)
                         )
                     )
                 )
@@ -218,7 +228,7 @@ abstract contract NodesManager is
         // calculate total penalty including any pending penalty from previous updates
         uint256 totalPenaltyShares;
         uint256 penaltyAssetsDelta = params.cumPenaltyAssets - operatorState.cumPenaltyAssets;
-        uint256 totalPenaltyAssets = penaltyAssetsDelta + pendingPenaltyAssets[msg.sender];
+        uint256 totalPenaltyAssets = penaltyAssetsDelta + pendingPenaltyAssets[operator];
         if (totalPenaltyAssets > 0) {
             totalPenaltyShares = IVaultState(vault).convertToShares(totalPenaltyAssets);
         }
@@ -227,11 +237,11 @@ abstract contract NodesManager is
         uint256 penaltySharesToDonate;
         if (totalPenaltyShares <= availableShares) {
             operatorState.balanceShares = SafeCast.toUint128(availableShares - totalPenaltyShares);
-            pendingPenaltyAssets[msg.sender] = 0;
+            pendingPenaltyAssets[operator] = 0;
             penaltySharesToDonate = totalPenaltyShares;
         } else {
             uint256 coveredPenaltyAssets = IVaultState(vault).convertToAssets(availableShares);
-            pendingPenaltyAssets[msg.sender] = totalPenaltyAssets - coveredPenaltyAssets;
+            pendingPenaltyAssets[operator] = totalPenaltyAssets - coveredPenaltyAssets;
             operatorState.balanceShares = 0;
             penaltySharesToDonate = availableShares;
         }
@@ -240,27 +250,32 @@ abstract contract NodesManager is
         operatorState.totalAssets = params.totalAssets;
         operatorState.cumPenaltyAssets = params.cumPenaltyAssets;
         operatorState.cumEarnedFeeShares = params.cumEarnedFeeShares;
-        operatorStates[msg.sender] = operatorState;
-        operatorNonces[msg.sender][OperatorNonceType.LastStateUpdate] = currentNonce;
+        operatorStates[operator] = operatorState;
+        operatorNonces[operator][OperatorNonceType.LastStateUpdate] = currentNonce;
 
         // donate penalty shares to the vault
         if (penaltySharesToDonate > 0) {
             IVaultState(vault).donateShares(penaltySharesToDonate);
         }
 
-        emit OperatorStateUpdated(msg.sender, params.totalAssets, params.cumPenaltyAssets, params.cumEarnedFeeShares);
+        emit OperatorStateUpdated(operator, params.totalAssets, params.cumPenaltyAssets, params.cumEarnedFeeShares);
     }
 
     /// @inheritdoc INodesManager
-    function registerValidators(IKeeperValidators.ApprovalParams calldata keeperParams, bytes calldata signatures)
-        external
-        override
-    {
+    function registerValidators(
+        address operator,
+        IKeeperValidators.ApprovalParams calldata keeperParams,
+        bytes calldata signatures
+    ) external override {
+        if (validatorsManagers[operator] != msg.sender) {
+            revert Errors.AccessDenied();
+        }
+
         // verify oracles approved registering these validators
-        uint256 nonce = _useOperatorNonce(msg.sender, OperatorNonceType.RegisterValidatorsSig);
+        uint256 nonce = _useOperatorNonce(operator, OperatorNonceType.RegisterValidatorsSig);
         bytes32 digest = _hashTypedDataV4(
             keccak256(
-                abi.encode(_registerValidatorsTypeHash, msg.sender, nonce, vault, keccak256(keeperParams.validators))
+                abi.encode(_registerValidatorsTypeHash, operator, nonce, vault, keccak256(keeperParams.validators))
             )
         );
         _verifySignatures(digest, signatures);
@@ -269,21 +284,23 @@ abstract contract NodesManager is
         IVaultValidators(vault).registerValidators(keeperParams, bytes(""));
 
         // save state nonce at validator change
-        operatorNonces[msg.sender][OperatorNonceType.LastValidatorChange] = stateData.currentNonce;
+        operatorNonces[operator][OperatorNonceType.LastValidatorChange] = stateData.currentNonce;
 
         // extract public keys from validators data
         bytes memory publicKeys = _getValidatorsPublicKeys(keeperParams.validators);
 
         // emit event
-        emit ValidatorsRegistered(msg.sender, nonce, publicKeys);
+        emit ValidatorsRegistered(operator, nonce, publicKeys);
     }
 
     /// @inheritdoc INodesManager
-    function fundValidators(bytes calldata validators, bytes calldata signatures) external override {
+    function fundValidators(address operator, bytes calldata validators, bytes calldata signatures) external override {
+        if (validatorsManagers[operator] != msg.sender) revert Errors.AccessDenied();
+
         // verify oracles approved funding these validators
-        uint256 nonce = _useOperatorNonce(msg.sender, OperatorNonceType.FundValidatorsSig);
+        uint256 nonce = _useOperatorNonce(operator, OperatorNonceType.FundValidatorsSig);
         bytes32 digest = _hashTypedDataV4(
-            keccak256(abi.encode(_fundValidatorsTypeHash, msg.sender, nonce, vault, keccak256(validators)))
+            keccak256(abi.encode(_fundValidatorsTypeHash, operator, nonce, vault, keccak256(validators)))
         );
         _verifySignatures(digest, signatures);
 
@@ -291,13 +308,13 @@ abstract contract NodesManager is
         IVaultValidators(vault).fundValidators(validators, bytes(""));
 
         // save state nonce at validator change
-        operatorNonces[msg.sender][OperatorNonceType.LastValidatorChange] = stateData.currentNonce;
+        operatorNonces[operator][OperatorNonceType.LastValidatorChange] = stateData.currentNonce;
 
         // extract public keys from validators data
         bytes memory publicKeys = _getValidatorsPublicKeys(validators);
 
         // emit event
-        emit ValidatorsFunded(msg.sender, nonce, publicKeys);
+        emit ValidatorsFunded(operator, nonce, publicKeys);
     }
 
     /// @inheritdoc INodesManager

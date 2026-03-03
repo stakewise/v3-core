@@ -123,6 +123,13 @@ interface INodesManager is IERC5267, IERC1822Proxiable, IMulticall {
     );
 
     /**
+     * @notice Event emitted when the validators manager is updated for an operator
+     * @param operator The address of the operator
+     * @param validatorsManager The new validators manager address
+     */
+    event ValidatorsManagerUpdated(address indexed operator, address indexed validatorsManager);
+
+    /**
      * @notice Event emitted when the state update delay is updated
      * @param stateUpdateDelay The new state update delay in seconds
      */
@@ -287,19 +294,37 @@ interface INodesManager is IERC5267, IERC1822Proxiable, IMulticall {
     function setWithdrawalsManager(address newWithdrawalsManager) external;
 
     /**
-     * @notice Registers validators with oracle-approved signatures
+     * @notice The validators manager address for the given operator
+     * @param operator The operator address
+     * @return The validators manager address
+     */
+    function validatorsManagers(address operator) external view returns (address);
+
+    /**
+     * @notice Sets the validators manager address for the calling operator
+     * @param validatorsManager The new validators manager address
+     */
+    function setValidatorsManager(address validatorsManager) external;
+
+    /**
+     * @notice Registers validators with oracle-approved signatures. Can only be called by the operator's validators manager.
+     * @param operator The address of the operator
      * @param keeperParams The keeper approval parameters containing validator data
      * @param signatures The concatenation of the oracles' signatures
      */
-    function registerValidators(IKeeperValidators.ApprovalParams calldata keeperParams, bytes calldata signatures)
-        external;
+    function registerValidators(
+        address operator,
+        IKeeperValidators.ApprovalParams calldata keeperParams,
+        bytes calldata signatures
+    ) external;
 
     /**
-     * @notice Funds validators with oracle-approved signatures
+     * @notice Funds validators with oracle-approved signatures. Can only be called by the operator's validators manager.
+     * @param operator The address of the operator
      * @param validators The concatenation of the validators' data
      * @param signatures The concatenation of the oracles' signatures approving the funding
      */
-    function fundValidators(bytes calldata validators, bytes calldata signatures) external;
+    function fundValidators(address operator, bytes calldata validators, bytes calldata signatures) external;
 
     /**
      * @notice Enters the exit queue by locking operator shares in the vault's exit queue
@@ -324,9 +349,10 @@ interface INodesManager is IERC5267, IERC1822Proxiable, IMulticall {
 
     /**
      * @notice Updates the operator state by verifying a merkle proof against the current state root
+     * @param operator The address of the operator to update
      * @param params The parameters for updating the operator state
      */
-    function updateOperatorState(OperatorStateUpdateParams calldata params) external;
+    function updateOperatorState(address operator, OperatorStateUpdateParams calldata params) external;
 
     /**
      * @notice Checks whether state can be updated
