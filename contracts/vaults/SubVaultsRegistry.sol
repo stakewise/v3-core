@@ -42,6 +42,7 @@ contract SubVaultsRegistry is
     using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
 
     uint256 private constant _maxSubVaults = 50;
+    uint256 private constant _maxPercent = 1e18;
 
     address private immutable _curatorsRegistry;
     address private immutable _vaultsRegistry;
@@ -939,6 +940,16 @@ contract SubVaultsRegistry is
                 continue;
             }
 
+            // get shares before redemption to track actual consumption
+            uint256 sharesBefore = IVaultState(redeemRequest.vault).getShares(_metaVault);
+
+            // cap redeemAssets by the sub-vault's LTV-constrained max redeemable assets
+            uint256 metaVaultAssets = IVaultState(redeemRequest.vault).convertToAssets(sharesBefore);
+            uint256 maxRedeemAssets = Math.mulDiv(
+                metaVaultAssets, _osTokenConfig.getConfig(redeemRequest.vault).ltvPercent, _maxPercent
+            );
+            redeemAssets = Math.min(redeemAssets, maxRedeemAssets);
+
             // mint osToken shares to redeemer
             uint256 osTokenShares = _osTokenVaultController.convertToShares(redeemAssets);
             if (osTokenShares == 0) {
@@ -949,9 +960,6 @@ contract SubVaultsRegistry is
                 continue;
             }
             IVaultSubVaults(_metaVault).mintSubVaultOsToken(redeemRequest.vault, redeemer, osTokenShares);
-
-            // get shares before redemption to track actual consumption
-            uint256 sharesBefore = IVaultState(redeemRequest.vault).getShares(_metaVault);
 
             // execute redeem
             redeemAssets =
