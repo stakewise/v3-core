@@ -413,10 +413,7 @@ abstract contract NodesManager is
                 pendingPenaltyAssets[operator] = 0;
                 exitedAssets -= pendingPenalty;
             }
-        }
-
-        // donate deducted penalty back to the vault
-        if (penaltyDeducted > 0) {
+            // donate deducted penalty back to the vault
             _donateAssets(penaltyDeducted);
         }
 
@@ -453,11 +450,10 @@ abstract contract NodesManager is
                 penaltyAssets = IVaultState(vault).convertToAssets(penaltyShares);
                 pendingPenaltyAssets[msg.sender] = pendingPenalty - penaltyAssets;
             }
-        }
-
-        if (penaltyShares > 0) {
-            // donate penalty shares to the vault
-            IVaultState(vault).donateShares(penaltyShares);
+            if (penaltyShares > 0) {
+                // donate penalty shares to the vault
+                IVaultState(vault).donateShares(penaltyShares);
+            }
         }
 
         // update operator's shares balance
