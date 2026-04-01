@@ -468,12 +468,11 @@ contract SubVaultsRegistry is
 
     /// @inheritdoc ISubVaultsRegistry
     function enterSubVaultsExitQueue() external override nonReentrant {
-        if (msg.sender != metaVault) {
-            revert Errors.AccessDenied();
-        }
-
         // SLOAD to memory
         address _metaVault = metaVault;
+        if (msg.sender != _metaVault) {
+            revert Errors.AccessDenied();
+        }
         (uint128 queuedShares,,,, uint256 totalExitedTickets) = IVaultState(_metaVault).getExitQueueData();
         uint256 totalProcessedTickets = Math.max(_totalProcessedExitQueueTickets, totalExitedTickets);
 
