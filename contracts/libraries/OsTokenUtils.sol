@@ -46,7 +46,6 @@ library OsTokenUtils {
         IOsTokenVaultController osTokenVaultController,
         RedemptionData memory data
     ) external view returns (uint256 receivedAssets) {
-        // SLOAD to memory
         IOsTokenConfig.Config memory config = osTokenConfig.getConfig(address(this));
 
         // calculate received assets

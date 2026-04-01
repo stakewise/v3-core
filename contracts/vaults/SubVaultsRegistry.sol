@@ -309,7 +309,6 @@ contract SubVaultsRegistry is
 
     /// @inheritdoc ISubVaultsRegistry
     function isStateUpdateRequired() public view override returns (bool) {
-        // SLOAD to memory
         uint256 currentNonce = _getCurrentRewardsNonce();
         unchecked {
             // cannot realistically overflow

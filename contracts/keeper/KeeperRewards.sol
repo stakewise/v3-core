@@ -186,7 +186,6 @@ abstract contract KeeperRewards is KeeperOracles, IKeeperRewards {
             revert Errors.InvalidProof();
         }
 
-        // SLOAD to memory
         Reward storage lastReward = rewards[msg.sender];
         // check whether Vault's nonce is smaller that the current, otherwise it's already harvested
         if (lastReward.nonce >= currentNonce) return (0, 0, false);
