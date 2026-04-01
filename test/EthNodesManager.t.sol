@@ -1239,6 +1239,42 @@ contract EthNodesManagerTest is EthHelpers {
         _stopSnapshotGas();
     }
 
+    function test_withdrawValidators_surplusRefund() public {
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
+
+        // Register a validator to collateralize the vault
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        bytes memory registerSignatures =
+            _getRegisterValidatorsSignature(user1, approvalParams.validators, _oraclePrivateKey);
+
+        vm.prank(validatorsManager1);
+        nodesManager.registerValidators(user1, approvalParams, registerSignatures);
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        // Set withdrawals manager
+        address wManager = makeAddr("WithdrawalsManager");
+        vm.prank(owner);
+        nodesManager.setWithdrawalsManager(wManager);
+
+        // Construct withdrawal data: 48 bytes pubkey + 8 bytes amount (gwei)
+        bytes memory pubKey = new bytes(48);
+        bytes memory withdrawalData = bytes.concat(pubKey, bytes8(uint64(32 ether / 1 gwei)));
+
+        // Fee is 0.1 ETH per validator in the mock, send double
+        uint256 fee = 0.1 ether;
+        uint256 surplus = 0.1 ether;
+        vm.deal(wManager, fee + surplus);
+
+        vm.prank(wManager);
+        nodesManager.withdrawValidators{value: fee + surplus}(withdrawalData);
+
+        // Verify surplus was refunded to the withdrawals manager
+        assertEq(wManager.balance, surplus, "Surplus ETH not refunded to withdrawals manager");
+    }
+
     function test_withdrawValidators_notWithdrawalsManager() public {
         // Set withdrawals manager
         address wManager = makeAddr("WithdrawalsManager");

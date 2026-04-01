@@ -318,8 +318,19 @@ abstract contract NodesManager is
     }
 
     /// @inheritdoc INodesManager
-    function withdrawValidators(bytes calldata validators) external payable override onlyWithdrawalsManager {
+    function withdrawValidators(bytes calldata validators)
+        external
+        payable
+        override
+        nonReentrant
+        onlyWithdrawalsManager
+    {
+        uint256 balanceBefore = address(this).balance - msg.value;
         IVaultValidators(vault).withdrawValidators{value: msg.value}(validators, bytes(""));
+        uint256 surplus = address(this).balance - balanceBefore;
+        if (surplus > 0) {
+            _transferAssets(msg.sender, surplus);
+        }
         emit ValidatorWithdrawalSubmitted(msg.sender);
     }
 
