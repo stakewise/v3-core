@@ -188,9 +188,9 @@ contract GnoMetaVault is
         __VaultFee_init(_admin, params.feePercent);
         __VaultState_init(params.capacity);
 
-        _deposit(address(this), _securityDeposit, address(0));
         // see https://github.com/OpenZeppelin/openzeppelin-contracts/issues/3706
         SafeERC20.safeTransferFrom(_gnoToken, msg.sender, address(this), _securityDeposit);
+        _deposit(address(this), _securityDeposit, address(0));
     }
 
     /**
