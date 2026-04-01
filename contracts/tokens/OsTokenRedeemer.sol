@@ -173,7 +173,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         (uint256 _queuedShares, uint256 _unclaimedAssets, uint256 totalTickets) = getExitQueueData();
 
         // check whether already covered
-        if (totalTickets >= targetCumulativeTickets) {
+        if (totalTickets >= targetCumulativeTickets || _queuedShares == 0) {
             return 0;
         }
 
