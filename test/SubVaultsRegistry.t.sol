@@ -780,11 +780,7 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         address owner = makeAddr("Owner");
         address positionsManager = makeAddr("PositionsManager");
         EthOsTokenRedeemer osTokenRedeemer = new EthOsTokenRedeemer(
-            address(contracts.vaultsRegistry),
-            _osToken,
-            address(contracts.osTokenVaultController),
-            owner,
-            12 hours
+            address(contracts.vaultsRegistry), _osToken, address(contracts.osTokenVaultController), owner, 12 hours
         );
         vm.prank(owner);
         osTokenRedeemer.setPositionsManager(positionsManager);
@@ -808,10 +804,11 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         // Set low LTV (50%) on sub-vaults to trigger the LTV cap
         for (uint256 i = 0; i < subVaults.length; i++) {
             vm.prank(configOwner);
-            contracts.osTokenConfig.updateConfig(
-                subVaults[i],
-                IOsTokenConfig.Config({ltvPercent: 5e17, liqThresholdPercent: 6e17, liqBonusPercent: 1.1e18})
-            );
+            contracts.osTokenConfig
+                .updateConfig(
+                    subVaults[i],
+                    IOsTokenConfig.Config({ltvPercent: 5e17, liqThresholdPercent: 6e17, liqBonusPercent: 1.1e18})
+                );
         }
 
         // Drain meta vault withdrawable assets so redeem must go through sub-vaults

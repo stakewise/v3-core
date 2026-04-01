@@ -134,6 +134,8 @@ contract EthErc20Vault is
         positionTicket = super.enterExitQueue(shares, receiver);
         // only emit Transfer if shares were queued (not directly redeemed when non-collateralized)
         if (positionTicket != type(uint256).max) {
+            // NB: queued shares are tracked in _queuedShares, not _balances[address(this)].
+            // balanceOf(address(this)) will not reflect queued exit shares.
             emit Transfer(msg.sender, address(this), shares);
         }
     }

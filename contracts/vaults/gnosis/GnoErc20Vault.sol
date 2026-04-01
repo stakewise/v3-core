@@ -111,6 +111,8 @@ contract GnoErc20Vault is
         returns (uint256 positionTicket)
     {
         positionTicket = super.enterExitQueue(shares, receiver);
+        // NB: queued shares are tracked in _queuedShares, not _balances[address(this)].
+        // balanceOf(address(this)) will not reflect queued exit shares.
         emit Transfer(msg.sender, address(this), shares);
     }
 

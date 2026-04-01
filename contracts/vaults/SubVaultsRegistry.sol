@@ -945,9 +945,8 @@ contract SubVaultsRegistry is
 
             // cap redeemAssets by the sub-vault's LTV-constrained max redeemable assets
             uint256 metaVaultAssets = IVaultState(redeemRequest.vault).convertToAssets(sharesBefore);
-            uint256 maxRedeemAssets = Math.mulDiv(
-                metaVaultAssets, _osTokenConfig.getConfig(redeemRequest.vault).ltvPercent, _maxPercent
-            );
+            uint256 maxRedeemAssets =
+                Math.mulDiv(metaVaultAssets, _osTokenConfig.getConfig(redeemRequest.vault).ltvPercent, _maxPercent);
             redeemAssets = Math.min(redeemAssets, maxRedeemAssets);
 
             // mint osToken shares to redeemer
