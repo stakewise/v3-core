@@ -445,7 +445,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
 
         osTokenShares = _osTokenVaultController.convertToShares(assets);
         if (osTokenShares == 0) {
-            return 0; // nothing to swap
+            revert Errors.InvalidShares();
         }
 
         // update state
