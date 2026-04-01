@@ -433,6 +433,14 @@ abstract contract NodesManager is
     function _deposit(uint256 assets) internal returns (uint256 addedShares) {
         if (assets < minDepositAssets) revert Errors.InvalidAssets();
 
+        // check whether the operator has synced the latest state
+        if (
+            operatorStates[msg.sender].totalAssets > 0
+                && operatorNonces[msg.sender][OperatorNonceType.LastStateUpdate] != stateData.currentNonce
+        ) {
+            revert Errors.NotHarvested();
+        }
+
         // deposit assets to the vault
         uint256 depositShares = _depositToVault(assets);
 

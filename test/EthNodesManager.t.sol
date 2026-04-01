@@ -256,6 +256,40 @@ contract EthNodesManagerTest is EthHelpers {
         );
     }
 
+    function test_deposit_notSyncedState() public {
+        // first deposit - should succeed without state sync
+        vm.prank(user1);
+        nodesManager.deposit{value: 2 ether}();
+
+        _harvestVault();
+
+        // perform state update with operator data
+        uint128 opTotalAssets = 32 ether;
+        uint128 cumPenaltyAssets = 1 ether;
+        bytes32 leaf = _computeOperatorLeaf(user1, opTotalAssets, cumPenaltyAssets, 0);
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf, "stateIpfs");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        // sync operator state so totalAssets > 0
+        _updateOperatorState(user1, opTotalAssets, cumPenaltyAssets, 0);
+
+        // advance time past state update delay
+        vm.warp(block.timestamp + STATE_UPDATE_DELAY + 1);
+
+        // perform another state update without syncing operator
+        uint128 cumPenaltyAssets2 = 2 ether;
+        bytes32 leaf2 = _computeOperatorLeaf(user1, opTotalAssets, cumPenaltyAssets2, 0);
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf2, "stateIpfs2");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        // deposit should revert because operator has totalAssets > 0 but state is not synced
+        vm.prank(user1);
+        vm.expectRevert(Errors.NotHarvested.selector);
+        nodesManager.deposit{value: 5 ether}();
+    }
+
     // ======== setMinDepositAssets ========
 
     function test_setMinDepositAssets() public {
