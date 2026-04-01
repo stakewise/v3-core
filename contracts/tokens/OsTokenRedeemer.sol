@@ -190,9 +190,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
             revert Errors.InvalidRedeemablePositions();
         }
 
-        // SLOAD to memory
-        RedeemablePositions memory currentPositions = _redeemablePositions;
-        if (newPositions.merkleRoot == currentPositions.merkleRoot) {
+        if (newPositions.merkleRoot == _redeemablePositions.merkleRoot) {
             revert Errors.ValueNotChanged();
         }
 
@@ -337,17 +335,16 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
                 Math.min(position.leafShares - processedPositionShares, position.sharesToRedeem),
                 Math.min(_queuedShares, IVaultOsToken(position.vault).osTokenPositions(position.owner))
             );
-            position.sharesToRedeem = sharesToRedeem;
-
             // update state
-            if (position.sharesToRedeem > 0) {
+            if (sharesToRedeem > 0) {
                 unchecked {
-                    // position.sharesToRedeem <= _queuedShares checked above
-                    _queuedShares -= position.sharesToRedeem;
+                    // sharesToRedeem <= _queuedShares checked above
+                    _queuedShares -= sharesToRedeem;
                     // cannot realistically overflow
-                    leafToProcessedShares[leaf] = processedPositionShares + position.sharesToRedeem;
+                    leafToProcessedShares[leaf] = processedPositionShares + sharesToRedeem;
                 }
             }
+            position.sharesToRedeem = sharesToRedeem;
 
             unchecked {
                 // cannot realistically overflow

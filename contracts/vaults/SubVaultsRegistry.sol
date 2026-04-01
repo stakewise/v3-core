@@ -448,9 +448,8 @@ contract SubVaultsRegistry is
         _checkSubVaultsExitClaims(vaults);
 
         // calculate new total assets and save balances in each sub vault
-        uint256[] memory balances;
         uint256 newSubVaultsTotalAssets;
-        (balances, newSubVaultsTotalAssets) = _getSubVaultsBalances(vaults, true);
+        (, newSubVaultsTotalAssets) = _getSubVaultsBalances(vaults, true);
 
         // store new sub vaults total assets delta
         totalAssetsDelta = SafeCast.toInt256(newSubVaultsTotalAssets) - SafeCast.toInt256(subVaultsTotalAssets);
