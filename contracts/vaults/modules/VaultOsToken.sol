@@ -97,7 +97,12 @@ abstract contract VaultOsToken is VaultImmutables, VaultState, VaultEnterExit, I
     }
 
     /// @inheritdoc IVaultOsToken
-    function transferOsTokenPositionToEscrow(uint256 osTokenShares) external override returns (uint256 positionTicket) {
+    function transferOsTokenPositionToEscrow(uint256 osTokenShares)
+        public
+        virtual
+        override
+        returns (uint256 positionTicket)
+    {
         // check whether vault assets are up to date
         _checkHarvested();
 

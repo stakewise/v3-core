@@ -20,7 +20,7 @@ import {VaultVersion, IVaultVersion} from "../modules/VaultVersion.sol";
 import {VaultFee} from "../modules/VaultFee.sol";
 import {VaultState, IVaultState} from "../modules/VaultState.sol";
 import {VaultEnterExit, IVaultEnterExit} from "../modules/VaultEnterExit.sol";
-import {VaultOsToken} from "../modules/VaultOsToken.sol";
+import {IVaultOsToken, VaultOsToken} from "../modules/VaultOsToken.sol";
 import {VaultSubVaults} from "../modules/VaultSubVaults.sol";
 import {VaultToken} from "../modules/VaultToken.sol";
 
@@ -145,6 +145,21 @@ contract EthErc20MetaVault is
         bool success = super.transferFrom(from, to, amount);
         _checkOsTokenPosition(from);
         return success;
+    }
+
+    /// @inheritdoc IVaultOsToken
+    function transferOsTokenPositionToEscrow(uint256 osTokenShares)
+        public
+        virtual
+        override(IVaultOsToken, VaultOsToken)
+        returns (uint256 positionTicket)
+    {
+        uint256 sharesBefore = _balances[msg.sender];
+        positionTicket = super.transferOsTokenPositionToEscrow(osTokenShares);
+        uint256 exitShares = sharesBefore - _balances[msg.sender];
+        if (exitShares > 0) {
+            emit Transfer(msg.sender, address(this), exitShares);
+        }
     }
 
     /// @inheritdoc IVaultEnterExit

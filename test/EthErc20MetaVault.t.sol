@@ -9,13 +9,24 @@ import {IEthErc20MetaVault} from "../contracts/interfaces/IEthErc20MetaVault.sol
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {IVaultOsToken} from "../contracts/interfaces/IVaultOsToken.sol";
+import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
 import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthErc20MetaVault} from "../contracts/vaults/ethereum/EthErc20MetaVault.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 
+interface IStrategiesRegistry {
+    function addStrategyProxy(bytes32 strategyProxyId, address proxy) external;
+    function setStrategy(address strategy, bool enabled) external;
+
+    function owner() external view returns (address);
+}
+
 contract EthErc20MetaVaultTest is Test, EthHelpers {
+    IStrategiesRegistry private constant _strategiesRegistry =
+        IStrategiesRegistry(0x90b82E4b3aa385B4A02B7EBc1892a4BeD6B5c465);
+
     ForkContracts public contracts;
     EthErc20MetaVault public metaVault;
     ISubVaultsRegistry public registry;
@@ -451,5 +462,67 @@ contract EthErc20MetaVaultTest is Test, EthHelpers {
         // Increase keeper nonce by 2 - now should require update
         _setKeeperRewardsNonce(initialNonce + 2);
         assertTrue(registry.isStateUpdateRequired(), "Should require state update when nonce is 2 higher");
+    }
+
+    function test_transferOsTokenPositionToEscrow_emitsTransfer() public {
+        uint256 depositAmount = 10 ether;
+        vm.prank(sender);
+        metaVault.deposit{value: depositAmount}(sender, referrer);
+        registry.depositToSubVaults();
+
+        // Register sender in strategies registry for escrow
+        vm.prank(_strategiesRegistry.owner());
+        _strategiesRegistry.setStrategy(address(this), true);
+        _strategiesRegistry.addStrategyProxy(keccak256(abi.encode(sender)), sender);
+
+        // Mint osToken shares
+        IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(metaVault));
+        uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+        vm.prank(sender);
+        metaVault.mintOsToken(sender, osTokenShares, referrer);
+
+        // Calculate expected exit shares
+        uint256 sharesBefore = metaVault.balanceOf(sender);
+
+        // Expect Transfer event from sender to vault (exit queue)
+        vm.expectEmit(true, true, true, false, address(metaVault));
+        emit IERC20.Transfer(sender, address(metaVault), sharesBefore);
+
+        // Transfer osToken position to escrow
+        vm.prank(sender);
+        metaVault.transferOsTokenPositionToEscrow(osTokenShares);
+    }
+
+    function test_transferOsTokenPositionToEscrow_partialTransfer_emitsTransfer() public {
+        uint256 depositAmount = 10 ether;
+        vm.prank(sender);
+        metaVault.deposit{value: depositAmount}(sender, referrer);
+        registry.depositToSubVaults();
+
+        // Register sender in strategies registry for escrow
+        vm.prank(_strategiesRegistry.owner());
+        _strategiesRegistry.setStrategy(address(this), true);
+        _strategiesRegistry.addStrategyProxy(keccak256(abi.encode(sender)), sender);
+
+        // Mint osToken shares
+        IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(metaVault));
+        uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+        vm.prank(sender);
+        metaVault.mintOsToken(sender, osTokenShares, referrer);
+
+        // Transfer half of the osToken position
+        uint256 transferAmount = osTokenShares / 2;
+        uint256 sharesBefore = metaVault.balanceOf(sender);
+
+        // Transfer partial osToken position to escrow
+        vm.prank(sender);
+        metaVault.transferOsTokenPositionToEscrow(transferAmount);
+
+        // Verify sender's balance decreased proportionally
+        uint256 sharesAfter = metaVault.balanceOf(sender);
+        assertLt(sharesAfter, sharesBefore, "Balance should decrease after partial transfer");
+        assertGt(sharesAfter, 0, "Balance should not be zero after partial transfer");
     }
 }
