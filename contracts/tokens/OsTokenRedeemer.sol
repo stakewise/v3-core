@@ -170,7 +170,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         returns (uint256 missingAssets)
     {
         // SLOAD to memory
-        (uint256 _queuedShares, uint256 _unclaimedAssets, uint256 totalTickets) = getExitQueueData();
+        (uint256 _queuedShares,, uint256 totalTickets) = getExitQueueData();
 
         // check whether already covered
         if (totalTickets >= targetCumulativeTickets || _queuedShares == 0) {
@@ -182,10 +182,6 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
 
         // calculate missing assets
         missingAssets = _osTokenVaultController.convertToAssets(Math.min(totalTicketsToCover, _queuedShares));
-
-        // check whether there is enough available assets
-        uint256 availableAssets = _getAssets(address(this)) - _unclaimedAssets;
-        return availableAssets >= missingAssets ? 0 : missingAssets - availableAssets;
     }
 
     /// @inheritdoc IOsTokenRedeemer
