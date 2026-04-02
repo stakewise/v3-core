@@ -298,17 +298,20 @@ contract SubVaultsRegistry is
 
     /// @inheritdoc ISubVaultsRegistry
     function canUpdateState() external view override returns (bool) {
+        if (!isCollateralized()) return false;
         uint256 nonce = subVaultsRewardsNonce;
         return nonce != 0 && nonce < _getCurrentRewardsNonce();
     }
 
     /// @inheritdoc ISubVaultsRegistry
-    function isCollateralized() external view override returns (bool) {
+    function isCollateralized() public view override returns (bool) {
         return _subVaults.length() > 0;
     }
 
     /// @inheritdoc ISubVaultsRegistry
     function isStateUpdateRequired() public view override returns (bool) {
+        if (!isCollateralized()) return false;
+
         uint256 currentNonce = _getCurrentRewardsNonce();
         unchecked {
             // cannot realistically overflow
