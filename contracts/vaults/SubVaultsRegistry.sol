@@ -384,7 +384,7 @@ contract SubVaultsRegistry is
                 .calculateExitedAssets(_metaVault, positionTicket, exitRequest.timestamp, exitRequest.exitQueueIndex);
 
             subVaultState.queuedShares -= SafeCast.toUint128(positionShares);
-            if (leftShares > 0) {
+            if (leftShares > 1) {
                 // exit request was not processed in full
                 SubVaultExits.pushSubVaultExit(
                     _subVaultsExits,
