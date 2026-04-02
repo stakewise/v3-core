@@ -4,6 +4,7 @@ pragma solidity ^0.8.22;
 
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {ISubVaultsCurator} from "../interfaces/ISubVaultsCurator.sol";
+import {IVaultState} from "../interfaces/IVaultState.sol";
 import {Errors} from "../libraries/Errors.sol";
 
 /**
@@ -15,7 +16,7 @@ contract BalancedCurator is ISubVaultsCurator {
     /// @inheritdoc ISubVaultsCurator
     function getDeposits(uint256 assetsToDeposit, address[] calldata subVaults, address ejectingVault)
         external
-        pure
+        view
         override
         returns (Deposit[] memory deposits)
     {
@@ -24,41 +25,84 @@ contract BalancedCurator is ISubVaultsCurator {
         }
 
         uint256 subVaultsCount = subVaults.length;
-        // the deposits should not be made to the vault that is being ejected
-        uint256 depositSubVaultsCount = ejectingVault != address(0) ? subVaultsCount - 1 : subVaultsCount;
-        if (depositSubVaultsCount == 0) {
-            revert Errors.EmptySubVaults();
-        }
-        uint256 amountPerVault = assetsToDeposit / depositSubVaultsCount;
-        uint256 dust = assetsToDeposit % depositSubVaultsCount;
-
-        // distribute assets evenly across sub-vaults
         deposits = new Deposit[](subVaultsCount);
         bool ejectingVaultFound = false;
+
+        // fetch remaining capacities and validate vaults
+        uint256[] memory capacities = new uint256[](subVaultsCount);
         for (uint256 i = 0; i < subVaultsCount;) {
             address subVault = subVaults[i];
             if (subVault == address(0)) {
                 revert Errors.ZeroAddress();
-            } else if (subVault == ejectingVault) {
+            }
+            deposits[i].vault = subVault;
+            if (subVault == ejectingVault) {
                 if (ejectingVaultFound) {
-                    // only one vault can be ejected at a time
                     revert Errors.RepeatedEjectingVault();
                 }
-                deposits[i] = Deposit({vault: subVault, assets: 0});
                 ejectingVaultFound = true;
-            } else if (dust > 0) {
-                deposits[i] = Deposit({vault: subVault, assets: amountPerVault + dust});
-                dust = 0; // only one vault can receive dust
             } else {
-                deposits[i] = Deposit({vault: subVault, assets: amountPerVault});
+                uint256 capacity = IVaultState(subVault).capacity();
+                uint256 totalAssets = IVaultState(subVault).totalAssets();
+                capacities[i] = capacity > totalAssets ? capacity - totalAssets : 0;
             }
             unchecked {
-                // cannot realistically overflow
                 ++i;
             }
         }
         if (ejectingVault != address(0) && !ejectingVaultFound) {
             revert Errors.EjectingVaultNotFound();
+        }
+
+        // count sub-vaults with available capacity
+        uint256 depositSubVaultsCount;
+        for (uint256 i = 0; i < subVaultsCount;) {
+            if (capacities[i] > 0) {
+                depositSubVaultsCount += 1;
+            }
+            unchecked {
+                ++i;
+            }
+        }
+
+        // distribute assets evenly across sub-vaults, respecting capacities
+        while (assetsToDeposit > 0) {
+            if (depositSubVaultsCount == 0) {
+                revert Errors.EmptySubVaults();
+            }
+            uint256 amountPerVault =
+                assetsToDeposit > depositSubVaultsCount ? assetsToDeposit / depositSubVaultsCount : assetsToDeposit;
+
+            depositSubVaultsCount = 0;
+            for (uint256 i = 0; i < subVaultsCount;) {
+                uint256 subVaultCapacity = capacities[i];
+
+                if (subVaultCapacity == 0) {
+                    unchecked {
+                        ++i;
+                    }
+                    continue;
+                }
+
+                uint256 depositAmount = Math.min(Math.min(subVaultCapacity, amountPerVault), assetsToDeposit);
+
+                deposits[i].assets += depositAmount;
+                assetsToDeposit -= depositAmount;
+                if (assetsToDeposit == 0) {
+                    return deposits;
+                }
+
+                subVaultCapacity -= depositAmount;
+                capacities[i] = subVaultCapacity;
+
+                if (subVaultCapacity > 0) {
+                    depositSubVaultsCount += 1;
+                }
+
+                unchecked {
+                    ++i;
+                }
+            }
         }
     }
 

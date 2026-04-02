@@ -37,7 +37,7 @@ interface ISubVaultsCurator {
      */
     function getDeposits(uint256 assetsToDeposit, address[] calldata subVaults, address ejectingVault)
         external
-        pure
+        view
         returns (Deposit[] memory deposits);
 
     /**
