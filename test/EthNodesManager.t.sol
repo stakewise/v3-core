@@ -1679,6 +1679,50 @@ contract EthNodesManagerTest is EthHelpers {
         nodesManager.claimExitedAssets(999, block.timestamp, 0);
     }
 
+    function test_claimExitedAssets_notHarvested() public {
+        // deposit + sync state
+        vm.prank(user1);
+        nodesManager.deposit{value: 10 ether}();
+
+        _harvestVault();
+        uint128 opTotalAssets = 1 ether;
+        bytes32 leaf = _computeOperatorLeaf(user1, opTotalAssets, 0, 0);
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf, "stateIpfs");
+        _stopOracleImpersonate(address(contracts.keeper));
+        _updateOperatorState(user1, opTotalAssets, 0, 0);
+
+        _collateralizeEthVault(vault);
+
+        // enter exit queue
+        uint256 exitShares = _getBalanceShares(user1) / 2;
+        vm.prank(user1);
+        uint256 positionTicket = nodesManager.enterExitQueue(exitShares);
+
+        // advance state nonces to satisfy _validatorChangeClaimDelay
+        _harvestVault();
+        leaf = _computeOperatorLeaf(user1, opTotalAssets, 0, 0);
+        _startOracleImpersonate(address(contracts.keeper));
+        vm.warp(block.timestamp + STATE_UPDATE_DELAY + 1);
+        _performStateUpdate(leaf, "stateIpfs2");
+        _stopOracleImpersonate(address(contracts.keeper));
+        _updateOperatorState(user1, opTotalAssets, 0, 0);
+
+        _harvestVault();
+        _startOracleImpersonate(address(contracts.keeper));
+        vm.warp(block.timestamp + STATE_UPDATE_DELAY + 1);
+        _performStateUpdate(leaf, "stateIpfs3");
+        _stopOracleImpersonate(address(contracts.keeper));
+        _updateOperatorState(user1, opTotalAssets, 0, 0);
+
+        // make vault harvest required (stale state)
+        _makeHarvestRequired();
+
+        // should revert because vault is not harvested
+        vm.expectRevert(Errors.NotHarvested.selector);
+        nodesManager.claimExitedAssets(positionTicket, block.timestamp, 0);
+    }
+
     function test_claimExitedAssets_notSyncedState() public {
         // deposit + sync state
         vm.prank(user1);

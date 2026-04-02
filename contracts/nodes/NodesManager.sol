@@ -371,6 +371,9 @@ abstract contract NodesManager is
         address operator = _exitPositions[positionTicket];
         if (operator == address(0)) revert Errors.InvalidTicket();
 
+        // check whether the vault is harvested
+        if (_keeper.isHarvestRequired(vault)) revert Errors.NotHarvested();
+
         // check whether the operator has synced the latest state
         uint128 currentNonce = stateData.currentNonce;
         if (operatorNonces[operator][OperatorNonceType.LastStateUpdate] != currentNonce) {
