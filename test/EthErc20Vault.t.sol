@@ -493,7 +493,7 @@ contract EthErc20VaultTest is Test, EthHelpers {
         vault.transferOsTokenPositionToEscrow(osTokenShares);
     }
 
-    function test_transferOsTokenPositionToEscrow_partialTransfer_emitsTransfer() public {
+    function test_transferOsTokenPositionToEscrow_partialTransfer() public {
         _collateralizeEthVault(address(vault));
 
         uint256 depositAmount = 10 ether;

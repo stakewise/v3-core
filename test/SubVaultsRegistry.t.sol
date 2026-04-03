@@ -19,7 +19,7 @@ import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
 import {CuratorsRegistry} from "../contracts/curators/CuratorsRegistry.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
-import {IOsTokenVaultController} from "../contracts/interfaces/IOsTokenVaultController.sol";
+
 import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 import {GnoHelpers} from "./helpers/GnoHelpers.sol";
@@ -819,9 +819,10 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         vm.prank(positionsManager);
         uint256 totalRedeemed = osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), assetsToRedeem);
 
-        // Should redeem at most ltvPercent of the deposited assets
+        // Should redeem at most ltvPercent (50%) of the deposited assets
         assertGt(totalRedeemed, 0, "Should redeem some assets");
-        assertLe(totalRedeemed, assetsToRedeem, "Should not redeem more than requested");
+        assertLt(totalRedeemed, assetsToRedeem, "Should redeem less than requested due to LTV cap");
+        assertApproxEqAbs(totalRedeemed, 5 ether, 0.001 ether, "Should redeem approximately LTV cap amount");
     }
 }
 
