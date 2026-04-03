@@ -30,6 +30,7 @@ contract BalancedCurator is ISubVaultsCurator {
 
         // fetch remaining capacities and validate vaults
         uint256[] memory capacities = new uint256[](subVaultsCount);
+        uint256 depositSubVaultsCount;
         for (uint256 i = 0; i < subVaultsCount;) {
             address subVault = subVaults[i];
             if (subVault == address(0)) {
@@ -44,7 +45,10 @@ contract BalancedCurator is ISubVaultsCurator {
             } else {
                 uint256 capacity = IVaultState(subVault).capacity();
                 uint256 totalAssets = IVaultState(subVault).totalAssets();
-                capacities[i] = capacity > totalAssets ? capacity - totalAssets : 0;
+                if (capacity > totalAssets) {
+                    capacities[i] = capacity - totalAssets;
+                    depositSubVaultsCount += 1;
+                }
             }
             unchecked {
                 ++i;
@@ -52,17 +56,6 @@ contract BalancedCurator is ISubVaultsCurator {
         }
         if (ejectingVault != address(0) && !ejectingVaultFound) {
             revert Errors.EjectingVaultNotFound();
-        }
-
-        // count sub-vaults with available capacity
-        uint256 depositSubVaultsCount;
-        for (uint256 i = 0; i < subVaultsCount;) {
-            if (capacities[i] > 0) {
-                depositSubVaultsCount += 1;
-            }
-            unchecked {
-                ++i;
-            }
         }
 
         // distribute assets evenly across sub-vaults, respecting capacities
