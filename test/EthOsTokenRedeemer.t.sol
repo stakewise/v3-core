@@ -1205,22 +1205,9 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Ensure enough time has passed
         vm.warp(block.timestamp + EXIT_QUEUE_UPDATE_DELAY + 1);
 
-        // Store initial states
-        uint256 unclaimedAssetsBefore = osTokenRedeemer.unclaimedAssets();
-
-        // Process exit queue - should not revert even with nothing to process
-        _startSnapshotGas("EthOsTokenRedeemerTest_test_processExitQueue_nothingToProcess");
+        // Process exit queue - should revert with InvalidShares when nothing to process
+        vm.expectRevert(Errors.InvalidShares.selector);
         osTokenRedeemer.processExitQueue();
-        _stopSnapshotGas();
-
-        // Verify no changes occurred
-        assertEq(osTokenRedeemer.unclaimedAssets(), unclaimedAssetsBefore, "Unclaimed assets should not change");
-
-        // Verify all counters were reset to 0
-        assertEq(osTokenRedeemer.swappedShares(), 0, "Swapped shares should be 0");
-        assertEq(osTokenRedeemer.swappedAssets(), 0, "Swapped assets should be 0");
-        assertEq(osTokenRedeemer.redeemedShares(), 0, "Redeemed shares should be 0");
-        assertEq(osTokenRedeemer.redeemedAssets(), 0, "Redeemed assets should be 0");
     }
 
     function test_processExitQueue_success() public {

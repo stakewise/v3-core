@@ -126,7 +126,9 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         if (exitQueueTimestamp + exitQueueUpdateDelay > block.timestamp) {
             return false;
         }
-        return swappedShares > 0 || redeemedShares > 0;
+        uint256 processedShares = swappedShares + redeemedShares;
+        uint256 processedAssets = swappedAssets + redeemedAssets;
+        return processedShares > 0 && processedAssets > 0;
     }
 
     /// @inheritdoc IOsTokenRedeemer
@@ -398,14 +400,16 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         // update state
         uint256 processedShares = swappedShares + redeemedShares;
         uint256 processedAssets = swappedAssets + redeemedAssets;
+        if (processedShares == 0) {
+            revert Errors.InvalidShares();
+        }
+        if (processedAssets == 0) {
+            revert Errors.InvalidAssets();
+        }
         swappedShares = 0;
         swappedAssets = 0;
         redeemedShares = 0;
         redeemedAssets = 0;
-
-        if (processedShares == 0 || processedAssets == 0) {
-            return; // nothing to process
-        }
 
         unclaimedAssets += SafeCast.toUint128(processedAssets);
 

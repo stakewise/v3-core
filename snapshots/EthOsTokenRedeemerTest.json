@@ -1,7 +1,6 @@
 {
   "EthOsTokenRedeemerTest_test_enterExitQueue_success": "109662",
   "EthOsTokenRedeemerTest_test_permitOsToken_success": "82575",
-  "EthOsTokenRedeemerTest_test_processExitQueue_nothingToProcess": "33998",
   "EthOsTokenRedeemerTest_test_processExitQueue_success": "101715",
   "EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_multiplePositions": "297544",
   "EthOsTokenRedeemerTest_test_redeemOsTokenPositions_success_singlePosition": "201471",
