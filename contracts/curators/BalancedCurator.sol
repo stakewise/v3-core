@@ -61,7 +61,7 @@ contract BalancedCurator is ISubVaultsCurator {
         // distribute assets evenly across sub-vaults, respecting capacities
         while (assetsToDeposit > 0) {
             if (depositSubVaultsCount == 0) {
-                revert Errors.EmptySubVaults();
+                return deposits;
             }
             uint256 amountPerVault =
                 assetsToDeposit > depositSubVaultsCount ? assetsToDeposit / depositSubVaultsCount : assetsToDeposit;

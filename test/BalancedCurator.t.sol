@@ -142,26 +142,24 @@ contract BalancedCuratorTest is Test {
         assertEq(totalDistributed, 103 ether, "Total distributed amount incorrect");
     }
 
-    function test_getDeposits_emptyVaults() public {
-        // 100 ETH to distribute, but no vaults
+    function test_getDeposits_emptyVaults() public view {
         uint256 assetsToDeposit = 100 ether;
         address[] memory vaults = new address[](0);
 
-        // Should revert with EmptySubVaults error
-        vm.expectRevert(Errors.EmptySubVaults.selector);
-        curator.getDeposits(assetsToDeposit, vaults, address(0));
+        ISubVaultsCurator.Deposit[] memory deposits = curator.getDeposits(assetsToDeposit, vaults, address(0));
+        assertEq(deposits.length, 0, "Should return 0 deposit structs");
     }
 
     function test_getDeposits_allVaultsEjecting() public {
-        // Setup: Only one vault and it's ejecting
         uint256 assetsToDeposit = 100 ether;
         address[] memory vaults = new address[](1);
         vaults[0] = address(uint160(0x1000));
         _mockUnlimitedCapacities(vaults);
 
-        // Should revert with EmptySubVaults error because all vaults are ejecting
-        vm.expectRevert(Errors.EmptySubVaults.selector);
-        curator.getDeposits(assetsToDeposit, vaults, vaults[0]);
+        ISubVaultsCurator.Deposit[] memory deposits = curator.getDeposits(assetsToDeposit, vaults, vaults[0]);
+        assertEq(deposits.length, 1, "Should return 1 deposit struct");
+        assertEq(deposits[0].vault, vaults[0], "Vault address mismatch");
+        assertEq(deposits[0].assets, 0, "Ejecting vault receives 0");
     }
 
     function test_getDeposits_zeroAssetsToDeposit() public view {
@@ -237,8 +235,28 @@ contract BalancedCuratorTest is Test {
         _mockVaultCapacity(vaults[1], 50 ether, 50 ether);
         _mockVaultCapacity(vaults[2], 50 ether, 50 ether);
 
-        vm.expectRevert(Errors.EmptySubVaults.selector);
-        curator.getDeposits(100 ether, vaults, address(0));
+        ISubVaultsCurator.Deposit[] memory deposits = curator.getDeposits(100 ether, vaults, address(0));
+        assertEq(deposits.length, 3, "Should return 3 deposit structs");
+        for (uint256 i = 0; i < deposits.length; i++) {
+            assertEq(deposits[i].vault, vaults[i], "Vault address mismatch");
+            assertEq(deposits[i].assets, 0, "All vaults at capacity, no deposits");
+        }
+    }
+
+    function test_getDeposits_partialCapacityLeavesRemainder() public {
+        // 100 ETH, total capacity only 30 ETH — remaining 70 stays in meta vault
+        address[] memory vaults = new address[](3);
+        vaults[0] = address(uint160(0x1000));
+        vaults[1] = address(uint160(0x1001));
+        vaults[2] = address(uint160(0x1002));
+
+        _mockVaultCapacity(vaults[0], 10 ether, 0);
+        _mockVaultCapacity(vaults[1], 10 ether, 0);
+        _mockVaultCapacity(vaults[2], 10 ether, 0);
+
+        ISubVaultsCurator.Deposit[] memory deposits = curator.getDeposits(100 ether, vaults, address(0));
+        uint256 totalDistributed = deposits[0].assets + deposits[1].assets + deposits[2].assets;
+        assertEq(totalDistributed, 30 ether, "Should deposit only what fits in capacities");
     }
 
     function test_getDeposits_capacityWithEjectingVault() public {
