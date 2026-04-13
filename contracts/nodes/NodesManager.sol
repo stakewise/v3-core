@@ -230,7 +230,7 @@ abstract contract NodesManager is
         uint256 penaltyAssetsDelta = params.cumPenaltyAssets - operatorState.cumPenaltyAssets;
         uint256 totalPenaltyAssets = penaltyAssetsDelta + pendingPenaltyAssets[operator];
         if (totalPenaltyAssets > 0) {
-            totalPenaltyShares = IVaultState(vault).convertToShares(totalPenaltyAssets + 1);
+            totalPenaltyShares = IVaultState(vault).convertToShares(totalPenaltyAssets) + 1;
         }
 
         // apply penalty to balance, storing excess as pending if insufficient

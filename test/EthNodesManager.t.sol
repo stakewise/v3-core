@@ -654,7 +654,7 @@ contract EthNodesManagerTest is EthHelpers {
         _performStateUpdate(leaf, "stateIpfs");
         _stopOracleImpersonate(address(contracts.keeper));
 
-        uint256 expectedPenaltyShares = IVaultState(vault).convertToShares(uint256(cumPenaltyAssets) + 1);
+        uint256 expectedPenaltyShares = IVaultState(vault).convertToShares(uint256(cumPenaltyAssets)) + 1;
         uint256 vaultTotalSharesBefore = IVaultState(vault).totalShares();
         uint256 vaultTotalAssetsBefore = IVaultState(vault).totalAssets();
 
@@ -699,7 +699,7 @@ contract EthNodesManagerTest is EthHelpers {
         _performStateUpdate(leaf, "stateIpfs");
         _stopOracleImpersonate(address(contracts.keeper));
 
-        uint256 expectedPenaltyShares = IVaultState(vault).convertToShares(uint256(cumPenaltyAssets) + 1);
+        uint256 expectedPenaltyShares = IVaultState(vault).convertToShares(uint256(cumPenaltyAssets)) + 1;
         uint256 vaultTotalSharesBefore = IVaultState(vault).totalShares();
 
         INodesManager.OperatorStateUpdateParams memory params = INodesManager.OperatorStateUpdateParams({
