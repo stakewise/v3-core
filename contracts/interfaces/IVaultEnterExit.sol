@@ -63,6 +63,7 @@ interface IVaultEnterExit is IVaultState {
 
     /**
      * @notice Locks shares to the exit queue. The shares continue earning rewards until they will be burned by the Vault.
+     * @dev For ERC-20 vault variants, balanceOf(vault) does not reflect queued exit shares despite the emitted Transfer event.
      * @param shares The number of shares to lock
      * @param receiver The address that will receive assets upon withdrawal
      * @return positionTicket The position ticket of the exit queue. Returns uint256 max if no ticket created.

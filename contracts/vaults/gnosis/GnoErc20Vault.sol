@@ -114,6 +114,8 @@ contract GnoErc20Vault is
         positionTicket = super.transferOsTokenPositionToEscrow(osTokenShares);
         uint256 exitShares = sharesBefore - _balances[msg.sender];
         if (exitShares > 0) {
+            // NB: queued shares are tracked in _queuedShares, not _balances[address(this)].
+            // balanceOf(address(this)) will not reflect queued exit shares.
             emit Transfer(msg.sender, address(this), exitShares);
         }
     }
