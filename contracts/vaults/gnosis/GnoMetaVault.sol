@@ -88,6 +88,7 @@ contract GnoMetaVault is
 
     /// @inheritdoc IGnoMetaVault
     function donateAssets(uint256 amount) external override nonReentrant {
+        _checkCollateralized();
         if (amount == 0) {
             revert Errors.InvalidAssets();
         }

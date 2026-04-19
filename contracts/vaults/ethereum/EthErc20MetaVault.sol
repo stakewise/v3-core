@@ -121,6 +121,7 @@ contract EthErc20MetaVault is
 
     /// @inheritdoc IEthErc20MetaVault
     function donateAssets() external payable override {
+        _checkCollateralized();
         if (msg.value == 0) {
             revert Errors.InvalidAssets();
         }
