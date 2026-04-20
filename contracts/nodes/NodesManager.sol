@@ -463,7 +463,7 @@ abstract contract NodesManager is
         uint256 penaltyShares;
         uint256 pendingPenalty = pendingPenaltyAssets[msg.sender];
         if (pendingPenalty > 0) {
-            penaltyShares = IVaultState(vault).convertToShares(pendingPenalty);
+            penaltyShares = IVaultState(vault).convertToShares(pendingPenalty) + 1;
             if (penaltyShares <= depositShares) {
                 penaltyAssets = pendingPenalty;
                 pendingPenaltyAssets[msg.sender] = 0;
