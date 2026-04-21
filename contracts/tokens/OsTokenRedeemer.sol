@@ -126,7 +126,9 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         if (exitQueueTimestamp + exitQueueUpdateDelay > block.timestamp) {
             return false;
         }
-        return swappedShares > 0 || redeemedShares > 0;
+        uint256 processedShares = swappedShares + redeemedShares;
+        uint256 processedAssets = swappedAssets + redeemedAssets;
+        return processedShares > 0 && processedAssets > 0;
     }
 
     /// @inheritdoc IOsTokenRedeemer
@@ -170,10 +172,10 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         returns (uint256 missingAssets)
     {
         // SLOAD to memory
-        (uint256 _queuedShares, uint256 _unclaimedAssets, uint256 totalTickets) = getExitQueueData();
+        (uint256 _queuedShares,, uint256 totalTickets) = getExitQueueData();
 
         // check whether already covered
-        if (totalTickets >= targetCumulativeTickets) {
+        if (totalTickets >= targetCumulativeTickets || _queuedShares == 0) {
             return 0;
         }
 
@@ -182,10 +184,6 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
 
         // calculate missing assets
         missingAssets = _osTokenVaultController.convertToAssets(Math.min(totalTicketsToCover, _queuedShares));
-
-        // check whether there is enough available assets
-        uint256 availableAssets = _getAssets(address(this)) - _unclaimedAssets;
-        return availableAssets >= missingAssets ? 0 : missingAssets - availableAssets;
     }
 
     /// @inheritdoc IOsTokenRedeemer
@@ -194,9 +192,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
             revert Errors.InvalidRedeemablePositions();
         }
 
-        // SLOAD to memory
-        RedeemablePositions memory currentPositions = _redeemablePositions;
-        if (newPositions.merkleRoot == currentPositions.merkleRoot) {
+        if (newPositions.merkleRoot == _redeemablePositions.merkleRoot) {
             revert Errors.ValueNotChanged();
         }
 
@@ -341,17 +337,16 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
                 Math.min(position.leafShares - processedPositionShares, position.sharesToRedeem),
                 Math.min(_queuedShares, IVaultOsToken(position.vault).osTokenPositions(position.owner))
             );
-            position.sharesToRedeem = sharesToRedeem;
-
             // update state
-            if (position.sharesToRedeem > 0) {
+            if (sharesToRedeem > 0) {
                 unchecked {
-                    // position.sharesToRedeem <= _queuedShares checked above
-                    _queuedShares -= position.sharesToRedeem;
+                    // sharesToRedeem <= _queuedShares checked above
+                    _queuedShares -= sharesToRedeem;
                     // cannot realistically overflow
-                    leafToProcessedShares[leaf] = processedPositionShares + position.sharesToRedeem;
+                    leafToProcessedShares[leaf] = processedPositionShares + sharesToRedeem;
                 }
             }
+            position.sharesToRedeem = sharesToRedeem;
 
             unchecked {
                 // cannot realistically overflow
@@ -405,14 +400,16 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         // update state
         uint256 processedShares = swappedShares + redeemedShares;
         uint256 processedAssets = swappedAssets + redeemedAssets;
+        if (processedShares == 0) {
+            revert Errors.InvalidShares();
+        }
+        if (processedAssets == 0) {
+            revert Errors.InvalidAssets();
+        }
         swappedShares = 0;
         swappedAssets = 0;
         redeemedShares = 0;
         redeemedAssets = 0;
-
-        if (processedShares == 0 || processedAssets == 0) {
-            return; // nothing to process
-        }
 
         unclaimedAssets += SafeCast.toUint128(processedAssets);
 
@@ -445,7 +442,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
 
         osTokenShares = _osTokenVaultController.convertToShares(assets);
         if (osTokenShares == 0) {
-            return 0; // nothing to swap
+            revert Errors.InvalidShares();
         }
 
         // update state

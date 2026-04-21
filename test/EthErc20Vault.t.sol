@@ -7,9 +7,17 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {IEthErc20Vault} from "../contracts/interfaces/IEthErc20Vault.sol";
+import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthErc20Vault} from "../contracts/vaults/ethereum/EthErc20Vault.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
+
+interface IStrategiesRegistry {
+    function addStrategyProxy(bytes32 strategyProxyId, address proxy) external;
+    function setStrategy(address strategy, bool enabled) external;
+
+    function owner() external view returns (address);
+}
 
 interface IVaultStateV4 {
     function totalExitingAssets() external view returns (uint128);
@@ -17,6 +25,9 @@ interface IVaultStateV4 {
 }
 
 contract EthErc20VaultTest is Test, EthHelpers {
+    IStrategiesRegistry private constant _strategiesRegistry =
+        IStrategiesRegistry(0x90b82E4b3aa385B4A02B7EBc1892a4BeD6B5c465);
+
     ForkContracts public contracts;
     EthErc20Vault public vault;
 
@@ -450,6 +461,68 @@ contract EthErc20VaultTest is Test, EthHelpers {
         // The queue might not be fully processed in one update, so we'll check that progress was made
         (uint128 queuedShares,,,,) = vault.getExitQueueData();
         assertLt(queuedShares, exitShares, "Exit queue should be at least partially processed");
+    }
+
+    function test_transferOsTokenPositionToEscrow_emitsTransfer() public {
+        _collateralizeEthVault(address(vault));
+
+        uint256 depositAmount = 10 ether;
+        _depositEth(depositAmount, sender, sender);
+
+        // Register sender in strategies registry for escrow
+        vm.prank(_strategiesRegistry.owner());
+        _strategiesRegistry.setStrategy(address(this), true);
+        _strategiesRegistry.addStrategyProxy(keccak256(abi.encode(sender)), sender);
+
+        // Mint osToken shares
+        IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(vault));
+        uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+        vm.prank(sender);
+        vault.mintOsToken(sender, osTokenShares, referrer);
+
+        // Calculate expected exit shares
+        uint256 sharesBefore = vault.balanceOf(sender);
+
+        // Expect Transfer event from sender to vault (exit queue)
+        vm.expectEmit(true, true, true, false, address(vault));
+        emit IERC20.Transfer(sender, address(vault), sharesBefore);
+
+        // Transfer osToken position to escrow
+        vm.prank(sender);
+        vault.transferOsTokenPositionToEscrow(osTokenShares);
+    }
+
+    function test_transferOsTokenPositionToEscrow_partialTransfer() public {
+        _collateralizeEthVault(address(vault));
+
+        uint256 depositAmount = 10 ether;
+        _depositEth(depositAmount, sender, sender);
+
+        // Register sender in strategies registry for escrow
+        vm.prank(_strategiesRegistry.owner());
+        _strategiesRegistry.setStrategy(address(this), true);
+        _strategiesRegistry.addStrategyProxy(keccak256(abi.encode(sender)), sender);
+
+        // Mint osToken shares
+        IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(vault));
+        uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+        vm.prank(sender);
+        vault.mintOsToken(sender, osTokenShares, referrer);
+
+        // Transfer half of the osToken position
+        uint256 transferAmount = osTokenShares / 2;
+        uint256 sharesBefore = vault.balanceOf(sender);
+
+        // Transfer partial osToken position to escrow
+        vm.prank(sender);
+        vault.transferOsTokenPositionToEscrow(transferAmount);
+
+        // Verify sender's balance decreased proportionally
+        uint256 sharesAfter = vault.balanceOf(sender);
+        assertLt(sharesAfter, sharesBefore, "Balance should decrease after partial transfer");
+        assertGt(sharesAfter, 0, "Balance should not be zero after partial transfer");
     }
 
     // Helper function to deposit ETH to the vault

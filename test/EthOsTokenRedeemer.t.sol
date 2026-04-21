@@ -771,40 +771,12 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         assertEq(missingAssets, 0, "Missing assets should be 0 when target < totalTickets");
     }
 
-    function test_getExitQueueMissingAssets_availableAssetsExceedMissing() public {
-        // Setup: Enter exit queue with some shares
-        uint256 sharesToQueue = 10 ether;
-        address user = makeAddr("User");
-        _enterExitQueue(user, sharesToQueue);
-
-        // Send ETH directly to the redeemer contract (not via swap) to create available assets
-        // This way availableAssets > unclaimedAssets
-        uint256 directDeposit = 20 ether;
-        vm.deal(address(this), directDeposit);
-        (bool success,) = address(osTokenRedeemer).call{value: directDeposit}("");
-        require(success, "Transfer failed");
-
-        // Get exit queue data
-        (,, uint256 totalTickets) = osTokenRedeemer.getExitQueueData();
-
-        // Target slightly above totalTickets - the direct deposit should cover this
-        uint256 ticketsToCover = 1 ether;
-        uint256 targetCumulativeTickets = totalTickets + ticketsToCover;
-
-        // Query missing assets - should be 0 because available assets exceed the missing amount
-        uint256 missingAssets = osTokenRedeemer.getExitQueueMissingAssets(targetCumulativeTickets);
-
-        // The contract has enough ETH to cover the missing assets
-        assertEq(missingAssets, 0, "Missing assets should be 0 when available assets exceed missing");
-    }
-
-    function test_getExitQueueMissingAssets_missingAssetsExceedAvailable() public {
+    function test_getExitQueueMissingAssets() public {
         // Setup: Enter exit queue with shares
         uint256 sharesToQueue = 100 ether;
         address user = makeAddr("User");
         _enterExitQueue(user, sharesToQueue);
 
-        // Don't add any available assets - the redeemer contract has no ETH
         // Get exit queue data
         (,, uint256 totalTickets) = osTokenRedeemer.getExitQueueData();
         uint256 cumulativeTickets = osTokenRedeemer.getExitQueueCumulativeTickets();
@@ -1156,23 +1128,13 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     }
 
     function test_swapAssetsToOsTokenShares_zeroOsTokenShares() public {
-        // Try swapping a very small amount that would result in 0 shares
+        // Try swapping a very small amount
         uint256 tinyAmount = 1 wei;
         vm.deal(address(this), tinyAmount);
 
-        // Store initial states
-        uint256 queuedSharesBefore = osTokenRedeemer.queuedShares();
-        uint256 swappedSharesBefore = osTokenRedeemer.swappedShares();
-        uint256 swappedAssetsBefore = osTokenRedeemer.swappedAssets();
-
-        // Call swap - should return 0 and not revert
+        // Call swap - should revert
+        vm.expectRevert(Errors.InvalidShares.selector);
         uint256 osTokenShares = osTokenRedeemer.swapAssetsToOsTokenShares{value: tinyAmount}(user1);
-
-        // Verify no shares were swapped
-        assertEq(osTokenShares, 0, "Should return 0 shares for tiny amount");
-        assertEq(osTokenRedeemer.queuedShares(), queuedSharesBefore, "Queued shares should not change");
-        assertEq(osTokenRedeemer.swappedShares(), swappedSharesBefore, "Swapped shares should not change");
-        assertEq(osTokenRedeemer.swappedAssets(), swappedAssetsBefore, "Swapped assets should not change");
     }
 
     function test_swapAssetsToOsTokenShares_success() public {
@@ -1243,22 +1205,9 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         // Ensure enough time has passed
         vm.warp(block.timestamp + EXIT_QUEUE_UPDATE_DELAY + 1);
 
-        // Store initial states
-        uint256 unclaimedAssetsBefore = osTokenRedeemer.unclaimedAssets();
-
-        // Process exit queue - should not revert even with nothing to process
-        _startSnapshotGas("EthOsTokenRedeemerTest_test_processExitQueue_nothingToProcess");
+        // Process exit queue - should revert with InvalidShares when nothing to process
+        vm.expectRevert(Errors.InvalidShares.selector);
         osTokenRedeemer.processExitQueue();
-        _stopSnapshotGas();
-
-        // Verify no changes occurred
-        assertEq(osTokenRedeemer.unclaimedAssets(), unclaimedAssetsBefore, "Unclaimed assets should not change");
-
-        // Verify all counters were reset to 0
-        assertEq(osTokenRedeemer.swappedShares(), 0, "Swapped shares should be 0");
-        assertEq(osTokenRedeemer.swappedAssets(), 0, "Swapped assets should be 0");
-        assertEq(osTokenRedeemer.redeemedShares(), 0, "Redeemed shares should be 0");
-        assertEq(osTokenRedeemer.redeemedAssets(), 0, "Redeemed assets should be 0");
     }
 
     function test_processExitQueue_success() public {

@@ -1,11 +1,11 @@
 {
-  "EthErc20MetaVaultTest_test_deposit": "93642",
-  "EthErc20MetaVaultTest_test_depositAndMintOsToken": "194416",
-  "EthErc20MetaVaultTest_test_depositViaFallback": "95642",
+  "EthErc20MetaVaultTest_test_deposit": "95852",
+  "EthErc20MetaVaultTest_test_depositAndMintOsToken": "194905",
+  "EthErc20MetaVaultTest_test_depositViaFallback": "97852",
   "EthErc20MetaVaultTest_test_enterExitQueue": "106106",
   "EthErc20MetaVaultTest_test_enterExitQueue_nonCollateralized": "106106",
   "EthErc20MetaVaultTest_test_transfer": "64426",
   "EthErc20MetaVaultTest_test_transferFrom": "61139",
-  "EthErc20MetaVaultTest_test_updateStateAndDeposit": "214653",
-  "EthErc20MetaVaultTest_test_updateStateAndDepositAndMintOsToken": "218872"
+  "EthErc20MetaVaultTest_test_updateStateAndDeposit": "214701",
+  "EthErc20MetaVaultTest_test_updateStateAndDepositAndMintOsToken": "219292"
 }

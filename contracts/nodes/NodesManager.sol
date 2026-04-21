@@ -230,7 +230,7 @@ abstract contract NodesManager is
         uint256 penaltyAssetsDelta = params.cumPenaltyAssets - operatorState.cumPenaltyAssets;
         uint256 totalPenaltyAssets = penaltyAssetsDelta + pendingPenaltyAssets[operator];
         if (totalPenaltyAssets > 0) {
-            totalPenaltyShares = IVaultState(vault).convertToShares(totalPenaltyAssets);
+            totalPenaltyShares = IVaultState(vault).convertToShares(totalPenaltyAssets) + 1;
         }
 
         // apply penalty to balance, storing excess as pending if insufficient
@@ -318,8 +318,19 @@ abstract contract NodesManager is
     }
 
     /// @inheritdoc INodesManager
-    function withdrawValidators(bytes calldata validators) external payable override onlyWithdrawalsManager {
+    function withdrawValidators(bytes calldata validators)
+        external
+        payable
+        override
+        nonReentrant
+        onlyWithdrawalsManager
+    {
+        uint256 balanceBefore = address(this).balance - msg.value;
         IVaultValidators(vault).withdrawValidators{value: msg.value}(validators, bytes(""));
+        uint256 surplus = address(this).balance - balanceBefore;
+        if (surplus > 0) {
+            _transferAssets(msg.sender, surplus);
+        }
         emit ValidatorWithdrawalSubmitted(msg.sender);
     }
 
@@ -359,6 +370,9 @@ abstract contract NodesManager is
         // resolve the operator from the position ticket
         address operator = _exitPositions[positionTicket];
         if (operator == address(0)) revert Errors.InvalidTicket();
+
+        // check whether the vault is harvested
+        if (_keeper.isHarvestRequired(vault)) revert Errors.NotHarvested();
 
         // check whether the operator has synced the latest state
         uint128 currentNonce = stateData.currentNonce;
@@ -413,10 +427,7 @@ abstract contract NodesManager is
                 pendingPenaltyAssets[operator] = 0;
                 exitedAssets -= pendingPenalty;
             }
-        }
-
-        // donate deducted penalty back to the vault
-        if (penaltyDeducted > 0) {
+            // donate deducted penalty back to the vault
             _donateAssets(penaltyDeducted);
         }
 
@@ -436,6 +447,14 @@ abstract contract NodesManager is
     function _deposit(uint256 assets) internal returns (uint256 addedShares) {
         if (assets < minDepositAssets) revert Errors.InvalidAssets();
 
+        // check whether the operator has synced the latest state
+        if (
+            operatorStates[msg.sender].totalAssets > 0
+                && operatorNonces[msg.sender][OperatorNonceType.LastStateUpdate] != stateData.currentNonce
+        ) {
+            revert Errors.NotHarvested();
+        }
+
         // deposit assets to the vault
         uint256 depositShares = _depositToVault(assets);
 
@@ -444,7 +463,7 @@ abstract contract NodesManager is
         uint256 penaltyShares;
         uint256 pendingPenalty = pendingPenaltyAssets[msg.sender];
         if (pendingPenalty > 0) {
-            penaltyShares = IVaultState(vault).convertToShares(pendingPenalty);
+            penaltyShares = IVaultState(vault).convertToShares(pendingPenalty) + 1;
             if (penaltyShares <= depositShares) {
                 penaltyAssets = pendingPenalty;
                 pendingPenaltyAssets[msg.sender] = 0;
@@ -453,11 +472,10 @@ abstract contract NodesManager is
                 penaltyAssets = IVaultState(vault).convertToAssets(penaltyShares);
                 pendingPenaltyAssets[msg.sender] = pendingPenalty - penaltyAssets;
             }
-        }
-
-        if (penaltyShares > 0) {
-            // donate penalty shares to the vault
-            IVaultState(vault).donateShares(penaltyShares);
+            if (penaltyShares > 0) {
+                // donate penalty shares to the vault
+                IVaultState(vault).donateShares(penaltyShares);
+            }
         }
 
         // update operator's shares balance

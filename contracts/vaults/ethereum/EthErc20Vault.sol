@@ -16,7 +16,7 @@ import {VaultVersion, IVaultVersion} from "../modules/VaultVersion.sol";
 import {VaultImmutables} from "../modules/VaultImmutables.sol";
 import {IVaultState, VaultState} from "../modules/VaultState.sol";
 import {VaultEnterExit, IVaultEnterExit} from "../modules/VaultEnterExit.sol";
-import {VaultOsToken} from "../modules/VaultOsToken.sol";
+import {IVaultOsToken, VaultOsToken} from "../modules/VaultOsToken.sol";
 import {VaultEthStaking} from "../modules/VaultEthStaking.sol";
 import {VaultMev} from "../modules/VaultMev.sol";
 import {VaultToken} from "../modules/VaultToken.sol";
@@ -124,6 +124,23 @@ contract EthErc20Vault is
         return success;
     }
 
+    /// @inheritdoc IVaultOsToken
+    function transferOsTokenPositionToEscrow(uint256 osTokenShares)
+        public
+        virtual
+        override(IVaultOsToken, VaultOsToken)
+        returns (uint256 positionTicket)
+    {
+        uint256 sharesBefore = _balances[msg.sender];
+        positionTicket = super.transferOsTokenPositionToEscrow(osTokenShares);
+        uint256 exitShares = sharesBefore - _balances[msg.sender];
+        if (exitShares > 0) {
+            // NB: queued shares are tracked in _queuedShares, not _balances[address(this)].
+            // balanceOf(address(this)) will not reflect queued exit shares.
+            emit Transfer(msg.sender, address(this), exitShares);
+        }
+    }
+
     /// @inheritdoc IVaultEnterExit
     function enterExitQueue(uint256 shares, address receiver)
         public
@@ -134,6 +151,8 @@ contract EthErc20Vault is
         positionTicket = super.enterExitQueue(shares, receiver);
         // only emit Transfer if shares were queued (not directly redeemed when non-collateralized)
         if (positionTicket != type(uint256).max) {
+            // NB: queued shares are tracked in _queuedShares, not _balances[address(this)].
+            // balanceOf(address(this)) will not reflect queued exit shares.
             emit Transfer(msg.sender, address(this), shares);
         }
     }

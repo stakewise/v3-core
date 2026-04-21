@@ -198,6 +198,62 @@ contract EthMetaVaultTest is Test, EthHelpers {
         }
     }
 
+    function _createEmptyMetaVault() internal returns (EthMetaVault) {
+        bytes memory emptyInitParams = abi.encode(
+            IEthMetaVault.EthMetaVaultInitParams({
+                subVaultsCurator: _balancedCurator,
+                capacity: type(uint256).max,
+                feePercent: 0,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        return EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, emptyInitParams, false)));
+    }
+
+    function test_depositWithNoSubVaultsAfterNonceAdvance() public {
+        // Create a new meta vault without sub vaults
+        EthMetaVault emptyMetaVault = _createEmptyMetaVault();
+
+        // Advance keeper nonce by 2 so isStateUpdateRequired would have returned true without the fix
+        uint64 initialNonce = contracts.keeper.rewardsNonce();
+        _setKeeperRewardsNonce(initialNonce + 2);
+
+        // Deposit should succeed despite nonce being 2+ ahead
+        uint256 depositAmount = 1 ether;
+        uint256 totalAssetsBefore = emptyMetaVault.totalAssets();
+        vm.prank(sender);
+        uint256 shares = emptyMetaVault.deposit{value: depositAmount}(sender, referrer);
+        assertGt(shares, 0, "Should have received shares");
+        assertEq(emptyMetaVault.totalAssets(), totalAssetsBefore + depositAmount, "Incorrect total assets");
+    }
+
+    function test_withdrawWithNoSubVaultsAfterNonceAdvance() public {
+        // Create a new meta vault without sub vaults and deposit
+        EthMetaVault emptyMetaVault = _createEmptyMetaVault();
+        uint256 depositAmount = 1 ether;
+        uint256 totalAssetsBefore = emptyMetaVault.totalAssets();
+        vm.prank(sender);
+        uint256 shares = emptyMetaVault.deposit{value: depositAmount}(sender, referrer);
+
+        // Advance keeper nonce by 2 so isStateUpdateRequired would have returned true without the fix
+        uint64 initialNonce = contracts.keeper.rewardsNonce();
+        _setKeeperRewardsNonce(initialNonce + 2);
+
+        // Withdraw should succeed with instant redemption (no exit queue for uncollateralized vaults)
+        uint256 senderBalanceBefore = sender.balance;
+        vm.prank(sender);
+        uint256 positionTicket = emptyMetaVault.enterExitQueue(shares, sender);
+
+        // Uncollateralized vaults return max uint256 (instant redemption, no queue)
+        assertEq(positionTicket, type(uint256).max, "Should return max uint256 for instant redemption");
+
+        // Verify assets were transferred immediately
+        uint256 senderBalanceAfter = sender.balance;
+        assertEq(senderBalanceAfter - senderBalanceBefore, depositAmount, "Should have received deposited ETH");
+        assertEq(emptyMetaVault.totalAssets(), totalAssetsBefore, "Total assets should return to pre-deposit level");
+        assertEq(emptyMetaVault.getShares(sender), 0, "Shares should be zero after full withdrawal");
+    }
+
     function test_deposit() public {
         uint256 totalAssetsBefore = metaVault.totalAssets();
         uint256 totalSharesBefore = metaVault.totalShares();
@@ -382,20 +438,17 @@ contract EthMetaVaultTest is Test, EthHelpers {
         assertFalse(registry.isStateUpdateRequired(), "Should not require state update after updating");
 
         // Test with empty sub vaults
-        // Create a new meta vault without sub vaults
-        bytes memory emptyInitParams = abi.encode(
-            IEthMetaVault.EthMetaVaultInitParams({
-                subVaultsCurator: _balancedCurator,
-                capacity: 1000 ether,
-                feePercent: 1000,
-                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
-            })
-        );
-        EthMetaVault emptyMetaVault =
-            EthMetaVault(payable(_getOrCreateVault(VaultType.EthMetaVault, admin, emptyInitParams, false)));
+        EthMetaVault emptyMetaVault = _createEmptyMetaVault();
+        ISubVaultsRegistry emptyRegistry = _getRegistry(address(emptyMetaVault));
 
         // Verify empty vault behavior
-        assertFalse(emptyMetaVault.isStateUpdateRequired(), "Empty vault should not require state update");
+        assertFalse(emptyRegistry.isStateUpdateRequired(), "Empty vault should not require state update");
+
+        // Advance keeper nonce by 2 - empty vault should still not require update
+        _setKeeperRewardsNonce(initialNonce + 4);
+        assertFalse(
+            emptyRegistry.isStateUpdateRequired(), "Empty vault should not require state update after nonce advance"
+        );
 
         // Test when keeper nonce is less than meta vault nonce (this shouldn't happen in practice)
         // First update meta vault state

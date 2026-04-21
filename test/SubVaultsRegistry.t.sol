@@ -17,6 +17,10 @@ import {GnoMetaVault} from "../contracts/vaults/gnosis/GnoMetaVault.sol";
 import {SubVaultsRegistry} from "../contracts/vaults/SubVaultsRegistry.sol";
 import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
 import {CuratorsRegistry} from "../contracts/curators/CuratorsRegistry.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
+
+import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 import {GnoHelpers} from "./helpers/GnoHelpers.sol";
 
@@ -759,6 +763,66 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
 
         // Empty requests should not revert but do nothing
         registry.claimSubVaultsExitedAssets(exitRequests);
+    }
+
+    function _harvestMetaVault() internal {
+        address[] memory allSubVaults = registry.getSubVaults();
+        uint64 currentNonce = contracts.keeper.rewardsNonce();
+        _setKeeperRewardsNonce(currentNonce + 1);
+        for (uint256 i = 0; i < allSubVaults.length; i++) {
+            _setVaultRewardsNonce(allSubVaults[i], currentNonce + 1);
+        }
+        metaVault.updateState(_getEmptyHarvestParams());
+    }
+
+    function test_redeemSubVaultsAssets_capsRedeemByLtv() public {
+        // Deploy osToken redeemer and set it in config
+        address owner = makeAddr("Owner");
+        address positionsManager = makeAddr("PositionsManager");
+        EthOsTokenRedeemer osTokenRedeemer = new EthOsTokenRedeemer(
+            address(contracts.vaultsRegistry), _osToken, address(contracts.osTokenVaultController), owner, 12 hours
+        );
+        vm.prank(owner);
+        osTokenRedeemer.setPositionsManager(positionsManager);
+
+        address configOwner = Ownable(address(contracts.osTokenConfig)).owner();
+        vm.prank(configOwner);
+        contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
+
+        // Remove fee percent for accurate calculations
+        vm.prank(Ownable(address(contracts.osTokenVaultController)).owner());
+        contracts.osTokenVaultController.setFeePercent(0);
+
+        // Deposit to meta vault and distribute to sub-vaults
+        vm.prank(admin);
+        metaVault.deposit{value: 10 ether}(admin, address(0));
+
+        _harvestMetaVault();
+        registry.depositToSubVaults();
+        _harvestMetaVault();
+
+        // Set low LTV (50%) on all sub-vaults to trigger the LTV cap
+        address[] memory allVaults = registry.getSubVaults();
+        for (uint256 i = 0; i < allVaults.length; i++) {
+            vm.prank(configOwner);
+            contracts.osTokenConfig
+                .updateConfig(
+                    allVaults[i],
+                    IOsTokenConfig.Config({ltvPercent: 5e17, liqThresholdPercent: 6e17, liqBonusPercent: 1.1e18})
+                );
+        }
+
+        // Drain meta vault withdrawable assets so redeem must go through sub-vaults
+        vm.deal(address(metaVault), 0);
+
+        // Request full redemption - without the LTV cap fix this would revert with LowLtv
+        uint256 assetsToRedeem = 10 ether;
+        vm.prank(positionsManager);
+        uint256 totalRedeemed = osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), assetsToRedeem);
+
+        // Should redeem some assets but less than requested due to LTV cap on new sub-vaults
+        assertGt(totalRedeemed, 0, "Should redeem some assets");
+        assertLt(totalRedeemed, assetsToRedeem, "Should redeem less than requested due to LTV cap");
     }
 }
 

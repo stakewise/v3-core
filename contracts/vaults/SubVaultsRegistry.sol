@@ -24,7 +24,7 @@ import {IOsTokenVaultController} from "../interfaces/IOsTokenVaultController.sol
 import {IVaultOsToken} from "../interfaces/IVaultOsToken.sol";
 import {Multicall} from "../base/Multicall.sol";
 import {Errors} from "../libraries/Errors.sol";
-import {SubVaultExits} from "../libraries/SubVaultExits.sol";
+import {ExitPositions} from "../libraries/ExitPositions.sol";
 
 /**
  * @title SubVaultsRegistry
@@ -42,6 +42,7 @@ contract SubVaultsRegistry is
     using DoubleEndedQueue for DoubleEndedQueue.Bytes32Deque;
 
     uint256 private constant _maxSubVaults = 50;
+    uint256 private constant _maxPercent = 1e18;
 
     address private immutable _curatorsRegistry;
     address private immutable _vaultsRegistry;
@@ -253,7 +254,7 @@ contract SubVaultsRegistry is
             // enter exit queue for all the vault staked shares
             uint256 positionTicket = IVaultSubVaults(metaVault).enterSubVaultExitQueue(vault, state.stakedShares);
             // add ejecting shares to the vault's exit positions
-            SubVaultExits.pushSubVaultExit(
+            ExitPositions.push(
                 _subVaultsExits, vault, SafeCast.toUint160(positionTicket), SafeCast.toUint96(state.stakedShares), false
             );
             state.queuedShares += state.stakedShares;
@@ -297,18 +298,20 @@ contract SubVaultsRegistry is
 
     /// @inheritdoc ISubVaultsRegistry
     function canUpdateState() external view override returns (bool) {
+        if (!isCollateralized()) return false;
         uint256 nonce = subVaultsRewardsNonce;
         return nonce != 0 && nonce < _getCurrentRewardsNonce();
     }
 
     /// @inheritdoc ISubVaultsRegistry
-    function isCollateralized() external view override returns (bool) {
+    function isCollateralized() public view override returns (bool) {
         return _subVaults.length() > 0;
     }
 
     /// @inheritdoc ISubVaultsRegistry
     function isStateUpdateRequired() public view override returns (bool) {
-        // SLOAD to memory
+        if (!isCollateralized()) return false;
+
         uint256 currentNonce = _getCurrentRewardsNonce();
         unchecked {
             // cannot realistically overflow
@@ -375,15 +378,14 @@ contract SubVaultsRegistry is
         for (uint256 i = 0; i < exitRequestsLength;) {
             SubVaultExitRequest calldata exitRequest = exitRequests[i];
             SubVaultState memory subVaultState = _subVaultsStates[exitRequest.vault];
-            (uint256 positionTicket, uint256 positionShares) =
-                SubVaultExits.popSubVaultExit(_subVaultsExits, exitRequest.vault);
+            (uint256 positionTicket, uint256 positionShares) = ExitPositions.pop(_subVaultsExits, exitRequest.vault);
             (uint256 leftShares, uint256 exitedShares, uint256 exitedAssets) = IVaultEnterExit(exitRequest.vault)
                 .calculateExitedAssets(_metaVault, positionTicket, exitRequest.timestamp, exitRequest.exitQueueIndex);
 
             subVaultState.queuedShares -= SafeCast.toUint128(positionShares);
-            if (leftShares > 0) {
+            if (leftShares > 1) {
                 // exit request was not processed in full
-                SubVaultExits.pushSubVaultExit(
+                ExitPositions.push(
                     _subVaultsExits,
                     exitRequest.vault,
                     SafeCast.toUint160(positionTicket + exitedShares),
@@ -447,9 +449,8 @@ contract SubVaultsRegistry is
         _checkSubVaultsExitClaims(vaults);
 
         // calculate new total assets and save balances in each sub vault
-        uint256[] memory balances;
         uint256 newSubVaultsTotalAssets;
-        (balances, newSubVaultsTotalAssets) = _getSubVaultsBalances(vaults, true);
+        (, newSubVaultsTotalAssets) = _getSubVaultsBalances(vaults, true);
 
         // store new sub vaults total assets delta
         totalAssetsDelta = SafeCast.toInt256(newSubVaultsTotalAssets) - SafeCast.toInt256(subVaultsTotalAssets);
@@ -468,12 +469,11 @@ contract SubVaultsRegistry is
 
     /// @inheritdoc ISubVaultsRegistry
     function enterSubVaultsExitQueue() external override nonReentrant {
-        if (msg.sender != metaVault) {
-            revert Errors.AccessDenied();
-        }
-
         // SLOAD to memory
         address _metaVault = metaVault;
+        if (msg.sender != _metaVault) {
+            revert Errors.AccessDenied();
+        }
         (uint128 queuedShares,,,, uint256 totalExitedTickets) = IVaultState(_metaVault).getExitQueueData();
         uint256 totalProcessedTickets = Math.max(_totalProcessedExitQueueTickets, totalExitedTickets);
 
@@ -534,7 +534,7 @@ contract SubVaultsRegistry is
             uint256 positionTicket = IVaultSubVaults(_metaVault).enterSubVaultExitQueue(exitRequest.vault, vaultShares);
 
             // save exit request
-            SubVaultExits.pushSubVaultExit(
+            ExitPositions.push(
                 _subVaultsExits,
                 exitRequest.vault,
                 SafeCast.toUint160(positionTicket),
@@ -706,7 +706,7 @@ contract SubVaultsRegistry is
         uint256 vaultsLength = vaults.length;
         for (uint256 i = 0; i < vaultsLength;) {
             address vault = vaults[i];
-            (uint256 positionTicket, uint256 exitShares) = SubVaultExits.peekSubVaultExit(_subVaultsExits, vault);
+            (uint256 positionTicket, uint256 exitShares) = ExitPositions.peek(_subVaultsExits, vault);
             if (positionTicket == 0 && exitShares == 0) {
                 // no queue positions
                 unchecked {
@@ -939,6 +939,15 @@ contract SubVaultsRegistry is
                 continue;
             }
 
+            // get shares before redemption to track actual consumption
+            uint256 sharesBefore = IVaultState(redeemRequest.vault).getShares(_metaVault);
+
+            // cap redeemAssets by the sub-vault's LTV-constrained max redeemable assets
+            uint256 metaVaultAssets = IVaultState(redeemRequest.vault).convertToAssets(sharesBefore);
+            uint256 maxRedeemAssets =
+                Math.mulDiv(metaVaultAssets, _osTokenConfig.getConfig(redeemRequest.vault).ltvPercent, _maxPercent);
+            redeemAssets = Math.min(redeemAssets, maxRedeemAssets);
+
             // mint osToken shares to redeemer
             uint256 osTokenShares = _osTokenVaultController.convertToShares(redeemAssets);
             if (osTokenShares == 0) {
@@ -949,9 +958,6 @@ contract SubVaultsRegistry is
                 continue;
             }
             IVaultSubVaults(_metaVault).mintSubVaultOsToken(redeemRequest.vault, redeemer, osTokenShares);
-
-            // get shares before redemption to track actual consumption
-            uint256 sharesBefore = IVaultState(redeemRequest.vault).getShares(_metaVault);
 
             // execute redeem
             redeemAssets =

@@ -12,12 +12,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
         with:
           submodules: recursive
 
       - name: Install foundry
-        uses: foundry-rs/foundry-toolchain@v1
+        uses: foundry-rs/foundry-toolchain@8789b3e21e6c11b2697f5eb56eddae542f746c10
         with:
           version: stable
 
@@ -43,7 +43,7 @@ jobs:
           TEST_USE_FORK_VAULTS: false
 
       - name: Check coverage is updated
-        uses: actions/github-script@v5
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
@@ -61,7 +61,7 @@ jobs:
 
       - name: Comment on PR
         id: comment
-        uses: actions/github-script@v5
+        uses: actions/github-script@d7906e4ad0b1822421a7e6a35d5ca353c962f410
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |

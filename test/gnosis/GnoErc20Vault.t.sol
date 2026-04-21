@@ -7,6 +7,7 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 import {IGnoErc20Vault} from "../../contracts/interfaces/IGnoErc20Vault.sol";
+import {IOsTokenConfig} from "../../contracts/interfaces/IOsTokenConfig.sol";
 import {Errors} from "../../contracts/libraries/Errors.sol";
 import {GnoErc20Vault} from "../../contracts/vaults/gnosis/GnoErc20Vault.sol";
 import {GnoHelpers} from "../helpers/GnoHelpers.sol";
@@ -16,7 +17,17 @@ interface IVaultStateV2 {
     function queuedShares() external view returns (uint128);
 }
 
+interface IStrategiesRegistry {
+    function addStrategyProxy(bytes32 strategyProxyId, address proxy) external;
+    function setStrategy(address strategy, bool enabled) external;
+
+    function owner() external view returns (address);
+}
+
 contract GnoErc20VaultTest is Test, GnoHelpers {
+    IStrategiesRegistry private constant _strategiesRegistry =
+        IStrategiesRegistry(0x4abB9BBb82922A6893A5d6890cd2eE94610BEc48);
+
     ForkContracts public contracts;
     GnoErc20Vault public vault;
 
@@ -346,6 +357,68 @@ contract GnoErc20VaultTest is Test, GnoHelpers {
         vm.expectRevert(Errors.AccessDenied.selector);
         vault.withdrawValidators{value: withdrawFee}(withdrawalData, "");
         _stopSnapshotGas();
+    }
+
+    function test_transferOsTokenPositionToEscrow_emitsTransfer() public {
+        _collateralizeGnoVault(address(vault));
+
+        uint256 depositAmount = 1 ether;
+        _depositGno(depositAmount, sender, sender);
+
+        // Register sender in strategies registry for escrow
+        vm.prank(_strategiesRegistry.owner());
+        _strategiesRegistry.setStrategy(address(this), true);
+        _strategiesRegistry.addStrategyProxy(keccak256(abi.encode(sender)), sender);
+
+        // Mint osToken shares
+        IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(vault));
+        uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+        vm.prank(sender);
+        vault.mintOsToken(sender, osTokenShares, referrer);
+
+        // Calculate expected exit shares
+        uint256 sharesBefore = vault.balanceOf(sender);
+
+        // Expect Transfer event from sender to vault (exit queue)
+        vm.expectEmit(true, true, true, false, address(vault));
+        emit IERC20.Transfer(sender, address(vault), sharesBefore);
+
+        // Transfer osToken position to escrow
+        vm.prank(sender);
+        vault.transferOsTokenPositionToEscrow(osTokenShares);
+    }
+
+    function test_transferOsTokenPositionToEscrow_partialTransfer_emitsTransfer() public {
+        _collateralizeGnoVault(address(vault));
+
+        uint256 depositAmount = 1 ether;
+        _depositGno(depositAmount, sender, sender);
+
+        // Register sender in strategies registry for escrow
+        vm.prank(_strategiesRegistry.owner());
+        _strategiesRegistry.setStrategy(address(this), true);
+        _strategiesRegistry.addStrategyProxy(keccak256(abi.encode(sender)), sender);
+
+        // Mint osToken shares
+        IOsTokenConfig.Config memory vaultConfig = contracts.osTokenConfig.getConfig(address(vault));
+        uint256 osTokenAssets = (depositAmount * vaultConfig.ltvPercent) / 1e18;
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(osTokenAssets);
+        vm.prank(sender);
+        vault.mintOsToken(sender, osTokenShares, referrer);
+
+        // Transfer half of the osToken position
+        uint256 transferAmount = osTokenShares / 2;
+        uint256 sharesBefore = vault.balanceOf(sender);
+
+        // Transfer partial osToken position to escrow
+        vm.prank(sender);
+        vault.transferOsTokenPositionToEscrow(transferAmount);
+
+        // Verify sender's balance decreased proportionally
+        uint256 sharesAfter = vault.balanceOf(sender);
+        assertLt(sharesAfter, sharesBefore, "Balance should decrease after partial transfer");
+        assertGt(sharesAfter, 0, "Balance should not be zero after partial transfer");
     }
 
     // Helper function to deposit GNO to the vault

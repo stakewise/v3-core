@@ -20,7 +20,7 @@ import {VaultVersion, IVaultVersion} from "../modules/VaultVersion.sol";
 import {VaultFee} from "../modules/VaultFee.sol";
 import {VaultState, IVaultState} from "../modules/VaultState.sol";
 import {VaultEnterExit, IVaultEnterExit} from "../modules/VaultEnterExit.sol";
-import {VaultOsToken} from "../modules/VaultOsToken.sol";
+import {IVaultOsToken, VaultOsToken} from "../modules/VaultOsToken.sol";
 import {VaultSubVaults} from "../modules/VaultSubVaults.sol";
 import {VaultToken} from "../modules/VaultToken.sol";
 
@@ -121,6 +121,7 @@ contract EthErc20MetaVault is
 
     /// @inheritdoc IEthErc20MetaVault
     function donateAssets() external payable override {
+        _checkCollateralized();
         if (msg.value == 0) {
             revert Errors.InvalidAssets();
         }
@@ -147,6 +148,23 @@ contract EthErc20MetaVault is
         return success;
     }
 
+    /// @inheritdoc IVaultOsToken
+    function transferOsTokenPositionToEscrow(uint256 osTokenShares)
+        public
+        virtual
+        override(IVaultOsToken, VaultOsToken)
+        returns (uint256 positionTicket)
+    {
+        uint256 sharesBefore = _balances[msg.sender];
+        positionTicket = super.transferOsTokenPositionToEscrow(osTokenShares);
+        uint256 exitShares = sharesBefore - _balances[msg.sender];
+        if (exitShares > 0) {
+            // NB: queued shares are tracked in _queuedShares, not _balances[address(this)].
+            // balanceOf(address(this)) will not reflect queued exit shares.
+            emit Transfer(msg.sender, address(this), exitShares);
+        }
+    }
+
     /// @inheritdoc IVaultEnterExit
     function enterExitQueue(uint256 shares, address receiver)
         public
@@ -157,6 +175,8 @@ contract EthErc20MetaVault is
         positionTicket = super.enterExitQueue(shares, receiver);
         // only emit Transfer if shares were queued (not directly redeemed when non-collateralized)
         if (positionTicket != type(uint256).max) {
+            // NB: queued shares are tracked in _queuedShares, not _balances[address(this)].
+            // balanceOf(address(this)) will not reflect queued exit shares.
             emit Transfer(msg.sender, address(this), shares);
         }
     }

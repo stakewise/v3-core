@@ -256,6 +256,40 @@ contract EthNodesManagerTest is EthHelpers {
         );
     }
 
+    function test_deposit_notSyncedState() public {
+        // first deposit - should succeed without state sync
+        vm.prank(user1);
+        nodesManager.deposit{value: 2 ether}();
+
+        _harvestVault();
+
+        // perform state update with operator data
+        uint128 opTotalAssets = 32 ether;
+        uint128 cumPenaltyAssets = 1 ether;
+        bytes32 leaf = _computeOperatorLeaf(user1, opTotalAssets, cumPenaltyAssets, 0);
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf, "stateIpfs");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        // sync operator state so totalAssets > 0
+        _updateOperatorState(user1, opTotalAssets, cumPenaltyAssets, 0);
+
+        // advance time past state update delay
+        vm.warp(block.timestamp + STATE_UPDATE_DELAY + 1);
+
+        // perform another state update without syncing operator
+        uint128 cumPenaltyAssets2 = 2 ether;
+        bytes32 leaf2 = _computeOperatorLeaf(user1, opTotalAssets, cumPenaltyAssets2, 0);
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf2, "stateIpfs2");
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        // deposit should revert because operator has totalAssets > 0 but state is not synced
+        vm.prank(user1);
+        vm.expectRevert(Errors.NotHarvested.selector);
+        nodesManager.deposit{value: 5 ether}();
+    }
+
     // ======== setMinDepositAssets ========
 
     function test_setMinDepositAssets() public {
@@ -620,7 +654,7 @@ contract EthNodesManagerTest is EthHelpers {
         _performStateUpdate(leaf, "stateIpfs");
         _stopOracleImpersonate(address(contracts.keeper));
 
-        uint256 expectedPenaltyShares = IVaultState(vault).convertToShares(cumPenaltyAssets);
+        uint256 expectedPenaltyShares = IVaultState(vault).convertToShares(uint256(cumPenaltyAssets)) + 1;
         uint256 vaultTotalSharesBefore = IVaultState(vault).totalShares();
         uint256 vaultTotalAssetsBefore = IVaultState(vault).totalAssets();
 
@@ -665,7 +699,7 @@ contract EthNodesManagerTest is EthHelpers {
         _performStateUpdate(leaf, "stateIpfs");
         _stopOracleImpersonate(address(contracts.keeper));
 
-        uint256 expectedPenaltyShares = IVaultState(vault).convertToShares(cumPenaltyAssets);
+        uint256 expectedPenaltyShares = IVaultState(vault).convertToShares(uint256(cumPenaltyAssets)) + 1;
         uint256 vaultTotalSharesBefore = IVaultState(vault).totalShares();
 
         INodesManager.OperatorStateUpdateParams memory params = INodesManager.OperatorStateUpdateParams({
@@ -1205,6 +1239,42 @@ contract EthNodesManagerTest is EthHelpers {
         _stopSnapshotGas();
     }
 
+    function test_withdrawValidators_surplusRefund() public {
+        _addWithdrawableAssets(1);
+        _startOracleImpersonate(address(contracts.keeper));
+
+        // Register a validator to collateralize the vault
+        IKeeperValidators.ApprovalParams memory approvalParams =
+            _getEthValidatorApproval(vault, VALIDATOR_DEPOSIT, "ipfsHash", false);
+
+        bytes memory registerSignatures =
+            _getRegisterValidatorsSignature(user1, approvalParams.validators, _oraclePrivateKey);
+
+        vm.prank(validatorsManager1);
+        nodesManager.registerValidators(user1, approvalParams, registerSignatures);
+        _stopOracleImpersonate(address(contracts.keeper));
+
+        // Set withdrawals manager
+        address wManager = makeAddr("WithdrawalsManager");
+        vm.prank(owner);
+        nodesManager.setWithdrawalsManager(wManager);
+
+        // Construct withdrawal data: 48 bytes pubkey + 8 bytes amount (gwei)
+        bytes memory pubKey = new bytes(48);
+        bytes memory withdrawalData = bytes.concat(pubKey, bytes8(uint64(32 ether / 1 gwei)));
+
+        // Fee is 0.1 ETH per validator in the mock, send double
+        uint256 fee = 0.1 ether;
+        uint256 surplus = 0.1 ether;
+        vm.deal(wManager, fee + surplus);
+
+        vm.prank(wManager);
+        nodesManager.withdrawValidators{value: fee + surplus}(withdrawalData);
+
+        // Verify surplus was refunded to the withdrawals manager
+        assertEq(wManager.balance, surplus, "Surplus ETH not refunded to withdrawals manager");
+    }
+
     function test_withdrawValidators_notWithdrawalsManager() public {
         // Set withdrawals manager
         address wManager = makeAddr("WithdrawalsManager");
@@ -1607,6 +1677,50 @@ contract EthNodesManagerTest is EthHelpers {
     function test_claimExitedAssets_invalidTicket() public {
         vm.expectRevert(Errors.InvalidTicket.selector);
         nodesManager.claimExitedAssets(999, block.timestamp, 0);
+    }
+
+    function test_claimExitedAssets_notHarvested() public {
+        // deposit + sync state
+        vm.prank(user1);
+        nodesManager.deposit{value: 10 ether}();
+
+        _harvestVault();
+        uint128 opTotalAssets = 1 ether;
+        bytes32 leaf = _computeOperatorLeaf(user1, opTotalAssets, 0, 0);
+        _startOracleImpersonate(address(contracts.keeper));
+        _performStateUpdate(leaf, "stateIpfs");
+        _stopOracleImpersonate(address(contracts.keeper));
+        _updateOperatorState(user1, opTotalAssets, 0, 0);
+
+        _collateralizeEthVault(vault);
+
+        // enter exit queue
+        uint256 exitShares = _getBalanceShares(user1) / 2;
+        vm.prank(user1);
+        uint256 positionTicket = nodesManager.enterExitQueue(exitShares);
+
+        // advance state nonces to satisfy _validatorChangeClaimDelay
+        _harvestVault();
+        leaf = _computeOperatorLeaf(user1, opTotalAssets, 0, 0);
+        _startOracleImpersonate(address(contracts.keeper));
+        vm.warp(block.timestamp + STATE_UPDATE_DELAY + 1);
+        _performStateUpdate(leaf, "stateIpfs2");
+        _stopOracleImpersonate(address(contracts.keeper));
+        _updateOperatorState(user1, opTotalAssets, 0, 0);
+
+        _harvestVault();
+        _startOracleImpersonate(address(contracts.keeper));
+        vm.warp(block.timestamp + STATE_UPDATE_DELAY + 1);
+        _performStateUpdate(leaf, "stateIpfs3");
+        _stopOracleImpersonate(address(contracts.keeper));
+        _updateOperatorState(user1, opTotalAssets, 0, 0);
+
+        // make vault harvest required (stale state)
+        _makeHarvestRequired();
+
+        // should revert because vault is not harvested
+        vm.expectRevert(Errors.NotHarvested.selector);
+        nodesManager.claimExitedAssets(positionTicket, block.timestamp, 0);
     }
 
     function test_claimExitedAssets_notSyncedState() public {
