@@ -12,6 +12,7 @@ import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
+import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
 import {EthNodesManager} from "../contracts/nodes/EthNodesManager.sol";
 import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
 import {EthValidatorsChecker} from "../contracts/validators/EthValidatorsChecker.sol";
@@ -37,6 +38,7 @@ contract UpgradeEthNetwork is Network {
     address public subVaultsRegistryFactory;
     address public communityVault;
     address public nodesManager;
+    address public balancedCurator;
 
     address[] public vaultImpls;
     Factory[] public vaultFactories;
@@ -88,15 +90,24 @@ contract UpgradeEthNetwork is Network {
         subVaultsRegistryFactory =
             address(new SubVaultsRegistryFactory(subVaultsRegistryImpl, IVaultsRegistry(deployment.vaultsRegistry)));
 
+        // Deploy BalancedCurator
+        balancedCurator = address(new BalancedCurator());
+
         _deployImplementations();
         _deployFactories();
         _deployCommunityVault();
         vm.stopBroadcast();
 
-        generateGovernorTxJson(vaultImpls, vaultFactories, osTokenRedeemer, communityVault);
+        generateGovernorTxJson(vaultImpls, vaultFactories, osTokenRedeemer, communityVault, balancedCurator);
         generateUpgradesJson(vaultImpls);
         generateAddressesJson(
-            vaultFactories, validatorsChecker, osTokenRedeemer, subVaultsRegistryFactory, communityVault, nodesManager
+            vaultFactories,
+            validatorsChecker,
+            osTokenRedeemer,
+            subVaultsRegistryFactory,
+            communityVault,
+            nodesManager,
+            balancedCurator
         );
     }
 

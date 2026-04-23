@@ -5,6 +5,7 @@ pragma solidity ^0.8.22;
 import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Script} from "forge-std/Script.sol";
 import {stdJson} from "forge-std/StdJson.sol";
+import {ICuratorsRegistry} from "../contracts/interfaces/ICuratorsRegistry.sol";
 import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
@@ -140,7 +141,8 @@ abstract contract Network is Script {
         address[] memory vaultImpls,
         Factory[] memory vaultFactories,
         address osTokenRedeemer,
-        address communityVault
+        address communityVault,
+        address balancedCurator
     ) internal {
         if (_governorCalls.length > 0) {
             return;
@@ -162,6 +164,9 @@ abstract contract Network is Script {
         }
 
         _governorCalls.push(_serializeSetOsTokenRedeemer(deployment.osTokenConfig, osTokenRedeemer));
+
+        _governorCalls.push(_serializeAddCurator(deployment.curatorsRegistry, balancedCurator));
+        _governorCalls.push(_serializeRemoveCurator(deployment.curatorsRegistry, deployment.balancedCurator));
 
         if (communityVault != address(0)) {
             _governorCalls.push(_serializeAddVaultImpl(IVaultVersion(communityVault).implementation()));
@@ -194,7 +199,8 @@ abstract contract Network is Script {
         address osTokenRedeemer,
         address subVaultsRegistryFactory,
         address communityVault,
-        address nodesManager
+        address nodesManager,
+        address balancedCurator
     ) internal {
         Deployment memory deployment = getDeploymentData();
 
@@ -214,7 +220,7 @@ abstract contract Network is Script {
         vm.serializeAddress(json, "LegacyRewardToken", deployment.legacyRewardToken);
         vm.serializeAddress(json, "MerkleDistributor", deployment.merkleDistributor);
         vm.serializeAddress(json, "CuratorsRegistry", deployment.curatorsRegistry);
-        vm.serializeAddress(json, "BalancedCurator", deployment.balancedCurator);
+        vm.serializeAddress(json, "BalancedCurator", balancedCurator);
         vm.serializeAddress(json, "ConsolidationsChecker", deployment.consolidationsChecker);
 
         vm.serializeAddress(json, "RewardSplitterFactory", deployment.rewardSplitterFactory);
@@ -329,6 +335,36 @@ abstract contract Network is Script {
 
         address[] memory params = new address[](1);
         params[0] = redeemer;
+        return vm.serializeAddress(object, "params", params);
+    }
+
+    function _serializeAddCurator(address curatorsRegistry, address curator) private returns (string memory) {
+        string memory object = "addCurator";
+        vm.serializeAddress(object, "to", curatorsRegistry);
+        vm.serializeString(object, "operation", "0");
+        vm.serializeString(object, "method", "addCurator(address)");
+        vm.serializeString(object, "value", "0.0");
+        vm.serializeBytes(
+            object, "data", abi.encodeWithSelector(ICuratorsRegistry(curatorsRegistry).addCurator.selector, curator)
+        );
+
+        address[] memory params = new address[](1);
+        params[0] = curator;
+        return vm.serializeAddress(object, "params", params);
+    }
+
+    function _serializeRemoveCurator(address curatorsRegistry, address curator) private returns (string memory) {
+        string memory object = "removeCurator";
+        vm.serializeAddress(object, "to", curatorsRegistry);
+        vm.serializeString(object, "operation", "0");
+        vm.serializeString(object, "method", "removeCurator(address)");
+        vm.serializeString(object, "value", "0.0");
+        vm.serializeBytes(
+            object, "data", abi.encodeWithSelector(ICuratorsRegistry(curatorsRegistry).removeCurator.selector, curator)
+        );
+
+        address[] memory params = new address[](1);
+        params[0] = curator;
         return vm.serializeAddress(object, "params", params);
     }
 }

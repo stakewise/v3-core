@@ -6,6 +6,7 @@ import {console} from "forge-std/console.sol";
 import {IGnoMetaVault} from "../contracts/interfaces/IGnoMetaVault.sol";
 import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
 import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
+import {BalancedCurator} from "../contracts/curators/BalancedCurator.sol";
 import {GnoOsTokenRedeemer} from "../contracts/tokens/GnoOsTokenRedeemer.sol";
 import {GnoValidatorsChecker} from "../contracts/validators/GnoValidatorsChecker.sol";
 import {SubVaultsRegistry} from "../contracts/vaults/SubVaultsRegistry.sol";
@@ -23,6 +24,7 @@ contract UpgradeGnoNetwork is Network {
     address public validatorsChecker;
     address public osTokenRedeemer;
     address public subVaultsRegistryFactory;
+    address public balancedCurator;
 
     address[] public vaultImpls;
     Factory[] public vaultFactories;
@@ -77,14 +79,23 @@ contract UpgradeGnoNetwork is Network {
         subVaultsRegistryFactory =
             address(new SubVaultsRegistryFactory(subVaultsRegistryImpl, IVaultsRegistry(deployment.vaultsRegistry)));
 
+        // Deploy BalancedCurator
+        balancedCurator = address(new BalancedCurator());
+
         _deployImplementations();
         _deployFactories();
         vm.stopBroadcast();
 
-        generateGovernorTxJson(vaultImpls, vaultFactories, osTokenRedeemer, address(0));
+        generateGovernorTxJson(vaultImpls, vaultFactories, osTokenRedeemer, address(0), balancedCurator);
         generateUpgradesJson(vaultImpls);
         generateAddressesJson(
-            vaultFactories, validatorsChecker, osTokenRedeemer, subVaultsRegistryFactory, address(0), address(0)
+            vaultFactories,
+            validatorsChecker,
+            osTokenRedeemer,
+            subVaultsRegistryFactory,
+            address(0),
+            address(0),
+            balancedCurator
         );
     }
 
