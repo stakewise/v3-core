@@ -1,6 +1,26 @@
 {
   "transactions": [
     {
+      "data": "0x34f0e39e000000000000000000000000e01351f866c118fbd04d222f9262a470f1d44d90",
+      "method": "addCurator(address)",
+      "operation": "0",
+      "params": [
+        "0xe01351f866C118FbD04d222f9262A470F1d44d90"
+      ],
+      "to": "0xa23F7c8d25f4503cA4cEd84d9CC2428e8745933C",
+      "value": "0.0"
+    },
+    {
+      "data": "0x98f25c44000000000000000000000000d30e7e4bdbd396cfbe72ad2f4856769c54ea6b0b",
+      "method": "removeCurator(address)",
+      "operation": "0",
+      "params": [
+        "0xD30E7e4bDbd396cfBe72Ad2f4856769C54eA6b0b"
+      ],
+      "to": "0xa23F7c8d25f4503cA4cEd84d9CC2428e8745933C",
+      "value": "0.0"
+    },
+    {
       "data": "0xaff7947d000000000000000000000000e2121568066c0a9d794bbb95d0ade0ebd81ccaf9",
       "method": "addVaultImpl(address)",
       "operation": "0",
