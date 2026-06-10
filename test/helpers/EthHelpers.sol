@@ -44,7 +44,7 @@ import {ISubVaultsRegistry} from "../../contracts/interfaces/ISubVaultsRegistry.
 abstract contract EthHelpers is Test, ValidatorsHelpers {
     using stdStorage for StdStorage;
 
-    uint256 internal constant forkBlockNumber = 24235110;
+    uint256 internal constant forkBlockNumber = 25286200;
     uint256 internal constant _securityDeposit = 1e9;
     address private constant _keeper = 0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5;
     address private constant _validatorsRegistry = 0x00000000219ab540356cBB839Cbe05303d7705Fa;
@@ -60,7 +60,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
     address internal constant _rewardEthToken = 0x20BC832ca081b91433ff6c17f85701B6e92486c5;
     address internal constant _consolidationsChecker = 0x033E5BaE5bdc459CBb7d388b41a9d62020Be810F;
     address internal constant _curatorsRegistry = 0xa23F7c8d25f4503cA4cEd84d9CC2428e8745933C;
-    address internal constant _balancedCurator = 0xD30E7e4bDbd396cfBe72Ad2f4856769C54eA6b0b;
+    address internal constant _balancedCurator = 0xe01351f866C118FbD04d222f9262A470F1d44d90;
     uint256 internal constant _exitingAssetsClaimDelay = 15 hours;
 
     enum VaultType {
@@ -296,7 +296,13 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         } else if (vaultType == VaultType.EthBlocklistErc20Vault) {
             return 0x498399e4f5FDe641a43DCEAFc0aac858abaF2034;
         } else if (vaultType == VaultType.EthMetaVault) {
-            return 0x34284C27A2304132aF751b0dEc5bBa2CF98eD039;
+            return 0x5543be81786d11EAF656b742BaD92065f329Ada7;
+        } else if (vaultType == VaultType.EthPrivMetaVault) {
+            return 0x20C949a75cFb19Ec6D07bC203C79a08D05881AEc;
+        } else if (vaultType == VaultType.EthErc20MetaVault) {
+            return 0x3dc69Bdc22119961Dfdf82242113F2689D7e5402;
+        } else if (vaultType == VaultType.EthPrivErc20MetaVault) {
+            return 0x1667b85a5E6D3ba4696Aa5c45EdB491D6548E7C9;
         }
         return address(0);
     }
@@ -309,10 +315,10 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         // Update with actual values if needed for specific vaults
         if (vault == 0xAC0F906E433d58FA868F936E8A43230473652885) {
             // Genesis Vault
-            newTotalReward += 15357936244318545414766;
-            newUnlockedMevReward += 954581796972242855233;
+            newTotalReward += 17179494692864917047208;
+            newUnlockedMevReward += 1115995732862614487675;
         } else if (vault == 0x4FEF9D741011476750A243aC70b9789a63dd47Df) {
-            newTotalReward += 1097049381115000000000;
+            newTotalReward += 1703596190211000000000;
         }
 
         if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
@@ -416,8 +422,8 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             vaultType == VaultType.EthMetaVault || vaultType == VaultType.EthPrivMetaVault
                 || vaultType == VaultType.EthErc20MetaVault || vaultType == VaultType.EthPrivErc20MetaVault
         ) {
-            if (currentVersion == 6) return;
-            require(currentVersion == 5, "Invalid vault version");
+            if (currentVersion == 7) return;
+            require(currentVersion == 6, "Invalid vault version");
         } else {
             if (currentVersion == 5) return;
             require(currentVersion == 4, "Invalid vault version");

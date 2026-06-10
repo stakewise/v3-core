@@ -262,7 +262,13 @@ contract EthFoxVaultTest is Test, EthHelpers {
         vm.deal(validatorsManager, withdrawFee);
 
         // 2. First deposit and register a validator
-        _depositToVault(address(vault), 35 ether, sender, sender);
+        // cover assets reserved by the exit queue at the fork block so 32 ether is withdrawable
+        (uint128 queuedShares, uint128 unclaimedAssets,, uint128 totalExitingAssets,) = vault.getExitQueueData();
+        uint256 reservedAssets = vault.convertToAssets(queuedShares) + totalExitingAssets + unclaimedAssets;
+        uint256 vaultBalance = address(vault).balance;
+        uint256 depositAmount = 35 ether + (reservedAssets > vaultBalance ? reservedAssets - vaultBalance : 0);
+        vm.deal(sender, sender.balance + depositAmount);
+        _depositToVault(address(vault), depositAmount, sender, sender);
         bytes memory publicKey = _registerEthValidator(address(vault), 32 ether, false);
 
         // 3. Execute withdrawal
@@ -281,7 +287,13 @@ contract EthFoxVaultTest is Test, EthHelpers {
         vm.deal(unknown, withdrawFee);
 
         // 2. First deposit and register a validator
-        _depositToVault(address(vault), 35 ether, sender, sender);
+        // cover assets reserved by the exit queue at the fork block so 32 ether is withdrawable
+        (uint128 queuedShares, uint128 unclaimedAssets,, uint128 totalExitingAssets,) = vault.getExitQueueData();
+        uint256 reservedAssets = vault.convertToAssets(queuedShares) + totalExitingAssets + unclaimedAssets;
+        uint256 vaultBalance = address(vault).balance;
+        uint256 depositAmount = 35 ether + (reservedAssets > vaultBalance ? reservedAssets - vaultBalance : 0);
+        vm.deal(sender, sender.balance + depositAmount);
+        _depositToVault(address(vault), depositAmount, sender, sender);
         bytes memory publicKey = _registerEthValidator(address(vault), 32 ether, false);
 
         // 3. Execute withdrawal
