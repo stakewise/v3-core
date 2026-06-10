@@ -40,7 +40,7 @@ contract EthMetaVault is
     Multicall,
     IEthMetaVault
 {
-    uint8 private constant _version = 6;
+    uint8 private constant _version = 7;
     uint256 private constant _securityDeposit = 1e9;
 
     /**
@@ -61,7 +61,7 @@ contract EthMetaVault is
 
     /// @inheritdoc IEthMetaVault
     function initialize(bytes calldata params) external payable virtual override reinitializer(_version) {
-        // if admin is already set, it's an upgrade from version 5 to 6
+        // if admin is already set, it's an upgrade from version 6 to 7
         if (admin != address(0)) {
             __EthMetaVault_upgrade();
             return;

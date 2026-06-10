@@ -44,7 +44,7 @@ contract EthErc20MetaVault is
     Multicall,
     IEthErc20MetaVault
 {
-    uint8 private constant _version = 6;
+    uint8 private constant _version = 7;
     uint256 private constant _securityDeposit = 1e9;
 
     /**
@@ -65,7 +65,12 @@ contract EthErc20MetaVault is
 
     /// @inheritdoc IEthErc20MetaVault
     function initialize(bytes calldata params) external payable virtual override reinitializer(_version) {
-        // do not check for the upgrades since this is the first implementation of EthErc20MetaVault
+        // if admin is already set, it's an upgrade from version 6 to 7
+        if (admin != address(0)) {
+            __EthErc20MetaVault_upgrade();
+            return;
+        }
+
         __EthErc20MetaVault_init(
             IEthMetaVaultFactory(msg.sender).vaultAdmin(), abi.decode(params, (EthErc20MetaVaultInitParams))
         );
@@ -255,6 +260,13 @@ contract EthErc20MetaVault is
     /// @inheritdoc VaultImmutables
     function _isCollateralized() internal view virtual override(VaultImmutables, VaultSubVaults) returns (bool) {
         return super._isCollateralized();
+    }
+
+    /**
+     * @dev Upgrades the EthErc20MetaVault contract
+     */
+    function __EthErc20MetaVault_upgrade() internal onlyInitializing {
+        __VaultSubVaults_upgrade();
     }
 
     /**

@@ -24,30 +24,6 @@ interface ISubVaultsRegistry is IMulticall {
     }
 
     /**
-     * @notice Struct for migration data
-     * @param curator The address of the sub-vaults curator
-     * @param ejectingSubVault The address of the ejecting sub-vault
-     * @param ejectingSubVaultShares The number of shares of the ejecting sub-vault
-     * @param subVaultsRewardsNonce The rewards nonce
-     * @param subVaultsTotalAssets The total assets in sub-vaults
-     * @param totalProcessedExitQueueTickets The total processed exit queue tickets
-     * @param subVaults The array of sub-vault addresses
-     * @param subVaultsStates The array of sub-vault states
-     * @param subVaultsExits The array of sub-vault exits
-     */
-    struct MigrationData {
-        address curator;
-        address ejectingSubVault;
-        uint256 ejectingSubVaultShares;
-        uint128 subVaultsRewardsNonce;
-        uint128 subVaultsTotalAssets;
-        uint256 totalProcessedExitQueueTickets;
-        address[] subVaults;
-        SubVaultState[] subVaultsStates;
-        bytes32[][] subVaultsExits;
-    }
-
-    /**
      * @notice Struct for sub vault state
      * @param stakedShares The number of shares staked in the sub vault
      * @param queuedShares The number of shares queued for exit in the sub vault
@@ -186,12 +162,6 @@ interface ISubVaultsRegistry is IMulticall {
      * @param curator The address of initial sub-vaults curator
      */
     function initialize(address metaVault, address curator) external;
-
-    /**
-     * @notice Migrates state from meta vault to SubVaultsRegistry. Can only be called once by the meta vault.
-     * @param data The migration data containing all state to migrate
-     */
-    function migrate(MigrationData calldata data) external;
 
     /**
      * @notice Function to update the sub-vaults curator. Can only be called by the meta vault admin.

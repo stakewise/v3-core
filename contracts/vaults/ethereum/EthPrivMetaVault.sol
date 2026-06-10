@@ -18,7 +18,7 @@ import {EthMetaVault, IEthMetaVault} from "./EthMetaVault.sol";
  */
 contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPrivMetaVault {
     // slither-disable-next-line shadowing-state
-    uint8 private constant _version = 6;
+    uint8 private constant _version = 7;
 
     /**
      * @dev Constructor
@@ -39,7 +39,12 @@ contract EthPrivMetaVault is Initializable, EthMetaVault, VaultWhitelist, IEthPr
         override(IEthMetaVault, EthMetaVault)
         reinitializer(_version)
     {
-        // do not check for the upgrades since this is the first implementation of EthPrivMetaVault
+        // if admin is already set, it's an upgrade from version 6 to 7
+        if (admin != address(0)) {
+            __EthMetaVault_upgrade();
+            return;
+        }
+
         // initialize deployed vault
         address _admin = IEthMetaVaultFactory(msg.sender).vaultAdmin();
         __EthMetaVault_init(_admin, abi.decode(params, (EthMetaVaultInitParams)));

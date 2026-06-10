@@ -40,7 +40,7 @@ contract GnoMetaVault is
     Multicall,
     IGnoMetaVault
 {
-    uint8 private constant _version = 4;
+    uint8 private constant _version = 5;
     uint256 private constant _securityDeposit = 1e9;
 
     IERC20 private immutable _gnoToken;
@@ -65,7 +65,7 @@ contract GnoMetaVault is
 
     /// @inheritdoc IGnoMetaVault
     function initialize(bytes calldata params) external virtual override reinitializer(_version) {
-        // if admin is already set, it's an upgrade from version 3 to 4
+        // if admin is already set, it's an upgrade from version 4 to 5
         if (admin != address(0)) {
             __GnoMetaVault_upgrade();
             return;

@@ -5,6 +5,7 @@ pragma solidity ^0.8.22;
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import {DoubleEndedQueue} from "@openzeppelin/contracts/utils/structs/DoubleEndedQueue.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {IKeeperRewards} from "../../interfaces/IKeeperRewards.sol";
 import {IVaultSubVaults} from "../../interfaces/IVaultSubVaults.sol";
 import {IVaultEnterExit} from "../../interfaces/IVaultEnterExit.sol";
@@ -186,71 +187,12 @@ abstract contract VaultSubVaults is VaultImmutables, Initializable, VaultState, 
     }
 
     /**
-     * @dev Upgrades the VaultSubVaults contract by migrating deprecated state to SubVaultsRegistry
+     * @dev Upgrades the VaultSubVaults contract by upgrading the SubVaultsRegistry proxy to the latest implementation
      */
     function __VaultSubVaults_upgrade() internal onlyInitializing {
-        // get deprecated sub-vaults array
-        address[] memory subVaults = __deprecated__subVaults.values();
-        uint256 subVaultsLength = subVaults.length;
-
-        // prepare migration data arrays
-        ISubVaultsRegistry.SubVaultState[] memory states = new ISubVaultsRegistry.SubVaultState[](subVaultsLength);
-        bytes32[][] memory exits = new bytes32[][](subVaultsLength);
-
-        for (uint256 i = 0; i < subVaultsLength;) {
-            address vault = subVaults[i];
-
-            // migrate state
-            ISubVaultsRegistry.SubVaultState memory state = __deprecated__subVaultsStates[vault];
-            states[i] =
-                ISubVaultsRegistry.SubVaultState({stakedShares: state.stakedShares, queuedShares: state.queuedShares});
-            delete __deprecated__subVaultsStates[vault];
-
-            // migrate exits
-            DoubleEndedQueue.Bytes32Deque storage deque = __deprecated__subVaultsExits[vault];
-            uint256 exitsLength = deque.length();
-            exits[i] = new bytes32[](exitsLength);
-            for (uint256 j = 0; j < exitsLength;) {
-                exits[i][j] = deque.popFront();
-                unchecked {
-                    ++j;
-                }
-            }
-
-            unchecked {
-                ++i;
-            }
-
-            // remove vault from deprecated set
-            __deprecated__subVaults.remove(vault);
-        }
-
-        // create SubVaultsRegistry
-        subVaultsRegistry = ISubVaultsRegistryFactory(_subVaultsRegistryFactory).createSubVaultsRegistry();
-
-        // call migrate on SubVaultsRegistry
-        ISubVaultsRegistry(subVaultsRegistry)
-            .migrate(
-                ISubVaultsRegistry.MigrationData({
-                    curator: __deprecated__subVaultsCurator,
-                    ejectingSubVault: __deprecated__ejectingSubVault,
-                    ejectingSubVaultShares: __deprecated__ejectingSubVaultShares,
-                    subVaultsRewardsNonce: __deprecated__subVaultsRewardsNonce,
-                    subVaultsTotalAssets: __deprecated__subVaultsTotalAssets,
-                    totalProcessedExitQueueTickets: __deprecated__totalProcessedExitQueueTickets,
-                    subVaults: subVaults,
-                    subVaultsStates: states,
-                    subVaultsExits: exits
-                })
-            );
-
-        // clean up deprecated storage
-        delete __deprecated__subVaultsCurator;
-        delete __deprecated__ejectingSubVault;
-        delete __deprecated__ejectingSubVaultShares;
-        delete __deprecated__subVaultsRewardsNonce;
-        delete __deprecated__subVaultsTotalAssets;
-        delete __deprecated__totalProcessedExitQueueTickets;
+        // upgrade the existing SubVaultsRegistry proxy to the latest implementation in place
+        address newImplementation = ISubVaultsRegistryFactory(_subVaultsRegistryFactory).implementation();
+        UUPSUpgradeable(subVaultsRegistry).upgradeToAndCall(newImplementation, "");
     }
 
     /**
