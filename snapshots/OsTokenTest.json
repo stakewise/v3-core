@@ -10,7 +10,7 @@
   "OsTokenTest_test_mint_onlyController": "30281",
   "OsTokenTest_test_permit": "80144",
   "OsTokenTest_test_permit_expiredDeadline": "32235",
-  "OsTokenTest_test_permit_invalidSignature": "56463",
+  "OsTokenTest_test_permit_invalidSignature": "56451",
   "OsTokenTest_test_permit_zeroAddress": "56033",
   "OsTokenTest_test_setController_add": "55603",
   "OsTokenTest_test_setController_onlyOwner": "32836",

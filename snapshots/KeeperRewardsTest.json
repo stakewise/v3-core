@@ -9,12 +9,12 @@
   "KeeperRewardsTest_test_isCollateralized": "10123",
   "KeeperRewardsTest_test_isHarvestRequired": "12620",
   "KeeperRewardsTest_test_multipleRewardUpdatesAndHarvests_round_1": "135414",
-  "KeeperRewardsTest_test_multipleRewardUpdatesAndHarvests_round_2": "606814",
+  "KeeperRewardsTest_test_multipleRewardUpdatesAndHarvests_round_2": "606826",
   "KeeperRewardsTest_test_multipleRewardUpdatesAndHarvests_round_3": "606860",
   "KeeperRewardsTest_test_setRewardsMinOracles": "37748",
   "KeeperRewardsTest_test_setRewardsMinOracles_tooMany": "29542",
   "KeeperRewardsTest_test_setRewardsMinOracles_zero": "30031",
   "KeeperRewardsTest_test_updateRewards": "101423",
   "KeeperRewardsTest_test_updateRewards_invalidAvgRewardPerSecond": "33259",
-  "KeeperRewardsTest_test_updateRewards_tooEarly": "33250"
+  "KeeperRewardsTest_test_updateRewards_tooEarly": "33238"
 }

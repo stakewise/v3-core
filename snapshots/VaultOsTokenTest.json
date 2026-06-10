@@ -11,7 +11,7 @@
   "VaultOsTokenTest_test_liquidateOsToken_basic": "120675",
   "VaultOsTokenTest_test_liquidateOsToken_bonus": "125175",
   "VaultOsTokenTest_test_liquidateOsToken_invalidReceivedAssets": "75715",
-  "VaultOsTokenTest_test_liquidateOsToken_liquidationDisabled": "69143",
+  "VaultOsTokenTest_test_liquidateOsToken_liquidationDisabled": "69155",
   "VaultOsTokenTest_test_liquidateOsToken_partialLiquidation": "125175",
   "VaultOsTokenTest_test_mintOsToken_basic": "162133",
   "VaultOsTokenTest_test_mintOsToken_feeSync": "108101",
@@ -43,6 +43,6 @@
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_noPosition": "43502",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_notHarvested": "41342",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_partialTransfer": "173198",
-  "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_process": "736237",
+  "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_process": "736261",
   "VaultOsTokenTest_test_transferOsTokenPositionToEscrow_zeroShares": "47545"
 }
