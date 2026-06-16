@@ -172,7 +172,7 @@ contract GnoMetaVault is
     /**
      * @dev Upgrades the GnoMetaVault contract
      */
-    function __GnoMetaVault_upgrade() internal {
+    function __GnoMetaVault_upgrade() internal onlyInitializing {
         __VaultSubVaults_upgrade();
     }
 

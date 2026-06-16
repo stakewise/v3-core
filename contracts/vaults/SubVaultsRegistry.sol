@@ -624,7 +624,15 @@ contract SubVaultsRegistry is
         if (vaultsLength == 0) revert Errors.EmptySubVaults();
 
         uint256[] memory balances;
-        (balances,,) = _getSubVaultsBalances(vaults, false);
+        uint256 totalStakedAssets;
+        (balances,, totalStakedAssets) = _getSubVaultsBalances(vaults, false);
+
+        // cap the assets to redeem by what the sub-vaults can actually provide
+        assetsToRedeem = Math.min(assetsToRedeem, totalStakedAssets);
+        if (assetsToRedeem == 0) {
+            // no staked assets available in the sub-vaults
+            return redeemRequests;
+        }
 
         // fetch redeems from the curator
         return ISubVaultsCurator(subVaultsCurator).getExitRequests(assetsToRedeem, vaults, balances, ejectingSubVault);

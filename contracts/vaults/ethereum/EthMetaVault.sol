@@ -202,7 +202,7 @@ contract EthMetaVault is
     /**
      * @dev Upgrades the EthMetaVault contract
      */
-    function __EthMetaVault_upgrade() internal {
+    function __EthMetaVault_upgrade() internal onlyInitializing {
         __VaultSubVaults_upgrade();
     }
 
