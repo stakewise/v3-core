@@ -18,10 +18,7 @@ contract MockVaultEthStaking {
 }
 
 // Mock non-compliant vault that doesn't implement receiveFromMevEscrow
-contract MockNonCompliantVault {
-    // No receiveFromMevEscrow function
-
-    }
+contract MockNonCompliantVault {}
 
 contract SharedMevEscrowTest is Test {
     VaultsRegistry public vaultsRegistry;

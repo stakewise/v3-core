@@ -353,13 +353,12 @@ contract OsTokenTest is Test, EthHelpers {
         // Verify osToken was minted
         assertGt(osToken.balanceOf(user), initialOsTokenBalance, "osToken balance should increase");
 
-        // Due to conversion rates and fees, the exact amounts may not match perfectly
-        // We verify the amounts are close enough (within 6%)
+        // The vault returns minted assets while the osToken balance is in shares
         uint256 actualIncrease = osToken.balanceOf(user) - initialOsTokenBalance;
         assertApproxEqRel(
-            actualIncrease,
+            contracts.osTokenVaultController.convertToAssets(actualIncrease),
             mintedOsTokenShares,
-            0.06e18, // 6% tolerance
+            0.01e18, // 1% tolerance
             "Minted osToken amount too far from expected"
         );
     }

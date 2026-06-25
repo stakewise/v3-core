@@ -6,6 +6,6 @@
   "EthErc20MetaVaultTest_test_enterExitQueue_nonCollateralized": "106106",
   "EthErc20MetaVaultTest_test_transfer": "64426",
   "EthErc20MetaVaultTest_test_transferFrom": "61139",
-  "EthErc20MetaVaultTest_test_updateStateAndDeposit": "214701",
+  "EthErc20MetaVaultTest_test_updateStateAndDeposit": "214980",
   "EthErc20MetaVaultTest_test_updateStateAndDepositAndMintOsToken": "219292"
 }

@@ -395,8 +395,8 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
             if (currentVersion == 4) return;
             require(currentVersion == 3, "Invalid vault version");
         } else if (vaultType == VaultType.GnoMetaVault) {
-            if (currentVersion == 4) return;
-            require(currentVersion == 3, "Invalid vault version");
+            if (currentVersion == 5) return;
+            require(currentVersion == 4, "Invalid vault version");
         } else {
             if (currentVersion == 3) return;
             require(currentVersion == 2, "Invalid vault version");

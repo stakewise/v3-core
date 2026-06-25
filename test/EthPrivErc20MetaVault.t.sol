@@ -12,11 +12,16 @@ import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {IVaultOsToken} from "../contracts/interfaces/IVaultOsToken.sol";
 import {IVaultWhitelist} from "../contracts/interfaces/IVaultWhitelist.sol";
 import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
+import {IERC1967} from "@openzeppelin/contracts/interfaces/IERC1967.sol";
+import {ISubVaultsRegistryFactory} from "../contracts/interfaces/ISubVaultsRegistryFactory.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthPrivErc20MetaVault} from "../contracts/vaults/ethereum/EthPrivErc20MetaVault.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 
 contract EthPrivErc20MetaVaultTest is Test, EthHelpers {
+    /// @dev keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant _initializableSlot = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
+
     ForkContracts public contracts;
     EthPrivErc20MetaVault public metaVault;
     ISubVaultsRegistry public registry;
@@ -60,7 +65,7 @@ contract EthPrivErc20MetaVaultTest is Test, EthHelpers {
             })
         );
 
-        address vaultAddr = _createVault(VaultType.EthPrivErc20MetaVault, admin, initParams, false);
+        address vaultAddr = _getOrCreateVault(VaultType.EthPrivErc20MetaVault, admin, initParams, false);
         metaVault = EthPrivErc20MetaVault(payable(vaultAddr));
 
         // Set whitelister
@@ -76,6 +81,12 @@ contract EthPrivErc20MetaVaultTest is Test, EthHelpers {
         // Get registry reference
         registry = _getSubVaultsRegistry(address(metaVault));
 
+        // Get existing sub vaults (if any)
+        address[] memory currentSubVaults = registry.getSubVaults();
+        for (uint256 i = 0; i < currentSubVaults.length; i++) {
+            subVaults.push(currentSubVaults[i]);
+        }
+
         // Deploy and add sub vaults
         for (uint256 i = 0; i < 3; i++) {
             address subVault = _createEthSubVault(admin);
@@ -89,16 +100,40 @@ contract EthPrivErc20MetaVaultTest is Test, EthHelpers {
 
     function test_deployment() public view {
         assertEq(metaVault.vaultId(), keccak256("EthPrivErc20MetaVault"), "Incorrect vault ID");
-        assertEq(metaVault.version(), 6, "Incorrect version");
+        assertEq(metaVault.version(), 7, "Incorrect version");
         assertEq(metaVault.admin(), admin, "Incorrect admin");
         assertEq(metaVault.whitelister(), whitelister, "Incorrect whitelister");
-        assertEq(metaVault.name(), "SW Priv Meta ETH Vault", "Incorrect name");
-        assertEq(metaVault.symbol(), "swPrvMeta", "Incorrect symbol");
+        if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
+            assertEq(metaVault.name(), "SW Priv Meta ETH Vault", "Incorrect name");
+            assertEq(metaVault.symbol(), "swPrvMeta", "Incorrect symbol");
+        }
     }
 
     function test_cannotInitializeTwice() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         metaVault.initialize("0x");
+    }
+
+    function test_upgradeFromV6_upgradesSubVaultsRegistry() public {
+        address preCurator = registry.subVaultsCurator();
+        uint256 preSubVaultsCount = registry.getSubVaults().length;
+
+        // roll back the vault reinitializer version to simulate a not-yet-upgraded v6 vault
+        vm.store(address(metaVault), _initializableSlot, bytes32(uint256(6)));
+
+        // running the v7 initializer must upgrade the SubVaultsRegistry proxy in place
+        vm.expectEmit(address(registry));
+        emit IERC1967.Upgraded(ISubVaultsRegistryFactory(_subVaultsRegistryFactory).implementation());
+        metaVault.initialize("");
+
+        // registry reference and state are preserved
+        assertEq(registry.metaVault(), address(metaVault), "Registry metaVault should be preserved");
+        assertEq(registry.subVaultsCurator(), preCurator, "Curator should be preserved");
+        assertEq(registry.getSubVaults().length, preSubVaultsCount, "Sub-vaults should be preserved");
+
+        // the upgrade cannot be executed twice
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
+        metaVault.initialize("");
     }
 
     function test_deposit_whitelistedUser() public {

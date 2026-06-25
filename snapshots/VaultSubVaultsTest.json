@@ -1,8 +1,8 @@
 {
-  "VaultSubVaultsTest_test_acceptMetaSubVault_success": "138196",
-  "VaultSubVaultsTest_test_addSubVault_metaVaultAsSubVault_proposesMetaVault": "105914",
-  "VaultSubVaultsTest_test_addSubVault_success": "136924",
-  "VaultSubVaultsTest_test_claimSubVaultsExitedAssets_ejectionConsumesShares": "443907",
+  "VaultSubVaultsTest_test_acceptMetaSubVault_success": "138217",
+  "VaultSubVaultsTest_test_addSubVault_metaVaultAsSubVault_proposesMetaVault": "105929",
+  "VaultSubVaultsTest_test_addSubVault_success": "136939",
+  "VaultSubVaultsTest_test_claimSubVaultsExitedAssets_ejectionConsumesShares": "444406",
   "VaultSubVaultsTest_test_claimSubVaultsExitedAssets_partiallyClaimsExitedAssets": "138058",
   "VaultSubVaultsTest_test_depositToSubVaults_maxVaults": "4148257",
   "VaultSubVaultsTest_test_depositToSubVaults_multipleSubVaults": "341608",
@@ -13,12 +13,12 @@
   "VaultSubVaultsTest_test_rejectMetaSubVault_byAdmin_success": "54123",
   "VaultSubVaultsTest_test_rejectMetaSubVault_byOwner_success": "49587",
   "VaultSubVaultsTest_test_setSubVaultsCurator_success": "60428",
-  "VaultSubVaultsTest_test_updateState_enterExitQueueMaxVaults": "7235657",
-  "VaultSubVaultsTest_test_updateState_withMetaVaultSubVault_success": "192537",
-  "test_addSubVault_firstSubVault": "151713",
+  "VaultSubVaultsTest_test_updateState_enterExitQueueMaxVaults": "7244527",
+  "VaultSubVaultsTest_test_updateState_withMetaVaultSubVault_success": "192908",
+  "test_addSubVault_firstSubVault": "151728",
   "test_depositToSubVaults_ejectingSubVault": "177637",
   "test_ejectSubVault_emptySubVault": "71608",
   "test_ejectSubVault_subVaultWithShares": "219558",
-  "test_updateState_newTotalAssets": "197518",
-  "test_updateState_unprocessedSubVaultExit": "218259"
+  "test_updateState_newTotalAssets": "197797",
+  "test_updateState_unprocessedSubVaultExit": "218538"
 }

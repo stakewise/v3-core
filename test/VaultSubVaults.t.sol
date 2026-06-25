@@ -2188,6 +2188,60 @@ contract VaultSubVaultsTest is Test, EthHelpers {
         );
     }
 
+    function test_updateState_emitsRewardsNonceUpdated() public {
+        // distribute deposits to sub vaults
+        registry.depositToSubVaults();
+
+        // all sub vaults earn rewards
+        uint256 vaultReward = 1 ether;
+        IKeeperRewards.HarvestParams memory harvestParams;
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            harvestParams = _setEthVaultReward(subVaults[i], int160(int256(vaultReward)), 0);
+            IVaultState(subVaults[i]).updateState(harvestParams);
+        }
+
+        // set equal nonce for all the sub vaults and keeper
+        uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
+        _setKeeperRewardsNonce(newNonce);
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            _setVaultRewardsNonce(subVaults[i], newNonce);
+        }
+
+        // state update must emit RewardsNonceUpdated with the last synced rewards nonce
+        vm.recordLogs();
+        metaVault.updateState(_getEmptyHarvestParams());
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        bytes32 harvestedTopic = keccak256("SubVaultsHarvested(int256)");
+        bytes32 rewardsNonceUpdatedTopic = keccak256("RewardsNonceUpdated(uint256)");
+        bool harvestedFound;
+        uint256 syncedNonce;
+        bool rewardsNonceUpdatedFound;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == harvestedTopic && logs[i].emitter == address(registry)) {
+                harvestedFound = true;
+            } else if (logs[i].topics[0] == rewardsNonceUpdatedTopic && logs[i].emitter == address(registry)) {
+                syncedNonce = abi.decode(logs[i].data, (uint256));
+                rewardsNonceUpdatedFound = true;
+            }
+        }
+        assertTrue(harvestedFound, "SubVaultsHarvested event should be emitted");
+        assertTrue(rewardsNonceUpdatedFound, "RewardsNonceUpdated event should be emitted");
+        assertEq(syncedNonce, newNonce, "RewardsNonceUpdated nonce should match the synced nonce");
+        assertEq(registry.subVaultsRewardsNonce(), newNonce, "subVaultsRewardsNonce should match the synced nonce");
+
+        // state update with the same nonce does not harvest and does not emit RewardsNonceUpdated
+        vm.recordLogs();
+        metaVault.updateState(_getEmptyHarvestParams());
+        logs = vm.getRecordedLogs();
+        for (uint256 i = 0; i < logs.length; i++) {
+            assertTrue(
+                logs[i].topics[0] != rewardsNonceUpdatedTopic,
+                "RewardsNonceUpdated should not be emitted when not harvested"
+            );
+        }
+    }
+
     function _extractExitPositions(Vm.Log[] memory logs, uint64 timestamp)
         internal
         pure

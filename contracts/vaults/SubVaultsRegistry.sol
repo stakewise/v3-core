@@ -120,51 +120,9 @@ contract SubVaultsRegistry is
         if (_metaVault == address(0)) revert Errors.ZeroAddress();
         metaVault = _metaVault;
         _setSubVaultsCurator(curator);
-        subVaultsRewardsNonce = SafeCast.toUint128(_getCurrentRewardsNonce());
-    }
-
-    /// @inheritdoc ISubVaultsRegistry
-    function migrate(MigrationData calldata data) external override initializer {
-        // can only be called once by the meta vault
-        if (metaVault != address(0)) revert Errors.AccessDenied();
-
-        // initialize contract
-        __ReentrancyGuard_init();
-        metaVault = msg.sender;
-        subVaultsCurator = data.curator;
-
-        // migrate ejecting sub-vault
-        ejectingSubVault = data.ejectingSubVault;
-        ejectingSubVaultShares = data.ejectingSubVaultShares;
-
-        // migrate nonces and totals
-        subVaultsRewardsNonce = data.subVaultsRewardsNonce;
-        subVaultsTotalAssets = data.subVaultsTotalAssets;
-        _totalProcessedExitQueueTickets = data.totalProcessedExitQueueTickets;
-
-        // migrate sub-vaults, states, and exits
-        uint256 subVaultsLength = data.subVaults.length;
-        for (uint256 i = 0; i < subVaultsLength;) {
-            address vault = data.subVaults[i];
-            _subVaults.add(vault);
-            _subVaultsStates[vault] = data.subVaultsStates[i];
-
-            // migrate exits for this vault
-            bytes32[] calldata exits = data.subVaultsExits[i];
-            uint256 exitsLength = exits.length;
-            for (uint256 j = 0; j < exitsLength;) {
-                _subVaultsExits[vault].pushBack(exits[j]);
-                unchecked {
-                    ++j;
-                }
-            }
-
-            unchecked {
-                ++i;
-            }
-        }
-
-        emit Migrated(msg.sender);
+        uint256 currentNonce = _getCurrentRewardsNonce();
+        subVaultsRewardsNonce = SafeCast.toUint128(currentNonce);
+        emit RewardsNonceUpdated(currentNonce);
     }
 
     /// @inheritdoc ISubVaultsRegistry
@@ -450,7 +408,7 @@ contract SubVaultsRegistry is
 
         // calculate new total assets and save balances in each sub vault
         uint256 newSubVaultsTotalAssets;
-        (, newSubVaultsTotalAssets) = _getSubVaultsBalances(vaults, true);
+        (, newSubVaultsTotalAssets,) = _getSubVaultsBalances(vaults, true);
 
         // store new sub vaults total assets delta
         totalAssetsDelta = SafeCast.toInt256(newSubVaultsTotalAssets) - SafeCast.toInt256(subVaultsTotalAssets);
@@ -484,25 +442,44 @@ contract SubVaultsRegistry is
             return;
         }
 
-        // update state
-        _totalProcessedExitQueueTickets = totalProcessedTickets + unprocessedTickets;
-
-        // check whether ejecting vault has exiting assets
+        // value the unprocessed tickets at the meta vault price
         uint256 unprocessedAssets = IVaultState(_metaVault).convertToAssets(unprocessedTickets);
         if (unprocessedAssets == 0) {
             // nothing to process
+            _totalProcessedExitQueueTickets = totalProcessedTickets + unprocessedTickets;
             return;
         }
 
-        unprocessedAssets -= _consumeEjectingSubVaultAssets(unprocessedAssets);
+        // fetch current sub-vaults staked balances
+        address[] memory vaults = getSubVaults();
+        uint256[] memory balances;
+        {
+            // consume ejecting sub-vault assets first
+            uint256 ejectingAssets = _consumeEjectingSubVaultAssets(unprocessedAssets);
+
+            uint256 totalBalances;
+            (balances,, totalBalances) = _getSubVaultsBalances(vaults, false);
+
+            // cap the assets to exit by what the sub-vaults can actually provide
+            uint256 assetsToExit = Math.min(unprocessedAssets - ejectingAssets, totalBalances);
+
+            // advance the processed-tickets pointer only by the tickets handled
+            uint256 handledAssets = ejectingAssets + assetsToExit;
+            uint256 processedTickets = handledAssets >= unprocessedAssets
+                ? unprocessedTickets
+                : Math.min(IVaultState(_metaVault).convertToShares(handledAssets), unprocessedTickets);
+            _totalProcessedExitQueueTickets = totalProcessedTickets + processedTickets;
+
+            // continue with the assets to exit
+            unprocessedAssets = assetsToExit;
+        }
+
         if (unprocessedAssets == 0) {
+            // nothing to exit from the sub-vaults
             return;
         }
 
         // fetch exit requests from the curator
-        address[] memory vaults = getSubVaults();
-        uint256[] memory balances;
-        (balances,) = _getSubVaultsBalances(vaults, false);
         ISubVaultsCurator.ExitRequest[] memory exits =
             ISubVaultsCurator(subVaultsCurator).getExitRequests(unprocessedAssets, vaults, balances, ejectingSubVault);
 
@@ -555,7 +532,7 @@ contract SubVaultsRegistry is
                 ++i;
             }
         }
-        if (processedAssets > unprocessedAssets) {
+        if (processedAssets != unprocessedAssets) {
             revert Errors.InvalidAssets();
         }
     }
@@ -647,7 +624,15 @@ contract SubVaultsRegistry is
         if (vaultsLength == 0) revert Errors.EmptySubVaults();
 
         uint256[] memory balances;
-        (balances,) = _getSubVaultsBalances(vaults, false);
+        uint256 totalStakedAssets;
+        (balances,, totalStakedAssets) = _getSubVaultsBalances(vaults, false);
+
+        // cap the assets to redeem by what the sub-vaults can actually provide
+        assetsToRedeem = Math.min(assetsToRedeem, totalStakedAssets);
+        if (assetsToRedeem == 0) {
+            // no staked assets available in the sub-vaults
+            return redeemRequests;
+        }
 
         // fetch redeems from the curator
         return ISubVaultsCurator(subVaultsCurator).getExitRequests(assetsToRedeem, vaults, balances, ejectingSubVault);
@@ -659,11 +644,12 @@ contract SubVaultsRegistry is
      * @param calcNewTotalAssets Whether to calculate the new total assets across all sub-vaults
      * @return balances The balances of the sub-vaults
      * @return newTotalAssets The new total assets across all sub-vaults
+     * @return totalStakedAssets The sum of the staked balances across all sub-vaults
      */
     function _getSubVaultsBalances(address[] memory vaults, bool calcNewTotalAssets)
         private
         view
-        returns (uint256[] memory balances, uint256 newTotalAssets)
+        returns (uint256[] memory balances, uint256 newTotalAssets, uint256 totalStakedAssets)
     {
         uint256 vaultsLength = vaults.length;
         balances = new uint256[](vaultsLength);
@@ -678,9 +664,9 @@ contract SubVaultsRegistry is
             }
 
             if (vaultState.stakedShares > 0) {
-                balances[i] = IVaultState(vault).convertToAssets(vaultState.stakedShares);
-            } else {
-                balances[i] = 0;
+                uint256 stakedAssets = IVaultState(vault).convertToAssets(vaultState.stakedShares);
+                balances[i] = stakedAssets;
+                totalStakedAssets += stakedAssets;
             }
             unchecked {
                 // cannot realistically overflow
@@ -928,8 +914,17 @@ contract SubVaultsRegistry is
 
         uint256 redeemRequestsLength = redeemRequests.length;
         for (uint256 i = 0; i < redeemRequestsLength;) {
-            // calculate redeemable assets
             ISubVaultsCurator.ExitRequest memory redeemRequest = redeemRequests[i];
+            if (redeemRequest.assets == 0) {
+                // skip empty redeem requests
+                unchecked {
+                    // cannot realistically overflow
+                    ++i;
+                }
+                continue;
+            }
+
+            // calculate redeemable assets
             uint256 redeemAssets = Math.min(redeemRequest.assets, IVaultState(redeemRequest.vault).withdrawableAssets());
             if (redeemAssets == 0) {
                 unchecked {

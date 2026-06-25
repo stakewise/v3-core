@@ -19,7 +19,7 @@ import {EthErc20MetaVault, IEthErc20MetaVault} from "./EthErc20MetaVault.sol";
  */
 contract EthPrivErc20MetaVault is Initializable, EthErc20MetaVault, VaultWhitelist, IEthPrivErc20MetaVault {
     // slither-disable-next-line shadowing-state
-    uint8 private constant _version = 6;
+    uint8 private constant _version = 7;
 
     /**
      * @dev Constructor
@@ -40,7 +40,12 @@ contract EthPrivErc20MetaVault is Initializable, EthErc20MetaVault, VaultWhiteli
         override(IEthErc20MetaVault, EthErc20MetaVault)
         reinitializer(_version)
     {
-        // do not check for the upgrades since this is the first implementation of EthPrivErc20MetaVault
+        // if admin is already set, it's an upgrade from version 6 to 7
+        if (admin != address(0)) {
+            __EthErc20MetaVault_upgrade();
+            return;
+        }
+
         // initialize deployed vault
         address _admin = IEthMetaVaultFactory(msg.sender).vaultAdmin();
         __EthErc20MetaVault_init(_admin, abi.decode(params, (EthErc20MetaVaultInitParams)));

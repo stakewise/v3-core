@@ -1,16 +1,19 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, Vm} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {ERC1967Utils} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Utils.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import {Packing} from "@openzeppelin/contracts/utils/Packing.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IGnoMetaVault} from "../contracts/interfaces/IGnoMetaVault.sol";
 import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
 import {ISubVaultsCurator} from "../contracts/interfaces/ISubVaultsCurator.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
+import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
+import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthMetaVault} from "../contracts/vaults/ethereum/EthMetaVault.sol";
 import {GnoMetaVault} from "../contracts/vaults/gnosis/GnoMetaVault.sol";
@@ -21,25 +24,21 @@ import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
 
 import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
+import {ISubVaultsRegistryFactory} from "../contracts/interfaces/ISubVaultsRegistryFactory.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 import {GnoHelpers} from "./helpers/GnoHelpers.sol";
-
-/// @dev Legacy interface for meta vaults that had sub-vault functions directly on the vault contract
-interface ILegacyMetaVault {
-    struct SubVaultState {
-        uint128 stakedShares;
-        uint128 queuedShares;
-    }
-
-    function subVaultsCurator() external view returns (address);
-    function subVaultsRewardsNonce() external view returns (uint128);
-    function getSubVaults() external view returns (address[] memory);
-    function subVaultsStates(address vault) external view returns (SubVaultState memory);
-}
 
 /// @title SubVaultsRegistryTest
 /// @notice Tests for SubVaultsRegistry contract
 contract SubVaultsRegistryTest is Test, EthHelpers {
+    bytes32 private constant exitQueueEnteredTopic = keccak256("ExitQueueEntered(address,address,uint256,uint256)");
+
+    struct ExitRequest {
+        address vault;
+        uint256 positionTicket;
+        uint64 timestamp;
+    }
+
     ForkContracts public contracts;
     EthMetaVault public metaVault;
     ISubVaultsRegistry public registry;
@@ -120,379 +119,6 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
 
         vm.expectRevert(Errors.ZeroAddress.selector);
         registryProxy.initialize(address(0), curator);
-    }
-
-    /// @notice Test migrate function with basic data
-    function test_migrate_basic() public {
-        SubVaultsRegistry registryProxy = _deployRegistryProxy(_deployNewRegistryImpl());
-
-        address[] memory migrateSubVaults = new address[](2);
-        migrateSubVaults[0] = subVaults[0];
-        migrateSubVaults[1] = subVaults[1];
-
-        ISubVaultsRegistry.SubVaultState[] memory states = new ISubVaultsRegistry.SubVaultState[](2);
-        states[0] = ISubVaultsRegistry.SubVaultState({stakedShares: 100 ether, queuedShares: 10 ether});
-        states[1] = ISubVaultsRegistry.SubVaultState({stakedShares: 200 ether, queuedShares: 20 ether});
-
-        bytes32[][] memory exits = new bytes32[][](2);
-        exits[0] = new bytes32[](0);
-        exits[1] = new bytes32[](0);
-
-        ISubVaultsRegistry.MigrationData memory data = ISubVaultsRegistry.MigrationData({
-            curator: curator,
-            ejectingSubVault: address(0),
-            ejectingSubVaultShares: 0,
-            subVaultsRewardsNonce: 100,
-            subVaultsTotalAssets: 1000 ether,
-            totalProcessedExitQueueTickets: 50,
-            subVaults: migrateSubVaults,
-            subVaultsStates: states,
-            subVaultsExits: exits
-        });
-
-        vm.expectEmit(true, false, false, false);
-        emit ISubVaultsRegistry.Migrated(address(this));
-
-        registryProxy.migrate(data);
-
-        assertEq(registryProxy.metaVault(), address(this));
-        assertEq(registryProxy.subVaultsCurator(), curator);
-        assertEq(registryProxy.subVaultsRewardsNonce(), 100);
-        assertEq(registryProxy.subVaultsTotalAssets(), 1000 ether);
-
-        address[] memory registeredSubVaults = registryProxy.getSubVaults();
-        assertEq(registeredSubVaults.length, 2);
-        assertEq(registeredSubVaults[0], subVaults[0]);
-        assertEq(registeredSubVaults[1], subVaults[1]);
-
-        ISubVaultsRegistry.SubVaultState memory state0 = registryProxy.subVaultsStates(subVaults[0]);
-        assertEq(state0.stakedShares, 100 ether);
-        assertEq(state0.queuedShares, 10 ether);
-
-        ISubVaultsRegistry.SubVaultState memory state1 = registryProxy.subVaultsStates(subVaults[1]);
-        assertEq(state1.stakedShares, 200 ether);
-        assertEq(state1.queuedShares, 20 ether);
-
-        // Verify exits are empty for both sub-vaults
-        bytes32[] memory exits0 = registryProxy.subVaultsExits(subVaults[0]);
-        assertEq(exits0.length, 0, "SubVault0 should have no exits");
-        bytes32[] memory exits1 = registryProxy.subVaultsExits(subVaults[1]);
-        assertEq(exits1.length, 0, "SubVault1 should have no exits");
-    }
-
-    /// @notice Test migrate with ejecting sub-vault
-    function test_migrate_withEjectingSubVault() public {
-        SubVaultsRegistry registryProxy = _deployRegistryProxy(_deployNewRegistryImpl());
-
-        address[] memory migrateSubVaults = new address[](1);
-        migrateSubVaults[0] = subVaults[0];
-
-        ISubVaultsRegistry.SubVaultState[] memory states = new ISubVaultsRegistry.SubVaultState[](1);
-        states[0] = ISubVaultsRegistry.SubVaultState({stakedShares: 0, queuedShares: 50 ether});
-
-        bytes32[][] memory exits = new bytes32[][](1);
-        exits[0] = new bytes32[](0);
-
-        ISubVaultsRegistry.MigrationData memory data = ISubVaultsRegistry.MigrationData({
-            curator: curator,
-            ejectingSubVault: subVaults[0],
-            ejectingSubVaultShares: 50 ether,
-            subVaultsRewardsNonce: 100,
-            subVaultsTotalAssets: 500 ether,
-            totalProcessedExitQueueTickets: 25,
-            subVaults: migrateSubVaults,
-            subVaultsStates: states,
-            subVaultsExits: exits
-        });
-
-        registryProxy.migrate(data);
-
-        assertEq(registryProxy.ejectingSubVault(), subVaults[0]);
-        assertEq(registryProxy.ejectingSubVaultShares(), 50 ether);
-    }
-
-    /// @notice Test migrate with exit positions
-    function test_migrate_withExits() public {
-        SubVaultsRegistry registryProxy = _deployRegistryProxy(_deployNewRegistryImpl());
-
-        address[] memory migrateSubVaults = new address[](1);
-        migrateSubVaults[0] = subVaults[0];
-
-        ISubVaultsRegistry.SubVaultState[] memory states = new ISubVaultsRegistry.SubVaultState[](1);
-        states[0] = ISubVaultsRegistry.SubVaultState({stakedShares: 100 ether, queuedShares: 50 ether});
-
-        // Create some exit positions using proper encoding
-        bytes32[][] memory exits = new bytes32[][](1);
-        exits[0] = new bytes32[](2);
-        exits[0][0] = _packExit(1000, 25 ether); // First exit: ticket=1000, shares=25 ether
-        exits[0][1] = _packExit(2000, 25 ether); // Second exit: ticket=2000, shares=25 ether
-
-        ISubVaultsRegistry.MigrationData memory data = ISubVaultsRegistry.MigrationData({
-            curator: curator,
-            ejectingSubVault: address(0),
-            ejectingSubVaultShares: 0,
-            subVaultsRewardsNonce: 100,
-            subVaultsTotalAssets: 500 ether,
-            totalProcessedExitQueueTickets: 25,
-            subVaults: migrateSubVaults,
-            subVaultsStates: states,
-            subVaultsExits: exits
-        });
-
-        registryProxy.migrate(data);
-
-        // Verify migration was successful
-        assertEq(registryProxy.metaVault(), address(this));
-        ISubVaultsRegistry.SubVaultState memory state = registryProxy.subVaultsStates(subVaults[0]);
-        assertEq(state.queuedShares, 50 ether);
-
-        // Verify exits were migrated correctly
-        bytes32[] memory migratedExits = registryProxy.subVaultsExits(subVaults[0]);
-        assertEq(migratedExits.length, 2, "Should have 2 exits");
-        assertEq(migratedExits[0], exits[0][0], "First exit should match");
-        assertEq(migratedExits[1], exits[0][1], "Second exit should match");
-    }
-
-    /// @notice Test migrate with multiple sub-vaults each having exits
-    function test_migrate_multipleSubVaultsWithExits() public {
-        SubVaultsRegistry registryProxy = _deployRegistryProxy(_deployNewRegistryImpl());
-
-        address[] memory migrateSubVaults = new address[](2);
-        migrateSubVaults[0] = subVaults[0];
-        migrateSubVaults[1] = subVaults[1];
-
-        ISubVaultsRegistry.SubVaultState[] memory states = new ISubVaultsRegistry.SubVaultState[](2);
-        states[0] = ISubVaultsRegistry.SubVaultState({stakedShares: 50 ether, queuedShares: 30 ether});
-        states[1] = ISubVaultsRegistry.SubVaultState({stakedShares: 75 ether, queuedShares: 45 ether});
-
-        // Create exit positions for both sub-vaults
-        bytes32[][] memory exits = new bytes32[][](2);
-        // Sub-vault 0: 2 exits
-        exits[0] = new bytes32[](2);
-        exits[0][0] = _packExit(100, 15 ether);
-        exits[0][1] = _packExit(200, 15 ether);
-        // Sub-vault 1: 3 exits
-        exits[1] = new bytes32[](3);
-        exits[1][0] = _packExit(300, 15 ether);
-        exits[1][1] = _packExit(400, 15 ether);
-        exits[1][2] = _packExit(500, 15 ether);
-
-        ISubVaultsRegistry.MigrationData memory data = ISubVaultsRegistry.MigrationData({
-            curator: curator,
-            ejectingSubVault: address(0),
-            ejectingSubVaultShares: 0,
-            subVaultsRewardsNonce: 100,
-            subVaultsTotalAssets: 200 ether,
-            totalProcessedExitQueueTickets: 0,
-            subVaults: migrateSubVaults,
-            subVaultsStates: states,
-            subVaultsExits: exits
-        });
-
-        registryProxy.migrate(data);
-
-        // Verify states were migrated correctly
-        ISubVaultsRegistry.SubVaultState memory state0 = registryProxy.subVaultsStates(subVaults[0]);
-        assertEq(state0.stakedShares, 50 ether, "SubVault0 staked shares mismatch");
-        assertEq(state0.queuedShares, 30 ether, "SubVault0 queued shares mismatch");
-
-        ISubVaultsRegistry.SubVaultState memory state1 = registryProxy.subVaultsStates(subVaults[1]);
-        assertEq(state1.stakedShares, 75 ether, "SubVault1 staked shares mismatch");
-        assertEq(state1.queuedShares, 45 ether, "SubVault1 queued shares mismatch");
-
-        // Verify sub-vaults list
-        address[] memory registeredSubVaults = registryProxy.getSubVaults();
-        assertEq(registeredSubVaults.length, 2, "Should have 2 sub-vaults");
-
-        // Verify exits were migrated correctly for sub-vault 0
-        bytes32[] memory exits0 = registryProxy.subVaultsExits(subVaults[0]);
-        assertEq(exits0.length, 2, "SubVault0 should have 2 exits");
-        assertEq(exits0[0], _packExit(100, 15 ether), "SubVault0 first exit should match");
-        assertEq(exits0[1], _packExit(200, 15 ether), "SubVault0 second exit should match");
-
-        // Verify exits were migrated correctly for sub-vault 1
-        bytes32[] memory exits1 = registryProxy.subVaultsExits(subVaults[1]);
-        assertEq(exits1.length, 3, "SubVault1 should have 3 exits");
-        assertEq(exits1[0], _packExit(300, 15 ether), "SubVault1 first exit should match");
-        assertEq(exits1[1], _packExit(400, 15 ether), "SubVault1 second exit should match");
-        assertEq(exits1[2], _packExit(500, 15 ether), "SubVault1 third exit should match");
-    }
-
-    /// @notice Test migrate with ejecting sub-vault that has exits
-    function test_migrate_ejectingSubVaultWithExits() public {
-        SubVaultsRegistry registryProxy = _deployRegistryProxy(_deployNewRegistryImpl());
-
-        address[] memory migrateSubVaults = new address[](2);
-        migrateSubVaults[0] = subVaults[0];
-        migrateSubVaults[1] = subVaults[1];
-
-        ISubVaultsRegistry.SubVaultState[] memory states = new ISubVaultsRegistry.SubVaultState[](2);
-        // Sub-vault 0 is being ejected (no staked shares, only queued)
-        states[0] = ISubVaultsRegistry.SubVaultState({stakedShares: 0, queuedShares: 100 ether});
-        states[1] = ISubVaultsRegistry.SubVaultState({stakedShares: 200 ether, queuedShares: 0});
-
-        bytes32[][] memory exits = new bytes32[][](2);
-        // Ejecting sub-vault has exits
-        exits[0] = new bytes32[](2);
-        exits[0][0] = _packExit(1000, 60 ether);
-        exits[0][1] = _packExit(2000, 40 ether);
-        // Non-ejecting sub-vault has no exits
-        exits[1] = new bytes32[](0);
-
-        ISubVaultsRegistry.MigrationData memory data = ISubVaultsRegistry.MigrationData({
-            curator: curator,
-            ejectingSubVault: subVaults[0],
-            ejectingSubVaultShares: 100 ether,
-            subVaultsRewardsNonce: 100,
-            subVaultsTotalAssets: 300 ether,
-            totalProcessedExitQueueTickets: 50,
-            subVaults: migrateSubVaults,
-            subVaultsStates: states,
-            subVaultsExits: exits
-        });
-
-        registryProxy.migrate(data);
-
-        // Verify ejecting sub-vault state
-        assertEq(registryProxy.ejectingSubVault(), subVaults[0], "Ejecting sub-vault mismatch");
-        assertEq(registryProxy.ejectingSubVaultShares(), 100 ether, "Ejecting shares mismatch");
-
-        ISubVaultsRegistry.SubVaultState memory state0 = registryProxy.subVaultsStates(subVaults[0]);
-        assertEq(state0.queuedShares, 100 ether, "Ejecting sub-vault queued shares mismatch");
-
-        // Verify ejecting sub-vault exits were migrated correctly
-        bytes32[] memory ejectingExits = registryProxy.subVaultsExits(subVaults[0]);
-        assertEq(ejectingExits.length, 2, "Ejecting sub-vault should have 2 exits");
-        assertEq(ejectingExits[0], _packExit(1000, 60 ether), "Ejecting sub-vault first exit should match");
-        assertEq(ejectingExits[1], _packExit(2000, 40 ether), "Ejecting sub-vault second exit should match");
-
-        // Verify non-ejecting sub-vault has no exits
-        bytes32[] memory nonEjectingExits = registryProxy.subVaultsExits(subVaults[1]);
-        assertEq(nonEjectingExits.length, 0, "Non-ejecting sub-vault should have no exits");
-    }
-
-    /// @notice Test migrate preserves exit order (FIFO)
-    function test_migrate_exitsPreserveOrder() public {
-        SubVaultsRegistry registryProxy = _deployRegistryProxy(_deployNewRegistryImpl());
-
-        address[] memory migrateSubVaults = new address[](1);
-        migrateSubVaults[0] = subVaults[0];
-
-        ISubVaultsRegistry.SubVaultState[] memory states = new ISubVaultsRegistry.SubVaultState[](1);
-        states[0] = ISubVaultsRegistry.SubVaultState({stakedShares: 0, queuedShares: 100 ether});
-
-        // Create exits with specific ticket numbers to verify order
-        bytes32[][] memory exits = new bytes32[][](1);
-        exits[0] = new bytes32[](4);
-        exits[0][0] = _packExit(111, 25 ether); // First in queue
-        exits[0][1] = _packExit(222, 25 ether);
-        exits[0][2] = _packExit(333, 25 ether);
-        exits[0][3] = _packExit(444, 25 ether); // Last in queue
-
-        ISubVaultsRegistry.MigrationData memory data = ISubVaultsRegistry.MigrationData({
-            curator: curator,
-            ejectingSubVault: address(0),
-            ejectingSubVaultShares: 0,
-            subVaultsRewardsNonce: 100,
-            subVaultsTotalAssets: 100 ether,
-            totalProcessedExitQueueTickets: 0,
-            subVaults: migrateSubVaults,
-            subVaultsStates: states,
-            subVaultsExits: exits
-        });
-
-        registryProxy.migrate(data);
-
-        // Verify state
-        ISubVaultsRegistry.SubVaultState memory state = registryProxy.subVaultsStates(subVaults[0]);
-        assertEq(state.queuedShares, 100 ether, "Queued shares mismatch");
-
-        // Verify exits preserve order (FIFO)
-        bytes32[] memory migratedExits = registryProxy.subVaultsExits(subVaults[0]);
-        assertEq(migratedExits.length, 4, "Should have 4 exits");
-        assertEq(migratedExits[0], _packExit(111, 25 ether), "First exit (ticket=111) should be first");
-        assertEq(migratedExits[1], _packExit(222, 25 ether), "Second exit (ticket=222) should be second");
-        assertEq(migratedExits[2], _packExit(333, 25 ether), "Third exit (ticket=333) should be third");
-        assertEq(migratedExits[3], _packExit(444, 25 ether), "Fourth exit (ticket=444) should be last");
-    }
-
-    /// @notice Test migrate with maximum number of exits
-    function test_migrate_manyExits() public {
-        SubVaultsRegistry registryProxy = _deployRegistryProxy(_deployNewRegistryImpl());
-
-        address[] memory migrateSubVaults = new address[](1);
-        migrateSubVaults[0] = subVaults[0];
-
-        uint256 numExits = 50;
-        uint96 sharesPerExit = 2 ether;
-        uint128 totalQueuedShares = uint128(numExits * sharesPerExit);
-
-        ISubVaultsRegistry.SubVaultState[] memory states = new ISubVaultsRegistry.SubVaultState[](1);
-        states[0] = ISubVaultsRegistry.SubVaultState({stakedShares: 0, queuedShares: totalQueuedShares});
-
-        bytes32[][] memory exits = new bytes32[][](1);
-        exits[0] = new bytes32[](numExits);
-        for (uint256 i = 0; i < numExits; i++) {
-            exits[0][i] = _packExit(uint160(i * 1000), sharesPerExit);
-        }
-
-        ISubVaultsRegistry.MigrationData memory data = ISubVaultsRegistry.MigrationData({
-            curator: curator,
-            ejectingSubVault: address(0),
-            ejectingSubVaultShares: 0,
-            subVaultsRewardsNonce: 100,
-            subVaultsTotalAssets: totalQueuedShares,
-            totalProcessedExitQueueTickets: 0,
-            subVaults: migrateSubVaults,
-            subVaultsStates: states,
-            subVaultsExits: exits
-        });
-
-        registryProxy.migrate(data);
-
-        // Verify state
-        ISubVaultsRegistry.SubVaultState memory state = registryProxy.subVaultsStates(subVaults[0]);
-        assertEq(state.queuedShares, totalQueuedShares, "Queued shares mismatch after many exits migration");
-
-        // Verify all exits were migrated correctly
-        bytes32[] memory migratedExits = registryProxy.subVaultsExits(subVaults[0]);
-        assertEq(migratedExits.length, numExits, "Should have all exits migrated");
-        for (uint256 i = 0; i < numExits; i++) {
-            assertEq(migratedExits[i], _packExit(uint160(i * 1000), sharesPerExit), "Exit should match at index");
-        }
-    }
-
-    /// @notice Helper function to pack exit data (positionTicket + shares)
-    function _packExit(uint160 positionTicket, uint96 shares) internal pure returns (bytes32) {
-        return Packing.pack_20_12(bytes20(positionTicket), bytes12(shares));
-    }
-
-    /// @notice Test migrate reverts when called twice
-    function test_migrate_alreadyInitialized() public {
-        SubVaultsRegistry registryProxy = _deployRegistryProxy(_deployNewRegistryImpl());
-
-        address[] memory migrateSubVaults = new address[](0);
-        ISubVaultsRegistry.SubVaultState[] memory states = new ISubVaultsRegistry.SubVaultState[](0);
-        bytes32[][] memory exits = new bytes32[][](0);
-
-        ISubVaultsRegistry.MigrationData memory data = ISubVaultsRegistry.MigrationData({
-            curator: curator,
-            ejectingSubVault: address(0),
-            ejectingSubVaultShares: 0,
-            subVaultsRewardsNonce: 100,
-            subVaultsTotalAssets: 0,
-            totalProcessedExitQueueTickets: 0,
-            subVaults: migrateSubVaults,
-            subVaultsStates: states,
-            subVaultsExits: exits
-        });
-
-        // First migrate succeeds
-        registryProxy.migrate(data);
-
-        // Second migrate should fail (already initialized)
-        vm.expectRevert();
-        registryProxy.migrate(data);
     }
 
     /// @notice Test canUpdateState returns correct values
@@ -714,49 +340,6 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         assertTrue(ejectingVaultFound, "Ejecting sub vault should be in redemption requests");
     }
 
-    /// @notice Test migrate with empty exits arrays
-    function test_migrate_emptyExitsPerSubVault() public {
-        SubVaultsRegistry registryProxy = _deployRegistryProxy(_deployNewRegistryImpl());
-
-        address[] memory migrateSubVaults = new address[](2);
-        migrateSubVaults[0] = subVaults[0];
-        migrateSubVaults[1] = subVaults[1];
-
-        ISubVaultsRegistry.SubVaultState[] memory states = new ISubVaultsRegistry.SubVaultState[](2);
-        states[0] = ISubVaultsRegistry.SubVaultState({stakedShares: 100 ether, queuedShares: 0});
-        states[1] = ISubVaultsRegistry.SubVaultState({stakedShares: 100 ether, queuedShares: 0});
-
-        // Empty exits for both sub-vaults
-        bytes32[][] memory exits = new bytes32[][](2);
-        exits[0] = new bytes32[](0);
-        exits[1] = new bytes32[](0);
-
-        ISubVaultsRegistry.MigrationData memory data = ISubVaultsRegistry.MigrationData({
-            curator: curator,
-            ejectingSubVault: address(0),
-            ejectingSubVaultShares: 0,
-            subVaultsRewardsNonce: 100,
-            subVaultsTotalAssets: 200 ether,
-            totalProcessedExitQueueTickets: 0,
-            subVaults: migrateSubVaults,
-            subVaultsStates: states,
-            subVaultsExits: exits
-        });
-
-        registryProxy.migrate(data);
-
-        // Verify states
-        ISubVaultsRegistry.SubVaultState memory state0 = registryProxy.subVaultsStates(subVaults[0]);
-        assertEq(state0.stakedShares, 100 ether, "SubVault0 staked shares mismatch");
-        assertEq(state0.queuedShares, 0, "SubVault0 should have no queued shares");
-
-        // Verify exits are empty for both sub-vaults
-        bytes32[] memory exits0 = registryProxy.subVaultsExits(subVaults[0]);
-        assertEq(exits0.length, 0, "SubVault0 should have no exits");
-        bytes32[] memory exits1 = registryProxy.subVaultsExits(subVaults[1]);
-        assertEq(exits1.length, 0, "SubVault1 should have no exits");
-    }
-
     /// @notice Test claimSubVaultsExitedAssets reverts with invalid data
     function test_claimSubVaultsExitedAssets_emptyRequests() public {
         ISubVaultsRegistry.SubVaultExitRequest[] memory exitRequests = new ISubVaultsRegistry.SubVaultExitRequest[](0);
@@ -824,420 +407,404 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         assertGt(totalRedeemed, 0, "Should redeem some assets");
         assertLt(totalRedeemed, assetsToRedeem, "Should redeem less than requested due to LTV cap");
     }
-}
 
-/// @title VaultSubVaultsUpgradeEthTest
-/// @notice Tests for __VaultSubVaults_upgrade function on Ethereum
-contract VaultSubVaultsUpgradeEthTest is Test, EthHelpers {
-    // Existing Ethereum meta vault address for fork testing
-    address private constant FORK_ETH_META_VAULT = 0x34284C27A2304132aF751b0dEc5bBa2CF98eD039;
-
-    // Pre-upgrade state storage
-    struct PreUpgradeState {
-        address curator;
-        uint128 rewardsNonce;
-        address[] subVaults;
-    }
-
-    ForkContracts public contracts;
-    PreUpgradeState public preUpgradeState;
-    mapping(address => ISubVaultsRegistry.SubVaultState) public preUpgradeSubVaultStates;
-
-    function setUp() public {
-        contracts = _activateEthereumFork();
-    }
-
-    /// @notice Captures the pre-upgrade state from the existing v5 meta vault
-    function _capturePreUpgradeState(address vault) internal {
-        ILegacyMetaVault legacyVault = ILegacyMetaVault(vault);
-
-        preUpgradeState.curator = legacyVault.subVaultsCurator();
-        preUpgradeState.rewardsNonce = legacyVault.subVaultsRewardsNonce();
-        preUpgradeState.subVaults = legacyVault.getSubVaults();
-
-        for (uint256 i = 0; i < preUpgradeState.subVaults.length; i++) {
-            address subVault = preUpgradeState.subVaults[i];
-            ILegacyMetaVault.SubVaultState memory legacyState = legacyVault.subVaultsStates(subVault);
-            preUpgradeSubVaultStates[subVault] = ISubVaultsRegistry.SubVaultState({
-                stakedShares: legacyState.stakedShares, queuedShares: legacyState.queuedShares
-            });
-        }
-    }
-
-    /// @notice Test upgrade of existing mainnet meta vault preserves all state
-    function test_upgrade_existingMainnetVault_preservesState() public {
-        // Skip if not using fork vaults
-        if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
-            return;
-        }
-
-        EthMetaVault vault = EthMetaVault(payable(FORK_ETH_META_VAULT));
-
-        // Verify vault is at version 5 before upgrade
-        assertEq(vault.version(), 5, "Fork vault should be version 5 before upgrade");
-
-        // Capture pre-upgrade state
-        _capturePreUpgradeState(FORK_ETH_META_VAULT);
-
-        // Perform upgrade
-        _upgradeVault(VaultType.EthMetaVault, FORK_ETH_META_VAULT);
-
-        // Verify version was upgraded
-        assertEq(vault.version(), 6, "Vault should be version 6 after upgrade");
-
-        // Get registry reference
-        ISubVaultsRegistry registry = ISubVaultsRegistry(vault.subVaultsRegistry());
-
-        // Verify SubVaultsRegistry was created
-        assertTrue(address(registry) != address(0), "SubVaultsRegistry should be created");
-
-        // Verify curator was migrated
-        assertEq(registry.subVaultsCurator(), preUpgradeState.curator, "Curator should be preserved");
-
-        // Verify rewards nonce was migrated
-        assertEq(registry.subVaultsRewardsNonce(), preUpgradeState.rewardsNonce, "Rewards nonce should be preserved");
-
-        // Verify sub-vaults list was migrated
-        address[] memory postSubVaults = registry.getSubVaults();
-        assertEq(postSubVaults.length, preUpgradeState.subVaults.length, "Sub-vaults count should be preserved");
-
-        for (uint256 i = 0; i < preUpgradeState.subVaults.length; i++) {
-            assertEq(postSubVaults[i], preUpgradeState.subVaults[i], "Sub-vault address should be preserved");
-
-            // Verify sub-vault state was migrated
-            ISubVaultsRegistry.SubVaultState memory postState = registry.subVaultsStates(preUpgradeState.subVaults[i]);
-            ISubVaultsRegistry.SubVaultState memory preState = preUpgradeSubVaultStates[preUpgradeState.subVaults[i]];
-
-            assertEq(postState.stakedShares, preState.stakedShares, "Staked shares should be preserved");
-            assertEq(postState.queuedShares, preState.queuedShares, "Queued shares should be preserved");
-        }
-
-        // Verify registry is functional by checking metaVault reference
-        assertEq(registry.metaVault(), FORK_ETH_META_VAULT, "Registry metaVault should point to the meta vault");
-    }
-
-    /// @notice Test upgrade of existing mainnet meta vault - vault remains functional after upgrade
-    function test_upgrade_existingMainnetVault_remainsFunctional() public {
-        // Skip if not using fork vaults
-        if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
-            return;
-        }
-
-        EthMetaVault vault = EthMetaVault(payable(FORK_ETH_META_VAULT));
-
-        // Capture pre-upgrade state
-        _capturePreUpgradeState(FORK_ETH_META_VAULT);
-
-        // Perform upgrade
-        _upgradeVault(VaultType.EthMetaVault, FORK_ETH_META_VAULT);
-
-        // Get registry reference
-        ISubVaultsRegistry registry = ISubVaultsRegistry(vault.subVaultsRegistry());
-
-        // Verify vault can still accept deposits
-        address depositor = makeAddr("Depositor");
-        vm.deal(depositor, 10 ether);
-
-        uint256 totalSharesBefore = vault.totalShares();
-        uint256 depositAmount = 1 ether;
-
-        vm.prank(depositor);
-        uint256 shares = vault.deposit{value: depositAmount}(depositor, address(0));
-
-        assertGt(shares, 0, "Deposit should return shares");
-        assertEq(vault.getShares(depositor), shares, "Depositor should have shares");
-        assertEq(vault.totalShares(), totalSharesBefore + shares, "Total shares should increase");
-
-        // Verify state update works (if sub-vaults exist)
-        if (preUpgradeState.subVaults.length > 0) {
-            // Increment nonces for sub-vaults
-            uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
-            _setKeeperRewardsNonce(newNonce);
-            for (uint256 i = 0; i < preUpgradeState.subVaults.length; i++) {
-                _setVaultRewardsNonce(preUpgradeState.subVaults[i], newNonce);
+    function _extractExitPositions(Vm.Log[] memory logs, uint64 timestamp)
+        internal
+        view
+        returns (ExitRequest[] memory exitRequests)
+    {
+        uint256 count;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] == exitQueueEnteredTopic && logs[i].emitter != address(metaVault)) {
+                count++;
             }
-
-            // State update should succeed
-            vault.updateState(_getEmptyHarvestParams());
-
-            // Verify rewards nonce was updated
-            assertEq(registry.subVaultsRewardsNonce(), newNonce, "Rewards nonce should be updated");
+        }
+        exitRequests = new ExitRequest[](count);
+        uint256 index;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (logs[i].topics[0] != exitQueueEnteredTopic || logs[i].emitter == address(metaVault)) {
+                continue;
+            }
+            (uint256 positionTicket,) = abi.decode(logs[i].data, (uint256, uint256));
+            exitRequests[index] =
+                ExitRequest({vault: logs[i].emitter, positionTicket: positionTicket, timestamp: timestamp});
+            index++;
         }
     }
 
-    /// @notice Test upgrade of newly deployed Ethereum meta vault - verifies initialization creates SubVaultsRegistry
-    function test_newlyDeployedVault_hasSubVaultsRegistry() public {
-        // Create a new meta vault (current version)
-        address admin = makeAddr("Admin");
-        vm.deal(admin, 100 ether);
-
-        // Create a curator
-        address curator = address(new BalancedCurator());
-        vm.prank(CuratorsRegistry(_curatorsRegistry).owner());
-        CuratorsRegistry(_curatorsRegistry).addCurator(curator);
-
-        bytes memory initParams = abi.encode(
-            IEthMetaVault.EthMetaVaultInitParams({
-                subVaultsCurator: curator,
-                capacity: 1000 ether,
-                feePercent: 500,
-                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
-            })
+    function _setupOsTokenRedeemer() internal returns (EthOsTokenRedeemer osTokenRedeemer, address positionsManager) {
+        address owner = makeAddr("Owner");
+        positionsManager = makeAddr("PositionsManager");
+        osTokenRedeemer = new EthOsTokenRedeemer(
+            address(contracts.vaultsRegistry), _osToken, address(contracts.osTokenVaultController), owner, 12 hours
         );
+        vm.prank(owner);
+        osTokenRedeemer.setPositionsManager(positionsManager);
 
-        // Create a new vault (this will be at current version, using initialization not upgrade)
-        address vaultAddress = _createVault(VaultType.EthMetaVault, admin, initParams, false);
-        EthMetaVault vault = EthMetaVault(payable(vaultAddress));
+        vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
+        contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
 
-        // Verify vault is at current version (should be 6)
-        assertEq(vault.version(), 6, "New vault should be version 6");
-
-        // Get registry reference
-        ISubVaultsRegistry registry = ISubVaultsRegistry(vault.subVaultsRegistry());
-
-        // Verify SubVaultsRegistry was created during initialization
-        assertTrue(address(registry) != address(0), "SubVaultsRegistry should be created");
-
-        // Verify curator was set correctly
-        assertEq(registry.subVaultsCurator(), curator, "Curator should be set");
-
-        // Verify empty sub-vaults list
-        address[] memory subVaults = registry.getSubVaults();
-        assertEq(subVaults.length, 0, "Should have no sub-vaults");
-
-        // Verify vault is functional
-        vm.prank(admin);
-        uint256 shares = vault.deposit{value: 1 ether}(admin, address(0));
-        assertGt(shares, 0, "Deposit should succeed");
-
-        // Verify registry is properly linked
-        assertEq(registry.metaVault(), vaultAddress, "Registry metaVault should point to vault");
+        // remove osToken fee percent for accurate conversions
+        vm.prank(Ownable(address(contracts.osTokenVaultController)).owner());
+        contracts.osTokenVaultController.setFeePercent(0);
     }
 
-    /// @notice Test newly deployed Ethereum meta vault with sub-vaults
-    function test_newlyDeployedVault_withSubVaults_functional() public {
-        // Create a new meta vault (current version)
-        address admin = makeAddr("Admin");
-        vm.deal(admin, 100 ether);
-
-        // Create a curator
-        address curator = address(new BalancedCurator());
-        vm.prank(CuratorsRegistry(_curatorsRegistry).owner());
-        CuratorsRegistry(_curatorsRegistry).addCurator(curator);
-
-        bytes memory initParams = abi.encode(
-            IEthMetaVault.EthMetaVaultInitParams({
-                subVaultsCurator: curator,
-                capacity: 1000 ether,
-                feePercent: 500,
-                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
-            })
-        );
-
-        // Create a new vault
-        address vaultAddress = _createVault(VaultType.EthMetaVault, admin, initParams, false);
-        EthMetaVault vault = EthMetaVault(payable(vaultAddress));
-
-        // Get registry reference
-        ISubVaultsRegistry registry = ISubVaultsRegistry(vault.subVaultsRegistry());
-
-        // Create and add sub-vaults
-        address[] memory subVaults = new address[](2);
-        for (uint256 i = 0; i < 2; i++) {
-            subVaults[i] = _createEthSubVault(admin);
-            _collateralizeEthVault(subVaults[i]);
-
-            vm.prank(admin);
-            registry.addSubVault(subVaults[i]);
-        }
-
-        // Verify sub-vaults were added
-        address[] memory registeredSubVaults = registry.getSubVaults();
-        assertEq(registeredSubVaults.length, 2, "Should have 2 sub-vaults");
-
-        // Deposit to the meta vault
-        vm.prank(admin);
-        vault.deposit{value: 10 ether}(admin, address(0));
-
-        // Deposit to sub-vaults
-        registry.depositToSubVaults();
-
-        // Verify sub-vault states have assets
+    function _subVaultsStakedAssets() internal view returns (uint256 total) {
         for (uint256 i = 0; i < subVaults.length; i++) {
             ISubVaultsRegistry.SubVaultState memory state = registry.subVaultsStates(subVaults[i]);
-            assertGt(state.stakedShares, 0, "Sub-vault should have staked shares");
+            if (state.stakedShares > 0) {
+                total += IVaultState(subVaults[i]).convertToAssets(state.stakedShares);
+            }
+        }
+    }
+
+    function _subVaultsQueuedAssets() internal view returns (uint256 total) {
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            ISubVaultsRegistry.SubVaultState memory state = registry.subVaultsStates(subVaults[i]);
+            if (state.queuedShares > 0) {
+                total += IVaultState(subVaults[i]).convertToAssets(state.queuedShares);
+            }
+        }
+    }
+
+    /// @notice Test state update succeeds and keeps exit tickets pending when the sub-vaults have no staked balances
+    function test_enterSubVaultsExitQueue_noStakedBalances_keepsTicketsPending() public {
+        // deposit to meta vault but do not stake to the sub-vaults
+        vm.prank(admin);
+        metaVault.deposit{value: 10 ether}(admin, address(0));
+
+        // enter exit queue with all the user shares
+        uint256 userShares = metaVault.getShares(admin);
+        vm.prank(admin);
+        metaVault.enterExitQueue(userShares, admin);
+
+        // remove vault liquidity so the exit queue cannot be processed internally
+        uint256 vaultBalance = address(metaVault).balance;
+        vm.deal(address(metaVault), 0);
+
+        // state update must succeed without entering sub-vaults exit queues
+        _harvestMetaVault();
+        assertEq(_subVaultsQueuedAssets(), 0, "No sub-vault exits should be entered without staked balances");
+
+        // tickets must remain in the exit queue
+        (uint128 queuedShares,,,,) = metaVault.getExitQueueData();
+        assertEq(queuedShares, userShares, "Exit queue tickets should remain pending");
+
+        // once liquidity is restored, the pending tickets are processed by the exit queue
+        vm.deal(address(metaVault), vaultBalance);
+        _harvestMetaVault();
+        uint128 unclaimedAssets;
+        (queuedShares, unclaimedAssets,,,) = metaVault.getExitQueueData();
+        assertEq(queuedShares, 0, "Exit queue tickets should be processed once liquidity is available");
+        assertApproxEqAbs(unclaimedAssets, 10 ether, 10, "Exited assets should be claimable");
+    }
+
+    /// @notice Test exit queue tickets are processed only up to the sub-vaults staked balances and the
+    ///         remaining tickets stay pending
+    function test_enterSubVaultsExitQueue_capsBySubVaultsBalances() public {
+        (EthOsTokenRedeemer osTokenRedeemer, address positionsManager) = _setupOsTokenRedeemer();
+
+        // deposit to meta vault and stake everything to the sub-vaults
+        vm.prank(admin);
+        metaVault.deposit{value: 10 ether}(admin, address(0));
+        registry.depositToSubVaults();
+
+        // user queues an exit for all the shares
+        uint256 userShares = metaVault.getShares(admin);
+        uint256 exitAssets = metaVault.convertToAssets(userShares);
+        vm.prank(admin);
+        metaVault.enterExitQueue(userShares, admin);
+
+        // half of the sub-vaults assets are redeemed and cannot serve the exit queue anymore
+        vm.prank(positionsManager);
+        uint256 redeemedAssets = osTokenRedeemer.redeemSubVaultsAssets(address(metaVault), 5 ether);
+        assertGt(redeemedAssets, 0, "Redemption should succeed");
+
+        // emulate the redeemed assets being pulled from the meta vault to the osToken holders
+        vm.deal(address(metaVault), 0);
+
+        uint256 stakedAssets = _subVaultsStakedAssets();
+        assertLt(stakedAssets, exitAssets, "Staked balances should not cover the exit demand");
+
+        // state update succeeds and only the available staked balances are queued for exit
+        uint64 timestamp = uint64(vm.getBlockTimestamp());
+        vm.recordLogs();
+        _harvestMetaVault();
+        ExitRequest[] memory exitPositions = _extractExitPositions(vm.getRecordedLogs(), timestamp);
+        assertApproxEqAbs(_subVaultsQueuedAssets(), stakedAssets, 10, "Only available staked balances should be queued");
+        assertApproxEqAbs(_subVaultsStakedAssets(), 0, 10, "All the staked balances should be queued for exit");
+
+        // sub-vaults process their exit queues
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            vm.deal(subVaults[i], address(subVaults[i]).balance + 5 ether);
+            IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(subVaults[i], 0, 0);
+            IVaultState(subVaults[i]).updateState(harvestParams);
         }
 
-        // Verify state update works
+        // claim processed exits to the meta vault
+        vm.warp(vm.getBlockTimestamp() + _exitingAssetsClaimDelay + 1);
+        ISubVaultsRegistry.SubVaultExitRequest[] memory claims =
+            new ISubVaultsRegistry.SubVaultExitRequest[](exitPositions.length);
+        for (uint256 i = 0; i < exitPositions.length; i++) {
+            claims[i] = ISubVaultsRegistry.SubVaultExitRequest({
+                vault: exitPositions[i].vault,
+                exitQueueIndex: uint256(
+                    IVaultEnterExit(exitPositions[i].vault).getExitQueueIndex(exitPositions[i].positionTicket)
+                ),
+                timestamp: timestamp
+            });
+        }
+        uint256 balanceBefore = address(metaVault).balance;
+        registry.claimSubVaultsExitedAssets(claims);
+        uint256 claimedAssets = address(metaVault).balance - balanceBefore;
+        assertApproxEqAbs(claimedAssets, stakedAssets, 10, "Claimed assets should match the queued sub-vault exits");
+
+        // the processed tickets pointer advanced only by the handled assets: the claimed assets are
+        // consumed by the exit queue and the remaining tickets stay pending
+        _harvestMetaVault();
+        (uint128 queuedShares, uint128 unclaimedAssets,,,) = metaVault.getExitQueueData();
+        assertApproxEqAbs(
+            unclaimedAssets, claimedAssets, 1 gwei, "Claimed assets should be processed by the exit queue"
+        );
+        assertApproxEqAbs(
+            queuedShares,
+            userShares - metaVault.convertToShares(claimedAssets),
+            1 gwei,
+            "Remaining tickets should stay pending"
+        );
+    }
+
+    /// @notice Test state update reverts when the curator does not fulfill the requested exit assets
+    function test_enterSubVaultsExitQueue_curatorUnderDelivers_reverts() public {
+        // deposit to meta vault and stake everything to the sub-vaults
+        vm.prank(admin);
+        metaVault.deposit{value: 10 ether}(admin, address(0));
+        registry.depositToSubVaults();
+
+        // switch to a curator that under-delivers exit requests
+        address faultyCurator = address(new UnderDeliveringCurator());
+        vm.prank(CuratorsRegistry(_curatorsRegistry).owner());
+        CuratorsRegistry(_curatorsRegistry).addCurator(faultyCurator);
+        vm.prank(admin);
+        registry.setSubVaultsCurator(faultyCurator);
+
+        // user queues an exit for all the shares
+        uint256 userShares = metaVault.getShares(admin);
+        vm.prank(admin);
+        metaVault.enterExitQueue(userShares, admin);
+
+        // advance nonces for the state update
         uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
         _setKeeperRewardsNonce(newNonce);
         for (uint256 i = 0; i < subVaults.length; i++) {
             _setVaultRewardsNonce(subVaults[i], newNonce);
         }
 
-        vault.updateState(_getEmptyHarvestParams());
+        // state update must revert as the curator did not fulfill the exit requests
+        vm.expectRevert(Errors.InvalidAssets.selector);
+        metaVault.updateState(_getEmptyHarvestParams());
+    }
+}
+
+/// @dev Curator that requests only a third of the assets it is asked to exit
+contract UnderDeliveringCurator is ISubVaultsCurator {
+    function getDeposits(uint256 assetsToDeposit, address[] calldata subVaults, address)
+        external
+        pure
+        override
+        returns (Deposit[] memory deposits)
+    {
+        deposits = new Deposit[](subVaults.length);
+        deposits[0] = Deposit({vault: subVaults[0], assets: assetsToDeposit});
+        for (uint256 i = 1; i < subVaults.length; i++) {
+            deposits[i] = Deposit({vault: subVaults[i], assets: 0});
+        }
+    }
+
+    function getExitRequests(uint256 assetsToExit, address[] calldata subVaults, uint256[] memory, address)
+        external
+        pure
+        override
+        returns (ExitRequest[] memory exitRequests)
+    {
+        exitRequests = new ExitRequest[](subVaults.length);
+        exitRequests[0] = ExitRequest({vault: subVaults[0], assets: assetsToExit / 3});
+        for (uint256 i = 1; i < subVaults.length; i++) {
+            exitRequests[i] = ExitRequest({vault: subVaults[i], assets: 0});
+        }
+    }
+}
+
+/// @title VaultSubVaultsUpgradeEthTest
+/// @notice Tests for the Ethereum meta vault upgrade that swaps the SubVaultsRegistry implementation in place
+contract VaultSubVaultsUpgradeEthTest is Test, EthHelpers {
+    /// @dev keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant _initializableSlot = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
+
+    ForkContracts public contracts;
+    EthMetaVault public metaVault;
+    ISubVaultsRegistry public registry;
+    address public admin;
+    address public curator;
+    address[] public subVaults;
+
+    function setUp() public {
+        contracts = _activateEthereumFork();
+
+        admin = makeAddr("Admin");
+        vm.deal(admin, 100 ether);
+
+        curator = address(new BalancedCurator());
+        vm.prank(CuratorsRegistry(_curatorsRegistry).owner());
+        CuratorsRegistry(_curatorsRegistry).addCurator(curator);
+
+        bytes memory initParams = abi.encode(
+            IEthMetaVault.EthMetaVaultInitParams({
+                subVaultsCurator: curator,
+                capacity: 1000 ether,
+                feePercent: 1000,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        metaVault = EthMetaVault(payable(_createVault(VaultType.EthMetaVault, admin, initParams, false)));
+        registry = ISubVaultsRegistry(metaVault.subVaultsRegistry());
+
+        for (uint256 i = 0; i < 2; i++) {
+            address subVault = _createEthSubVault(admin);
+            _collateralizeEthVault(subVault);
+            subVaults.push(subVault);
+
+            vm.prank(admin);
+            registry.addSubVault(subVault);
+        }
+
+        // accumulate sub-vaults state in the registry
+        vm.prank(admin);
+        metaVault.deposit{value: 10 ether}(admin, address(0));
+        registry.depositToSubVaults();
+    }
+
+    /// @dev Rolls back the vault reinitializer version to simulate a not-yet-upgraded vault
+    function _setInitializedVersion(address vault, uint64 version) internal {
+        vm.store(vault, _initializableSlot, bytes32(uint256(version)));
+    }
+
+    function _getProxyImplementation(address proxy) internal view returns (address) {
+        return address(uint160(uint256(vm.load(proxy, ERC1967Utils.IMPLEMENTATION_SLOT))));
+    }
+
+    /// @notice Test the v6 -> v7 upgrade swaps the registry proxy implementation and preserves its state
+    function test_upgradeFromV6_upgradesRegistryInPlace() public {
+        // capture pre-upgrade registry state
+        address preCurator = registry.subVaultsCurator();
+        uint128 preNonce = registry.subVaultsRewardsNonce();
+        uint128 preTotalAssets = registry.subVaultsTotalAssets();
+        address[] memory preSubVaults = registry.getSubVaults();
+        ISubVaultsRegistry.SubVaultState[] memory preStates =
+            new ISubVaultsRegistry.SubVaultState[](preSubVaults.length);
+        for (uint256 i = 0; i < preSubVaults.length; i++) {
+            preStates[i] = registry.subVaultsStates(preSubVaults[i]);
+        }
+
+        // point the registry proxy to an outdated implementation
+        address outdatedImpl = address(
+            new SubVaultsRegistry(
+                _curatorsRegistry,
+                address(contracts.vaultsRegistry),
+                address(contracts.keeper),
+                address(contracts.osTokenVaultController),
+                address(contracts.osTokenConfig)
+            )
+        );
+        vm.store(address(registry), ERC1967Utils.IMPLEMENTATION_SLOT, bytes32(uint256(uint160(outdatedImpl))));
+        assertEq(_getProxyImplementation(address(registry)), outdatedImpl, "Outdated implementation should be set");
+
+        // roll back the vault initializer version and run the upgrade initializer
+        _setInitializedVersion(address(metaVault), 6);
+        metaVault.initialize("");
+
+        // registry proxy must point to the canonical factory implementation again
+        address canonicalImpl = ISubVaultsRegistryFactory(_subVaultsRegistryFactory).implementation();
+        assertEq(
+            _getProxyImplementation(address(registry)),
+            canonicalImpl,
+            "Registry should be upgraded to the factory implementation"
+        );
+
+        // registry address and state must be preserved
+        assertEq(metaVault.subVaultsRegistry(), address(registry), "Registry address should not change");
+        assertEq(registry.metaVault(), address(metaVault), "Registry metaVault should be preserved");
+        assertEq(registry.subVaultsCurator(), preCurator, "Curator should be preserved");
+        assertEq(registry.subVaultsRewardsNonce(), preNonce, "Rewards nonce should be preserved");
+        assertEq(registry.subVaultsTotalAssets(), preTotalAssets, "Sub vaults total assets should be preserved");
+
+        address[] memory postSubVaults = registry.getSubVaults();
+        assertEq(postSubVaults.length, preSubVaults.length, "Sub-vaults count should be preserved");
+        for (uint256 i = 0; i < preSubVaults.length; i++) {
+            assertEq(postSubVaults[i], preSubVaults[i], "Sub-vault address should be preserved");
+            ISubVaultsRegistry.SubVaultState memory postState = registry.subVaultsStates(preSubVaults[i]);
+            assertEq(postState.stakedShares, preStates[i].stakedShares, "Staked shares should be preserved");
+            assertEq(postState.queuedShares, preStates[i].queuedShares, "Queued shares should be preserved");
+        }
+
+        // vault remains functional: deposits and state updates work
+        address depositor = makeAddr("Depositor");
+        vm.deal(depositor, 2 ether);
+        vm.prank(depositor);
+        uint256 shares = metaVault.deposit{value: 1 ether}(depositor, address(0));
+        assertGt(shares, 0, "Deposit should return shares");
+
+        uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
+        _setKeeperRewardsNonce(newNonce);
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            _setVaultRewardsNonce(subVaults[i], newNonce);
+        }
+        metaVault.updateState(_getEmptyHarvestParams());
         assertEq(registry.subVaultsRewardsNonce(), newNonce, "Rewards nonce should be updated");
+    }
+
+    /// @notice Test the upgrade initializer cannot be executed twice
+    function test_upgradeFromV6_onlyOnce() public {
+        _setInitializedVersion(address(metaVault), 6);
+        metaVault.initialize("");
+
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
+        metaVault.initialize("");
+    }
+
+    /// @notice Test a newly deployed Ethereum meta vault gets a SubVaultsRegistry with the latest implementation
+    function test_newlyDeployedVault_hasSubVaultsRegistry() public view {
+        assertEq(metaVault.version(), 7, "New vault should be version 7");
+        assertTrue(address(registry) != address(0), "SubVaultsRegistry should be created");
+        assertEq(registry.metaVault(), address(metaVault), "Registry metaVault should point to vault");
+        assertEq(registry.subVaultsCurator(), curator, "Curator should be set");
+        assertEq(
+            _getProxyImplementation(address(registry)),
+            ISubVaultsRegistryFactory(_subVaultsRegistryFactory).implementation(),
+            "Registry should use the factory implementation"
+        );
     }
 }
 
 /// @title VaultSubVaultsUpgradeGnoTest
-/// @notice Tests for __VaultSubVaults_upgrade function on Gnosis network
+/// @notice Tests for the Gnosis meta vault upgrade that swaps the SubVaultsRegistry implementation in place
 contract VaultSubVaultsUpgradeGnoTest is Test, GnoHelpers {
-    // Existing Gnosis meta vault address for fork testing
-    address private constant FORK_GNO_META_VAULT = 0x34284C27A2304132aF751b0dEc5bBa2CF98eD039;
-
-    // Pre-upgrade state storage
-    struct PreUpgradeState {
-        address curator;
-        uint128 rewardsNonce;
-        address[] subVaults;
-    }
+    /// @dev keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant _initializableSlot = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
 
     ForkContracts public contracts;
-    PreUpgradeState public preUpgradeState;
-    mapping(address => ISubVaultsRegistry.SubVaultState) public preUpgradeSubVaultStates;
+    GnoMetaVault public metaVault;
+    ISubVaultsRegistry public registry;
+    address public admin;
+    address public curator;
 
     function setUp() public {
         contracts = _activateGnosisFork();
-    }
 
-    /// @notice Captures the pre-upgrade state from the existing v3 Gnosis meta vault
-    function _capturePreUpgradeState(address vault) internal {
-        ILegacyMetaVault legacyVault = ILegacyMetaVault(vault);
-
-        preUpgradeState.curator = legacyVault.subVaultsCurator();
-        preUpgradeState.rewardsNonce = legacyVault.subVaultsRewardsNonce();
-        preUpgradeState.subVaults = legacyVault.getSubVaults();
-
-        for (uint256 i = 0; i < preUpgradeState.subVaults.length; i++) {
-            address subVault = preUpgradeState.subVaults[i];
-            ILegacyMetaVault.SubVaultState memory legacyState = legacyVault.subVaultsStates(subVault);
-            preUpgradeSubVaultStates[subVault] = ISubVaultsRegistry.SubVaultState({
-                stakedShares: legacyState.stakedShares, queuedShares: legacyState.queuedShares
-            });
-        }
-    }
-
-    /// @notice Test upgrade of existing Gnosis meta vault preserves all state
-    function test_upgrade_existingGnosisVault_preservesState() public {
-        // Skip if not using fork vaults
-        if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
-            return;
-        }
-
-        GnoMetaVault vault = GnoMetaVault(payable(FORK_GNO_META_VAULT));
-
-        // Verify vault is at version 3 before upgrade
-        uint256 version = vault.version();
-        if (version != 3) {
-            return;
-        }
-
-        // Capture pre-upgrade state
-        _capturePreUpgradeState(FORK_GNO_META_VAULT);
-
-        // Perform upgrade
-        _upgradeVault(VaultType.GnoMetaVault, FORK_GNO_META_VAULT);
-
-        // Verify version was upgraded
-        assertEq(vault.version(), 4, "Vault should be version 4 after upgrade");
-
-        // Get registry reference
-        ISubVaultsRegistry registry = ISubVaultsRegistry(vault.subVaultsRegistry());
-
-        // Verify SubVaultsRegistry was created
-        assertTrue(address(registry) != address(0), "SubVaultsRegistry should be created");
-
-        // Verify curator was migrated
-        assertEq(registry.subVaultsCurator(), preUpgradeState.curator, "Curator should be preserved");
-
-        // Verify rewards nonce was migrated
-        assertEq(registry.subVaultsRewardsNonce(), preUpgradeState.rewardsNonce, "Rewards nonce should be preserved");
-
-        // Verify sub-vaults list was migrated
-        address[] memory postSubVaults = registry.getSubVaults();
-        assertEq(postSubVaults.length, preUpgradeState.subVaults.length, "Sub-vaults count should be preserved");
-
-        for (uint256 i = 0; i < preUpgradeState.subVaults.length; i++) {
-            assertEq(postSubVaults[i], preUpgradeState.subVaults[i], "Sub-vault address should be preserved");
-
-            // Verify sub-vault state was migrated
-            ISubVaultsRegistry.SubVaultState memory postState = registry.subVaultsStates(preUpgradeState.subVaults[i]);
-            ISubVaultsRegistry.SubVaultState memory preState = preUpgradeSubVaultStates[preUpgradeState.subVaults[i]];
-
-            assertEq(postState.stakedShares, preState.stakedShares, "Staked shares should be preserved");
-            assertEq(postState.queuedShares, preState.queuedShares, "Queued shares should be preserved");
-        }
-
-        // Verify registry is functional by checking metaVault reference
-        assertEq(registry.metaVault(), FORK_GNO_META_VAULT, "Registry metaVault should point to the meta vault");
-    }
-
-    /// @notice Test upgrade of existing Gnosis meta vault - vault remains functional after upgrade
-    function test_upgrade_existingGnosisVault_remainsFunctional() public {
-        // Skip if not using fork vaults
-        if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
-            return;
-        }
-
-        GnoMetaVault vault = GnoMetaVault(payable(FORK_GNO_META_VAULT));
-
-        // Verify vault is at version 3 before upgrade
-        uint256 version = vault.version();
-        if (version != 3) {
-            return;
-        }
-
-        // Capture pre-upgrade state
-        _capturePreUpgradeState(FORK_GNO_META_VAULT);
-
-        // Perform upgrade
-        _upgradeVault(VaultType.GnoMetaVault, FORK_GNO_META_VAULT);
-
-        // Get registry reference
-        ISubVaultsRegistry registry = ISubVaultsRegistry(vault.subVaultsRegistry());
-
-        // Verify vault can still accept deposits
-        address depositor = makeAddr("Depositor");
-        _mintGnoToken(depositor, 10 ether);
-
-        uint256 totalSharesBefore = vault.totalShares();
-        uint256 depositAmount = 1 ether;
-
-        vm.startPrank(depositor);
-        IERC20(address(contracts.gnoToken)).approve(address(vault), depositAmount);
-        uint256 shares = vault.deposit(depositAmount, depositor, address(0));
-        vm.stopPrank();
-
-        assertGt(shares, 0, "Deposit should return shares");
-        assertEq(vault.getShares(depositor), shares, "Depositor should have shares");
-        assertEq(vault.totalShares(), totalSharesBefore + shares, "Total shares should increase");
-
-        // Verify state update works (if sub-vaults exist)
-        if (preUpgradeState.subVaults.length > 0) {
-            // Increment nonces for sub-vaults
-            uint64 newNonce = contracts.keeper.rewardsNonce() + 1;
-            _setKeeperRewardsNonce(newNonce);
-            for (uint256 i = 0; i < preUpgradeState.subVaults.length; i++) {
-                _setVaultRewardsNonce(preUpgradeState.subVaults[i], newNonce);
-            }
-
-            // State update should succeed
-            vault.updateState(_getEmptyHarvestParams());
-
-            // Verify rewards nonce was updated
-            assertEq(registry.subVaultsRewardsNonce(), newNonce, "Rewards nonce should be updated");
-        }
-    }
-
-    /// @notice Test upgrade of newly deployed Gnosis meta vault with no sub-vaults
-    function test_upgrade_newlyDeployedGnosisVault_noSubVaults() public {
-        // Create a new meta vault
-        address admin = makeAddr("Admin");
+        admin = makeAddr("Admin");
         _mintGnoToken(admin, 100 ether);
 
-        // Create a curator
-        address curator = address(new BalancedCurator());
+        curator = address(new BalancedCurator());
         vm.prank(CuratorsRegistry(_curatorsRegistry).owner());
         CuratorsRegistry(_curatorsRegistry).addCurator(curator);
 
@@ -1249,33 +816,58 @@ contract VaultSubVaultsUpgradeGnoTest is Test, GnoHelpers {
                 metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
             })
         );
+        metaVault = GnoMetaVault(payable(_createVault(VaultType.GnoMetaVault, admin, initParams, false)));
+        registry = ISubVaultsRegistry(metaVault.subVaultsRegistry());
+    }
 
-        // Create a new vault (this will be at current version, not previous)
-        address vaultAddress = _createVault(VaultType.GnoMetaVault, admin, initParams, false);
-        GnoMetaVault vault = GnoMetaVault(payable(vaultAddress));
+    function _getProxyImplementation(address proxy) internal view returns (address) {
+        return address(uint160(uint256(vm.load(proxy, ERC1967Utils.IMPLEMENTATION_SLOT))));
+    }
 
-        // Verify vault is at current version (should be 4, already upgraded in factory)
-        assertEq(vault.version(), 4, "New vault should be version 4");
+    /// @notice Test the v4 -> v5 upgrade swaps the registry proxy implementation and preserves its state
+    function test_upgradeFromV4_upgradesRegistryInPlace() public {
+        assertEq(metaVault.version(), 5, "New vault should be version 5");
 
-        // Get registry reference
-        ISubVaultsRegistry registry = ISubVaultsRegistry(vault.subVaultsRegistry());
+        // capture pre-upgrade registry state
+        address preCurator = registry.subVaultsCurator();
+        uint128 preNonce = registry.subVaultsRewardsNonce();
 
-        // Verify SubVaultsRegistry was created during initialization
-        assertTrue(address(registry) != address(0), "SubVaultsRegistry should be created");
+        // point the registry proxy to an outdated implementation
+        address outdatedImpl = address(
+            new SubVaultsRegistry(
+                _curatorsRegistry,
+                address(contracts.vaultsRegistry),
+                address(contracts.keeper),
+                address(contracts.osTokenVaultController),
+                address(contracts.osTokenConfig)
+            )
+        );
+        vm.store(address(registry), ERC1967Utils.IMPLEMENTATION_SLOT, bytes32(uint256(uint160(outdatedImpl))));
 
-        // Verify curator was set correctly
-        assertEq(registry.subVaultsCurator(), curator, "Curator should be set");
+        // roll back the vault initializer version and run the upgrade initializer
+        vm.store(address(metaVault), _initializableSlot, bytes32(uint256(4)));
+        metaVault.initialize("");
 
-        // Verify empty sub-vaults list
-        address[] memory subVaults = registry.getSubVaults();
-        assertEq(subVaults.length, 0, "Should have no sub-vaults");
+        // registry proxy must point to the canonical factory implementation again
+        assertEq(
+            _getProxyImplementation(address(registry)),
+            ISubVaultsRegistryFactory(_subVaultsRegistryFactory).implementation(),
+            "Registry should be upgraded to the factory implementation"
+        );
 
-        // Verify vault is functional
-        vm.startPrank(admin);
-        IERC20(address(contracts.gnoToken)).approve(vaultAddress, 1 ether);
-        uint256 shares = vault.deposit(1 ether, admin, address(0));
+        // registry address and state must be preserved
+        assertEq(metaVault.subVaultsRegistry(), address(registry), "Registry address should not change");
+        assertEq(registry.metaVault(), address(metaVault), "Registry metaVault should be preserved");
+        assertEq(registry.subVaultsCurator(), preCurator, "Curator should be preserved");
+        assertEq(registry.subVaultsRewardsNonce(), preNonce, "Rewards nonce should be preserved");
+
+        // vault remains functional: deposits work
+        address depositor = makeAddr("Depositor");
+        _mintGnoToken(depositor, 10 ether);
+        vm.startPrank(depositor);
+        IERC20(address(contracts.gnoToken)).approve(address(metaVault), 1 ether);
+        uint256 shares = metaVault.deposit(1 ether, depositor, address(0));
         vm.stopPrank();
-
-        assertGt(shares, 0, "Deposit should succeed");
+        assertGt(shares, 0, "Deposit should return shares");
     }
 }

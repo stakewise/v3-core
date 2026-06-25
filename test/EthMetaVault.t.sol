@@ -21,22 +21,9 @@ import {EthHelpers} from "./helpers/EthHelpers.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
 
-/// @dev Legacy interface for V5 meta vault that had sub-vault functions directly on it
-interface ILegacyMetaVaultV5 {
-    struct SubVaultState {
-        uint128 stakedShares;
-        uint128 queuedShares;
-    }
-
-    function subVaultsCurator() external view returns (address);
-    function subVaultsRewardsNonce() external view returns (uint128);
-    function getSubVaults() external view returns (address[] memory);
-    function subVaultsStates(address vault) external view returns (SubVaultState memory);
-}
-
 contract EthMetaVaultTest is Test, EthHelpers {
     bytes32 private constant exitQueueEnteredTopic = keccak256("ExitQueueEntered(address,address,uint256,uint256)");
-    address private constant FORK_META_VAULT = 0x34284C27A2304132aF751b0dEc5bBa2CF98eD039;
+    address private constant FORK_META_VAULT = 0x5543be81786d11EAF656b742BaD92065f329Ada7;
 
     struct ExitRequest {
         address vault;
@@ -131,10 +118,10 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
     function _capturePreUpgradeState() internal {
         EthMetaVault vault = EthMetaVault(payable(FORK_META_VAULT));
-        require(vault.version() == 5, "Fork vault is not version 5");
+        require(vault.version() == 6, "Fork vault is not version 6");
 
-        // Use legacy interface for V5 vault functions that are now on the registry
-        ILegacyMetaVaultV5 legacyVault = ILegacyMetaVaultV5(FORK_META_VAULT);
+        // V6 vault already stores sub-vaults state in the SubVaultsRegistry
+        ISubVaultsRegistry vaultRegistry = _getRegistry(FORK_META_VAULT);
 
         preUpgradeState.admin = vault.admin();
         preUpgradeState.feeRecipient = vault.feeRecipient();
@@ -142,18 +129,15 @@ contract EthMetaVaultTest is Test, EthHelpers {
         preUpgradeState.totalShares = vault.totalShares();
         preUpgradeState.totalAssets = vault.totalAssets();
         preUpgradeState.capacity = vault.capacity();
-        preUpgradeState.curator = legacyVault.subVaultsCurator();
-        preUpgradeState.rewardsNonce = legacyVault.subVaultsRewardsNonce();
+        preUpgradeState.curator = vaultRegistry.subVaultsCurator();
+        preUpgradeState.rewardsNonce = vaultRegistry.subVaultsRewardsNonce();
         (preUpgradeState.queuedShares, preUpgradeState.unclaimedAssets,,, preUpgradeState.totalTickets) =
             vault.getExitQueueData();
 
-        address[] memory vaultSubVaults = legacyVault.getSubVaults();
+        address[] memory vaultSubVaults = vaultRegistry.getSubVaults();
         for (uint256 i = 0; i < vaultSubVaults.length; i++) {
             preUpgradeSubVaults.push(vaultSubVaults[i]);
-            ILegacyMetaVaultV5.SubVaultState memory legacyState = legacyVault.subVaultsStates(vaultSubVaults[i]);
-            preUpgradeSubVaultStates[vaultSubVaults[i]] = ISubVaultsRegistry.SubVaultState({
-                stakedShares: legacyState.stakedShares, queuedShares: legacyState.queuedShares
-            });
+            preUpgradeSubVaultStates[vaultSubVaults[i]] = vaultRegistry.subVaultsStates(vaultSubVaults[i]);
         }
     }
 
@@ -184,7 +168,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
     function test_deployment() public view {
         // Verify the vault was deployed correctly
         assertEq(metaVault.vaultId(), keccak256("EthMetaVault"), "Incorrect vault ID");
-        assertEq(metaVault.version(), 6, "Incorrect version");
+        assertEq(metaVault.version(), 7, "Incorrect version");
         assertEq(metaVault.admin(), admin, "Incorrect admin");
         assertEq(registry.subVaultsCurator(), _balancedCurator, "Incorrect curator");
         assertEq(metaVault.capacity(), type(uint256).max, "Incorrect capacity");
@@ -625,7 +609,7 @@ contract EthMetaVaultTest is Test, EthHelpers {
         EthMetaVault vault = EthMetaVault(payable(FORK_META_VAULT));
 
         // Verify version was upgraded
-        assertEq(vault.version(), 6, "Vault should be version 6 after upgrade");
+        assertEq(vault.version(), 7, "Vault should be version 7 after upgrade");
         assertEq(vault.vaultId(), keccak256("EthMetaVault"), "Vault ID should be preserved");
 
         // Note: admin and feeRecipient are intentionally changed by _getOrCreateVault for testing

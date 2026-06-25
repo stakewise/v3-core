@@ -12,12 +12,17 @@ import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {IVaultOsToken} from "../contracts/interfaces/IVaultOsToken.sol";
 import {IVaultWhitelist} from "../contracts/interfaces/IVaultWhitelist.sol";
 import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
+import {IERC1967} from "@openzeppelin/contracts/interfaces/IERC1967.sol";
+import {ISubVaultsRegistryFactory} from "../contracts/interfaces/ISubVaultsRegistryFactory.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthPrivMetaVault} from "../contracts/vaults/ethereum/EthPrivMetaVault.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 
 contract EthPrivMetaVaultTest is Test, EthHelpers {
+    /// @dev keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
+    bytes32 private constant _initializableSlot = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
+
     ForkContracts public contracts;
     EthPrivMetaVault public metaVault;
     ISubVaultsRegistry public registry;
@@ -108,12 +113,14 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
 
     function test_deployment() public view {
         assertEq(metaVault.vaultId(), keccak256("EthPrivMetaVault"), "Incorrect vault ID");
-        assertEq(metaVault.version(), 6, "Incorrect version");
+        assertEq(metaVault.version(), 7, "Incorrect version");
         assertEq(metaVault.admin(), admin, "Incorrect admin");
-        assertEq(metaVault.whitelister(), admin, "Whitelister should be admin initially");
         assertEq(registry.subVaultsCurator(), _balancedCurator, "Incorrect curator");
         assertEq(metaVault.capacity(), type(uint256).max, "Incorrect capacity");
-        assertEq(metaVault.feePercent(), 0, "Incorrect fee percent");
+        if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
+            assertEq(metaVault.whitelister(), admin, "Whitelister should be admin initially");
+            assertEq(metaVault.feePercent(), 0, "Incorrect fee percent");
+        }
         assertEq(metaVault.feeRecipient(), admin, "Incorrect fee recipient");
 
         // Verify sub vaults
@@ -126,6 +133,28 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
     function test_cannotInitializeTwice() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         metaVault.initialize{value: 0}("0x");
+    }
+
+    function test_upgradeFromV6_upgradesSubVaultsRegistry() public {
+        address preCurator = registry.subVaultsCurator();
+        uint256 preSubVaultsCount = registry.getSubVaults().length;
+
+        // roll back the vault reinitializer version to simulate a not-yet-upgraded v6 vault
+        vm.store(address(metaVault), _initializableSlot, bytes32(uint256(6)));
+
+        // running the v7 initializer must upgrade the SubVaultsRegistry proxy in place
+        vm.expectEmit(address(registry));
+        emit IERC1967.Upgraded(ISubVaultsRegistryFactory(_subVaultsRegistryFactory).implementation());
+        metaVault.initialize("");
+
+        // registry reference and state are preserved
+        assertEq(registry.metaVault(), address(metaVault), "Registry metaVault should be preserved");
+        assertEq(registry.subVaultsCurator(), preCurator, "Curator should be preserved");
+        assertEq(registry.getSubVaults().length, preSubVaultsCount, "Sub-vaults should be preserved");
+
+        // the upgrade cannot be executed twice
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
+        metaVault.initialize("");
     }
 
     // ============ Whitelist Deposit Tests ============

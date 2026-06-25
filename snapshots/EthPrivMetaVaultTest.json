@@ -4,7 +4,7 @@
   "EthPrivMetaVaultTest_test_canDepositUsingReceiveAsWhitelistedUser": "93646",
   "EthPrivMetaVaultTest_test_canMintOsTokenAsWhitelistedUser": "172826",
   "EthPrivMetaVaultTest_test_canUpdateStateAndDepositAsWhitelistedUser": "126783",
-  "EthPrivMetaVaultTest_test_depositToSubVaultsWorksWithWhitelistedUser": "331419",
+  "EthPrivMetaVaultTest_test_depositToSubVaultsWorksWithWhitelistedUser": "341377",
   "EthPrivMetaVaultTest_test_enterExitQueueWorksForWhitelistedUserAfterRemoval": "94916",
   "EthPrivMetaVaultTest_test_setWhitelister": "36608",
   "EthPrivMetaVaultTest_test_updateWhitelist": "54543"
