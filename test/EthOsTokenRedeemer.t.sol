@@ -1134,7 +1134,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
 
         // Call swap - should revert
         vm.expectRevert(Errors.InvalidShares.selector);
-        uint256 osTokenShares = osTokenRedeemer.swapAssetsToOsTokenShares{value: tinyAmount}(user1);
+        osTokenRedeemer.swapAssetsToOsTokenShares{value: tinyAmount}(user1);
     }
 
     function test_swapAssetsToOsTokenShares_success() public {
