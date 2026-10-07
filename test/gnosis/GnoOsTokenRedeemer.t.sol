@@ -216,7 +216,7 @@ contract GnoOsTokenRedeemerTest is Test, GnoHelpers {
         uint256 expectedRedeemedShares = userOsTokenShares / 2;
         uint256 expectedRedeemedAssets = contracts.osTokenVaultController.convertToAssets(expectedRedeemedShares);
         vm.expectEmit(true, true, true, true);
-        emit IOsTokenRedeemer.OsTokenPositionsRedeemed(expectedRedeemedShares, expectedRedeemedAssets);
+        emit IOsTokenRedeemer.OsTokenPositionsRedeemed(expectedRedeemedShares, expectedRedeemedAssets, 0);
 
         // Redeem position
         vm.prank(positionsManager);
@@ -279,5 +279,45 @@ contract GnoOsTokenRedeemerTest is Test, GnoHelpers {
         assertEq(
             userBalanceAfter - userBalanceBefore, exitedAssets, "User should receive the partially processed assets"
         );
+    }
+
+    function test_claimFees_success() public {
+        uint256 feePercent = 7;
+        vm.prank(owner);
+        osTokenRedeemer.setRedemptionFeePercent(feePercent);
+
+        // Create position to redeem
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: address(vault), owner: user, leafShares: userOsTokenShares, sharesToRedeem: userOsTokenShares
+        });
+        bytes32 leaf = keccak256(
+            bytes.concat(keccak256(abi.encode(osTokenRedeemer.nonce(), address(vault), userOsTokenShares, user)))
+        );
+        vm.prank(owner);
+        osTokenRedeemer.setRedeemablePositions(
+            IOsTokenRedeemer.RedeemablePositions({merkleRoot: leaf, ipfsHash: "QmTest123"})
+        );
+
+        uint256 grossAssets = contracts.osTokenVaultController.convertToAssets(userOsTokenShares);
+        uint256 expectedFee = grossAssets * feePercent / 10_000;
+
+        vm.prank(positionsManager);
+        osTokenRedeemer.redeemOsTokenPositions(positions, new bytes32[](0), new bool[](0));
+        assertEq(osTokenRedeemer.redeemedAssets(), grossAssets - expectedFee, "Redeemed assets should be net of fee");
+        assertEq(osTokenRedeemer.accumulatedFees(), expectedFee, "Fee should be accumulated");
+
+        // claim fees to the treasury
+        address treasury = makeAddr("Treasury");
+        vm.expectEmit(true, true, true, true);
+        emit IOsTokenRedeemer.FeesClaimed(treasury, expectedFee);
+
+        vm.prank(owner);
+        _startSnapshotGas("GnoOsTokenRedeemerTest_test_claimFees_success");
+        osTokenRedeemer.claimFees(treasury);
+        _stopSnapshotGas();
+
+        assertEq(contracts.gnoToken.balanceOf(treasury), expectedFee, "Treasury should receive fees");
+        assertEq(osTokenRedeemer.accumulatedFees(), 0, "Accumulated fees should be reset");
     }
 }

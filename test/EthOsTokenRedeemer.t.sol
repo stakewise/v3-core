@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
-import {Test, stdStorage, StdStorage} from "forge-std/Test.sol";
+import {Test, Vm, stdStorage, StdStorage} from "forge-std/Test.sol";
 import {IERC20Permit} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
 import {IOsTokenRedeemer} from "../contracts/interfaces/IOsTokenRedeemer.sol";
 import {EthVault, IEthVault} from "../contracts/vaults/ethereum/EthVault.sol";
@@ -247,6 +248,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
 
         uint256 assets = contracts.osTokenVaultController.convertToAssets(shares);
+        assets -= Math.mulDiv(assets, osTokenRedeemer.redemptionFeePercent(), 10_000);
 
         // Verify shares were redeemed
         assertEq(osTokenRedeemer.redeemedShares(), redeemedSharesBefore + shares, "Shares should be redeemed");
@@ -1011,7 +1013,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         uint256 expectedRedeemedShares = osTokenShares / 2;
         uint256 expectedRedeemedAssets = contracts.osTokenVaultController.convertToAssets(expectedRedeemedShares);
         vm.expectEmit(true, true, true, true);
-        emit IOsTokenRedeemer.OsTokenPositionsRedeemed(expectedRedeemedShares, expectedRedeemedAssets);
+        emit IOsTokenRedeemer.OsTokenPositionsRedeemed(expectedRedeemedShares, expectedRedeemedAssets, 0);
 
         // Redeem position
         vm.prank(positionsManager);
@@ -1415,6 +1417,172 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         assertEq(
             userBalanceAfter - userBalanceBefore, exitedAssets, "User should receive the partially processed assets"
         );
+    }
+
+    // ========== Redemption Fee Tests ==========
+
+    function test_setRedemptionFeePercent_notOwner() public {
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
+        osTokenRedeemer.setRedemptionFeePercent(7);
+    }
+
+    function test_setRedemptionFeePercent_aboveMax() public {
+        uint256 maxFee = osTokenRedeemer.maxRedemptionFeePercent();
+        assertEq(maxFee, 100, "Max fee should be 100 bps");
+
+        vm.prank(owner);
+        vm.expectRevert(Errors.InvalidFeePercent.selector);
+        osTokenRedeemer.setRedemptionFeePercent(maxFee + 1);
+    }
+
+    function test_setRedemptionFeePercent_sameValue() public {
+        vm.prank(owner);
+        vm.expectRevert(Errors.ValueNotChanged.selector);
+        osTokenRedeemer.setRedemptionFeePercent(0);
+    }
+
+    function test_setRedemptionFeePercent_success() public {
+        uint256 maxFee = osTokenRedeemer.maxRedemptionFeePercent();
+
+        vm.expectEmit(true, true, true, true);
+        emit IOsTokenRedeemer.FeeUpdated(maxFee);
+
+        vm.prank(owner);
+        _startSnapshotGas("EthOsTokenRedeemerTest_test_setRedemptionFeePercent");
+        osTokenRedeemer.setRedemptionFeePercent(maxFee);
+        _stopSnapshotGas();
+
+        assertEq(osTokenRedeemer.redemptionFeePercent(), maxFee);
+    }
+
+    function test_redeemOsTokenPositions_withFee() public {
+        uint256 feePercent = 7;
+        vm.prank(owner);
+        osTokenRedeemer.setRedemptionFeePercent(feePercent);
+
+        uint256 shares = 10 ether;
+        _enterExitQueue(user2, shares);
+
+        uint256 grossAssets = contracts.osTokenVaultController.convertToAssets(shares);
+        uint256 expectedFee = Math.mulDiv(grossAssets, feePercent, 10_000);
+        assertGt(expectedFee, 0, "Fee should be non-zero");
+        uint256 balanceBefore = address(osTokenRedeemer).balance;
+
+        vm.recordLogs();
+        _redeemQueuedShares(shares);
+
+        // verify redeemed event
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+        bool found;
+        for (uint256 i = 0; i < logs.length; i++) {
+            if (
+                logs[i].emitter == address(osTokenRedeemer)
+                    && logs[i].topics[0] == IOsTokenRedeemer.OsTokenPositionsRedeemed.selector
+            ) {
+                (uint256 eventShares, uint256 eventAssets, uint256 eventFee) =
+                    abi.decode(logs[i].data, (uint256, uint256, uint256));
+                assertEq(eventShares, shares, "Invalid event shares");
+                assertEq(eventAssets, grossAssets - expectedFee, "Invalid event assets");
+                assertEq(eventFee, expectedFee, "Invalid event fee");
+                found = true;
+            }
+        }
+        assertTrue(found, "OsTokenPositionsRedeemed event not emitted");
+
+        // vault pays the full amount, fee is kept aside
+        assertEq(address(osTokenRedeemer).balance - balanceBefore, grossAssets, "Vault should pay the full amount");
+        assertEq(osTokenRedeemer.redeemedAssets(), grossAssets - expectedFee, "Redeemed assets should be net of fee");
+        assertEq(osTokenRedeemer.accumulatedFees(), expectedFee, "Fee should be accumulated");
+
+        // fee is not part of the exit queue assets
+        (, uint256 exitQueueAssets,) = osTokenRedeemer.getExitQueueData();
+        assertEq(exitQueueAssets, grossAssets - expectedFee, "Exit queue assets should exclude fee");
+    }
+
+    function test_redeemOsTokenPositions_feeUpdatedForQueuedShares() public {
+        uint256 shares = 10 ether;
+        _enterExitQueue(user2, shares);
+
+        // fee set after entering the queue applies at redeem time
+        uint256 feePercent = 50;
+        vm.prank(owner);
+        osTokenRedeemer.setRedemptionFeePercent(feePercent);
+
+        uint256 grossAssets = contracts.osTokenVaultController.convertToAssets(shares);
+        _redeemQueuedShares(shares);
+
+        assertEq(osTokenRedeemer.accumulatedFees(), Math.mulDiv(grossAssets, feePercent, 10_000));
+    }
+
+    function test_swapAssetsToOsTokenShares_noFee() public {
+        uint256 maxFee = osTokenRedeemer.maxRedemptionFeePercent();
+        vm.prank(owner);
+        osTokenRedeemer.setRedemptionFeePercent(maxFee);
+
+        uint256 shares = 10 ether;
+        _enterExitQueue(user2, shares);
+
+        uint256 assets = contracts.osTokenVaultController.convertToAssets(shares / 2);
+        vm.prank(user3);
+        osTokenRedeemer.swapAssetsToOsTokenShares{value: assets}(user3);
+
+        assertEq(osTokenRedeemer.swappedAssets(), assets, "Swapped assets should not be charged");
+        assertEq(osTokenRedeemer.accumulatedFees(), 0, "No fee should be accumulated");
+    }
+
+    function test_claimFees_notOwner() public {
+        vm.prank(user1);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, user1));
+        osTokenRedeemer.claimFees(user1);
+    }
+
+    function test_claimFees_zeroAddress() public {
+        vm.prank(owner);
+        vm.expectRevert(Errors.ZeroAddress.selector);
+        osTokenRedeemer.claimFees(address(0));
+    }
+
+    function test_claimFees_noFees() public {
+        vm.prank(owner);
+        vm.expectRevert(Errors.InvalidAssets.selector);
+        osTokenRedeemer.claimFees(owner);
+    }
+
+    function test_claimFees_success() public {
+        uint256 feePercent = 7;
+        vm.prank(owner);
+        osTokenRedeemer.setRedemptionFeePercent(feePercent);
+
+        // enter queue, redeem, process and claim exited assets
+        uint256 shares = 10 ether;
+        uint256 positionTicket = _enterExitQueue(user2, shares);
+        uint256 grossAssets = contracts.osTokenVaultController.convertToAssets(shares);
+        uint256 expectedFee = Math.mulDiv(grossAssets, feePercent, 10_000);
+        _redeemQueuedShares(shares);
+
+        vm.warp(vm.getBlockTimestamp() + EXIT_QUEUE_UPDATE_DELAY + 1);
+        osTokenRedeemer.processExitQueue();
+
+        uint256 exitQueueIndex = uint256(osTokenRedeemer.getExitQueueIndex(positionTicket));
+        uint256 userBalanceBefore = user2.balance;
+        vm.prank(user2);
+        osTokenRedeemer.claimExitedAssets(positionTicket, exitQueueIndex);
+        assertEq(user2.balance - userBalanceBefore, grossAssets - expectedFee, "User should receive net assets");
+
+        // claim fees to the treasury
+        address treasury = makeAddr("Treasury");
+        vm.expectEmit(true, true, true, true);
+        emit IOsTokenRedeemer.FeesClaimed(treasury, expectedFee);
+
+        vm.prank(owner);
+        _startSnapshotGas("EthOsTokenRedeemerTest_test_claimFees");
+        osTokenRedeemer.claimFees(treasury);
+        _stopSnapshotGas();
+
+        assertEq(treasury.balance, expectedFee, "Treasury should receive fees");
+        assertEq(osTokenRedeemer.accumulatedFees(), 0, "Accumulated fees should be reset");
+        assertEq(osTokenRedeemer.unclaimedAssets(), 0, "No unclaimed assets should be left");
     }
 
     // ========== Concurrent Redemption Tests ==========

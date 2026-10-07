@@ -27,6 +27,11 @@ import {ExitQueue} from "../libraries/ExitQueue.sol";
  * @notice This contract is used to redeem OsTokens for the underlying asset.
  */
 abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
+    uint256 private constant _maxPercent = 10_000; // @dev 100.00 %
+
+    /// @inheritdoc IOsTokenRedeemer
+    uint256 public constant override maxRedemptionFeePercent = 100; // @dev 1.00 %
+
     IVaultsRegistry private immutable _vaultsRegistry;
     IERC20 private immutable _osToken;
     IOsTokenVaultController private immutable _osTokenVaultController;
@@ -66,6 +71,12 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
 
     /// @inheritdoc IOsTokenRedeemer
     uint256 public override exitQueueTimestamp;
+
+    /// @inheritdoc IOsTokenRedeemer
+    uint256 public override redemptionFeePercent;
+
+    /// @inheritdoc IOsTokenRedeemer
+    uint256 public override accumulatedFees;
 
     RedeemablePositions private _redeemablePositions;
     ExitQueue.History private _exitQueue;
@@ -162,6 +173,34 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         }
         positionsManager = positionsManager_;
         emit PositionsManagerUpdated(positionsManager_);
+    }
+
+    /// @inheritdoc IOsTokenRedeemer
+    function setRedemptionFeePercent(uint256 redemptionFeePercent_) external override onlyOwner {
+        if (redemptionFeePercent_ > maxRedemptionFeePercent) {
+            revert Errors.InvalidFeePercent();
+        }
+        if (redemptionFeePercent_ == redemptionFeePercent) {
+            revert Errors.ValueNotChanged();
+        }
+        redemptionFeePercent = redemptionFeePercent_;
+        emit FeeUpdated(redemptionFeePercent_);
+    }
+
+    /// @inheritdoc IOsTokenRedeemer
+    function claimFees(address receiver) external override onlyOwner {
+        if (receiver == address(0)) revert Errors.ZeroAddress();
+
+        // SLOAD to memory
+        uint256 fees = accumulatedFees;
+        if (fees == 0) revert Errors.InvalidAssets();
+
+        // update state
+        accumulatedFees = 0;
+
+        // transfer fees to the receiver
+        _transferAssets(receiver, fees);
+        emit FeesClaimed(receiver, fees);
     }
 
     /// @inheritdoc IOsTokenRedeemer
@@ -382,13 +421,23 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         uint256 processedAssets = _getAssets(address(this)) - availableAssetsBefore;
         uint256 processedShares = queuedShares - _queuedShares;
 
+        // deduct redemption fee
+        uint256 fee = Math.mulDiv(processedAssets, redemptionFeePercent, _maxPercent);
+        unchecked {
+            // fee <= processedAssets as redemptionFeePercent <= _maxPercent
+            processedAssets -= fee;
+        }
+
         // update state
         redeemedShares += SafeCast.toUint128(processedShares);
         redeemedAssets += SafeCast.toUint128(processedAssets);
         queuedShares = SafeCast.toUint128(_queuedShares);
+        if (fee > 0) {
+            accumulatedFees += fee;
+        }
 
         // emit event
-        emit OsTokenPositionsRedeemed(processedShares, processedAssets);
+        emit OsTokenPositionsRedeemed(processedShares, processedAssets, fee);
     }
 
     /// @inheritdoc IOsTokenRedeemer

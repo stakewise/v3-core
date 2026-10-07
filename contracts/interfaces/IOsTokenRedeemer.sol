@@ -87,9 +87,41 @@ interface IOsTokenRedeemer is IMulticall {
     /**
      * @notice Event emitted when OsToken positions are redeemed
      * @param shares The number of shares redeemed
-     * @param assets The number of assets redeemed
+     * @param assets The number of assets redeemed, net of the redemption fee
+     * @param fee The redemption fee charged
      */
-    event OsTokenPositionsRedeemed(uint256 shares, uint256 assets);
+    event OsTokenPositionsRedeemed(uint256 shares, uint256 assets, uint256 fee);
+
+    /**
+     * @notice Event emitted when the redemption fee is updated
+     * @param redemptionFeePercent The new redemption fee in basis points
+     */
+    event FeeUpdated(uint256 redemptionFeePercent);
+
+    /**
+     * @notice Event emitted when the accumulated fees are claimed
+     * @param receiver The address that received the fees
+     * @param assets The amount of claimed fees
+     */
+    event FeesClaimed(address indexed receiver, uint256 assets);
+
+    /**
+     * @notice The maximum redemption fee in basis points
+     * @return The maximum redemption fee
+     */
+    function maxRedemptionFeePercent() external view returns (uint256);
+
+    /**
+     * @notice The redemption fee in basis points charged on redeemed OsToken positions
+     * @return The redemption fee
+     */
+    function redemptionFeePercent() external view returns (uint256);
+
+    /**
+     * @notice The amount of accumulated redemption fees that can be claimed by the owner
+     * @return The accumulated fees
+     */
+    function accumulatedFees() external view returns (uint256);
 
     /**
      * @notice The delay in seconds for the exit queue updates
@@ -228,6 +260,18 @@ interface IOsTokenRedeemer is IMulticall {
      * @param positionsManager_ The address of the new positions manager
      */
     function setPositionsManager(address positionsManager_) external;
+
+    /**
+     * @notice Update the redemption fee. Can only be called by the owner.
+     * @param redemptionFeePercent_ The new redemption fee in basis points
+     */
+    function setRedemptionFeePercent(uint256 redemptionFeePercent_) external;
+
+    /**
+     * @notice Claim the accumulated redemption fees. Can only be called by the owner.
+     * @param receiver The address that will receive the fees
+     */
+    function claimFees(address receiver) external;
 
     /**
      * @notice Set new redeemable positions. Can only be called by the owner.
