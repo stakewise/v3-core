@@ -5,7 +5,6 @@ pragma solidity ^0.8.22;
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {Script} from "forge-std/Script.sol";
 import {stdJson} from "forge-std/StdJson.sol";
-import {VmSafe} from "forge-std/Vm.sol";
 import {console} from "forge-std/console.sol";
 import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
 import {IOsTokenRedeemer} from "../contracts/interfaces/IOsTokenRedeemer.sol";
@@ -65,12 +64,6 @@ contract DeployOsTokenRedeemer is Script {
         }
         vm.stopBroadcast();
         console.log("OsTokenRedeemer deployed at: ", osTokenRedeemer);
-
-        // write deployment files only on broadcast, dry run addresses are not deployed
-        if (!vm.isContext(VmSafe.ForgeContext.ScriptBroadcast)) {
-            console.log("Dry run, deployment files are not updated");
-            return;
-        }
 
         // update only the OsTokenRedeemer address in the deployment file
         vm.writeJson(vm.toString(osTokenRedeemer), deploymentFilePath, ".OsTokenRedeemer");
