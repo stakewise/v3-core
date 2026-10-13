@@ -29,9 +29,6 @@ import {ExitQueue} from "../libraries/ExitQueue.sol";
 abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     uint256 private constant _maxPercent = 10_000; // @dev 100.00 %
 
-    /// @inheritdoc IOsTokenRedeemer
-    uint256 public constant override maxRedemptionFeePercent = 100; // @dev 1.00 %
-
     IVaultsRegistry private immutable _vaultsRegistry;
     IERC20 private immutable _osToken;
     IOsTokenVaultController private immutable _osTokenVaultController;
@@ -177,7 +174,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
 
     /// @inheritdoc IOsTokenRedeemer
     function setRedemptionFeePercent(uint256 redemptionFeePercent_) external override onlyOwner {
-        if (redemptionFeePercent_ > maxRedemptionFeePercent) {
+        if (redemptionFeePercent_ > _maxPercent) {
             revert Errors.InvalidFeePercent();
         }
         if (redemptionFeePercent_ == redemptionFeePercent) {

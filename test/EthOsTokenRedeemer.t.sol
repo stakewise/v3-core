@@ -1427,8 +1427,7 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     }
 
     function test_setRedemptionFeePercent_aboveMax() public {
-        uint256 maxFee = osTokenRedeemer.maxRedemptionFeePercent();
-        assertEq(maxFee, 100, "Max fee should be 100 bps");
+        uint256 maxFee = 10_000;
 
         vm.prank(owner);
         vm.expectRevert(Errors.InvalidFeePercent.selector);
@@ -1442,17 +1441,17 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     }
 
     function test_setRedemptionFeePercent_success() public {
-        uint256 maxFee = osTokenRedeemer.maxRedemptionFeePercent();
+        uint256 feePercent = 100;
 
         vm.expectEmit(true, true, true, true);
-        emit IOsTokenRedeemer.FeeUpdated(maxFee);
+        emit IOsTokenRedeemer.FeeUpdated(feePercent);
 
         vm.prank(owner);
         _startSnapshotGas("EthOsTokenRedeemerTest_test_setRedemptionFeePercent");
-        osTokenRedeemer.setRedemptionFeePercent(maxFee);
+        osTokenRedeemer.setRedemptionFeePercent(feePercent);
         _stopSnapshotGas();
 
-        assertEq(osTokenRedeemer.redemptionFeePercent(), maxFee);
+        assertEq(osTokenRedeemer.redemptionFeePercent(), feePercent);
     }
 
     function test_enterExitQueue_withFee() public {
@@ -1575,9 +1574,9 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
     }
 
     function test_swapAssetsToOsTokenShares_cannotSwapFees() public {
-        uint256 maxFee = osTokenRedeemer.maxRedemptionFeePercent();
+        uint256 feePercent = 100;
         vm.prank(owner);
-        osTokenRedeemer.setRedemptionFeePercent(maxFee);
+        osTokenRedeemer.setRedemptionFeePercent(feePercent);
 
         uint256 shares = 10 ether;
         _enterExitQueue(user2, shares);
