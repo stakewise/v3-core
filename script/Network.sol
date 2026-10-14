@@ -2,11 +2,9 @@
 
 pragma solidity ^0.8.22;
 
-import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 import {Script} from "forge-std/Script.sol";
 import {stdJson} from "forge-std/StdJson.sol";
-import {IVaultVersion} from "../contracts/interfaces/IVaultVersion.sol";
-import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
+import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
 
 /**
  * @title Network
@@ -61,11 +59,7 @@ abstract contract Network is Script {
         address balancedCurator;
         address consolidationsChecker;
         address rewardSplitterFactory;
-    }
-
-    struct Factory {
-        string name;
-        address factory;
+        address subVaultsRegistryFactory;
     }
 
     Deployment private _deployment;
@@ -100,11 +94,6 @@ abstract contract Network is Script {
         return string.concat("./deployments/", networkName, "-governor-txs.json");
     }
 
-    function getUpgradesFilePath() internal view returns (string memory) {
-        string memory networkName = getNetworkName();
-        return string.concat("./deployments/", networkName, "-vault-upgrades.json");
-    }
-
     function getDeploymentData() internal returns (Deployment memory) {
         Deployment memory deployment = _deployment;
         if (deployment.keeper != address(0)) {
@@ -121,10 +110,10 @@ abstract contract Network is Script {
         deployment.erc20VaultFactory = deploymentData.readAddress(".Erc20VaultFactory");
         deployment.privErc20VaultFactory = deploymentData.readAddress(".PrivErc20VaultFactory");
         deployment.blocklistErc20VaultFactory = deploymentData.readAddress(".BlocklistErc20VaultFactory");
-        deployment.metaVaultFactory = deploymentData.readAddress(".MetaVaultFactory");
         deployment.validatorsChecker = deploymentData.readAddress(".ValidatorsChecker");
         deployment.osTokenRedeemer = deploymentData.readAddress(".OsTokenRedeemer");
         if (!isGnosisNetwork()) {
+            deployment.metaVaultFactory = deploymentData.readAddress(".MetaVaultFactory");
             deployment.privMetaVaultFactory = deploymentData.readAddress(".PrivMetaVaultFactory");
             deployment.erc20MetaVaultFactory = deploymentData.readAddress(".Erc20MetaVaultFactory");
             deployment.privErc20MetaVaultFactory = deploymentData.readAddress(".PrivErc20MetaVaultFactory");
@@ -146,57 +135,25 @@ abstract contract Network is Script {
         deployment.balancedCurator = deploymentData.readAddress(".BalancedCurator");
         deployment.consolidationsChecker = deploymentData.readAddress(".ConsolidationsChecker");
         deployment.rewardSplitterFactory = deploymentData.readAddress(".RewardSplitterFactory");
+        deployment.subVaultsRegistryFactory = deploymentData.readAddress(".SubVaultsRegistryFactory");
 
         _deployment = deployment;
         return deployment;
     }
 
-    function generateGovernorTxJson(address[] memory vaultImpls, Factory[] memory vaultFactories) internal {
+    function generateGovernorTxJson(address osTokenRedeemer) internal {
         if (_governorCalls.length > 0) {
             return;
         }
 
-        bool removePrevVaultFactories = vm.envBool("REMOVE_PREV_FACTORIES");
-
-        for (uint256 i = 0; i < vaultImpls.length; i++) {
-            _governorCalls.push(_serializeAddVaultImpl(vaultImpls[i]));
-        }
-
-        for (uint256 i = 0; i < vaultFactories.length; i++) {
-            _governorCalls.push(_serializeAddFactory(vaultFactories[i].factory));
-        }
-
-        Deployment memory deployment = getDeploymentData();
-        if (removePrevVaultFactories) {
-            _governorCalls.push(_serializeRemoveFactory(deployment.metaVaultFactory));
-            if (!isGnosisNetwork()) {
-                _governorCalls.push(_serializeRemoveFactory(deployment.privMetaVaultFactory));
-                _governorCalls.push(_serializeRemoveFactory(deployment.erc20MetaVaultFactory));
-                _governorCalls.push(_serializeRemoveFactory(deployment.privErc20MetaVaultFactory));
-            }
-        }
+        _governorCalls.push(_serializeSetRedeemer(osTokenRedeemer));
 
         string memory output = vm.serializeString("governorCalls", "transactions", _governorCalls);
         string memory filePath = getGovernorTxsFilePath();
         vm.writeJson(output, filePath);
     }
 
-    function generateUpgradesJson(address[] memory vaultImpls) internal {
-        string memory upgrades = "upgrades";
-
-        string memory output;
-        for (uint256 i = 0; i < vaultImpls.length; i++) {
-            address vaultImpl = vaultImpls[i];
-            bytes32 vaultId = IVaultVersion(vaultImpl).vaultId();
-            uint8 version = IVaultVersion(vaultImpl).version();
-
-            string memory object = vm.serializeAddress(Strings.toString(i), Strings.toString(version), vaultImpl);
-            output = vm.serializeString(upgrades, Strings.toHexString(uint256(vaultId)), object);
-        }
-        vm.writeJson(output, getUpgradesFilePath());
-    }
-
-    function generateAddressesJson(Factory[] memory newFactories, address subVaultsRegistryFactory) internal {
+    function generateAddressesJson(address osTokenRedeemer) internal {
         Deployment memory deployment = getDeploymentData();
 
         string memory json = "addresses";
@@ -226,76 +183,35 @@ abstract contract Network is Script {
         vm.serializeAddress(json, "PrivErc20VaultFactory", deployment.privErc20VaultFactory);
         vm.serializeAddress(json, "BlocklistErc20VaultFactory", deployment.blocklistErc20VaultFactory);
 
-        for (uint256 i = 0; i < newFactories.length; i++) {
-            Factory memory factory = newFactories[i];
-            vm.serializeAddress(json, factory.name, factory.factory);
-        }
-
         if (!isGnosisNetwork()) {
+            vm.serializeAddress(json, "MetaVaultFactory", deployment.metaVaultFactory);
+            vm.serializeAddress(json, "PrivMetaVaultFactory", deployment.privMetaVaultFactory);
+            vm.serializeAddress(json, "Erc20MetaVaultFactory", deployment.erc20MetaVaultFactory);
+            vm.serializeAddress(json, "PrivErc20MetaVaultFactory", deployment.privErc20MetaVaultFactory);
             vm.serializeAddress(json, "FoxVault", deployment.foxVault);
             vm.serializeAddress(json, "CommunityVault", deployment.communityVault);
             vm.serializeAddress(json, "NodesManager", deployment.nodesManager);
         }
 
-        vm.serializeAddress(json, "OsTokenRedeemer", deployment.osTokenRedeemer);
-        vm.serializeAddress(json, "SubVaultsRegistryFactory", subVaultsRegistryFactory);
+        vm.serializeAddress(json, "OsTokenRedeemer", osTokenRedeemer);
+        vm.serializeAddress(json, "SubVaultsRegistryFactory", deployment.subVaultsRegistryFactory);
 
         string memory output = vm.serializeAddress(json, "ValidatorsChecker", deployment.validatorsChecker);
         string memory path = string.concat("./deployments/", getNetworkName(), "-new.json");
         vm.writeJson(output, path);
     }
 
-    function _serializeAddVaultImpl(address vaultImpl) private returns (string memory) {
-        string memory object = "addVaultImpl";
+    function _serializeSetRedeemer(address osTokenRedeemer) private returns (string memory) {
+        string memory object = "setRedeemer";
         Deployment memory deployment = getDeploymentData();
-        vm.serializeAddress(object, "to", deployment.vaultsRegistry);
+        vm.serializeAddress(object, "to", deployment.osTokenConfig);
         vm.serializeString(object, "operation", "0");
-        vm.serializeString(object, "method", "addVaultImpl(address)");
+        vm.serializeString(object, "method", "setRedeemer(address)");
         vm.serializeString(object, "value", "0.0");
-        vm.serializeBytes(
-            object,
-            "data",
-            abi.encodeWithSelector(IVaultsRegistry(deployment.vaultsRegistry).addVaultImpl.selector, vaultImpl)
-        );
+        vm.serializeBytes(object, "data", abi.encodeCall(IOsTokenConfig.setRedeemer, (osTokenRedeemer)));
 
         address[] memory params = new address[](1);
-        params[0] = vaultImpl;
-        return vm.serializeAddress(object, "params", params);
-    }
-
-    function _serializeAddFactory(address factory) private returns (string memory) {
-        string memory object = "addFactory";
-        Deployment memory deployment = getDeploymentData();
-        vm.serializeAddress(object, "to", deployment.vaultsRegistry);
-        vm.serializeString(object, "operation", "0");
-        vm.serializeString(object, "method", "addFactory(address)");
-        vm.serializeString(object, "value", "0.0");
-        vm.serializeBytes(
-            object,
-            "data",
-            abi.encodeWithSelector(IVaultsRegistry(deployment.vaultsRegistry).addFactory.selector, factory)
-        );
-
-        address[] memory params = new address[](1);
-        params[0] = factory;
-        return vm.serializeAddress(object, "params", params);
-    }
-
-    function _serializeRemoveFactory(address factory) private returns (string memory) {
-        string memory object = "removeFactory";
-        Deployment memory deployment = getDeploymentData();
-        vm.serializeAddress(object, "to", deployment.vaultsRegistry);
-        vm.serializeString(object, "operation", "0");
-        vm.serializeString(object, "method", "removeFactory(address)");
-        vm.serializeString(object, "value", "0.0");
-        vm.serializeBytes(
-            object,
-            "data",
-            abi.encodeWithSelector(IVaultsRegistry(deployment.vaultsRegistry).removeFactory.selector, factory)
-        );
-
-        address[] memory params = new address[](1);
-        params[0] = factory;
+        params[0] = osTokenRedeemer;
         return vm.serializeAddress(object, "params", params);
     }
 }
