@@ -2,19 +2,16 @@
 
 pragma solidity ^0.8.22;
 
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
 import {console} from "forge-std/console.sol";
-import {IGnoMetaVault} from "../contracts/interfaces/IGnoMetaVault.sol";
-import {IVaultsRegistry} from "../contracts/interfaces/IVaultsRegistry.sol";
-import {SubVaultsRegistry} from "../contracts/vaults/SubVaultsRegistry.sol";
-import {SubVaultsRegistryFactory} from "../contracts/vaults/SubVaultsRegistryFactory.sol";
-import {GnoMetaVault} from "../contracts/vaults/gnosis/GnoMetaVault.sol";
+import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
+import {IOsTokenRedeemer} from "../contracts/interfaces/IOsTokenRedeemer.sol";
+import {GnoOsTokenRedeemer} from "../contracts/tokens/GnoOsTokenRedeemer.sol";
 import {Network} from "./Network.sol";
 
 contract UpgradeGnoNetwork is Network {
     address public gnoToken;
-    address public subVaultsRegistryFactory;
-
-    address[] public vaultImpls;
+    address public osTokenRedeemer;
 
     function run() external {
         gnoToken = vm.envAddress("GNO_TOKEN");
@@ -24,52 +21,28 @@ contract UpgradeGnoNetwork is Network {
 
         Deployment memory deployment = getDeploymentData();
 
+        // reuse the owner and exit queue update delay of the redeemer currently set in OsTokenConfig
+        address prevOsTokenRedeemer = IOsTokenConfig(deployment.osTokenConfig).redeemer();
+        address redeemerOwner = Ownable(prevOsTokenRedeemer).owner();
+        uint256 exitQueueUpdateDelay = IOsTokenRedeemer(prevOsTokenRedeemer).exitQueueUpdateDelay();
+
         vm.startBroadcast(privateKey);
 
-        // Deploy SubVaultsRegistryFactory with the new SubVaultsRegistry implementation
-        address subVaultsRegistryImpl = address(
-            new SubVaultsRegistry(
-                deployment.curatorsRegistry,
+        // Deploy OsTokenRedeemer
+        osTokenRedeemer = address(
+            new GnoOsTokenRedeemer(
+                gnoToken,
                 deployment.vaultsRegistry,
-                deployment.keeper,
+                deployment.osToken,
                 deployment.osTokenVaultController,
-                deployment.osTokenConfig
+                redeemerOwner,
+                exitQueueUpdateDelay
             )
         );
-        subVaultsRegistryFactory =
-            address(new SubVaultsRegistryFactory(subVaultsRegistryImpl, IVaultsRegistry(deployment.vaultsRegistry)));
 
-        _deployImplementations();
         vm.stopBroadcast();
 
-        // no new meta vault factory is deployed, the existing one gets removed
-        Factory[] memory vaultFactories = new Factory[](0);
-        generateGovernorTxJson(vaultImpls, vaultFactories);
-        generateUpgradesJson(vaultImpls);
-        generateAddressesJson(vaultFactories, subVaultsRegistryFactory);
-    }
-
-    function _deployImplementations() internal {
-        // constructors for implementations
-        IGnoMetaVault.GnoMetaVaultConstructorArgs memory metaVaultArgs = _getGnoMetaVaultConstructorArgs();
-
-        // deploy meta vaults
-        metaVaultArgs.exitingAssetsClaimDelay = PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY;
-        GnoMetaVault gnoMetaVault = new GnoMetaVault(gnoToken, metaVaultArgs);
-
-        vaultImpls.push(address(gnoMetaVault));
-    }
-
-    function _getGnoMetaVaultConstructorArgs() internal returns (IGnoMetaVault.GnoMetaVaultConstructorArgs memory) {
-        Deployment memory deployment = getDeploymentData();
-        return IGnoMetaVault.GnoMetaVaultConstructorArgs({
-            keeper: deployment.keeper,
-            vaultsRegistry: deployment.vaultsRegistry,
-            osTokenVaultController: deployment.osTokenVaultController,
-            osTokenConfig: deployment.osTokenConfig,
-            osTokenVaultEscrow: deployment.osTokenVaultEscrow,
-            subVaultsRegistryFactory: subVaultsRegistryFactory,
-            exitingAssetsClaimDelay: PUBLIC_VAULT_EXITED_ASSETS_CLAIM_DELAY
-        });
+        generateGovernorTxJson(osTokenRedeemer);
+        generateAddressesJson(osTokenRedeemer);
     }
 }
