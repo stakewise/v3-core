@@ -53,9 +53,12 @@ interface IOsTokenRedeemer is IMulticall {
      * @param owner The address that owns the shares
      * @param receiver The address that will receive withdrawn assets
      * @param positionTicket The exit queue ticket that was assigned to the position
-     * @param shares The number of shares that queued for the exit
+     * @param shares The number of shares that queued for the exit, net of the redemption fee
+     * @param fee The redemption fee charged in OsToken shares
      */
-    event ExitQueueEntered(address indexed owner, address indexed receiver, uint256 positionTicket, uint256 shares);
+    event ExitQueueEntered(
+        address indexed owner, address indexed receiver, uint256 positionTicket, uint256 shares, uint256 fee
+    );
 
     /**
      * @notice Event emitted on claim of the exited assets
@@ -90,6 +93,31 @@ interface IOsTokenRedeemer is IMulticall {
      * @param assets The number of assets redeemed
      */
     event OsTokenPositionsRedeemed(uint256 shares, uint256 assets);
+
+    /**
+     * @notice Event emitted when the redemption fee is updated
+     * @param redemptionFeePercent The new redemption fee in basis points
+     */
+    event FeeUpdated(uint256 redemptionFeePercent);
+
+    /**
+     * @notice Event emitted when the accumulated fees are claimed
+     * @param receiver The address that received the fees
+     * @param shares The number of claimed OsToken shares
+     */
+    event FeesClaimed(address indexed receiver, uint256 shares);
+
+    /**
+     * @notice The redemption fee in basis points charged in OsToken shares on entering the exit queue
+     * @return The redemption fee
+     */
+    function redemptionFeePercent() external view returns (uint256);
+
+    /**
+     * @notice The number of accumulated OsToken shares fees that can be claimed by the owner
+     * @return The accumulated fees in OsToken shares
+     */
+    function accumulatedFees() external view returns (uint256);
 
     /**
      * @notice The delay in seconds for the exit queue updates
@@ -230,6 +258,18 @@ interface IOsTokenRedeemer is IMulticall {
     function setPositionsManager(address positionsManager_) external;
 
     /**
+     * @notice Update the redemption fee. Can only be called by the owner.
+     * @param redemptionFeePercent_ The new redemption fee in basis points
+     */
+    function setRedemptionFeePercent(uint256 redemptionFeePercent_) external;
+
+    /**
+     * @notice Claim the accumulated OsToken shares fees. Can only be called by the owner.
+     * @param receiver The address that will receive the OsToken shares
+     */
+    function claimFees(address receiver) external;
+
+    /**
      * @notice Set new redeemable positions. Can only be called by the owner.
      * @param newPositions The new redeemable positions
      */
@@ -247,7 +287,8 @@ interface IOsTokenRedeemer is IMulticall {
 
     /**
      * @notice Enters the exit queue with a given number of shares and receiver address.
-     * @param shares The number of shares to enter the exit queue with
+     *         The redemption fee is deducted from the shares and accumulated in OsToken shares.
+     * @param shares The number of shares to enter the exit queue with, including the redemption fee
      * @param receiver The address that will receive the assets after exit
      * @return positionTicket The position ticket for the entered exit queue
      */
