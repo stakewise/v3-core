@@ -1,7 +1,7 @@
 {
   "EthMetaVaultTest_test_calculateSubVaultsRedemptions_exactWithdrawableAssets": "41177",
-  "EthMetaVaultTest_test_calculateSubVaultsRedemptions_insufficientWithdrawableAssets": "103336",
-  "EthMetaVaultTest_test_calculateSubVaultsRedemptions_success": "103365",
+  "EthMetaVaultTest_test_calculateSubVaultsRedemptions_insufficientWithdrawableAssets": "103354",
+  "EthMetaVaultTest_test_calculateSubVaultsRedemptions_success": "103383",
   "EthMetaVaultTest_test_deposit": "93943",
   "EthMetaVaultTest_test_depositAndMintOsToken": "192860",
   "EthMetaVaultTest_test_depositViaFallback": "95921",

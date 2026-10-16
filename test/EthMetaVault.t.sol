@@ -23,26 +23,11 @@ import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
 
 contract EthMetaVaultTest is Test, EthHelpers {
     bytes32 private constant exitQueueEnteredTopic = keccak256("ExitQueueEntered(address,address,uint256,uint256)");
-    address private constant FORK_META_VAULT = 0x5543be81786d11EAF656b742BaD92065f329Ada7;
 
     struct ExitRequest {
         address vault;
         uint256 positionTicket;
         uint64 timestamp;
-    }
-
-    struct PreUpgradeState {
-        address admin;
-        address feeRecipient;
-        uint16 feePercent;
-        uint256 totalShares;
-        uint256 totalAssets;
-        uint256 capacity;
-        address curator;
-        uint128 rewardsNonce;
-        uint128 queuedShares;
-        uint128 unclaimedAssets;
-        uint256 totalTickets;
     }
 
     ForkContracts public contracts;
@@ -56,11 +41,6 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
     // Sub vaults
     address[] public subVaults;
-
-    // Pre-upgrade state for fork vault upgrade test
-    PreUpgradeState public preUpgradeState;
-    address[] public preUpgradeSubVaults;
-    mapping(address => ISubVaultsRegistry.SubVaultState) public preUpgradeSubVaultStates;
 
     function _getRegistry(address vault) internal view returns (ISubVaultsRegistry) {
         return ISubVaultsRegistry(EthMetaVault(payable(vault)).subVaultsRegistry());
@@ -79,11 +59,6 @@ contract EthMetaVaultTest is Test, EthHelpers {
         // Deal ETH to accounts
         vm.deal(admin, 100 ether);
         vm.deal(sender, 100 ether);
-
-        // Capture pre-upgrade state if using fork vaults
-        if (vm.envBool("TEST_USE_FORK_VAULTS")) {
-            _capturePreUpgradeState();
-        }
 
         // Deploy meta vault
         bytes memory initParams = abi.encode(
@@ -113,31 +88,6 @@ contract EthMetaVaultTest is Test, EthHelpers {
 
             vm.prank(admin);
             registry.addSubVault(subVault);
-        }
-    }
-
-    function _capturePreUpgradeState() internal {
-        EthMetaVault vault = EthMetaVault(payable(FORK_META_VAULT));
-        require(vault.version() == 6, "Fork vault is not version 6");
-
-        // V6 vault already stores sub-vaults state in the SubVaultsRegistry
-        ISubVaultsRegistry vaultRegistry = _getRegistry(FORK_META_VAULT);
-
-        preUpgradeState.admin = vault.admin();
-        preUpgradeState.feeRecipient = vault.feeRecipient();
-        preUpgradeState.feePercent = vault.feePercent();
-        preUpgradeState.totalShares = vault.totalShares();
-        preUpgradeState.totalAssets = vault.totalAssets();
-        preUpgradeState.capacity = vault.capacity();
-        preUpgradeState.curator = vaultRegistry.subVaultsCurator();
-        preUpgradeState.rewardsNonce = vaultRegistry.subVaultsRewardsNonce();
-        (preUpgradeState.queuedShares, preUpgradeState.unclaimedAssets,,, preUpgradeState.totalTickets) =
-            vault.getExitQueueData();
-
-        address[] memory vaultSubVaults = vaultRegistry.getSubVaults();
-        for (uint256 i = 0; i < vaultSubVaults.length; i++) {
-            preUpgradeSubVaults.push(vaultSubVaults[i]);
-            preUpgradeSubVaultStates[vaultSubVaults[i]] = vaultRegistry.subVaultsStates(vaultSubVaults[i]);
         }
     }
 
@@ -180,6 +130,27 @@ contract EthMetaVaultTest is Test, EthHelpers {
         for (uint256 i = 0; i < subVaults.length; i++) {
             assertEq(storedSubVaults[i], subVaults[i], "Incorrect sub vault address");
         }
+    }
+
+    function test_upgradesCorrectly() public {
+        bytes memory initParams = abi.encode(
+            IEthMetaVault.EthMetaVaultInitParams({
+                subVaultsCurator: _balancedCurator,
+                capacity: 1000 ether,
+                feePercent: 1000,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address prevVault = _createPrevVersionMetaVault(VaultType.EthMetaVault, admin, initParams, 3);
+
+        // stake to the sub vaults and enter the exit queue
+        vm.prank(sender);
+        IEthMetaVault(prevVault).deposit{value: 10 ether}(sender, referrer);
+        _getSubVaultsRegistry(prevVault).depositToSubVaults();
+        vm.prank(sender);
+        IEthMetaVault(prevVault).enterExitQueue(1 ether, sender);
+
+        _upgradeMetaVaultAndCheckState(VaultType.EthMetaVault, prevVault, sender);
     }
 
     function _createEmptyMetaVault() internal returns (EthMetaVault) {
@@ -598,51 +569,6 @@ contract EthMetaVaultTest is Test, EthHelpers {
         vm.prank(sender);
         vm.expectRevert(Errors.InvalidAssets.selector);
         metaVault.donateAssets{value: 0}();
-    }
-
-    function test_forkMetaVaultUpgrade_preservesState() public view {
-        // Skip if not using fork vaults or no pre-upgrade state was captured
-        if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
-            return;
-        }
-
-        EthMetaVault vault = EthMetaVault(payable(FORK_META_VAULT));
-
-        // Verify version was upgraded
-        assertEq(vault.version(), 7, "Vault should be version 7 after upgrade");
-        assertEq(vault.vaultId(), keccak256("EthMetaVault"), "Vault ID should be preserved");
-
-        // Note: admin and feeRecipient are intentionally changed by _getOrCreateVault for testing
-        // Verify fee percent is preserved (admin/feeRecipient changes are expected)
-        assertEq(vault.feePercent(), preUpgradeState.feePercent, "Fee percent should be preserved");
-
-        // Verify vault state preserved
-        ISubVaultsRegistry vaultRegistry = _getRegistry(address(vault));
-        assertEq(vault.totalShares(), preUpgradeState.totalShares, "Total shares should be preserved");
-        assertEq(vault.totalAssets(), preUpgradeState.totalAssets, "Total assets should be preserved");
-        assertEq(vault.capacity(), preUpgradeState.capacity, "Capacity should be preserved");
-        assertEq(vaultRegistry.subVaultsCurator(), preUpgradeState.curator, "Curator should be preserved");
-        assertEq(
-            vaultRegistry.subVaultsRewardsNonce(), preUpgradeState.rewardsNonce, "Rewards nonce should be preserved"
-        );
-
-        // Verify sub vaults state preserved (original sub vaults should still be present)
-        address[] memory postSubVaults = vaultRegistry.getSubVaults();
-        assertGe(postSubVaults.length, preUpgradeSubVaults.length, "Should have at least original sub vaults");
-        for (uint256 i = 0; i < preUpgradeSubVaults.length; i++) {
-            // Original sub vaults should be at the beginning of the list
-            assertEq(postSubVaults[i], preUpgradeSubVaults[i], "Sub vault address should be preserved");
-            ISubVaultsRegistry.SubVaultState memory postState = vaultRegistry.subVaultsStates(preUpgradeSubVaults[i]);
-            ISubVaultsRegistry.SubVaultState memory preState = preUpgradeSubVaultStates[preUpgradeSubVaults[i]];
-            assertEq(postState.stakedShares, preState.stakedShares, "Staked shares should be preserved");
-            assertEq(postState.queuedShares, preState.queuedShares, "Queued shares should be preserved");
-        }
-
-        // Verify exit queue data preserved
-        (uint128 postQueuedShares, uint128 postUnclaimedAssets,,, uint256 postTotalTickets) = vault.getExitQueueData();
-        assertEq(postQueuedShares, preUpgradeState.queuedShares, "Queued shares should be preserved");
-        assertEq(postUnclaimedAssets, preUpgradeState.unclaimedAssets, "Unclaimed assets should be preserved");
-        assertEq(postTotalTickets, preUpgradeState.totalTickets, "Total tickets should be preserved");
     }
 
     function test_calculateSubVaultsRedemptions_notHarvested() public {

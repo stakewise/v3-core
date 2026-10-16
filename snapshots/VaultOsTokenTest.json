@@ -25,7 +25,7 @@
   "VaultOsTokenTest_test_mintOsToken_zeroShares": "89115",
   "VaultOsTokenTest_test_redeemOsToken_afterFeeSync": "134578",
   "VaultOsTokenTest_test_redeemOsToken_afterStateUpdate_fail": "51027",
-  "VaultOsTokenTest_test_redeemOsToken_afterStateUpdate_success": "266075",
+  "VaultOsTokenTest_test_redeemOsToken_afterStateUpdate_success": "270875",
   "VaultOsTokenTest_test_redeemOsToken_basic": "134076",
   "VaultOsTokenTest_test_redeemOsToken_fullPosition": "134076",
   "VaultOsTokenTest_test_redeemOsToken_goodHealthFactor": "134159",
