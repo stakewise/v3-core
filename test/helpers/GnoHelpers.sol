@@ -44,7 +44,7 @@ interface IGnoToken {
 abstract contract GnoHelpers is Test, ValidatorsHelpers {
     using stdStorage for StdStorage;
 
-    uint256 internal constant forkBlockNumber = 44470000;
+    uint256 internal constant forkBlockNumber = 48780000;
     uint256 internal constant _securityDeposit = 1e9;
     address private constant _keeper = 0xcAC0e3E35d3BA271cd2aaBE688ac9DB1898C26aa;
     address private constant _validatorsRegistry = 0x0B98057eA310F4d31F2a452B414647007d1645d9;
@@ -319,8 +319,8 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         returns (int160, uint160)
     {
         if (vault == 0x4b4406Ed8659D03423490D8b62a1639206dA0A7a) {
-            newTotalReward += 23125290825193839796698;
-            newUnlockedMevReward += 38182422752656127683973;
+            newTotalReward += 32966148016785121046698;
+            newUnlockedMevReward += 85851219992075566456911;
         }
 
         if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
@@ -328,20 +328,18 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         }
 
         if (vault == 0x00025C729A3364FaEf02c7D1F577068d87E90ba6) {
-            newTotalReward += 1475599926192906250000;
-            newUnlockedMevReward += 4881832791211425238314;
+            newTotalReward += 2188735976322531250000;
+            newUnlockedMevReward += 8317729336327034873363;
         } else if (vault == 0x79Dbec2d18A758C62D410F9763956D52fbd4A3CC) {
-            newTotalReward += 7939266211593750000;
-            newUnlockedMevReward += 21543285647562346901;
+            newTotalReward += 9886068150781250000;
+            newUnlockedMevReward += 30939043220289309591;
         } else if (vault == 0x52Bd0fbF4839824680001d3653f2d503C6081085) {
             newTotalReward += 55733289651656250000;
-            newUnlockedMevReward += 99060935491632538003;
         } else if (vault == 0x33C346928eD9249Cf1d5fc16aE32a8CFFa1671AD) {
-            newTotalReward += 176255397509625000000;
-            newUnlockedMevReward += 438358384873681497429;
+            newTotalReward += 190818222175406250000;
+            newUnlockedMevReward += 536307424350082134164;
         } else if (vault == 0xdfdA4238359703180DAEc01e48F4625C1569c4dE) {
             newTotalReward += 87578485156250000;
-            newUnlockedMevReward += 29001412383187947;
         }
         return (newTotalReward, newUnlockedMevReward);
     }

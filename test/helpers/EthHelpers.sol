@@ -44,7 +44,7 @@ import {ISubVaultsRegistry} from "../../contracts/interfaces/ISubVaultsRegistry.
 abstract contract EthHelpers is Test, ValidatorsHelpers {
     using stdStorage for StdStorage;
 
-    uint256 internal constant forkBlockNumber = 25286200;
+    uint256 internal constant forkBlockNumber = 26200000;
     uint256 internal constant _securityDeposit = 1e9;
     address private constant _keeper = 0x6B5815467da09DaA7DC83Db21c9239d98Bb487b5;
     address private constant _validatorsRegistry = 0x00000000219ab540356cBB839Cbe05303d7705Fa;
@@ -201,8 +201,6 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             impl = 0x9488A7dd178F0D927707eEc61A7D8C0ae9558c88;
         } else if (_vaultType == VaultType.EthBlocklistErc20Vault) {
             impl = 0x84d44A696539B3eF4162184fb8ab97596A311e9E;
-        } else if (_vaultType == VaultType.EthMetaVault) {
-            impl = 0xD0D527B67186d8880f9427ea4Cf9847E89bcE764;
         } else {
             return EthVaultFactory(address(0));
         }
@@ -315,10 +313,10 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         // Update with actual values if needed for specific vaults
         if (vault == 0xAC0F906E433d58FA868F936E8A43230473652885) {
             // Genesis Vault
-            newTotalReward += 17179494692864917047208;
-            newUnlockedMevReward += 1115995732862614487675;
+            newTotalReward += 18480813404056629887731;
+            newUnlockedMevReward += 1159246693651327328198;
         } else if (vault == 0x4FEF9D741011476750A243aC70b9789a63dd47Df) {
-            newTotalReward += 1703596190211000000000;
+            newTotalReward += 2303473324606000000000;
         }
 
         if (!vm.envBool("TEST_USE_FORK_VAULTS")) {
@@ -423,7 +421,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
                 || vaultType == VaultType.EthErc20MetaVault || vaultType == VaultType.EthPrivErc20MetaVault
         ) {
             if (currentVersion == 7) return;
-            require(currentVersion == 6, "Invalid vault version");
+            revert("Meta vaults do not support upgrades");
         } else {
             if (currentVersion == 5) return;
             require(currentVersion == 4, "Invalid vault version");

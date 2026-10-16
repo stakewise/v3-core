@@ -18,6 +18,7 @@ interface IVaultValidatorsV1 {
     function validatorsRoot() external view returns (bytes32);
     function validatorIndex() external view returns (uint256);
     function keysManager() external view returns (address);
+    function setValidatorsRoot(bytes32 _validatorsRoot) external;
 }
 
 contract DepositDataRegistryTest is Test, EthHelpers {
@@ -644,6 +645,7 @@ contract DepositDataRegistryTest is Test, EthHelpers {
 
     function test_migrate_failsWhenAlreadyMigrated() public {
         address foxVault = _getForkVault(VaultType.EthFoxVault);
+        _setFoxVaultValidatorsRoot(foxVault);
 
         _upgradeVault(VaultType.EthFoxVault, foxVault);
         if (contracts.keeper.isHarvestRequired(foxVault)) {
@@ -659,6 +661,7 @@ contract DepositDataRegistryTest is Test, EthHelpers {
 
     function test_migrate_succeeds() public {
         address foxVault = _getForkVault(VaultType.EthFoxVault);
+        _setFoxVaultValidatorsRoot(foxVault);
 
         address depositDataManagerBefore = IVaultValidatorsV1(foxVault).keysManager();
         bytes32 depositDataRootBefore = IVaultValidatorsV1(foxVault).validatorsRoot();
@@ -692,5 +695,12 @@ contract DepositDataRegistryTest is Test, EthHelpers {
             depositDataRootBefore,
             "Deposit data root should be the same after upgrade"
         );
+    }
+
+    function _setFoxVaultValidatorsRoot(address foxVault) private {
+        // the deposit data is migrated to the registry only if the validators root is set
+        if (IVaultValidatorsV1(foxVault).validatorsRoot() != bytes32(0)) return;
+        vm.prank(IVaultValidatorsV1(foxVault).keysManager());
+        IVaultValidatorsV1(foxVault).setValidatorsRoot(keccak256("validatorsRoot"));
     }
 }

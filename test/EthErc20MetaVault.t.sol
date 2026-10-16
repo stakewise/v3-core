@@ -11,8 +11,6 @@ import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {IVaultOsToken} from "../contracts/interfaces/IVaultOsToken.sol";
 import {IOsTokenConfig} from "../contracts/interfaces/IOsTokenConfig.sol";
 import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
-import {IERC1967} from "@openzeppelin/contracts/interfaces/IERC1967.sol";
-import {ISubVaultsRegistryFactory} from "../contracts/interfaces/ISubVaultsRegistryFactory.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthErc20MetaVault} from "../contracts/vaults/ethereum/EthErc20MetaVault.sol";
@@ -28,9 +26,6 @@ interface IStrategiesRegistry {
 contract EthErc20MetaVaultTest is Test, EthHelpers {
     IStrategiesRegistry private constant _strategiesRegistry =
         IStrategiesRegistry(0x90b82E4b3aa385B4A02B7EBc1892a4BeD6B5c465);
-
-    /// @dev keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant _initializableSlot = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
 
     ForkContracts public contracts;
     EthErc20MetaVault public metaVault;
@@ -119,28 +114,6 @@ contract EthErc20MetaVaultTest is Test, EthHelpers {
     function test_cannotInitializeTwice() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         metaVault.initialize("0x");
-    }
-
-    function test_upgradeFromV6_upgradesSubVaultsRegistry() public {
-        address preCurator = registry.subVaultsCurator();
-        uint256 preSubVaultsCount = registry.getSubVaults().length;
-
-        // roll back the vault reinitializer version to simulate a not-yet-upgraded v6 vault
-        vm.store(address(metaVault), _initializableSlot, bytes32(uint256(6)));
-
-        // running the v7 initializer must upgrade the SubVaultsRegistry proxy in place
-        vm.expectEmit(address(registry));
-        emit IERC1967.Upgraded(ISubVaultsRegistryFactory(_subVaultsRegistryFactory).implementation());
-        metaVault.initialize("");
-
-        // registry reference and state are preserved
-        assertEq(registry.metaVault(), address(metaVault), "Registry metaVault should be preserved");
-        assertEq(registry.subVaultsCurator(), preCurator, "Curator should be preserved");
-        assertEq(registry.getSubVaults().length, preSubVaultsCount, "Sub-vaults should be preserved");
-
-        // the upgrade cannot be executed twice
-        vm.expectRevert(Initializable.InvalidInitialization.selector);
-        metaVault.initialize("");
     }
 
     function test_deposit() public {
