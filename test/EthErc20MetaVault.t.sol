@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IEthErc20MetaVault} from "../contracts/interfaces/IEthErc20MetaVault.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
 import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
@@ -114,6 +115,31 @@ contract EthErc20MetaVaultTest is Test, EthHelpers {
     function test_cannotInitializeTwice() public {
         vm.expectRevert(Initializable.InvalidInitialization.selector);
         metaVault.initialize("0x");
+    }
+
+    function test_upgradesCorrectly() public {
+        bytes memory initParams = abi.encode(
+            IEthErc20MetaVault.EthErc20MetaVaultInitParams({
+                subVaultsCurator: _balancedCurator,
+                capacity: 1000 ether,
+                feePercent: 1000,
+                name: "SW Meta ETH Vault",
+                symbol: "swMetaETH",
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address prevVault = _createPrevVersionMetaVault(VaultType.EthErc20MetaVault, admin, initParams, 3);
+
+        // stake to the sub vaults and enter the exit queue
+        vm.prank(sender);
+        IEthMetaVault(prevVault).deposit{value: 10 ether}(sender, referrer);
+        _getSubVaultsRegistry(prevVault).depositToSubVaults();
+        vm.prank(sender);
+        IEthMetaVault(prevVault).enterExitQueue(1 ether, sender);
+
+        _upgradeMetaVaultAndCheckState(VaultType.EthErc20MetaVault, prevVault, sender);
+        assertEq(EthErc20MetaVault(payable(prevVault)).name(), "SW Meta ETH Vault", "Name should be preserved");
+        assertEq(EthErc20MetaVault(payable(prevVault)).symbol(), "swMetaETH", "Symbol should be preserved");
     }
 
     function test_deposit() public {

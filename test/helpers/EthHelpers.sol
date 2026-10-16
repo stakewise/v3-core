@@ -4,6 +4,8 @@ pragma solidity ^0.8.22;
 
 import {Test, stdStorage, StdStorage} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import {IERC1967} from "@openzeppelin/contracts/interfaces/IERC1967.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {IKeeperValidators} from "../../contracts/interfaces/IKeeperValidators.sol";
 import {IOsTokenConfig} from "../../contracts/interfaces/IOsTokenConfig.sol";
 import {IOsTokenVaultController} from "../../contracts/interfaces/IOsTokenVaultController.sol";
@@ -40,6 +42,7 @@ import {VaultsRegistry, IVaultsRegistry} from "../../contracts/vaults/VaultsRegi
 import {CuratorsRegistry} from "../../contracts/curators/CuratorsRegistry.sol";
 import {IVaultSubVaults} from "../../contracts/interfaces/IVaultSubVaults.sol";
 import {ISubVaultsRegistry} from "../../contracts/interfaces/ISubVaultsRegistry.sol";
+import {ISubVaultsRegistryFactory} from "../../contracts/interfaces/ISubVaultsRegistryFactory.sol";
 
 abstract contract EthHelpers is Test, ValidatorsHelpers {
     using stdStorage for StdStorage;
@@ -88,6 +91,24 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         IOsTokenVaultEscrow osTokenVaultEscrow;
         ISharedMevEscrow sharedMevEscrow;
         IConsolidationsChecker consolidationsChecker;
+    }
+
+    struct MetaVaultState {
+        bytes32 vaultId;
+        address admin;
+        address feeRecipient;
+        uint16 feePercent;
+        uint256 capacity;
+        uint256 totalShares;
+        uint256 totalAssets;
+        uint256 userShares;
+        uint128 queuedShares;
+        uint128 unclaimedAssets;
+        uint256 totalTickets;
+        address subVaultsRegistry;
+        address curator;
+        uint128 rewardsNonce;
+        address[] subVaults;
     }
 
     mapping(VaultType vaultType => address vaultImpl) private _vaultImplementations;
@@ -206,6 +227,34 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         }
 
         EthVaultFactory factory = new EthVaultFactory(impl, IVaultsRegistry(_vaultsRegistry));
+        _vaultPrevFactories[_vaultType] = address(factory);
+
+        vm.prank(VaultsRegistry(_vaultsRegistry).owner());
+        VaultsRegistry(_vaultsRegistry).addFactory(address(factory));
+
+        return factory;
+    }
+
+    function _getPrevVersionMetaVaultFactory(VaultType _vaultType) internal returns (EthMetaVaultFactory) {
+        if (_vaultPrevFactories[_vaultType] != address(0)) {
+            return EthMetaVaultFactory(_vaultPrevFactories[_vaultType]);
+        }
+
+        // V6 implementations of the meta vaults
+        address impl;
+        if (_vaultType == VaultType.EthMetaVault) {
+            impl = 0xE2121568066C0a9d794bbB95D0Ade0ebd81cCaf9;
+        } else if (_vaultType == VaultType.EthPrivMetaVault) {
+            impl = 0xfc81D3369fBEAa6E0926eedA71E5C91724f2c079;
+        } else if (_vaultType == VaultType.EthErc20MetaVault) {
+            impl = 0xBb1B3E55315967c65133A0e942d8EA7a992aF6C7;
+        } else if (_vaultType == VaultType.EthPrivErc20MetaVault) {
+            impl = 0xD935a9f586dFa83Df20553b40Ce24f3746b258E2;
+        } else {
+            return EthMetaVaultFactory(address(0));
+        }
+
+        EthMetaVaultFactory factory = new EthMetaVaultFactory(impl, IVaultsRegistry(_vaultsRegistry));
         _vaultPrevFactories[_vaultType] = address(factory);
 
         vm.prank(VaultsRegistry(_vaultsRegistry).owner());
@@ -382,15 +431,21 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
 
     function _createPrevVersionVault(VaultType vaultType, address admin, bytes memory initParams, bool isOwnMevEscrow)
         internal
-        returns (address)
+        returns (address vaultAddress)
     {
-        EthVaultFactory factory = _getPrevVersionVaultFactory(vaultType);
-
         vm.deal(admin, admin.balance + _securityDeposit);
-        vm.prank(admin);
-        address vaultAddress = factory.createVault{value: _securityDeposit}(initParams, isOwnMevEscrow);
+        if (
+            vaultType == VaultType.EthMetaVault || vaultType == VaultType.EthPrivMetaVault
+                || vaultType == VaultType.EthErc20MetaVault || vaultType == VaultType.EthPrivErc20MetaVault
+        ) {
+            EthMetaVaultFactory metaFactory = _getPrevVersionMetaVaultFactory(vaultType);
+            vm.prank(admin);
+            return metaFactory.createVault{value: _securityDeposit}(initParams);
+        }
 
-        return vaultAddress;
+        EthVaultFactory factory = _getPrevVersionVaultFactory(vaultType);
+        vm.prank(admin);
+        vaultAddress = factory.createVault{value: _securityDeposit}(initParams, isOwnMevEscrow);
     }
 
     function _createV1EthVault(address admin, bytes memory initParams, bool isOwnMevEscrow) internal returns (address) {
@@ -421,7 +476,7 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
                 || vaultType == VaultType.EthErc20MetaVault || vaultType == VaultType.EthPrivErc20MetaVault
         ) {
             if (currentVersion == 7) return;
-            revert("Meta vaults do not support upgrades");
+            require(currentVersion == 6, "Invalid vault version");
         } else {
             if (currentVersion == 5) return;
             require(currentVersion == 4, "Invalid vault version");
@@ -569,5 +624,102 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         );
 
         return _createVault(VaultType.EthVault, _admin, initParams, false);
+    }
+
+    // ============ Meta Vault Upgrade Test Helpers ============
+
+    function _createPrevVersionMetaVault(
+        VaultType vaultType,
+        address admin,
+        bytes memory initParams,
+        uint256 subVaultsCount
+    ) internal returns (address vault) {
+        vault = _createPrevVersionVault(vaultType, admin, initParams, false);
+
+        ISubVaultsRegistry registry = _getSubVaultsRegistry(vault);
+        for (uint256 i = 0; i < subVaultsCount; i++) {
+            address subVault = _createEthSubVault(admin);
+            _collateralizeEthVault(subVault);
+
+            vm.prank(admin);
+            registry.addSubVault(subVault);
+        }
+    }
+
+    function _upgradeMetaVaultAndCheckState(VaultType vaultType, address vault, address user) internal {
+        IEthMetaVault metaVault = IEthMetaVault(vault);
+        ISubVaultsRegistry registry = _getSubVaultsRegistry(vault);
+        assertEq(metaVault.version(), 6, "Vault should be version 6 before upgrade");
+
+        // record state before upgrade
+        MetaVaultState memory stateBefore = _getMetaVaultState(vault, user);
+        ISubVaultsRegistry.SubVaultState[] memory subVaultStatesBefore =
+            new ISubVaultsRegistry.SubVaultState[](stateBefore.subVaults.length);
+        for (uint256 i = 0; i < stateBefore.subVaults.length; i++) {
+            subVaultStatesBefore[i] = registry.subVaultsStates(stateBefore.subVaults[i]);
+        }
+
+        // deploy the new implementation upfront, so that its events don't interfere with the expected one
+        _getOrCreateVaultImpl(vaultType);
+
+        // the v7 initializer upgrades the SubVaultsRegistry proxy in place
+        vm.expectEmit(address(registry));
+        emit IERC1967.Upgraded(ISubVaultsRegistryFactory(_subVaultsRegistryFactory).implementation());
+        _upgradeVault(vaultType, vault);
+
+        assertEq(metaVault.version(), 7, "Vault should be version 7 after upgrade");
+        assertEq(metaVault.vaultId(), stateBefore.vaultId, "Vault ID should be preserved");
+
+        // vault state is preserved
+        MetaVaultState memory stateAfter = _getMetaVaultState(vault, user);
+        assertEq(stateAfter.admin, stateBefore.admin, "Admin should be preserved");
+        assertEq(stateAfter.feeRecipient, stateBefore.feeRecipient, "Fee recipient should be preserved");
+        assertEq(stateAfter.feePercent, stateBefore.feePercent, "Fee percent should be preserved");
+        assertEq(stateAfter.capacity, stateBefore.capacity, "Capacity should be preserved");
+        assertEq(stateAfter.totalShares, stateBefore.totalShares, "Total shares should be preserved");
+        assertEq(stateAfter.totalAssets, stateBefore.totalAssets, "Total assets should be preserved");
+        assertEq(stateAfter.userShares, stateBefore.userShares, "User shares should be preserved");
+        assertEq(stateAfter.queuedShares, stateBefore.queuedShares, "Queued shares should be preserved");
+        assertEq(stateAfter.unclaimedAssets, stateBefore.unclaimedAssets, "Unclaimed assets should be preserved");
+        assertEq(stateAfter.totalTickets, stateBefore.totalTickets, "Total tickets should be preserved");
+
+        // registry state is preserved
+        assertEq(stateAfter.subVaultsRegistry, stateBefore.subVaultsRegistry, "Registry should be preserved");
+        assertEq(registry.metaVault(), vault, "Registry meta vault should be preserved");
+        assertEq(stateAfter.curator, stateBefore.curator, "Curator should be preserved");
+        assertEq(stateAfter.rewardsNonce, stateBefore.rewardsNonce, "Rewards nonce should be preserved");
+        assertEq(stateAfter.subVaults, stateBefore.subVaults, "Sub vaults should be preserved");
+        for (uint256 i = 0; i < stateBefore.subVaults.length; i++) {
+            ISubVaultsRegistry.SubVaultState memory subVaultState = registry.subVaultsStates(stateBefore.subVaults[i]);
+            assertEq(
+                subVaultState.stakedShares, subVaultStatesBefore[i].stakedShares, "Staked shares should be preserved"
+            );
+            assertEq(
+                subVaultState.queuedShares, subVaultStatesBefore[i].queuedShares, "Queued shares should be preserved"
+            );
+        }
+
+        // the upgrade cannot be executed twice
+        vm.expectRevert(Initializable.InvalidInitialization.selector);
+        metaVault.initialize("");
+    }
+
+    function _getMetaVaultState(address vault, address user) private view returns (MetaVaultState memory state) {
+        IEthMetaVault metaVault = IEthMetaVault(vault);
+        ISubVaultsRegistry registry = _getSubVaultsRegistry(vault);
+
+        state.vaultId = metaVault.vaultId();
+        state.admin = metaVault.admin();
+        state.feeRecipient = metaVault.feeRecipient();
+        state.feePercent = metaVault.feePercent();
+        state.capacity = metaVault.capacity();
+        state.totalShares = metaVault.totalShares();
+        state.totalAssets = metaVault.totalAssets();
+        state.userShares = metaVault.getShares(user);
+        (state.queuedShares, state.unclaimedAssets,,, state.totalTickets) = metaVault.getExitQueueData();
+        state.subVaultsRegistry = address(registry);
+        state.curator = registry.subVaultsCurator();
+        state.rewardsNonce = registry.subVaultsRewardsNonce();
+        state.subVaults = registry.getSubVaults();
     }
 }

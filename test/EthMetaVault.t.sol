@@ -132,6 +132,27 @@ contract EthMetaVaultTest is Test, EthHelpers {
         }
     }
 
+    function test_upgradesCorrectly() public {
+        bytes memory initParams = abi.encode(
+            IEthMetaVault.EthMetaVaultInitParams({
+                subVaultsCurator: _balancedCurator,
+                capacity: 1000 ether,
+                feePercent: 1000,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address prevVault = _createPrevVersionMetaVault(VaultType.EthMetaVault, admin, initParams, 3);
+
+        // stake to the sub vaults and enter the exit queue
+        vm.prank(sender);
+        IEthMetaVault(prevVault).deposit{value: 10 ether}(sender, referrer);
+        _getSubVaultsRegistry(prevVault).depositToSubVaults();
+        vm.prank(sender);
+        IEthMetaVault(prevVault).enterExitQueue(1 ether, sender);
+
+        _upgradeMetaVaultAndCheckState(VaultType.EthMetaVault, prevVault, sender);
+    }
+
     function _createEmptyMetaVault() internal returns (EthMetaVault) {
         bytes memory emptyInitParams = abi.encode(
             IEthMetaVault.EthMetaVaultInitParams({

@@ -130,6 +130,30 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         metaVault.initialize{value: 0}("0x");
     }
 
+    function test_upgradesCorrectly() public {
+        bytes memory initParams = abi.encode(
+            IEthMetaVault.EthMetaVaultInitParams({
+                subVaultsCurator: _balancedCurator,
+                capacity: 1000 ether,
+                feePercent: 1000,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address prevVault = _createPrevVersionMetaVault(VaultType.EthPrivMetaVault, admin, initParams, 3);
+
+        vm.prank(admin);
+        IVaultWhitelist(prevVault).updateWhitelist(sender, true);
+
+        // stake to the sub vaults and enter the exit queue
+        vm.prank(sender);
+        IEthMetaVault(prevVault).deposit{value: 10 ether}(sender, referrer);
+        _getSubVaultsRegistry(prevVault).depositToSubVaults();
+        vm.prank(sender);
+        IEthMetaVault(prevVault).enterExitQueue(1 ether, sender);
+
+        _upgradeMetaVaultAndCheckState(VaultType.EthPrivMetaVault, prevVault, sender);
+    }
+
     // ============ Whitelist Deposit Tests ============
 
     function test_cannotDepositFromNotWhitelistedSender() public {
