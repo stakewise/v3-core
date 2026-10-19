@@ -396,7 +396,11 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
             if (currentVersion == 5) return;
             require(currentVersion == 4, "Invalid vault version");
         } else {
-            if (currentVersion == 3) return;
+            if (currentVersion == 3) {
+                // the deployed v3 implementation predates the latest source, run the local code instead
+                _syncVaultImplCode(vaultType, vault);
+                return;
+            }
             require(currentVersion == 2, "Invalid vault version");
         }
         address newImpl = _getOrCreateVaultImpl(vaultType);
@@ -405,6 +409,12 @@ abstract contract GnoHelpers is Test, ValidatorsHelpers {
         vm.deal(admin, admin.balance + 1 ether);
         vm.prank(admin);
         vaultContract.upgradeToAndCall(newImpl, "");
+    }
+
+    function _syncVaultImplCode(VaultType vaultType, address vault) private {
+        address currentImpl = GnoVault(payable(vault)).implementation();
+        address localImpl = _getOrCreateVaultImpl(vaultType);
+        vm.etch(currentImpl, localImpl.code);
     }
 
     function _getOrCreateVaultImpl(VaultType _vaultType) internal returns (address impl) {

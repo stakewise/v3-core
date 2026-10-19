@@ -151,7 +151,9 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
         vault = _getForkVault(vaultType);
         if (vault != address(0)) {
             _upgradeVault(vaultType, vault);
-            if (Keeper(_keeper).isHarvestRequired(vault)) {
+            if (_isMetaVault(vaultType)) {
+                _syncForkMetaVaultState(vault);
+            } else if (Keeper(_keeper).isHarvestRequired(vault)) {
                 IKeeperRewards.HarvestParams memory harvestParams = _setEthVaultReward(vault, 0, 0);
                 IVaultState(vault).updateState(harvestParams);
             }
@@ -169,6 +171,23 @@ abstract contract EthHelpers is Test, ValidatorsHelpers {
             vm.prank(admin);
             IEthVault(vault).setFeeRecipient(admin);
         }
+    }
+
+    function _isMetaVault(VaultType vaultType) private pure returns (bool) {
+        return vaultType == VaultType.EthMetaVault || vaultType == VaultType.EthPrivMetaVault
+            || vaultType == VaultType.EthErc20MetaVault || vaultType == VaultType.EthPrivErc20MetaVault;
+    }
+
+    function _syncForkMetaVaultState(address vault) private {
+        if (!IVaultState(vault).isStateUpdateRequired()) return;
+
+        // all the sub vaults must have the current rewards nonce to harvest the meta vault
+        uint64 rewardsNonce = Keeper(_keeper).rewardsNonce();
+        address[] memory subVaults = _getSubVaultsRegistry(vault).getSubVaults();
+        for (uint256 i = 0; i < subVaults.length; i++) {
+            _setVaultRewardsNonce(subVaults[i], rewardsNonce);
+        }
+        IVaultState(vault).updateState(_getEmptyHarvestParams());
     }
 
     function _getOrCreateFactory(VaultType _vaultType) internal returns (EthVaultFactory) {
