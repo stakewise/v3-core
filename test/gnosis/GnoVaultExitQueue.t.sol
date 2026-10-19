@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
-import {Test, console} from "../../lib/forge-std/src/Test.sol";
+import {Test, console} from "forge-std/Test.sol";
 import {GnoHelpers} from "../helpers/GnoHelpers.sol";
 import {IKeeperRewards} from "../../contracts/interfaces/IKeeperRewards.sol";
 import {IGnoVault} from "../../contracts/interfaces/IGnoVault.sol";

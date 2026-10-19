@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
+import {Test} from "forge-std/Test.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
-import {Test} from "../lib/forge-std/src/Test.sol";
 import {IEthVault} from "../contracts/interfaces/IEthVault.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthVaultV6Mock} from "../contracts/mocks/EthVaultV6Mock.sol";

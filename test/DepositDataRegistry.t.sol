@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.22;
 
-import {Test} from "../lib/forge-std/src/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
