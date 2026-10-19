@@ -1,23 +1,13 @@
 {
   "transactions": [
     {
-      "data": "0xaff7947d0000000000000000000000006f59ae1dd36eed6d7a928505f754b2965197c8e5",
-      "method": "addVaultImpl(address)",
+      "data": "0x3307ce84000000000000000000000000e247c8a241772ea4519eaa6397390a0192c518b0",
+      "method": "setRedeemer(address)",
       "operation": "0",
       "params": [
-        "0x6F59aE1dD36EEd6D7a928505F754b2965197C8E5"
+        "0xe247C8A241772eA4519eaA6397390a0192c518B0"
       ],
-      "to": "0x7d014B3C6ee446563d4e0cB6fBD8C3D0419867cB",
-      "value": "0.0"
-    },
-    {
-      "data": "0x4b37c73f00000000000000000000000075e6f7640137c128c91de4ee62f6f30b542e5f1b",
-      "method": "removeFactory(address)",
-      "operation": "0",
-      "params": [
-        "0x75E6f7640137c128c91dE4Ee62F6f30b542e5f1B"
-      ],
-      "to": "0x7d014B3C6ee446563d4e0cB6fBD8C3D0419867cB",
+      "to": "0xd6672fbE1D28877db598DC0ac2559A15745FC3ec",
       "value": "0.0"
     }
   ]
