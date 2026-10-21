@@ -37,6 +37,9 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     uint256 public immutable override exitQueueUpdateDelay;
 
     /// @inheritdoc IOsTokenRedeemer
+    uint256 public immutable override maxRedemptionFeePercent;
+
+    /// @inheritdoc IOsTokenRedeemer
     address public override positionsManager;
 
     /// @inheritdoc IOsTokenRedeemer
@@ -85,21 +88,27 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
      * @param osTokenVaultController_ The address of the OsTokenVaultController contract
      * @param owner_ The address of the owner
      * @param exitQueueUpdateDelay_ The delay in seconds for exit queue updates
+     * @param maxRedemptionFeePercent_ The maximum redemption fee in basis points
      */
     constructor(
         address vaultsRegistry_,
         address osToken_,
         address osTokenVaultController_,
         address owner_,
-        uint256 exitQueueUpdateDelay_
+        uint256 exitQueueUpdateDelay_,
+        uint256 maxRedemptionFeePercent_
     ) Ownable(owner_) {
         if (exitQueueUpdateDelay_ > type(uint64).max) {
             revert Errors.InvalidDelay();
+        }
+        if (maxRedemptionFeePercent_ > _maxPercent) {
+            revert Errors.InvalidFeePercent();
         }
         _vaultsRegistry = IVaultsRegistry(vaultsRegistry_);
         _osToken = IERC20(osToken_);
         _osTokenVaultController = IOsTokenVaultController(osTokenVaultController_);
         exitQueueUpdateDelay = exitQueueUpdateDelay_;
+        maxRedemptionFeePercent = maxRedemptionFeePercent_;
     }
 
     /// @inheritdoc IOsTokenRedeemer
@@ -174,7 +183,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
 
     /// @inheritdoc IOsTokenRedeemer
     function setRedemptionFeePercent(uint256 redemptionFeePercent_) external override onlyOwner {
-        if (redemptionFeePercent_ > _maxPercent) {
+        if (redemptionFeePercent_ > maxRedemptionFeePercent) {
             revert Errors.InvalidFeePercent();
         }
         if (redemptionFeePercent_ == redemptionFeePercent) {
