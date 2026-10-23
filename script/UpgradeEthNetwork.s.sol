@@ -10,6 +10,8 @@ import {EthOsTokenRedeemer} from "../contracts/tokens/EthOsTokenRedeemer.sol";
 import {Network} from "./Network.sol";
 
 contract UpgradeEthNetwork is Network {
+    uint256 public constant MAX_REDEMPTION_FEE_PERCENT = 1000; // @dev 10.00 %
+
     address public osTokenRedeemer;
 
     function run() external {
@@ -33,7 +35,8 @@ contract UpgradeEthNetwork is Network {
                 deployment.osToken,
                 deployment.osTokenVaultController,
                 redeemerOwner,
-                exitQueueUpdateDelay
+                exitQueueUpdateDelay,
+                MAX_REDEMPTION_FEE_PERCENT
             )
         );
 

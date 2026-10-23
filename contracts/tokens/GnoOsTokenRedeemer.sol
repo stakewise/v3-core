@@ -24,6 +24,7 @@ contract GnoOsTokenRedeemer is IGnoOsTokenRedeemer, OsTokenRedeemer {
      * @param osTokenVaultController_ The address of the OsTokenVaultController contract
      * @param owner_ The address of the owner
      * @param exitQueueUpdateDelay_ The delay in seconds for exit queue updates
+     * @param maxRedemptionFeePercent_ The maximum redemption fee in basis points
      */
     constructor(
         address gnoToken_,
@@ -31,8 +32,13 @@ contract GnoOsTokenRedeemer is IGnoOsTokenRedeemer, OsTokenRedeemer {
         address osToken_,
         address osTokenVaultController_,
         address owner_,
-        uint256 exitQueueUpdateDelay_
-    ) OsTokenRedeemer(vaultsRegistry_, osToken_, osTokenVaultController_, owner_, exitQueueUpdateDelay_) {
+        uint256 exitQueueUpdateDelay_,
+        uint256 maxRedemptionFeePercent_
+    )
+        OsTokenRedeemer(
+            vaultsRegistry_, osToken_, osTokenVaultController_, owner_, exitQueueUpdateDelay_, maxRedemptionFeePercent_
+        )
+    {
         _gnoToken = IERC20(gnoToken_);
     }
 

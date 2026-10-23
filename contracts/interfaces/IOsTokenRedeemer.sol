@@ -108,6 +108,12 @@ interface IOsTokenRedeemer is IMulticall {
     event FeesClaimed(address indexed receiver, uint256 shares);
 
     /**
+     * @notice The maximum redemption fee in basis points
+     * @return The maximum redemption fee
+     */
+    function maxRedemptionFeePercent() external view returns (uint256);
+
+    /**
      * @notice The redemption fee in basis points charged in OsToken shares on entering the exit queue
      * @return The redemption fee
      */

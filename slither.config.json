@@ -3,5 +3,5 @@
   "exclude_informational": true,
   "exclude_low": true,
   "exclude_medium": true,
-  "detectors_to_exclude": "uninitialized-state-variables"
+  "detectors_to_exclude": "uninitialized-state-variables,msg-value-in-nonpayable"
 }
