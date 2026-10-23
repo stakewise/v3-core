@@ -20,16 +20,20 @@ contract EthOsTokenRedeemer is IEthOsTokenRedeemer, ReentrancyGuard, OsTokenRede
      * @param osTokenVaultController_ The address of the OsTokenVaultController contract
      * @param owner_ The address of the owner
      * @param exitQueueUpdateDelay_ The delay in seconds for exit queue updates
+     * @param maxRedemptionFeePercent_ The maximum redemption fee in basis points
      */
     constructor(
         address vaultsRegistry_,
         address osToken_,
         address osTokenVaultController_,
         address owner_,
-        uint256 exitQueueUpdateDelay_
+        uint256 exitQueueUpdateDelay_,
+        uint256 maxRedemptionFeePercent_
     )
         ReentrancyGuard()
-        OsTokenRedeemer(vaultsRegistry_, osToken_, osTokenVaultController_, owner_, exitQueueUpdateDelay_)
+        OsTokenRedeemer(
+            vaultsRegistry_, osToken_, osTokenVaultController_, owner_, exitQueueUpdateDelay_, maxRedemptionFeePercent_
+        )
     {}
 
     /// @inheritdoc IEthOsTokenRedeemer

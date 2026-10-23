@@ -52,7 +52,8 @@ contract GnoOsTokenRedeemerTest is Test, GnoHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             owner,
-            EXIT_QUEUE_UPDATE_DELAY
+            EXIT_QUEUE_UPDATE_DELAY,
+            100
         );
 
         // Set positions manager

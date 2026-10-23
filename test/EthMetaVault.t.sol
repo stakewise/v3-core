@@ -1056,7 +1056,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1119,7 +1120,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1196,7 +1198,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1259,7 +1262,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1351,7 +1355,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1374,7 +1379,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1423,7 +1429,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1475,7 +1482,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1546,7 +1554,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1586,7 +1595,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1654,7 +1664,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1691,7 +1702,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1737,7 +1749,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));
@@ -1807,7 +1820,8 @@ contract EthMetaVaultTest is Test, EthHelpers {
             _osToken,
             address(contracts.osTokenVaultController),
             redeemerOwner,
-            12 hours
+            12 hours,
+            100
         );
         vm.prank(Ownable(address(contracts.osTokenConfig)).owner());
         contracts.osTokenConfig.setRedeemer(address(osTokenRedeemer));

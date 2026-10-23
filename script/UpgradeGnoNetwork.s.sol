@@ -10,6 +10,8 @@ import {GnoOsTokenRedeemer} from "../contracts/tokens/GnoOsTokenRedeemer.sol";
 import {Network} from "./Network.sol";
 
 contract UpgradeGnoNetwork is Network {
+    uint256 public constant MAX_REDEMPTION_FEE_PERCENT = 1000; // @dev 10.00 %
+
     address public gnoToken;
     address public osTokenRedeemer;
 
@@ -36,7 +38,8 @@ contract UpgradeGnoNetwork is Network {
                 deployment.osToken,
                 deployment.osTokenVaultController,
                 redeemerOwner,
-                exitQueueUpdateDelay
+                exitQueueUpdateDelay,
+                MAX_REDEMPTION_FEE_PERCENT
             )
         );
 

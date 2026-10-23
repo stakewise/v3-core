@@ -363,7 +363,7 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         address owner = makeAddr("Owner");
         address positionsManager = makeAddr("PositionsManager");
         EthOsTokenRedeemer osTokenRedeemer = new EthOsTokenRedeemer(
-            address(contracts.vaultsRegistry), _osToken, address(contracts.osTokenVaultController), owner, 12 hours
+            address(contracts.vaultsRegistry), _osToken, address(contracts.osTokenVaultController), owner, 12 hours, 100
         );
         vm.prank(owner);
         osTokenRedeemer.setPositionsManager(positionsManager);
@@ -436,7 +436,7 @@ contract SubVaultsRegistryTest is Test, EthHelpers {
         address owner = makeAddr("Owner");
         positionsManager = makeAddr("PositionsManager");
         osTokenRedeemer = new EthOsTokenRedeemer(
-            address(contracts.vaultsRegistry), _osToken, address(contracts.osTokenVaultController), owner, 12 hours
+            address(contracts.vaultsRegistry), _osToken, address(contracts.osTokenVaultController), owner, 12 hours, 100
         );
         vm.prank(owner);
         osTokenRedeemer.setPositionsManager(positionsManager);
