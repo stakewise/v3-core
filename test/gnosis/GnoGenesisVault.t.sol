@@ -151,6 +151,15 @@ contract GnoGenesisVaultTest is Test, GnoHelpers {
         address vaultAddr = _getOrCreateVault(VaultType.GnoGenesisVault, admin, initParams, false);
         GnoGenesisVault vault = GnoGenesisVault(payable(vaultAddr));
 
+        // Cover assets reserved for the exit queue, so that the validator deposit has enough assets
+        (uint128 queuedShares, uint128 unclaimedAssets,, uint128 totalExitingAssets,) = vault.getExitQueueData();
+        uint256 reservedAssets = vault.convertToAssets(queuedShares) + totalExitingAssets + unclaimedAssets;
+        uint256 vaultAssets =
+            contracts.gnoToken.balanceOf(vaultAddr) + contracts.validatorsRegistry.withdrawableAmount(vaultAddr);
+        if (reservedAssets > vaultAssets) {
+            _mintGnoToken(vaultAddr, reservedAssets - vaultAssets);
+        }
+
         // Add some GNO to the pool escrow
         uint256 escrowAmount = 5 ether;
         _mintGnoToken(poolEscrow, escrowAmount);

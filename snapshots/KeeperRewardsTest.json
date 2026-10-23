@@ -16,5 +16,5 @@
   "KeeperRewardsTest_test_setRewardsMinOracles_zero": "30031",
   "KeeperRewardsTest_test_updateRewards": "101423",
   "KeeperRewardsTest_test_updateRewards_invalidAvgRewardPerSecond": "33259",
-  "KeeperRewardsTest_test_updateRewards_tooEarly": "33238"
+  "KeeperRewardsTest_test_updateRewards_tooEarly": "33250"
 }
