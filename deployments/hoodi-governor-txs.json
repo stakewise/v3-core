@@ -1,11 +1,11 @@
 {
   "transactions": [
     {
-      "data": "0x3307ce840000000000000000000000009c81a9adf128552018c590ecaba585206ce9c75c",
+      "data": "0x3307ce840000000000000000000000005b117011968b89eb6b1a2c919e1f714520ebff4e",
       "method": "setRedeemer(address)",
       "operation": "0",
       "params": [
-        "0x9c81A9adf128552018c590ecAbA585206ce9c75c"
+        "0x5B117011968b89eB6b1a2C919E1F714520EbFF4e"
       ],
       "to": "0x5b817621EBE00622b9a71b53c942b392751c8197",
       "value": "0.0"
