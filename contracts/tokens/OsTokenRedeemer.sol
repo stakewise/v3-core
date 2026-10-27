@@ -379,9 +379,7 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
             OsTokenPosition memory position = positions[i];
 
             // must be a registered vault
-            if (!_vaultsRegistry.vaults(position.vault)) {
-                revert Errors.InvalidVault();
-            }
+            _checkVault(position.vault);
 
             // calculate leaf
             bytes32 leaf = keccak256(
@@ -515,6 +513,16 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
 
         // emit event
         emit OsTokenSharesSwapped(msg.sender, receiver, osTokenShares, assets);
+    }
+
+    /**
+     * @dev Internal function to check whether the vault is registered
+     * @param vault The address of the vault to check
+     */
+    function _checkVault(address vault) private view {
+        if (!_vaultsRegistry.vaults(vault)) {
+            revert Errors.InvalidVault();
+        }
     }
 
     /**
