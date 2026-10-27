@@ -1,5 +1,5 @@
 {
-  "VaultVersionTest_test_reinitializeFails": "30879",
+  "VaultVersionTest_test_reinitializeFails": "30875",
   "VaultVersionTest_test_upgradeMultipleSteps": "61013",
   "VaultVersionTest_test_upgradeNonAdminFails": "38905",
   "VaultVersionTest_test_upgradeToDifferentVaultIdFails": "42387",

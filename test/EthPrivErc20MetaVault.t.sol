@@ -5,6 +5,7 @@ import {Test} from "forge-std/Test.sol";
 import {Address} from "@openzeppelin/contracts/utils/Address.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {IEthMetaVault} from "../contracts/interfaces/IEthMetaVault.sol";
 import {IEthErc20MetaVault} from "../contracts/interfaces/IEthErc20MetaVault.sol";
 import {IEthPrivErc20MetaVault} from "../contracts/interfaces/IEthPrivErc20MetaVault.sol";
 import {IVaultState} from "../contracts/interfaces/IVaultState.sol";
@@ -12,16 +13,12 @@ import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {IVaultOsToken} from "../contracts/interfaces/IVaultOsToken.sol";
 import {IVaultWhitelist} from "../contracts/interfaces/IVaultWhitelist.sol";
 import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
-import {IERC1967} from "@openzeppelin/contracts/interfaces/IERC1967.sol";
-import {ISubVaultsRegistryFactory} from "../contracts/interfaces/ISubVaultsRegistryFactory.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
+import {EthErc20MetaVault} from "../contracts/vaults/ethereum/EthErc20MetaVault.sol";
 import {EthPrivErc20MetaVault} from "../contracts/vaults/ethereum/EthPrivErc20MetaVault.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 
 contract EthPrivErc20MetaVaultTest is Test, EthHelpers {
-    /// @dev keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant _initializableSlot = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
-
     ForkContracts public contracts;
     EthPrivErc20MetaVault public metaVault;
     ISubVaultsRegistry public registry;
@@ -114,26 +111,32 @@ contract EthPrivErc20MetaVaultTest is Test, EthHelpers {
         metaVault.initialize("0x");
     }
 
-    function test_upgradeFromV6_upgradesSubVaultsRegistry() public {
-        address preCurator = registry.subVaultsCurator();
-        uint256 preSubVaultsCount = registry.getSubVaults().length;
+    function test_upgradesCorrectly() public {
+        bytes memory initParams = abi.encode(
+            IEthErc20MetaVault.EthErc20MetaVaultInitParams({
+                subVaultsCurator: _balancedCurator,
+                capacity: 1000 ether,
+                feePercent: 1000,
+                name: "SW Meta ETH Vault",
+                symbol: "swMetaETH",
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address prevVault = _createPrevVersionMetaVault(VaultType.EthPrivErc20MetaVault, admin, initParams, 3);
 
-        // roll back the vault reinitializer version to simulate a not-yet-upgraded v6 vault
-        vm.store(address(metaVault), _initializableSlot, bytes32(uint256(6)));
+        vm.prank(admin);
+        IVaultWhitelist(prevVault).updateWhitelist(sender, true);
 
-        // running the v7 initializer must upgrade the SubVaultsRegistry proxy in place
-        vm.expectEmit(address(registry));
-        emit IERC1967.Upgraded(ISubVaultsRegistryFactory(_subVaultsRegistryFactory).implementation());
-        metaVault.initialize("");
+        // stake to the sub vaults and enter the exit queue
+        vm.prank(sender);
+        IEthMetaVault(prevVault).deposit{value: 10 ether}(sender, referrer);
+        _getSubVaultsRegistry(prevVault).depositToSubVaults();
+        vm.prank(sender);
+        IEthMetaVault(prevVault).enterExitQueue(1 ether, sender);
 
-        // registry reference and state are preserved
-        assertEq(registry.metaVault(), address(metaVault), "Registry metaVault should be preserved");
-        assertEq(registry.subVaultsCurator(), preCurator, "Curator should be preserved");
-        assertEq(registry.getSubVaults().length, preSubVaultsCount, "Sub-vaults should be preserved");
-
-        // the upgrade cannot be executed twice
-        vm.expectRevert(Initializable.InvalidInitialization.selector);
-        metaVault.initialize("");
+        _upgradeMetaVaultAndCheckState(VaultType.EthPrivErc20MetaVault, prevVault, sender);
+        assertEq(EthErc20MetaVault(payable(prevVault)).name(), "SW Meta ETH Vault", "Name should be preserved");
+        assertEq(EthErc20MetaVault(payable(prevVault)).symbol(), "swMetaETH", "Symbol should be preserved");
     }
 
     function test_deposit_whitelistedUser() public {

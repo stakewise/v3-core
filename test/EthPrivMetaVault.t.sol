@@ -12,17 +12,12 @@ import {IVaultEnterExit} from "../contracts/interfaces/IVaultEnterExit.sol";
 import {IVaultOsToken} from "../contracts/interfaces/IVaultOsToken.sol";
 import {IVaultWhitelist} from "../contracts/interfaces/IVaultWhitelist.sol";
 import {ISubVaultsRegistry} from "../contracts/interfaces/ISubVaultsRegistry.sol";
-import {IERC1967} from "@openzeppelin/contracts/interfaces/IERC1967.sol";
-import {ISubVaultsRegistryFactory} from "../contracts/interfaces/ISubVaultsRegistryFactory.sol";
 import {IKeeperRewards} from "../contracts/interfaces/IKeeperRewards.sol";
 import {Errors} from "../contracts/libraries/Errors.sol";
 import {EthPrivMetaVault} from "../contracts/vaults/ethereum/EthPrivMetaVault.sol";
 import {EthHelpers} from "./helpers/EthHelpers.sol";
 
 contract EthPrivMetaVaultTest is Test, EthHelpers {
-    /// @dev keccak256(abi.encode(uint256(keccak256("openzeppelin.storage.Initializable")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant _initializableSlot = 0xf0c57e16840df040f15088dc2f81fe391c3923bec73e23a9662efc9c229c6a00;
-
     ForkContracts public contracts;
     EthPrivMetaVault public metaVault;
     ISubVaultsRegistry public registry;
@@ -135,26 +130,28 @@ contract EthPrivMetaVaultTest is Test, EthHelpers {
         metaVault.initialize{value: 0}("0x");
     }
 
-    function test_upgradeFromV6_upgradesSubVaultsRegistry() public {
-        address preCurator = registry.subVaultsCurator();
-        uint256 preSubVaultsCount = registry.getSubVaults().length;
+    function test_upgradesCorrectly() public {
+        bytes memory initParams = abi.encode(
+            IEthMetaVault.EthMetaVaultInitParams({
+                subVaultsCurator: _balancedCurator,
+                capacity: 1000 ether,
+                feePercent: 1000,
+                metadataIpfsHash: "bafkreidivzimqfqtoqxkrpge6bjyhlvxqs3rhe73owtmdulaxr5do5in7u"
+            })
+        );
+        address prevVault = _createPrevVersionMetaVault(VaultType.EthPrivMetaVault, admin, initParams, 3);
 
-        // roll back the vault reinitializer version to simulate a not-yet-upgraded v6 vault
-        vm.store(address(metaVault), _initializableSlot, bytes32(uint256(6)));
+        vm.prank(admin);
+        IVaultWhitelist(prevVault).updateWhitelist(sender, true);
 
-        // running the v7 initializer must upgrade the SubVaultsRegistry proxy in place
-        vm.expectEmit(address(registry));
-        emit IERC1967.Upgraded(ISubVaultsRegistryFactory(_subVaultsRegistryFactory).implementation());
-        metaVault.initialize("");
+        // stake to the sub vaults and enter the exit queue
+        vm.prank(sender);
+        IEthMetaVault(prevVault).deposit{value: 10 ether}(sender, referrer);
+        _getSubVaultsRegistry(prevVault).depositToSubVaults();
+        vm.prank(sender);
+        IEthMetaVault(prevVault).enterExitQueue(1 ether, sender);
 
-        // registry reference and state are preserved
-        assertEq(registry.metaVault(), address(metaVault), "Registry metaVault should be preserved");
-        assertEq(registry.subVaultsCurator(), preCurator, "Curator should be preserved");
-        assertEq(registry.getSubVaults().length, preSubVaultsCount, "Sub-vaults should be preserved");
-
-        // the upgrade cannot be executed twice
-        vm.expectRevert(Initializable.InvalidInitialization.selector);
-        metaVault.initialize("");
+        _upgradeMetaVaultAndCheckState(VaultType.EthPrivMetaVault, prevVault, sender);
     }
 
     // ============ Whitelist Deposit Tests ============
