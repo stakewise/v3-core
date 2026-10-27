@@ -378,6 +378,11 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         for (uint256 i = 0; i < positionsCount;) {
             OsTokenPosition memory position = positions[i];
 
+            // must be a registered vault
+            if (!_vaultsRegistry.vaults(position.vault)) {
+                revert Errors.InvalidVault();
+            }
+
             // calculate leaf
             bytes32 leaf = keccak256(
                 bytes.concat(keccak256(abi.encode(_nonce, position.vault, position.leafShares, position.owner)))

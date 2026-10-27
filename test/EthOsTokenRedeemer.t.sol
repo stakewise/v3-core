@@ -993,6 +993,44 @@ contract EthOsTokenRedeemerTest is Test, EthHelpers {
         osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
     }
 
+    function test_redeemOsTokenPositions_invalidVault() public {
+        // Setup: Create queued shares
+        _collateralizeEthVault(address(vault));
+        _depositToVault(address(vault), DEPOSIT_AMOUNT, user1, user1);
+
+        uint256 osTokenShares = contracts.osTokenVaultController.convertToShares(1 ether);
+        vm.prank(user1);
+        vault.mintOsToken(user1, osTokenShares, address(0));
+
+        vm.prank(user1);
+        IERC20(_osToken).approve(address(osTokenRedeemer), osTokenShares);
+
+        vm.prank(user1);
+        osTokenRedeemer.enterExitQueue(osTokenShares, user1);
+
+        // Create position for a vault that is not registered in the VaultsRegistry
+        address invalidVault = makeAddr("InvalidVault");
+        IOsTokenRedeemer.OsTokenPosition[] memory positions = new IOsTokenRedeemer.OsTokenPosition[](1);
+        positions[0] = IOsTokenRedeemer.OsTokenPosition({
+            vault: invalidVault, owner: user1, leafShares: osTokenShares, sharesToRedeem: osTokenShares
+        });
+
+        // Set up valid merkle root (single leaf = root) containing the unregistered vault
+        bytes32 leaf =
+            keccak256(bytes.concat(keccak256(abi.encode(osTokenRedeemer.nonce(), invalidVault, osTokenShares, user1))));
+        IOsTokenRedeemer.RedeemablePositions memory redeemablePositions =
+            IOsTokenRedeemer.RedeemablePositions({merkleRoot: leaf, ipfsHash: TEST_IPFS_HASH});
+        _setRedeemablePositions(redeemablePositions);
+
+        bytes32[] memory proof = new bytes32[](0);
+        bool[] memory proofFlags = new bool[](0);
+
+        // Should revert even though the proof is valid
+        vm.prank(positionsManager);
+        vm.expectRevert(Errors.InvalidVault.selector);
+        osTokenRedeemer.redeemOsTokenPositions(positions, proof, proofFlags);
+    }
+
     function test_redeemOsTokenPositions_success_singlePosition() public {
         // Setup: Create vault position and mint osTokens
         _collateralizeEthVault(address(vault));
