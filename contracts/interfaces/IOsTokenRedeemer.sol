@@ -120,7 +120,7 @@ interface IOsTokenRedeemer is IMulticall {
     function redemptionFeePercent() external view returns (uint256);
 
     /**
-     * @notice The number of accumulated OsToken shares fees that can be claimed by the owner
+     * @notice The number of accumulated OsToken shares fees that can be claimed to the OsTokenVaultController treasury
      * @return The accumulated fees in OsToken shares
      */
     function accumulatedFees() external view returns (uint256);
@@ -264,16 +264,15 @@ interface IOsTokenRedeemer is IMulticall {
     function setPositionsManager(address positionsManager_) external;
 
     /**
-     * @notice Update the redemption fee. Can only be called by the owner.
+     * @notice Update the redemption fee. Can only be called by the OsTokenVaultController owner.
      * @param redemptionFeePercent_ The new redemption fee in basis points
      */
     function setRedemptionFeePercent(uint256 redemptionFeePercent_) external;
 
     /**
-     * @notice Claim the accumulated OsToken shares fees. Can only be called by the owner.
-     * @param receiver The address that will receive the OsToken shares
+     * @notice Claim the accumulated OsToken shares fees to the OsTokenVaultController treasury. Can be called by anyone.
      */
-    function claimFees(address receiver) external;
+    function claimFees() external;
 
     /**
      * @notice Set new redeemable positions. Can only be called by the owner.

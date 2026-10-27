@@ -182,7 +182,10 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     }
 
     /// @inheritdoc IOsTokenRedeemer
-    function setRedemptionFeePercent(uint256 redemptionFeePercent_) external override onlyOwner {
+    function setRedemptionFeePercent(uint256 redemptionFeePercent_) external override {
+        if (msg.sender != Ownable(address(_osTokenVaultController)).owner()) {
+            revert Errors.AccessDenied();
+        }
         if (redemptionFeePercent_ > maxRedemptionFeePercent) {
             revert Errors.InvalidFeePercent();
         }
@@ -194,8 +197,9 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
     }
 
     /// @inheritdoc IOsTokenRedeemer
-    function claimFees(address receiver) external override onlyOwner {
-        if (receiver == address(0)) revert Errors.ZeroAddress();
+    function claimFees() external override {
+        address treasury = _osTokenVaultController.treasury();
+        if (treasury == address(0)) revert Errors.ZeroAddress();
 
         // SLOAD to memory
         uint256 fees = accumulatedFees;
@@ -204,9 +208,9 @@ abstract contract OsTokenRedeemer is Ownable2Step, Multicall, IOsTokenRedeemer {
         // update state
         accumulatedFees = 0;
 
-        // transfer OsToken shares to the receiver
-        SafeERC20.safeTransfer(_osToken, receiver, fees);
-        emit FeesClaimed(receiver, fees);
+        // transfer OsToken shares to the treasury
+        SafeERC20.safeTransfer(_osToken, treasury, fees);
+        emit FeesClaimed(treasury, fees);
     }
 
     /// @inheritdoc IOsTokenRedeemer
